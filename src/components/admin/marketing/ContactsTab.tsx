@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Upload, Users, UserCheck, UserX, Search, Loader2, Download } from "lucide-react";
+import { Upload, Users, UserCheck, UserX, Search, Loader2, Download, ListFilter } from "lucide-react";
 
 type Segment = "member" | "non_member" | "prospect";
 
@@ -88,11 +88,15 @@ function normalizeRow(row: Record<string, string>): ParsedRow {
   return out;
 }
 
+const PAGE_SIZE = 100;
+
 export function ContactsTab() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [segmentFilter, setSegmentFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
   const [parsedRows, setParsedRows] = useState<ParsedRow[] | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -115,15 +119,62 @@ export function ContactsTab() {
     },
   });
 
-  const { data: contacts, isLoading } = useQuery({
-    queryKey: ["marketing-contacts", segmentFilter, search],
+  // Imported audiences/sources summary
+  const { data: sources } = useQuery({
+    queryKey: ["marketing-contacts-sources"],
     queryFn: async () => {
+      const { data, error } = await supabase
+        .from("marketing_contacts")
+        .select("source_label");
+      if (error) throw error;
+      const counts = new Map<string, number>();
+      for (const row of data) {
+        const key = row.source_label || "(no source)";
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+      }
+      return Array.from(counts.entries())
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count);
+    },
+  });
+
+  // Total filtered count for pagination
+  const { data: filteredCount } = useQuery({
+    queryKey: ["marketing-contacts-count", segmentFilter, sourceFilter, search],
+    queryFn: async () => {
+      let q = supabase
+        .from("marketing_contacts")
+        .select("id", { count: "exact", head: true });
+      if (segmentFilter !== "all") q = q.eq("segment", segmentFilter);
+      if (sourceFilter !== "all") {
+        if (sourceFilter === "__none__") q = q.is("source_label", null);
+        else q = q.eq("source_label", sourceFilter);
+      }
+      if (search.trim()) {
+        const s = `%${search.trim()}%`;
+        q = q.or(`email.ilike.${s},first_name.ilike.${s},last_name.ilike.${s},phone.ilike.${s}`);
+      }
+      const { count, error } = await q;
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  const { data: contacts, isLoading } = useQuery({
+    queryKey: ["marketing-contacts", segmentFilter, sourceFilter, search, page],
+    queryFn: async () => {
+      const from = page * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
       let q = supabase
         .from("marketing_contacts")
         .select("id,email,first_name,last_name,phone,segment,source_label,unsubscribed_at,created_at")
         .order("created_at", { ascending: false })
-        .limit(500);
+        .range(from, to);
       if (segmentFilter !== "all") q = q.eq("segment", segmentFilter);
+      if (sourceFilter !== "all") {
+        if (sourceFilter === "__none__") q = q.is("source_label", null);
+        else q = q.eq("source_label", sourceFilter);
+      }
       if (search.trim()) {
         const s = `%${search.trim()}%`;
         q = q.or(`email.ilike.${s},first_name.ilike.${s},last_name.ilike.${s},phone.ilike.${s}`);
@@ -133,6 +184,11 @@ export function ContactsTab() {
       return data as Contact[];
     },
   });
+
+  // Reset page when filters change
+  useMemo(() => {
+    setPage(0);
+  }, [segmentFilter, sourceFilter, search]);
 
   const handleFile = (file: File) => {
     setFileName(file.name);
@@ -184,7 +240,9 @@ export function ContactsTab() {
       setImportResult(merged);
       toast.success(`Imported ${merged.inserted_total} contacts`);
       qc.invalidateQueries({ queryKey: ["marketing-contacts-stats"] });
+      qc.invalidateQueries({ queryKey: ["marketing-contacts-sources"] });
       qc.invalidateQueries({ queryKey: ["marketing-contacts"] });
+      qc.invalidateQueries({ queryKey: ["marketing-contacts-count"] });
     } catch (e) {
       toast.error(`Import failed: ${(e as Error).message}`);
     } finally {
@@ -200,17 +258,49 @@ export function ContactsTab() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const exportCsv = () => {
-    if (!contacts) return;
-    const csv = Papa.unparse(contacts);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `marketing_contacts_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportCsv = async () => {
+    toast.info("Preparing export...");
+    try {
+      const all: Contact[] = [];
+      const batch = 1000;
+      let from = 0;
+      while (true) {
+        let q = supabase
+          .from("marketing_contacts")
+          .select("id,email,first_name,last_name,phone,segment,source_label,unsubscribed_at,created_at")
+          .order("created_at", { ascending: false })
+          .range(from, from + batch - 1);
+        if (segmentFilter !== "all") q = q.eq("segment", segmentFilter);
+        if (sourceFilter !== "all") {
+          if (sourceFilter === "__none__") q = q.is("source_label", null);
+          else q = q.eq("source_label", sourceFilter);
+        }
+        if (search.trim()) {
+          const s = `%${search.trim()}%`;
+          q = q.or(`email.ilike.${s},first_name.ilike.${s},last_name.ilike.${s},phone.ilike.${s}`);
+        }
+        const { data, error } = await q;
+        if (error) throw error;
+        const chunk = (data ?? []) as Contact[];
+        all.push(...chunk);
+        if (chunk.length < batch) break;
+        from += batch;
+      }
+      const csv = Papa.unparse(all);
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `marketing_contacts_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Exported ${all.length} contacts`);
+    } catch (e) {
+      toast.error(`Export failed: ${(e as Error).message}`);
+    }
   };
+
+  const totalPages = Math.max(1, Math.ceil((filteredCount ?? 0) / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -223,6 +313,37 @@ export function ContactsTab() {
         <StatCard label="Unsubscribed" value={stats?.unsubscribed ?? 0} icon={<UserX className="h-4 w-4 text-destructive" />} />
       </div>
 
+      {/* Imported audiences summary */}
+      {sources && sources.length > 0 && (
+        <Card className="p-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <ListFilter className="h-4 w-4" />
+            <h3 className="font-semibold">Imported audiences</h3>
+            <Badge variant="secondary" className="ml-auto">{sources.length} source{sources.length === 1 ? "" : "s"}</Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {sources.map((s) => {
+              const isActive = sourceFilter === (s.label === "(no source)" ? "__none__" : s.label);
+              return (
+                <button
+                  key={s.label}
+                  onClick={() => {
+                    const v = s.label === "(no source)" ? "__none__" : s.label;
+                    setSourceFilter(isActive ? "all" : v);
+                  }}
+                  className={`text-xs rounded-md border px-2 py-1 transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"
+                  }`}
+                >
+                  <span className="font-mono">{s.label}</span>
+                  <span className="ml-2 opacity-70">{s.count.toLocaleString()}</span>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       {/* Import */}
       <Card className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -231,7 +352,7 @@ export function ContactsTab() {
               <Upload className="h-4 w-4" /> Import contacts (CSV)
             </h3>
             <p className="text-xs text-muted-foreground">
-              Auto-detects Mailchimp columns. All emails imported as opted-in.
+              Auto-detects Mailchimp columns. All emails imported as opted-in. Duplicates are skipped by email.
             </p>
           </div>
           <div className="flex gap-2">
@@ -310,9 +431,36 @@ export function ContactsTab() {
               <SelectItem value="prospect">Prospects</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!contacts?.length}>
-            <Download className="h-4 w-4 mr-1" /> Export
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger className="w-[240px]">
+              <SelectValue placeholder="All audiences" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All audiences</SelectItem>
+              {sources?.map((s) => (
+                <SelectItem
+                  key={s.label}
+                  value={s.label === "(no source)" ? "__none__" : s.label}
+                >
+                  {s.label} ({s.count.toLocaleString()})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={!filteredCount}>
+            <Download className="h-4 w-4 mr-1" /> Export {filteredCount ? `(${filteredCount.toLocaleString()})` : ""}
           </Button>
+        </div>
+
+        <div className="text-xs text-muted-foreground">
+          {filteredCount !== undefined ? (
+            <>
+              Showing {contacts?.length ?? 0} of {filteredCount.toLocaleString()} contact{filteredCount === 1 ? "" : "s"}
+              {(segmentFilter !== "all" || sourceFilter !== "all" || search.trim()) && " (filtered)"}
+            </>
+          ) : (
+            "Loading..."
+          )}
         </div>
 
         <div className="border rounded-md overflow-x-auto">
@@ -332,7 +480,11 @@ export function ContactsTab() {
                 <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading...</td></tr>
               )}
               {!isLoading && contacts?.length === 0 && (
-                <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No contacts yet — import a CSV above.</td></tr>
+                <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">
+                  {filteredCount === 0 && (segmentFilter !== "all" || sourceFilter !== "all" || search.trim())
+                    ? "No contacts match the current filters."
+                    : "No contacts yet — import a CSV above."}
+                </td></tr>
               )}
               {contacts?.map((c) => (
                 <tr key={c.id} className="border-t">
@@ -353,8 +505,32 @@ export function ContactsTab() {
             </tbody>
           </table>
         </div>
-        {contacts && contacts.length === 500 && (
-          <p className="text-xs text-muted-foreground">Showing first 500 — narrow with search/filter.</p>
+
+        {/* Pagination */}
+        {filteredCount !== undefined && filteredCount > PAGE_SIZE && (
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <div className="text-xs text-muted-foreground">
+              Page {page + 1} of {totalPages}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 0}
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page + 1 >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         )}
       </Card>
     </div>
