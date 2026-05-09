@@ -410,6 +410,59 @@ export function ContactsTab() {
 
       {/* List */}
       <Card className="p-4 space-y-3">
+        {/* Segment pills */}
+        <div className="flex flex-wrap gap-2">
+          {([
+            { key: "all", label: "All", count: stats?.total ?? 0, cls: "" },
+            { key: "prospect", label: "Prospects", count: stats?.prospect ?? 0, cls: "border-emerald-500/40 data-[active=true]:bg-emerald-600 data-[active=true]:text-white" },
+            { key: "member", label: "Members", count: stats?.member ?? 0, cls: "border-blue-500/40 data-[active=true]:bg-blue-600 data-[active=true]:text-white" },
+            { key: "non_member", label: "Non-members", count: stats?.non_member ?? 0, cls: "border-amber-500/40 data-[active=true]:bg-amber-600 data-[active=true]:text-white" },
+          ] as const).map((p) => (
+            <button
+              key={p.key}
+              data-active={segmentFilter === p.key}
+              onClick={() => setSegmentFilter(p.key)}
+              className={`text-sm rounded-md border px-3 py-1.5 font-medium transition-colors hover:bg-muted ${p.cls}`}
+            >
+              {p.label} <span className="opacity-70 ml-1">{p.count.toLocaleString()}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Prospects-only note */}
+        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Marketing list is prospects-only.</span>{" "}
+          Contacts that match a current member or non-member are automatically excluded — those audiences are managed in their own systems. Use the segment pills above to verify.
+        </div>
+
+        {/* Active filter chips */}
+        {(segmentFilter !== "all" || sourceFilter !== "all" || search.trim()) && (
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">Filters:</span>
+            {segmentFilter !== "all" && (
+              <button onClick={() => setSegmentFilter("all")} className="rounded-full border px-2 py-0.5 hover:bg-muted">
+                segment: {segmentFilter} ✕
+              </button>
+            )}
+            {sourceFilter !== "all" && (
+              <button onClick={() => setSourceFilter("all")} className="rounded-full border px-2 py-0.5 hover:bg-muted">
+                source: {sourceFilter} ✕
+              </button>
+            )}
+            {search.trim() && (
+              <button onClick={() => setSearch("")} className="rounded-full border px-2 py-0.5 hover:bg-muted">
+                search: "{search.trim()}" ✕
+              </button>
+            )}
+            <button
+              onClick={() => { setSegmentFilter("all"); setSourceFilter("all"); setSearch(""); }}
+              className="text-muted-foreground underline ml-1"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
+
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -420,17 +473,6 @@ export function ContactsTab() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <Select value={segmentFilter} onValueChange={setSegmentFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All segments</SelectItem>
-              <SelectItem value="member">Members</SelectItem>
-              <SelectItem value="non_member">Non-members</SelectItem>
-              <SelectItem value="prospect">Prospects</SelectItem>
-            </SelectContent>
-          </Select>
           <Select value={sourceFilter} onValueChange={setSourceFilter}>
             <SelectTrigger className="w-[240px]">
               <SelectValue placeholder="All audiences" />
