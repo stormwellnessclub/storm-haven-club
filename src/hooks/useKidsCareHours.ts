@@ -181,6 +181,8 @@ export function useSaveKidsCareHourSlots() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
       toast.success("Kids Care hours saved");
     },
     onError: (error: Error) => {
