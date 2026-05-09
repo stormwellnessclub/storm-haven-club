@@ -226,6 +226,8 @@ export function useCopyKidsCareHourSlots() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
       toast.success("Hours copied to selected dates");
     },
     onError: (error: Error) => {
