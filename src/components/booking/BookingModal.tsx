@@ -122,7 +122,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       setSelectedPassType(creditsData.availablePasses[0].pass_type);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.id]);
+  }, [session?.id, creditsLoading]);
 
   // Persist draft as user changes selections — keyed by session id.
   // Note: do NOT reset on dismiss; users can resume.
