@@ -92,9 +92,15 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const hasNoPaymentOptions = !canUseMemberCredits && !canUsePass;
 
   // Restore from persisted draft when this session matches the saved draft.
-  // Otherwise set default payment method based on availability.
+  // Otherwise set defaults ONCE per session id — never re-run on creditsData
+  // identity changes (the filter array is a new ref every render, which would
+  // otherwise reset the user's selection mid-flow).
+  const initializedSessionRef = useRef<string | null>(null);
   useEffect(() => {
     if (!session) return;
+    if (initializedSessionRef.current === session.id) return;
+    initializedSessionRef.current = session.id;
+
     const draft = readClassDraft();
     if (draft && draft.sessionId === session.id) {
       if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
@@ -114,7 +120,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       setSelectedPassType(creditsData.availablePasses[0].pass_type);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.id, canUseMemberCredits, canUsePass, creditsData?.availablePasses]);
+  }, [session?.id]);
 
   // Persist draft as user changes selections — keyed by session id.
   // Note: do NOT reset on dismiss; users can resume.
