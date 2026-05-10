@@ -99,6 +99,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   useEffect(() => {
     if (!session) return;
     if (initializedSessionRef.current === session.id) return;
+    // Wait until credits have loaded so defaults reflect real availability.
+    if (creditsLoading) return;
     initializedSessionRef.current = session.id;
 
     const draft = readClassDraft();
