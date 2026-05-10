@@ -38,7 +38,7 @@ import {
   ListOrdered,
 } from "lucide-react";
 import { format, parse, parseISO } from "date-fns";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { ClassReviewsList } from "@/components/reviews/ClassReviewsList";
