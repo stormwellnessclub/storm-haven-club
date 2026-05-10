@@ -25,17 +25,64 @@ interface StaffMember {
   createdAt?: string;
 }
 
+interface Placeholder {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  roles: AppRole[];
+  createdAt: string;
+}
+
 export default function StaffRoles() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [placeholderDialogOpen, setPlaceholderDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchStaffMembers();
+    fetchPlaceholders();
   }, []);
+
+  const fetchPlaceholders = async () => {
+    const { data, error } = await (supabase as any)
+      .from('staff_placeholders')
+      .select('id, first_name, last_name, email, phone, roles, created_at')
+      .eq('archived', false)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching placeholders:', error);
+      return;
+    }
+    setPlaceholders((data ?? []).map((p: any) => ({
+      id: p.id,
+      firstName: p.first_name,
+      lastName: p.last_name,
+      email: p.email,
+      phone: p.phone,
+      roles: p.roles ?? [],
+      createdAt: p.created_at,
+    })));
+  };
+
+  const archivePlaceholder = async (id: string) => {
+    const { error } = await (supabase as any)
+      .from('staff_placeholders')
+      .update({ archived: true })
+      .eq('id', id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to archive", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Removed from schedule list" });
+    fetchPlaceholders();
+  };
 
   const fetchStaffMembers = async () => {
     try {
