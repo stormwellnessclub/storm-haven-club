@@ -198,30 +198,30 @@ export function useUserCredits() {
 export function useAvailableCreditsForCategory(classCategory: string) {
   const { data: creditsData, ...rest } = useUserCredits();
 
-  // Filter passes using the category mapping - a pass is valid if isPassValidForClass returns true.
-  // Also exclude Kids Care passes — they should ONLY be redeemable through the Kids Care booking flow,
-  // never appear as an option for regular adult class bookings.
-  const availablePasses = creditsData?.classPasses.filter(
-    (pass) =>
-      pass.classes_remaining > 0 &&
-      !pass.pass_type?.toLowerCase().startsWith("kids_care") &&
-      isPassValidForClass(pass.category, classCategory)
-  ) || [];
+  // Memoize derived values so consumers don't see a fresh object/array
+  // on every render (which would re-fire their effects and reset state).
+  const data = useMemo(() => {
+    const availablePasses = creditsData?.classPasses.filter(
+      (pass) =>
+        pass.classes_remaining > 0 &&
+        !pass.pass_type?.toLowerCase().startsWith("kids_care") &&
+        isPassValidForClass(pass.category, classCategory)
+    ) || [];
 
-  // Only active (non-frozen) members can use membership class credits
-  const hasClassCredits =
-    creditsData?.isMember &&
-    creditsData?.memberStatus === "active" &&
-    creditsData?.classCredits &&
-    creditsData.classCredits.credits_remaining > 0;
+    const hasClassCredits = !!(
+      creditsData?.isMember &&
+      creditsData?.memberStatus === "active" &&
+      creditsData?.classCredits &&
+      creditsData.classCredits.credits_remaining > 0
+    );
 
-  return {
-    data: {
+    return {
       hasClassCredits,
       classCreditsRemaining: creditsData?.classCredits?.credits_remaining || 0,
       availablePasses,
       totalPassCredits: availablePasses.reduce((sum, p) => sum + p.classes_remaining, 0),
-    },
-    ...rest,
-  };
+    };
+  }, [creditsData, classCategory]);
+
+  return { data, ...rest };
 }
