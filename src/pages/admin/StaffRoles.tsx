@@ -235,6 +235,61 @@ export default function StaffRoles() {
             )}
           </TabsContent>
 
+          <TabsContent value="unactivated" className="space-y-4">
+            {placeholders.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <UserPlus className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">No unactivated staff</p>
+                  <p className="text-sm text-muted-foreground">Use "Add to Schedule" to roster someone without sending an invite.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Roles</TableHead>
+                      <TableHead>Date Added</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {placeholders.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.firstName} {p.lastName}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.email ?? '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.phone ?? '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {p.roles.slice(0, 3).map((role) => (
+                              <Badge key={role} variant="secondary" className="text-xs">{ROLE_LABELS[role]}</Badge>
+                            ))}
+                            {p.roles.length > 3 && (
+                              <Badge variant="outline" className="text-xs">+{p.roles.length - 3}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {format(new Date(p.createdAt), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => archivePlaceholder(p.id)}>
+                            <Archive className="h-4 w-4 mr-1" />
+                            Archive
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="invites">
             <PendingInvitesTab />
           </TabsContent>
@@ -244,6 +299,11 @@ export default function StaffRoles() {
           open={inviteDialogOpen}
           onOpenChange={setInviteDialogOpen}
           onInviteSent={fetchStaffMembers}
+        />
+        <AddPlaceholderStaffDialog
+          open={placeholderDialogOpen}
+          onOpenChange={setPlaceholderDialogOpen}
+          onCreated={fetchPlaceholders}
         />
       </div>
     </AdminLayout>
