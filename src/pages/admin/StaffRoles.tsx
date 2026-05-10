@@ -159,6 +159,7 @@ export default function StaffRoles() {
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
             <TabsTrigger value="active">Active Staff</TabsTrigger>
+            <TabsTrigger value="unactivated">Unactivated ({placeholders.length})</TabsTrigger>
             <TabsTrigger value="invites">Pending Invites</TabsTrigger>
           </TabsList>
 
