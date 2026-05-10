@@ -85,7 +85,14 @@ export function WeekGridView({ members, dates, resolved, onCellClick, onShiftCli
                     className="grid grid-cols-[200px_repeat(7,1fr)] border-b hover:bg-muted/10 transition-colors"
                   >
                     <div className="p-3 flex flex-col justify-center">
-                      <div className="text-sm font-medium truncate">{m.name}</div>
+                      <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                        {m.name}
+                        {m.isPlaceholder && (
+                          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                            Unactivated
+                          </span>
+                        )}
+                      </div>
                       {m.email && (
                         <div className="text-xs text-muted-foreground truncate">{m.email}</div>
                       )}

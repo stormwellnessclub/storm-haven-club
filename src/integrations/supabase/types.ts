@@ -6403,6 +6403,48 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_placeholders: {
+        Row: {
+          archived: boolean
+          created_at: string
+          created_by: string | null
+          email: string | null
+          first_name: string
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          roles: Database["public"]["Enums"]["app_role"][]
+          updated_at: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          first_name: string
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          roles?: Database["public"]["Enums"]["app_role"][]
+          updated_at?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          roles?: Database["public"]["Enums"]["app_role"][]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_shift_templates: {
         Row: {
           created_at: string

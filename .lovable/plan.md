@@ -1,17 +1,56 @@
-## Plan: Purge overlap + improve segment visibility
+## Goal
 
-**1. Hard-purge 162 overlapping rows from `marketing_contacts`**
-- Delete rows where `segment IN ('member','non_member')` AND `source_label = 'mailchimp_roster_2026_05_07'`.
-- Result: marketing list becomes prospects-only (~2,435 rows from this import).
-- Run via insert/migration tool with explicit count check before/after.
+Let you add a person to staff scheduling **without** triggering the invite email / activation link. They'll show up in the Staff Schedule team list and can be assigned shifts immediately. Later, when you're ready, you can promote them into a real invite.
 
-**2. Improve segment visibility in Contacts tab UI** (`src/components/admin/marketing/ContactsTab.tsx`)
-- Replace the plain segment dropdown with prominent clickable segment "pills" at the top of the list — each shows count and is colored:
-  - All • Prospects (green) • Members (blue) • Non-members (amber) • Unsubscribed
-- Add a clear banner/note above the table: "This list is prospects-only — members and non-members are tracked in their own systems and excluded from marketing imports."
-- Show active filter chips (segment + source + search) with one-click clear.
-- Keep existing search, source filter, pagination, and export behavior unchanged.
+## How it will work
 
-**3. Also export a one-time CSV of the 162 purged rows to `/mnt/documents/`** before deletion as a backup, in case you want to re-add any.
+Right now "Add Staff Member" only creates a row in `staff_invites`, which is geared toward sending an activation email and creating a real login. The Staff Schedule already supports non-user people via the `person_ref` column on `staff_shifts` — we'll plug a new "placeholder staff" concept into that path.
 
-No business-logic / RPC changes. No email sending. Just cleanup + UI clarity.
+### 1. New `staff_placeholders` table
+
+A lightweight roster of schedulable people who don't have (and don't need) a login yet.
+
+Fields:
+- first name, last name, email (optional), phone (optional)
+- roles (same `app_role[]` as invites, used only for grouping in the schedule)
+- notes (optional)
+- created_by, archived flag
+
+Admins/super_admins can manage these rows (RLS via `has_any_role`).
+
+### 2. Surface them in the schedule
+
+`useTeamMembers` already merges staff + instructors + therapists into one list keyed by `user_id` or `ref:<email>`. We'll add a fourth source: rows from `staff_placeholders`, keyed as `ref:placeholder:<id>`, grouped by their assigned role (Managers / Front Desk / Instructors / Therapists / etc.) with a small "Unactivated" badge so you can tell them apart.
+
+When you assign a shift, `staff_shifts.person_ref` is set to that same `ref:placeholder:<id>` and `person_name` is filled in — no changes needed to the shift schema, it already supports this.
+
+### 3. UI changes
+
+**Staff Management page (`/admin/staff-roles`):**
+- Split the top button into two:
+  - **"Add to Schedule"** (primary) — opens a small dialog that only collects first/last name, optional email/phone, and role(s). Creates a `staff_placeholders` row. No email sent, no auth account, no activation link.
+  - **"Send Invite"** (secondary) — the existing `InviteStaffDialog` flow, unchanged.
+- New third tab **"Unactivated"** listing placeholder staff with edit / archive / "Send invite now" actions. "Send invite now" pre-fills `InviteStaffDialog` with their details, and on successful claim the placeholder is archived/merged.
+
+**Staff Schedule page (`/admin/staff-schedule`):**
+- Placeholders appear in the team list/grid like any other member. A subtle "Unactivated" pill next to the name makes it clear they don't have a login yet.
+- Shift creation in `ShiftDialog` works against them unchanged via `person_ref`.
+
+### 4. What stays the same
+
+- No changes to `staff_shifts`, `staff_invites`, `user_roles`, or the existing invite email flow.
+- Existing instructors/therapists logic is untouched.
+- Permissions: only admin/super_admin can create or edit placeholders.
+
+## Technical details
+
+- New migration: `staff_placeholders` table + RLS (`has_any_role(auth.uid(), ARRAY['super_admin','admin'])` for all actions) + `updated_at` trigger.
+- `useTeamMembers.ts`: fetch placeholders in parallel, fold into `byKey` with `key = "ref:placeholder:" + id`, `user_id = null`, group from first role.
+- New `AddPlaceholderStaffDialog.tsx` for the lightweight add form.
+- `StaffRoles.tsx`: add second button + "Unactivated" tab + "Send invite now" handoff (pre-fills `InviteStaffDialog` and archives placeholder once claimed).
+- `TeamMember` type gets an optional `isPlaceholder: boolean` so the schedule UI can render the badge.
+- Optional follow-up (not in this plan): when a placeholder's email later matches a claimed invite/profile, auto-archive and re-point their existing shifts' `person_ref` → `user_id`. Happy to add this if you want, but it's not required for scheduling to work.
+
+## Open question
+
+When you eventually "Send invite now" from a placeholder and they activate their account, do you want their already-scheduled shifts to automatically re-link from `person_ref` to their new `user_id`? (Recommended — keeps history clean. If yes, I'll include the link-on-claim trigger in the same migration.)

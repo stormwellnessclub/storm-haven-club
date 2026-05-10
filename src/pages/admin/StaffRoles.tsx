@@ -5,13 +5,14 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Search, UserPlus, Loader2 } from "lucide-react";
+import { Shield, Search, UserPlus, Mail, Loader2, Archive } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AppRole, ROLE_LABELS } from "@/lib/permissions";
 import { InviteStaffDialog } from "@/components/admin/InviteStaffDialog";
+import { AddPlaceholderStaffDialog } from "@/components/admin/AddPlaceholderStaffDialog";
 import { PendingInvitesTab } from "@/components/admin/PendingInvitesTab";
 import { format } from "date-fns";
 
@@ -24,17 +25,64 @@ interface StaffMember {
   createdAt?: string;
 }
 
+interface Placeholder {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string | null;
+  roles: AppRole[];
+  createdAt: string;
+}
+
 export default function StaffRoles() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [placeholderDialogOpen, setPlaceholderDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchStaffMembers();
+    fetchPlaceholders();
   }, []);
+
+  const fetchPlaceholders = async () => {
+    const { data, error } = await (supabase as any)
+      .from('staff_placeholders')
+      .select('id, first_name, last_name, email, phone, roles, created_at')
+      .eq('archived', false)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error fetching placeholders:', error);
+      return;
+    }
+    setPlaceholders((data ?? []).map((p: any) => ({
+      id: p.id,
+      firstName: p.first_name,
+      lastName: p.last_name,
+      email: p.email,
+      phone: p.phone,
+      roles: p.roles ?? [],
+      createdAt: p.created_at,
+    })));
+  };
+
+  const archivePlaceholder = async (id: string) => {
+    const { error } = await (supabase as any)
+      .from('staff_placeholders')
+      .update({ archived: true })
+      .eq('id', id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to archive", variant: "destructive" });
+      return;
+    }
+    toast({ title: "Removed from schedule list" });
+    fetchPlaceholders();
+  };
 
   const fetchStaffMembers = async () => {
     try {
@@ -96,15 +144,22 @@ export default function StaffRoles() {
             <h1 className="text-2xl font-bold">Staff Management</h1>
             <p className="text-muted-foreground">Manage staff access, roles, and invitations</p>
           </div>
-          <Button onClick={() => setInviteDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Staff Member
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setPlaceholderDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add to Schedule
+            </Button>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(true)}>
+              <Mail className="h-4 w-4 mr-2" />
+              Send Invite
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
             <TabsTrigger value="active">Active Staff</TabsTrigger>
+            <TabsTrigger value="unactivated">Unactivated ({placeholders.length})</TabsTrigger>
             <TabsTrigger value="invites">Pending Invites</TabsTrigger>
           </TabsList>
 
@@ -180,6 +235,61 @@ export default function StaffRoles() {
             )}
           </TabsContent>
 
+          <TabsContent value="unactivated" className="space-y-4">
+            {placeholders.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <UserPlus className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">No unactivated staff</p>
+                  <p className="text-sm text-muted-foreground">Use "Add to Schedule" to roster someone without sending an invite.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Roles</TableHead>
+                      <TableHead>Date Added</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {placeholders.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.firstName} {p.lastName}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.email ?? '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.phone ?? '—'}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {p.roles.slice(0, 3).map((role) => (
+                              <Badge key={role} variant="secondary" className="text-xs">{ROLE_LABELS[role]}</Badge>
+                            ))}
+                            {p.roles.length > 3 && (
+                              <Badge variant="outline" className="text-xs">+{p.roles.length - 3}</Badge>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {format(new Date(p.createdAt), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => archivePlaceholder(p.id)}>
+                            <Archive className="h-4 w-4 mr-1" />
+                            Archive
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </TabsContent>
+
           <TabsContent value="invites">
             <PendingInvitesTab />
           </TabsContent>
@@ -189,6 +299,11 @@ export default function StaffRoles() {
           open={inviteDialogOpen}
           onOpenChange={setInviteDialogOpen}
           onInviteSent={fetchStaffMembers}
+        />
+        <AddPlaceholderStaffDialog
+          open={placeholderDialogOpen}
+          onOpenChange={setPlaceholderDialogOpen}
+          onCreated={fetchPlaceholders}
         />
       </div>
     </AdminLayout>

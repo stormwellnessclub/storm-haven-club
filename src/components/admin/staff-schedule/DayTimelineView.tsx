@@ -101,7 +101,14 @@ export function DayTimelineView({ members, date, resolved, onCellClick, onShiftC
             return (
               <div key={m.key} className="flex border-b hover:bg-muted/10 group/row">
                 <div className="w-[200px] flex-shrink-0 p-3 flex flex-col justify-center">
-                  <div className="text-sm font-medium truncate">{m.name}</div>
+                  <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                    {m.name}
+                    {m.isPlaceholder && (
+                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        Unactivated
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-muted-foreground">{m.group}</div>
                 </div>
                 <div

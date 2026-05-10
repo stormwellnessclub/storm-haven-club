@@ -24,12 +24,17 @@ export function useTeamMembers() {
       setLoading(true);
       try {
         // Pull staff via user_roles + profiles
-        const [{ data: roles }, { data: instructors }, { data: therapists }] = await Promise.all([
+        const [{ data: roles }, { data: instructors }, { data: therapists }, placeholdersRes] = await Promise.all([
           supabase.from('user_roles').select('user_id, role'),
           // Use SECURITY DEFINER RPCs to fetch email (restricted column for staff only)
           (supabase as any).rpc('get_instructors_with_contact'),
           (supabase as any).rpc('get_spa_therapists_with_contact'),
+          (supabase as any)
+            .from('staff_placeholders')
+            .select('id, first_name, last_name, email, phone, roles')
+            .eq('archived', false),
         ]);
+        const placeholders = (placeholdersRes as any)?.data ?? [];
 
         // Get profiles for staff users
         const staffUserIds = Array.from(new Set((roles ?? []).map((r: any) => r.user_id)));
@@ -131,6 +136,31 @@ export function useTeamMembers() {
               roleLabels: ['spa_staff' as AppRole],
             });
           }
+        }
+
+        // Placeholders (no auth account; schedulable only)
+        for (const p of placeholders ?? []) {
+          const pAny = p as any;
+          const email = (pAny.email || '').toLowerCase() || null;
+          if (email) {
+            const matched = Array.from(byKey.values()).find(
+              (m) => (m.email || '').toLowerCase() === email
+            );
+            if (matched) continue;
+          }
+          const firstRole = (pAny.roles?.[0] as AppRole) ?? undefined;
+          const group = firstRole ? (GROUP_FOR_ROLE[firstRole] ?? 'Other') : 'Other';
+          const fullName = `${pAny.first_name ?? ''} ${pAny.last_name ?? ''}`.trim();
+          const key = `ref:placeholder:${pAny.id}`;
+          byKey.set(key, {
+            key,
+            user_id: null,
+            email,
+            name: fullName || email || 'Staff',
+            group,
+            roleLabels: (pAny.roles as AppRole[]) ?? [],
+            isPlaceholder: true,
+          });
         }
 
         const sorted = Array.from(byKey.values()).sort((a, b) => {
