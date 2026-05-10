@@ -138,6 +138,31 @@ export function useTeamMembers() {
           }
         }
 
+        // Placeholders (no auth account; schedulable only)
+        for (const p of placeholders ?? []) {
+          const pAny = p as any;
+          const email = (pAny.email || '').toLowerCase() || null;
+          if (email) {
+            const matched = Array.from(byKey.values()).find(
+              (m) => (m.email || '').toLowerCase() === email
+            );
+            if (matched) continue;
+          }
+          const firstRole = (pAny.roles?.[0] as AppRole) ?? undefined;
+          const group = firstRole ? (GROUP_FOR_ROLE[firstRole] ?? 'Other') : 'Other';
+          const fullName = `${pAny.first_name ?? ''} ${pAny.last_name ?? ''}`.trim();
+          const key = `ref:placeholder:${pAny.id}`;
+          byKey.set(key, {
+            key,
+            user_id: null,
+            email,
+            name: fullName || email || 'Staff',
+            group,
+            roleLabels: (pAny.roles as AppRole[]) ?? [],
+            isPlaceholder: true,
+          });
+        }
+
         const sorted = Array.from(byKey.values()).sort((a, b) => {
           const groupOrder: TeamMember['group'][] = [
             'Managers',
