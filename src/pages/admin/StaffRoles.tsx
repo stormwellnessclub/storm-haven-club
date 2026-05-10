@@ -144,10 +144,16 @@ export default function StaffRoles() {
             <h1 className="text-2xl font-bold">Staff Management</h1>
             <p className="text-muted-foreground">Manage staff access, roles, and invitations</p>
           </div>
-          <Button onClick={() => setInviteDialogOpen(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add Staff Member
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => setPlaceholderDialogOpen(true)}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add to Schedule
+            </Button>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(true)}>
+              <Mail className="h-4 w-4 mr-2" />
+              Send Invite
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="active" className="w-full">
