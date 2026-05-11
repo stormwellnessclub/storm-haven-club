@@ -155,7 +155,8 @@ serve(async (req) => {
       currency: "usd",
       customer: customerId,
       receipt_email: buyerEmail,
-      automatic_payment_methods: { enabled: true },
+      // Card-only: avoid wallets/redirect methods that can fail silently in embedded checkout.
+      payment_method_types: ["card"],
       description: `Mother's Day Class Pack — ${tier.label} (10 classes)`,
       metadata: {
         type: "mothers_day_class_pack",
