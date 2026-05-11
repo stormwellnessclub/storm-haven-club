@@ -15,6 +15,7 @@ import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { Calendar, Clock, MapPin, User, X, AlertTriangle, Star } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
+import { CANCELLATION_POLICY_TEXT } from "@/components/booking/CancellationPolicyText";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
