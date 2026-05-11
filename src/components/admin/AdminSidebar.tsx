@@ -104,6 +104,7 @@ const departments: DepartmentSection[] = [
       { title: "Member Credits", url: "/admin/member-credits", icon: CreditCard },
       { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake },
       { title: "Agreements", url: "/admin/agreements", icon: FileText },
+      { title: "Signature Certificates", url: "/admin/signature-certificates", icon: FileText },
     ],
   },
   {

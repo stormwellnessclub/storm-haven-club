@@ -92,6 +92,7 @@ import EmailManagement from "./pages/admin/EmailManagement";
 import FreezeRequests from "./pages/admin/FreezeRequests";
 import Equipment from "./pages/admin/Equipment";
 import Agreements from "./pages/admin/Agreements";
+import SignatureCertificates from "./pages/admin/SignatureCertificates";
 import Reports from "./pages/admin/Reports";
 import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
 import ClassRoster from "./pages/admin/ClassRoster";
@@ -260,6 +261,7 @@ const App = () => (
               <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />
               <Route path="/admin/equipment" element={<ProtectedAdminRoute><Equipment /></ProtectedAdminRoute>} />
               <Route path="/admin/agreements" element={<ProtectedAdminRoute><Agreements /></ProtectedAdminRoute>} />
+              <Route path="/admin/signature-certificates" element={<ProtectedAdminRoute><SignatureCertificates /></ProtectedAdminRoute>} />
               <Route path="/admin/reports" element={<ProtectedAdminRoute><Reports /></ProtectedAdminRoute>} />
               <Route path="/admin/front-desk" element={<ProtectedAdminRoute><FrontDeskPOS /></ProtectedAdminRoute>} />
               <Route path="/admin/class-roster/:sessionId" element={<ProtectedAdminRoute><ClassRoster /></ProtectedAdminRoute>} />
