@@ -57,6 +57,7 @@ export default function Scanner() {
   const isProcessingRef = useRef(false);
 
   const { scanMember, scanMemberAsync, isScanning } = useMemberScanner();
+  const syncMemberStatus = useSyncMemberStatus();
   const { data: recentScans } = useRecentScans(10);
   const { data: settings } = useScannerSettings("front_desk");
   const updateSettings = useUpdateScannerSettings();
