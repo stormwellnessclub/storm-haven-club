@@ -223,8 +223,13 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
     const now = new Date();
     return sessions
       .filter((s) => !isSessionFinishedToday(s.session_date, s.start_time, s.class_types.duration_minutes || 50, now))
-      .filter((s) => categoryFilter === "all" || s.class_types.category === categoryFilter);
-  }, [sessions, categoryFilter]);
+      .filter((s) => roomFilter === "all" || s.room === roomFilter)
+      .filter((s) => {
+        if (heatFilter === "all") return true;
+        if (heatFilter === "heated") return s.class_types.is_heated === true;
+        return s.class_types.is_heated === false;
+      });
+  }, [sessions, roomFilter, heatFilter]);
 
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClassSession[]> = {};
