@@ -1,15 +1,19 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, ScanLine, CalendarPlus, Menu } from "lucide-react";
+import { Home, CalendarPlus, Ticket, Menu } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { label: "Home", icon: Home, path: "/member", exact: true },
-  { label: "Entry", icon: ScanLine, path: "/member/entry" },
-  { label: "Book", icon: CalendarPlus, path: "/member/book" },
+  { label: "Home", icon: Home, path: "/portal", exact: true },
+  { label: "Book", icon: CalendarPlus, path: "/portal/book" },
+  { label: "Passes", icon: Ticket, path: "/portal/passes" },
 ];
 
-export function MemberBottomNav() {
+/**
+ * Mobile-only bottom nav for the non-member portal. Mirrors MemberBottomNav.
+ * Desktop continues to use the sidebar (this is hidden via md:hidden).
+ */
+export function PortalBottomNav() {
   const location = useLocation();
   const { toggleSidebar } = useSidebar();
 

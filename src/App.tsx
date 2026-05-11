@@ -11,6 +11,8 @@ import { SessionMonitor } from "@/components/SessionMonitor";
 import { ProtectedAdminRoute } from "@/components/admin/ProtectedAdminRoute";
 import { ProtectedMemberRoute } from "@/components/member/ProtectedMemberRoute";
 import MemberDashboard from "@/pages/member/Dashboard";
+import MemberBook from "@/pages/member/Book";
+import MemberBookClass from "@/pages/member/BookClass";
 import MemberProfile from "@/pages/member/Profile";
 import MemberCredits from "@/pages/member/Credits";
 import MemberMembership from "@/pages/member/Membership";
@@ -118,6 +120,8 @@ import KioskClasses from "./pages/kiosk/Classes";
 import { SitemapRedirect, RobotsRedirect } from "@/components/StaticFileRedirect";
 import { ProtectedPortalRoute } from "@/components/portal/ProtectedPortalRoute";
 import PortalDashboard from "@/pages/portal/Dashboard";
+import PortalBook from "@/pages/portal/Book";
+import PortalBookClass from "@/pages/portal/BookClass";
 import PortalBookings from "@/pages/portal/Bookings";
 import PortalPasses from "@/pages/portal/Passes";
 import PortalPaymentMethods from "@/pages/portal/PaymentMethods";
@@ -185,6 +189,8 @@ const App = () => (
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
+              <Route path="/member/book" element={<ProtectedMemberRoute><MemberBook /></ProtectedMemberRoute>} />
+              <Route path="/member/book/class" element={<ProtectedMemberRoute><MemberBookClass /></ProtectedMemberRoute>} />
               <Route path="/member/profile" element={<ProtectedMemberRoute><MemberProfile /></ProtectedMemberRoute>} />
               <Route path="/member/credits" element={<ProtectedMemberRoute><MemberCredits /></ProtectedMemberRoute>} />
               <Route path="/member/membership" element={<ProtectedMemberRoute><MemberMembership /></ProtectedMemberRoute>} />
@@ -211,6 +217,8 @@ const App = () => (
               
               {/* Portal Routes - Non-Member Class Portal */}
               <Route path="/portal" element={<ProtectedPortalRoute><PortalDashboard /></ProtectedPortalRoute>} />
+              <Route path="/portal/book" element={<ProtectedPortalRoute><PortalBook /></ProtectedPortalRoute>} />
+              <Route path="/portal/book/class" element={<ProtectedPortalRoute><PortalBookClass /></ProtectedPortalRoute>} />
               <Route path="/portal/bookings" element={<ProtectedPortalRoute><PortalBookings /></ProtectedPortalRoute>} />
               <Route path="/portal/passes" element={<ProtectedPortalRoute><PortalPasses /></ProtectedPortalRoute>} />
               <Route path="/portal/payment-methods" element={<ProtectedPortalRoute><PortalPaymentMethods /></ProtectedPortalRoute>} />

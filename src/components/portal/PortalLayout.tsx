@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { PortalSidebar } from "./PortalSidebar";
+import { PortalBottomNav } from "./PortalBottomNav";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
@@ -52,11 +53,12 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
                 </Button>
               </div>
             </header>
-            <main className="p-4 sm:p-6 safe-area-bottom">
+            <main className="p-4 sm:p-6 pb-20 md:pb-6 safe-area-bottom">
               {children}
             </main>
           </SidebarInset>
         </div>
+        <PortalBottomNav />
       </div>
     </SidebarProvider>
   );
