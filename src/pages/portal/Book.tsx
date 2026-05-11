@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronRight, CircleDot, Sparkles, Baby } from "lucide-react";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UpcomingBookingsPanel } from "@/components/booking/UpcomingBookingsPanel";
 
 export default function PortalBook() {
   const { data: credits, isLoading } = useUserCredits();
@@ -50,6 +51,8 @@ export default function PortalBook() {
             Pick what you'd like to book today.
           </p>
         </header>
+
+        <UpcomingBookingsPanel scope="portal" />
 
         <div className="space-y-3">
           {tiles.map((tile) => {

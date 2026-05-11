@@ -5,6 +5,7 @@ import { ChevronRight, CircleDot, Sparkles, Baby } from "lucide-react";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { UpcomingBookingsPanel } from "@/components/booking/UpcomingBookingsPanel";
 
 /**
  * Single starting point for booking anything in the club.
@@ -61,6 +62,8 @@ export default function MemberBook() {
             Pick what you'd like to book today.
           </p>
         </header>
+
+        <UpcomingBookingsPanel scope="member" />
 
         <div className="space-y-3">
           {tiles.map((tile) => {
