@@ -65,14 +65,38 @@ export default function AbandonedClassPassCheckouts() {
     qc.invalidateQueries({ queryKey: ["abandoned-cp-checkouts"] });
   };
 
+  const [backfilling, setBackfilling] = useState(false);
+  const recoverFromStripe = async () => {
+    try {
+      setBackfilling(true);
+      const { data, error } = await supabase.functions.invoke("backfill-mothers-day-abandoned", { body: {} });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Backfill failed");
+      toast.success(
+        `Found ${data.found} unfinished • Added ${data.inserted}, Updated ${data.updated}, Skipped ${data.skipped}`
+      );
+      qc.invalidateQueries({ queryKey: ["abandoned-cp-checkouts"] });
+    } catch (e: any) {
+      toast.error(e.message || "Backfill failed");
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto p-6 space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">Abandoned Class Pass Checkouts</h1>
-          <p className="text-sm text-muted-foreground">
-            Tracks class pass purchases started but not completed. Reminders auto-send at 1h, 24h, and 72h.
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Abandoned Class Pass Checkouts</h1>
+            <p className="text-sm text-muted-foreground">
+              Tracks class pass purchases started but not completed. Reminders auto-send at 1h, 24h, and 72h.
+            </p>
+          </div>
+          <Button onClick={recoverFromStripe} disabled={backfilling} variant="secondary">
+            {backfilling ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Recover from Stripe
+          </Button>
         </div>
 
         <Tabs value={status} onValueChange={(v) => setStatus(v as StatusFilter)}>
