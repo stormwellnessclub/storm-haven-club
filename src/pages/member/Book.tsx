@@ -5,6 +5,7 @@ import { ChevronRight, CircleDot, Sparkles, Baby } from "lucide-react";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { UpcomingBookingsPanel } from "@/components/booking/UpcomingBookingsPanel";
 
 /**
  * Single starting point for booking anything in the club.
