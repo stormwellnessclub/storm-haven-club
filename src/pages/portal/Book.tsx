@@ -52,6 +52,8 @@ export default function PortalBook() {
           </p>
         </header>
 
+        <UpcomingBookingsPanel scope="portal" />
+
         <div className="space-y-3">
           {tiles.map((tile) => {
             const Icon = tile.icon;
