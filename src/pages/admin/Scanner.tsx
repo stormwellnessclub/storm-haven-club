@@ -36,12 +36,13 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useMemberScanner, useRecentScans, ScanResult, DeviceType } from "@/hooks/useMemberScanner";
 import { useScannerSettings, useUpdateScannerSettings } from "@/hooks/useScannerSettings";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
+import { useSyncMemberStatus } from "@/hooks/usePaymentTracking";
 import { MemberCameraScanner } from "@/components/admin/MemberCameraScanner";
 import { format, parse } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 import { toast } from "sonner";
-import { Snowflake } from "lucide-react";
+import { Snowflake, RefreshCcw } from "lucide-react";
 
 export default function Scanner() {
   const [memberIdInput, setMemberIdInput] = useState("");
@@ -56,6 +57,7 @@ export default function Scanner() {
   const isProcessingRef = useRef(false);
 
   const { scanMember, scanMemberAsync, isScanning } = useMemberScanner();
+  const syncMemberStatus = useSyncMemberStatus();
   const { data: recentScans } = useRecentScans(10);
   const { data: settings } = useScannerSettings("front_desk");
   const updateSettings = useUpdateScannerSettings();
@@ -531,6 +533,36 @@ export default function Scanner() {
                             <p className="text-xs text-destructive font-medium mt-2">
                               Billing issue must be resolved before entry. Override is not available.
                             </p>
+                          )}
+
+                          {/* Sync from Stripe — recover from stale DB after a payment was fixed in Stripe */}
+                          {scanResult.member && scanResult.denial_reason?.startsWith("subscription_") && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={syncMemberStatus.isPending}
+                                onClick={async () => {
+                                  const memberUuid = scanResult.member!.id;
+                                  const memberCode = scanResult.member!.member_id;
+                                  try {
+                                    await syncMemberStatus.mutateAsync(memberUuid);
+                                    toast.success("Synced from Stripe — re-scanning");
+                                    await processScan(memberCode, "manual_entry");
+                                  } catch (e: any) {
+                                    toast.error(e?.message || "Sync failed");
+                                  }
+                                }}
+                              >
+                                <RefreshCcw
+                                  className={`h-4 w-4 mr-2 ${syncMemberStatus.isPending ? "animate-spin" : ""}`}
+                                />
+                                Sync from Stripe & retry
+                              </Button>
+                              <span className="text-xs text-muted-foreground">
+                                Use after fixing the payment in Stripe
+                              </span>
+                            </div>
                           )}
 
                           {/* Frozen-member: contextual manual check-in for paid bookings */}

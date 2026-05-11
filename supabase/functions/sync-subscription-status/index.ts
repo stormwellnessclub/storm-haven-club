@@ -50,13 +50,19 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body for options
-    let options = { 
-      syncSubscriptions: true, 
+    let options: {
+      syncSubscriptions: boolean;
+      syncPaymentMethods: boolean;
+      syncCustomerIds: boolean;
+      dryRun: boolean;
+      member_id?: string;
+    } = {
+      syncSubscriptions: true,
       syncPaymentMethods: true,
       syncCustomerIds: true,
-      dryRun: false 
+      dryRun: false,
     };
-    
+
     try {
       const body = await req.json();
       options = { ...options, ...body };
@@ -70,11 +76,15 @@ serve(async (req) => {
     let fixedCount = 0;
     let issueCount = 0;
 
-    // Get all active/past_due members
-    const { data: members, error: membersError } = await supabase
+    // Get members to process. If member_id provided, sync only that one;
+    // otherwise sync all active/past_due/pending_activation/frozen members.
+    const baseQuery = supabase
       .from('members')
-      .select('id, stripe_customer_id, stripe_subscription_id, subscription_status, status, email, first_name, last_name, card_last4, card_brand, card_exp_month, card_exp_year')
-      .in('status', ['active', 'past_due', 'pending_activation', 'frozen']);
+      .select('id, stripe_customer_id, stripe_subscription_id, subscription_status, status, email, first_name, last_name, card_last4, card_brand, card_exp_month, card_exp_year');
+
+    const { data: members, error: membersError } = options.member_id
+      ? await baseQuery.eq('id', options.member_id)
+      : await baseQuery.in('status', ['active', 'past_due', 'pending_activation', 'frozen']);
 
     if (membersError) {
       logError(membersError, "MEMBERS_FETCH");
