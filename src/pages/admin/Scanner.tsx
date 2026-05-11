@@ -535,6 +535,36 @@ export default function Scanner() {
                             </p>
                           )}
 
+                          {/* Sync from Stripe — recover from stale DB after a payment was fixed in Stripe */}
+                          {scanResult.member && scanResult.denial_reason?.startsWith("subscription_") && (
+                            <div className="mt-3 flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={syncMemberStatus.isPending}
+                                onClick={async () => {
+                                  const memberUuid = scanResult.member!.id;
+                                  const memberCode = scanResult.member!.member_id;
+                                  try {
+                                    await syncMemberStatus.mutateAsync(memberUuid);
+                                    toast.success("Synced from Stripe — re-scanning");
+                                    await processScan(memberCode, "manual_entry");
+                                  } catch (e: any) {
+                                    toast.error(e?.message || "Sync failed");
+                                  }
+                                }}
+                              >
+                                <RefreshCcw
+                                  className={`h-4 w-4 mr-2 ${syncMemberStatus.isPending ? "animate-spin" : ""}`}
+                                />
+                                Sync from Stripe & retry
+                              </Button>
+                              <span className="text-xs text-muted-foreground">
+                                Use after fixing the payment in Stripe
+                              </span>
+                            </div>
+                          )}
+
                           {/* Frozen-member: contextual manual check-in for paid bookings */}
                           {scanResult.denial_reason === "membership_frozen" && (
                             <div className="mt-4 space-y-3 border-t pt-4">
