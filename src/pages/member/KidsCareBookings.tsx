@@ -101,11 +101,19 @@ export default function KidsCareBookings() {
             <h2 className="text-lg font-semibold">Kids Care</h2>
             <p className="text-sm text-muted-foreground">Book a supervised session for your child during your workout.</p>
           </div>
-          <Button onClick={() => openBookingForDate()} className="gap-2">
+          <Button
+            onClick={() => openBookingForDate()}
+            className="gap-2"
+            disabled={!hasActivePass}
+            title={!hasActivePass ? "Active Kids Care Pass required" : undefined}
+          >
             <Plus className="h-4 w-4" />
             Book a Session
           </Button>
         </div>
+
+        {/* Pass gate — inline buy CTA when no active pass */}
+        <KidsCarePassGate />
 
         {/* Registration Reminder */}
         <Alert className="border-accent/30 bg-accent/5">
