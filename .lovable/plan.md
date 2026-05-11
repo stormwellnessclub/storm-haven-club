@@ -1,64 +1,37 @@
 ## Goal
 
-Surface upcoming class, spa, and kids care bookings directly on the Book hub (`/member/book` and `/portal/book`) so members can cancel or reschedule without leaving the page.
+On each class session card in `ScheduleBrowser` (used by `/member/book/class` and `/portal/book/class`), display the **studio** (`session.room`) and **heated/non-heated** state as proper badges instead of the current plain muted-text room line.
 
-## Scope
+## Current state
 
-UI-only change. Reuses existing hooks and cancel mutations — no new backend/RPC work.
+In `src/components/booking/ScheduleBrowser.tsx`:
+- A Hot/Cool badge already renders in the top-right of each card — but only when `class_type.category !== "cycling"` (cycling rooms aren't temperature-controlled).
+- `session.room` (e.g. "Reformer Studio", "Cycle Studio", "Aerobics Studio") renders as small plain text on a separate line under the instructor (lines 543–545). It's easy to miss.
 
-## New component: `UpcomingBookingsPanel`
+## Change
 
-Path: `src/components/booking/UpcomingBookingsPanel.tsx`
+1. **Add a Studio badge** for every card, derived from `session.room`. Use an outline badge with a `MapPin` icon (matching the small icon style already used for time/spots). Skip rendering only if `session.room` is null.
+2. **Keep the Hot/Cool badge** as-is (still suppressed for cycling). No copy or color changes.
+3. **Group both badges** on a single row directly under the class name + time/spots block, so they read as a unified meta strip. The existing top-right Hot/Cool badge cluster (next to the Fundraiser badge) stays where it is — we are adding a sibling Studio badge to that same right-side cluster, so studio and temperature sit next to each other.
+4. **Remove the now-redundant `<p>{session.room}</p>`** line under the instructor name.
 
-Reads three existing sources and merges them into a single time-sorted list (next 14 days):
+Result: a cycling class shows `[Cycle Studio]`; a reformer class shows `[Reformer Studio] [Hot]` or `[Reformer Studio] [Cool]`; an aerobics class shows `[Aerobics Studio] [Hot/Cool]`.
 
-- Classes — `useUserBookings()` (already used in `Bookings.tsx`), filtered to upcoming + not cancelled
-- Spa — `useUserSpaAppointments()` from `useSpaBooking.ts`, filtered to `confirmed` + future
-- Kids care — `useUserKidsCareBookings()` (already used in `KidsCareBookings.tsx`), filtered to upcoming + not cancelled
+## Technical details
 
-Each row shows:
-- Icon + type label (Class / Spa / Kids care)
-- Title (class name, service name, child name + tier)
-- Date + time in `America/Chicago`
-- Two inline action buttons: **Cancel** and **Reschedule**
+File: `src/components/booking/ScheduleBrowser.tsx` only. No data shape, query, hook, or filter changes — `session.room` and `class_type.is_heated` are already selected.
 
-### Cancel action
-Opens an `AlertDialog` showing the 24-hour cancellation policy (reuse `CancellationPolicyText`). On confirm:
-- Class → `useCancelBooking().mutate(bookingId)`
-- Spa → `useCancelSpaAppointment().mutate({ id, reason })` (already in `useSpaBooking.ts`)
-- Kids care → `useCancelKidsCareBooking().mutate({ bookingId, reason })`
-
-All three already invalidate the right queries, so the row disappears automatically.
-
-### Reschedule action
-Two-step: cancel current booking, then navigate to the matching book page with a query param to hint context:
-- Class → cancel, then `navigate('/member/book/class?rescheduleFrom=<id>')`
-- Spa → cancel, then `navigate('/spa?rescheduleFrom=<id>')`
-- Kids care → cancel, then `navigate('/member/kids-care?rescheduleFrom=<id>')`
-
-The destination pages already exist and don't need to read the param — it's purely informational for now. A small toast ("Original booking cancelled — pick a new time") confirms the flow. This keeps reschedule purely presentational: no new mutations, no atomic swap.
-
-### Empty / loading
-- Loading → 2 `Skeleton` rows
-- Empty → hide the whole panel (don't take up space when nothing to cancel)
-
-## Hub integration
-
-`src/pages/member/Book.tsx` and `src/pages/portal/Book.tsx`:
-- Render `<UpcomingBookingsPanel />` between the header and the tile list.
-- Portal version only shows class + spa rows (kids care is member-only) — pass a `scope="portal"` prop that hides kids care.
+- Lines ~488–505: in the right-side badge cluster, prepend a `<Badge variant="outline" className="text-[10px]"><MapPin className="w-2.5 h-2.5 mr-0.5" /> {session.room}</Badge>` (conditional on `session.room`). Use the existing `MapPin` import if present; otherwise add it from `lucide-react`.
+- Lines 543–545: delete the `{session.room && <p>…</p>}` block.
 
 ## Out of scope
 
-- True atomic reschedule (single RPC that swaps slot without releasing credit) — current approach cancels then rebooks, which already refunds the credit/pass via existing cancel hooks.
-- Editing notes/attendees inline.
-- Admin views.
+- `ClassCard.tsx` (legacy/alternate card not used by the Book hub).
+- Admin/staff schedule views.
+- Filter UI (room/heat filter chips above the list).
+- Color coding studios differently per studio name.
 
 ## Files
 
-Create:
-- `src/components/booking/UpcomingBookingsPanel.tsx`
-
 Edit:
-- `src/pages/member/Book.tsx` — mount the panel
-- `src/pages/portal/Book.tsx` — mount the panel with `scope="portal"`
+- `src/components/booking/ScheduleBrowser.tsx`
