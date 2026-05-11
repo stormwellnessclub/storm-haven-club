@@ -53,7 +53,7 @@ export default function PortalBookClass() {
           </Button>
         </div>
 
-        <CreditsStrip onBuyMore={() => setDrawerOpen(true)} />
+        <CreditsStrip onBuyMore={() => setDrawerOpen(true)} detailsPath="/portal/passes" />
 
         <ScheduleBrowser embedded authRedirect="/portal/book/class" />
       </div>

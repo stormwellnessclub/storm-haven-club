@@ -75,9 +75,11 @@ export function CreditsStrip({ onBuyMore, detailsPath = "/member/credits" }: Cre
           <ShoppingCart className="h-4 w-4 mr-1.5" />
           {hasAny ? "Buy more" : "Buy a pass"}
         </Button>
-        <Button asChild variant="outline" size="sm" className="h-9 hidden sm:inline-flex">
-          <Link to="/member/credits">Details</Link>
-        </Button>
+        {detailsPath && (
+          <Button asChild variant="outline" size="sm" className="h-9 hidden sm:inline-flex">
+            <Link to={detailsPath}>Details</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
