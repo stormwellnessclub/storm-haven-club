@@ -545,9 +545,6 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                   </p>
                                 )}
 
-                                {session.room && (
-                                  <p className="text-xs text-muted-foreground/70 mt-0.5">{session.room}</p>
-                                )}
 
                                 <Link
                                   to={`/classes/${ct.id}`}
