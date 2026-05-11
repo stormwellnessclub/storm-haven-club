@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, AlertTriangle, User, Star } from "lucide-react";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useCancelBooking } from "@/hooks/useBooking";
+import { CANCELLATION_POLICY_TEXT } from "@/components/booking/CancellationPolicyText";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { StarRating } from "@/components/reviews/StarRating";
