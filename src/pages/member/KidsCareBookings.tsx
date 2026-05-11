@@ -24,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 export default function KidsCareBookings() {
   const { data: bookings, isLoading } = useMyKidsCareBookings();
+  const { data: passes } = useKidsCarePasses();
+  const hasActivePass = (passes?.length ?? 0) > 0;
   const cancelBooking = useCancelKidsCareBooking();
   const confirmPickup = useConfirmPickup();
   const { data: upcomingSlots, isLoading: slotsLoading } = useUpcomingKidsCareSlots(7);
