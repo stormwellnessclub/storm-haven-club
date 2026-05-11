@@ -48,7 +48,18 @@ serve(async (req) => {
       );
     }
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
+    if (!stripeKey.startsWith("sk_")) {
+      console.error("[mothers-day-pack-create-intent] Stripe secret key missing/invalid", {
+        prefix: stripeKey.slice(0, 7),
+      });
+      return new Response(
+        JSON.stringify({ success: false, error: "Payment configuration error. Please try again later." }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+    console.log("[mothers-day-pack-create-intent] using key prefix:", stripeKey.slice(0, 8));
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",
     });
     const supabase = createClient(
@@ -144,7 +155,8 @@ serve(async (req) => {
       currency: "usd",
       customer: customerId,
       receipt_email: buyerEmail,
-      automatic_payment_methods: { enabled: true },
+      // Card-only: avoid wallets/redirect methods that can fail silently in embedded checkout.
+      payment_method_types: ["card"],
       description: `Mother's Day Class Pack — ${tier.label} (10 classes)`,
       metadata: {
         type: "mothers_day_class_pack",

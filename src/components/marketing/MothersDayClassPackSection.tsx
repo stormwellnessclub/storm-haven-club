@@ -54,18 +54,26 @@ function PayForm({
         confirmParams: { return_url: window.location.href },
       });
       if (payErr) {
-        setError(payErr.message || "Payment failed");
+        // Surface the exact Stripe message and always re-enable the button so a different card can be entered.
+        const msg =
+          payErr.message ||
+          (payErr.code === "card_declined"
+            ? "Your card was declined by the issuer. Please try a different card."
+            : "Payment could not be completed. Please try again.");
+        setError(msg);
         setSubmitting(false);
         return;
       }
       if (paymentIntent?.status === "succeeded") {
         onSuccess(paymentIntent.id);
       } else {
-        setError("Payment did not complete. Please try again.");
+        setError(
+          `Payment did not complete (status: ${paymentIntent?.status ?? "unknown"}). Please try again or use a different card.`
+        );
         setSubmitting(false);
       }
     } catch (err: any) {
-      setError(err.message || "Payment failed");
+      setError(err?.message || "Payment failed. Please try again.");
       setSubmitting(false);
     }
   };
