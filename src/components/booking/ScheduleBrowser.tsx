@@ -86,7 +86,8 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   const today = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
   const todayRef = React.useRef<HTMLDivElement>(null);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [roomFilter, setRoomFilter] = useState<RoomFilter>("all");
+  const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
