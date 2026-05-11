@@ -5,6 +5,7 @@ import { ScheduleBrowser } from "@/components/booking/ScheduleBrowser";
 import { CreditsStrip } from "@/components/booking/CreditsStrip";
 import { BuyPassesDrawer } from "@/components/booking/BuyPassesDrawer";
 import { Button } from "@/components/ui/button";
+import { CancellationPolicyLink } from "@/components/booking/CancellationPolicyText";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
