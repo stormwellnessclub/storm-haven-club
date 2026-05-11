@@ -6,6 +6,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface CreditsStripProps {
   onBuyMore: () => void;
+  /** Path for the "Details" link; pass `null` to hide. Defaults to /member/credits. */
+  detailsPath?: string | null;
 }
 
 /**
@@ -15,7 +17,7 @@ interface CreditsStripProps {
  * Designed to live at the top of the BookClass page so the user never has to
  * navigate elsewhere to check balance or top up.
  */
-export function CreditsStrip({ onBuyMore }: CreditsStripProps) {
+export function CreditsStrip({ onBuyMore, detailsPath = "/member/credits" }: CreditsStripProps) {
   const { data, isLoading } = useUserCredits();
 
   if (isLoading) {
