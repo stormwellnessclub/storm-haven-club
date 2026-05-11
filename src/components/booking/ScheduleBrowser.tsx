@@ -485,10 +485,15 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-start justify-between gap-2">
                                   <h3 className="font-serif text-base font-medium truncate">{ct.name}</h3>
-                                  <div className="flex items-center gap-1 shrink-0">
+                                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                                     {session.is_fundraiser && (
                                       <Badge className="text-[10px] bg-rose-600 hover:bg-rose-600 text-white">
                                         <Heart className="w-2.5 h-2.5 mr-0.5" /> Fundraiser
+                                      </Badge>
+                                    )}
+                                    {session.room && (
+                                      <Badge variant="outline" className="text-[10px]">
+                                        <MapPin className="w-2.5 h-2.5 mr-0.5" /> {session.room}
                                       </Badge>
                                     )}
                                     {ct.category !== "cycling" && (
