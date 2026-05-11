@@ -24,7 +24,8 @@ import { useNavigate, Link } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
 import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 
-type CategoryFilter = "all" | "pilates_cycling" | "aerobics" | "other";
+type RoomFilter = "all" | "Reformer Studio" | "Cycle Studio" | "Aerobics Studio";
+type HeatFilter = "all" | "heated" | "non_heated";
 
 const categoryConfig: Record<string, { icon: typeof Activity; label: string; color: string }> = {
   reformer: { icon: CircleDot, label: "Reformer Pilates", color: "bg-amber-900/10 text-amber-900" },
