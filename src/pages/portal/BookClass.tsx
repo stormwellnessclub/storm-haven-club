@@ -5,6 +5,7 @@ import { ScheduleBrowser } from "@/components/booking/ScheduleBrowser";
 import { CreditsStrip } from "@/components/booking/CreditsStrip";
 import { BuyPassesDrawer } from "@/components/booking/BuyPassesDrawer";
 import { Button } from "@/components/ui/button";
+import { CancellationPolicyLink } from "@/components/booking/CancellationPolicyText";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,6 +52,7 @@ export default function PortalBookClass() {
               <ChevronLeft className="h-4 w-4 mr-1" /> Book
             </Link>
           </Button>
+          <CancellationPolicyLink />
         </div>
 
         <CreditsStrip onBuyMore={() => setDrawerOpen(true)} detailsPath="/portal/passes" />

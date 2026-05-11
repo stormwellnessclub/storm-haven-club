@@ -15,6 +15,7 @@ import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { Calendar, Clock, MapPin, User, X, AlertTriangle, Star } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
+import { CANCELLATION_POLICY_TEXT } from "@/components/booking/CancellationPolicyText";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -208,13 +209,20 @@ function BookingCard({ booking, isUpcoming, reviewByBooking, onReview }: Booking
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {isLateCancel ? (
-                        <span className="flex items-start gap-2">
-                          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-                          <span>This class starts in less than 24 hours. Your credit or pass <strong>will not be refunded</strong>.</span>
-                        </span>
-                      ) : "Are you sure you want to cancel this booking? Your credit or pass will be refunded."}
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3">
+                        {isLateCancel ? (
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                            <span>This class starts in less than 24 hours. Your credit or pass <strong>will not be refunded</strong>.</span>
+                          </div>
+                        ) : (
+                          <div>Your credit or pass will be refunded immediately.</div>
+                        )}
+                        <div className="text-xs bg-muted/50 rounded-md p-2">
+                          <span className="font-medium text-foreground">Cancellation policy:</span> {CANCELLATION_POLICY_TEXT}
+                        </div>
+                      </div>
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

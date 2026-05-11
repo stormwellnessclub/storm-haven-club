@@ -471,7 +471,17 @@ serve(async (req) => {
                     <td style="padding: 8px 0; font-weight: 600;">${data.room}</td>
                   </tr>
                   ` : ''}
+                  ${data.remainingCreditsLabel ? `
+                  <tr>
+                    <td style="padding: 8px 0; color: #6b7280;">Credits</td>
+                    <td style="padding: 8px 0; font-weight: 600;">${data.remainingCreditsLabel}</td>
+                  </tr>
+                  ` : ''}
                 </table>
+              </div>
+              <div style="background: #FEF8E7; border-left: 3px solid #D4A84B; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Cancellation policy</p>
+                <p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Free cancellation up to 24 hours before class. Late cancellations forfeit your credit or pass.</p>
               </div>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
@@ -525,6 +535,10 @@ serve(async (req) => {
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 We hope to see you in another class soon.
               </p>
+              <div style="background: #FEF8E7; border-left: 3px solid #D4A84B; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Cancellation policy</p>
+                <p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Free cancellation up to 24 hours before class. Late cancellations forfeit your credit or pass.</p>
+              </div>
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}/schedule" style="${emailStyles.button}">Book Another Class</a>
               </div>

@@ -49,6 +49,7 @@ import {
   writeClassDraft,
   clearClassDraft,
 } from "@/lib/bookingDraft";
+import { BookingConfirmationDialog } from "./BookingConfirmationDialog";
 
 interface BookingModalProps {
   session: ClassSession | null;
@@ -68,6 +69,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [showWaiverInline, setShowWaiverInline] = useState(false);
   const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
   const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
+  const [confirmation, setConfirmation] = useState<import("./BookingConfirmationDialog").BookingConfirmationDetails | null>(null);
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
@@ -215,7 +217,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       return;
     }
 
-    await bookClass.mutateAsync({
+    const result = await bookClass.mutateAsync({
       sessionId: session.id,
       paymentMethod,
       passId: selectedPassId || undefined,
@@ -223,6 +225,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
     clearClassDraft();
     onOpenChange(false);
+
+    if (result?.confirmationDetails) {
+      const isPortal = window.location.pathname.startsWith("/portal");
+      setConfirmation({
+        ...result.confirmationDetails,
+        bookingsUrl: isPortal ? "/portal/bookings" : "/member/bookings",
+      });
+    } else {
+      // Fallback toast if for some reason details didn't come through
+      const { toast } = await import("sonner");
+      toast.success("Class booked successfully!");
+    }
   };
 
   const handleJoinWaitlist = async () => {
@@ -655,6 +669,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
         </DialogFooter>
       </DialogContent>
+      <BookingConfirmationDialog
+        open={!!confirmation}
+        onOpenChange={(o) => { if (!o) setConfirmation(null); }}
+        details={confirmation}
+      />
     </Dialog>
   );
 }
