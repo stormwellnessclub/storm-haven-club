@@ -1,59 +1,64 @@
-## Booking confirmation + cancellation policy (classes)
+## Diagnosis
 
-**Heads up on the email channel:** The app already has a fully-working Resend-based email pipeline (`send-email` edge function) used for ~40 email types including `booking_confirmation` and `booking_cancellation`. Spinning up Lovable Emails in parallel would duplicate infrastructure and split sender reputation. This plan **extends the existing email pipeline** instead — same domain (`notify.stormwellnessclub.com`), same "Storm Wellness Club Team" voice, no new DNS work. If you specifically want to migrate everything to Lovable Emails later, that's a separate, larger project.
+Rola Taleb (member `STM-000169`) — DB row is out of sync with Stripe.
 
-### Cancellation policy (locked in)
-> **Free cancellation up to 24 hours before class. Late cancellations forfeit your credit or pass.**
+| Field | DB value | Stripe reality |
+|---|---|---|
+| `status` | `active` ✓ | — |
+| `stripe_subscription_id` | `sub_1TVl1pLyZrsSqLhs8niKfqCj` | exists, status = **`active`** |
+| `subscription_status` | **`incomplete_expired`** ✗ | should be `active` |
+| `billing_arrears` | none | — |
 
-Used verbatim in: booking modal, cancel confirmation dialog, booking confirmation email, cancellation email, and a "View policy" link on the Book Class screen.
+The check-in RPC `evaluate_member_check_in_eligibility` returns `denial_reason = 'subscription_incomplete_expired'` because of this single stale field:
 
-### 1. In-app booking confirmation (members + non-members)
-- Replace the plain `toast.success("Class booked successfully!")` in `useBooking.ts` with a richer success state: a confirmation **dialog/sheet** that shows
-  - Class name + date + time
-  - Room (e.g. "Reformer Studio")
-  - Instructor
-  - **Remaining credits** (queries `useUserCredits` after the booking invalidation runs — shows "3 class credits remaining" or "Unlimited" for unlimited tiers)
-  - Cancellation policy text
-  - Buttons: "View my bookings" → `/member/bookings` or `/portal/bookings`; "Done"
-- Falls back to a richer sonner toast if the dialog can't open (edge case where booking is invoked from a non-modal path)
-- Component: `BookingConfirmationDialog.tsx` rendered from `BookingModal.tsx` on success — same pattern for member and non-member because both use `BookingModal`
+```
+IF subscription_status IN ('past_due','unpaid','canceled','incomplete_expired')
+   → access_granted = false
+```
 
-### 2. Booking confirmation email — extend, don't replace
-In `supabase/functions/send-email/index.ts`, the existing `booking_confirmation` case:
-- Accept new optional fields in `data`: `remainingCredits` (number | "unlimited" | null), `creditLabel` ("class credits" / "passes remaining")
-- Add a "Credits remaining" row to the details table (only when value is provided)
-- Append a styled "Cancellation Policy" block above the footer with the locked-in wording and a "Manage your bookings" link to `/member/bookings`
-- `useBooking.ts` passes the remaining credits computed after the RPC returns (from the `user-credits` query refresh or from the RPC return value if available)
+So the check-in screen correctly reports "payment issue" — the DB still thinks her sub never activated, even though Stripe successfully charged her first month on `sub_1TVl1pLyZrsSqLhs8niKfqCj`.
 
-### 3. Cancellation flow
-- **Cancel confirmation dialog** (`src/pages/member/Bookings.tsx`, `src/pages/portal/Bookings.tsx`, `src/pages/MyBookings.tsx`):
-  - Always show the full policy text (currently only shows when late)
-  - Late path keeps the existing red warning + "Cancel Anyway"
-  - On-time path shows: "Your credit or pass will be refunded immediately." + policy
-- **Cancellation email** (`booking_cancellation` already exists — confirm it does, otherwise add it):
-  - Include class name, date, time, room
-  - State whether the credit/pass was refunded or forfeited (driven by the same `isLateCancel` server logic via RPC return)
-  - Include the policy text for reference
-  - Send from `useCancelBooking` `onSuccess` (calling `send-email` with `type: "booking_cancellation"`)
+### Why it didn't auto-fix
+When the new subscription `sub_1TVl1pLyZrsSqLhs8niKfqCj` finalized in Stripe, the `customer.subscription.updated` / `invoice.paid` webhook either didn't fire or didn't match this member row (her DB still pointed at the new sub id, so it should have matched — likely a missed/failed webhook event, not a logic bug). Two prior subs on the same customer are `incomplete_expired`, which is normal history.
 
-### 4. Policy visibility on Book Class
-- The `Cancellation Policy` `Alert` already exists in `BookingModal.tsx` for members and non-members — keep it
-- Add a small inline "Cancellation policy" link in the Book Class page header (`/member/book/class`, `/portal/book/class`) that opens a popover with the same wording — so users see it before clicking into a specific class
+## Fix (two parts)
 
-### Files touched
-- `src/hooks/useBooking.ts` — pass `remainingCredits` to `send-email`; trigger confirmation dialog + cancellation email
-- `src/components/booking/BookingModal.tsx` — render `BookingConfirmationDialog` on success
-- `src/components/booking/BookingConfirmationDialog.tsx` *(new)* — in-app confirmation UI
-- `src/components/booking/CancellationPolicyText.tsx` *(new)* — single source of truth for the policy string + tiny popover component
-- `src/pages/member/Bookings.tsx`, `src/pages/portal/Bookings.tsx`, `src/pages/MyBookings.tsx` — show policy in cancel dialog (all 3 places)
-- `src/pages/member/BookClass.tsx`, `src/pages/portal/BookClass.tsx` — header link to policy popover
-- `supabase/functions/send-email/index.ts` — extend `booking_confirmation` template; ensure `booking_cancellation` template includes policy + refund/forfeit status (add the case if it doesn't already exist)
+### 1. Unblock Rola now (one-row hotfix)
 
-### Out of scope
-- No DB schema changes (no new tables / RPC signatures)
-- No Lovable Emails migration (uses existing Resend-based `send-email`)
-- No changes to Spa or Kids Care confirmation / cancellation copy
-- No changes to credit-deduction / refund business logic — only display + messaging
+Migration that sets her `subscription_status` to match Stripe so she can check in immediately:
 
-### Open question
-You picked "Lovable Emails (built-in)" but the project already has a complete Resend pipeline. Confirm that **extending the existing email system** is OK; otherwise I'd need a separate, larger migration plan to move everything (auth emails, all 40+ transactional templates) onto Lovable Emails before doing this work, which is significantly more involved.
+```sql
+UPDATE public.members
+SET subscription_status = 'active',
+    updated_at = now()
+WHERE id = '0b85aa39-5af2-4416-aa22-a1f003c1456d'
+  AND stripe_subscription_id = 'sub_1TVl1pLyZrsSqLhs8niKfqCj';
+```
+
+No code changes for the hotfix.
+
+### 2. Prevent recurrence — "Sync from Stripe" on the member admin page
+
+The project already has a bulk `sync-subscription-status` edge function. Add a per-member trigger so admins don't need to wait for a webhook after manually fixing a payment:
+
+- **Edge function**: accept an optional `member_id` in the request body and, when present, sync only that member (reuse the existing per-member sync logic inside `sync-subscription-status/index.ts`). Single-row mode skips the bulk loop and returns the resolved status.
+- **Admin UI**: on the member detail page (and on the "Payment issue" denial banner inside the front-desk scanner result), add a **"Sync from Stripe"** button that:
+  1. Calls `sync-subscription-status` with `{ member_id }`.
+  2. Shows a toast with the result (e.g. "Updated subscription_status: incomplete_expired → active").
+  3. Invalidates the member query so the scanner re-evaluates immediately.
+
+This gives the front desk a one-click recovery whenever Stripe and the DB drift, without waiting for the next webhook or running the bulk job.
+
+## Out of scope
+
+- No changes to `process_member_scan` or `evaluate_member_check_in_eligibility` logic — they're correct, the input was stale.
+- No webhook rework. If drift keeps happening, we can investigate webhook delivery separately.
+- No changes to billing/subscription flow itself.
+
+## Files touched
+
+- **Migration** — one `UPDATE` on `members` for Rola.
+- `supabase/functions/sync-subscription-status/index.ts` — add single-member mode.
+- Member admin detail component + scanner "payment issue" denial card — add **Sync from Stripe** button + handler.
+
+Want me to proceed with both the hotfix migration and the single-member sync button, or just the hotfix for now?
