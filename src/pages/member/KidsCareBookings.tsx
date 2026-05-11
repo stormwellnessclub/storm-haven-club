@@ -146,13 +146,23 @@ export default function KidsCareBookings() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {Object.entries(slotsByDate).map(([date, slots]) => (
-                <Card key={date} className="cursor-pointer hover:border-accent/50 transition-colors" onClick={() => openBookingForDate(parseISO(date))}>
+                <Card
+                  key={date}
+                  className={`transition-colors ${hasActivePass ? "cursor-pointer hover:border-accent/50" : "opacity-60 cursor-not-allowed"}`}
+                  onClick={() => hasActivePass && openBookingForDate(parseISO(date))}
+                  title={!hasActivePass ? "Active Kids Care Pass required" : undefined}
+                >
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-semibold">
                         {date === todayStr ? "Today" : format(parseISO(date), "EEEE, MMM d")}
                       </p>
-                      <Button variant="ghost" size="sm" className="text-xs text-accent h-auto py-1 px-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-accent h-auto py-1 px-2"
+                        disabled={!hasActivePass}
+                      >
                         Book →
                       </Button>
                     </div>
