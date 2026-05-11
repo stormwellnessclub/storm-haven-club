@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronRight, CircleDot, Sparkles, Baby } from "lucide-react";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMyKidsCarePasses } from "@/hooks/useKidsCare";
+import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 
 /**
  * Single starting point for booking anything in the club.
@@ -13,7 +13,7 @@ import { useMyKidsCarePasses } from "@/hooks/useKidsCare";
  */
 export default function MemberBook() {
   const { data: credits, isLoading } = useUserCredits();
-  const { data: kidsPasses } = useMyKidsCarePasses();
+  const { data: kidsPasses } = useKidsCarePasses();
 
   const memberCreditsRemaining = credits?.classCredits?.credits_remaining ?? 0;
   const passesRemaining = (credits?.classPasses ?? [])
