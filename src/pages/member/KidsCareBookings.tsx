@@ -7,8 +7,9 @@ import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info, Plus
 import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
-import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
+import { useMyKidsCareBookings, useCancelKidsCareBooking, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
+import { KidsCarePassGate } from "@/components/booking/KidsCarePassGate";
 import { format, parseISO } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useState } from "react";
