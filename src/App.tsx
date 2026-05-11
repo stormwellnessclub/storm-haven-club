@@ -189,6 +189,8 @@ const App = () => (
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
+              <Route path="/member/book" element={<ProtectedMemberRoute><MemberBook /></ProtectedMemberRoute>} />
+              <Route path="/member/book/class" element={<ProtectedMemberRoute><MemberBookClass /></ProtectedMemberRoute>} />
               <Route path="/member/profile" element={<ProtectedMemberRoute><MemberProfile /></ProtectedMemberRoute>} />
               <Route path="/member/credits" element={<ProtectedMemberRoute><MemberCredits /></ProtectedMemberRoute>} />
               <Route path="/member/membership" element={<ProtectedMemberRoute><MemberMembership /></ProtectedMemberRoute>} />
@@ -215,6 +217,8 @@ const App = () => (
               
               {/* Portal Routes - Non-Member Class Portal */}
               <Route path="/portal" element={<ProtectedPortalRoute><PortalDashboard /></ProtectedPortalRoute>} />
+              <Route path="/portal/book" element={<ProtectedPortalRoute><PortalBook /></ProtectedPortalRoute>} />
+              <Route path="/portal/book/class" element={<ProtectedPortalRoute><PortalBookClass /></ProtectedPortalRoute>} />
               <Route path="/portal/bookings" element={<ProtectedPortalRoute><PortalBookings /></ProtectedPortalRoute>} />
               <Route path="/portal/passes" element={<ProtectedPortalRoute><PortalPasses /></ProtectedPortalRoute>} />
               <Route path="/portal/payment-methods" element={<ProtectedPortalRoute><PortalPaymentMethods /></ProtectedPortalRoute>} />
