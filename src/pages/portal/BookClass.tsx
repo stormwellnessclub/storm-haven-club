@@ -52,6 +52,7 @@ export default function PortalBookClass() {
               <ChevronLeft className="h-4 w-4 mr-1" /> Book
             </Link>
           </Button>
+          <CancellationPolicyLink />
         </div>
 
         <CreditsStrip onBuyMore={() => setDrawerOpen(true)} detailsPath="/portal/passes" />
