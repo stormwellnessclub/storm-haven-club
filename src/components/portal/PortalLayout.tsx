@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { PortalSidebar } from "./PortalSidebar";
+import { PortalBottomNav } from "./PortalBottomNav";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
