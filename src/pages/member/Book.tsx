@@ -63,6 +63,8 @@ export default function MemberBook() {
           </p>
         </header>
 
+        <UpcomingBookingsPanel scope="member" />
+
         <div className="space-y-3">
           {tiles.map((tile) => {
             const Icon = tile.icon;
