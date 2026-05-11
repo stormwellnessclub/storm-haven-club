@@ -10,6 +10,7 @@ import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useKidsCareHoursForDate } from "@/hooks/useKidsCareHours";
 import { useKidsCareChildren } from "@/hooks/useKidsCareChildren";
+import { KidsCarePassGate } from "@/components/booking/KidsCarePassGate";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
