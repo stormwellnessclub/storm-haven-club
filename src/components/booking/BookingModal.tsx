@@ -668,6 +668,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
         </DialogFooter>
       </DialogContent>
+      <BookingConfirmationDialog
+        open={!!confirmation}
+        onOpenChange={(o) => { if (!o) setConfirmation(null); }}
+        details={confirmation}
+      />
     </Dialog>
   );
 }
