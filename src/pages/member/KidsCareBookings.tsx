@@ -7,8 +7,9 @@ import { Baby, Clock, CheckCircle2, Loader2, AlertTriangle, Calendar, Info, Plus
 import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
-import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
+import { useMyKidsCareBookings, useCancelKidsCareBooking, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
+import { KidsCarePassGate } from "@/components/booking/KidsCarePassGate";
 import { format, parseISO } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useState } from "react";
@@ -23,6 +24,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 export default function KidsCareBookings() {
   const { data: bookings, isLoading } = useMyKidsCareBookings();
+  const { data: passes } = useKidsCarePasses();
+  const hasActivePass = (passes?.length ?? 0) > 0;
   const cancelBooking = useCancelKidsCareBooking();
   const confirmPickup = useConfirmPickup();
   const { data: upcomingSlots, isLoading: slotsLoading } = useUpcomingKidsCareSlots(7);
@@ -98,11 +101,19 @@ export default function KidsCareBookings() {
             <h2 className="text-lg font-semibold">Kids Care</h2>
             <p className="text-sm text-muted-foreground">Book a supervised session for your child during your workout.</p>
           </div>
-          <Button onClick={() => openBookingForDate()} className="gap-2">
+          <Button
+            onClick={() => openBookingForDate()}
+            className="gap-2"
+            disabled={!hasActivePass}
+            title={!hasActivePass ? "Active Kids Care Pass required" : undefined}
+          >
             <Plus className="h-4 w-4" />
             Book a Session
           </Button>
         </div>
+
+        {/* Pass gate — inline buy CTA when no active pass */}
+        <KidsCarePassGate />
 
         {/* Registration Reminder */}
         <Alert className="border-accent/30 bg-accent/5">
@@ -135,13 +146,23 @@ export default function KidsCareBookings() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               {Object.entries(slotsByDate).map(([date, slots]) => (
-                <Card key={date} className="cursor-pointer hover:border-accent/50 transition-colors" onClick={() => openBookingForDate(parseISO(date))}>
+                <Card
+                  key={date}
+                  className={`transition-colors ${hasActivePass ? "cursor-pointer hover:border-accent/50" : "opacity-60 cursor-not-allowed"}`}
+                  onClick={() => hasActivePass && openBookingForDate(parseISO(date))}
+                  title={!hasActivePass ? "Active Kids Care Pass required" : undefined}
+                >
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-semibold">
                         {date === todayStr ? "Today" : format(parseISO(date), "EEEE, MMM d")}
                       </p>
-                      <Button variant="ghost" size="sm" className="text-xs text-accent h-auto py-1 px-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-accent h-auto py-1 px-2"
+                        disabled={!hasActivePass}
+                      >
                         Book →
                       </Button>
                     </div>
@@ -177,7 +198,7 @@ export default function KidsCareBookings() {
               <CardContent className="py-8 text-center text-muted-foreground">
                 <Baby className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>No active bookings</p>
-                <Button variant="link" className="mt-2" onClick={() => openBookingForDate()}>
+                <Button variant="link" className="mt-2" onClick={() => openBookingForDate()} disabled={!hasActivePass}>
                   Book your first session
                 </Button>
               </CardContent>

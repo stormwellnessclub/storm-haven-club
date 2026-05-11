@@ -10,6 +10,7 @@ import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useKidsCareHoursForDate } from "@/hooks/useKidsCareHours";
 import { useKidsCareChildren } from "@/hooks/useKidsCareChildren";
+import { KidsCarePassGate } from "@/components/booking/KidsCarePassGate";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -396,13 +397,9 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
             <span className="text-sm text-muted-foreground">Loading passes...</span>
           </div>
         ) : !availablePasses || availablePasses.length === 0 ? (
-          <Alert>
-            <Info className="h-4 w-4" />
-            <AlertDescription>
-              You need an active Kids Care Pass to book.{" "}
-              <a href="/class-passes" className="text-accent underline">Purchase a pass</a> to continue.
-            </AlertDescription>
-          </Alert>
+          <div className="py-2">
+            <KidsCarePassGate />
+          </div>
         ) : (
           <div className="space-y-6 py-4">
             {/* Kids Care Pass Selection */}

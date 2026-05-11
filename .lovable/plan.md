@@ -1,64 +1,48 @@
-## Diagnosis
+## Goal
+Members must have an active Kids Care pass before they can book a Kids Care session. If they don't, show an inline **Buy Kids Care Pass** button right where they tried to book — no navigating away.
 
-Rola Taleb (member `STM-000169`) — DB row is out of sync with Stripe.
+## Current state
 
-| Field | DB value | Stripe reality |
-|---|---|---|
-| `status` | `active` ✓ | — |
-| `stripe_subscription_id` | `sub_1TVl1pLyZrsSqLhs8niKfqCj` | exists, status = **`active`** |
-| `subscription_status` | **`incomplete_expired`** ✗ | should be `active` |
-| `billing_arrears` | none | — |
+- `useKidsCarePasses()` (`src/hooks/useKidsCareBooking.ts`) already returns active passes with `classes_remaining > 0`.
+- `src/components/booking/KidsCareBookingModal.tsx` (line 398–405) already shows an alert when there are no passes, but it just links to `/class-passes` (wrong route — Kids Care isn't sold there) and there's no inline buy button.
+- `src/pages/member/KidsCareBookings.tsx` — the page with the "Book a Session" CTA and the upcoming-slot "Book" buttons — does **not** check pass status before opening the booking modal.
+- `src/pages/member/KidsCare.tsx` already has a working embedded Stripe checkout flow that calls `stripe-payment` with `action: create_kids_care_checkout, embedded: true` and renders Stripe's `EmbeddedCheckout`. We will reuse this exact flow rather than rebuilding it.
+- Purchase is gated on the Kids Care agreement being signed (`profile.kids_care_agreement_signed`). If unsigned, we cannot let them buy inline — they must go to `/member/kids-care` to sign first.
 
-The check-in RPC `evaluate_member_check_in_eligibility` returns `denial_reason = 'subscription_incomplete_expired'` because of this single stale field:
+## What changes
 
-```
-IF subscription_status IN ('past_due','unpaid','canceled','incomplete_expired')
-   → access_granted = false
-```
+### 1. New small component: `KidsCarePassGate`
+`src/components/booking/KidsCarePassGate.tsx`
 
-So the check-in screen correctly reports "payment issue" — the DB still thinks her sub never activated, even though Stripe successfully charged her first month on `sub_1TVl1pLyZrsSqLhs8niKfqCj`.
+Reusable banner/card that:
+- Reads `useKidsCarePasses()` and `useUserProfile()`.
+- Renders nothing when an active pass exists.
+- When no pass + **agreement signed** → shows an inline **Buy Kids Care Pass — $75/mo** button. Clicking it calls `stripe-payment` with `create_kids_care_checkout, embedded: true` and opens the returned `clientSecret` in a `Dialog` containing `EmbeddedCheckoutProvider` + `EmbeddedCheckout` (same pattern as `KidsCare.tsx`). On success (Stripe returns to `?session_id=...`) invalidate `["kids-care-passes"]`.
+- When no pass + **agreement not signed** → shows the same banner but the button becomes **Sign agreement & buy pass** and navigates to `/member/kids-care`.
 
-### Why it didn't auto-fix
-When the new subscription `sub_1TVl1pLyZrsSqLhs8niKfqCj` finalized in Stripe, the `customer.subscription.updated` / `invoice.paid` webhook either didn't fire or didn't match this member row (her DB still pointed at the new sub id, so it should have matched — likely a missed/failed webhook event, not a logic bug). Two prior subs on the same customer are `incomplete_expired`, which is normal history.
+### 2. Gate the bookings page
+`src/pages/member/KidsCareBookings.tsx`
+- Render `<KidsCarePassGate />` near the top (under the "Book a Session" header).
+- When no active pass, disable the **Book a Session** button and the per-slot **Book** buttons; hovering / tapping shows a tooltip "Active Kids Care Pass required."
 
-## Fix (two parts)
+### 3. Tighten the modal fallback
+`src/components/booking/KidsCareBookingModal.tsx`
+- Replace the existing "no pass" alert (lines 398–405) with `<KidsCarePassGate />` so the same inline-buy UX appears if someone reaches the modal another way (e.g. resume-booking banner).
 
-### 1. Unblock Rola now (one-row hotfix)
-
-Migration that sets her `subscription_status` to match Stripe so she can check in immediately:
-
-```sql
-UPDATE public.members
-SET subscription_status = 'active',
-    updated_at = now()
-WHERE id = '0b85aa39-5af2-4416-aa22-a1f003c1456d'
-  AND stripe_subscription_id = 'sub_1TVl1pLyZrsSqLhs8niKfqCj';
-```
-
-No code changes for the hotfix.
-
-### 2. Prevent recurrence — "Sync from Stripe" on the member admin page
-
-The project already has a bulk `sync-subscription-status` edge function. Add a per-member trigger so admins don't need to wait for a webhook after manually fixing a payment:
-
-- **Edge function**: accept an optional `member_id` in the request body and, when present, sync only that member (reuse the existing per-member sync logic inside `sync-subscription-status/index.ts`). Single-row mode skips the bulk loop and returns the resolved status.
-- **Admin UI**: on the member detail page (and on the "Payment issue" denial banner inside the front-desk scanner result), add a **"Sync from Stripe"** button that:
-  1. Calls `sync-subscription-status` with `{ member_id }`.
-  2. Shows a toast with the result (e.g. "Updated subscription_status: incomplete_expired → active").
-  3. Invalidates the member query so the scanner re-evaluates immediately.
-
-This gives the front desk a one-click recovery whenever Stripe and the DB drift, without waiting for the next webhook or running the bulk job.
-
-## Out of scope
-
-- No changes to `process_member_scan` or `evaluate_member_check_in_eligibility` logic — they're correct, the input was stale.
-- No webhook rework. If drift keeps happening, we can investigate webhook delivery separately.
-- No changes to billing/subscription flow itself.
+### 4. No backend changes
+- `stripe-payment` already supports `create_kids_care_checkout` with `embedded: true`.
+- No DB / RPC / RLS changes.
+- No new edge functions.
 
 ## Files touched
 
-- **Migration** — one `UPDATE` on `members` for Rola.
-- `supabase/functions/sync-subscription-status/index.ts` — add single-member mode.
-- Member admin detail component + scanner "payment issue" denial card — add **Sync from Stripe** button + handler.
+- **New**: `src/components/booking/KidsCarePassGate.tsx`
+- **Edit**: `src/pages/member/KidsCareBookings.tsx` (mount the gate, disable booking CTAs when no pass)
+- **Edit**: `src/components/booking/KidsCareBookingModal.tsx` (swap inner alert for the gate)
 
-Want me to proceed with both the hotfix migration and the single-member sync button, or just the hotfix for now?
+## Out of scope
+
+- Portal (non-member) flow — request is for "members".
+- Admin-side overrides.
+- Changing the $75/mo product, expiration, or session quota.
+- Touching booking RPCs — the existing atomic deduction in `useKidsCareBooking.ts` already prevents booking without remaining sessions on the server side; this plan adds the matching client-side affordance + inline purchase.
