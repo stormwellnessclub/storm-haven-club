@@ -313,7 +313,57 @@ export function useBookClass() {
           .eq("id", waitlistEntry.id);
       }
 
+      // Compute remaining credits/passes label for confirmation + email
+      let remainingCreditsLabel: string | null = null;
+      let remainingCreditsCount: number | null = null;
+      let creditLabel: string | null = null;
+      try {
+        if (paymentMethod === "credits") {
+          // Check member's monthly class credits
+          const { data: memberInfo } = await supabase
+            .from("members")
+            .select("id, membership_type")
+            .eq("user_id", currentUserId)
+            .in("status", ["active", "frozen"])
+            .maybeSingle();
+          const isUnlimitedTier = (memberInfo?.membership_type || "")
+            .toLowerCase()
+            .includes("unlimited");
+          if (isUnlimitedTier) {
+            remainingCreditsLabel = "Unlimited classes — book away";
+            creditLabel = "Unlimited";
+          } else {
+            const { data: creditRow } = await supabase
+              .from("member_credits")
+              .select("credits_remaining")
+              .eq("user_id", currentUserId)
+              .eq("credit_type", "class")
+              .gt("expires_at", new Date().toISOString())
+              .order("expires_at", { ascending: true })
+              .limit(1)
+              .maybeSingle();
+            const remaining = creditRow?.credits_remaining ?? 0;
+            remainingCreditsCount = remaining;
+            remainingCreditsLabel = `${remaining} class ${remaining === 1 ? "credit" : "credits"} remaining this cycle`;
+            creditLabel = `${remaining} class ${remaining === 1 ? "credit" : "credits"}`;
+          }
+        } else if (paymentMethod === "pass" && passIdToUse) {
+          const { data: passRow } = await supabase
+            .from("class_passes")
+            .select("classes_remaining, pass_type")
+            .eq("id", passIdToUse)
+            .maybeSingle();
+          const remaining = passRow?.classes_remaining ?? 0;
+          remainingCreditsCount = remaining;
+          remainingCreditsLabel = `${remaining} ${remaining === 1 ? "class" : "classes"} left on your pass`;
+          creditLabel = `${remaining} ${remaining === 1 ? "class" : "classes"} on pass`;
+        }
+      } catch (e) {
+        console.error("Failed to compute remaining credits:", e);
+      }
+
       // Send booking confirmation email (or waitlist claim confirmation)
+      let confirmationDetails: any = null;
       try {
         const { data: sessionDetails } = await supabase
           .from("class_sessions")
@@ -329,7 +379,7 @@ export function useBookClass() {
 
         const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-        if (currentUser?.email && sessionDetails) {
+        if (sessionDetails) {
           const classType = Array.isArray(sessionDetails.class_type)
             ? sessionDetails.class_type[0]
             : sessionDetails.class_type;
@@ -337,37 +387,53 @@ export function useBookClass() {
             ? sessionDetails.instructor[0]
             : sessionDetails.instructor;
 
-          // Send different email based on whether this was a waitlist claim
-          await supabase.functions.invoke("send-email", {
-            body: {
-              type: isWaitlistClaim ? "waitlist_claim_confirmation" : "booking_confirmation",
-              to: currentUser.email,
-              data: {
-                class_name: classType?.name || "Class",
-                className: classType?.name || "Class",
-                date: format(parseISO(sessionDetails.session_date), "EEEE, MMMM d, yyyy"),
-                time: format(parse(sessionDetails.start_time, "HH:mm:ss", new Date()), "h:mm a"),
-                room: sessionDetails.room || undefined,
-                location: sessionDetails.room || "Storm Wellness Club",
-                instructor: instructor
-                  ? `${instructor.first_name} ${instructor.last_name}`
-                  : "TBA",
+          const formattedDate = format(parseISO(sessionDetails.session_date), "EEEE, MMMM d, yyyy");
+          const formattedTime = format(parse(sessionDetails.start_time, "HH:mm:ss", new Date()), "h:mm a");
+          const instructorName = instructor ? `${instructor.first_name} ${instructor.last_name}` : "TBA";
+
+          confirmationDetails = {
+            className: classType?.name || "Class",
+            date: formattedDate,
+            time: formattedTime,
+            room: sessionDetails.room || null,
+            instructor: instructorName,
+            remainingCreditsLabel,
+          };
+
+          if (currentUser?.email) {
+            // Send different email based on whether this was a waitlist claim
+            await supabase.functions.invoke("send-email", {
+              body: {
+                type: isWaitlistClaim ? "waitlist_claim_confirmation" : "booking_confirmation",
+                to: currentUser.email,
+                data: {
+                  class_name: classType?.name || "Class",
+                  className: classType?.name || "Class",
+                  date: formattedDate,
+                  time: formattedTime,
+                  room: sessionDetails.room || undefined,
+                  location: sessionDetails.room || "Storm Wellness Club",
+                  instructor: instructorName,
+                  remainingCreditsLabel,
+                  remainingCreditsCount,
+                  creditLabel,
+                },
               },
-            },
-          });
+            });
+          }
         }
       } catch (emailError) {
         console.error("Failed to send confirmation email:", emailError);
         // Don't throw - booking succeeded, email is secondary
       }
 
-      return booking;
+      return { booking, confirmationDetails };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-bookings"] });
       queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
-      toast.success("Class booked successfully!");
+      // Toast is suppressed here — the BookingModal shows a rich confirmation dialog instead.
     },
     onError: (error: Error) => {
       toast.error(error.message);
