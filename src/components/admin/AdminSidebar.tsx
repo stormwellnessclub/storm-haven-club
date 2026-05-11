@@ -33,6 +33,7 @@ import {
   Sparkles,
   Megaphone,
   ShoppingBag,
+  ShoppingCart,
   ChevronDown,
   MessagesSquare,
   Monitor,
@@ -113,6 +114,7 @@ const departments: DepartmentSection[] = [
       { title: "Today's Classes", url: "/admin/classes", icon: Calendar },
       { title: "Class Management", url: "/admin/class-types", icon: Dumbbell },
       { title: "Instructors", url: "/admin/instructors", icon: UserCog },
+      { title: "Class Pass Abandoned", url: "/admin/abandoned-class-pass-checkouts", icon: ShoppingCart },
     ],
   },
   {
@@ -123,7 +125,6 @@ const departments: DepartmentSection[] = [
       { title: "Spa Management", url: "/admin/spa-management", icon: Calendar },
       { title: "Mother's Day 💛", url: "/admin/mothers-day", icon: Heart, highlight: true },
       { title: "MD Class Packs 🎁", url: "/admin/mothers-day-class-packs", icon: Heart, highlight: true },
-      { title: "Abandoned Checkouts", url: "/admin/abandoned-class-pass-checkouts", icon: Heart },
       { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
     ],
   },
