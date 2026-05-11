@@ -33,6 +33,7 @@ import {
   Sparkles,
   Megaphone,
   ShoppingBag,
+  ShoppingCart,
   ChevronDown,
   MessagesSquare,
   Monitor,
