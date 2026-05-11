@@ -173,21 +173,31 @@ serve(async (req) => {
       },
     });
 
-    try {
-      await supabase.from("pending_class_pass_checkouts").insert({
-        user_id: buyerUserId,
-        email: buyerEmail,
-        name: buyerName,
-        stripe_payment_intent_id: intent.id,
-        product_kind: "mothers_day_pack",
-        is_member: tierIsMember,
-        is_gift: !!body.is_gift,
-        gift_recipient_email: recipEmail,
-        gift_recipient_name: recipName,
-        amount_cents: totalCents,
-        status: "pending",
-      });
-    } catch (_) { /* non-fatal */ }
+    {
+      const { error: pendingErr } = await supabase
+        .from("pending_class_pass_checkouts")
+        .insert({
+          user_id: buyerUserId,
+          email: buyerEmail.toLowerCase(),
+          name: buyerName,
+          stripe_payment_intent_id: intent.id,
+          product_kind: "mothers_day_pack",
+          is_member: tierIsMember,
+          is_gift: !!body.is_gift,
+          gift_recipient_email: recipEmail,
+          gift_recipient_name: recipName,
+          amount_cents: totalCents,
+          status: "pending",
+        });
+      if (pendingErr) {
+        // Log loudly so future tracking failures are visible in edge logs.
+        console.error("[mothers-day-pack-create-intent] pending insert failed", {
+          pi: intent.id,
+          error: pendingErr.message,
+          code: (pendingErr as any).code,
+        });
+      }
+    }
 
     return new Response(
       JSON.stringify({
