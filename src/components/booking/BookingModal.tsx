@@ -49,6 +49,7 @@ import {
   writeClassDraft,
   clearClassDraft,
 } from "@/lib/bookingDraft";
+import { BookingConfirmationDialog } from "./BookingConfirmationDialog";
 
 interface BookingModalProps {
   session: ClassSession | null;
