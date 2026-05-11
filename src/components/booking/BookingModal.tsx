@@ -215,7 +215,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       return;
     }
 
-    await bookClass.mutateAsync({
+    const result = await bookClass.mutateAsync({
       sessionId: session.id,
       paymentMethod,
       passId: selectedPassId || undefined,
@@ -223,6 +223,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
     clearClassDraft();
     onOpenChange(false);
+
+    if (result?.confirmationDetails) {
+      const isPortal = window.location.pathname.startsWith("/portal");
+      setConfirmation({
+        ...result.confirmationDetails,
+        bookingsUrl: isPortal ? "/portal/bookings" : "/member/bookings",
+      });
+    } else {
+      // Fallback toast if for some reason details didn't come through
+      const { toast } = await import("sonner");
+      toast.success("Class booked successfully!");
+    }
   };
 
   const handleJoinWaitlist = async () => {
