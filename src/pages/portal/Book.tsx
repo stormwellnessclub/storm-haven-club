@@ -32,10 +32,10 @@ export default function PortalBook() {
       tone: "bg-accent/10 text-accent",
     },
     {
-      to: "/kids-care-interest",
+      to: "/apply",
       icon: Baby,
       title: "Kids care",
-      subtitle: "Reserve a drop-off spot for your child",
+      subtitle: "Available with membership — apply now",
       balance: null,
       tone: "bg-rose-500/10 text-rose-500",
     },
