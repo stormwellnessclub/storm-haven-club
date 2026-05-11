@@ -36,12 +36,13 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useMemberScanner, useRecentScans, ScanResult, DeviceType } from "@/hooks/useMemberScanner";
 import { useScannerSettings, useUpdateScannerSettings } from "@/hooks/useScannerSettings";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
+import { useSyncMemberStatus } from "@/hooks/usePaymentTracking";
 import { MemberCameraScanner } from "@/components/admin/MemberCameraScanner";
 import { format, parse } from "date-fns";
 import { Textarea } from "@/components/ui/textarea";
 import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 import { toast } from "sonner";
-import { Snowflake } from "lucide-react";
+import { Snowflake, RefreshCcw } from "lucide-react";
 
 export default function Scanner() {
   const [memberIdInput, setMemberIdInput] = useState("");
