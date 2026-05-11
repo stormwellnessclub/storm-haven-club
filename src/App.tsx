@@ -92,6 +92,7 @@ import EmailManagement from "./pages/admin/EmailManagement";
 import FreezeRequests from "./pages/admin/FreezeRequests";
 import Equipment from "./pages/admin/Equipment";
 import Agreements from "./pages/admin/Agreements";
+import SignatureCertificates from "./pages/admin/SignatureCertificates";
 import Reports from "./pages/admin/Reports";
 import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
 import ClassRoster from "./pages/admin/ClassRoster";
