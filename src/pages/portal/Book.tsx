@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { ChevronRight, CircleDot, Sparkles, Baby } from "lucide-react";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { Skeleton } from "@/components/ui/skeleton";
+import { UpcomingBookingsPanel } from "@/components/booking/UpcomingBookingsPanel";
 
 export default function PortalBook() {
   const { data: credits, isLoading } = useUserCredits();
