@@ -198,7 +198,7 @@ export default function KidsCareBookings() {
               <CardContent className="py-8 text-center text-muted-foreground">
                 <Baby className="h-10 w-10 mx-auto mb-3 opacity-50" />
                 <p>No active bookings</p>
-                <Button variant="link" className="mt-2" onClick={() => openBookingForDate()}>
+                <Button variant="link" className="mt-2" onClick={() => openBookingForDate()} disabled={!hasActivePass}>
                   Book your first session
                 </Button>
               </CardContent>
