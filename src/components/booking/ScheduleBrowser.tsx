@@ -303,22 +303,48 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       >
         <div className={embedded ? "" : "container mx-auto px-6"}>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
-            <div className="flex flex-wrap gap-2">
-              {[
-                { value: "all" as const, label: "All", icon: null },
-                { value: "pilates_cycling" as const, label: "Pilates & Cycling", icon: CircleDot },
-                { value: "aerobics" as const, label: "Aerobics", icon: Activity },
-                { value: "other" as const, label: "Other", icon: Bike },
-              ].map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => setCategoryFilter(cat.value)}
-                  className={`filter-badge flex items-center gap-1.5 ${categoryFilter === cat.value ? "filter-badge-active" : ""}`}
-                >
-                  {cat.icon && <cat.icon className="w-3.5 h-3.5" />}
-                  {cat.label}
-                </button>
-              ))}
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all" as const, label: "All Studios", icon: null },
+                  { value: "Reformer Studio" as const, label: "Reformer Pilates", icon: CircleDot },
+                  { value: "Cycle Studio" as const, label: "Cycling", icon: Bike },
+                  { value: "Aerobics Studio" as const, label: "Aerobics", icon: Activity },
+                ].map((r) => (
+                  <button
+                    key={r.value}
+                    onClick={() => setRoomFilter(r.value)}
+                    className={`filter-badge flex items-center gap-1.5 ${roomFilter === r.value ? "filter-badge-active" : ""}`}
+                  >
+                    {r.icon && <r.icon className="w-3.5 h-3.5" />}
+                    {r.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                {[
+                  { value: "all" as const, label: "All", icon: null },
+                  { value: "heated" as const, label: "Heated", icon: Flame },
+                  { value: "non_heated" as const, label: "Non-heated", icon: Snowflake },
+                ].map((h) => (
+                  <button
+                    key={h.value}
+                    onClick={() => setHeatFilter(h.value)}
+                    className={`filter-badge flex items-center gap-1.5 ${heatFilter === h.value ? "filter-badge-active" : ""}`}
+                  >
+                    {h.icon && <h.icon className="w-3.5 h-3.5" />}
+                    {h.label}
+                  </button>
+                ))}
+                {(roomFilter !== "all" || heatFilter !== "all") && (
+                  <button
+                    onClick={() => { setRoomFilter("all"); setHeatFilter("all"); }}
+                    className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
