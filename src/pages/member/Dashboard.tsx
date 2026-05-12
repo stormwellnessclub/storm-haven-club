@@ -163,7 +163,6 @@ export default function MemberDashboard() {
   return (
     <MemberLayout title="Dashboard">
       <div className="space-y-8">
-        <MothersDayBanner />
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
 
