@@ -682,10 +682,18 @@ export default function ClassRoster() {
           booked_at: new Date().toISOString(),
         });
       } else if (paymentMethod === "dropin") {
-        const amountCents = dropInRate === "member" ? 2500 : 3000;
+        const amountCents = isFundraiserSession
+          ? fundraiserAmountCents
+          : (dropInRate === "member" ? 2500 : 3000);
+        const chargeDescription = isFundraiserSession
+          ? `Donation: ${className} on ${session?.session_date}${fundraiserBeneficiary ? ` — ${fundraiserBeneficiary}` : ""}`
+          : `Drop-in: ${className} on ${session?.session_date}`;
+
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
-          status: "confirmed", payment_method: "walk_in", amount_paid: amountCents,
+          status: "confirmed",
+          payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
+          amount_paid: amountCents,
           walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
           booked_at: new Date().toISOString(),
         });
@@ -693,7 +701,7 @@ export default function ClassRoster() {
         if (memberId) {
           try {
             const { data, error: chargeErr } = await supabase.functions.invoke("stripe-payment", {
-              body: { action: "charge_saved_card", memberId, amount: amountCents, description: `Drop-in: ${className} on ${session?.session_date}` },
+              body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
             });
             if (chargeErr || !data?.success) {
               toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)} at desk`, { duration: 5000 });
@@ -704,7 +712,7 @@ export default function ClassRoster() {
             return;
           }
         } else {
-          toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)} drop-in fee at desk`, { duration: 5000 });
+          toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)}${isFundraiserSession ? " donation" : " drop-in fee"} at desk`, { duration: 5000 });
           return;
         }
       } else if (paymentMethod === "comp") {
