@@ -43,6 +43,8 @@ interface PaymentMethodSelectorProps {
   onCreditIdChange: (id: string | null) => void;
   dropInRate: "member" | "nonmember";
   onDropInRateChange: (rate: "member" | "nonmember") => void;
+  isFundraiser?: boolean;
+  fundraiserAmountCents?: number;
 }
 
 export function PaymentMethodSelector({
@@ -57,6 +59,8 @@ export function PaymentMethodSelector({
   onCreditIdChange,
   dropInRate,
   onDropInRateChange,
+  isFundraiser = false,
+  fundraiserAmountCents = 4000,
 }: PaymentMethodSelectorProps) {
   // Fetch active class passes for the user
   const { data: passes = [] } = useQuery({
@@ -112,8 +116,8 @@ export function PaymentMethodSelector({
         }}
         className="space-y-2"
       >
-        {/* Use existing pass */}
-        {hasPasses && (
+        {/* Use existing pass — hidden for fundraiser/donation classes */}
+        {hasPasses && !isFundraiser && (
           <div className="flex items-start space-x-3 rounded-sm border p-3">
             <RadioGroupItem value="pass" id="pay-pass" className="mt-0.5" />
             <div className="flex-1 space-y-2">
@@ -142,8 +146,8 @@ export function PaymentMethodSelector({
           </div>
         )}
 
-        {/* Use member credits */}
-        {hasCredits && (
+        {/* Use member credits — hidden for fundraiser/donation classes */}
+        {hasCredits && !isFundraiser && (
           <div className="flex items-start space-x-3 rounded-sm border p-3">
             <RadioGroupItem value="credits" id="pay-credits" className="mt-0.5" />
             <div className="flex-1 space-y-2">
@@ -172,17 +176,19 @@ export function PaymentMethodSelector({
           </div>
         )}
 
-        {/* Charge drop-in */}
+        {/* Charge — donation amount for fundraiser classes, otherwise standard drop-in */}
         <div className="flex items-start space-x-3 rounded-sm border p-3">
           <RadioGroupItem value="dropin" id="pay-dropin" className="mt-0.5" />
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-muted-foreground" />
               <Label htmlFor="pay-dropin" className="text-sm font-medium cursor-pointer">
-                Charge single drop-in
+                {isFundraiser
+                  ? `Charge donation — $${(fundraiserAmountCents / 100).toFixed(0)}`
+                  : "Charge single drop-in"}
               </Label>
             </div>
-            {selectedMethod === "dropin" && (
+            {selectedMethod === "dropin" && !isFundraiser && (
               <div className="flex gap-2">
                 <button
                   type="button"
@@ -204,19 +210,26 @@ export function PaymentMethodSelector({
                 </button>
               </div>
             )}
+            {selectedMethod === "dropin" && isFundraiser && (
+              <p className="text-xs text-muted-foreground">
+                Fundraiser class — donation amount will be charged to the member's card on file (or collected at the desk).
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Sell a package */}
-        <div className="flex items-start space-x-3 rounded-sm border p-3">
-          <RadioGroupItem value="sell" id="pay-sell" className="mt-0.5" />
-          <div className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
-            <Label htmlFor="pay-sell" className="text-sm font-medium cursor-pointer">
-              Sell a package now
-            </Label>
+        {/* Sell a package — hidden for fundraiser/donation classes */}
+        {!isFundraiser && (
+          <div className="flex items-start space-x-3 rounded-sm border p-3">
+            <RadioGroupItem value="sell" id="pay-sell" className="mt-0.5" />
+            <div className="flex items-center gap-2">
+              <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+              <Label htmlFor="pay-sell" className="text-sm font-medium cursor-pointer">
+                Sell a package now
+              </Label>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Comp */}
         <div className="flex items-start space-x-3 rounded-sm border p-3">
