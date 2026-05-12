@@ -24,7 +24,7 @@ import { useMemberBenefitsStatus } from "@/hooks/useMemberBenefitsStatus";
 import { Progress } from "@/components/ui/progress";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
-import { MothersDayBanner } from "@/components/marketing/MothersDayBanner";
+
 import {
   CreditCard,
   Calendar,
