@@ -3024,7 +3024,17 @@ function MemberNotesSection({ memberId, notes, createNote, deleteNote }: any) {
                   {note.created_at ? format(new Date(note.created_at), 'PPp') : ''}
                 </p>
               </div>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteNote.mutate(note.id)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6"
+                disabled={deleteNote.isPending}
+                onClick={() => {
+                  if (confirm("Delete this note?")) {
+                    deleteNote.mutate({ id: note.id, memberId });
+                  }
+                }}
+              >
                 <X className="h-3 w-3" />
               </Button>
             </div>
