@@ -17,9 +17,8 @@ import { AccountRequiredSection } from "@/components/AccountRequiredSection";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
-import { MothersDayClassPackSection } from "@/components/marketing/MothersDayClassPackSection";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
-import { PromoBanner } from "@/components/marketing/PromoBanner";
+
 
 interface PricingTier {
   type: string;
@@ -438,7 +437,6 @@ export default function ClassPasses() {
   return (
     <Layout>
       <SEOHead title="Class Passes" description="Purchase class passes for all studio classes. Single class and 10-pack options available with member and non-member pricing at Storm Wellness Club." path="/class-passes" />
-      <PromoBanner />
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
@@ -514,8 +512,6 @@ export default function ClassPasses() {
           </div>
         </section>
       )}
-
-      <MothersDayClassPackSection />
 
       <ClassPassPricingTables 
         onPurchase={handlePurchase}
