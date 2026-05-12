@@ -17,9 +17,8 @@ import { AccountRequiredSection } from "@/components/AccountRequiredSection";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
-import { MothersDayClassPackSection } from "@/components/marketing/MothersDayClassPackSection";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
-import { PromoBanner } from "@/components/marketing/PromoBanner";
+
 
 interface PricingTier {
   type: string;
