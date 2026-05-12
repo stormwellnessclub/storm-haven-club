@@ -136,7 +136,6 @@ export default function PortalDashboard() {
   return (
     <PortalLayout title="Dashboard">
       <div className="space-y-6 max-w-4xl">
-        <MothersDayBanner />
         {/* Welcome */}
         <div>
           <h2 className="heading-section">Welcome back, {firstName}</h2>
