@@ -550,10 +550,14 @@ export default function ClassRoster() {
           booked_at: new Date().toISOString(),
         });
       } else if (method === "dropin") {
-        const amountCents = dropInRate === "member" ? 2500 : 3000;
+        const amountCents = isFundraiserSession
+          ? fundraiserAmountCents
+          : (dropInRate === "member" ? 2500 : 3000);
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
-          status: "confirmed", payment_method: "walk_in", amount_paid: amountCents,
+          status: "confirmed",
+          payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
+          amount_paid: amountCents,
           booked_at: new Date().toISOString(),
         });
       } else if (method === "comp") {
