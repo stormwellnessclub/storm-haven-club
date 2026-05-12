@@ -43,6 +43,8 @@ interface PaymentMethodSelectorProps {
   onCreditIdChange: (id: string | null) => void;
   dropInRate: "member" | "nonmember";
   onDropInRateChange: (rate: "member" | "nonmember") => void;
+  isFundraiser?: boolean;
+  fundraiserAmountCents?: number;
 }
 
 export function PaymentMethodSelector({
@@ -57,6 +59,8 @@ export function PaymentMethodSelector({
   onCreditIdChange,
   dropInRate,
   onDropInRateChange,
+  isFundraiser = false,
+  fundraiserAmountCents = 4000,
 }: PaymentMethodSelectorProps) {
   // Fetch active class passes for the user
   const { data: passes = [] } = useQuery({
