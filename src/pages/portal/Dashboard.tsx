@@ -18,7 +18,7 @@ import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
-import { MothersDayBanner } from "@/components/marketing/MothersDayBanner";
+
 
 export default function PortalDashboard() {
   const { user } = useAuth();
