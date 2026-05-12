@@ -942,6 +942,8 @@ export default function ClassRoster() {
                   onCreditIdChange={setSelectedCreditId}
                   dropInRate={dropInRate}
                   onDropInRateChange={setDropInRate}
+                  isFundraiser={isFundraiserSession}
+                  fundraiserAmountCents={fundraiserAmountCents}
                 />
                 <Button className="w-full" disabled={!canSubmit || addToClassMutation.isPending} onClick={() => addToClassMutation.mutate()}>
                   {addToClassMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
