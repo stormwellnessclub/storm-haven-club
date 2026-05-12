@@ -513,8 +513,6 @@ export default function ClassPasses() {
         </section>
       )}
 
-      <MothersDayClassPackSection />
-
       <ClassPassPricingTables 
         onPurchase={handlePurchase}
         loadingPass={loadingPass}
