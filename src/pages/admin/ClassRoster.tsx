@@ -133,6 +133,9 @@ export default function ClassRoster() {
 
   const className = session ? (Array.isArray(session.class_types) ? session.class_types[0]?.name : (session.class_types as any)?.name) : "";
   const sessionDate = session?.session_date ? new Date(session.session_date + "T00:00:00") : new Date();
+  const isFundraiserSession = !!(session as any)?.is_fundraiser;
+  const fundraiserAmountCents = (session as any)?.override_price_cents ?? 4000;
+  const fundraiserBeneficiary = (session as any)?.fundraiser_beneficiary || "";
 
   // Fetch bookings using shared resolver
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
