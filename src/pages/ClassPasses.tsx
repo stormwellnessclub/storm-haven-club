@@ -437,7 +437,6 @@ export default function ClassPasses() {
   return (
     <Layout>
       <SEOHead title="Class Passes" description="Purchase class passes for all studio classes. Single class and 10-pack options available with member and non-member pricing at Storm Wellness Club." path="/class-passes" />
-      <PromoBanner />
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
