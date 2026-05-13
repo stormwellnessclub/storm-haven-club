@@ -37,12 +37,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface CartItem {
+interface CartAddon {
   id: string;
+  name: string;
+  price: number;
+}
+
+interface CartItem {
+  // composite key: item.id + sorted addon ids — so two of the same drink with
+  // different add-ons stay as separate cart lines
+  key: string;
+  itemId: string;
   name: string;
   price: number;
   category: string;
   quantity: number;
+  addons: CartAddon[];
 }
 
 function getItemDisplayName(item: DbMenuItem): string {
