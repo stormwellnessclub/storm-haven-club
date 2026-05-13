@@ -534,29 +534,40 @@ export default function Cafe() {
                   ) : (
                     <>
                       <div className="space-y-4 mb-6">
-                        {cart.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">{item.name}</p>
-                              <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} each</p>
+                        {cart.map((item) => {
+                          const unit =
+                            item.price + item.addons.reduce((s, a) => s + a.price, 0);
+                          return (
+                            <div key={item.key} className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium">{item.name}</p>
+                                {item.addons.length > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.addons.map((a) => `+ ${a.name}`).join(", ")}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  ${unit.toFixed(2)} each
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  onClick={() => updateQuantity(item.key, -1)}
+                                  className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="w-6 text-center text-sm">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateQuantity(item.key, 1)}
+                                  className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <span className="w-6 text-center text-sm">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <div className="border-t border-border pt-4 mb-4 space-y-1">
                         <div className="flex justify-between items-center text-sm text-muted-foreground">
