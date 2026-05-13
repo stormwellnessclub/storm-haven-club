@@ -215,13 +215,20 @@ export default function Cafe() {
     setIsProcessingPayment(true);
     try {
       let paymentIntentId: string | undefined;
-      const orderItems = cart.map((item) => ({
-        id: parseInt(item.id.slice(0, 8), 16) || 0,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        category: item.category,
-      }));
+      const orderItems = cart.map((item) => {
+        const addonsLabel = item.addons.length
+          ? ` (+ ${item.addons.map((a) => a.name).join(", ")})`
+          : "";
+        const unitPrice =
+          item.price + item.addons.reduce((s, a) => s + a.price, 0);
+        return {
+          id: parseInt(item.itemId.slice(0, 8), 16) || 0,
+          name: `${item.name}${addonsLabel}`,
+          price: unitPrice,
+          quantity: item.quantity,
+          category: item.category,
+        };
+      });
       const totalAmountCents = Math.round(cartTotal * 100);
       const processingFeeCents = Math.round(cartProcessingFee * 100);
       const taxAmountCents = Math.round(cartTax * 100);
