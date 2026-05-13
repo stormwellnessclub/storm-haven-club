@@ -14,10 +14,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   useCafeMenuCategories,
   useCafeMenuItems,
+  useCafeMenuAddons,
   calculateTax,
   type CafeMenuItem as DbMenuItem,
   type CafeMenuCategory,
+  type CafeMenuAddon,
 } from "@/hooks/useCafeMenu";
+import { CafeAddonDialog } from "@/components/cafe/CafeAddonDialog";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   Dialog,
