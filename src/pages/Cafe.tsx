@@ -191,7 +191,7 @@ export default function Cafe() {
   const lineTotal = (item: CartItem) =>
     (item.price + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity;
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + lineTotal(item), 0);
   const cartTax = calculateTax(cartSubtotal);
   const cartProcessingFee = calculateProcessingFeeFromDollars(cartSubtotal + cartTax);
   const cartTotal = cartSubtotal + cartTax + cartProcessingFee;
