@@ -507,7 +507,7 @@ export default function Cafe() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => addToCart(item)}
+                              onClick={() => handleItemTap(item)}
                               disabled={isSoldOut}
                             >
                               <Plus className="w-4 h-4" />
