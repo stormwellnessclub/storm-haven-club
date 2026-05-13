@@ -724,6 +724,23 @@ export default function Cafe() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CafeAddonDialog
+        open={!!addonDialogItem}
+        onOpenChange={(open) => !open && setAddonDialogItem(null)}
+        item={addonDialogItem}
+        itemDisplayName={addonDialogItem ? getItemDisplayName(addonDialogItem) : ""}
+        addons={addonDialogItem ? getAddonsForItem(addonDialogItem) : []}
+        onConfirm={(selected) => {
+          if (addonDialogItem) {
+            addItemToCart(
+              addonDialogItem,
+              selected.map((a) => ({ id: a.id, name: a.name, price: Number(a.price || 0) })),
+            );
+          }
+          setAddonDialogItem(null);
+        }}
+      />
     </Layout>
   );
 }
