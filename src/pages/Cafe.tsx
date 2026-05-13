@@ -112,6 +112,7 @@ export default function Cafe() {
   const createOrder = useCreateCafeOrder();
   const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories('cafe');
   const { data: menuItems = [], isLoading: itemsLoading } = useCafeMenuItems();
+  const { data: addons = [] } = useCafeMenuAddons();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -122,6 +123,7 @@ export default function Cafe() {
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [showSmsOptIn, setShowSmsOptIn] = useState(false);
+  const [addonDialogItem, setAddonDialogItem] = useState<DbMenuItem | null>(null);
 
   const isLoading = catLoading || itemsLoading;
 
@@ -129,30 +131,65 @@ export default function Cafe() {
     ? menuItems.filter((item) => item.category_id === selectedCategoryId)
     : menuItems;
 
-  const addToCart = (item: DbMenuItem) => {
-    if (item.stock_quantity === 0) {
-      toast.error("This item is sold out");
-      return;
-    }
+  // Add-ons available for a given menu item (matched by category)
+  const getAddonsForItem = (item: DbMenuItem): CafeMenuAddon[] => {
+    if (!item.category_id) return [];
+    const cat = categories.find((c) => c.id === item.category_id);
+    if (!cat?.has_addons) return [];
+    return addons.filter((a) => a.category_id === item.category_id);
+  };
+
+  const buildCartKey = (itemId: string, addonIds: string[]) =>
+    `${itemId}::${[...addonIds].sort().join(",")}`;
+
+  const addItemToCart = (item: DbMenuItem, selectedAddons: CartAddon[]) => {
     const name = getItemDisplayName(item);
     const catName = categories.find((c) => c.id === item.category_id)?.name || "";
+    const key = buildCartKey(item.id, selectedAddons.map((a) => a.id));
     setCart((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+      const existing = prev.find((i) => i.key === key);
       if (existing) {
-        return prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
+        return prev.map((i) => (i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
       }
-      return [...prev, { id: item.id, name, price: item.price, category: catName, quantity: 1 }];
+      return [
+        ...prev,
+        {
+          key,
+          itemId: item.id,
+          name,
+          price: item.price,
+          category: catName,
+          quantity: 1,
+          addons: selectedAddons,
+        },
+      ];
     });
     toast.success(`${name} added to order`);
   };
 
-  const updateQuantity = (id: string, delta: number) => {
+  const handleItemTap = (item: DbMenuItem) => {
+    if (item.stock_quantity === 0) {
+      toast.error("This item is sold out");
+      return;
+    }
+    const itemAddons = getAddonsForItem(item);
+    if (itemAddons.length > 0) {
+      setAddonDialogItem(item);
+      return;
+    }
+    addItemToCart(item, []);
+  };
+
+  const updateQuantity = (key: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((item) => (item.id === id ? { ...item, quantity: item.quantity + delta } : item))
+        .map((item) => (item.key === key ? { ...item, quantity: item.quantity + delta } : item))
         .filter((item) => item.quantity > 0)
     );
   };
+
+  const lineTotal = (item: CartItem) =>
+    (item.price + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity;
 
   const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const cartTax = calculateTax(cartSubtotal);
