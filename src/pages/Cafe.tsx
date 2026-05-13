@@ -14,10 +14,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   useCafeMenuCategories,
   useCafeMenuItems,
+  useCafeMenuAddons,
   calculateTax,
   type CafeMenuItem as DbMenuItem,
   type CafeMenuCategory,
+  type CafeMenuAddon,
 } from "@/hooks/useCafeMenu";
+import { CafeAddonDialog } from "@/components/cafe/CafeAddonDialog";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
   Dialog,
@@ -34,12 +37,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface CartItem {
+interface CartAddon {
   id: string;
+  name: string;
+  price: number;
+}
+
+interface CartItem {
+  // composite key: item.id + sorted addon ids — so two of the same drink with
+  // different add-ons stay as separate cart lines
+  key: string;
+  itemId: string;
   name: string;
   price: number;
   category: string;
   quantity: number;
+  addons: CartAddon[];
 }
 
 function getItemDisplayName(item: DbMenuItem): string {
@@ -99,6 +112,7 @@ export default function Cafe() {
   const createOrder = useCreateCafeOrder();
   const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories('cafe');
   const { data: menuItems = [], isLoading: itemsLoading } = useCafeMenuItems();
+  const { data: addons = [] } = useCafeMenuAddons();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -109,6 +123,7 @@ export default function Cafe() {
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [showSmsOptIn, setShowSmsOptIn] = useState(false);
+  const [addonDialogItem, setAddonDialogItem] = useState<DbMenuItem | null>(null);
 
   const isLoading = catLoading || itemsLoading;
 
@@ -116,32 +131,67 @@ export default function Cafe() {
     ? menuItems.filter((item) => item.category_id === selectedCategoryId)
     : menuItems;
 
-  const addToCart = (item: DbMenuItem) => {
-    if (item.stock_quantity === 0) {
-      toast.error("This item is sold out");
-      return;
-    }
+  // Add-ons available for a given menu item (matched by category)
+  const getAddonsForItem = (item: DbMenuItem): CafeMenuAddon[] => {
+    if (!item.category_id) return [];
+    const cat = categories.find((c) => c.id === item.category_id);
+    if (!cat?.has_addons) return [];
+    return addons.filter((a) => a.category_id === item.category_id);
+  };
+
+  const buildCartKey = (itemId: string, addonIds: string[]) =>
+    `${itemId}::${[...addonIds].sort().join(",")}`;
+
+  const addItemToCart = (item: DbMenuItem, selectedAddons: CartAddon[]) => {
     const name = getItemDisplayName(item);
     const catName = categories.find((c) => c.id === item.category_id)?.name || "";
+    const key = buildCartKey(item.id, selectedAddons.map((a) => a.id));
     setCart((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+      const existing = prev.find((i) => i.key === key);
       if (existing) {
-        return prev.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
+        return prev.map((i) => (i.key === key ? { ...i, quantity: i.quantity + 1 } : i));
       }
-      return [...prev, { id: item.id, name, price: item.price, category: catName, quantity: 1 }];
+      return [
+        ...prev,
+        {
+          key,
+          itemId: item.id,
+          name,
+          price: item.price,
+          category: catName,
+          quantity: 1,
+          addons: selectedAddons,
+        },
+      ];
     });
     toast.success(`${name} added to order`);
   };
 
-  const updateQuantity = (id: string, delta: number) => {
+  const handleItemTap = (item: DbMenuItem) => {
+    if (item.stock_quantity === 0) {
+      toast.error("This item is sold out");
+      return;
+    }
+    const itemAddons = getAddonsForItem(item);
+    if (itemAddons.length > 0) {
+      setAddonDialogItem(item);
+      return;
+    }
+    addItemToCart(item, []);
+  };
+
+  const updateQuantity = (key: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((item) => (item.id === id ? { ...item, quantity: item.quantity + delta } : item))
+        .map((item) => (item.key === key ? { ...item, quantity: item.quantity + delta } : item))
         .filter((item) => item.quantity > 0)
     );
   };
 
-  const cartSubtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const lineTotal = (item: CartItem) =>
+    (item.price + item.addons.reduce((s, a) => s + a.price, 0)) * item.quantity;
+
+  const cartSubtotal = cart.reduce((sum, item) => sum + lineTotal(item), 0);
   const cartTax = calculateTax(cartSubtotal);
   const cartProcessingFee = calculateProcessingFeeFromDollars(cartSubtotal + cartTax);
   const cartTotal = cartSubtotal + cartTax + cartProcessingFee;
@@ -165,13 +215,20 @@ export default function Cafe() {
     setIsProcessingPayment(true);
     try {
       let paymentIntentId: string | undefined;
-      const orderItems = cart.map((item) => ({
-        id: parseInt(item.id.slice(0, 8), 16) || 0,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        category: item.category,
-      }));
+      const orderItems = cart.map((item) => {
+        const addonsLabel = item.addons.length
+          ? ` (+ ${item.addons.map((a) => a.name).join(", ")})`
+          : "";
+        const unitPrice =
+          item.price + item.addons.reduce((s, a) => s + a.price, 0);
+        return {
+          id: parseInt(item.itemId.slice(0, 8), 16) || 0,
+          name: `${item.name}${addonsLabel}`,
+          price: unitPrice,
+          quantity: item.quantity,
+          category: item.category,
+        };
+      });
       const totalAmountCents = Math.round(cartTotal * 100);
       const processingFeeCents = Math.round(cartProcessingFee * 100);
       const taxAmountCents = Math.round(cartTax * 100);
@@ -450,7 +507,7 @@ export default function Cafe() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => addToCart(item)}
+                              onClick={() => handleItemTap(item)}
                               disabled={isSoldOut}
                             >
                               <Plus className="w-4 h-4" />
@@ -477,29 +534,40 @@ export default function Cafe() {
                   ) : (
                     <>
                       <div className="space-y-4 mb-6">
-                        {cart.map((item) => (
-                          <div key={item.id} className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">{item.name}</p>
-                              <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} each</p>
+                        {cart.map((item) => {
+                          const unit =
+                            item.price + item.addons.reduce((s, a) => s + a.price, 0);
+                          return (
+                            <div key={item.key} className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium">{item.name}</p>
+                                {item.addons.length > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.addons.map((a) => `+ ${a.name}`).join(", ")}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  ${unit.toFixed(2)} each
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  onClick={() => updateQuantity(item.key, -1)}
+                                  className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="w-6 text-center text-sm">{item.quantity}</span>
+                                <button
+                                  onClick={() => updateQuantity(item.key, 1)}
+                                  className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => updateQuantity(item.id, -1)}
-                                className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <span className="w-6 text-center text-sm">{item.quantity}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, 1)}
-                                className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <div className="border-t border-border pt-4 mb-4 space-y-1">
                         <div className="flex justify-between items-center text-sm text-muted-foreground">
@@ -656,6 +724,23 @@ export default function Cafe() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CafeAddonDialog
+        open={!!addonDialogItem}
+        onOpenChange={(open) => !open && setAddonDialogItem(null)}
+        item={addonDialogItem}
+        itemDisplayName={addonDialogItem ? getItemDisplayName(addonDialogItem) : ""}
+        addons={addonDialogItem ? getAddonsForItem(addonDialogItem) : []}
+        onConfirm={(selected) => {
+          if (addonDialogItem) {
+            addItemToCart(
+              addonDialogItem,
+              selected.map((a) => ({ id: a.id, name: a.name, price: Number(a.price || 0) })),
+            );
+          }
+          setAddonDialogItem(null);
+        }}
+      />
     </Layout>
   );
 }
