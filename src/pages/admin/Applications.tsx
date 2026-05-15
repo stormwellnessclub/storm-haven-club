@@ -121,6 +121,9 @@ type Application = {
   credit_card_auth: boolean;
   auth_acknowledgment: boolean;
   submission_confirmation: boolean;
+  ack_initiation_fee?: boolean;
+  ack_card_on_file?: boolean;
+  ack_final_readiness?: boolean;
   payment_info_provided: boolean;
   annual_fee_status: string;
   notes: string | null;
@@ -2163,13 +2166,8 @@ export default function Applications() {
                             Founding
                           </Badge>
                         )}
-                        {app.skip_tour_activate_immediately && (
-                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
-                            <Rocket className="h-3 w-3 mr-1" />
-                            Immediate
-                          </Badge>
-                        )}
                       </div>
+
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -2577,7 +2575,8 @@ export default function Applications() {
 
         {/* Application Detail Sheet (Full-Width Side Panel) */}
         <Sheet open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-          <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+          <SheetContent side="right" className="w-screen sm:!max-w-none p-6 sm:p-8 overflow-y-auto">
+            <div className="max-w-6xl mx-auto">
             <SheetHeader>
               <SheetTitle>Application Details</SheetTitle>
               <SheetDescription>
@@ -2647,25 +2646,16 @@ export default function Applications() {
                         )}
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Tour Preference</p>
-                        {selectedApplication.skip_tour_activate_immediately ? (
-                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
-                            <Rocket className="h-3 w-3 mr-1" />
-                            Activate Immediately
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">Wants Tour</span>
-                        )}
-                      </div>
-                      {selectedApplication.skip_tour_activate_immediately && selectedApplication.liability_waiver_signed && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Liability Waiver</p>
+                        <p className="text-sm text-muted-foreground">Liability Waiver</p>
+                        {selectedApplication.liability_waiver_signed ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/30">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Signed
                           </Badge>
-                        </div>
-                      )}
+                        ) : (
+                          <span className="text-muted-foreground">Not signed</span>
+                        )}
+                      </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Previous Member</p>
                         <p className="font-medium">{selectedApplication.previous_member || "No"}</p>
@@ -2816,6 +2806,38 @@ export default function Applications() {
                           <XCircle className="h-4 w-4 text-destructive" />
                         )}
                         <span className="text-sm">Auth Acknowledgment</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.ack_initiation_fee ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Initiation Fee Acknowledged</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.ack_card_on_file ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Card-on-File Acknowledged</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.ack_final_readiness ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Final Readiness Confirmed</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.submission_confirmation ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Submission Confirmed</span>
                       </div>
                     </div>
                   </div>
@@ -3036,6 +3058,7 @@ export default function Applications() {
                   </div>
                 </div>
             )}
+            </div>
           </SheetContent>
         </Sheet>
 
