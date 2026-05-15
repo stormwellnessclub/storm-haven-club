@@ -2646,25 +2646,16 @@ export default function Applications() {
                         )}
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Tour Preference</p>
-                        {selectedApplication.skip_tour_activate_immediately ? (
-                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
-                            <Rocket className="h-3 w-3 mr-1" />
-                            Activate Immediately
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">Wants Tour</span>
-                        )}
-                      </div>
-                      {selectedApplication.skip_tour_activate_immediately && selectedApplication.liability_waiver_signed && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Liability Waiver</p>
+                        <p className="text-sm text-muted-foreground">Liability Waiver</p>
+                        {selectedApplication.liability_waiver_signed ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/30">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Signed
                           </Badge>
-                        </div>
-                      )}
+                        ) : (
+                          <span className="text-muted-foreground">Not signed</span>
+                        )}
+                      </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Previous Member</p>
                         <p className="font-medium">{selectedApplication.previous_member || "No"}</p>
