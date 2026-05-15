@@ -2575,7 +2575,8 @@ export default function Applications() {
 
         {/* Application Detail Sheet (Full-Width Side Panel) */}
         <Sheet open={!!selectedApplication} onOpenChange={() => setSelectedApplication(null)}>
-          <SheetContent side="right" className="w-full sm:max-w-4xl overflow-y-auto">
+          <SheetContent side="right" className="w-screen sm:!max-w-none p-6 sm:p-8 overflow-y-auto">
+            <div className="max-w-6xl mx-auto">
             <SheetHeader>
               <SheetTitle>Application Details</SheetTitle>
               <SheetDescription>
