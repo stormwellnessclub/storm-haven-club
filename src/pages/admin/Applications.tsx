@@ -3035,6 +3035,7 @@ export default function Applications() {
                   </div>
                 </div>
             )}
+            </div>
           </SheetContent>
         </Sheet>
 
