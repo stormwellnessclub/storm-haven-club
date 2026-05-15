@@ -121,6 +121,9 @@ type Application = {
   credit_card_auth: boolean;
   auth_acknowledgment: boolean;
   submission_confirmation: boolean;
+  ack_initiation_fee?: boolean;
+  ack_card_on_file?: boolean;
+  ack_final_readiness?: boolean;
   payment_info_provided: boolean;
   annual_fee_status: string;
   notes: string | null;
