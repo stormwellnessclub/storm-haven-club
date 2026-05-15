@@ -2166,13 +2166,8 @@ export default function Applications() {
                             Founding
                           </Badge>
                         )}
-                        {app.skip_tour_activate_immediately && (
-                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-400">
-                            <Rocket className="h-3 w-3 mr-1" />
-                            Immediate
-                          </Badge>
-                        )}
                       </div>
+
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
