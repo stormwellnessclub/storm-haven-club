@@ -2807,6 +2807,38 @@ export default function Applications() {
                         )}
                         <span className="text-sm">Auth Acknowledgment</span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.ack_initiation_fee ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Initiation Fee Acknowledged</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.ack_card_on_file ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Card-on-File Acknowledged</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.ack_final_readiness ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Final Readiness Confirmed</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {selectedApplication.submission_confirmation ? (
+                          <CheckCircle className="h-4 w-4 text-primary" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                        <span className="text-sm">Submission Confirmed</span>
+                      </div>
                     </div>
                   </div>
 
