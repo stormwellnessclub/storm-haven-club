@@ -25,7 +25,8 @@ import {
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJoinKidsCareInterest } from "@/hooks/useKidsCareInterest";
-import { useKidsCareHoursForWeek } from "@/hooks/useKidsCareHours";
+import { useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
+import { format, parseISO } from "date-fns";
 import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
