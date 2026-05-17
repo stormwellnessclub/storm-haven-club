@@ -87,12 +87,17 @@ export default function KidsCare() {
   const { user } = useAuth();
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const { data: weeklyHours, isLoading: hoursLoading } = useKidsCareHoursForWeek(new Date());
+  const { data: upcomingSlots, isLoading: hoursLoading } = useUpcomingKidsCareSlots(7);
 
   const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
   const [purchaseLoading, setPurchaseLoading] = useState(false);
 
-  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  // Group upcoming slots by date for display
+  const slotsByDate = (upcomingSlots ?? []).reduce<Record<string, typeof upcomingSlots>>((acc, s) => {
+    (acc[s.slot_date] ||= [] as any).push(s);
+    return acc;
+  }, {});
+  const orderedDates = Object.keys(slotsByDate).sort();
 
   const hasActivePass = availablePasses && availablePasses.length > 0;
 
