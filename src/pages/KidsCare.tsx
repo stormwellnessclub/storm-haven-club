@@ -254,19 +254,23 @@ export default function KidsCare() {
                 <div className="flex justify-center py-8">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 </div>
-              ) : weeklyHours && weeklyHours.length > 0 ? (
+              ) : orderedDates.length > 0 ? (
                 <div className="space-y-4">
-                  {weeklyHours.filter(h => !h.is_closed).map((entry) => (
-                    <div key={entry.day_of_week} className="flex justify-between items-center py-3 border-b border-border last:border-0">
-                      <span className="font-medium">{DAY_NAMES[entry.day_of_week]}</span>
-                      <span className="text-muted-foreground text-sm">
-                        {formatTime12h(entry.open_time)} - {formatTime12h(entry.close_time)}
-                      </span>
+                  {orderedDates.map((date) => (
+                    <div key={date} className="py-3 border-b border-border last:border-0">
+                      <div className="flex justify-between items-start gap-4">
+                        <span className="font-medium">{format(parseISO(date), "EEEE, MMM d")}</span>
+                        <div className="text-muted-foreground text-sm text-right space-y-1">
+                          {slotsByDate[date].map((s, i) => (
+                            <div key={s.id ?? i}>
+                              {formatTime12h(s.open_time)} - {formatTime12h(s.close_time)}
+                              {s.label ? <span className="ml-2 text-xs text-accent">({s.label})</span> : null}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ))}
-                  {weeklyHours.filter(h => !h.is_closed).length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Closed this week</p>
-                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-4">
