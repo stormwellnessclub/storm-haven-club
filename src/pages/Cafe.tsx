@@ -20,6 +20,7 @@ import {
   type CafeMenuCategory,
   type CafeMenuAddon,
 } from "@/hooks/useCafeMenu";
+import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
 import { CafeAddonDialog } from "@/components/cafe/CafeAddonDialog";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
