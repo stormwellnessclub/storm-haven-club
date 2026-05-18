@@ -272,6 +272,7 @@ const App = () => (
               <Route path="/admin/people" element={<ProtectedAdminRoute><People /></ProtectedAdminRoute>} />
               <Route path="/admin/blocked" element={<ProtectedAdminRoute><BlockedPersons /></ProtectedAdminRoute>} />
               <Route path="/admin/email-templates/payment-failed" element={<ProtectedAdminRoute><PaymentFailedEmailPreview /></ProtectedAdminRoute>} />
+              <Route path="/admin/email-templates/card-declined" element={<ProtectedAdminRoute><CardDeclinedEmailPreview /></ProtectedAdminRoute>} />
               <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-hub" element={<ProtectedAdminRoute><StaffHub /></ProtectedAdminRoute>} />
               <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
