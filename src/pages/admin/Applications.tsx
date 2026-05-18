@@ -2588,6 +2588,12 @@ export default function Applications() {
                                 <Smartphone className="h-4 w-4 mr-2" />
                                 Send PWA Reinstall Instructions
                               </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => sendApplicationCardDeclinedEmail(app)}
+                              >
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Resend Card-Decline Notice
+                              </DropdownMenuItem>
                             </>
                           )}
                           {app.status !== "rejected" && (
