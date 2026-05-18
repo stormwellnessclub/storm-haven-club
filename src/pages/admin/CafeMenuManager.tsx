@@ -39,7 +39,10 @@ import {
   type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
 
+import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
+
 export default function CafeMenuManager() {
+  useCafeMenuRealtime("cafe-menu-admin");
   const { data: categories = [], isLoading: catLoading } = useAllCafeMenuCategories();
   const { data: allItems = [], isLoading: itemsLoading } = useAllCafeMenuItems();
   const addCategory = useAddCafeCategory();
