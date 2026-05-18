@@ -1071,6 +1071,52 @@ serve(async (req) => {
         `;
         break;
 
+      case 'application_card_declined': {
+        subject = 'A small hold on your Storm Wellness Club membership — action needed';
+        const firstName = data.name || data.first_name || 'there';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}; font-family: Georgia, 'Times New Roman', Times, serif;">
+              <div style="display:none;max-height:0;overflow:hidden;opacity:0;">Your application has been approved. We need a quick payment update to complete activation.</div>
+              <h2 style="${emailStyles.heading}; font-family: Georgia, serif;">Dear ${firstName},</h2>
+
+              <p style="font-size:16px;line-height:1.8;color:#374151;margin-bottom:20px;font-family:Georgia,serif;">
+                Wonderful news — your Storm Wellness Club application has been approved. We're looking forward to welcoming you into the Club.
+              </p>
+
+              <p style="font-size:16px;line-height:1.8;color:#374151;margin-bottom:20px;font-family:Georgia,serif;">
+                Before we can complete your activation, we ran into a small issue: your card on file was declined when we attempted your initial charge. This is typically due to a daily limit, an expired card, or a routine fraud check from your bank — nothing to be concerned about.
+              </p>
+
+              <p style="font-size:16px;line-height:1.8;color:#374151;margin-bottom:10px;font-family:Georgia,serif;">
+                <strong>To complete your activation, please update your payment method:</strong>
+              </p>
+              <div style="text-align:center;margin:20px 0 30px;">
+                <a href="${BASE_URL}/portal/payment-methods" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+
+              <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:20px;margin:25px 0;">
+                <p style="margin:0;font-weight:600;color:#92400e;font-family:Georgia,serif;font-size:15px;">
+                  ⏰ Your approval is reserved for the next 7 days. If we don't receive a valid payment method by then, your approval will expire and a new application will be required to rejoin.
+                </p>
+              </div>
+
+              <p style="font-size:16px;line-height:1.8;color:#374151;margin-bottom:20px;font-family:Georgia,serif;">
+                Questions? Just reply to this email or give the Club a call — we're happy to help. To update your card, please use the secure link above.
+              </p>
+
+              <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
+                <p style="font-style:italic;color:#6b7280;margin-bottom:5px;font-family:Georgia,serif;">Warmly,</p>
+                <p style="font-weight:600;color:#1f2937;margin:0;font-family:Georgia,serif;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       case 'payment_failed':
         subject = 'Payment Issue - Storm Wellness Club';
         const amount = data.amount ? `$${data.amount.toFixed(2)}` : 'your membership dues';
