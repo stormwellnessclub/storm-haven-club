@@ -107,6 +107,7 @@ function parseItemDescription(item: DbMenuItem): ParsedDescription {
 }
 
 export default function Cafe() {
+  useCafeMenuRealtime("cafe-menu-customer");
   const { user } = useAuth();
   const navigate = useNavigate();
   const createOrder = useCreateCafeOrder();
