@@ -1,49 +1,31 @@
-## Problem
+## What happened
 
-When you edit a cafe menu item, category, or add-on in the admin Cafe Menu Manager and hit Save, the change often doesn't visibly update — not on the admin page itself, not on the customer-facing `/cafe` page, and not in the POS. You have to manually refresh the browser to see it.
+Ayana Adam (ayanaadam@yahoo.com, auth `112b680c-…d9cc`) paid **$154.79** for the Mother's Day Class Pack — Member (10 classes) on 2026-05-10 (Stripe PI `pi_3TVjffLyZrsSqLhs1Yl0HDwb`, status `succeeded`).
 
-Root cause: the React Query cache keys used by the "active items only" hooks (the customer cafe page and POS) and the "all items including inactive" hooks (the admin manager) don't fully overlap, and on top of that there is no realtime subscription, so other open tabs/devices never find out a change happened.
+But the database has **no `class_passes` row** for that payment intent. The `mothers-day-pack-confirm` edge function never logged anything for this PI, so fulfillment silently failed after Stripe confirmed the charge (likely the browser closed before the confirm call, or the call errored client-side without retry).
+
+The webhook safety net (`stripe-webhook` handling `payment_intent.succeeded` for `metadata.type='mothers_day_class_pack'`) also has no trace of running on this PI.
 
 ## Fix
 
-Two layers, belt-and-suspenders (same pattern we already use for cafe orders):
+Re-fulfill by invoking the existing idempotent confirm function for that PI. Because it's idempotent on `stripe_payment_intent_id`, it's safe to call manually:
 
-1. **Tighten the cache invalidation in `src/hooks/useCafeMenu.ts`.**
-   Every mutation (`useAddCafeCategory`, `useUpdateCafeCategory`, `useAddCafeMenuItem`, `useUpdateCafeMenuItem`, `useAddCafeAddon`, `useUpdateCafeAddon`) will explicitly invalidate *all* related query keys:
-   - `["cafe_menu_categories"]` and `["cafe_menu_categories","all"]`
-   - `["cafe_menu_items"]` and `["cafe_menu_items","all"]`
-   - `["cafe_menu_addons"]` and `["cafe_menu_addons","all"]`
+```text
+POST /functions/v1/mothers-day-pack-confirm
+body: { "payment_intent_id": "pi_3TVjffLyZrsSqLhs1Yl0HDwb" }
+```
 
-   This guarantees that whether a screen is showing "active only" (customer page, POS) or "all" (admin manager), it refetches the moment you save.
+Expected result:
+- Inserts a `class_passes` row: `pass_type=10-pack`, `category=pilates_cycling`, `classes_remaining=10`, `is_member_price=true`, `expires_at = now + 60 days`, `user_id=112b680c-…d9cc` (auto-linked via her active member email), `promo_code=mothers_day_2026`.
+- Fires the confirmation email via `send-mothers-day-pack-confirmation`.
+- The pack will then appear on her member dashboard immediately.
 
-2. **Add a realtime listener so other open browsers/devices update too.**
-   New hook `useCafeMenuRealtime()` (mirrors the pattern in `AdminCafeChime` / `useReliableRealtime`) that subscribes to INSERT/UPDATE/DELETE on `cafe_menu_categories`, `cafe_menu_items`, and `cafe_menu_addons`, and invalidates the same query keys above.
+## Optional follow-up (separate task, not required for this fix)
 
-   Mount it in three places so every surface stays live:
-   - `src/pages/Cafe.tsx` (customer-facing menu)
-   - `src/pages/admin/CafeMenuManager.tsx` (the editor itself)
-   - `src/components/admin/CafePOSMenu.tsx` (cafe POS register)
+The same silent-failure mode can happen to other buyers. The existing `mothers-day-reconcile` cron is supposed to catch this — worth checking why it didn't pick up her PI (e.g. it may only scan recent PIs, or only ones with `metadata.type` set, or its scheduled run doesn't reach back to 5/10). If you want, I can audit it in a separate task.
 
-3. **Database migration** — enable realtime on the menu tables (they may not be in the publication yet):
+## Steps
 
-   ```sql
-   ALTER PUBLICATION supabase_realtime ADD TABLE public.cafe_menu_categories;
-   ALTER PUBLICATION supabase_realtime ADD TABLE public.cafe_menu_items;
-   ALTER PUBLICATION supabase_realtime ADD TABLE public.cafe_menu_addons;
-   ALTER TABLE public.cafe_menu_categories REPLICA IDENTITY FULL;
-   ALTER TABLE public.cafe_menu_items REPLICA IDENTITY FULL;
-   ALTER TABLE public.cafe_menu_addons REPLICA IDENTITY FULL;
-   ```
-   (Wrapped in `IF NOT EXISTS`-style guards so re-running is safe.)
-
-## Result
-
-- Save a price/name/image/sold-out toggle in the admin → the admin grid updates immediately (no refresh).
-- The customer `/cafe` page and the POS update within ~1 second on every open device.
-- No more "did it save?" moments.
-
-## Technical notes
-
-- Files touched: `src/hooks/useCafeMenu.ts`, `src/pages/Cafe.tsx`, `src/pages/admin/CafeMenuManager.tsx`, `src/components/admin/CafePOSMenu.tsx`, plus one new file `src/hooks/useCafeMenuRealtime.ts`, plus one migration.
-- No business-logic / pricing / fee changes. Pure cache-invalidation + realtime wiring.
-- Reuses the existing `useReliableRealtime` hook so we get auto-reconnect and the polling watchdog for free.
+1. Invoke `mothers-day-pack-confirm` with `pi_3TVjffLyZrsSqLhs1Yl0HDwb`.
+2. Verify a `class_passes` row now exists for her `user_id` with `pass_type='10-pack'` and `classes_remaining=10`.
+3. Ask Ayana to refresh her dashboard.
