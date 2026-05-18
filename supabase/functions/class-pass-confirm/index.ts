@@ -55,6 +55,10 @@ serve(async (req) => {
 
     // Look up the class pass row for this user/session — wait briefly for webhook
     const userId = md.user_id;
+    const sessionPiId = typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : (session.payment_intent as any)?.id || null;
+
     let pass: any = null;
     for (let i = 0; i < 5 && !pass; i++) {
       const { data } = await supabase
@@ -69,6 +73,21 @@ serve(async (req) => {
         break;
       }
       await new Promise((r) => setTimeout(r, 800));
+    }
+
+    // Fallback: webhook didn't fulfill in time — invoke reconciler synchronously
+    if (!pass && sessionPiId) {
+      try {
+        await supabase.functions.invoke("class-pass-reconcile", {
+          body: { payment_intent_id: sessionPiId },
+        });
+      } catch (_) { /* non-fatal */ }
+      const { data } = await supabase
+        .from("class_passes")
+        .select("*")
+        .eq("stripe_payment_intent_id", sessionPiId)
+        .maybeSingle();
+      if (data) pass = data;
     }
 
     // Send confirmation email (idempotent via send-class-pass-confirmation)
