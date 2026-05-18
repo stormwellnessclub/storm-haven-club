@@ -686,7 +686,10 @@ serve(async (req) => {
             const expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + config.validityDays);
 
-            // Create class pass record
+            // Create class pass record (idempotent on stripe_payment_intent_id)
+            const sessionPiId = typeof session.payment_intent === 'string'
+              ? session.payment_intent
+              : (session.payment_intent as any)?.id || null;
             try {
               const { error: passError } = await supabase
                 .from('class_passes')
@@ -701,14 +704,20 @@ serve(async (req) => {
                   is_member_price: isMember,
                   expires_at: expiresAt.toISOString(),
                   status: 'active',
+                  stripe_payment_intent_id: sessionPiId,
                 });
 
               if (passError) {
-                logError(passError, "CLASS_PASS_CREATION");
-                return errorResponse(passError, "CLASS_PASS_CREATION");
+                // Duplicate (race with reconciler / re-delivery): treat as success
+                if ((passError as any).code === '23505') {
+                  logStep("Class pass already exists for PI, skipping", { sessionPiId });
+                } else {
+                  logError(passError, "CLASS_PASS_CREATION");
+                  return errorResponse(passError, "CLASS_PASS_CREATION");
+                }
+              } else {
+                logStep("Class pass created", { userId, category, passType, classes: config.classes, sessionPiId });
               }
-
-              logStep("Class pass created", { userId, category, passType, classes: config.classes });
 
               // Mark pending checkout as completed
               try {
@@ -793,7 +802,10 @@ serve(async (req) => {
               const expiresAt = new Date();
               expiresAt.setDate(expiresAt.getDate() + 30);
 
-              // Create a kids_care pass in class_passes
+              // Create a kids_care pass in class_passes (idempotent on stripe_payment_intent_id)
+              const kcPiId = typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : (session.payment_intent as any)?.id || null;
               const { error: passError } = await supabase
                 .from('class_passes')
                 .insert({
@@ -807,11 +819,16 @@ serve(async (req) => {
                   is_member_price: true,
                   expires_at: expiresAt.toISOString(),
                   status: 'active',
+                  stripe_payment_intent_id: kcPiId,
                 });
 
               if (passError) {
-                logError(passError, "KIDS_CARE_PASS_CREATION");
-                return errorResponse(passError, "KIDS_CARE_PASS_CREATION");
+                if ((passError as any).code === '23505') {
+                  logStep("Kids Care pass already exists for PI, skipping", { kcPiId });
+                } else {
+                  logError(passError, "KIDS_CARE_PASS_CREATION");
+                  return errorResponse(passError, "KIDS_CARE_PASS_CREATION");
+                }
               }
 
               // Mark service form as completed if not already
