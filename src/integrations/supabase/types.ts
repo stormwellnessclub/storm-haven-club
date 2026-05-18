@@ -4734,6 +4734,53 @@ export type Database = {
           },
         ]
       }
+      payment_reconciliations: {
+        Row: {
+          action: string
+          amount_cents: number | null
+          class_pass_id: string | null
+          created_at: string
+          customer_email: string | null
+          detail: Json | null
+          id: string
+          product_kind: string
+          stripe_payment_intent_id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          amount_cents?: number | null
+          class_pass_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          detail?: Json | null
+          id?: string
+          product_kind: string
+          stripe_payment_intent_id: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          amount_cents?: number | null
+          class_pass_id?: string | null
+          created_at?: string
+          customer_email?: string | null
+          detail?: Json | null
+          id?: string
+          product_kind?: string
+          stripe_payment_intent_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reconciliations_class_pass_id_fkey"
+            columns: ["class_pass_id"]
+            isOneToOne: false
+            referencedRelation: "class_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_tracking_health_log: {
         Row: {
           alert_sent: boolean
