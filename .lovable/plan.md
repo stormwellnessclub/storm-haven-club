@@ -1,30 +1,62 @@
-## Problem
 
-When you update Kids Care hours in the admin editor, the public **/kids-care** page keeps showing the old hours. Members can then book against stale times.
+## Card-Decline Email for Approved Applicants
 
-**Root cause:** The admin editor writes to the new `kids_care_hour_slots` table, but the public Kids Care page is still reading from the deprecated `kids_care_hours` table via `useKidsCareHoursForWeek`. They're two completely different data sources, so admin edits never reach that page.
+Adds a new transactional email that fires automatically when an applicant's card declines during the **approval charge** flow. Strictly scoped — not used for recurring dues/membership failures.
 
-The other member surfaces are already correct:
-- **Booking modal** (`KidsCareBookingModal`) — uses `useKidsCareHoursForDate` (new table) with realtime + 30s polling + window-focus refetch.
-- **Member upcoming list** (`/member/kids-care/bookings`) — uses `useUpcomingKidsCareSlots` (new table) with the same freshness setup.
+### Email Template (final copy)
 
-So only the public **Hours of Operation** card on `/kids-care` is broken.
+**Subject:** A small hold on your Storm Wellness Club membership — action needed
+**Preview:** Your application has been approved. We need a quick payment update to complete activation.
 
-## Plan
+Body (premium, serif tone, dark header `#312D28`, cream wordmark `#E8DED1`, amber callout `#fef3c7`/`#f59e0b` for the 7-day deadline):
 
-Switch the public Kids Care page to read from the new slot-based hook so it reflects what was saved in the editor and stays fresh automatically.
+> Dear {first_name},
+>
+> Wonderful news — your Storm Wellness Club application has been approved. We're looking forward to welcoming you into the Club.
+>
+> Before we can complete your activation, we ran into a small issue: your card on file was declined when we attempted your initial charge. This is typically due to a daily limit, an expired card, or a routine fraud check from your bank — nothing to be concerned about.
+>
+> **To complete your activation, please update your payment method:**
+> [Update Payment Method] → `/portal/payment-methods`
+>
+> ⏰ **Your approval is reserved for the next 7 days.** If we don't receive a valid payment method by then, your approval will expire and a new application will be required to rejoin.
+>
+> Questions? Just reply to this email or give the Club a call — we're happy to help. To update your card, please use the secure link above.
+>
+> Warmly,
+> The Storm Wellness Club Team
 
-1. In `src/pages/KidsCare.tsx`:
-   - Replace `useKidsCareHoursForWeek(new Date())` with `useUpcomingKidsCareSlots(7)` (already includes realtime subscription + 30s refetch + refetch on window focus, defined in `useKidsCareHours.ts`).
-   - Rewrite the "Hours of Operation" card (lines ~240–274) to group the returned slots by `slot_date` and render each day with its slot times. Days with no published slots simply don't appear; if no slots exist in the next 7 days, show the existing "haven't been published yet" message.
-   - Use `date-fns` `format` (already used elsewhere) to render the day name from `slot_date`, and the existing `formatTime12h` helper for `open_time`/`close_time`.
-   - Remove the now-unused `useKidsCareHoursForWeek` import and the `DAY_NAMES` array if no longer referenced.
+### Trigger Scope (important)
 
-2. No changes to the booking modal or member bookings page — they're already on the correct hook and refresh automatically.
+Fires **only** from the Applications admin → approval charge flow when Stripe returns a decline on the initial applicant charge. **Will NOT fire** for:
+- Recurring monthly dues failures (handled by existing `payment_failed` template via Stripe webhook)
+- Annual fee renewal failures on existing members
+- POS charges, class pass purchases, or any non-application charge
 
-3. No database, admin, or hook changes needed. The `useKidsCareHours.ts` hooks already invalidate cache on realtime events from `kids_care_hour_slots`, so once the public page uses the right hook, your Saturday/Sunday edits show up within seconds (and immediately on tab focus).
+Enforcement: new dedicated email type `application_card_declined` separate from the existing `payment_failed` type. The Stripe webhook for `invoice.payment_failed` continues to use `payment_failed` and is untouched.
 
-## Out of scope
+### Where it triggers
 
-- Deleting the legacy `kids_care_hours` table or `useKidsCareHoursForWeek` hook (kept for safety; can be removed later in a cleanup pass).
-- Any change to admin write paths or booking validation.
+In `src/pages/admin/Applications.tsx`, inside the `handleCharge` catch block (around line 1131) — when `data.success === false` or the charge throws a card-decline error during the approval flow (`afterChargeOptions.approveAndSendEmail` is true OR `chargeTarget.status` is being moved to approved). Invokes `send-email` with `type: "application_card_declined"`.
+
+### Admin visibility (3 confirmation signals)
+
+1. **Toast** on approval screen: amber *"Approved — card declined. Payment update email sent to {email}"*
+2. **Application detail timeline** entry: *"Card-decline email sent · {timestamp}"* (logged into existing `application_status_history` or `email_audit_log`)
+3. **`email_audit_log`** row for delivery tracking (sent/bounced)
+
+### Manual fallback
+
+Add a small **"Resend card-decline email"** button on the application detail panel, visible only when:
+- The application is `approved`, AND
+- An `application_card_declined` email has previously been sent to this applicant
+
+### Files to change
+
+- `supabase/functions/send-email/index.ts` — add `application_card_declined` template + HTML
+- `src/pages/admin/Applications.tsx` — auto-fire on decline in approval charge path; add resend button in detail panel; amber toast
+- `src/pages/admin/PaymentFailedEmailPreview.tsx` (or a new sibling preview page) — add preview route for the new template so you can review it before it goes live
+
+### Review step
+
+Before wiring the trigger live, I'll show you the rendered template at an admin preview route (same pattern as the existing Payment Failed preview) so you can sign off on the visual.
