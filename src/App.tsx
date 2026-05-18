@@ -102,6 +102,7 @@ import NonMemberDetail from "./pages/admin/NonMemberDetail";
 import People from "./pages/admin/People";
 import BlockedPersons from "./pages/admin/BlockedPersons";
 import PaymentFailedEmailPreview from "./pages/admin/PaymentFailedEmailPreview";
+import CardDeclinedEmailPreview from "./pages/admin/CardDeclinedEmailPreview";
 import StaffHub from "./pages/admin/StaffHub";
 import StaffSchedule from "./pages/admin/StaffSchedule";
 import MerchManager from "./pages/admin/MerchManager";
