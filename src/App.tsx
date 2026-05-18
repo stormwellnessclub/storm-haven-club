@@ -103,6 +103,7 @@ import People from "./pages/admin/People";
 import BlockedPersons from "./pages/admin/BlockedPersons";
 import PaymentFailedEmailPreview from "./pages/admin/PaymentFailedEmailPreview";
 import CardDeclinedEmailPreview from "./pages/admin/CardDeclinedEmailPreview";
+import EmailTemplatesIndex from "./pages/admin/EmailTemplatesIndex";
 import StaffHub from "./pages/admin/StaffHub";
 import StaffSchedule from "./pages/admin/StaffSchedule";
 import MerchManager from "./pages/admin/MerchManager";
@@ -271,6 +272,7 @@ const App = () => (
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/people" element={<ProtectedAdminRoute><People /></ProtectedAdminRoute>} />
               <Route path="/admin/blocked" element={<ProtectedAdminRoute><BlockedPersons /></ProtectedAdminRoute>} />
+              <Route path="/admin/email-templates" element={<ProtectedAdminRoute><EmailTemplatesIndex /></ProtectedAdminRoute>} />
               <Route path="/admin/email-templates/payment-failed" element={<ProtectedAdminRoute><PaymentFailedEmailPreview /></ProtectedAdminRoute>} />
               <Route path="/admin/email-templates/card-declined" element={<ProtectedAdminRoute><CardDeclinedEmailPreview /></ProtectedAdminRoute>} />
               <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
