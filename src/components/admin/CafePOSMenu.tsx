@@ -18,6 +18,7 @@ import {
   type CafeMenuItem,
   type CafeMenuAddon,
 } from "@/hooks/useCafeMenu";
+import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
 import {
   Select,
   SelectContent,
@@ -43,7 +44,10 @@ interface CafePOSMenuProps {
 }
 
 export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuProps) {
+  useCafeMenuRealtime("cafe-menu-pos");
   const { data: rawCategories = [] } = useCafeMenuCategories();
+
+
 
   // If highlightCategories provided, sort those to the front
   const categories = highlightCategories && highlightCategories.length > 0

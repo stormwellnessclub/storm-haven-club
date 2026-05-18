@@ -20,6 +20,7 @@ import {
   type CafeMenuCategory,
   type CafeMenuAddon,
 } from "@/hooks/useCafeMenu";
+import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
 import { CafeAddonDialog } from "@/components/cafe/CafeAddonDialog";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import {
@@ -107,6 +108,7 @@ function parseItemDescription(item: DbMenuItem): ParsedDescription {
 }
 
 export default function Cafe() {
+  useCafeMenuRealtime("cafe-menu-customer");
   const { user } = useAuth();
   const navigate = useNavigate();
   const createOrder = useCreateCafeOrder();
