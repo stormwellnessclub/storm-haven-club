@@ -1130,11 +1130,62 @@ export default function Applications() {
       }
     } catch (err: any) {
       console.error("Charge error:", err);
-      toast.error(err.message || "Failed to charge card");
+      // Auto-fire the applicant card-decline email (scoped to approval-charge flow only)
+      if (chargeTarget) {
+        await sendApplicationCardDeclinedEmail(chargeTarget, { silent: true, source: "auto_on_decline" });
+        toast.warning(`Card declined — payment update email sent to ${chargeTarget.email}`, { duration: 6000 });
+      } else {
+        toast.error(err.message || "Failed to charge card");
+      }
     } finally {
       setIsCharging(false);
     }
   };
+
+  // Send card-declined email to an applicant (used both auto on decline and via Resend button).
+  // Scoped strictly to the Applications admin charge flow — NOT used for recurring dues failures.
+  const sendApplicationCardDeclinedEmail = async (
+    app: Application,
+    opts?: { silent?: boolean; source?: string },
+  ) => {
+    try {
+      const firstName = app.first_name || app.full_name.split(" ")[0];
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "application_card_declined",
+          to: app.email,
+          data: { name: firstName, first_name: firstName },
+        },
+      });
+      if (error) throw error;
+
+      // Audit log entry for visibility in application timeline
+      try {
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        await supabase.from("email_audit_log" as any).insert({
+          email_type: "application_card_declined",
+          recipient_email: app.email,
+          recipient_name: firstName,
+          triggered_by: currentUser?.id ?? null,
+          trigger_source: opts?.source || "admin_resend",
+          application_id: app.id,
+          status: "sent",
+          sent_at: new Date().toISOString(),
+        });
+      } catch (auditErr) {
+        console.warn("Audit log failed for application_card_declined:", auditErr);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
+      if (!opts?.silent) toast.success(`Card-decline email sent to ${app.email}`);
+      return true;
+    } catch (err: any) {
+      console.error("Failed to send card-decline email:", err);
+      toast.error("Failed to send card-decline email");
+      return false;
+    }
+  };
+
 
   // Handle adding a new card for applicant
   const handleAddCard = async () => {
