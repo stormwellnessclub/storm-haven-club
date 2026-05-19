@@ -312,7 +312,7 @@ export default function Applications() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("email_audit_log")
-        .select("application_id, email_type, sent_at, status")
+        .select("application_id, email_type, sent_at, status, error_message")
         .not("application_id", "is", null)
         .order("sent_at", { ascending: false });
       if (error) {
@@ -326,15 +326,32 @@ export default function Applications() {
 
   // Create a map of application_id -> latest email info
   const emailStatusByApplication = useMemo(() => {
-    const map = new Map<string, { type: string; sentAt: string; status: string }>();
+    const map = new Map<string, { type: string; sentAt: string; status: string; errorMessage?: string | null }>();
     for (const log of emailAuditData) {
       if (log.application_id && !map.has(log.application_id)) {
         map.set(log.application_id, {
           type: log.email_type,
           sentAt: log.sent_at || "",
           status: log.status,
+          errorMessage: (log as any).error_message ?? null,
         });
       }
+    }
+    return map;
+  }, [emailAuditData]);
+
+  // Full history of card-decline emails per application (for detail view & filter)
+  const cardDeclineHistoryByApp = useMemo(() => {
+    const map = new Map<string, Array<{ sentAt: string; status: string; errorMessage?: string | null }>>();
+    for (const log of emailAuditData) {
+      if (log.email_type !== "application_card_declined" || !log.application_id) continue;
+      const arr = map.get(log.application_id) || [];
+      arr.push({
+        sentAt: log.sent_at || "",
+        status: log.status,
+        errorMessage: (log as any).error_message ?? null,
+      });
+      map.set(log.application_id, arr);
     }
     return map;
   }, [emailAuditData]);
@@ -1132,8 +1149,12 @@ export default function Applications() {
       console.error("Charge error:", err);
       // Auto-fire the applicant card-decline email (scoped to approval-charge flow only)
       if (chargeTarget) {
-        await sendApplicationCardDeclinedEmail(chargeTarget, { silent: true, source: "auto_on_decline" });
-        toast.warning(`Card declined — payment update email sent to ${chargeTarget.email}`, { duration: 6000 });
+        const ok = await sendApplicationCardDeclinedEmail(chargeTarget, { silent: true, source: "auto_on_decline" });
+        if (ok) {
+          toast.warning(`Card declined — payment update email sent to ${chargeTarget.email}`, { duration: 12000 });
+        } else {
+          toast.error(`Card declined AND decline-notice email failed for ${chargeTarget.email} — please contact them manually`, { duration: 15000 });
+        }
       } else {
         toast.error(err.message || "Failed to charge card");
       }
@@ -1148,8 +1169,10 @@ export default function Applications() {
     app: Application,
     opts?: { silent?: boolean; source?: string },
   ) => {
+    const firstName = app.first_name || app.full_name.split(" ")[0];
+    let sendError: any = null;
+
     try {
-      const firstName = app.first_name || app.full_name.split(" ")[0];
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
           type: "application_card_declined",
@@ -1157,33 +1180,39 @@ export default function Applications() {
           data: { name: firstName, first_name: firstName },
         },
       });
-      if (error) throw error;
-
-      // Audit log entry for visibility in application timeline
-      try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        await supabase.from("email_audit_log" as any).insert({
-          email_type: "application_card_declined",
-          recipient_email: app.email,
-          recipient_name: firstName,
-          triggered_by: currentUser?.id ?? null,
-          trigger_source: opts?.source || "admin_resend",
-          application_id: app.id,
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        });
-      } catch (auditErr) {
-        console.warn("Audit log failed for application_card_declined:", auditErr);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
-      if (!opts?.silent) toast.success(`Card-decline email sent to ${app.email}`);
-      return true;
+      if (error) sendError = error;
     } catch (err: any) {
-      console.error("Failed to send card-decline email:", err);
-      toast.error("Failed to send card-decline email");
+      sendError = err;
+    }
+
+    // Always log to audit (success OR failure) so admins have a paper trail.
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from("email_audit_log" as any).insert({
+        email_type: "application_card_declined",
+        recipient_email: app.email,
+        recipient_name: firstName,
+        triggered_by: currentUser?.id ?? null,
+        trigger_source: opts?.source || "admin_resend",
+        application_id: app.id,
+        status: sendError ? "failed" : "sent",
+        error_message: sendError ? (sendError.message || String(sendError)).slice(0, 500) : null,
+        sent_at: new Date().toISOString(),
+      });
+    } catch (auditErr) {
+      console.warn("Audit log failed for application_card_declined:", auditErr);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
+
+    if (sendError) {
+      console.error("Failed to send card-decline email:", sendError);
+      if (!opts?.silent) toast.error(`Card-decline email FAILED for ${app.email}`, { duration: 10000 });
       return false;
     }
+
+    if (!opts?.silent) toast.success(`Card-decline email sent to ${app.email}`);
+    return true;
   };
 
 
@@ -1554,18 +1583,28 @@ export default function Applications() {
     const matchesSearch =
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" ? app.status !== "pending_payment" : statusFilter === "abandoned" ? false : app.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all"
+        ? app.status !== "pending_payment"
+        : statusFilter === "abandoned"
+          ? false
+          : statusFilter === "card_declined"
+            ? app.status === "approved" && cardDeclineHistoryByApp.has(app.id)
+            : app.status === statusFilter;
     const matchesPlan = planFilter === "all" || app.membership_plan === planFilter;
-    
+
     const appDate = new Date(app.created_at);
     const matchesDateFrom = !dateFrom || !isBefore(appDate, startOfDay(dateFrom));
     const matchesDateTo = !dateTo || !isAfter(appDate, endOfDay(dateTo));
-    
+
     return matchesSearch && matchesStatus && matchesPlan && matchesDateFrom && matchesDateTo;
   });
 
   const pendingCount = applications.filter((a) => a.status === "pending").length;
   const approvedCount = applications.filter((a) => a.status === "approved").length;
+  const cardDeclinedCount = applications.filter(
+    (a) => a.status === "approved" && cardDeclineHistoryByApp.has(a.id),
+  ).length;
 
   const bulkUpdateMutation = useMutation({
     mutationFn: async ({ 
@@ -1930,6 +1969,15 @@ export default function Applications() {
               <AlertCircle className="h-3 w-3 mr-1" />
               Abandoned
             </Button>
+            <Button
+              variant={statusFilter === "card_declined" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("card_declined")}
+              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              <CreditCard className="h-3 w-3 mr-1" />
+              Card Declined{cardDeclinedCount > 0 && ` (${cardDeclinedCount})`}
+            </Button>
             <div className="h-6 w-px bg-border mx-1" />
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-1" />
@@ -2278,6 +2326,40 @@ export default function Applications() {
                           return <span className="text-muted-foreground text-xs">—</span>;
                         }
                         
+                        // Special-case: card-decline notice should pop visually
+                        if (emailInfo.type === "application_card_declined") {
+                          const failed = emailInfo.status === "failed";
+                          const declineCount = cardDeclineHistoryByApp.get(app.id)?.length || 1;
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className={`gap-1 ${failed ? "bg-destructive text-destructive-foreground border-destructive" : "text-destructive border-destructive bg-destructive/10"}`}
+                                  >
+                                    <CreditCard className="h-3 w-3" />
+                                    {failed ? "Decline Email Failed" : "Card Declined Notice"}
+                                    {declineCount > 1 && ` ×${declineCount}`}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    {failed ? "Email failed to send" : "Card-decline notice sent"}{" "}
+                                    {emailInfo.sentAt ? format(new Date(emailInfo.sentAt), "MMM d 'at' h:mm a") : "recently"}
+                                  </p>
+                                  {failed && emailInfo.errorMessage && (
+                                    <p className="text-xs mt-1 opacity-80">{emailInfo.errorMessage}</p>
+                                  )}
+                                  {declineCount > 1 && (
+                                    <p className="text-xs mt-1 opacity-80">{declineCount} total attempts</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+
                         // Format email type for display
                         const typeLabels: Record<string, string> = {
                           "approval_letter_personalized": "AI Letter",
@@ -2287,7 +2369,7 @@ export default function Applications() {
                           "application_approved_locked_date": "Locked Date",
                         };
                         const label = typeLabels[emailInfo.type] || emailInfo.type;
-                        
+
                         return (
                           <TooltipProvider>
                             <Tooltip>
@@ -2930,6 +3012,60 @@ export default function Applications() {
                       recipientName={selectedApplication.first_name || selectedApplication.full_name.split(" ")[0]}
                     />
                   </div>
+
+                  {/* Card-Decline Email History */}
+                  {(cardDeclineHistoryByApp.get(selectedApplication.id)?.length || 0) > 0 && (
+                    <div className="pt-4 border-t">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <CreditCard className="h-4 w-4 text-destructive" />
+                          Card-Decline Notices ({cardDeclineHistoryByApp.get(selectedApplication.id)?.length})
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => sendApplicationCardDeclinedEmail(selectedApplication)}
+                        >
+                          <Send className="h-3 w-3 mr-1" />
+                          Resend now
+                        </Button>
+                      </div>
+                      <div className="space-y-1.5 text-sm">
+                        {cardDeclineHistoryByApp.get(selectedApplication.id)?.map((entry, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex items-start justify-between gap-3 p-2 rounded border ${
+                              entry.status === "failed"
+                                ? "border-destructive/40 bg-destructive/5"
+                                : "border-border bg-muted/30"
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    entry.status === "failed"
+                                      ? "text-destructive border-destructive"
+                                      : "text-foreground"
+                                  }
+                                >
+                                  {entry.status === "failed" ? "Failed" : "Sent"}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {entry.sentAt ? format(new Date(entry.sentAt), "MMM d, yyyy 'at' h:mm a") : "—"}
+                                </span>
+                              </div>
+                              {entry.errorMessage && (
+                                <p className="text-xs text-destructive mt-1 break-all">{entry.errorMessage}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
 
                   {/* Initiation Fee Actions */}
                   <div className="pt-4 border-t">
