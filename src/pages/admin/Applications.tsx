@@ -1148,8 +1148,10 @@ export default function Applications() {
     app: Application,
     opts?: { silent?: boolean; source?: string },
   ) => {
+    const firstName = app.first_name || app.full_name.split(" ")[0];
+    let sendError: any = null;
+
     try {
-      const firstName = app.first_name || app.full_name.split(" ")[0];
       const { error } = await supabase.functions.invoke("send-email", {
         body: {
           type: "application_card_declined",
@@ -1157,33 +1159,39 @@ export default function Applications() {
           data: { name: firstName, first_name: firstName },
         },
       });
-      if (error) throw error;
-
-      // Audit log entry for visibility in application timeline
-      try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        await supabase.from("email_audit_log" as any).insert({
-          email_type: "application_card_declined",
-          recipient_email: app.email,
-          recipient_name: firstName,
-          triggered_by: currentUser?.id ?? null,
-          trigger_source: opts?.source || "admin_resend",
-          application_id: app.id,
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        });
-      } catch (auditErr) {
-        console.warn("Audit log failed for application_card_declined:", auditErr);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
-      if (!opts?.silent) toast.success(`Card-decline email sent to ${app.email}`);
-      return true;
+      if (error) sendError = error;
     } catch (err: any) {
-      console.error("Failed to send card-decline email:", err);
-      toast.error("Failed to send card-decline email");
+      sendError = err;
+    }
+
+    // Always log to audit (success OR failure) so admins have a paper trail.
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      await supabase.from("email_audit_log" as any).insert({
+        email_type: "application_card_declined",
+        recipient_email: app.email,
+        recipient_name: firstName,
+        triggered_by: currentUser?.id ?? null,
+        trigger_source: opts?.source || "admin_resend",
+        application_id: app.id,
+        status: sendError ? "failed" : "sent",
+        error_message: sendError ? (sendError.message || String(sendError)).slice(0, 500) : null,
+        sent_at: new Date().toISOString(),
+      });
+    } catch (auditErr) {
+      console.warn("Audit log failed for application_card_declined:", auditErr);
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["email-audit-applications"] });
+
+    if (sendError) {
+      console.error("Failed to send card-decline email:", sendError);
+      if (!opts?.silent) toast.error(`Card-decline email FAILED for ${app.email}`, { duration: 10000 });
       return false;
     }
+
+    if (!opts?.silent) toast.success(`Card-decline email sent to ${app.email}`);
+    return true;
   };
 
 
