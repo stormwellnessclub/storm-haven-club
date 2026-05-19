@@ -1965,6 +1965,15 @@ export default function Applications() {
               <AlertCircle className="h-3 w-3 mr-1" />
               Abandoned
             </Button>
+            <Button
+              variant={statusFilter === "card_declined" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setStatusFilter("card_declined")}
+              className="border-destructive/30 text-destructive hover:bg-destructive/10"
+            >
+              <CreditCard className="h-3 w-3 mr-1" />
+              Card Declined{cardDeclinedCount > 0 && ` (${cardDeclinedCount})`}
+            </Button>
             <div className="h-6 w-px bg-border mx-1" />
             <Button variant="outline" size="sm" onClick={handleExportCSV}>
               <Download className="h-4 w-4 mr-1" />
