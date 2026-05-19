@@ -312,7 +312,7 @@ export default function Applications() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("email_audit_log")
-        .select("application_id, email_type, sent_at, status")
+        .select("application_id, email_type, sent_at, status, error_message")
         .not("application_id", "is", null)
         .order("sent_at", { ascending: false });
       if (error) {
@@ -326,15 +326,32 @@ export default function Applications() {
 
   // Create a map of application_id -> latest email info
   const emailStatusByApplication = useMemo(() => {
-    const map = new Map<string, { type: string; sentAt: string; status: string }>();
+    const map = new Map<string, { type: string; sentAt: string; status: string; errorMessage?: string | null }>();
     for (const log of emailAuditData) {
       if (log.application_id && !map.has(log.application_id)) {
         map.set(log.application_id, {
           type: log.email_type,
           sentAt: log.sent_at || "",
           status: log.status,
+          errorMessage: (log as any).error_message ?? null,
         });
       }
+    }
+    return map;
+  }, [emailAuditData]);
+
+  // Full history of card-decline emails per application (for detail view & filter)
+  const cardDeclineHistoryByApp = useMemo(() => {
+    const map = new Map<string, Array<{ sentAt: string; status: string; errorMessage?: string | null }>>();
+    for (const log of emailAuditData) {
+      if (log.email_type !== "application_card_declined" || !log.application_id) continue;
+      const arr = map.get(log.application_id) || [];
+      arr.push({
+        sentAt: log.sent_at || "",
+        status: log.status,
+        errorMessage: (log as any).error_message ?? null,
+      });
+      map.set(log.application_id, arr);
     }
     return map;
   }, [emailAuditData]);
