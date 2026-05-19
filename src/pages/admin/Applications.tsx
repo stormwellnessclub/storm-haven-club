@@ -1579,18 +1579,28 @@ export default function Applications() {
     const matchesSearch =
       app.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       app.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" ? app.status !== "pending_payment" : statusFilter === "abandoned" ? false : app.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all"
+        ? app.status !== "pending_payment"
+        : statusFilter === "abandoned"
+          ? false
+          : statusFilter === "card_declined"
+            ? app.status === "approved" && cardDeclineHistoryByApp.has(app.id)
+            : app.status === statusFilter;
     const matchesPlan = planFilter === "all" || app.membership_plan === planFilter;
-    
+
     const appDate = new Date(app.created_at);
     const matchesDateFrom = !dateFrom || !isBefore(appDate, startOfDay(dateFrom));
     const matchesDateTo = !dateTo || !isAfter(appDate, endOfDay(dateTo));
-    
+
     return matchesSearch && matchesStatus && matchesPlan && matchesDateFrom && matchesDateTo;
   });
 
   const pendingCount = applications.filter((a) => a.status === "pending").length;
   const approvedCount = applications.filter((a) => a.status === "approved").length;
+  const cardDeclinedCount = applications.filter(
+    (a) => a.status === "approved" && cardDeclineHistoryByApp.has(a.id),
+  ).length;
 
   const bulkUpdateMutation = useMutation({
     mutationFn: async ({ 
