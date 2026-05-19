@@ -2303,6 +2303,40 @@ export default function Applications() {
                           return <span className="text-muted-foreground text-xs">—</span>;
                         }
                         
+                        // Special-case: card-decline notice should pop visually
+                        if (emailInfo.type === "application_card_declined") {
+                          const failed = emailInfo.status === "failed";
+                          const declineCount = cardDeclineHistoryByApp.get(app.id)?.length || 1;
+                          return (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Badge
+                                    variant="outline"
+                                    className={`gap-1 ${failed ? "bg-destructive text-destructive-foreground border-destructive" : "text-destructive border-destructive bg-destructive/10"}`}
+                                  >
+                                    <CreditCard className="h-3 w-3" />
+                                    {failed ? "Decline Email Failed" : "Card Declined Notice"}
+                                    {declineCount > 1 && ` ×${declineCount}`}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>
+                                    {failed ? "Email failed to send" : "Card-decline notice sent"}{" "}
+                                    {emailInfo.sentAt ? format(new Date(emailInfo.sentAt), "MMM d 'at' h:mm a") : "recently"}
+                                  </p>
+                                  {failed && emailInfo.errorMessage && (
+                                    <p className="text-xs mt-1 opacity-80">{emailInfo.errorMessage}</p>
+                                  )}
+                                  {declineCount > 1 && (
+                                    <p className="text-xs mt-1 opacity-80">{declineCount} total attempts</p>
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        }
+
                         // Format email type for display
                         const typeLabels: Record<string, string> = {
                           "approval_letter_personalized": "AI Letter",
@@ -2312,7 +2346,7 @@ export default function Applications() {
                           "application_approved_locked_date": "Locked Date",
                         };
                         const label = typeLabels[emailInfo.type] || emailInfo.type;
-                        
+
                         return (
                           <TooltipProvider>
                             <Tooltip>
