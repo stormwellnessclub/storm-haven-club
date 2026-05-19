@@ -1,65 +1,48 @@
+## What's actually happening
 
-## What's actually happening with Ayana's account
+When you charge an approved applicant from the Applications page and their card declines, the app already:
 
-Her **identity is correctly linked** — `auth.users`, `profiles`, `members`, `non_member_profiles`, and `mothers_day_vouchers` all share `user_id = 112b680c-…d9cc` and email `ayanaadam@yahoo.com`. There is no broken account link.
+1. Calls `send-email` with type `application_card_declined` (the gold "Update Payment Method" email you previewed).
+2. Inserts a row into `email_audit_log` with `email_type='application_card_declined'`, `trigger_source='auto_on_decline'`, `application_id=<that app>`.
+3. Shows a one-time orange toast: *"Card declined — payment update email sent to …"*.
 
-What keeps breaking is **purchase → pass fulfillment**. Stripe charges her successfully, but the `class_passes` row never lands automatically. Evidence from her own history:
+The Applications table already has an **Email** column that reads from `email_audit_log` and shows the latest email per applicant. Two reasons you don't see a confirmation today:
 
-| Stripe payment (succeeded) | Date | What it bought | `class_passes` row | `stripe_payment_intent_id` on the pass |
-|---|---|---|---|---|
-| `pi_3TK1DSLyZrsSqLhs13yRlD31` ($175.39) | Apr 4 | 10-pack Pilates/Cycling | created **Apr 27** (23-day gap) | **NULL** — manual insert |
-| `pi_3TK125LyZrsSqLhs0fsoRpHs` ($154.79) | Apr 4 | 2× Kids Care monthly | created **Apr 8** (4-day gap) | **NULL** — manual insert |
-| `pi_3TVjffLyZrsSqLhs1Yl0HDwb` ($154.79) | May 16 | Mother's Day 10-pack | created **today only after we ran `mothers-day-pack-confirm` by hand** | populated only because the confirm function writes it |
+- **The label map doesn't include `application_card_declined`**, so even when it does log, it renders the raw key in a neutral gray badge that looks identical to "Approval", "Setup", etc. Nothing tells you "this was a decline notice."
+- **`email_audit_log` currently has 0 rows for `application_card_declined`** across the whole project. That means either no decline has been auto-fired yet, or the audit insert silently failed (the email send itself can succeed while the audit insert fails — it's wrapped in its own `try/catch` that only `console.warn`s). Either way you have no historical trail.
 
-Every time, the pattern is the same: Stripe collected the money, but the post-purchase code that grants the pass didn't run. An admin later created the row by hand, which is why the PI id is missing on the old rows.
+There is also no log row written when the **email itself fails** — if Resend errors, the toast turns into "Failed to send card-decline email" and disappears, and nothing is recorded.
 
-## Why it happens (three independent failure paths, none of which has a safety net)
+## The fix
 
-1. **Class-pass Checkout (Stripe Checkout Session)** — `stripe-payment` opens a Checkout Session. The pass row is inserted only by `stripe-webhook` on `checkout.session.completed`. `class-pass-confirm` (the URL the browser returns to) does **not** create the pass — it only emails. So if the webhook doesn't deliver or doesn't process that event for any reason, the pass never exists. The insert at `stripe-webhook` line 691 also doesn't write `stripe_payment_intent_id`, so we can't tell after the fact which PI a pass came from.
+### 1. Always write to `email_audit_log` — success *and* failure
+In `sendApplicationCardDeclinedEmail` (src/pages/admin/Applications.tsx ~line 1147):
+- Move the audit insert so it runs whether the `send-email` call succeeds or throws.
+- On success: `status: 'sent'`.
+- On failure: `status: 'failed'` with `error_message` populated.
+- This guarantees every charge-decline produces a visible record.
 
-2. **Mother's Day pack (raw PaymentIntent)** — `mothers-day-pack-create-intent` creates a bare PaymentIntent. The pass is inserted only when the browser calls `mothers-day-pack-confirm` after redirect. If the buyer closes the tab, loses connection, or the page errors, the pass never lands. The `stripe-webhook` `payment_intent.succeeded` branch is the only fallback, and it depends on the webhook being subscribed to that event and on the PI metadata being complete.
+### 2. Make the decline notice unmistakable in the table
+In the Email column renderer (~line 2257):
+- Add `application_card_declined` to `typeLabels` as **"Card Declined Notice"**.
+- Render it in a **red/destructive badge** (matching the `No Email` warning style) with a `CreditCard` icon instead of the neutral gray `Mail` icon.
+- If `status='failed'`, show **"Decline Email Failed"** in destructive style with the error in the tooltip so you know to resend.
+- Tooltip continues to show the timestamp.
 
-3. **Kids Care monthly (subscription)** — `kids_care_pass` is handled in `stripe-webhook` `checkout.session.completed`. Same single point of failure as #1, plus no PI/invoice id is recorded on the pass row.
+### 3. Add a "Card declined" filter chip
+Above the table, add a filter pill next to the existing status filters: **"Card Declined"**. It filters to applications whose latest `email_audit_log` row is `application_card_declined` (sent or failed) and `app.status='approved'`. This gives you a one-click view of "who got charged, declined, and still hasn't paid."
 
-There is **no scheduled reconciler** that compares Stripe's "succeeded" payments against `class_passes` and fills gaps. `mothers-day-reconcile` only handles spa vouchers. `process-abandoned-class-pass-checkouts` only sends reminder emails.
+### 4. Surface decline history in the applicant detail/timeline
+The applicant row already opens a detail view. Add a small **Charge Attempts** section that lists every `application_card_declined` row from `email_audit_log` for that `application_id` with timestamp + status. This way "was the email sent? when? was it resent?" is answerable at a glance for any applicant, including Ayana-style cases.
 
-## The plan
+### 5. (Optional, recommend) Toast persistence
+Bump the auto-decline toast `duration` to ~12s and add an inline **"View applicant"** action so it doesn't disappear before you can act on it.
 
-### 1. Make every pass row carry its Stripe id (so we can detect gaps)
-- Update the three insert sites to always write `stripe_payment_intent_id` (or `stripe_invoice_id` / `stripe_session_id` for subs):
-  - `stripe-webhook` class_pass insert (line ~691)
-  - `stripe-webhook` kids_care_pass insert (line ~796)
-  - `mothers-day-pack-confirm` (already writes it)
-- Add a partial unique index on `class_passes(stripe_payment_intent_id)` where not null, so the reconciler is safe to re-run.
+## Files touched
+- `src/pages/admin/Applications.tsx` — audit logging, badge rendering, filter chip, detail section, toast.
 
-### 2. Add a single reconciler: `class-pass-reconcile` (runs every 5 min via `pg_cron`)
-For each succeeded Stripe PaymentIntent in the last 30 days whose metadata `type` is `class_pass`, `kids_care_pass`, or `mothers_day_pack` and which has no matching `class_passes.stripe_payment_intent_id`:
-- Replay the appropriate fulfillment path (call `mothers-day-pack-confirm` by PI id, or directly insert the class-pass row using the same logic as `stripe-webhook`).
-- Mark any matching `pending_class_pass_checkouts` row `completed`.
-- Log every reconciliation to a new `payment_reconciliations` table (PI id, action, result) so we can audit "ghost charges" going forward.
-
-### 3. One-time backfill
-Run the reconciler over the last 60 days. This will:
-- Stamp `stripe_payment_intent_id` on Ayana's two existing orphan rows (`pi_3TK1DSLyZrsSqLhs13yRlD31`, `pi_3TK125LyZrsSqLhs0fsoRpHs`) so they're auditable.
-- Auto-grant any other customer in the same situation we haven't noticed yet.
-
-### 4. Tighten the post-redirect path
-- `class-pass-confirm` currently waits up to 4 s for the webhook then returns "no pass yet" — extend it to call the new reconciler synchronously for that PI as a fallback, so the buyer's own browser triggers fulfillment in addition to the webhook + cron.
-- Same change in `mothers-day-pack-confirm` (already does this).
-
-### 5. Admin visibility
-Add a small admin page **Billing → Unfulfilled payments** that lists, in real time, succeeded Stripe payments in the last 30 days with no matching pass/credit row. One-click "Fulfill" button calls the reconciler for that PI. This is the human-readable version of #2 and is what would have caught all three of Ayana's incidents immediately.
-
-### 6. Clean up Ayana's duplicate profile (small, separate)
-She has both an active `members` row and a `non_member_profiles` row (`a7590c1e-…`). Delete the non-member row and add a trigger so we don't auto-create a `non_member_profiles` row for a `user_id` that already owns an `active` `members` row.
-
-## Technical notes
-- `mothers-day-pack-confirm` is already idempotent on `stripe_payment_intent_id`; the reconciler relies on that.
-- All needed metadata is already on the PaymentIntent / Checkout Session — no schema change needed on Stripe's side.
-- New DB objects: `payment_reconciliations` table, partial unique index on `class_passes.stripe_payment_intent_id`, one `pg_cron` job, one trigger preventing duplicate non-member profile rows.
-- New edge function: `class-pass-reconcile`. Modified: `stripe-webhook`, `class-pass-confirm`. No frontend changes for the fix itself; the admin page (#5) is the only UI work.
-- Webhook subscription: confirm in Stripe that `payment_intent.succeeded` and `checkout.session.completed` are both enabled. If not, enable them (no code change needed).
+No backend or schema changes needed — `email_audit_log` already has the right shape (`email_type`, `status`, `error_message`, `application_id`, `sent_at`, `trigger_source`).
 
 ## Out of scope
-- Touching Ayana's existing pass balances — they're already correct, we just stamp PI ids on them during backfill.
-- Reworking subscription/dues fulfillment (separate flow, not implicated here).
+- The broader fulfillment/reconciliation work for class passes (already shipped last turn).
+- Migrating the applicant card-decline email to the new `email_send_log` queue system — not needed for the visibility problem you asked about.
