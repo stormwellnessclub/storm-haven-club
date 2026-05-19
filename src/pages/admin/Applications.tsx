@@ -1149,8 +1149,12 @@ export default function Applications() {
       console.error("Charge error:", err);
       // Auto-fire the applicant card-decline email (scoped to approval-charge flow only)
       if (chargeTarget) {
-        await sendApplicationCardDeclinedEmail(chargeTarget, { silent: true, source: "auto_on_decline" });
-        toast.warning(`Card declined — payment update email sent to ${chargeTarget.email}`, { duration: 6000 });
+        const ok = await sendApplicationCardDeclinedEmail(chargeTarget, { silent: true, source: "auto_on_decline" });
+        if (ok) {
+          toast.warning(`Card declined — payment update email sent to ${chargeTarget.email}`, { duration: 12000 });
+        } else {
+          toast.error(`Card declined AND decline-notice email failed for ${chargeTarget.email} — please contact them manually`, { duration: 15000 });
+        }
       } else {
         toast.error(err.message || "Failed to charge card");
       }
