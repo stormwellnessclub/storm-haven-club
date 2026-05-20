@@ -15,6 +15,7 @@ import { format, parseISO, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
+import { MyCafeCreditCard } from "@/components/portal/MyCafeCreditCard";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
