@@ -56,33 +56,99 @@ export default function CafePOS() {
     setSelectedCustomer(null);
   };
 
-  const handlePlaceOrder = async (paymentMethod: "card" | "cash" = "card") => {
+  const handlePlaceOrder = async (paymentMethod: "card" | "cash" = "card", credit: CreditApplication | null = null) => {
     if (cart.length === 0) return;
     setIsCharging(true);
 
     try {
+      // Gross subtotal (pre-credit)
       const subtotal = cart.reduce((sum, item) => {
         const addonTotal = item.addons.reduce((s, a) => s + a.price, 0);
         return sum + (item.basePrice + addonTotal) * item.quantity;
       }, 0);
-      const tax = calculateTax(subtotal);
-      const isCardCharge = paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile;
-      const processingFee = isCardCharge ? calculateProcessingFeeFromDollars(subtotal + tax) : 0;
-      const total = subtotal + tax + processingFee;
+
+      const itemDiscount = (credit?.itemDiscountCents || 0) / 100;
+      const subtotalAfterItem = Math.max(0, subtotal - itemDiscount);
+      const tax = calculateTax(subtotalAfterItem);
+      const cashApplied = (credit?.cashApplyCents || 0) / 100;
+      const preCashTotal = subtotalAfterItem + tax;
+      const remainingDue = Math.max(0, preCashTotal - cashApplied);
+
+      const isCardCharge = remainingDue > 0 && paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile;
+      const processingFee = isCardCharge ? calculateProcessingFeeFromDollars(remainingDue) : 0;
+      const total = remainingDue + processingFee;
       const itemNames = cart.map((i) => i.name).join(", ");
 
-      // If paying by card and customer has card on file, charge via Stripe
-      if (paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile) {
+      // Build order items
+      const orderItems: CafeOrderItem[] = cart.map((item) => ({
+        id: parseInt(item.itemId.slice(0, 8), 16) || 0,
+        name: item.name,
+        price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
+        quantity: item.quantity,
+        category: item.categoryName,
+      }));
+      if (itemDiscount > 0) {
+        orderItems.push({ id: 0, name: "Prepaid item credit", price: -itemDiscount, quantity: 1, category: "Credit" });
+      }
+      orderItems.push({ id: 0, name: `MI Sales Tax (6%)`, price: tax, quantity: 1, category: "Tax" });
+      if (cashApplied > 0) {
+        orderItems.push({ id: 0, name: "Cafe cash credit", price: -cashApplied, quantity: 1, category: "Credit" });
+      }
+      if (processingFee > 0) {
+        orderItems.push({ id: 0, name: "Processing Fee", price: processingFee, quantity: 1, category: "Fee" });
+      }
+
+      const orderPaymentMethod = remainingDue === 0
+        ? "member_account" // fully covered by credit
+        : paymentMethod === "cash"
+          ? "cash"
+          : (selectedCustomer?.cardOnFile ? "member_account" : "card");
+
+      // 1. Create order row first
+      const order = await createOrder.mutateAsync({
+        orderItems,
+        paymentMethod: orderPaymentMethod,
+      });
+
+      // 2. Redeem credit against the order
+      if (credit && selectedCustomer?.memberId) {
+        const cartItemsPayload: RedeemCartItem[] = cart.map((item) => {
+          const unitPriceCents = Math.round((item.basePrice + item.addons.reduce((s, a) => s + a.price, 0)) * 100);
+          return {
+            menu_item_id: item.itemId,
+            quantity: item.quantity,
+            unit_price_cents: unitPriceCents,
+            name: item.name,
+          };
+        });
+        try {
+          await redeemCafeCredit({
+            memberId: selectedCustomer.memberId,
+            cafeOrderId: order.id,
+            cartItems: cartItemsPayload,
+            cashToApplyCents: credit.cashApplyCents,
+          });
+        } catch (e: any) {
+          console.error("Credit redemption failed", e);
+          toast.error("Credit redemption failed: " + (e?.message || "unknown"));
+          // Continue with charge anyway — order exists.
+        }
+        queryClient.invalidateQueries({ queryKey: ["cafe-credit-balance", selectedCustomer.memberId] });
+        queryClient.invalidateQueries({ queryKey: ["cafe-credit-ledger", selectedCustomer.memberId] });
+      }
+
+      // 3. Charge card for remaining due
+      if (isCardCharge) {
         const amountCents = Math.round(total * 100);
         const { data: chargeResult, error: chargeError } = await supabase.functions.invoke("stripe-payment", {
           body: {
             action: "charge_saved_card",
-            stripeCustomerId: selectedCustomer.stripeCustomerId,
+            stripeCustomerId: selectedCustomer!.stripeCustomerId,
             amount: amountCents,
             description: `Cafe POS - ${itemNames}`,
             chargeType: "pos",
             processingFee: Math.round(processingFee * 100),
-            subtotal: Math.round(subtotal * 100),
+            subtotal: Math.round(subtotalAfterItem * 100),
             taxAmount: Math.round(tax * 100),
           },
         });
@@ -92,51 +158,21 @@ export default function CafePOS() {
           setIsCharging(false);
           return;
         }
-
         if (chargeResult && !chargeResult.success) {
           toast.error("Card declined: " + (chargeResult.error || "Payment was not successful"));
           setIsCharging(false);
           return;
         }
-
         toast.success("Card charged successfully");
       }
 
-      // Create the order record
-      const orderItems: CafeOrderItem[] = cart.map((item) => ({
-        id: parseInt(item.itemId.slice(0, 8), 16) || 0,
-        name: item.name,
-        price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
-        quantity: item.quantity,
-        category: item.categoryName,
-      }));
-
-      orderItems.push({
-        id: 0,
-        name: `MI Sales Tax (6%)`,
-        price: tax,
-        quantity: 1,
-        category: "Tax",
-      });
-
-      if (processingFee > 0) {
-        orderItems.push({
-          id: 0,
-          name: "Processing Fee",
-          price: processingFee,
-          quantity: 1,
-          category: "Fee",
-        });
-      }
-
-      const orderPaymentMethod = paymentMethod === "cash" ? "cash" : (selectedCustomer?.cardOnFile ? "member_account" : "card");
-
-      await createOrder.mutateAsync({
-        orderItems,
-        paymentMethod: orderPaymentMethod,
-      });
-
-      toast.success(paymentMethod === "cash" ? "Cash sale recorded" : "Order placed");
+      toast.success(
+        remainingDue === 0
+          ? "Order completed with credit"
+          : paymentMethod === "cash"
+            ? "Cash sale recorded"
+            : "Order placed"
+      );
       clearCart();
     } catch (error: any) {
       console.error("Failed to place order:", error);
