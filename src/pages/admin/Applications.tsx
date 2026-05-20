@@ -3013,58 +3013,68 @@ export default function Applications() {
                     />
                   </div>
 
-                  {/* Card-Decline Email History */}
-                  {(cardDeclineHistoryByApp.get(selectedApplication.id)?.length || 0) > 0 && (
-                    <div className="pt-4 border-t">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <CreditCard className="h-4 w-4 text-destructive" />
-                          Card-Decline Notices ({cardDeclineHistoryByApp.get(selectedApplication.id)?.length})
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => sendApplicationCardDeclinedEmail(selectedApplication)}
-                        >
-                          <Send className="h-3 w-3 mr-1" />
-                          Resend now
-                        </Button>
-                      </div>
-                      <div className="space-y-1.5 text-sm">
-                        {cardDeclineHistoryByApp.get(selectedApplication.id)?.map((entry, idx) => (
-                          <div
-                            key={idx}
-                            className={`flex items-start justify-between gap-3 p-2 rounded border ${
-                              entry.status === "failed"
-                                ? "border-destructive/40 bg-destructive/5"
-                                : "border-border bg-muted/30"
-                            }`}
+                  {/* Card-Decline Email — always visible for approved applicants */}
+                  {(() => {
+                    const history = cardDeclineHistoryByApp.get(selectedApplication.id) || [];
+                    const hasHistory = history.length > 0;
+                    return (
+                      <div className="pt-4 border-t">
+                        <div className="flex items-center justify-between mb-3">
+                          <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <CreditCard className={`h-4 w-4 ${hasHistory ? "text-destructive" : ""}`} />
+                            Card-Decline Email{hasHistory ? ` (${history.length})` : ""}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => sendApplicationCardDeclinedEmail(selectedApplication)}
                           >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Badge
-                                  variant="outline"
-                                  className={
-                                    entry.status === "failed"
-                                      ? "text-destructive border-destructive"
-                                      : "text-foreground"
-                                  }
-                                >
-                                  {entry.status === "failed" ? "Failed" : "Sent"}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {entry.sentAt ? format(new Date(entry.sentAt), "MMM d, yyyy 'at' h:mm a") : "—"}
-                                </span>
+                            <Send className="h-3 w-3 mr-1" />
+                            {hasHistory ? "Resend now" : "Send Card-Decline Email"}
+                          </Button>
+                        </div>
+                        {hasHistory ? (
+                          <div className="space-y-1.5 text-sm">
+                            {history.map((entry, idx) => (
+                              <div
+                                key={idx}
+                                className={`flex items-start justify-between gap-3 p-2 rounded border ${
+                                  entry.status === "failed"
+                                    ? "border-destructive/40 bg-destructive/5"
+                                    : "border-border bg-muted/30"
+                                }`}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <Badge
+                                      variant="outline"
+                                      className={
+                                        entry.status === "failed"
+                                          ? "text-destructive border-destructive"
+                                          : "text-foreground"
+                                      }
+                                    >
+                                      {entry.status === "failed" ? "Failed" : "Sent"}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {entry.sentAt ? format(new Date(entry.sentAt), "MMM d, yyyy 'at' h:mm a") : "—"}
+                                    </span>
+                                  </div>
+                                  {entry.errorMessage && (
+                                    <p className="text-xs text-destructive mt-1 break-all">{entry.errorMessage}</p>
+                                  )}
+                                </div>
                               </div>
-                              {entry.errorMessage && (
-                                <p className="text-xs text-destructive mt-1 break-all">{entry.errorMessage}</p>
-                              )}
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">
+                            No card-decline notice sent yet. Use the button above to send one manually.
+                          </p>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
 
                   {/* Initiation Fee Actions */}
