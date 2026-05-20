@@ -1,30 +1,34 @@
-## Add "Undo / Reopen" for Cafe orders
+## What's already built (just hard to find)
 
-Right now, cancelling or completing a cafe order in the Order Queue is a one-way action — there's no way to revert if a staff member misclicks. I'll add an undo path for both states.
+Good news — the auto-email + audit log + resend button **already exist** exactly as I described to you:
 
-### Behavior
+- When you click "Charge" on an approved applicant and Stripe declines, `Applications.tsx` automatically calls the `application_card_declined` email and writes a row to `email_audit_log` (success **or** failure).
+- The applications table has an **Email column** that shows a red "Card Declined Notice" badge (or "Decline Email Failed") with the timestamp on hover.
+- The applicant's detail sheet has a **"Card-Decline Notices"** history section listing every send attempt with status, errors, and a **"Resend now"** button.
 
-In the Order Queue card (`src/pages/admin/CafePOS.tsx`):
+## The actual problem
 
-- **Cancelled orders** → show a "Reopen Order" button that moves the order back to `pending`.
-- **Completed orders** → show an "Undo Complete" button that moves it back to `ready`.
-- Both buttons sit alongside the existing status badge in the card footer (same spot as the current Cancel/Complete buttons).
-- Confirm with a small `AlertDialog` ("Reopen this cancelled order?" / "Move this order back to Ready?") to prevent accidental double-clicks.
-- After undo, the card re-appears in the relevant filter (Pending / Ready) and a toast confirms the change.
+That history section in the detail sheet is wrapped in `{cardDeclineHistoryByApp.get(app.id)?.length > 0 && ...}` — meaning it **only appears if a decline email has already been sent**. So when you open an applicant who hasn't had a decline yet (or where the auto-send somehow didn't fire), there's nothing to see and no button to click. That's why it feels missing.
 
-### Visibility
+## Fix
 
-- Cancelled and Completed filter tabs already exist, so undone orders naturally reappear in their new bucket.
-- To keep the queue usable, only show undo on orders updated within the **last 24 hours** (older ones are considered closed). Older orders still appear but without the undo button.
+Make the card-decline email panel **always visible** in the applicant detail sheet for approved applicants, so you always have one consistent place to:
+- See if a decline notice has ever been sent (and when / status)
+- See "Never sent" if it hasn't
+- Hit a **Send Card-Decline Email** button manually, anytime
 
-### Technical notes
+### Changes (one file: `src/pages/admin/Applications.tsx`)
 
-- Reuses the existing `useUpdateCafeOrderStatus` mutation — no new RPC needed.
-- Need to tweak `useUpdateCafeOrderStatus` so that when transitioning **out of** `completed`, it clears `completed_at` back to `null` (otherwise the timestamp lies).
-- No DB migration required; `status` already accepts all five values.
-- No changes to customer-facing `MyCafeOrdersCard` — it filters by active statuses, so reopened orders will reappear there too automatically.
+1. **Remove the conditional wrapper** around the "Card-Decline Notices" block (currently line 3017) so the section renders for every approved applicant.
+2. **Update empty state**: when `cardDeclineHistoryByApp.get(app.id)` is empty, show a muted "No card-decline notice sent yet" line instead of hiding the section.
+3. **Rename the button** dynamically:
+   - No history → `Send Card-Decline Email`
+   - Has history → `Resend now` (current behavior)
+4. **Keep** the existing CreditCard icon, history list rendering, and the `sendApplicationCardDeclinedEmail()` handler — no logic changes, no new backend, no new audit fields.
 
-### Files touched
+### Out of scope
+- No changes to the email template, the auto-send-on-decline behavior, or `email_audit_log` schema.
+- No changes to the row-level Email column badge — it already works.
+- The "Resend Card-Decline Notice" dropdown menu item stays as-is (it's a nice shortcut from the list).
 
-- `src/pages/admin/CafePOS.tsx` — add undo buttons + confirm dialog, show on cancelled/completed cards within 24h window.
-- `src/hooks/useAdminCafeOrders.ts` — clear `completed_at` when status moves away from `completed`.
+Net effect: from any approved applicant's detail panel you'll always see the card-decline email status and a one-click button to send/resend it.
