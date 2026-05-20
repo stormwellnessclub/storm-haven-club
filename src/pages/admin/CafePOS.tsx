@@ -24,6 +24,7 @@ export default function CafePOS() {
   const [selectedCustomer, setSelectedCustomer] = useState<POSCustomer | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [isCharging, setIsCharging] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
   const updateStatus = useUpdateCafeOrderStatus();
