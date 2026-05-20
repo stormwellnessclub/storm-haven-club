@@ -293,6 +293,44 @@ export default function CafePOS() {
                           </Button>
                         </div>
                       )}
+                      {(order.status === "cancelled" || order.status === "completed") &&
+                        Date.now() - new Date(order.updated_at).getTime() < 24 * 60 * 60 * 1000 && (
+                          <div className="pt-2">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button size="sm" variant="outline" className="w-full">
+                                  <RotateCcw className="h-3 w-3 mr-1" />
+                                  {order.status === "cancelled" ? "Reopen Order" : "Undo Complete"}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    {order.status === "cancelled" ? "Reopen this cancelled order?" : "Move this order back to Ready?"}
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    {order.status === "cancelled"
+                                      ? "The order will move back to Pending and reappear in the active queue."
+                                      : "The order will move back to Ready so it can be re-completed or adjusted."}
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Nevermind</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() =>
+                                      updateStatus.mutate({
+                                        orderId: order.id,
+                                        status: order.status === "cancelled" ? "pending" : "ready",
+                                      })
+                                    }
+                                  >
+                                    Yes, undo
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        )}
                     </CardContent>
                   </Card>
                 ))}
