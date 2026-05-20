@@ -1,48 +1,98 @@
-## What's actually happening
+## Cafe Credit System for Members
 
-When you charge an approved applicant from the Applications page and their card declines, the app already:
+A member-only credit wallet on top of the existing Cafe POS, supporting three grant types and a single unified redemption flow at checkout.
 
-1. Calls `send-email` with type `application_card_declined` (the gold "Update Payment Method" email you previewed).
-2. Inserts a row into `email_audit_log` with `email_type='application_card_declined'`, `trigger_source='auto_on_decline'`, `application_id=<that app>`.
-3. Shows a one-time orange toast: *"Card declined — payment update email sent to …"*.
+### Grant types (all admin-only)
 
-The Applications table already has an **Email** column that reads from `email_audit_log` and shows the latest email per applicant. Two reasons you don't see a confirmation today:
+1. **Cash balance** — Add $X to a member's wallet (gift, comp, manual top-up). Deducts dollar-for-dollar at checkout.
+2. **Prepaid item** — Mark N units of a specific menu item as prepaid (e.g. 10 lattes). Deducts 1 unit per matching item at checkout, $0 to member.
+3. **Charge card → credit** — Run their card-on-file now for $X, deposit $X to their cash wallet for future use. Same flow as #1, but funded by a Stripe charge instead of being free.
+4. **(Implicit) Manual adjustments** — Refund / decrement with reason, stored in the same ledger.
 
-- **The label map doesn't include `application_card_declined`**, so even when it does log, it renders the raw key in a neutral gray badge that looks identical to "Approval", "Setup", etc. Nothing tells you "this was a decline notice."
-- **`email_audit_log` currently has 0 rows for `application_card_declined`** across the whole project. That means either no decline has been auto-fired yet, or the audit insert silently failed (the email send itself can succeed while the audit insert fails — it's wrapped in its own `try/catch` that only `console.warn`s). Either way you have no historical trail.
+### Data model
 
-There is also no log row written when the **email itself fails** — if Resend errors, the toast turns into "Failed to send card-decline email" and disappears, and nothing is recorded.
+Two new tables, both members-only.
 
-## The fix
+**`cafe_credit_ledger`** — append-only audit of every grant, charge-fund, redemption, adjustment.
+- `member_id`, `kind` (`cash_grant` | `cash_purchase` | `item_grant` | `redemption_cash` | `redemption_item` | `adjustment`)
+- `amount_cents` (signed, negative = debit), `item_quantity` (signed, for prepaid items)
+- `menu_item_id` (nullable, for item grants/redemptions)
+- `cafe_order_id` (nullable, links redemptions to the order)
+- `stripe_payment_intent_id` (nullable, for `cash_purchase`)
+- `reason` text, `created_by` uuid, `created_at`
 
-### 1. Always write to `email_audit_log` — success *and* failure
-In `sendApplicationCardDeclinedEmail` (src/pages/admin/Applications.tsx ~line 1147):
-- Move the audit insert so it runs whether the `send-email` call succeeds or throws.
-- On success: `status: 'sent'`.
-- On failure: `status: 'failed'` with `error_message` populated.
-- This guarantees every charge-decline produces a visible record.
+**`cafe_prepaid_items`** — current remaining count per (member, menu_item).
+- `member_id`, `menu_item_id`, `quantity_remaining`, unique on the pair.
 
-### 2. Make the decline notice unmistakable in the table
-In the Email column renderer (~line 2257):
-- Add `application_card_declined` to `typeLabels` as **"Card Declined Notice"**.
-- Render it in a **red/destructive badge** (matching the `No Email` warning style) with a `CreditCard` icon instead of the neutral gray `Mail` icon.
-- If `status='failed'`, show **"Decline Email Failed"** in destructive style with the error in the tooltip so you know to resend.
-- Tooltip continues to show the timestamp.
+**Derived balance:** sum of `amount_cents` from ledger per member, exposed via `get_member_cafe_credit_balance(member_id)` RPC. No expiration, no refunds (per your spec).
 
-### 3. Add a "Card declined" filter chip
-Above the table, add a filter pill next to the existing status filters: **"Card Declined"**. It filters to applications whose latest `email_audit_log` row is `application_card_declined` (sent or failed) and `app.status='approved'`. This gives you a one-click view of "who got charged, declined, and still hasn't paid."
+**RLS:** members can SELECT their own ledger + prepaid rows; staff (`cafe_staff`, `admin`, `manager`, `super_admin`) can do everything via SECURITY DEFINER RPCs.
 
-### 4. Surface decline history in the applicant detail/timeline
-The applicant row already opens a detail view. Add a small **Charge Attempts** section that lists every `application_card_declined` row from `email_audit_log` for that `application_id` with timestamp + status. This way "was the email sent? when? was it resent?" is answerable at a glance for any applicant, including Ayana-style cases.
+### Atomic redemption RPC
 
-### 5. (Optional, recommend) Toast persistence
-Bump the auto-decline toast `duration` to ~12s and add an inline **"View applicant"** action so it doesn't disappear before you can act on it.
+`redeem_cafe_credit(member_id, cart jsonb, cash_to_apply_cents)` — runs inside a transaction:
+1. Walks cart items, decrements matching `cafe_prepaid_items` first (deducts item line cost from order subtotal).
+2. Validates `cash_to_apply_cents` ≤ remaining balance and ≤ remaining order total.
+3. Writes `redemption_item` and `redemption_cash` ledger rows linked to `cafe_order_id`.
+4. Returns `{ item_discounts, cash_applied, remaining_balance, remaining_due }`.
 
-## Files touched
-- `src/pages/admin/Applications.tsx` — audit logging, badge rendering, filter chip, detail section, toast.
+This prevents double-spend if two staff cash out the same member simultaneously.
 
-No backend or schema changes needed — `email_audit_log` already has the right shape (`email_type`, `status`, `error_message`, `application_id`, `sent_at`, `trigger_source`).
+### Admin UI — Member Credit Manager
 
-## Out of scope
-- The broader fulfillment/reconciliation work for class passes (already shipped last turn).
-- Migrating the applicant card-decline email to the new `email_send_log` queue system — not needed for the visibility problem you asked about.
+New section on the existing **Member Detail Sheet** ("Cafe Credit" card) + a dedicated **Admin → Cafe → Credits** tab:
+
+- **Balance summary**: Cash balance ($), prepaid items list ("3× Latte, 5× Acai Bowl").
+- **Add Cash Credit** dialog: amount, reason → writes `cash_grant`.
+- **Charge Card → Credit** dialog: amount, reason → calls existing `stripe-payment` with `charge_saved_card`, on success writes `cash_purchase`. Requires card on file.
+- **Grant Prepaid Items** dialog: menu item picker + quantity → writes `item_grant`, upserts `cafe_prepaid_items`.
+- **Adjust / Deduct** dialog (super_admin only): signed amount, required reason.
+- **Ledger table**: paginated history with kind, amount, item, order link, who did it, when.
+
+### POS integration (CafePOSCart)
+
+When a member is selected:
+
+1. Fetch their balance + prepaid items via the RPC.
+2. **Auto-suggest banner** above payment method: *"Sasha has $24.50 + 3× Latte available — apply?"* with **Apply Credit** (default) and **Skip** buttons.
+3. If applied, cart shows:
+   - Prepaid items rendered with strikethrough price and "✓ Prepaid" badge — auto-deducted first.
+   - **Cash credit slider/input** capped at min(balance, remaining total). Defaults to full apply.
+4. **Payment method** becomes whatever's left after credit:
+   - $0 remaining → single "Apply Credit & Complete" button, no card/cash needed.
+   - >$0 remaining → existing Card-on-File / Cash buttons cover only the balance due.
+5. Staff can toggle off credit entirely and pay full card/cash (override).
+
+`handlePlaceOrder` is extended to call `redeem_cafe_credit` after the order row is created (or in the same transaction via a wrapper RPC), and Stripe is only charged for the post-credit remaining amount.
+
+### Member-facing visibility (light touch)
+
+- Add a "Cafe Credit" card on `/portal/dashboard` showing cash balance + prepaid item list. Read-only.
+- Show "Paid with credit" line on receipts in `MyCafeOrdersCard`.
+
+### Reporting
+
+Update `CafeSalesReport` to split revenue into **Card**, **Cash**, **Credit-redeemed (cash)**, **Credit-redeemed (prepaid)** so credit usage isn't double-counted against revenue. Cash purchased into credit (`cash_purchase`) counts as revenue on the day it's funded, not when redeemed.
+
+### Technical details
+
+- **Files created**
+  - `supabase/migrations/<ts>_cafe_credit_system.sql` — tables, RLS, `get_member_cafe_credit_balance`, `grant_cafe_cash_credit`, `grant_cafe_prepaid_items`, `redeem_cafe_credit`, `adjust_cafe_credit` RPCs.
+  - `src/hooks/useMemberCafeCredit.ts` — balance + ledger queries, grant/redeem mutations.
+  - `src/components/admin/cafe/CafeCreditPanel.tsx` — embedded in MemberDetailSheet.
+  - `src/components/admin/cafe/AddCashCreditDialog.tsx`
+  - `src/components/admin/cafe/ChargeCardForCreditDialog.tsx`
+  - `src/components/admin/cafe/GrantPrepaidItemsDialog.tsx`
+  - `src/components/admin/cafe/CafeCreditLedgerTable.tsx`
+  - `src/pages/admin/CafeCredits.tsx` — dedicated tab listing all members with active credit.
+  - `src/components/portal/MyCafeCreditCard.tsx`
+
+- **Files edited**
+  - `src/components/admin/CafePOSCart.tsx` — credit banner, prepaid badges, cash-apply input, dynamic payment buttons.
+  - `src/pages/admin/CafePOS.tsx` — call `redeem_cafe_credit` in `handlePlaceOrder`, pass credit state through.
+  - `src/components/admin/MemberDetailSheet.tsx` — mount `CafeCreditPanel`.
+  - `src/pages/portal/Dashboard.tsx` — mount `MyCafeCreditCard`.
+  - `src/components/admin/reports/reports/CafeSalesReport.tsx` — credit-split columns.
+  - `supabase/functions/stripe-webhook/index.ts` — on successful PI with `metadata.purpose = 'cafe_credit_topup'`, write `cash_purchase` ledger row (idempotent via `stripe_payment_intent_id` unique).
+
+- **Cafe Staff role** already gates POS access via existing `has_any_role` policies; same role gates the credit panel.
