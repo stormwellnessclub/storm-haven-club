@@ -1,23 +1,30 @@
-## Problem
+## Add "Undo / Reopen" for Cafe orders
 
-The `mothers-day-reconcile` run on May 18 re-created `mothers_day_2026` 10-packs for members who already had one from the original May 8-9 sale. Each duplicate pack still has 10/10 remaining, while the original is in active use.
+Right now, cancelling or completing a cafe order in the Order Queue is a one-way action — there's no way to revert if a staff member misclicks. I'll add an undo path for both states.
 
-## Duplicates to delete
+### Behavior
 
-These 4 passes (all `pass_type=10-pack`, `promo_code=mothers_day_2026`, created 2026-05-18 22:17, classes_remaining=10) are the redundant copies. Their corresponding originals from May 8-9 remain untouched.
+In the Order Queue card (`src/pages/admin/CafePOS.tsx`):
 
-| Member | Original (keep) | Duplicate (delete) |
-|---|---|---|
-| Rayanne Haidar | 7752b98a — 7 remaining | 878c959e |
-| Jenna Saleh | 6ee7d20c — 9 remaining | 4ac88bda |
-| Nada Alma | 1b7f9741 — 6 remaining | 920a4fc2 |
-| Nahla Hammoud | 8601e755 — 8 remaining | 6b1541f5 |
+- **Cancelled orders** → show a "Reopen Order" button that moves the order back to `pending`.
+- **Completed orders** → show an "Undo Complete" button that moves it back to `ready`.
+- Both buttons sit alongside the existing status badge in the card footer (same spot as the current Cancel/Complete buttons).
+- Confirm with a small `AlertDialog` ("Reopen this cancelled order?" / "Move this order back to Ready?") to prevent accidental double-clicks.
+- After undo, the card re-appears in the relevant filter (Pending / Ready) and a toast confirms the change.
 
-**Ayana silmi's** May 18 pack (78f95ab0) is kept — she had no prior mothers_day_2026 pack, this was the legitimate fix that started the whole thing. Souad and Fatima Naji's duplicates were already cleaned up manually.
+### Visibility
 
-## Steps
+- Cancelled and Completed filter tabs already exist, so undone orders naturally reappear in their new bucket.
+- To keep the queue usable, only show undo on orders updated within the **last 24 hours** (older ones are considered closed). Older orders still appear but without the undo button.
 
-1. `DELETE FROM class_passes WHERE id IN (...4 ids above)` via insert tool.
-2. Patch `supabase/functions/mothers-day-reconcile/index.ts` to skip any member who already has a `class_passes` row with `promo_code='mothers_day_2026'`, regardless of `stripe_payment_intent_id` linkage — prevents the same regression if reconcile is ever re-run.
+### Technical notes
 
-No schema change, no UI change.
+- Reuses the existing `useUpdateCafeOrderStatus` mutation — no new RPC needed.
+- Need to tweak `useUpdateCafeOrderStatus` so that when transitioning **out of** `completed`, it clears `completed_at` back to `null` (otherwise the timestamp lies).
+- No DB migration required; `status` already accepts all five values.
+- No changes to customer-facing `MyCafeOrdersCard` — it filters by active statuses, so reopened orders will reappear there too automatically.
+
+### Files touched
+
+- `src/pages/admin/CafePOS.tsx` — add undo buttons + confirm dialog, show on cancelled/completed cards within 24h window.
+- `src/hooks/useAdminCafeOrders.ts` — clear `completed_at` when status moves away from `completed`.

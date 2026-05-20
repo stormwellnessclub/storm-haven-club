@@ -98,6 +98,9 @@ export function useUpdateCafeOrderStatus() {
 
       if (status === "completed") {
         updateData.completed_at = new Date().toISOString();
+      } else {
+        // Clear completed_at when reopening/undoing a completed order
+        updateData.completed_at = null;
       }
 
       try {
