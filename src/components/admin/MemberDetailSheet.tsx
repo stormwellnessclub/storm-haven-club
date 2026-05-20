@@ -10,6 +10,7 @@ import { ChargeItemSelector } from "./ChargeItemSelector";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "./AdminActionButton";
 import { ChangeBillingDateDialog } from "./ChangeBillingDateDialog";
 import { AddProcessingFeesButton } from "./AddProcessingFeesButton";
+import { CafeCreditPanel } from "./cafe/CafeCreditPanel";
 import {
   Sheet,
   SheetContent,
@@ -1006,6 +1007,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
 
             <TabsContent value="membership" className="space-y-4 mt-4">
               <NextPaymentCard memberId={member.id} />
+              <CafeCreditPanel member={{ id: member.id, first_name: member.first_name, last_name: member.last_name, stripe_customer_id: (member as any).stripe_customer_id }} />
 
               {/* Subscription Status Alert */}
               {member.subscription_status && ['incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(member.subscription_status) && (
