@@ -145,6 +145,7 @@ export default function PortalDashboard() {
 
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
+        <MyCafeCreditCard />
 
         {/* Leave a review prompt — premium nudge for unreviewed past classes */}
         <LeaveReviewBanner
