@@ -475,6 +475,87 @@ export type Database = {
           },
         ]
       }
+      cafe_credit_ledger: {
+        Row: {
+          amount_cents: number
+          cafe_order_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          item_quantity: number
+          kind: string
+          member_id: string
+          menu_item_id: string | null
+          menu_item_name: string | null
+          reason: string | null
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          cafe_order_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_quantity?: number
+          kind: string
+          member_id: string
+          menu_item_id?: string | null
+          menu_item_name?: string | null
+          reason?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          cafe_order_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          item_quantity?: number
+          kind?: string
+          member_id?: string
+          menu_item_id?: string | null
+          menu_item_name?: string | null
+          reason?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_credit_ledger_cafe_order_id_fkey"
+            columns: ["cafe_order_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_credit_ledger_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_credit_ledger_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_credit_ledger_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_credit_ledger_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cafe_marketing_settings: {
         Row: {
           key: string
@@ -710,6 +791,59 @@ export type Database = {
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cafe_prepaid_items: {
+        Row: {
+          id: string
+          member_id: string
+          menu_item_id: string
+          quantity_remaining: number
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          menu_item_id: string
+          quantity_remaining?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          menu_item_id?: string
+          quantity_remaining?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_prepaid_items_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_prepaid_items_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_prepaid_items_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_prepaid_items_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_items"
             referencedColumns: ["id"]
           },
         ]
@@ -7245,6 +7379,10 @@ export type Database = {
       }
     }
     Functions: {
+      adjust_cafe_credit: {
+        Args: { _amount_cents: number; _member_id: string; _reason: string }
+        Returns: string
+      }
       admin_cancel_class_session: {
         Args: {
           _cancellation_reason?: string
@@ -7522,6 +7660,10 @@ export type Database = {
         Args: { p_days?: number; p_member_id: string }
         Returns: Json
       }
+      get_member_cafe_credit_balance: {
+        Args: { _member_id: string }
+        Returns: Json
+      }
       get_member_payment_history: {
         Args: { p_limit?: number; p_member_id: string }
         Returns: Json
@@ -7606,6 +7748,19 @@ export type Database = {
           count: number
           session_id: string
         }[]
+      }
+      grant_cafe_cash_credit: {
+        Args: { _amount_cents: number; _member_id: string; _reason: string }
+        Returns: string
+      }
+      grant_cafe_prepaid_items: {
+        Args: {
+          _member_id: string
+          _menu_item_id: string
+          _quantity: number
+          _reason: string
+        }
+        Returns: string
       }
       has_any_role: {
         Args: {
@@ -7731,6 +7886,24 @@ export type Database = {
           sessions_skipped: number
           sessions_updated: number
         }[]
+      }
+      record_cafe_cash_purchase: {
+        Args: {
+          _amount_cents: number
+          _member_id: string
+          _payment_intent_id: string
+          _reason: string
+        }
+        Returns: string
+      }
+      redeem_cafe_credit: {
+        Args: {
+          _cafe_order_id: string
+          _cart_items: Json
+          _cash_to_apply_cents: number
+          _member_id: string
+        }
+        Returns: Json
       }
       redeem_guest_pass_credit: {
         Args: {
