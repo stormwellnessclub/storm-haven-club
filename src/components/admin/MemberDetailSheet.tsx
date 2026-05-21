@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound, CalendarClock, MessageSquare } from "lucide-react";
+import { Loader2, Mail, Phone, Calendar, CreditCard, User, Trash2, DollarSign, FileText, Tag, Activity, BarChart3, Plus, Edit2, X, ShoppingBag, PlayCircle, Settings, AlertCircle, CheckCircle2, ExternalLink, XCircle, RefreshCcw, Eye, RotateCcw, KeyRound, CalendarClock, MessageSquare, Coffee } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { ChargeHistory } from "@/components/ChargeHistory";
 import { SendSmsDialog } from "./SendSmsDialog";
@@ -764,9 +764,12 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="mt-6">
-            <TabsList className="grid w-full grid-cols-8">
+            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="membership">Membership</TabsTrigger>
+              <TabsTrigger value="cafe-credit" className="gap-1">
+                <Coffee className="h-3.5 w-3.5" /> Cafe Credit
+              </TabsTrigger>
               <TabsTrigger value="contract">Contract</TabsTrigger>
               <TabsTrigger value="payments">Payments</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -1007,7 +1010,6 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
 
             <TabsContent value="membership" className="space-y-4 mt-4">
               <NextPaymentCard memberId={member.id} />
-              <CafeCreditPanel member={{ id: member.id, first_name: member.first_name, last_name: member.last_name, stripe_customer_id: (member as any).stripe_customer_id }} />
 
               {/* Subscription Status Alert */}
               {member.subscription_status && ['incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(member.subscription_status) && (
@@ -1273,6 +1275,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   Delete Member Permanently
                 </Button>
               )}
+            </TabsContent>
+
+            <TabsContent value="cafe-credit" className="space-y-4 mt-4">
+              <CafeCreditPanel member={{ id: member.id, first_name: member.first_name, last_name: member.last_name, stripe_customer_id: (member as any).stripe_customer_id }} />
             </TabsContent>
 
             <TabsContent value="contract" className="space-y-4 mt-4">

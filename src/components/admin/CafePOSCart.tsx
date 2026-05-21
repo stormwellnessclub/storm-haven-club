@@ -9,6 +9,7 @@ import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import type { POSCartItem } from "./CafePOSMenu";
 import { POSCustomerSearch, type POSCustomer } from "./POSCustomerSearch";
 import { useMemberCafeCredit, formatCents } from "@/hooks/useMemberCafeCredit";
+import { CafeCreditPanel } from "./cafe/CafeCreditPanel";
 
 export interface CreditApplication {
   prepaidUsage: Record<string, number>; // menu_item_id -> qty used from prepaid
@@ -46,6 +47,7 @@ export function CafePOSCart({
   const canChargeCard = selectedCustomer?.cardOnFile && selectedCustomer?.stripeCustomerId;
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">(canChargeCard ? "card" : "cash");
   const [cashReceived, setCashReceived] = useState("");
+  const selectedMemberNameParts = selectedCustomer?.name.trim().split(/\s+/) || [];
 
   // ---- Cafe Credit ----
   const memberId = selectedCustomer?.type === "member" ? selectedCustomer.memberId || null : null;
@@ -131,6 +133,18 @@ export function CafePOSCart({
         </CardHeader>
         <CardContent>
           <POSCustomerSearch selected={selectedCustomer} onSelect={onCustomerSelect} />
+          {memberId && selectedCustomer?.type === "member" && (
+            <div className="mt-4">
+              <CafeCreditPanel
+                member={{
+                  id: memberId,
+                  first_name: selectedMemberNameParts[0] || selectedCustomer.name,
+                  last_name: selectedMemberNameParts.slice(1).join(" "),
+                  stripe_customer_id: selectedCustomer.stripeCustomerId,
+                }}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
