@@ -133,20 +133,19 @@ export function CafePOSCart({
         </CardHeader>
         <CardContent>
           <POSCustomerSearch selected={selectedCustomer} onSelect={onCustomerSelect} />
-          {memberId && selectedCustomer?.type === "member" && (
-            <div className="mt-4">
-              <CafeCreditPanel
-                member={{
-                  id: memberId,
-                  first_name: selectedMemberNameParts[0] || selectedCustomer.name,
-                  last_name: selectedMemberNameParts.slice(1).join(" "),
-                  stripe_customer_id: selectedCustomer.stripeCustomerId,
-                }}
-              />
-            </div>
-          )}
         </CardContent>
       </Card>
+
+      {memberId && selectedCustomer?.type === "member" && (
+        <CafeCreditPanel
+          member={{
+            id: memberId,
+            first_name: selectedMemberNameParts[0] || selectedCustomer.name,
+            last_name: selectedMemberNameParts.slice(1).join(" "),
+            stripe_customer_id: selectedCustomer.stripeCustomerId,
+          }}
+        />
+      )}
 
       {/* Credit Banner */}
       {memberId && hasAnyCredit && cart.length > 0 && (
