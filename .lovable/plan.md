@@ -1,34 +1,58 @@
-## What's already built (just hard to find)
+## Problem
 
-Good news — the auto-email + audit log + resend button **already exist** exactly as I described to you:
+When you click "Mark resolved" on a payment issue in the member profile, the row is correctly written to the database (`resolved_at` is set), but two things go wrong from your perspective:
 
-- When you click "Charge" on an approved applicant and Stripe declines, `Applications.tsx` automatically calls the `application_card_declined` email and writes a row to `email_audit_log` (success **or** failure).
-- The applications table has an **Email column** that shows a red "Card Declined Notice" badge (or "Decline Email Failed") with the timestamp on hover.
-- The applicant's detail sheet has a **"Card-Decline Notices"** history section listing every send attempt with status, errors, and a **"Resend now"** button.
+1. The card only ever queries unresolved rows, so resolved issues vanish entirely — there's no way to review what you cleared, who cleared it, or why.
+2. If the list doesn't visibly update right away, it can look like "mark resolved" didn't work.
 
-## The actual problem
+You want resolved issues to stay accessible for review, just not mixed in with active ones.
 
-That history section in the detail sheet is wrapped in `{cardDeclineHistoryByApp.get(app.id)?.length > 0 && ...}` — meaning it **only appears if a decline email has already been sent**. So when you open an applicant who hasn't had a decline yet (or where the auto-send somehow didn't fire), there's nothing to see and no button to click. That's why it feels missing.
+## Solution
 
-## Fix
+Add tabs inside the existing **Confirmed Payment Issues** card on the admin member profile:
 
-Make the card-decline email panel **always visible** in the applicant detail sheet for approved applicants, so you always have one consistent place to:
-- See if a decline notice has ever been sent (and when / status)
-- See "Never sent" if it hasn't
-- Hit a **Send Card-Decline Email** button manually, anytime
+- **Open** (default) — current behavior. Unresolved failures and active disputes, grouped by category, with Retry / Mark resolved / Stripe links. Count badge in header reflects this tab only.
+- **Resolved** — historical list of resolved issues for this member. Read-only review view.
 
-### Changes (one file: `src/pages/admin/Applications.tsx`)
+No deletion. No change to the underlying `payment_attempts` table. Same data, just a second view.
 
-1. **Remove the conditional wrapper** around the "Card-Decline Notices" block (currently line 3017) so the section renders for every approved applicant.
-2. **Update empty state**: when `cardDeclineHistoryByApp.get(app.id)` is empty, show a muted "No card-decline notice sent yet" line instead of hiding the section.
-3. **Rename the button** dynamically:
-   - No history → `Send Card-Decline Email`
-   - Has history → `Resend now` (current behavior)
-4. **Keep** the existing CreditCard icon, history list rendering, and the `sendApplicationCardDeclinedEmail()` handler — no logic changes, no new backend, no new audit fields.
+### Resolved tab contents
 
-### Out of scope
-- No changes to the email template, the auto-send-on-decline behavior, or `email_audit_log` schema.
-- No changes to the row-level Email column badge — it already works.
-- The "Resend Card-Decline Notice" dropdown menu item stays as-is (it's a nice shortcut from the list).
+Each resolved row shows:
+- Amount + category badge (Membership Dues, Café, Spa, etc.)
+- Original failure/dispute reason
+- Date originally failed
+- **Resolved on** date + **resolved by** (admin email, looked up from `resolved_by` user id)
+- Resolution note (if one was entered)
+- Stripe link (invoice / charge / payment intent) when available
+- An **Unresolve** button (ghost, small) in case something was cleared by mistake — clears `resolved_at`, `resolved_by`, `resolution_note` and moves it back to Open
 
-Net effect: from any approved applicant's detail panel you'll always see the card-decline email status and a one-click button to send/resend it.
+Sorted by `resolved_at` descending, capped at the most recent 50 with a "Load more" affordance if needed.
+
+### Header behavior
+
+- "X open" badge stays, but only counts the Open tab.
+- When Resolved tab has rows, show a muted secondary count next to the tab label (e.g. `Resolved · 12`).
+
+## Technical notes
+
+Files touched:
+
+- `src/hooks/useMemberConfirmedIssues.ts`
+  - Add a second query `useMemberResolvedIssues(memberId)` that selects rows where `resolved_at IS NOT NULL` (or `dispute_status = 'won'` for the disputed-but-now-resolved case), ordered by `resolved_at desc`, limited to 50. Join/lookup `resolved_by` against a profiles/admin users source already used elsewhere in admin (check `useAdminMemberBillingHealth` for the existing pattern) — fall back to showing the raw id if no lookup is available.
+  - Add an `unresolveAttempt` mutation that sets `resolved_at = null`, `resolved_by = null`, `resolution_note = null` and invalidates both queries.
+  - Ensure `markResolved.onSuccess` also invalidates the resolved-issues query so the item appears in the Resolved tab immediately.
+
+- `src/components/admin/MemberDetail/ConfirmedPaymentIssues.tsx`
+  - Wrap the existing body in `Tabs` (`Open` / `Resolved`) using the existing `@/components/ui/tabs` primitives.
+  - Extract the current grouped/rendered list into an `OpenIssuesList` subcomponent so the file stays readable.
+  - Build a `ResolvedIssuesList` subcomponent for the new tab.
+  - Header count badge reads from the open-issues query only.
+
+No database migration is required — `resolved_at`, `resolved_by`, `resolution_note` already exist on `payment_attempts` and are populated by `markResolved`.
+
+## Out of scope
+
+- Bulk actions on resolved issues
+- Filtering/search inside the Resolved tab (can add later if the list grows)
+- Surfacing resolved issues anywhere outside the member profile
