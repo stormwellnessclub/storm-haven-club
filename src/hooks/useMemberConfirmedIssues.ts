@@ -154,6 +154,7 @@ export function useMemberConfirmedIssues(memberId: string | undefined) {
     onSuccess: () => {
       toast.success("Marked as resolved");
       queryClient.invalidateQueries({ queryKey: ["member-confirmed-issues", memberId] });
+      queryClient.invalidateQueries({ queryKey: ["member-resolved-issues", memberId] });
       queryClient.invalidateQueries({ queryKey: ["admin-member-billing-health", memberId] });
     },
     onError: (err) => {
@@ -180,4 +181,82 @@ export function useMemberConfirmedIssues(memberId: string | undefined) {
   });
 
   return { ...query, markResolved, retryCharge };
+}
+
+export interface ResolvedIssue extends ConfirmedIssue {
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution_note: string | null;
+  resolved_by_email: string | null;
+}
+
+export function useMemberResolvedIssues(memberId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  const query = useQuery<ResolvedIssue[]>({
+    queryKey: ["member-resolved-issues", memberId],
+    queryFn: async () => {
+      if (!memberId) return [];
+
+      const { data, error } = await supabase
+        .from("payment_attempts")
+        .select(
+          "id, member_id, amount, currency, status, decline_reason, failure_message, created_at, failed_at, stripe_charge_id, stripe_invoice_id, stripe_subscription_id, stripe_payment_intent_id, invoice_number, metadata, disputed_at, dispute_id, dispute_status, dispute_reason, resolved_at, resolved_by, resolution_note"
+        )
+        .eq("member_id", memberId)
+        .not("resolved_at", "is", null)
+        .order("resolved_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+
+      const resolverIds = Array.from(
+        new Set((data ?? []).map((r) => r.resolved_by).filter((v): v is string => !!v))
+      );
+      const emailMap = new Map<string, string>();
+      if (resolverIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, email")
+          .in("id", resolverIds);
+        for (const p of profiles ?? []) {
+          if (p.email) emailMap.set(p.id, p.email);
+        }
+      }
+
+      return (data ?? []).map((r) => ({
+        ...(r as unknown as ResolvedIssue),
+        metadata: (r.metadata as Record<string, unknown> | null) ?? null,
+        category: categorize(r),
+        is_disputed: !!r.disputed_at && r.dispute_status !== "won",
+        resolved_by_email: r.resolved_by ? emailMap.get(r.resolved_by) ?? null : null,
+      }));
+    },
+    enabled: !!memberId,
+    staleTime: 30000,
+  });
+
+  const unresolve = useMutation({
+    mutationFn: async ({ attemptId }: { attemptId: string }) => {
+      const { error } = await supabase
+        .from("payment_attempts")
+        .update({
+          resolved_at: null,
+          resolved_by: null,
+          resolution_note: null,
+        })
+        .eq("id", attemptId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Moved back to open issues");
+      queryClient.invalidateQueries({ queryKey: ["member-confirmed-issues", memberId] });
+      queryClient.invalidateQueries({ queryKey: ["member-resolved-issues", memberId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-member-billing-health", memberId] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to unresolve");
+    },
+  });
+
+  return { ...query, unresolve };
 }
