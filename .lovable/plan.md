@@ -1,55 +1,56 @@
-## Memorial Day Hours Email — Bulk Send
+## Goal
+Produce a one-off PDF pay summary for Teresa Tyler (5/4/26–5/17/26) matching the structure of your uploaded sample, but re-skinned in Storm Wellness Club brand colors and with appointment-level detail.
 
-Build a Memorial Day hours announcement that you can preview and bulk-send to all active members from the existing Marketing Portal, using the same send pipeline as the Refer-a-Friend campaign.
+## Output
+A single PDF saved to `/mnt/documents/` (downloadable), no code changes to the app.
 
-### 1. Email template (branded HTML)
+## Brand styling (no blue)
+- Header bars: Smoked Umber `#1C170F` with cream text
+- Accent / total row: Golden Dune `#F0DFC4` with charcoal text
+- Body text: Smoked Umber on cream `#DEDACE` / white
+- Serif title (Cormorant-style via built-in PDF serif), sans body
 
-Match the existing club email style (Georgia serif, `#DEDACE` cream header, `#1C170F` ink, gold `#B8A068` accent rule — same shell as `CardDeclinedEmailPreview`).
+## Sections
+1. **Header** – "Massage Therapist Pay Summary" / Teresa Tyler / Pay Period: Monday, May 4, 2026 – Sunday, May 17, 2026
 
-Content:
-- Subject: **"Memorial Day Weekend Hours — Storm Wellness Club"**
-- Greeting: "Dear {firstName},"
-- Short intro honoring Memorial Day
-- Hours block (boxed, centered):
-  - **Sunday, May 24** — 8:00 AM – 5:00 PM
-  - **Monday, May 25 (Memorial Day)** — 7:00 AM – 5:00 PM
-- Note: regular hours resume Tuesday 5/26
-- Sign-off: "The Storm Wellness Club Team"
-- Footer matching existing templates
+2. **Service Appointments** (line-by-line, with date)
+   Columns: Date | Time | Service | Min | Hours | Rate | Pay
+   - 5/7 10:00a · Sports Performance · 90
+   - 5/8 10:00a · Lymph & Flow · 90
+   - 5/8 5:30p · Deep Relief · 90
+   - 5/9 12:30p · Deep Relief (MD voucher) · 90
+   - 5/9 2:20p · Lymph & Flow · 60
+   - 5/9 5:30p · Deep Relief · 90
+   - 5/10 12:00p · Storm Signature · 90
+   - 5/10 2:00p · Storm Signature (MD voucher – Leana Jawad) · 60
+   - 5/15 10:00a · Lymph & Flow (MD voucher) · 60
+   - 5/16 12:30p · Deep Relief · 90
+   - 5/16 2:30p · Deep Relief (Jamiley Cheikh) · 60
+   - 5/16 4:00p · Storm Signature · 60
+   Subtotal: 15.50 hrs @ $26 = **$403.00**
 
-### 2. New Marketing tab: "Announcements"
+3. **Turnover Time (Paid – Separate Line Item)**
+   12 sessions × 15 min = 3.00 hrs @ $26 = **$78.00**
 
-Add a new tab in `src/pages/admin/Marketing.tsx` called **Announcements** (between Members and Contacts).
+4. **Credit Card / Other Tips (To Be Paid Out)**
+   Lists the 7 card/clover/other tip entries with date + client where known.
+   Subtotal: **$310.75**
+   (Includes the $70 "Other" entry as you noted.)
 
-Component: `src/components/admin/marketing/AnnouncementsTab.tsx` modeled directly on `ReferralCampaignTab`:
-- Loads all active members with an email (same query pattern)
-- Shows live HTML preview (sample first name "Sarah")
-- "Send to All (N)" button with confirm dialog
-- Per-member "Send" button for one-off testing/resending
-- Logs the send via `email_campaigns` + `email_campaign_recipients` (same as referrals) so it shows in Analytics
-- Uses `supabase.functions.invoke("send-email", { body: { type: "staff_reply", to, data: { name, subject, content } } })` — the exact path the referral tab uses
+5. **Cash Tips (Already Received – NOT Included in Payout)**
+   - 5/7 Sports Performance · $20.00
+   - 5/9 Deep Relief (MD voucher) · $10.00
+   - 5/10 Storm Signature (MD voucher – Leana) · $10.00
+   - 5/15 Lymph & Flow (MD voucher) · $20.00
+   Subtotal: **$60.00**
 
-For now, hardcode the Memorial Day template inline in the component (no DB template row needed — fastest path, matches `CardDeclinedEmailPreview` pattern). If you later want it editable from the Templates tab, we can promote it to an `email_templates` row.
+6. **Total Pay Summary** (gold-accent total row)
+   - Service Hours (15.50 hrs) — $403.00
+   - Turnover (3.00 hrs) — $78.00
+   - Credit Card / Other Tips — $310.75
+   - **TOTAL TO PAY (18.50 hrs) — $791.75**
+   - Footnote: cash tips of $60.00 received directly, not included.
 
-### 3. Recipient scope
-
-Default to: `status = 'active'` AND `email IS NOT NULL`. This matches how the Refer-a-Friend tab defines "paid active members" minus the paid filter (operational notices go to all active members, not just paying ones). Add a small toggle: "Active members only" vs "Active + frozen" (frozen members still need to know hours).
-
-### 4. What's NOT in scope
-
-- No new DB tables or migrations
-- No changes to the member portal banner (already built)
-- No SMS — email only
-- No scheduled send (sends immediately when you click)
-
-### Technical details
-
-- New file: `src/components/admin/marketing/AnnouncementsTab.tsx`
-- Edit: `src/pages/admin/Marketing.tsx` — add `<TabsTrigger value="announcements">` and `<TabsContent>`
-- Uses existing `send-email` edge function — no edge function changes
-- Uses existing `email_campaigns` / `email_campaign_recipients` tables for logging
-- Sends are sequential (same as referral bulk) — for ~hundreds of members this takes a minute or two; acceptable for a one-time announcement
-
-### Preview-first workflow
-
-When you open the tab, you'll see the rendered email immediately. Nothing sends until you click "Send to All" and confirm the count.
+## Confirm before I generate
+- Hourly rate **$26/hr** (same as sample) — correct?
+- Keep the $70 "Other" tip lumped into the card-tips payout section (since it isn't cash) — correct?
