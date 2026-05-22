@@ -9,6 +9,7 @@ import { PaymentDueNotice } from "./PaymentDueNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SmsOptInBannerContent } from "./SmsOptInBannerContent";
+import { MemorialDayHoursBanner } from "./MemorialDayHoursBanner";
 
 
 import { WifiBanner } from "./WifiBanner";
@@ -92,7 +93,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         <NotificationBar items={notifications} />
         
         {/* Info banners */}
-        
+        <MemorialDayHoursBanner />
         <WifiBanner />
         
         {/* Waiver reminder (keeps its own logic) */}
