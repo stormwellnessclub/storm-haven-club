@@ -93,7 +93,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         <NotificationBar items={notifications} />
         
         {/* Info banners */}
-        
+        <MemorialDayHoursBanner />
         <WifiBanner />
         
         {/* Waiver reminder (keeps its own logic) */}
