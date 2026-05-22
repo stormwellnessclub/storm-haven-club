@@ -9,7 +9,8 @@ import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytic
 import { SmsBlastTab } from "@/components/admin/marketing/SmsBlastTab";
 import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
 import { ContactsTab } from "@/components/admin/marketing/ContactsTab";
-import { Megaphone, MessageSquare, Coffee, Mail } from "lucide-react";
+import { AnnouncementsTab } from "@/components/admin/marketing/AnnouncementsTab";
+import { Megaphone, MessageSquare, Coffee, Mail, Bell } from "lucide-react";
 
 export default function Marketing() {
   const [params, setParams] = useSearchParams();
@@ -40,6 +41,9 @@ export default function Marketing() {
           <TabsList>
             <TabsTrigger value="guests">Guests</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
+            <TabsTrigger value="announcements" className="gap-1.5">
+              <Bell className="h-3.5 w-3.5" /> Announcements
+            </TabsTrigger>
             <TabsTrigger value="contacts" className="gap-1.5">
               <Mail className="h-3.5 w-3.5" /> Contacts
             </TabsTrigger>
@@ -59,6 +63,9 @@ export default function Marketing() {
           </TabsContent>
           <TabsContent value="members">
             <MemberMarketingTab />
+          </TabsContent>
+          <TabsContent value="announcements">
+            <AnnouncementsTab />
           </TabsContent>
           <TabsContent value="contacts">
             <ContactsTab />
