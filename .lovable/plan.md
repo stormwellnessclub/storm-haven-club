@@ -1,56 +1,21 @@
 ## Goal
-Produce a one-off PDF pay summary for Teresa Tyler (5/4/26–5/17/26) matching the structure of your uploaded sample, but re-skinned in Storm Wellness Club brand colors and with appointment-level detail.
+For each of the 3 windows (Feb 9–Mar 9, Mar 9–Apr 9, Apr 9–May 20), list every currently-active member who had **no successful Stripe charge** in that window, plus a "Months Owed" column showing how many of the 3 windows they missed.
 
-## Output
-A single PDF saved to `/mnt/documents/` (downloadable), no code changes to the app.
+## Method
+1. Pull all members with `status = 'active'` (the 112) — name, email, tier, founding flag, stripe_customer_id.
+2. For each window, query Stripe `charges` (or `invoices` with `status='paid'`) per customer where `created` ∈ window and amount > 0.
+3. Exclude the 7 accidental applies already removed.
+4. Flag members as "missed" per window if zero successful charges in that window.
+5. Exclude legitimately frozen members during their freeze period (they shouldn't be billed). Show them in a separate "Frozen — not expected to pay" section so you still see who they are.
 
-## Brand styling (no blue)
-- Header bars: Smoked Umber `#1C170F` with cream text
-- Accent / total row: Golden Dune `#F0DFC4` with charcoal text
-- Body text: Smoked Umber on cream `#DEDACE` / white
-- Serif title (Cormorant-style via built-in PDF serif), sans body
+## Deliverable
+A new Excel file `/mnt/documents/members_missed_payments.xlsx` with 4 sheets:
 
-## Sections
-1. **Header** – "Massage Therapist Pay Summary" / Teresa Tyler / Pay Period: Monday, May 4, 2026 – Sunday, May 17, 2026
+- **Summary** — counts: total active 112, missed Feb–Mar X, missed Mar–Apr Y, missed Apr–May Z, owe 1 month / 2 months / 3 months.
+- **Itemized — Owe Money** — one row per active member with columns:
+  Name · Email · Tier · Founding · Feb 9–Mar 9 (✓/✗) · Mar 9–Apr 9 (✓/✗) · Apr 9–May 20 (✓/✗) · **Months Owed (0–3)** · Last Successful Charge Date · Last Charge Amount. Sorted by Months Owed descending so the biggest debts are at top.
+- **Frozen / Comped** — active members whose missed windows fall inside an approved freeze (not actually owed).
+- **Notes** — definitions: "missed" = zero paid Stripe charges > $0 in the date range; window = calendar dates inclusive; excludes the 7 accidental applies.
 
-2. **Service Appointments** (line-by-line, with date)
-   Columns: Date | Time | Service | Min | Hours | Rate | Pay
-   - 5/7 10:00a · Sports Performance · 90
-   - 5/8 10:00a · Lymph & Flow · 90
-   - 5/8 5:30p · Deep Relief · 90
-   - 5/9 12:30p · Deep Relief (MD voucher) · 90
-   - 5/9 2:20p · Lymph & Flow · 60
-   - 5/9 5:30p · Deep Relief · 90
-   - 5/10 12:00p · Storm Signature · 90
-   - 5/10 2:00p · Storm Signature (MD voucher – Leana Jawad) · 60
-   - 5/15 10:00a · Lymph & Flow (MD voucher) · 60
-   - 5/16 12:30p · Deep Relief · 90
-   - 5/16 2:30p · Deep Relief (Jamiley Cheikh) · 60
-   - 5/16 4:00p · Storm Signature · 60
-   Subtotal: 15.50 hrs @ $26 = **$403.00**
-
-3. **Turnover Time (Paid – Separate Line Item)**
-   12 sessions × 15 min = 3.00 hrs @ $26 = **$78.00**
-
-4. **Credit Card / Other Tips (To Be Paid Out)**
-   Lists the 7 card/clover/other tip entries with date + client where known.
-   Subtotal: **$310.75**
-   (Includes the $70 "Other" entry as you noted.)
-
-5. **Cash Tips (Already Received – NOT Included in Payout)**
-   - 5/7 Sports Performance · $20.00
-   - 5/9 Deep Relief (MD voucher) · $10.00
-   - 5/10 Storm Signature (MD voucher – Leana) · $10.00
-   - 5/15 Lymph & Flow (MD voucher) · $20.00
-   Subtotal: **$60.00**
-
-6. **Total Pay Summary** (gold-accent total row)
-   - Service Hours (15.50 hrs) — $403.00
-   - Turnover (3.00 hrs) — $78.00
-   - Credit Card / Other Tips — $310.75
-   - **TOTAL TO PAY (18.50 hrs) — $791.75**
-   - Footnote: cash tips of $60.00 received directly, not included.
-
-## Confirm before I generate
-- Hourly rate **$26/hr** (same as sample) — correct?
-- Keep the $70 "Other" tip lumped into the card-tips payout section (since it isn't cash) — correct?
+## Open question before I build
+**How should I treat partial windows?** A member who joined mid-period (e.g. signed up Apr 20) didn't exist for Feb–Mar — should that count as "missed" (✗) or "N/A" (–)? I recommend **N/A** so the Months Owed number reflects real debt, not "joined late." Confirm or override.
