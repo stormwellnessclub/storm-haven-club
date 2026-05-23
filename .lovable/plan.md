@@ -1,21 +1,46 @@
-## Goal
-For each of the 3 windows (Feb 9–Mar 9, Mar 9–Apr 9, Apr 9–May 20), list every currently-active member who had **no successful Stripe charge** in that window, plus a "Months Owed" column showing how many of the 3 windows they missed.
+## Problem
+The current report counts ANY successful Stripe charge as a "payment," which is wrong:
+- Jenna Saleh's $16.99 (cafe/other) was counted instead of her real Gold dues
+- Duha's $204 was a massage package, not membership
+- Other members (Jeree, etc.) who legitimately owe dues are being marked as paid because of unrelated charges (spa, cafe, class passes, guest passes)
 
-## Method
-1. Pull all members with `status = 'active'` (the 112) — name, email, tier, founding flag, stripe_customer_id.
-2. For each window, query Stripe `charges` (or `invoices` with `status='paid'`) per customer where `created` ∈ window and amount > 0.
-3. Exclude the 7 accidental applies already removed.
-4. Flag members as "missed" per window if zero successful charges in that window.
-5. Exclude legitimately frozen members during their freeze period (they shouldn't be billed). Show them in a separate "Frozen — not expected to pay" section so you still see who they are.
+## Fix
+Only count charges that are **membership monthly/annual dues** — nothing else.
 
-## Deliverable
-A new Excel file `/mnt/documents/members_missed_payments.xlsx` with 4 sheets:
+### How to identify a dues charge
+A Stripe charge counts as "dues paid" for a window ONLY if it meets one of these:
+1. It originated from a Stripe **invoice** tied to a **subscription** whose price ID is in the membership dues price list (`STRIPE_PRODUCTS.memberships.*.monthly.*` and `.annual.*`), OR
+2. It is a **manual_charge** in our DB explicitly tagged as `monthly_dues` / `annual_dues` (catch-up charges).
 
-- **Summary** — counts: total active 112, missed Feb–Mar X, missed Mar–Apr Y, missed Apr–May Z, owe 1 month / 2 months / 3 months.
-- **Itemized — Owe Money** — one row per active member with columns:
-  Name · Email · Tier · Founding · Feb 9–Mar 9 (✓/✗) · Mar 9–Apr 9 (✓/✗) · Apr 9–May 20 (✓/✗) · **Months Owed (0–3)** · Last Successful Charge Date · Last Charge Amount. Sorted by Months Owed descending so the biggest debts are at top.
-- **Frozen / Comped** — active members whose missed windows fall inside an approved freeze (not actually owed).
-- **Notes** — definitions: "missed" = zero paid Stripe charges > $0 in the date range; window = calendar dates inclusive; excludes the 7 accidental applies.
+Everything else is excluded: annual facility fee, class passes, guest passes, spa/massage, cafe, kids care, merch, initiation, tips, POS, manual charges with other descriptions.
 
-## Open question before I build
-**How should I treat partial windows?** A member who joined mid-period (e.g. signed up Apr 20) didn't exist for Feb–Mar — should that count as "missed" (✗) or "N/A" (–)? I recommend **N/A** so the Months Owed number reflects real debt, not "joined late." Confirm or override.
+### Special cases
+- **Duha**: exclude from the report entirely (not an active dues-paying member per user).
+- **Founding members**: still treated as PAID across all 3 windows (annual upfront).
+- **Frozen members**: only flagged frozen for the specific window(s) covered by an approved freeze AND where no dues invoice was paid.
+
+## Implementation
+1. Update `supabase/functions/missed-payments-report/index.ts` to:
+   - Pull invoices (`/v1/invoices?customer=...&status=paid`) instead of raw charges
+   - For each paid invoice, check `subscription` is set and `lines.data[].price.id` is in the membership dues price ID set
+   - Return per-member: which dues invoices hit each of the 3 windows + amount + invoice id for audit
+2. Hard-code the dues price ID allowlist in the edge function (copied from `src/lib/stripeProducts.ts` `memberships.*.monthly` + `.annual`, excluding `annualFee`).
+3. Update `/tmp/build_missed.py` to:
+   - Drop Duha from the active list
+   - Use the new dues-only data
+   - Add an **Audit** column showing the Stripe invoice ID + amount that satisfied each window, so you can spot-check
+4. Regenerate `/mnt/documents/members_missed_payments_v3.xlsx` with:
+   - **Owe Money (Monthly)** — rows sorted by months owed desc, with invoice IDs per window
+   - **Founders (Paid Annual)** — unchanged
+   - **Frozen (Not Owed)** — recomputed against dues-only
+   - **Summary** — corrected counts
+   - **Excluded** — explicit list (Duha + the 7 accidental applies) with reason
+
+## Verification before delivery
+Spot-check 3 names you mentioned by listing their actual dues invoices per window in the Audit column:
+- Jenna Saleh — expect Feb/Mar/Apr/May dues invoices (PAID all)
+- Jeree — expect missing window(s) flagged
+- Duha — not present (excluded)
+
+## Question
+Do you want me to also include **Annual Fee** ($300 women / $175 men) as a separate "paid" check, or keep the report strictly about monthly/annual membership dues? My recommendation: dues only, since the annual fee is yearly and won't fall in these specific monthly windows for most members.
