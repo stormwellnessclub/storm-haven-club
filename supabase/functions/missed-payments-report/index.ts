@@ -1,5 +1,5 @@
-// Temp diagnostic edge fn: for each active member, find successful Stripe charges
-// in 3 windows: Feb 9 - Mar 9, Mar 9 - Apr 9, Apr 9 - May 20 (2026).
+// Diagnostic edge fn: for each active member, find PAID DUES INVOICES in 3 windows.
+// Only counts Stripe invoices whose line items include a membership dues price.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -11,10 +11,25 @@ const STRIPE_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// Membership DUES price IDs only (monthly + annual). Excludes annual fee, class passes, etc.
+const DUES_PRICE_IDS = new Set([
+  // silver
+  "price_1Sl9llLyZrsSqLhsJhm0MdJi", "price_1Sl9mBLyZrsSqLhsas4CTChz",
+  "price_1Sl9x2LyZrsSqLhsYLtI7doB", "price_1Sl9yLLyZrsSqLhsG6NiPqH5",
+  // gold
+  "price_1Sl9pvLyZrsSqLhsIWyf2WwX", "price_1Sl9quLyZrsSqLhs6PPn9AeL",
+  "price_1SlA0bLyZrsSqLhsOIdyhLo7", "price_1SlA11LyZrsSqLhsfSqUElkE",
+  // platinum
+  "price_1Sl9r7LyZrsSqLhs5RBuy2f7", "price_1Sl9roLyZrsSqLhsQCydIccE",
+  "price_1SlA1cLyZrsSqLhsAXXQEqVx", "price_1SlA1oLyZrsSqLhstHpodZzv",
+  // diamond
+  "price_1Sl9wILyZrsSqLhsLjYqkoqq", "price_1SlA1zLyZrsSqLhsbJMZ0za2",
+]);
+
 const W = [
-  { name: "feb9_mar9", start: 1770566400, end: 1773244800 }, // 2026-02-09 to 2026-03-09 UTC
-  { name: "mar9_apr9", start: 1773244800, end: 1775923200 }, // 2026-03-09 to 2026-04-09
-  { name: "apr9_may20", start: 1775923200, end: 1779494400 }, // 2026-04-09 to 2026-05-20
+  { name: "feb9_mar9", start: 1770566400, end: 1773244800 },
+  { name: "mar9_apr9", start: 1773244800, end: 1775923200 },
+  { name: "apr9_may20", start: 1775923200, end: 1779494400 },
 ];
 
 async function stripeGet(path: string) {
@@ -30,7 +45,7 @@ Deno.serve(async (req) => {
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: members } = await sb
     .from("members")
-    .select("id, first_name, last_name, email, membership_type, is_founding_member, stripe_customer_id, membership_start_date")
+    .select("id, first_name, last_name, email, membership_type, is_founding_member, stripe_customer_id, membership_start_date, gender")
     .eq("status", "active");
 
   const { data: freezes } = await sb
@@ -45,35 +60,32 @@ Deno.serve(async (req) => {
       name: `${m.first_name || ""} ${m.last_name || ""}`.trim(),
       email: m.email,
       tier: m.membership_type,
+      gender: m.gender,
       founding: m.is_founding_member,
       start: m.membership_start_date,
       stripe_customer_id: m.stripe_customer_id,
-      charges: { feb9_mar9: 0, mar9_apr9: 0, apr9_may20: 0 },
-      amounts: { feb9_mar9: 0, mar9_apr9: 0, apr9_may20: 0 },
-      last_charge_date: null as string | null,
-      last_charge_amount: 0,
+      dues: { feb9_mar9: [], mar9_apr9: [], apr9_may20: [] } as Record<string, any[]>,
+      all_dues_invoices: [] as any[],
       freezes: (freezes || []).filter((f: any) => f.member_id === m.id).map((f: any) => ({ s: f.actual_start_date, e: f.actual_end_date })),
     };
     if (m.stripe_customer_id) {
-      // Get up to 100 most recent succeeded charges since Feb 1
       const since = 1769904000; // 2026-02-01
-      const data = await stripeGet(
-        `charges?customer=${m.stripe_customer_id}&limit=100&created[gte]=${since}`
+      // Fetch paid invoices (paginate if needed)
+      const inv = await stripeGet(
+        `invoices?customer=${m.stripe_customer_id}&limit=100&status=paid&created[gte]=${since}`
       );
-      for (const c of data.data || []) {
-        if (c.status !== "succeeded" || c.refunded) continue;
-        const amt = (c.amount || 0) / 100;
-        if (amt <= 0) continue;
-        const ts = c.created;
+      for (const i of inv.data || []) {
+        const lines = i.lines?.data || [];
+        const duesLine = lines.find((l: any) => l.price?.id && DUES_PRICE_IDS.has(l.price.id));
+        if (!duesLine) continue;
+        const ts = i.status_transitions?.paid_at || i.created;
+        const amt = (i.amount_paid || 0) / 100;
+        const rec = { id: i.id, ts, amt, price: duesLine.price.id, num: i.number };
+        row.all_dues_invoices.push(rec);
         for (const w of W) {
           if (ts >= w.start && ts < w.end) {
-            (row.charges as any)[w.name] += 1;
-            (row.amounts as any)[w.name] += amt;
+            row.dues[w.name].push(rec);
           }
-        }
-        if (!row.last_charge_date || ts > new Date(row.last_charge_date).getTime() / 1000) {
-          row.last_charge_date = new Date(ts * 1000).toISOString();
-          row.last_charge_amount = amt;
         }
       }
     }
