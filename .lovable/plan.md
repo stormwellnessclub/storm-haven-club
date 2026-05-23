@@ -1,46 +1,46 @@
-## Problem
-The current report counts ANY successful Stripe charge as a "payment," which is wrong:
-- Jenna Saleh's $16.99 (cafe/other) was counted instead of her real Gold dues
-- Duha's $204 was a massage package, not membership
-- Other members (Jeree, etc.) who legitimately owe dues are being marked as paid because of unrelated charges (spa, cafe, class passes, guest passes)
+## Member Growth Report — `members_growth_v2.xlsx`
 
-## Fix
-Only count charges that are **membership monthly/annual dues** — nothing else.
+**Scope:** Feb 2026 → May 2026 (current month), monthly snapshots, broken out by tier (Silver / Gold / Platinum / Diamond).
 
-### How to identify a dues charge
-A Stripe charge counts as "dues paid" for a window ONLY if it meets one of these:
-1. It originated from a Stripe **invoice** tied to a **subscription** whose price ID is in the membership dues price list (`STRIPE_PRODUCTS.memberships.*.monthly.*` and `.annual.*`), OR
-2. It is a **manual_charge** in our DB explicitly tagged as `monthly_dues` / `annual_dues` (catch-up charges).
+### Data sources
 
-Everything else is excluded: annual facility fee, class passes, guest passes, spa/massage, cafe, kids care, merch, initiation, tips, POS, manual charges with other descriptions.
+- `members` table: `created_at`, `status`, `membership_type`, `membership_end_date`, `is_founding_member`, `gender` — for signups, cancellations, net active counts, and projected MRR.
+- `payment_attempts` table (status='succeeded') joined to members — for **collected revenue per month**, classified as membership_dues vs annual_fee using metadata + Stripe subscription id (same logic used in `useFinancialReporting`).
 
-### Special cases
-- **Duha**: exclude from the report entirely (not an active dues-paying member per user).
-- **Founding members**: still treated as PAID across all 3 windows (annual upfront).
-- **Frozen members**: only flagged frozen for the specific window(s) covered by an approved freeze AND where no dues invoice was paid.
+No Stripe API calls needed — we already store every paid attempt.
 
-## Implementation
-1. Update `supabase/functions/missed-payments-report/index.ts` to:
-   - Pull invoices (`/v1/invoices?customer=...&status=paid`) instead of raw charges
-   - For each paid invoice, check `subscription` is set and `lines.data[].price.id` is in the membership dues price ID set
-   - Return per-member: which dues invoices hit each of the 3 windows + amount + invoice id for audit
-2. Hard-code the dues price ID allowlist in the edge function (copied from `src/lib/stripeProducts.ts` `memberships.*.monthly` + `.annual`, excluding `annualFee`).
-3. Update `/tmp/build_missed.py` to:
-   - Drop Duha from the active list
-   - Use the new dues-only data
-   - Add an **Audit** column showing the Stripe invoice ID + amount that satisfied each window, so you can spot-check
-4. Regenerate `/mnt/documents/members_missed_payments_v3.xlsx` with:
-   - **Owe Money (Monthly)** — rows sorted by months owed desc, with invoice IDs per window
-   - **Founders (Paid Annual)** — unchanged
-   - **Frozen (Not Owed)** — recomputed against dues-only
-   - **Summary** — corrected counts
-   - **Excluded** — explicit list (Duha + the 7 accidental applies) with reason
+### Sheets
 
-## Verification before delivery
-Spot-check 3 names you mentioned by listing their actual dues invoices per window in the Audit column:
-- Jenna Saleh — expect Feb/Mar/Apr/May dues invoices (PAID all)
-- Jeree — expect missing window(s) flagged
-- Duha — not present (excluded)
+**1. Summary** — one row per month, totals only:
 
-## Question
-Do you want me to also include **Annual Fee** ($300 women / $175 men) as a separate "paid" check, or keep the report strictly about monthly/annual membership dues? My recommendation: dues only, since the annual fee is yearly and won't fall in these specific monthly windows for most members.
+| Month | New Signups | Cancellations | Net Active (EOM) | Frozen (EOM) | Collected Dues | Collected Annual Fees | Total Collected | Projected MRR (EOM) | Projected ARR |
+
+**2. By Tier — Counts** — one row per month, columns per tier:
+
+| Month | Silver New | Silver Cancel | Silver Active EOM | Gold New | Gold Cancel | Gold Active EOM | Platinum… | Diamond… | TOTAL Active EOM |
+
+**3. By Tier — Amounts** — one row per month, columns per tier:
+
+| Month | Silver Collected | Silver MRR (EOM) | Gold Collected | Gold MRR (EOM) | Platinum… | Diamond… | TOTAL Collected | TOTAL MRR |
+
+**4. Roster (EOM May)** — full list of every member still active or frozen on May 31 with: name, tier, gender, founding flag, signup date, monthly dues amount. Sortable reference list.
+
+### Calculation rules
+
+- **New signups in month M** = members where `created_at` falls inside month M (regardless of current status — counts intent to join).
+- **Cancellations in month M** = members where status='cancelled' AND `membership_end_date` (or `updated_at` if end_date null) falls in month M.
+- **Net active EOM** = members where `created_at <= last day of M` AND NOT (cancelled before/in M). Includes frozen.
+- **Tier normalization**: lowercase + strip "Membership" suffix → Silver/Gold/Platinum/Diamond (handles existing inconsistencies like "silver" vs "Silver" vs "Silver Membership").
+- **Collected per tier per month**: sum `payment_attempts.amount/100` where succeeded_at in month M, grouped by member's current tier. Split by charge_type (dues vs annual fee) using metadata.description.
+- **Projected MRR**: for each net-active member at EOM, use their tier+gender to compute monthly dues from `membershipPricing.ts` constants. Founding members (annual) → MRR contribution = annual/12.
+- All amounts as currency, integers; counts as integers; percentages omitted unless useful.
+
+### Output
+
+`/mnt/documents/members_growth_v2.xlsx` (the existing `member_growth_chart.xlsx` you have open will be left as-is; new file gets a fresh name so you can compare).
+
+QA: after generation I'll re-open the file and visually confirm Feb totals match the database, and that tier columns sum to the totals row.
+
+### Out of scope (for now)
+
+- The missed-payments fix for past_due / cancelled members (Jeree, Ayah, Kaitlin, Sherene) — we'll come back to that after you approve this growth report.
