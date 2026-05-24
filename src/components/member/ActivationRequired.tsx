@@ -414,12 +414,12 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             )}
           </div>
 
-          {/* Annual Fee Already Paid Notice */}
+          {/* Initiation Fee Already Paid Notice */}
           {annualFeeAlreadyPaid && !checkingFeeStatus && (
             <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
               <CheckCircle className="h-4 w-4 text-green-600" />
               <AlertDescription className="text-green-700 dark:text-green-400">
-                Your annual membership fee has already been processed. Only your membership dues will be charged today.
+                Your initiation fee has already been processed. Only your membership dues will be charged today.
               </AlertDescription>
             </Alert>
           )}
@@ -443,7 +443,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
             <div className="border-t border-border pt-3 space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">
-                  {isFoundingMember ? "Annual Membership" : "Monthly Membership"}
+                  {isFoundingMember ? "Annual Membership Dues" : "Monthly Membership Dues"}
                 </span>
                 <span className="font-medium">
                   ${isFoundingMember ? annualPrice : monthlyPrice}
@@ -451,7 +451,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
               </div>
               {annualFeeAlreadyPaid ? (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground line-through">Annual Fee (yearly)</span>
+                  <span className="text-muted-foreground line-through">Initiation Fee (billed yearly)</span>
                   <span className="font-medium text-green-600">
                     <CheckCircle className="inline h-3 w-3 mr-1" />
                     Paid
@@ -459,7 +459,7 @@ export function ActivationRequired({ memberData }: ActivationRequiredProps) {
                 </div>
               ) : (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Annual Fee (yearly)</span>
+                  <span className="text-muted-foreground">Initiation Fee (billed yearly)</span>
                   <span className="font-medium">${annualFee}</span>
                 </div>
               )}
