@@ -46,10 +46,10 @@ export function BillingSummary({
           Billing Overview
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          {/* Annual Fee Section */}
+          {/* Initiation Fee Section (charged once a year on the membership anniversary) */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Annual Fee</span>
+              <span className="text-sm text-muted-foreground">Initiation Fee</span>
               <span className="text-sm font-medium">${annualFee}/year</span>
             </div>
             <div className="flex items-center justify-between">
@@ -66,13 +66,13 @@ export function BillingSummary({
             </div>
             {annualFeePaidAt && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Paid</span>
+                <span className="text-sm text-muted-foreground">Last paid</span>
                 <span className="text-sm">{format(parseISO(annualFeePaidAt), "MMM d, yyyy")}</span>
               </div>
             )}
             {annualFeeValidUntil && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Valid until</span>
+                <span className="text-sm text-muted-foreground">Renews on</span>
                 <span className="text-sm">{format(annualFeeValidUntil, "MMM d, yyyy")}</span>
               </div>
             )}

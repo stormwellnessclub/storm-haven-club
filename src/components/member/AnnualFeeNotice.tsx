@@ -56,7 +56,7 @@ export function AnnualFeeNotice() {
         <div className="flex items-start gap-3 flex-1">
           <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
           <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-            Your annual membership fee renewal is due. Please renew to maintain your membership benefits.
+            Your annual initiation fee renewal is due. Please renew to keep your membership active.
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -67,7 +67,7 @@ export function AnnualFeeNotice() {
             variant="outline"
             className="border-amber-600 text-amber-700 hover:bg-amber-50 dark:border-amber-500 dark:text-amber-400 dark:hover:bg-amber-950"
           >
-            {isProcessing ? "Processing..." : "Renew Annual Fee"}
+            {isProcessing ? "Processing..." : "Pay Initiation Fee"}
           </Button>
           <Button
             size="sm"
