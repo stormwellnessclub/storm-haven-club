@@ -1,42 +1,79 @@
-## Add Membership Dues Revenue Report
 
-Build a new Excel file `membership_dues_by_month.xlsx` showing actual recurring Stripe billing revenue by month, sourced from `payment_attempts` joined with `members`.
+## The core problem
 
-### Data source
-- `payment_attempts` table (already used in `useFinancialReporting.ts`) — has `amount`, `status`, `created_at`, `succeeded_at`, `stripe_subscription_id`, `stripe_invoice_id`, `member_id`, `metadata`
-- Filter to membership-related charges only: rows with `stripe_subscription_id IS NOT NULL` AND `member_id IS NOT NULL`
-- Classify each row as **Monthly Dues** vs **Annual Initiation Fee** using the same logic as `detectPaymentType()` in `useAutopaySchedule.ts` (amount matches `getMonthlyPrice(tier, gender)` → dues; $300/$175 → annual fee)
+The $300 / $175 charge is an **Initiation Fee** that recurs once a year (every member pays it, regardless of monthly vs founding). Right now three places confuse it with the monthly membership dues:
 
-### Sheets
+1. The bank report (`membership_dues_by_month.xlsx`) classified all "Subscription update" lines as Monthly Dues, so annual $300/$175 renewals were folded into the monthly-dues totals.
+2. The member portal shows "Your annual fee renewal is coming up" on every active member's screen, year-round, even when the renewal is 11 months away.
+3. The portal calls it "Annual Fee" everywhere, which reads (and was being interpreted by you) as the founding-member annual dues. We want it called **Initiation Fee** in every member-facing place and in Stripe.
 
-**Sheet 1 — Dues Revenue by Month**
-Columns: Month | Successful Charges | Gross Collected | Failed Charges | Failed $ | Avg Charge | Active Paying Members (end of month)
-- Group by `date_trunc('month', succeeded_at)` for collected, `created_at` for failed
-- Total row with SUM formulas
+## What I will change
 
-**Sheet 2 — Monthly Dues vs Annual Fees Split**
-Columns: Month | Monthly Dues $ | Monthly Dues Count | Annual Fees $ | Annual Fees Count | Total $
-- Separates the two recurring revenue streams
+### 1. Rebuild the bank report with correct classification
 
-**Sheet 3 — Revenue by Tier**
-Columns: Month | Cornerstone $ | Platinum $ | Diamond $ | Founding $ | Total $
-- Uses `extractTier(members.membership_type)` + `is_founding_member` flag
+Reclassify every successful charge in `payment_attempts` (member-linked) using this priority:
 
-**Sheet 4 — Charge Detail**
-Every successful membership charge in range: Date | Member | Email | Tier | Type (Dues/Annual) | Amount | Stripe Invoice ID
-- Sorted desc by date, frozen header row
+1. If the row's `stripe_subscription_id` matches a member's `annual_fee_subscription_id` → **Initiation Fee**
+2. Else if `stripe_subscription_id` matches the member's `stripe_subscription_id` → **Monthly Dues** (or **Annual Dues** if `is_founding_member`)
+3. Fallback for backfilled rows where `stripe_subscription_id` is null:
+   - Description contains "Initiation Fee" → Initiation Fee
+   - Amount equals $300 / $175 (women / men, with or without the $9.27 / $5.36 processing-fee gross-up) → Initiation Fee
+   - Description is "Subscription creation" / "Subscription update" → Dues (monthly or annual based on member)
+   - Everything else excluded from membership totals
 
-**Sheet 5 — Reconciliation Notes**
-- Methodology: only `status = 'succeeded'` counted in revenue; refunds not netted (would need `refunds` table — flag as TODO if user wants net)
-- Date basis: `succeeded_at` (cash basis when Stripe confirmed)
-- Excludes: class passes, guest passes, POS, spa, kids care (those are in other reports)
-- Note about founding members billed annually (one big charge/year, not monthly)
+Re-emit `membership_dues_by_month_v2.xlsx` with three sheets, all clearly separated:
 
-### Time range
-All months from earliest `succeeded_at` through current month (May 2026), in America/Chicago timezone.
+- **Monthly Dues by Month** — recurring monthly membership charges only
+- **Initiation Fee by Month** — yearly $300/$175 charges (first-time and renewals together, plus a column splitting new vs renewal)
+- **Charge Detail** — every row with the new classification and the rule that matched, so the bank can audit
 
-### Styling
-Match the existing `guest_pass_kids_care_summary.xlsx` conventions: header fill, MONEY/INT formats, frozen panes, autosize columns, SUM totals.
+### 2. Fix the false "annual fee renewal" notice in the portal
 
-### After build
-Run `recalculate_formulas.py`, verify zero formula errors, deliver as `<presentation-artifact>`.
+In `src/components/member/MemberLayout.tsx` the notice is keyed off `isInitiationFeePaid` (true for everyone), so it shows year-round. Change it to only appear when `members.next_annual_fee_date` is within 14 days and the member is not frozen. Reword to:
+"Your initiation fee renews on {date} ({$amount} on card ending {last4})."
+
+Remove the duplicate `AnnualFeeNotice.tsx` banner component or repoint it at the same date-based condition so the two cannot disagree.
+
+### 3. Rename "Annual Fee" → "Initiation Fee" in every member-facing surface
+
+Update copy only (DB column names like `annual_fee_subscription_id` stay — renaming them is risky and pointless since they're internal):
+
+- `src/lib/billingTerminology.ts` — add `BILLING_TERMS.initiationFee = "Initiation Fee"` and `upcomingInitiationFee`
+- `src/components/member/BillingSummary.tsx` — section title "Annual Fee" → "Initiation Fee"; "Valid until" → "Renews on"
+- `src/components/member/AnnualFeeNotice.tsx` — banner text, button "Renew Annual Fee" → "Pay Initiation Fee"
+- `src/components/member/ActivationRequired.tsx` — every "Annual Fee (yearly)" / "annual membership fee has already been processed" → Initiation Fee wording
+- `src/components/member/PaymentDueNotice.tsx` — "Initiation Fee" already correct, just align surrounding copy
+- Receipt / decline emails in `supabase/functions/stripe-webhook` and `supabase/functions/stripe-payment` — `description: "Annual Fee - {tier}"` → `description: "Initiation Fee"` and the failed-payment subscription-type label `"Initiation Fee (Annual)"` stays correct
+
+### 4. Rename the two Stripe products
+
+Through the Stripe API, rename:
+- `prod_TibE3h9zeHNEtE` "Annual Membership Fee - Men's" → "Initiation Fee — Men's (annual)"
+- `prod_TibERlMrmb3P1z` "Annual Membership Fee - Women's" → "Initiation Fee — Women's (annual)"
+
+This changes what shows on customer receipts and the Stripe dashboard. Price IDs stay the same so no code changes are needed there. I will also add `metadata.charge_type = "initiation_fee"` on the two products so future reports can classify directly from Stripe.
+
+### 5. Backfill `metadata.charge_type` on existing payment_attempts
+
+One-time SQL update: for every `payment_attempts` row where the description is "Initiation Fee%" OR the amount is one of the four initiation-fee amounts ($300, $309.27, $175, $180.62), set `metadata = metadata || jsonb_build_object('charge_type','annual_fee')`. For all other member subscription rows set `'charge_type','membership_dues'`. After this, future reports can group by `charge_type` instead of inferring from amount.
+
+## Technical notes
+
+- DB column `next_annual_fee_date` is populated from the initiation-fee subscription's `current_period_end` in the webhook — that part is correct, so once the false banner is gated by the date, the portal will only nudge during the real 14-day window.
+- Founding members: their membership dues are billed annually ($2,400–$6,000), and they also pay the $300/$175 initiation fee on a separate yearly cadence. The report will show those as "Annual Dues" and "Initiation Fee" on separate rows so they're never combined.
+- No database migrations are needed for the rename (display-only).
+- The Stripe product rename is done via `stripe_api_execute PostProductsProduct`, not a code change.
+
+## Files touched
+
+- `/mnt/documents/membership_dues_by_month_v2.xlsx` (new artifact)
+- `src/components/member/MemberLayout.tsx`
+- `src/components/member/AnnualFeeNotice.tsx`
+- `src/components/member/BillingSummary.tsx`
+- `src/components/member/ActivationRequired.tsx`
+- `src/components/member/PaymentDueNotice.tsx`
+- `src/lib/billingTerminology.ts`
+- `supabase/functions/stripe-webhook/index.ts` (receipt descriptions only)
+- `supabase/functions/stripe-payment/index.ts` (receipt descriptions only)
+- One DB migration that backfills `payment_attempts.metadata.charge_type`
+- Two Stripe product renames via API

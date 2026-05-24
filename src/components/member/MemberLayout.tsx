@@ -66,12 +66,24 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
       });
     }
 
-    if (!isPendingActivation && isInitiationFeePaid) {
-      items.push({
-        id: "annual_fee",
-        priority: 3,
-        content: "Your annual fee renewal is coming up.",
-      });
+    // Only show the initiation-fee renewal nudge inside the real 14-day window,
+    // and never for frozen members. Banner is also rendered separately by AnnualFeeNotice.
+    if (
+      !isPendingActivation &&
+      membership?.next_annual_fee_date &&
+      membership?.status !== "frozen"
+    ) {
+      const daysUntilInitiation = Math.ceil(
+        (new Date(`${membership.next_annual_fee_date}T12:00:00`).getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24)
+      );
+      if (daysUntilInitiation >= 0 && daysUntilInitiation <= 14) {
+        items.push({
+          id: "initiation_fee",
+          priority: 3,
+          content: `Your annual initiation fee renews in ${daysUntilInitiation} day${daysUntilInitiation === 1 ? "" : "s"}.`,
+        });
+      }
     }
 
     // SMS opt-in nudge (lowest priority, dismissible)
