@@ -1,35 +1,49 @@
-# Class Bookings & Pass Sales Report
+# Memorial Day Hours — Instagram Flyer
 
-Generate `/mnt/documents/class_bookings_summary.xlsx` with monthly breakdowns of class activity. All months bucketed in `America/Chicago` timezone.
+Generate a single square 1080×1080 PNG saved to `/mnt/documents/memorial_day_hours_flyer.png`, on-brand with the existing Memorial Day email (cream `#DEDACE`, deep ink `#1C170F`, gold `#B8A068`, serif typography).
 
-## Sheets
+## Layout (top → bottom)
 
-**1. Bookings by Month** — from `class_bookings.booked_at`
-| Month | Confirmed | Completed | Cancelled | Total (excl. cancelled) |
+```
+─────────────────────────────
+   STORM WELLNESS CLUB        (small, gold, tracked)
+   ───── gold rule ─────
+   In Honor of                 (italic serif, small)
+   MEMORIAL DAY               (large display serif)
+   Weekend Hours
+   ───── gold rule ─────
 
-**2. Single Pass Sales by Month** — `class_passes` where `pass_type IN ('single')` (excludes kids_care)
-| Month | Pilates/Cycling # | P/C Revenue | Aerobics # | Aero Revenue | Other # | Total # | Total Revenue |
+   SUNDAY · MAY 24
+   8:00 AM – 5:00 PM
 
-**3. Class Pack Sales by Month** — `class_passes` where `pass_type IN ('10-pack','10-Class Pass')`
-| Month | Pilates/Cycling Packs | P/C Revenue | Aerobics Packs | Aero Revenue | Other Packs | Total Packs | Total Revenue |
+   MONDAY · MAY 25  (Memorial Day)
+   7:00 AM – 5:00 PM
 
-**4. Monthly Combined Summary**
-| Month | Bookings (non-cancelled) | Singles Sold | Singles Rev | Packs Sold | Packs Rev | Total Pass Rev |
+   Regular hours resume Tuesday, May 26
 
-**5. Bookings Detail by Payment Method** (optional context)
-| Month | Member Credit | Class Pass | Walk-in/Other |
-— from `class_bookings.payment_method` for non-cancelled bookings.
+   ───── gold rule ─────
 
-## Data notes (already verified)
-- Bookings span 2025-12 → 2026-05; May has 118 confirmed + 125 completed + 65 cancelled.
-- Pass sales exclude `kids_care` / `kids_care_monthly` rows.
-- `single` covers $25/$30 single class passes; `10-pack` + legacy `10-Class Pass` are the packs.
-- Revenue uses `price_paid` (includes $0 promo/comp passes).
+   Full holiday hours in the Member Portal.
+   Turn on text notifications to stay
+   up to date on Club updates.
 
-## Implementation
-- Python script at `/tmp/build_bookings.py` using `psql` queries + `openpyxl`.
-- Totals/subtotals as Excel `=SUM()` formulas, not hardcoded.
-- Currency `$#,##0.00`, zero-as-dash, bold headers, frozen top row.
-- Run `recalculate_formulas.py` then render page 1 as PNG for QA before delivering.
+   stormwellnessclub.com
+─────────────────────────────
+```
 
-Switch to build mode to generate the file.
+## Visual style
+- Background: warm cream `#DEDACE` with subtle paper texture / faint gold corner ornaments (Art Deco–leaning, matches the brand's "Intentional Design" memory)
+- Headline "MEMORIAL DAY" in large serif (Cormorant / Playfair), ink `#1C170F`
+- Gold hairline rules and a small star or laurel accent above the headline
+- Hours block centered, generous spacing, serif body
+- Footer note about portal + SMS sign-up in smaller italic serif, ink color
+- No photos — typographic editorial feel, museum-poster quality
+
+## How it will be generated
+- Python + Pillow script written to `/tmp/build_md_flyer.py`
+- Uses serif fonts already available on the sandbox (Cormorant / EB Garamond / Playfair via Google Fonts download if needed)
+- Output: `/mnt/documents/memorial_day_hours_flyer.png` (1080×1080, RGB, sRGB)
+- QA pass: open the PNG, verify no clipped text, even margins, legible at Instagram thumbnail size; iterate if needed
+- Deliver via `<presentation-artifact>` tag
+
+No code changes to the app itself.
