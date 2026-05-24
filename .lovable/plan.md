@@ -1,32 +1,35 @@
-# Tiers + Founding Breakdown
+# Class Bookings & Pass Sales Report
 
-Build `members_summary_v4.xlsx` adding a tier × founding-status breakdown on top of the existing v3 sheets.
-
-## Source of truth
-- Same query as v3 (`members` where `approved_at IS NOT NULL`, status in `active / past_due / frozen / pending_activation / suspended`)
-- Normalize case on `membership_type` (DB has mixed `Silver` / `silver` / `Silver Membership` → all roll into Silver, same for Gold)
-- `is_founding_member` boolean splits each tier into Founding vs Standard
-- Same monthly rates for both (Silver $200, Gold $250, Platinum $350, Diamond $500) — founding just prepays the year
+Generate `/mnt/documents/class_bookings_summary.xlsx` with monthly breakdowns of class activity. All months bucketed in `America/Chicago` timezone.
 
 ## Sheets
 
-**1. Tier × Founding (counts + MRR)** — new
-| Tier | Founding | Standard | Total | Monthly Rate | Founding MRR | Standard MRR | Total MRR |
-| Silver | 8 | 65 | 73 | $200 | $1,600 | $13,000 | $14,600 |
-| Gold | 5 | 29 | 34 | $250 | $1,250 | $7,250 | $8,500 |
-| Platinum | 0 | 0 | 0 | $350 | $0 | $0 | $0 |
-| Diamond | 1 | 7 | 8 | $500 | $500 | $3,500 | $4,000 |
-| **Total** | **14** | **101** | **115** | — | **$3,350** | **$23,750** | **$27,100** |
+**1. Bookings by Month** — from `class_bookings.booked_at`
+| Month | Confirmed | Completed | Cancelled | Total (excl. cancelled) |
 
-**2. Founding Roster** — every founding member with tier, status, sub status, signup date, annual fee paid date, Stripe sub ID
+**2. Single Pass Sales by Month** — `class_passes` where `pass_type IN ('single')` (excludes kids_care)
+| Month | Pilates/Cycling # | P/C Revenue | Aerobics # | Aero Revenue | Other # | Total # | Total Revenue |
 
-**3. Standard Roster** — same columns for non-founding active members
+**3. Class Pack Sales by Month** — `class_passes` where `pass_type IN ('10-pack','10-Class Pass')`
+| Month | Pilates/Cycling Packs | P/C Revenue | Aerobics Packs | Aero Revenue | Other Packs | Total Packs | Total Revenue |
 
-**4–7. Carry over from v3** — Summary (Feb–May), By Tier Counts, By Tier MRR, Roster EOM May (kept as-is)
+**4. Monthly Combined Summary**
+| Month | Bookings (non-cancelled) | Singles Sold | Singles Rev | Packs Sold | Packs Rev | Total Pass Rev |
 
-## Notes
-- MRR matches v3 total ($27,100) — founding doesn't change recurring revenue, only billing cadence
-- Founding annual prepayment (≈ rate × 12) is collected separately on the dues sub and isn't double-counted in MRR
-- Will write the script under `/tmp/build_v4.py`, output to `/mnt/documents/members_summary_v4.xlsx`
+**5. Bookings Detail by Payment Method** (optional context)
+| Month | Member Credit | Class Pass | Walk-in/Other |
+— from `class_bookings.payment_method` for non-cancelled bookings.
 
-Switch to build mode and I'll generate it.
+## Data notes (already verified)
+- Bookings span 2025-12 → 2026-05; May has 118 confirmed + 125 completed + 65 cancelled.
+- Pass sales exclude `kids_care` / `kids_care_monthly` rows.
+- `single` covers $25/$30 single class passes; `10-pack` + legacy `10-Class Pass` are the packs.
+- Revenue uses `price_paid` (includes $0 promo/comp passes).
+
+## Implementation
+- Python script at `/tmp/build_bookings.py` using `psql` queries + `openpyxl`.
+- Totals/subtotals as Excel `=SUM()` formulas, not hardcoded.
+- Currency `$#,##0.00`, zero-as-dash, bold headers, frozen top row.
+- Run `recalculate_formulas.py` then render page 1 as PNG for QA before delivering.
+
+Switch to build mode to generate the file.
