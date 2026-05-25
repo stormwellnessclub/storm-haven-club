@@ -1,0 +1,461 @@
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { format } from "date-fns";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter,
+} from "@/components/ui/sheet";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+} from "@/components/ui/dialog";
+import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock } from "lucide-react";
+import {
+  useBillingArrears,
+  useMemberOutreach,
+  useCreateOutreach,
+  type ArrearsRow,
+} from "@/hooks/useBillingArrears";
+
+const CHANNELS = [
+  { value: "call", label: "Call" },
+  { value: "sms", label: "SMS" },
+  { value: "email", label: "Email" },
+  { value: "in_person", label: "In person" },
+  { value: "other", label: "Other" },
+];
+
+const OUTCOMES = [
+  { value: "left_message", label: "Left message" },
+  { value: "reached_member", label: "Reached member" },
+  { value: "payment_promised", label: "Payment promised" },
+  { value: "card_update_requested", label: "Card update requested" },
+  { value: "resolved", label: "Resolved" },
+  { value: "no_response", label: "No response" },
+  { value: "other", label: "Other" },
+];
+
+const outcomeLabel = (v: string | null | undefined) =>
+  OUTCOMES.find(o => o.value === v)?.label ?? v ?? "—";
+
+function money(cents: number) {
+  return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function statusBadge(status: string) {
+  const s = (status || "").toLowerCase();
+  if (s === "past_due") return <Badge variant="destructive">Past Due</Badge>;
+  if (s === "active") return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</Badge>;
+  if (s === "suspended") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">Suspended</Badge>;
+  if (s === "frozen") return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Frozen</Badge>;
+  if (s === "pending_activation") return <Badge variant="outline">Pending Activation</Badge>;
+  if (s === "cancelled" || s === "canceled") return <Badge variant="secondary">Cancelled</Badge>;
+  return <Badge variant="secondary">{status}</Badge>;
+}
+
+function exportCsv(rows: ArrearsRow[]) {
+  const headers = [
+    "Name","Email","Phone","Tier","Member Status","Subscription Status","Card",
+    "Months Behind","Oldest Due","Outstanding","Last Successful Payment",
+    "Next Retry","Last Outreach","Last Outcome","Follow-up","Latest Failure",
+  ];
+  const csv = [
+    headers.join(","),
+    ...rows.map(r => [
+      `"${`${r.first_name} ${r.last_name}`.replace(/"/g,'""')}"`,
+      r.email || "",
+      r.phone || "",
+      r.membership_type || "",
+      r.member_status || "",
+      r.subscription_status || "",
+      r.card_last4 ? `${r.card_brand || ""} ****${r.card_last4}` : "",
+      r.months_behind,
+      r.oldest_due_period || "",
+      (r.outstanding_cents / 100).toFixed(2),
+      r.last_successful_payment || "",
+      r.next_retry_at || "",
+      r.last_outreach_at || "",
+      outcomeLabel(r.last_outreach_outcome),
+      r.open_follow_up_at || "",
+      `"${(r.latest_failure_message || "").replace(/"/g,'""')}"`,
+    ].join(",")),
+  ].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `billing-arrears-${format(new Date(), "yyyy-MM-dd")}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export default function BillingArrears() {
+  const [search, setSearch] = useState("");
+  const [includeCancelled, setIncludeCancelled] = useState(false);
+  const [minMonths, setMinMonths] = useState<string>("1");
+  const [selected, setSelected] = useState<ArrearsRow | null>(null);
+  const [outreachOpen, setOutreachOpen] = useState(false);
+  const [outreachTarget, setOutreachTarget] = useState<ArrearsRow | null>(null);
+
+  const filters = useMemo(() => ({
+    search: search || undefined,
+    includeCancelled,
+    minMonthsBehind: Number(minMonths) || 1,
+  }), [search, includeCancelled, minMonths]);
+
+  const { data: rows = [], isLoading, refetch, isFetching } = useBillingArrears(filters);
+
+  const summary = useMemo(() => {
+    const total = rows.reduce((s, r) => s + r.outstanding_cents, 0);
+    const oneMonth = rows.filter(r => r.months_behind === 1).length;
+    const twoPlus = rows.filter(r => r.months_behind >= 2).length;
+    return { total, members: rows.length, oneMonth, twoPlus };
+  }, [rows]);
+
+  return (
+    <AdminLayout title="Billing Arrears">
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-2xl font-semibold">Dues Collection</h2>
+            <p className="text-sm text-muted-foreground">
+              Members with open unpaid membership dues. Source of truth: billing ledger.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+              Refresh
+            </Button>
+            <Button variant="outline" onClick={() => exportCsv(rows)} disabled={!rows.length}>
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <StatCard icon={<DollarSign className="h-4 w-4" />} label="Outstanding" value={money(summary.total)} tone="destructive" />
+          <StatCard icon={<Users className="h-4 w-4" />} label="Members in arrears" value={String(summary.members)} />
+          <StatCard icon={<AlertCircle className="h-4 w-4" />} label="1 month behind" value={String(summary.oneMonth)} />
+          <StatCard icon={<CalendarClock className="h-4 w-4" />} label="2+ months behind" value={String(summary.twoPlus)} tone="destructive" />
+        </div>
+
+        <Card>
+          <CardContent className="pt-6 flex flex-wrap items-end gap-4">
+            <div className="flex-1 min-w-[220px]">
+              <Label className="text-xs">Search</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Name, email, phone" className="pl-8" />
+              </div>
+            </div>
+            <div className="w-[180px]">
+              <Label className="text-xs">Months behind</Label>
+              <Select value={minMonths} onValueChange={setMinMonths}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1+ month</SelectItem>
+                  <SelectItem value="2">2+ months</SelectItem>
+                  <SelectItem value="3">3+ months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2 pb-2">
+              <Switch checked={includeCancelled} onCheckedChange={setIncludeCancelled} id="cancelled" />
+              <Label htmlFor="cancelled" className="text-sm">Include cancelled/removed members</Label>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">
+              Members owing dues ({rows.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
+            ) : rows.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                No open dues balances match your filters. 🎉
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Member</TableHead>
+                      <TableHead>Tier</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Months Behind</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
+                      <TableHead>Oldest Due</TableHead>
+                      <TableHead>Card</TableHead>
+                      <TableHead>Last Outreach</TableHead>
+                      <TableHead>Follow-up</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map(r => (
+                      <TableRow key={r.member_id} className="hover:bg-muted/40">
+                        <TableCell>
+                          <div className="font-medium">{r.first_name} {r.last_name}</div>
+                          <div className="text-xs text-muted-foreground">{r.email}</div>
+                          {r.phone && (
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Phone className="h-3 w-3" /> {r.phone}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>{r.membership_type || "—"}</TableCell>
+                        <TableCell>{statusBadge(r.member_status)}</TableCell>
+                        <TableCell className="text-right">
+                          {r.months_behind >= 2 ? (
+                            <Badge variant="destructive">{r.months_behind}</Badge>
+                          ) : (
+                            <Badge variant="outline">{r.months_behind}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-semibold">{money(r.outstanding_cents)}</TableCell>
+                        <TableCell className="text-xs">
+                          {r.oldest_due_period ? format(new Date(r.oldest_due_period), "MMM d, yyyy") : "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.card_last4 ? `${r.card_brand || ""} ****${r.card_last4}` : <span className="text-destructive">No card</span>}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.last_outreach_at ? (
+                            <>
+                              <div>{format(new Date(r.last_outreach_at), "MMM d")}</div>
+                              <div className="text-muted-foreground">{outcomeLabel(r.last_outreach_outcome)}</div>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">Never</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {r.open_follow_up_at ? format(new Date(r.open_follow_up_at), "MMM d") : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button size="sm" variant="outline" onClick={() => { setOutreachTarget(r); setOutreachOpen(true); }}>
+                              <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Log
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setSelected(r)}>
+                              History
+                            </Button>
+                            <Button size="sm" variant="ghost" asChild>
+                              <Link to={`/admin/members/${r.member_id}`}>
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </Link>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Member detail / outreach history */}
+      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+        <SheetContent className="sm:max-w-xl overflow-y-auto">
+          {selected && <MemberArrearsDetail row={selected} onLogOutreach={() => { setOutreachTarget(selected); setOutreachOpen(true); }} />}
+        </SheetContent>
+      </Sheet>
+
+      {/* Log outreach dialog */}
+      <OutreachDialog
+        open={outreachOpen}
+        onOpenChange={setOutreachOpen}
+        target={outreachTarget}
+      />
+    </AdminLayout>
+  );
+}
+
+function StatCard({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone?: "destructive" }) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {icon} {label}
+        </div>
+        <div className={`text-2xl font-semibold mt-1 ${tone === "destructive" ? "text-destructive" : ""}`}>{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MemberArrearsDetail({ row, onLogOutreach }: { row: ArrearsRow; onLogOutreach: () => void }) {
+  const { data: history = [], isLoading } = useMemberOutreach(row.member_id);
+  return (
+    <>
+      <SheetHeader>
+        <SheetTitle>{row.first_name} {row.last_name}</SheetTitle>
+        <SheetDescription>{row.email} · {row.phone || "no phone"}</SheetDescription>
+      </SheetHeader>
+      <div className="space-y-4 mt-4">
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <Stat label="Outstanding" value={money(row.outstanding_cents)} accent />
+          <Stat label="Months behind" value={String(row.months_behind)} accent={row.months_behind >= 2} />
+          <Stat label="Tier" value={row.membership_type || "—"} />
+          <Stat label="Status" value={row.member_status} />
+          <Stat label="Subscription" value={row.subscription_status || "—"} />
+          <Stat label="Card" value={row.card_last4 ? `${row.card_brand || ""} ****${row.card_last4}` : "No card"} />
+          <Stat label="Last paid" value={row.last_successful_payment ? format(new Date(row.last_successful_payment), "MMM d, yyyy") : "Never"} />
+          <Stat label="Next retry" value={row.next_retry_at ? format(new Date(row.next_retry_at), "MMM d, yyyy") : "—"} />
+        </div>
+
+        {row.latest_failure_message && (
+          <Card>
+            <CardContent className="pt-4">
+              <div className="text-xs text-muted-foreground">Latest failure</div>
+              <div className="text-sm font-medium">{row.latest_decline_code || "—"}</div>
+              <div className="text-xs text-muted-foreground mt-1">{row.latest_failure_message}</div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex gap-2">
+          <Button onClick={onLogOutreach}>
+            <MessageSquarePlus className="h-4 w-4 mr-2" /> Log outreach
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to={`/admin/members/${row.member_id}`}>Open member</Link>
+          </Button>
+        </div>
+
+        <div>
+          <div className="text-sm font-semibold mb-2">Outreach history</div>
+          {isLoading ? (
+            <div className="text-sm text-muted-foreground">Loading…</div>
+          ) : history.length === 0 ? (
+            <div className="text-sm text-muted-foreground">No outreach logged yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {history.map(h => (
+                <Card key={h.id}>
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="text-sm font-medium">
+                          {outcomeLabel(h.outcome)} · <span className="text-muted-foreground capitalize">{h.channel.replace("_"," ")}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(h.created_at), "MMM d, yyyy h:mm a")}
+                          {h.created_by_email && ` · by ${h.created_by_email}`}
+                        </div>
+                      </div>
+                      {h.follow_up_at && (
+                        <Badge variant="outline">Follow-up {format(new Date(h.follow_up_at), "MMM d")}</Badge>
+                      )}
+                    </div>
+                    {h.note && <div className="text-sm mt-2 whitespace-pre-wrap">{h.note}</div>}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="border rounded p-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className={`text-sm font-medium ${accent ? "text-destructive" : ""}`}>{value}</div>
+    </div>
+  );
+}
+
+function OutreachDialog({
+  open, onOpenChange, target,
+}: { open: boolean; onOpenChange: (b: boolean) => void; target: ArrearsRow | null }) {
+  const [channel, setChannel] = useState("call");
+  const [outcome, setOutcome] = useState("left_message");
+  const [note, setNote] = useState("");
+  const [followUp, setFollowUp] = useState("");
+  const create = useCreateOutreach();
+
+  const submit = async () => {
+    if (!target) return;
+    await create.mutateAsync({
+      member_id: target.member_id,
+      channel,
+      outcome,
+      note: note || undefined,
+      follow_up_at: followUp ? new Date(followUp).toISOString() : null,
+      outstanding_at_contact_cents: target.outstanding_cents,
+      months_behind_at_contact: target.months_behind,
+    });
+    setNote("");
+    setFollowUp("");
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Log outreach</DialogTitle>
+          <DialogDescription>
+            {target ? `${target.first_name} ${target.last_name} · ${money(target.outstanding_cents)} owed · ${target.months_behind} month(s) behind` : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Channel</Label>
+              <Select value={channel} onValueChange={setChannel}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CHANNELS.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Outcome</Label>
+              <Select value={outcome} onValueChange={setOutcome}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {OUTCOMES.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label>Note</Label>
+            <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="What was discussed?" rows={4} />
+          </div>
+          <div>
+            <Label>Follow-up date (optional)</Label>
+            <Input type="date" value={followUp} onChange={e => setFollowUp(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={submit} disabled={create.isPending}>
+            {create.isPending ? "Saving…" : "Save outreach"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
