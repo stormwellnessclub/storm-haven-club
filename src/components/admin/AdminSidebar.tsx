@@ -40,6 +40,7 @@ import {
   CalendarDays,
   History,
   Heart,
+  AlertCircle,
 } from "lucide-react";
 import {
   Sidebar,
