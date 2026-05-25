@@ -4656,7 +4656,7 @@ serve(async (req) => {
             member_id: memberId,
             user_id: memberDataForFee.user_id || user.id,
             amount: normalizedGenderForFee === 'women' ? 30000 : 17500, // in cents
-            description: 'Initiation Fee (Subscription)',
+            description: 'Initiation Fee',
             stripe_payment_intent_id: initiationFeeSubscription.latest_invoice as string || initiationFeeSubscription.id,
             status: initiationFeeSubscription.status === 'active' ? 'succeeded' : 'pending',
             charged_by: user.id,

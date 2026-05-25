@@ -2314,7 +2314,7 @@ serve(async (req) => {
                         to: fullMemberData.email,
                         data: {
                           name: memberName,
-                          description: `Annual Fee - ${tierDisplay}`,
+                          description: `Initiation Fee — ${tierDisplay}`,
                           amount: (invoice.amount_paid / 100).toFixed(2),
                           paymentDate: paymentDateStr,
                           nextBillingDate: nextBillingDate,
