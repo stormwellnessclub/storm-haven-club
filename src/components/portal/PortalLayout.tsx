@@ -7,6 +7,7 @@ import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
+import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
 
 interface PortalLayoutProps {
   children: React.ReactNode;
