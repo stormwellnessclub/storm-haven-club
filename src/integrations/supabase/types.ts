@@ -420,6 +420,83 @@ export type Database = {
           },
         ]
       }
+      billing_outreach_logs: {
+        Row: {
+          arrears_id: string | null
+          channel: string
+          created_at: string
+          created_by: string | null
+          created_by_email: string | null
+          follow_up_at: string | null
+          id: string
+          member_id: string
+          months_behind_at_contact: number | null
+          note: string | null
+          outcome: string
+          outstanding_at_contact_cents: number | null
+          updated_at: string
+        }
+        Insert: {
+          arrears_id?: string | null
+          channel: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          follow_up_at?: string | null
+          id?: string
+          member_id: string
+          months_behind_at_contact?: number | null
+          note?: string | null
+          outcome: string
+          outstanding_at_contact_cents?: number | null
+          updated_at?: string
+        }
+        Update: {
+          arrears_id?: string | null
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_email?: string | null
+          follow_up_at?: string | null
+          id?: string
+          member_id?: string
+          months_behind_at_contact?: number | null
+          note?: string | null
+          outcome?: string
+          outstanding_at_contact_cents?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_outreach_logs_arrears_id_fkey"
+            columns: ["arrears_id"]
+            isOneToOne: false
+            referencedRelation: "billing_arrears"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_outreach_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_outreach_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_outreach_logs_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocked_persons: {
         Row: {
           blocked_at: string
