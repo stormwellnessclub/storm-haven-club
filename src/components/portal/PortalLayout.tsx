@@ -7,6 +7,7 @@ import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
+import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,7 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex flex-col w-full bg-background">
+        <MemorialDayHoursBanner />
         {/* Card on file requirement banner */}
         {profile && !hasCard && (
           <div className="border-b border-destructive/30 bg-destructive/5 px-4 py-3">
