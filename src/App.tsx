@@ -74,6 +74,7 @@ import Payments from "./pages/admin/Payments";
 import PaymentReports from "./pages/admin/PaymentReports";
 import PaymentTracking from "./pages/admin/PaymentTracking";
 import FailedPaymentsHistory from "./pages/admin/FailedPaymentsHistory";
+import BillingArrears from "./pages/admin/BillingArrears";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
 import Settings from "./pages/admin/Settings";
 import GuestPasses from "./pages/admin/GuestPasses";
@@ -244,6 +245,7 @@ const App = () => (
               <Route path="/admin/payment-reports" element={<ProtectedAdminRoute><PaymentReports /></ProtectedAdminRoute>} />
               <Route path="/admin/payment-tracking" element={<ProtectedAdminRoute><PaymentTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/payments/failed-history" element={<ProtectedAdminRoute><FailedPaymentsHistory /></ProtectedAdminRoute>} />
+              <Route path="/admin/billing-arrears" element={<ProtectedAdminRoute><BillingArrears /></ProtectedAdminRoute>} />
               <Route path="/admin/revenue-analytics" element={<ProtectedAdminRoute><RevenueAnalytics /></ProtectedAdminRoute>} />
               <Route path="/admin/guest-passes" element={<ProtectedAdminRoute><GuestPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/guests" element={<ProtectedAdminRoute><GuestManagement /></ProtectedAdminRoute>} />

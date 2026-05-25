@@ -40,6 +40,7 @@ import {
   CalendarDays,
   History,
   Heart,
+  AlertCircle,
 } from "lucide-react";
 import {
   Sidebar,
@@ -152,6 +153,7 @@ const departments: DepartmentSection[] = [
       { title: "Payments", url: "/admin/payments", icon: CreditCard },
       { title: "Payment Tracking", url: "/admin/payment-tracking", icon: FileWarning },
       { title: "Failed Payments History", url: "/admin/payments/failed-history", icon: History, highlight: true },
+      { title: "Billing Arrears", url: "/admin/billing-arrears", icon: AlertCircle, highlight: true },
       { title: "Payment Reports", url: "/admin/payment-reports", icon: BarChart3 },
       { title: "Revenue Analytics", url: "/admin/revenue-analytics", icon: TrendingUp },
       { title: "Reports", url: "/admin/reports", icon: FileBarChart },
