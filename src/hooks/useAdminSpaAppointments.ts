@@ -221,18 +221,32 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
               email: p.email || null,
             };
           } else {
-            // Walk-in guest — try to extract from staff_notes header line "Guest: Name <email>"
+            // Walk-in guest — try to extract from staff_notes header lines:
+            //   "Guest: Name <email>"
+            //   "Phone: 555-555-5555"
             const notes: string = apt.staff_notes || "";
-            const match = notes.match(/^Guest:\s*([^<\n]+?)(?:\s*<([^>]+)>)?\s*$/m);
-            if (match) {
-              const fullName = match[1].trim();
+            const nameMatch = notes.match(/^Guest:\s*([^<\n]+?)(?:\s*<([^>]+)>)?\s*$/m);
+            const phoneMatch = notes.match(/^Phone:\s*(.+?)\s*$/m);
+            if (nameMatch) {
+              const fullName = nameMatch[1].trim();
               const parts = fullName.split(" ");
               customer = {
                 type: "guest",
                 id: null,
                 first_name: parts[0] || "Guest",
                 last_name: parts.slice(1).join(" ") || "",
-                email: match[2] || null,
+                email: nameMatch[2] || null,
+                phone: phoneMatch ? phoneMatch[1].trim() : null,
+              };
+            } else {
+              // Unknown walk-in — still show something useful instead of "Name unavailable"
+              customer = {
+                type: "guest",
+                id: null,
+                first_name: "Walk-in",
+                last_name: "guest",
+                email: null,
+                phone: phoneMatch ? phoneMatch[1].trim() : null,
               };
             }
           }
