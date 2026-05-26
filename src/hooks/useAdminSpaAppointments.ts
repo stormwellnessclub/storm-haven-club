@@ -10,6 +10,7 @@ export interface SpaCustomer {
   first_name: string;
   last_name: string;
   email: string | null;
+  phone?: string | null;
   stripe_customer_id?: string | null;
   card_last4?: string | null;
   card_brand?: string | null;
