@@ -18,7 +18,7 @@ import {
   getServiceWindowForDate,
   latestStartTime,
 } from "@/lib/spaAvailability";
-import { AdminSpaAppointment, useUpdateSpaAppointment, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
+import { AdminSpaAppointment, useUpdateSpaAppointment, useUpdateSpaAppointmentStatus, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
 
 interface Props {
   appointment: AdminSpaAppointment | null;
