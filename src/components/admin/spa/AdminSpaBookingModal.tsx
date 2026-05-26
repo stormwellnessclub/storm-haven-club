@@ -591,41 +591,105 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 </Button>
               </div>
             ) : (
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="pl-9"
-                  placeholder="Search by name or email — members, non-members, and saved guests"
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                />
-                {customerResults && customerResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
-                    {customerResults.map((c) => (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9"
+                    placeholder="Search by name or email — members, non-members, and saved guests"
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                  />
+                  {customerResults && customerResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-md max-h-64 overflow-y-auto">
+                      {customerResults.map((c) => (
+                        <button
+                          key={c.key}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2"
+                          onClick={() => handleSelectCustomer(c)}
+                        >
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{c.name}</div>
+                            {c.email && (
+                              <div className="text-xs text-muted-foreground truncate">{c.email}</div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {c.cardLast4 && (
+                              <CreditCard className="h-3 w-3 text-muted-foreground" />
+                            )}
+                            <Badge variant="outline" className="text-xs">{c.badgeLabel}</Badge>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {!walkInOpen ? (
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                    onClick={() => setWalkInOpen(true)}
+                  >
+                    + Add walk-in guest (no account)
+                  </button>
+                ) : (
+                  <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">New walk-in guest</span>
                       <button
-                        key={c.key}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center justify-between gap-2"
-                        onClick={() => handleSelectCustomer(c)}
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => { setWalkInOpen(false); setWalkInName(""); setWalkInEmail(""); setWalkInPhone(""); }}
                       >
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{c.name}</div>
-                          {c.email && (
-                            <div className="text-xs text-muted-foreground truncate">{c.email}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {c.cardLast4 && (
-                            <CreditCard className="h-3 w-3 text-muted-foreground" />
-                          )}
-                          <Badge variant="outline" className="text-xs">{c.badgeLabel}</Badge>
-                        </div>
+                        Cancel
                       </button>
-                    ))}
+                    </div>
+                    <Input
+                      placeholder="Full name *"
+                      value={walkInName}
+                      onChange={(e) => setWalkInName(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Email (optional)"
+                      type="email"
+                      value={walkInEmail}
+                      onChange={(e) => setWalkInEmail(e.target.value)}
+                    />
+                    <Input
+                      placeholder="Phone (optional)"
+                      value={walkInPhone}
+                      onChange={(e) => setWalkInPhone(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      disabled={!walkInName.trim()}
+                      onClick={() => {
+                        setSelectedCustomer({
+                          type: "guest",
+                          memberId: null,
+                          userId: null,
+                          stripeCustomerId: null,
+                          name: walkInName.trim(),
+                          email: walkInEmail.trim() || null,
+                          phone: walkInPhone.trim() || null,
+                          waiverSigned: false,
+                          cardBrand: null,
+                          cardLast4: null,
+                        });
+                        setWalkInOpen(false);
+                        setCustomerSearch("");
+                      }}
+                    >
+                      Use this guest
+                    </Button>
                   </div>
                 )}
               </div>
             )}
           </div>
+
 
           {selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest" && (
             <Alert className="bg-destructive/10 border-destructive/30">
