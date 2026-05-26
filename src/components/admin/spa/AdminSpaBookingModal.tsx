@@ -457,10 +457,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       const memberIdToInsert = selectedCustomer?.type === "member" ? selectedCustomer.memberId : null;
       const userIdToInsert = selectedCustomer?.userId || null;
 
-      // For walk-in guests with no user account, store name/email in staff_notes header line
+      // For walk-in guests with no user account, store name/email/phone in staff_notes header lines
       let finalNotes = staffNotes || "";
       if (selectedCustomer && selectedCustomer.type === "guest" && !selectedCustomer.userId) {
-        const header = `Guest: ${selectedCustomer.name}${selectedCustomer.email ? ` <${selectedCustomer.email}>` : ""}`;
+        const lines: string[] = [];
+        lines.push(`Guest: ${selectedCustomer.name}${selectedCustomer.email ? ` <${selectedCustomer.email}>` : ""}`);
+        if (selectedCustomer.phone) lines.push(`Phone: ${selectedCustomer.phone}`);
+        const header = lines.join("\n");
         finalNotes = finalNotes ? `${header}\n${finalNotes}` : header;
       }
 
