@@ -439,8 +439,19 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          {notesChanged && (
+            <Button
+              variant="secondary"
+              onClick={handleSaveNotesOnly}
+              disabled={saving || updateStatus.isPending}
+              title="Save just the notes without re-checking the schedule"
+            >
+              {(saving || updateStatus.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save notes only
+            </Button>
+          )}
           {conflict && !timeError && serviceId && appointmentTime && appointmentDate && (
             <Button
               variant="destructive"
