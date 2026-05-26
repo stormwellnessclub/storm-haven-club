@@ -49,6 +49,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     stripeCustomerId: string | null;
     name: string;
     email: string | null;
+    phone?: string | null;
     waiverSigned: boolean;
     cardBrand: string | null;
     cardLast4: string | null;
