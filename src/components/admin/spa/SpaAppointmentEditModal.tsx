@@ -18,7 +18,7 @@ import {
   getServiceWindowForDate,
   latestStartTime,
 } from "@/lib/spaAvailability";
-import { AdminSpaAppointment, useUpdateSpaAppointment, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
+import { AdminSpaAppointment, useUpdateSpaAppointment, useUpdateSpaAppointmentStatus, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
 
 interface Props {
   appointment: AdminSpaAppointment | null;
@@ -32,6 +32,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const { data: rooms } = useSpaRooms();
   const { data: availability } = useSpaServiceAvailability();
   const updateAppt = useUpdateSpaAppointment();
+  const updateStatus = useUpdateSpaAppointmentStatus();
   const checkAvail = useCheckSpaAvailability();
 
   const [serviceId, setServiceId] = useState("");
@@ -280,6 +281,23 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     }
   };
 
+  const handleSaveNotesOnly = async () => {
+    if (!appointment) return;
+    setSaving(true);
+    try {
+      await updateStatus.mutateAsync({
+        appointmentId: appointment.id,
+        status: appointment.status,
+        staffNotes: staffNotes || "",
+      });
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const notesChanged = !!appointment && (staffNotes || "") !== ((appointment as any).staff_notes || "");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -421,8 +439,19 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           )}
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          {notesChanged && (
+            <Button
+              variant="secondary"
+              onClick={handleSaveNotesOnly}
+              disabled={saving || updateStatus.isPending}
+              title="Save just the notes without re-checking the schedule"
+            >
+              {(saving || updateStatus.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save notes only
+            </Button>
+          )}
           {conflict && !timeError && serviceId && appointmentTime && appointmentDate && (
             <Button
               variant="destructive"
