@@ -539,6 +539,10 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const resetForm = () => {
     setCustomerSearch("");
     setSelectedCustomer(null);
+    setWalkInOpen(false);
+    setWalkInName("");
+    setWalkInEmail("");
+    setWalkInPhone("");
     setServiceId("");
     setAppointmentTime("");
     setTimeInputDisplay("");
