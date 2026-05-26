@@ -32,6 +32,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const { data: rooms } = useSpaRooms();
   const { data: availability } = useSpaServiceAvailability();
   const updateAppt = useUpdateSpaAppointment();
+  const updateStatus = useUpdateSpaAppointmentStatus();
   const checkAvail = useCheckSpaAvailability();
 
   const [serviceId, setServiceId] = useState("");
