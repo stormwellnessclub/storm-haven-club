@@ -56,6 +56,10 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState<SelectedCustomer | null>(null);
+  const [walkInOpen, setWalkInOpen] = useState(false);
+  const [walkInName, setWalkInName] = useState("");
+  const [walkInEmail, setWalkInEmail] = useState("");
+  const [walkInPhone, setWalkInPhone] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState(
     defaultDate ? format(defaultDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
