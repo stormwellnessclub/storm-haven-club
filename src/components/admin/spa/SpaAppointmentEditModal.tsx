@@ -281,6 +281,23 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
     }
   };
 
+  const handleSaveNotesOnly = async () => {
+    if (!appointment) return;
+    setSaving(true);
+    try {
+      await updateStatus.mutateAsync({
+        appointmentId: appointment.id,
+        status: appointment.status,
+        staffNotes: staffNotes || "",
+      });
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const notesChanged = !!appointment && (staffNotes || "") !== ((appointment as any).staff_notes || "");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
