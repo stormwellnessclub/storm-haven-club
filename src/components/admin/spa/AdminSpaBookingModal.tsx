@@ -426,6 +426,30 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       if (!selectedService || !appointmentTime) throw new Error("Missing required fields");
       if (conflict) throw new Error(conflict);
 
+      // Auto-apply walk-in guest if the subform is open with a name typed but
+      // the admin forgot to click "Use this guest".
+      let effectiveCustomer = selectedCustomer;
+      if (!effectiveCustomer && walkInOpen && walkInName.trim()) {
+        effectiveCustomer = {
+          type: "guest",
+          memberId: null,
+          userId: null,
+          stripeCustomerId: null,
+          name: walkInName.trim(),
+          email: walkInEmail.trim() || null,
+          phone: walkInPhone.trim() || null,
+          waiverSigned: false,
+          cardBrand: null,
+          cardLast4: null,
+        } as any;
+        setSelectedCustomer(effectiveCustomer);
+      }
+
+      if (!effectiveCustomer) {
+        throw new Error("Select a customer or add a walk-in guest before booking.");
+      }
+
+
       const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
       const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
 
@@ -448,24 +472,25 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       }
 
       // Block massage bookings for guests with no portal account / signed waiver
-      if (selectedCustomer && !selectedCustomer.waiverSigned) {
+      if (effectiveCustomer && !effectiveCustomer.waiverSigned) {
         if ((selectedService.category || "").toLowerCase().includes("massage")) {
           throw new Error("This customer must sign the liability waiver before booking a massage.");
         }
       }
 
-      const memberIdToInsert = selectedCustomer?.type === "member" ? selectedCustomer.memberId : null;
-      const userIdToInsert = selectedCustomer?.userId || null;
+      const memberIdToInsert = effectiveCustomer?.type === "member" ? effectiveCustomer.memberId : null;
+      const userIdToInsert = effectiveCustomer?.userId || null;
 
       // For walk-in guests with no user account, store name/email/phone in staff_notes header lines
       let finalNotes = staffNotes || "";
-      if (selectedCustomer && selectedCustomer.type === "guest" && !selectedCustomer.userId) {
+      if (effectiveCustomer && effectiveCustomer.type === "guest" && !effectiveCustomer.userId) {
         const lines: string[] = [];
-        lines.push(`Guest: ${selectedCustomer.name}${selectedCustomer.email ? ` <${selectedCustomer.email}>` : ""}`);
-        if (selectedCustomer.phone) lines.push(`Phone: ${selectedCustomer.phone}`);
+        lines.push(`Guest: ${effectiveCustomer.name}${effectiveCustomer.email ? ` <${effectiveCustomer.email}>` : ""}`);
+        if (effectiveCustomer.phone) lines.push(`Phone: ${effectiveCustomer.phone}`);
         const header = lines.join("\n");
         finalNotes = finalNotes ? `${header}\n${finalNotes}` : header;
       }
+
 
       // Resolve current admin's display name for booking attribution snapshot
       let adminDisplayName: string | null = null;
@@ -574,15 +599,20 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             <Label>Customer</Label>
             {selectedCustomer ? (
               <div className="flex items-center justify-between p-2 border rounded-md bg-secondary/30">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <span className="text-sm font-medium truncate">{selectedCustomer.name}</span>
                   <Badge variant="outline" className="text-xs shrink-0">
                     {selectedCustomer.type === "member"
                       ? "Member"
                       : selectedCustomer.type === "non_member"
                       ? "Non-Member"
-                      : "Guest"}
+                      : "Walk-in"}
                   </Badge>
+                  {(selectedCustomer as any).phone && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      📞 {(selectedCustomer as any).phone}
+                    </span>
+                  )}
                   {selectedCustomer.cardLast4 && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                       <CreditCard className="h-3 w-3" />
@@ -596,7 +626,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
               </div>
             ) : (
               <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Required — search for a member/non-member or add a walk-in guest below.
+                </p>
                 <div className="relative">
+
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     className="pl-9"
@@ -929,7 +963,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => bookMutation.mutate()}
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest")}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest") || (!selectedCustomer && !(walkInOpen && walkInName.trim()))}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment

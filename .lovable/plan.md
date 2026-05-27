@@ -1,56 +1,30 @@
-## Answers first
+## What's happening
 
-**Q: When you cancel a class, does everyone signed up get a cancellation email?**
-Yes. The admin "Cancel Class" button in `/admin/classes` calls `admin_cancel_class_session`, which:
-- Automatically restores credits (member credits) and pass uses (`classes_remaining + 1`, status → active) for every confirmed booking on that session.
-- Flips the booking status to `cancelled` with reason "Class cancelled by admin".
-- Marks the session itself cancelled.
+The Admin Spa Booking modal lets you book an appointment **without selecting any customer at all**. When that happens, the insert falls into the `isWalkIn = !userIdToInsert` branch, the row is saved as `created_via='walk_in_guest'`, and no `Guest: …` header is written to `staff_notes` — so the appointment card has no name to display.
 
-The Classes page then loops every cancelled booking from that action and sends the **`class_cancelled_by_admin`** template via `send-email` — that includes Mallak, Mariam, and anyone else booked. Nothing manual required for the rest of the roster.
+Checking the two most recent walk-in rows in the DB confirms this — `staff_notes` only contains free-text the admin typed (e.g. "718-427-0158 tried to buy mothers day voucher didnt work"), with no `Guest:` / `Phone:` header. The admin filled the staff-notes textarea but never actually clicked **"Use this guest"** in the walk-in subform, so `selectedCustomer` was `null` at submit time.
 
-**Mallak & Mariam status confirmed**
-- Both booked the 11am Signature Flow on Tue May 27 (session `fdca3021…`).
-- Both used a pass; both passes currently show `classes_remaining = 0` and expire **2026-06-01**.
-- Cancelling the session via the RPC will auto-restore each to `classes_remaining = 1` and reactivate the pass.
+The downstream display logic in `useAdminSpaAppointments.ts` already parses the `Guest: Name <email>` / `Phone: …` header correctly — it just never gets written because the booking flow doesn't enforce that a customer was picked.
 
----
+## Plan
 
-## What I'll do (after you approve the email copy)
+Edit only `src/components/admin/spa/AdminSpaBookingModal.tsx`:
 
-1. **Cancel the session** via the existing admin RPC — this auto-refunds passes AND auto-emails every booked attendee with the standard cancellation notice.
-2. **Extend both passes by +7 days** (Mallak's pass `7d148585…` and Mariam's pass `cffb711f…`) — new expiration **2026-06-08 00:14 UTC**.
-3. **Send a personalized email** to Mallak (`mallakmak07@gmail.com`) and Mariam (`mariammakled1@gmail.com`) — sent individually, not as a bulk send — that explains the cancellation, confirms the credit is already back on the pass, and notes the +1 week extension. (This is in addition to the standard auto-cancellation email they'll also receive from step 1. If you'd rather skip the standard one for them, say so and I'll suppress.)
+1. **Require a customer before booking.**
+   - In `bookMutation.mutationFn`, throw early if `!selectedCustomer` ("Select a customer or add a walk-in guest before booking.").
+   - Disable the **Book Appointment** button while `selectedCustomer` is null and show a small inline hint under the customer search.
 
----
+2. **Make the walk-in subform self-confirming.**
+   - When the admin clicks **"Use this guest"**, the customer is selected (this already works) — add a visible confirmation chip above the service section: `Booking for: {name} · {phone}` with a small "Change" link that clears `selectedCustomer`.
+   - If the walk-in subform is open with a name typed but the admin tries to click **Book** without clicking "Use this guest" first, auto-apply the walk-in guest from the current `walkInName/Email/Phone` fields (fall-through safety so a half-filled form still produces a named booking).
 
-## Email template — please review before I send
+3. **Slightly clearer empty-customer state.**
+   - In `useAdminSpaAppointments.ts` keep current behavior for legacy rows: when no header found, render as `Walk-in guest` (already done). No data migration needed — the issue is preventing new nameless rows.
 
-**Subject:** Tomorrow's 11 AM Signature Flow — Cancelled (credit restored + 1 week added)
+No backend, RLS, or schema changes. No edits to the display hook beyond the existing fallback.
 
-**Body (HTML, branded with the standard club header/footer):**
+## Files touched
 
-> Hi {Mallak / Mariam},
->
-> We're sorry to let you know that **Signature Flow on Tuesday, May 27 at 11:00 AM** has been cancelled.
->
-> Here's what we've already done for you:
->
-> - ✓ **Your class credit has been refunded** back to your pass — it's ready to use on any upcoming class.
-> - ✓ **We've added an extra week** to your pass expiration as a thank-you for your patience. Your pass now expires **June 8, 2026** (was June 1).
->
-> You can rebook anytime from your portal: **[Book a class →](https://stormwellnessclub.com/portal/book/class)**
->
-> Thank you for being part of the Storm Wellness Club family. If you have any questions, just reply to this email or text us.
->
-> Warmly,
-> The Storm Wellness Club Team
+- `src/components/admin/spa/AdminSpaBookingModal.tsx` — add submit guard, disable button, confirmation chip, auto-apply walk-in on submit.
 
----
-
-## Files / tools I'll touch
-
-- `supabase.rpc('admin_cancel_class_session', { _session_id: 'fdca3021…', _is_hidden: false, _cancellation_reason: 'Class cancelled' })` — via supabase--insert (RPC call).
-- `UPDATE class_passes SET expires_at = expires_at + INTERVAL '7 days' WHERE id IN ('7d148585…','cffb711f…')` — via supabase--insert.
-- `supabase.functions.invoke('send-email', { type: 'staff_reply', ... })` × 2 with the custom HTML above (uses the existing branded shell — no new template, no edge function changes).
-
-Approve the copy (or tell me what to tweak) and I'll run it.
+That's it — once a customer (member, non-member, or walk-in) must be selected, the `Guest:` / `Phone:` header always gets written and the appointment card will show the name everywhere it's rendered.
