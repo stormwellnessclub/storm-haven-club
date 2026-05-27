@@ -963,7 +963,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => bookMutation.mutate()}
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest")}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest") || (!selectedCustomer && !(walkInOpen && walkInName.trim()))}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment
