@@ -160,7 +160,7 @@ export default function KidsCare() {
 
   return (
     <Layout>
-      <SEOHead title="Kids Care" description="Supervised childcare while you work out at Storm Wellness Club. Safe, engaging environment for children of members in Livonia, MI." path="/kids-care" />
+      <SEOHead title="Kids Care & Childcare in Livonia, MI" description="Supervised childcare for ages 4 months to 8 years while you work out at Storm Wellness Club in Livonia, MI. Safe, engaging, member-only." path="/kids-care" />
       {/* Soft Launch Banner */}
       {isSoftLaunch && (
         <section className="bg-accent/10 border-b border-accent/20">
