@@ -1,4 +1,1 @@
 project_id = "cqzmrdzwgsujgbjqpoxh"
-
-[functions.oneoff-cancel-notice]
-verify_jwt = false
