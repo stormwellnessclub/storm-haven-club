@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState, useEffect } from "react";
 import { SmsToggleCard } from "@/components/SmsToggleCard";
+import { toast } from "sonner";
 
 export default function PortalProfile() {
   const { profile: nonMemberProfile, updateProfile, isUpdating } = useNonMemberProfile();
@@ -27,6 +28,11 @@ export default function PortalProfile() {
   }, [nonMemberProfile, userProfile]);
 
   const handleSave = () => {
+    const digits = (phone || "").replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast.error("A valid phone number is required (at least 10 digits).");
+      return;
+    }
     updateProfile({
       first_name: firstName || null,
       last_name: lastName || null,
@@ -58,8 +64,20 @@ export default function PortalProfile() {
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Label htmlFor="phone">
+                Phone <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 555-5555"
+              />
+              <p className="text-xs text-muted-foreground">
+                Required so we can reach you about bookings and class updates.
+              </p>
             </div>
             <Button onClick={handleSave} disabled={isUpdating}>
               {isUpdating ? "Saving..." : "Save Changes"}

@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
+import { PortalPhoneGate } from "./PortalPhoneGate";
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -15,8 +16,13 @@ interface PortalLayoutProps {
 }
 
 export function PortalLayout({ children, title }: PortalLayoutProps) {
-  const { profile } = useNonMemberProfile();
+  const { profile, isLoading } = useNonMemberProfile();
   const hasCard = profile?.card_last4;
+  const hasPhone = !!profile?.phone?.trim();
+
+  if (profile && !isLoading && !hasPhone) {
+    return <PortalPhoneGate />;
+  }
 
   return (
     <SidebarProvider>

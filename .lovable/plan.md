@@ -1,67 +1,53 @@
-## What's broken
+## Mallak Makled — phone lookup
 
-**1. "Name unavailable" on non-member / walk-in spa appointments**
+She has no phone on file anywhere (non_member_profiles, profiles, or her class_bookings walk-in fields). Her account email is **mallakmak07@gmail.com** — that's the only contact channel we have right now.
 
-In `AdminSpaBookingModal`, the customer picker only lets the admin select an existing record (member, non-member profile, or a saved guest-pass row with a Stripe customer). There is no way to type in a brand-new walk-in's name + contact. When the admin skips selection and just types details into the notes field, the appointment is saved with `user_id = NULL` **and** no `Guest: …` header in `staff_notes`, so the display fallback in `useAdminSpaAppointments` finds nothing → renders "Name unavailable".
+Her 11am pilates tomorrow (session `fdca3021…`) was booked 2026-05-25 via a pass, with no walk-in phone captured at booking time either.
 
-For real non-member portal bookings (which do have `user_id`), the resolver already reads `non_member_profiles` then falls back to `profiles`, so those should show. The "Name unavailable" you're seeing is the walk-in path.
+**Immediate action options:** email her at mallakmak07@gmail.com to request a callback number, or text her sister (Jenna/Mariam/Yasmeen Makled also in the system — also no phones 🙃). We have no working phone for the Makled family at all.
 
-**2. Editing the notes won't save**
-
-`SpaAppointmentEditModal.handleSave` runs the full `update_spa_appointment_admin` RPC, which:
-- Bails early if `selectedService || appointmentTime || appointmentDate` is missing.
-- Blocks with "Please assign a therapist or room" when both come back null (very common on legacy walk-in rows with no `staff_id`/`room_id`).
-- Runs full conflict / availability checks even when the only thing changed is the notes textarea.
-
-So a notes-only edit silently does nothing or trips a blocker that has nothing to do with the notes.
+That's exactly the gap the plan below closes so this doesn't keep happening.
 
 ---
 
-## Plan
+## Plan — make phone mandatory in the non-member portal
 
-### A. Let admins capture walk-in customer info at booking time
+### A. Block portal usage until phone is on file
 
-In `src/components/admin/spa/AdminSpaBookingModal.tsx`:
+In `src/components/portal/PortalLayout.tsx`:
+- Read `useNonMemberProfile()` + `useUserProfile()`.
+- If `profile.phone` is empty/whitespace, render a non-dismissible blocking screen ("Add a phone number to continue") with a Phone input + Save button that writes to `non_member_profiles.phone` (and mirrors to `profiles.phone`).
+- All other portal pages stay mounted only after phone is saved. Skip the block on `/portal/profile` itself so they can also edit it there normally.
 
-- Add an **"Add walk-in guest"** button under the customer search (shown when nothing is selected).
-- Clicking it opens an inline mini-form with **Name (required)**, **Email**, **Phone**.
-- On confirm, set `selectedCustomer` to a synthetic guest object (`type: "guest"`, no `userId`, name/email captured).
-- On insert, write the header into `staff_notes` as:
-  ```
-  Guest: <Name> <<email>>
-  Phone: <phone>
-  ```
-  (the existing code already prepends a `Guest:` line for guest-type customers — extend it to include phone on a second line).
+### B. Validate phone on the Profile page
 
-### B. Make the display fallback more forgiving
+In `src/pages/portal/Profile.tsx`:
+- Mark Phone as required (asterisk + `required` on Input).
+- In `handleSave`, reject empty/invalid phone with a toast; only call `updateProfile` when present.
+- Light format check: strip non-digits, require ≥10 digits.
 
-In `src/hooks/useAdminSpaAppointments.ts`, when `user_id` is null and `member` is null:
+### C. Capture phone at booking time for class passes
 
-- Keep the existing `Guest: Name <email>` regex.
-- Also parse a `Phone: <…>` line and surface it on the customer object.
-- If neither header is present, return a placeholder customer `{ type: "guest", first_name: "Walk-in", last_name: "guest", email: null }` instead of `null`, so the row reads "Walk-in guest" (with a visible badge) instead of "Name unavailable".
+In `src/pages/portal/BookClass.tsx` (and `src/pages/portal/Book.tsx` if it has a confirm step):
+- Before allowing the booking RPC to fire, check `non_member_profiles.phone`. If missing, show an inline "Add phone to confirm booking" mini-form, save it, then proceed.
+- This guarantees every future class booking has a reachable contact, matching the existing **Attendee Resolution** rule ("Phone required for all bookings to prevent 'Unknown' attendees").
 
-Update `SpaCustomer` to optionally carry `phone?: string | null` and surface it in the availability list / edit modal header.
+### D. Capture phone at signup / first portal load (belt-and-suspenders)
 
-### C. Add a notes-only save path
+`useNonMemberProfile` already auto-creates a row from `profiles`. No schema change — the gate in A will catch any account where phone never made it in (Google OAuth signups, legacy imports, the Makled accounts, etc.).
 
-In `src/components/admin/spa/SpaAppointmentEditModal.tsx`:
+### E. Admin visibility
 
-- Add a secondary **"Save notes only"** button next to the main Save button.
-- That button writes via `useUpdateSpaAppointmentStatus` (already supports `staffNotes`) reusing the appointment's current status — bypassing the service/time/conflict guards.
-- Also relax the existing main-Save guard so changes that don't touch service/date/time/therapist/room don't get blocked by "Please assign a therapist or room" — if nothing schedule-related changed vs. the loaded appointment, skip the conflict check and just patch the notes.
-
-### D. Backfill display for the rows already in the database
-
-No data migration needed — once B is in, every existing walk-in row (including the ones that just say "718-427-0158 tried to buy mothers day voucher…") will render as "Walk-in guest" with the notes shown inline, instead of "Name unavailable".
+In `src/pages/admin/NonMemberAccounts.tsx`, add a small "No phone" filter chip / badge so staff can proactively sweep the existing pile of phone-less accounts (Mallak, Jenna, Mariam, Yasmeen + others) and request numbers.
 
 ---
 
 ## Files touched
 
-- `src/components/admin/spa/AdminSpaBookingModal.tsx` — walk-in guest mini-form, phone in header.
-- `src/hooks/useAdminSpaAppointments.ts` — friendlier customer fallback + phone parse + `phone` field on `SpaCustomer`.
-- `src/components/admin/spa/SpaAppointmentEditModal.tsx` — "Save notes only" button + relaxed guard when only notes changed.
-- `src/components/admin/spa/SpaAvailabilityTab.tsx` — small render tweak so walk-in customers show name + phone if present.
+- `src/components/portal/PortalLayout.tsx` — phone gate
+- `src/pages/portal/Profile.tsx` — required validation
+- `src/pages/portal/BookClass.tsx` (+ `Book.tsx` if needed) — inline phone capture before booking
+- `src/pages/admin/NonMemberAccounts.tsx` — "No phone" filter/badge
+- `src/hooks/useNonMemberProfile.ts` — small `hasPhone` helper exported for the gate
 
 No DB migration, no RLS changes, no edge function changes.
