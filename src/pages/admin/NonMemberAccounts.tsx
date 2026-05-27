@@ -42,6 +42,7 @@ export default function NonMemberAccounts() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [noPhoneOnly, setNoPhoneOnly] = useState(false);
   const [activationEmail, setActivationEmail] = useState("");
   const [showActivationDialog, setShowActivationDialog] = useState(false);
   const [stripeImportOpen, setStripeImportOpen] = useState(false);
@@ -185,6 +186,7 @@ export default function NonMemberAccounts() {
   };
 
   const filteredAccounts = (accounts || []).filter((a) => {
+    if (noPhoneOnly && a.phone?.trim()) return false;
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -194,6 +196,8 @@ export default function NonMemberAccounts() {
       a.phone?.includes(q)
     );
   });
+
+  const missingPhoneCount = accounts?.filter((a) => !a.phone?.trim()).length || 0;
 
   const filteredPending = (pendingImports || []).filter((p: any) => {
     if (!searchQuery) return true;
@@ -274,7 +278,14 @@ export default function NonMemberAccounts() {
               className="pl-9"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              variant={noPhoneOnly ? "default" : "outline"}
+              size="sm"
+              onClick={() => setNoPhoneOnly((v) => !v)}
+            >
+              No phone ({missingPhoneCount})
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setBulkImportOpen(!bulkImportOpen)}>
               <Upload className="h-4 w-4 mr-2" /> Bulk Pre-Register
             </Button>
@@ -456,7 +467,13 @@ export default function NonMemberAccounts() {
                           : "—"}
                       </TableCell>
                       <TableCell className="text-sm">{account.email || "—"}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{account.phone || "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">
+                        {account.phone || (
+                          <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            No phone
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {account.card_last4 ? (
                           <span className="flex items-center gap-1 text-sm">
