@@ -599,15 +599,20 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             <Label>Customer</Label>
             {selectedCustomer ? (
               <div className="flex items-center justify-between p-2 border rounded-md bg-secondary/30">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <span className="text-sm font-medium truncate">{selectedCustomer.name}</span>
                   <Badge variant="outline" className="text-xs shrink-0">
                     {selectedCustomer.type === "member"
                       ? "Member"
                       : selectedCustomer.type === "non_member"
                       ? "Non-Member"
-                      : "Guest"}
+                      : "Walk-in"}
                   </Badge>
+                  {(selectedCustomer as any).phone && (
+                    <span className="text-xs text-muted-foreground shrink-0">
+                      📞 {(selectedCustomer as any).phone}
+                    </span>
+                  )}
                   {selectedCustomer.cardLast4 && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1 shrink-0">
                       <CreditCard className="h-3 w-3" />
@@ -621,7 +626,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
               </div>
             ) : (
               <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Required — search for a member/non-member or add a walk-in guest below.
+                </p>
                 <div className="relative">
+
                   <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     className="pl-9"
