@@ -64,8 +64,20 @@ export default function PortalProfile() {
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Label htmlFor="phone">
+                Phone <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="phone"
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 555-5555"
+              />
+              <p className="text-xs text-muted-foreground">
+                Required so we can reach you about bookings and class updates.
+              </p>
             </div>
             <Button onClick={handleSave} disabled={isUpdating}>
               {isUpdating ? "Saving..." : "Save Changes"}
