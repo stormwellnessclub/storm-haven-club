@@ -472,24 +472,25 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       }
 
       // Block massage bookings for guests with no portal account / signed waiver
-      if (selectedCustomer && !selectedCustomer.waiverSigned) {
+      if (effectiveCustomer && !effectiveCustomer.waiverSigned) {
         if ((selectedService.category || "").toLowerCase().includes("massage")) {
           throw new Error("This customer must sign the liability waiver before booking a massage.");
         }
       }
 
-      const memberIdToInsert = selectedCustomer?.type === "member" ? selectedCustomer.memberId : null;
-      const userIdToInsert = selectedCustomer?.userId || null;
+      const memberIdToInsert = effectiveCustomer?.type === "member" ? effectiveCustomer.memberId : null;
+      const userIdToInsert = effectiveCustomer?.userId || null;
 
       // For walk-in guests with no user account, store name/email/phone in staff_notes header lines
       let finalNotes = staffNotes || "";
-      if (selectedCustomer && selectedCustomer.type === "guest" && !selectedCustomer.userId) {
+      if (effectiveCustomer && effectiveCustomer.type === "guest" && !effectiveCustomer.userId) {
         const lines: string[] = [];
-        lines.push(`Guest: ${selectedCustomer.name}${selectedCustomer.email ? ` <${selectedCustomer.email}>` : ""}`);
-        if (selectedCustomer.phone) lines.push(`Phone: ${selectedCustomer.phone}`);
+        lines.push(`Guest: ${effectiveCustomer.name}${effectiveCustomer.email ? ` <${effectiveCustomer.email}>` : ""}`);
+        if (effectiveCustomer.phone) lines.push(`Phone: ${effectiveCustomer.phone}`);
         const header = lines.join("\n");
         finalNotes = finalNotes ? `${header}\n${finalNotes}` : header;
       }
+
 
       // Resolve current admin's display name for booking attribution snapshot
       let adminDisplayName: string | null = null;
