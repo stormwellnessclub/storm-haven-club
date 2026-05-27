@@ -27,6 +27,11 @@ export default function PortalProfile() {
   }, [nonMemberProfile, userProfile]);
 
   const handleSave = () => {
+    const digits = (phone || "").replace(/\D/g, "");
+    if (digits.length < 10) {
+      toast.error("A valid phone number is required (at least 10 digits).");
+      return;
+    }
     updateProfile({
       first_name: firstName || null,
       last_name: lastName || null,
