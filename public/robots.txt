@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://cqzmrdzwgsujgbjqpoxh.supabase.co/functions/v1/serve-static?file=sitemap.xml
+Sitemap: https://stormwellnessclub.com/sitemap.xml
