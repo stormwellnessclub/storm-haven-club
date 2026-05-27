@@ -1,0 +1,41 @@
+# Storm Wellness Club
+
+> Premium fitness and wellness club in Livonia, Michigan. Reformer Pilates, indoor cycling, yoga, recovery spa (red light therapy, cryotherapy, infrared sauna, cold plunge, salt room, ZeroBody), therapeutic massage, healthy café, and supervised kids care. Located at 18340 Middlebelt Rd, Livonia, MI 48152. Serving Livonia, Detroit, Dearborn, Farmington Hills, Redford, Garden City, Westland, Plymouth, Canton, Northville, Novi, and Southfield.
+
+## Pages
+
+- [Home](/): Overview of studios, recovery, café, kids care, and membership.
+- [Classes](/classes): Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, Bootcamp, Sculpt.
+- [Class Schedule](/schedule): Weekly schedule with real-time availability and booking.
+- [Memberships](/memberships): Standard, Premium, and Executive tiers with wellness credits and guest passes.
+- [Apply for Membership](/apply): Online membership application.
+- [Class Passes](/class-passes): Non-member single, 5-pack, and 10-pack class passes for Pilates, Cycling, and Yoga.
+- [Guest Pass](/guest-pass): Day pass for non-members.
+
+## Recovery Spa
+
+- [Recovery Spa Overview](/spa): All recovery and spa services.
+- [Red Light Therapy](/spa/red-light-therapy): Full-body red and near-infrared light therapy in Livonia, MI.
+- [Cryotherapy](/spa/cryotherapy): Whole-body cryotherapy chamber in Livonia, MI.
+- [Infrared Sauna](/spa/infrared-sauna): Far-infrared sauna sessions.
+- [Cold Plunge](/spa/cold-plunge): Cold water immersion for recovery.
+- [Sauna & Steam Room](/spa/sauna-steam): Traditional dry sauna and steam room.
+- [Therapeutic Massage](/spa/massage): Swedish, deep tissue, sports, and prenatal massage.
+- [Salt Room](/spa/salt-room): Halotherapy salt room sessions.
+- [Starpool ZeroBody](/spa/zerobody): Dry-float ZeroBody recovery pod.
+
+## Café & Amenities
+
+- [Café](/cafe): Smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, healthy snacks.
+- [Amenities](/amenities): Locker rooms, towel service, outdoor terrace, premium facilities.
+- [Kids Care](/kids-care): Supervised childcare for members ages 4 months to 8 years.
+
+## Shop & Info
+
+- [Shop](/merch): Storm Wellness Club branded apparel and wellness products.
+- [FAQ](/faq): Common questions about membership, classes, spa, café, and kids care.
+
+## Optional
+
+- [Terms of Service](/terms)
+- [Privacy Policy](/privacy)

@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
@@ -59,13 +60,43 @@ export default function ClassTypeDetail() {
     );
   }
 
+  const cleanDesc = (ct.description || "").replace(/\s+/g, " ").trim();
+  const metaDesc = cleanDesc
+    ? cleanDesc.slice(0, 155)
+    : `${ct.name} class at Storm Wellness Club in Livonia, MI — schedule, details, and reviews.`;
+  const serviceLd = {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: ct.name,
+    serviceType: "Fitness Class",
+    description: cleanDesc || `${ct.name} class at Storm Wellness Club.`,
+    provider: {
+      "@type": "HealthClub",
+      name: "Storm Wellness Club",
+      url: "https://stormwellnessclub.com",
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "18340 Middlebelt Rd",
+        addressLocality: "Livonia",
+        addressRegion: "MI",
+        postalCode: "48152",
+        addressCountry: "US",
+      },
+    },
+    areaServed: "Livonia, MI",
+    url: `https://stormwellnessclub.com/classes/${ct.id}`,
+  };
+
   return (
     <Layout>
       <SEOHead
-        title={`${ct.name} – Storm Wellness Club`}
-        description={ct.description?.slice(0, 155) || `Reviews and details for ${ct.name} at Storm Wellness Club.`}
+        title={`${ct.name} in Livonia, MI`}
+        description={metaDesc}
         path={`/classes/${ct.id}`}
       />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(serviceLd)}</script>
+      </Helmet>
       <section className="container max-w-3xl py-10 sm:py-14">
         <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2">
           <Link to="/schedule"><ArrowLeft className="w-4 h-4 mr-1" /> Back to schedule</Link>

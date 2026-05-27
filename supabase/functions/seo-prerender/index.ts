@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const SITE_URL = "https://www.stormwellnessclub.com";
+const SITE_URL = "https://stormwellnessclub.com";
 const SITE_NAME = "Storm Wellness Club";
 const OG_IMAGE = `${SITE_URL}/pwa-512x512.png`;
 
@@ -168,6 +168,72 @@ const PAGE_META: Record<string, PageMeta> = {
     description: 'Privacy policy and data handling practices for Storm Wellness Club.',
     h1: 'Privacy Policy',
     bodyContent: `<p>Learn about how Storm Wellness Club collects, uses, and protects your personal information.</p>`
+  },
+  '/spa/red-light-therapy': {
+    title: `Red Light Therapy in Livonia, MI | ${SITE_NAME}`,
+    description: 'Full-body red light and near-infrared therapy at Storm Wellness Club in Livonia, MI. Recovery, skin health, sleep, inflammation support.',
+    h1: 'Red Light Therapy in Livonia, MI',
+    bodyContent: `<p>Full-body red and near-infrared light therapy at Storm Wellness Club. Sessions deliver clinical-grade 630–850nm wavelengths to support muscle recovery, skin health, and cellular energy.</p><h2>Benefits</h2><ul><li>Post-workout muscle recovery</li><li>Skin tone and collagen support</li><li>May support better sleep</li><li>Non-invasive, no UV</li></ul><p>Located in Livonia, MI — serving Detroit, Farmington Hills, Plymouth, Northville, and Novi. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/spa/cryotherapy': {
+    title: `Cryotherapy in Livonia, MI | ${SITE_NAME}`,
+    description: 'Whole-body cryotherapy at Storm Wellness Club in Livonia, MI. 3-minute cold exposure for recovery, inflammation, energy.',
+    h1: 'Cryotherapy in Livonia, MI',
+    bodyContent: `<p>Whole-body cryotherapy at Storm Wellness Club. A 3-minute session in air between -200°F and -240°F triggers a powerful recovery response with endorphin and norepinephrine release.</p><h2>Benefits</h2><ul><li>Faster recovery from training</li><li>Reduced inflammation and joint discomfort</li><li>Energy, focus, and mood lift</li><li>Short — just 3 minutes</li></ul><p>Serving Livonia, Detroit, Farmington Hills, Plymouth, and Northville. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/spa/infrared-sauna': {
+    title: `Infrared Sauna in Livonia, MI | ${SITE_NAME}`,
+    description: 'Far-infrared sauna sessions at Storm Wellness Club in Livonia, MI. Deep heat for cardiovascular health, detox, and recovery.',
+    h1: 'Infrared Sauna in Livonia, MI',
+    bodyContent: `<p>Far-infrared sauna at Storm Wellness Club. Light-based heat warms your body directly for a deeper sweat at a more comfortable temperature.</p><h2>Benefits</h2><ul><li>Cardiovascular conditioning</li><li>Deep sweat at lower ambient temperature</li><li>Muscle recovery and relaxation</li><li>Pairs with cold plunge for contrast therapy</li></ul><p>Located in Livonia, MI. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/spa/cold-plunge': {
+    title: `Cold Plunge in Livonia, MI | ${SITE_NAME}`,
+    description: 'Cold plunge therapy at Storm Wellness Club in Livonia, MI. Cold-water immersion for recovery, inflammation, focus, and resilience.',
+    h1: 'Cold Plunge in Livonia, MI',
+    bodyContent: `<p>Controlled cold-water immersion at Storm Wellness Club. 2–3 minutes in cold water reduces muscle inflammation, sharpens focus, and triggers a sustained dopamine release.</p><h2>Benefits</h2><ul><li>Muscle recovery and reduced soreness</li><li>Sustained mood and focus boost</li><li>Trains nervous-system resilience</li><li>Pairs with sauna for contrast therapy</li></ul><p>Serving Livonia and the greater Detroit metro. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/spa/sauna-steam': {
+    title: `Sauna & Steam Room in Livonia, MI | ${SITE_NAME}`,
+    description: 'Traditional dry sauna and steam room at Storm Wellness Club in Livonia, MI. Relaxation, recovery, respiratory wellness.',
+    h1: 'Sauna & Steam Room in Livonia, MI',
+    bodyContent: `<p>Traditional dry sauna and eucalyptus steam room at Storm Wellness Club. Built for quiet, restorative recovery between workouts and meetings.</p><h2>Benefits</h2><ul><li>Muscle relaxation after training</li><li>Respiratory wellness (steam room)</li><li>Screen-free downtime</li><li>Pairs with cold plunge</li></ul><p>Located in Livonia, MI. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/spa/massage': {
+    title: `Therapeutic Massage in Livonia, MI | ${SITE_NAME}`,
+    description: 'Swedish, deep tissue, sports, and prenatal massage at Storm Wellness Club in Livonia, MI. Licensed therapists, online booking.',
+    h1: 'Therapeutic Massage in Livonia, MI',
+    bodyContent: `<p>Licensed massage therapists, premium private treatment rooms, and online booking at Storm Wellness Club. Modalities include Swedish, deep tissue, sports, and prenatal in 60 and 90-minute formats.</p><h2>Benefits</h2><ul><li>Experienced licensed therapists</li><li>Multiple modalities</li><li>Member discounts 5–12%</li><li>Open to members and non-members</li></ul><p>Serving Livonia, Detroit, Farmington Hills, Plymouth, and Northville. <a href="${SITE_URL}/spa?category=Massage">Book a massage</a>.</p>`
+  },
+  '/spa/salt-room': {
+    title: `Salt Room Halotherapy in Livonia, MI | ${SITE_NAME}`,
+    description: 'Halotherapy salt room at Storm Wellness Club in Livonia, MI. Dry salt therapy for respiratory wellness, skin health, deep relaxation.',
+    h1: 'Salt Room Halotherapy in Livonia, MI',
+    bodyContent: `<p>Dedicated salt room at Storm Wellness Club delivering micronized pharmaceutical-grade salt for respiratory wellness and skin support.</p><h2>Benefits</h2><ul><li>Clear breathing and respiratory wellness</li><li>Skin condition support</li><li>Meditative, screen-free environment</li><li>25-minute sessions</li></ul><p>Located in Livonia, MI. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/spa/zerobody': {
+    title: `Starpool ZeroBody Dry Float in Livonia, MI | ${SITE_NAME}`,
+    description: 'Starpool ZeroBody dry-float recovery pod at Storm Wellness Club in Livonia, MI. Weightless relaxation for stress, sleep, recovery.',
+    h1: 'Starpool ZeroBody Dry Float in Livonia, MI',
+    bodyContent: `<p>Italian-engineered Starpool ZeroBody dry-float pod at Storm Wellness Club. Lie on a warm body-conforming membrane for a 30-minute deep nervous-system reset — no water, no shower, fully clothed.</p><h2>Benefits</h2><ul><li>Float-therapy benefits without water</li><li>Stress recovery and sleep support</li><li>Warm, weightless 30 minutes</li><li>One of few in Michigan</li></ul><p>Located in Livonia, MI. <a href="${SITE_URL}/spa">View all spa services</a>.</p>`
+  },
+  '/cafe': {
+    title: `Healthy Café in Livonia, MI | ${SITE_NAME}`,
+    description: 'In-house café at Storm Wellness Club: smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks in Livonia, MI.',
+    h1: 'Healthy Café in Livonia, MI',
+    bodyContent: `<p>Storm Wellness Club's in-house café serves smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks daily. Open to members and recovery guests.</p><p>Located at 18340 Middlebelt Rd, Livonia, MI 48152.</p>`
+  },
+  '/amenities': {
+    title: `Luxury Gym Amenities in Livonia, MI | ${SITE_NAME}`,
+    description: 'Amenities at Storm Wellness Club: sauna, steam room, cold plunge, infrared sauna, salt room, outdoor terrace, premium locker rooms in Livonia, MI.',
+    h1: 'Luxury Gym Amenities in Livonia, MI',
+    bodyContent: `<p>Storm Wellness Club is built around premium amenities: dry sauna, steam room, cold plunge, infrared sauna, salt room, Starpool ZeroBody, premium locker rooms with towel service, outdoor terrace, and an in-house healthy café.</p>`
+  },
+  '/kids-care': {
+    title: `Kids Care & Childcare in Livonia, MI | ${SITE_NAME}`,
+    description: 'Supervised childcare for ages 4 months to 8 years at Storm Wellness Club in Livonia, MI. Safe, engaging, member-only.',
+    h1: 'Kids Care in Livonia, MI',
+    bodyContent: `<p>Storm Wellness Club offers supervised childcare for members' children from 4 months to 8 years old. Little Stars (4 months–1 year) and Big Stars (5–8 years) rooms with experienced staff.</p>`
   },
 };
 

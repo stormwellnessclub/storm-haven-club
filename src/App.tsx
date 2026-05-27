@@ -41,6 +41,14 @@ import Classes from "./pages/Classes";
 import Schedule from "./pages/Schedule";
 import PublicClassTypeDetail from "./pages/ClassTypeDetail";
 import Spa from "./pages/Spa";
+import SpaRedLightTherapy from "./pages/spa/RedLightTherapy";
+import SpaCryotherapy from "./pages/spa/Cryotherapy";
+import SpaInfraredSauna from "./pages/spa/InfraredSauna";
+import SpaColdPlunge from "./pages/spa/ColdPlunge";
+import SpaSaunaSteam from "./pages/spa/SaunaSteam";
+import SpaMassage from "./pages/spa/Massage";
+import SpaSaltRoom from "./pages/spa/SaltRoom";
+import SpaZerobody from "./pages/spa/Zerobody";
 import MothersDay from "./pages/MothersDay";
 import MothersDayRedeem from "./pages/MothersDayRedeem";
 import MothersDayPackRedeem from "./pages/MothersDayPackRedeem";
@@ -159,6 +167,14 @@ const App = () => (
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />
+              <Route path="/spa/red-light-therapy" element={<SpaRedLightTherapy />} />
+              <Route path="/spa/cryotherapy" element={<SpaCryotherapy />} />
+              <Route path="/spa/infrared-sauna" element={<SpaInfraredSauna />} />
+              <Route path="/spa/cold-plunge" element={<SpaColdPlunge />} />
+              <Route path="/spa/sauna-steam" element={<SpaSaunaSteam />} />
+              <Route path="/spa/massage" element={<SpaMassage />} />
+              <Route path="/spa/salt-room" element={<SpaSaltRoom />} />
+              <Route path="/spa/zerobody" element={<SpaZerobody />} />
               <Route path="/mothers-day" element={<MothersDay />} />
               <Route path="/mothers-day/success" element={<MothersDay />} />
               <Route path="/mothers-day/redeem" element={<MothersDayRedeem />} />
