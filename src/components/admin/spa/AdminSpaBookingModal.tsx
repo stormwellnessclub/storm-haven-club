@@ -426,6 +426,30 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       if (!selectedService || !appointmentTime) throw new Error("Missing required fields");
       if (conflict) throw new Error(conflict);
 
+      // Auto-apply walk-in guest if the subform is open with a name typed but
+      // the admin forgot to click "Use this guest".
+      let effectiveCustomer = selectedCustomer;
+      if (!effectiveCustomer && walkInOpen && walkInName.trim()) {
+        effectiveCustomer = {
+          type: "guest",
+          memberId: null,
+          userId: null,
+          stripeCustomerId: null,
+          name: walkInName.trim(),
+          email: walkInEmail.trim() || null,
+          phone: walkInPhone.trim() || null,
+          waiverSigned: false,
+          cardBrand: null,
+          cardLast4: null,
+        } as any;
+        setSelectedCustomer(effectiveCustomer);
+      }
+
+      if (!effectiveCustomer) {
+        throw new Error("Select a customer or add a walk-in guest before booking.");
+      }
+
+
       const resolvedTherapist = therapistId !== "auto" ? therapistId : resolvedTherapistId || null;
       const resolvedRoom = roomId !== "auto" ? roomId : resolvedRoomId || null;
 
