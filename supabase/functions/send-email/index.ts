@@ -2330,6 +2330,41 @@ serve(async (req) => {
         `;
         break;
 
+      case 'spa_review_request': {
+        const reviewUrl = data.reviewUrl || `${BASE_URL}/review/spa/${data.token}`;
+        const greetingName = data.name && String(data.name).trim() ? String(data.name).trim() : 'there';
+        const visitLine = data.serviceName
+          ? `your ${data.serviceName} visit${data.visitDate ? ' on ' + data.visitDate : ''}`
+          : `your recent visit${data.visitDate ? ' on ' + data.visitDate : ''}`;
+        subject = 'How was your visit to Storm Wellness Club?';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${greetingName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for ${visitLine}. We hope it was restorative.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you have a moment, we'd love to hear how it went — your reflection helps us care for every guest who walks through our doors.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${reviewUrl}" style="${emailStyles.button}">Leave a Review</a>
+              </div>
+              <p style="font-size: 13px; line-height: 1.6; color: #9ca3af; margin-top: 30px; text-align: center;">
+                This link is private to your appointment and expires in 90 days.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
         throw new Error(`Unknown email type: ${type}`);
     }
