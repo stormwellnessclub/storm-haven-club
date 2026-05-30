@@ -75,6 +75,8 @@ export default function MemberBookings() {
           dismissible
         />
 
+        <LeaveSpaReviewBanner />
+
         <Tabs defaultValue="upcoming" className="w-full">
           <TabsList>
             <TabsTrigger value="upcoming">
