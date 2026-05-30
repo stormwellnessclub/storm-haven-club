@@ -12,6 +12,7 @@ import { useMyReviews } from "@/hooks/useClassReviews";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { StarRating } from "@/components/reviews/StarRating";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { Calendar, Clock, MapPin, User, X, AlertTriangle, Star } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
@@ -73,6 +74,8 @@ export default function MemberBookings() {
           onLeaveReview={handleLeaveReviewFromBanner}
           dismissible
         />
+
+        <LeaveSpaReviewBanner />
 
         <Tabs defaultValue="upcoming" className="w-full">
           <TabsList>

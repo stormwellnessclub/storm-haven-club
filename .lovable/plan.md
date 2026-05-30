@@ -1,56 +1,34 @@
-# Fix: "Resolve" on failed payments does nothing
+# Make spa reviews easy to find
 
-## Root cause
+## Where it lives today
 
-`payment_attempts` has **only SELECT policies** — no UPDATE policy exists for any role.
+The spa review flow already exists (`LeaveSpaReviewBanner` → `SpaReviewDialog`, gated by `usePendingSpaReviews` which returns each member's completed appointments without a review). The problem is **visibility** — the banner is only rendered in **one place**:
 
-When an admin clicks **Resolve**, the frontend runs:
-```ts
-UPDATE payment_attempts SET resolved_at = now(), resolved_by = ..., resolution_note = ... WHERE id = ...
-```
+- `src/pages/portal/Bookings.tsx` (non-member portal → Bookings tab)
 
-With RLS enabled and no matching UPDATE policy, PostgREST returns HTTP 200 but **0 rows are actually updated**. No error is thrown, the toast says "Marked as resolved", queries are invalidated — but the row reloads with `resolved_at = NULL`, so it stays in the **Open** tab and never appears in **Resolved**.
+It's missing from every member-side surface and from the non-member dashboard, so most people with a completed spa appointment never see a prompt.
 
-This affects every resolve action on this table:
-- Per-member Confirmed Payment Issues → Mark resolved / Unresolve (`useMemberConfirmedIssues.ts`)
-- Admin → Failed Payments History → single Resolve + bulk Auto-resolve (`FailedPaymentsHistory.tsx`)
+## What I'll add
 
-## Fix
+Drop the existing `LeaveSpaReviewBanner` into the surfaces where people already check on their appointments — no new components, no backend changes:
 
-Single migration adding an UPDATE policy scoped to staff roles already used elsewhere in the project (`super_admin`, `admin`, `manager`, `front_desk`):
+1. **Member portal — My Bookings** (`src/pages/member/Bookings.tsx`)
+   Place it right under the existing class `LeaveReviewBanner` so members see both class + spa review prompts in one spot.
 
-```sql
-CREATE POLICY "Staff can update payment attempts"
-ON public.payment_attempts
-FOR UPDATE
-TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role = ANY (ARRAY['super_admin','admin','manager','front_desk']::app_role[])
-  )
-)
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_roles.user_id = auth.uid()
-      AND user_roles.role = ANY (ARRAY['super_admin','admin','manager','front_desk']::app_role[])
-  )
-);
-```
+2. **Member portal — Dashboard** (`src/pages/member/Dashboard.tsx`)
+   Same placement: directly under the class `LeaveReviewBanner` block.
 
-(Mirrors the existing "Staff can view all payment attempts" SELECT policy so the same staff who can see issues can resolve them.)
+3. **Non-member portal — Dashboard** (`src/pages/portal/Dashboard.tsx`)
+   Mirror the Bookings layout so non-member spa clients are prompted as soon as they log in.
+
+The banner self-hides (`if (!pending.length) return null;`), so it's invisible when there's nothing to review.
+
+## Out of scope (not doing unless you ask)
+
+- Public/tokenized review link for spa (same answer as class reviews — would be a new feature).
+- Post-appointment email with a "Leave a review" button.
+- Any change to the review dialog itself, names (already first + last initial), or admin moderation.
 
 ## Verification
 
-1. Open a member with a failed payment → click **Mark resolved** → enter a note → confirm.
-2. Row disappears from **Open** tab and appears in **Resolved · N** tab with timestamp + resolver email.
-3. Click **Unresolve** → row returns to **Open**.
-4. Admin → Failed Payments → Auto-resolve bulk action moves classified rows out of **Unresolved**.
-
-## Out of scope
-
-- No frontend changes required — existing mutations already write the correct columns.
-- No edge-function changes.
-- No changes to the front-desk role's scope beyond what they can already see today.
+After implementation: log in as a member with a completed spa appointment → the gold "Spa reflection" banner appears on Dashboard and My Bookings → clicking opens the existing rating dialog → submitting hides the banner.
