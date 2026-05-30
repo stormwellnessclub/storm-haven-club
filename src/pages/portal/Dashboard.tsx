@@ -155,6 +155,8 @@ export default function PortalDashboard() {
           dismissible
         />
 
+        <LeaveSpaReviewBanner />
+
         {!profileLoading && !hasCard && (
           <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="flex items-center gap-4 py-4">
