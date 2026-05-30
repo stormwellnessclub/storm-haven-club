@@ -124,6 +124,7 @@ import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
+import SpaReview from "./pages/SpaReview";
 import FrontDeskKiosk from "./pages/FrontDesk";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
