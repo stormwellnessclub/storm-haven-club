@@ -12,6 +12,7 @@ import { useUserCredits } from "@/hooks/useUserCredits";
 import { useUpcomingBookings, usePastBookings, Booking } from "@/hooks/useBooking";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { useHealthScore, useHealthScoreHistory } from "@/hooks/useHealthScore";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
