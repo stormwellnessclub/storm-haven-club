@@ -197,6 +197,7 @@ const App = () => (
               <Route path="/faq" element={<FAQ />} />
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
+              <Route path="/review/spa/:token" element={<SpaReview />} />
               <Route path="/design-system" element={<DesignSystem />} />
               <Route path="/site-audit" element={<SiteAudit />} />
               <Route path="/merch" element={<Merch />} />
