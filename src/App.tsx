@@ -124,6 +124,7 @@ import Merch from "./pages/Merch";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
+import SpaReview from "./pages/SpaReview";
 import FrontDeskKiosk from "./pages/FrontDesk";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -196,6 +197,7 @@ const App = () => (
               <Route path="/faq" element={<FAQ />} />
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
+              <Route path="/review/spa/:token" element={<SpaReview />} />
               <Route path="/design-system" element={<DesignSystem />} />
               <Route path="/site-audit" element={<SiteAudit />} />
               <Route path="/merch" element={<Merch />} />

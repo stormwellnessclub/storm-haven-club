@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Info, DollarSign } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability } from "@/hooks/useSpaBooking";
+import { SpaReviewLinkButton } from "@/components/admin/spa/SpaReviewLinkButton";
 import { format } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { parseTimeInput } from "@/lib/parseTimeInput";
@@ -306,6 +307,12 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
         </DialogHeader>
 
         <div className="space-y-4">
+          {appointment.status === "completed" && (
+            <div className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30">
+              <p className="text-xs text-muted-foreground">Share a review link with this guest</p>
+              <SpaReviewLinkButton appointmentId={appointment.id} />
+            </div>
+          )}
           {/* Service */}
           <div>
             <Label>Service *</Label>
