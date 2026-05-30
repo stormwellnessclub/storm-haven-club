@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Info, DollarSign } from "lucide-react";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability } from "@/hooks/useSpaBooking";
+import { SpaReviewLinkButton } from "@/components/admin/spa/SpaReviewLinkButton";
 import { format } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
 import { parseTimeInput } from "@/lib/parseTimeInput";
