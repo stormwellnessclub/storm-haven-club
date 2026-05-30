@@ -174,6 +174,8 @@ export default function MemberDashboard() {
           dismissible
         />
 
+        <LeaveSpaReviewBanner />
+
         {/* Frozen Benefits Notice */}
         {hasFrozenBenefits && (
           <AnimatedSection animation="fade-in">
