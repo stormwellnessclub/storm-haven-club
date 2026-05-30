@@ -18,6 +18,7 @@ import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { MyCafeCreditCard } from "@/components/portal/MyCafeCreditCard";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
+import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 
 
