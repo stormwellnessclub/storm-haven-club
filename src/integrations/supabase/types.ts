@@ -6190,6 +6190,68 @@ export type Database = {
           },
         ]
       }
+      spa_review_tokens: {
+        Row: {
+          appointment_date: string
+          appointment_id: string
+          appointment_time: string
+          created_at: string
+          email_sent_at: string | null
+          expires_at: string
+          recipient_email: string | null
+          recipient_name: string | null
+          service_id_text: string | null
+          service_id_uuid: string | null
+          service_name: string | null
+          therapist_id: string | null
+          token: string
+          used_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          appointment_date: string
+          appointment_id: string
+          appointment_time: string
+          created_at?: string
+          email_sent_at?: string | null
+          expires_at?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          service_id_text?: string | null
+          service_id_uuid?: string | null
+          service_name?: string | null
+          therapist_id?: string | null
+          token?: string
+          used_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          appointment_date?: string
+          appointment_id?: string
+          appointment_time?: string
+          created_at?: string
+          email_sent_at?: string | null
+          expires_at?: string
+          recipient_email?: string | null
+          recipient_name?: string | null
+          service_id_text?: string | null
+          service_id_uuid?: string | null
+          service_name?: string | null
+          therapist_id?: string | null
+          token?: string
+          used_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_review_tokens_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_reviews: {
         Row: {
           appointment_id: string
@@ -6198,10 +6260,12 @@ export type Database = {
           is_visible: boolean
           rating: number
           review_text: string | null
+          reviewer_display_name: string | null
           service_id: string
+          source: string
           therapist_id: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           appointment_id: string
@@ -6210,10 +6274,12 @@ export type Database = {
           is_visible?: boolean
           rating: number
           review_text?: string | null
+          reviewer_display_name?: string | null
           service_id: string
+          source?: string
           therapist_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           appointment_id?: string
@@ -6222,10 +6288,12 @@ export type Database = {
           is_visible?: boolean
           rating?: number
           review_text?: string | null
+          reviewer_display_name?: string | null
           service_id?: string
+          source?: string
           therapist_id?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -7585,6 +7653,10 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      ensure_spa_review_token: {
+        Args: { _appointment_id: string }
+        Returns: string
+      }
       evaluate_member_check_in_eligibility: {
         Args: { p_member_id: string }
         Returns: Json
@@ -7775,6 +7847,19 @@ export type Database = {
         Returns: {
           anon_key: string
           supabase_url: string
+        }[]
+      }
+      get_spa_review_token_info: {
+        Args: { _token: string }
+        Returns: {
+          already_used: boolean
+          appointment_date: string
+          appointment_time: string
+          expired: boolean
+          reviewer_name: string
+          service_name: string
+          therapist_name: string
+          valid: boolean
         }[]
       }
       get_spa_reviews_with_names: {
@@ -8012,6 +8097,15 @@ export type Database = {
           p_credit_type: string
           p_member_id: string
           p_staff_notes?: string
+        }
+        Returns: Json
+      }
+      submit_spa_review_via_token: {
+        Args: {
+          _display_name?: string
+          _rating: number
+          _review_text?: string
+          _token: string
         }
         Returns: Json
       }
