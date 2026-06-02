@@ -1,9 +1,16 @@
 import { useMemo, useState } from "react";
-import { useSpaReviewsList, useSpaServiceRatings } from "@/hooks/useSpaReviews";
+import { useSpaReviewsList, useSpaServiceRatings, usePendingSpaReviews } from "@/hooks/useSpaReviews";
 import { useSpaServices } from "@/hooks/useSpaManagement";
 import { StarRating } from "@/components/reviews/StarRating";
 import { SpaReviewsList } from "@/components/spa/SpaReviewsList";
+import { PublicSpaReviewDialog } from "@/components/spa/PublicSpaReviewDialog";
+import { SpaReviewDialog } from "@/components/spa/SpaReviewDialog";
 import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { format, parseISO } from "date-fns";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
