@@ -55,8 +55,10 @@ export function SpaReviewsAdminTab() {
   const [therapistFilter, setTherapistFilter] = useState<string>("all");
   const [visibilityFilter, setVisibilityFilter] = useState<string>("all");
 
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+
   const userIds = useMemo(
-    () => Array.from(new Set(reviews.map((r) => r.user_id).filter(Boolean))),
+    () => Array.from(new Set(reviews.map((r) => r.user_id).filter(Boolean) as string[])),
     [reviews]
   );
   const { data: reviewerMap = {} } = useReviewerProfiles(userIds);
@@ -67,9 +69,11 @@ export function SpaReviewsAdminTab() {
       if (therapistFilter !== "all" && r.therapist_id !== therapistFilter) return false;
       if (visibilityFilter === "visible" && !r.is_visible) return false;
       if (visibilityFilter === "hidden" && r.is_visible) return false;
+      if (visibilityFilter === "pending" && r.is_visible) return false;
+      if (sourceFilter !== "all" && (r.source || "portal") !== sourceFilter) return false;
       return true;
     });
-  }, [reviews, serviceFilter, therapistFilter, visibilityFilter]);
+  }, [reviews, serviceFilter, therapistFilter, visibilityFilter, sourceFilter]);
 
   const serviceMap = new Map(services.map((s) => [s.id, s.name]));
   const therapistMap = new Map(therapists.map((t) => [t.id, t.full_name]));
