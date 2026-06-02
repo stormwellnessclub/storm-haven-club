@@ -151,6 +151,64 @@ export function SpaReviewsTab({ initialServiceId }: SpaReviewsTabProps) {
             : "No reviews yet — be the first to share your experience."
         }
       />
+
+      <PublicSpaReviewDialog
+        open={publicOpen}
+        onOpenChange={setPublicOpen}
+        initialServiceId={serviceId !== "all" ? serviceId : (initialServiceId ?? null)}
+      />
+
+      <Dialog open={pendingPickerOpen} onOpenChange={setPendingPickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose a treatment to review</DialogTitle>
+            <DialogDescription>
+              You have completed appointments waiting for a review.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {pending.map((p) => (
+              <button
+                key={p.appointment_id}
+                type="button"
+                className="w-full text-left border border-border rounded-md p-3 hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  setPendingSelected(p);
+                  setPendingPickerOpen(false);
+                }}
+              >
+                <p className="font-medium text-sm">{p.service_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(parseISO(p.appointment_date), "MMM d, yyyy")}
+                  {p.therapist_name ? ` · ${p.therapist_name}` : ""}
+                </p>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="w-full text-left border border-dashed border-border rounded-md p-3 hover:bg-muted/50 transition-colors text-sm text-muted-foreground"
+              onClick={() => {
+                setPendingPickerOpen(false);
+                setPublicOpen(true);
+              }}
+            >
+              None of these — leave a general review
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {pendingSelected && pendingSelected.service_id && (
+        <SpaReviewDialog
+          open={!!pendingSelected}
+          onOpenChange={(open) => { if (!open) setPendingSelected(null); }}
+          appointmentId={pendingSelected.appointment_id}
+          serviceId={pendingSelected.service_id}
+          therapistId={pendingSelected.therapist_id}
+          serviceName={pendingSelected.service_name}
+          therapistName={pendingSelected.therapist_name}
+        />
+      )}
     </div>
   );
 }
