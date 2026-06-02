@@ -25,7 +25,7 @@ export function PublicSpaReviewDialog({
   open, onOpenChange, initialServiceId,
 }: PublicSpaReviewDialogProps) {
   const { user } = useAuth();
-  const { data: profile } = useUserProfile();
+  const { profile } = useUserProfile();
   const { data: services = [] } = useSpaServices();
   const { data: therapists = [] } = useSpaTherapists();
 
