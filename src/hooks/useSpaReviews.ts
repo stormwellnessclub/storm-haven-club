@@ -5,14 +5,17 @@ import { toast } from "sonner";
 
 export interface SpaReview {
   id: string;
-  user_id: string;
-  appointment_id: string;
+  user_id: string | null;
+  appointment_id: string | null;
   service_id: string;
   therapist_id: string | null;
   rating: number;
   review_text: string | null;
   is_visible: boolean;
   created_at: string;
+  source?: string;
+  reviewer_display_name?: string | null;
+  reviewer_email?: string | null;
 }
 
 export interface SpaReviewWithReviewer {

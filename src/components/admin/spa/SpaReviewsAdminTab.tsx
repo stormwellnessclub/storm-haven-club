@@ -55,8 +55,10 @@ export function SpaReviewsAdminTab() {
   const [therapistFilter, setTherapistFilter] = useState<string>("all");
   const [visibilityFilter, setVisibilityFilter] = useState<string>("all");
 
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
+
   const userIds = useMemo(
-    () => Array.from(new Set(reviews.map((r) => r.user_id).filter(Boolean))),
+    () => Array.from(new Set(reviews.map((r) => r.user_id).filter(Boolean) as string[])),
     [reviews]
   );
   const { data: reviewerMap = {} } = useReviewerProfiles(userIds);
@@ -67,9 +69,11 @@ export function SpaReviewsAdminTab() {
       if (therapistFilter !== "all" && r.therapist_id !== therapistFilter) return false;
       if (visibilityFilter === "visible" && !r.is_visible) return false;
       if (visibilityFilter === "hidden" && r.is_visible) return false;
+      if (visibilityFilter === "pending" && r.is_visible) return false;
+      if (sourceFilter !== "all" && (r.source || "portal") !== sourceFilter) return false;
       return true;
     });
-  }, [reviews, serviceFilter, therapistFilter, visibilityFilter]);
+  }, [reviews, serviceFilter, therapistFilter, visibilityFilter, sourceFilter]);
 
   const serviceMap = new Map(services.map((s) => [s.id, s.name]));
   const therapistMap = new Map(therapists.map((t) => [t.id, t.full_name]));
@@ -99,14 +103,27 @@ export function SpaReviewsAdminTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[140px]">
-          <label className="text-xs text-muted-foreground mb-1 block">Visibility</label>
+        <div className="min-w-[160px]">
+          <label className="text-xs text-muted-foreground mb-1 block">Status</label>
           <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              <SelectItem value="visible">Visible only</SelectItem>
-              <SelectItem value="hidden">Hidden only</SelectItem>
+              <SelectItem value="pending">Pending moderation</SelectItem>
+              <SelectItem value="visible">Approved (visible)</SelectItem>
+              <SelectItem value="hidden">Hidden</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[140px]">
+          <label className="text-xs text-muted-foreground mb-1 block">Source</label>
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              <SelectItem value="portal">Member portal</SelectItem>
+              <SelectItem value="token">Email link</SelectItem>
+              <SelectItem value="public">Public website</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -123,23 +140,36 @@ export function SpaReviewsAdminTab() {
       ) : (
         <div className="space-y-2">
           {filtered.map((r) => {
-            const reviewer = reviewerMap[r.user_id];
+            const reviewer = r.user_id ? reviewerMap[r.user_id] : null;
+            const displayName = reviewer?.name || r.reviewer_display_name || (r.source === "public" ? "Guest" : "Member");
+            const displayEmail = reviewer?.email || r.reviewer_email || null;
+            const sourceLabel =
+              r.source === "public" ? "Public" :
+              r.source === "token" ? "Email link" :
+              "Portal";
             return (
               <div
                 key={r.id}
                 className={`border border-border rounded-md p-4 space-y-2 ${
-                  !r.is_visible ? "bg-muted/40" : "bg-card"
+                  !r.is_visible ? "bg-amber-500/5 border-amber-500/30" : "bg-card"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <StarRating rating={r.rating} size="sm" />
-                      <span className="text-sm font-medium">{reviewer?.name || "Member"}</span>
-                      {reviewer?.email && (
-                        <span className="text-xs text-muted-foreground">· {reviewer.email}</span>
+                      <span className="text-sm font-medium">{displayName}</span>
+                      {displayEmail && (
+                        <span className="text-xs text-muted-foreground">· {displayEmail}</span>
                       )}
-                      {!r.is_visible && <Badge variant="secondary" className="text-xs">Hidden</Badge>}
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                        {sourceLabel}
+                      </Badge>
+                      {!r.is_visible && (
+                        <Badge variant="secondary" className="text-xs bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                          Pending
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {serviceMap.get(r.service_id) || "Unknown service"}
@@ -153,7 +183,7 @@ export function SpaReviewsAdminTab() {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      variant="outline"
+                      variant={!r.is_visible ? "default" : "outline"}
                       disabled={updateVisibility.isPending}
                       onClick={() =>
                         updateVisibility.mutate({ reviewId: r.id, isVisible: !r.is_visible })
@@ -162,7 +192,7 @@ export function SpaReviewsAdminTab() {
                       {r.is_visible ? (
                         <><EyeOff className="h-3 w-3 mr-1" />Hide</>
                       ) : (
-                        <><Eye className="h-3 w-3 mr-1" />Unhide</>
+                        <><Eye className="h-3 w-3 mr-1" />Approve</>
                       )}
                     </Button>
                     {isSuper && (

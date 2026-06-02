@@ -1,9 +1,16 @@
 import { useMemo, useState } from "react";
-import { useSpaReviewsList, useSpaServiceRatings } from "@/hooks/useSpaReviews";
+import { useSpaReviewsList, useSpaServiceRatings, usePendingSpaReviews } from "@/hooks/useSpaReviews";
 import { useSpaServices } from "@/hooks/useSpaManagement";
 import { StarRating } from "@/components/reviews/StarRating";
 import { SpaReviewsList } from "@/components/spa/SpaReviewsList";
+import { PublicSpaReviewDialog } from "@/components/spa/PublicSpaReviewDialog";
+import { SpaReviewDialog } from "@/components/spa/SpaReviewDialog";
 import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { format, parseISO } from "date-fns";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -19,6 +26,20 @@ export function SpaReviewsTab({ initialServiceId }: SpaReviewsTabProps) {
   const [serviceId, setServiceId] = useState<string>(initialServiceId || "all");
 
   const { data: allReviews = [] } = useSpaReviewsList(null);
+  const { data: pending = [] } = usePendingSpaReviews();
+  const [publicOpen, setPublicOpen] = useState(false);
+  const [pendingPickerOpen, setPendingPickerOpen] = useState(false);
+  const [pendingSelected, setPendingSelected] = useState<typeof pending[number] | null>(null);
+
+  const handleLeaveReview = () => {
+    if (pending.length === 1) {
+      setPendingSelected(pending[0]);
+    } else if (pending.length > 1) {
+      setPendingPickerOpen(true);
+    } else {
+      setPublicOpen(true);
+    }
+  };
 
   const overall = useMemo(() => {
     if (!allReviews.length) return { avg: 0, count: 0 };
@@ -44,6 +65,20 @@ export function SpaReviewsTab({ initialServiceId }: SpaReviewsTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Leave a review CTA */}
+      <div className="rounded-lg border border-border bg-gradient-to-br from-primary/5 to-transparent p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">Visited the spa?</p>
+          <p className="text-sm text-foreground">
+            Share your experience — reviews are moderated and only your first name &amp; last initial appear publicly.
+          </p>
+        </div>
+        <Button onClick={handleLeaveReview} className="shrink-0">
+          <Sparkles className="h-4 w-4 mr-2" />
+          Leave a Review
+        </Button>
+      </div>
+
       {/* Overall summary */}
       <div className="rounded-lg border border-border bg-card p-6 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Spa Reviews</p>
@@ -116,6 +151,64 @@ export function SpaReviewsTab({ initialServiceId }: SpaReviewsTabProps) {
             : "No reviews yet — be the first to share your experience."
         }
       />
+
+      <PublicSpaReviewDialog
+        open={publicOpen}
+        onOpenChange={setPublicOpen}
+        initialServiceId={serviceId !== "all" ? serviceId : (initialServiceId ?? null)}
+      />
+
+      <Dialog open={pendingPickerOpen} onOpenChange={setPendingPickerOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choose a treatment to review</DialogTitle>
+            <DialogDescription>
+              You have completed appointments waiting for a review.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {pending.map((p) => (
+              <button
+                key={p.appointment_id}
+                type="button"
+                className="w-full text-left border border-border rounded-md p-3 hover:bg-muted/50 transition-colors"
+                onClick={() => {
+                  setPendingSelected(p);
+                  setPendingPickerOpen(false);
+                }}
+              >
+                <p className="font-medium text-sm">{p.service_name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(parseISO(p.appointment_date), "MMM d, yyyy")}
+                  {p.therapist_name ? ` · ${p.therapist_name}` : ""}
+                </p>
+              </button>
+            ))}
+            <button
+              type="button"
+              className="w-full text-left border border-dashed border-border rounded-md p-3 hover:bg-muted/50 transition-colors text-sm text-muted-foreground"
+              onClick={() => {
+                setPendingPickerOpen(false);
+                setPublicOpen(true);
+              }}
+            >
+              None of these — leave a general review
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {pendingSelected && pendingSelected.service_id && (
+        <SpaReviewDialog
+          open={!!pendingSelected}
+          onOpenChange={(open) => { if (!open) setPendingSelected(null); }}
+          appointmentId={pendingSelected.appointment_id}
+          serviceId={pendingSelected.service_id}
+          therapistId={pendingSelected.therapist_id}
+          serviceName={pendingSelected.service_name}
+          therapistName={pendingSelected.therapist_name}
+        />
+      )}
     </div>
   );
 }
