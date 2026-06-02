@@ -1,88 +1,77 @@
+# Add public "Leave a Review" CTA on the spa Reviews tab
+
+## Problem
+
+On the public spa pages (`/spa/*`) the Reviews tab shows ratings and existing reviews but has **no way for a visitor to actually leave one**. Today, reviews only come from (a) the post-appointment email token link, (b) the member/non-member portal banner, or (c) an admin-shared link.
+
 ## Goal
 
-1. Customers can leave a spa review from a shareable link — works whether they're logged in or not.
-2. An email goes out automatically after a completed spa appointment with a "Leave a review" button. Admin can also copy/share the link manually.
-3. Make sure the admin moderation surface (which already exists) is easy to find, and reviews submitted via the public link land there for hide/delete.
+Make submitting a spa review obvious from the public Reviews tab, for both signed-in customers and anonymous visitors. All public submissions stay moderated.
 
----
+## Scope
 
-## 1. Public spa review page (token-based, no login required)
+UI/frontend only — leverage the existing `submit_spa_review_via_token` flow plus a new "open" submission path. No changes to admin moderation (that already lives under Admin → Spa Management → Reviews).
 
-**New table `spa_review_tokens`**
-- `token` (uuid, primary key)
-- `appointment_id` (uuid, unique — one token per appointment)
-- `service_id`, `therapist_id`, `user_id` (nullable, captured from appointment for context)
-- `expires_at` (90 days)
-- `used_at` (null until submitted)
-- RLS: no direct client access. Only SECURITY DEFINER RPCs read/write it.
+## What to build
 
-**New RPCs**
-- `get_spa_review_token_info(_token)` → returns `{ service_name, therapist_name, appointment_date, already_used, expired }`. Public/anon callable.
-- `submit_spa_review_via_token(_token, _rating, _review_text)` → validates token, inserts into existing `spa_reviews` table (with `user_id` from token if present, otherwise null), marks token used. Public/anon callable. Returns success/error.
+### 1. New `LeaveSpaReviewCTA` block at the top of `SpaReviewsTab`
 
-**Schema tweak to `spa_reviews`**: allow `user_id` to be nullable so anonymous (guest, no-account) submissions can land. Admin UI already falls back to "Member" label when reviewer not found — fine.
+A prominent card above the overall rating summary with a primary "Leave a Review" button. Behavior depends on auth state:
 
-**New page `/review/spa/:token`** (public, no auth gate)
-- Calls `get_spa_review_token_info` on mount.
-- Shows service + therapist + date, star picker (StarRating reused), optional text.
-- States: invalid token, expired, already submitted ("Thanks!"), submit form, success.
-- Reuses existing `ReviewDialog` styling, rendered as a full page.
+- **Signed-in user with pending spa appointments** → button opens the existing `SpaReviewDialog` for their appointment (reuses `usePendingSpaReviews` / `LeaveSpaReviewBanner` logic, but inline). If multiple pending, show the same "choose a treatment" picker.
+- **Signed-in user with no pending appointments** OR **anonymous visitor** → button opens a new "Public Spa Review" dialog (see below).
 
----
+### 2. New `PublicSpaReviewDialog` component
 
-## 2. Token issuance + email + manual share
+A lightweight dialog that does not require a token:
 
-**Token creation trigger**: Database trigger on `spa_appointments` — when `status` transitions to `completed`, insert a row into `spa_review_tokens` (idempotent on `appointment_id`).
+- Service picker (defaults to current page's service if the tab is opened with `initialServiceId`).
+- Optional therapist picker (populated from `useSpaServices` → therapists assigned to that service; "Not sure / not listed" allowed).
+- Star rating (required, 1–5).
+- Display name (required for guests, prefilled for signed-in users).
+- Email (required for guests, prefilled for signed-in users) — used only for moderation contact, not displayed publicly.
+- Review text (optional, max 1000 chars).
+- Honeypot field + simple per-IP/email rate-limit (1 submission / 10 min) on the backend.
+- Submit calls a new RPC `submit_public_spa_review` that inserts into `spa_reviews` with `source = 'public'` and `is_published = false` (pending moderation).
 
-**Auto email** (post-completion)
-- New edge function `send-spa-review-request` mirrors existing transactional senders.
-- Triggered by a small cron job (every 15 min, like `process-guest-feedback-emails`) that finds `spa_review_tokens` rows where `email_sent_at IS NULL` AND appointment completed ≥ 30 min ago, then sends and stamps `email_sent_at`.
-- Email body: matches Storm Wellness Club template (neutral open-club tone, "The Storm Wellness Club Team" signature). Single CTA button → `https://stormwellnessclub.com/review/spa/{token}`.
-- Recipient: appointment's email (members table or non_member_profiles); skip if no email on file.
+Reuses the same display rules already in `get_spa_reviews_with_names` (first name + last initial, or "Guest").
 
-**Manual admin share**
-- In `SpaCompletionDialog` and in the appointment row on `SpaManagement`, add a "Copy review link" button (super admin / staff). Calls a small RPC `ensure_spa_review_token(_appointment_id)` that returns the token (creates one if completion already happened pre-trigger). Copies the full URL.
+### 3. Backend additions
 
----
+- New SECURITY DEFINER RPC `public.submit_public_spa_review(_service_id, _therapist_id, _rating, _review_text, _display_name, _email, _honeypot)`:
+  - Validates rating 1–5, honeypot empty, display name length.
+  - Rate-limits by lowercased email (≤1 per 10 min, ≤3 per day).
+  - Inserts into `spa_reviews` with `appointment_id = null`, `source = 'public'`, `is_published = false`, `reviewer_display_name = _display_name`, `reviewer_email = lower(_email)`.
+  - Returns `{ success, error? }`.
+- Add columns to `spa_reviews` if missing:
+  - `reviewer_email text` (nullable, for moderation contact / rate limit; never returned by `get_spa_reviews_with_names`).
+  - Extend `source` check to allow `'public'`.
+- `get_spa_reviews_with_names` already filters by `is_published = true`, so unmoderated public submissions stay hidden from the tab until an admin approves.
 
-## 3. Surface the existing admin moderation
+### 4. Admin moderation surface
 
-It already lives at **Admin → Spa Management → Reviews tab** (`SpaReviewsAdminTab`). Hide/Unhide for staff, Delete for super admin, filter by service/therapist/visibility.
+`Admin → Spa Management → Reviews` already lists all rows. Add:
 
-Improvements so it's discoverable and complete:
-- Add a top-level **"Reviews"** link in the admin sidebar under Spa (deep-links to `/admin/spa-management?tab=reviews`).
-- In the reviews list, show a small **"via public link"** badge when the review was submitted through a token (we'll set this by storing `source` = `'token' | 'portal'` on `spa_reviews`).
-- Anonymous (no `user_id`) reviews display as "Guest" with the appointment's first name + initial when available.
-- Confirm Delete is wired (it is) and bump it from super-admin only to admin+ so moderation isn't bottlenecked. *(Confirm with you — keep super-admin only?)*
+- A "Source" column/badge (`portal`, `token`, `public`).
+- A "Pending" filter chip that shows `is_published = false` rows first, with one-click Approve / Reject buttons (Reject = delete row). This makes public submissions easy to triage.
 
----
+### 5. Copy + UX
 
-## Technical notes
+- CTA card heading: "Visited the spa?"
+- Subhead: "Share your experience — reviews are moderated and only your first name & last initial appear publicly."
+- Button: "Leave a Review"
+- Confirmation toast on submit: "Thanks — your review is in for moderation."
 
-```text
-Completion ──trigger──▶ spa_review_tokens row
-                             │
-              cron (15m) ────┴──▶ send-spa-review-request email
-                                       │
-                Customer clicks ───────┴──▶ /review/spa/:token
-                                                  │
-                          submit_spa_review_via_token RPC
-                                                  │
-                                            spa_reviews
-                                                  │
-                                Admin → Spa Mgmt → Reviews (hide/delete)
-```
+## Files touched
 
-- Reuses existing `spa_reviews`, `LeaveSpaReviewBanner`, `ReviewDialog`, `StarRating`, `SpaReviewsAdminTab`.
-- No changes to portal review flow — logged-in members still submit via portal banner.
-- One token per appointment, 90-day expiry, single-use.
-- All Edge Functions deployed with `verify_jwt = false` for the public RPC endpoints; submission RPC is rate-limit-safe (token can only be used once).
-
----
+- `src/components/spa/SpaReviewsTab.tsx` — add CTA card at top, wire dialog state.
+- `src/components/spa/PublicSpaReviewDialog.tsx` *(new)* — guest/public submission form.
+- `src/components/spa/SpaReviewsTab.tsx` — reuse `usePendingSpaReviews` for signed-in shortcut.
+- `src/pages/admin/SpaManagement.tsx` (or the existing reviews subcomponent) — add Source badge + Pending filter + Approve/Reject controls.
+- Migration: extend `spa_reviews` (column + check constraint), add `submit_public_spa_review` RPC with rate-limit logic.
 
 ## Out of scope
 
-- Public link for class reviews (decided: spa only for now).
-- SMS delivery of the link (email only; can add later via existing Twilio infra).
-- Admin reply/response under reviews.
-- Email notification to staff on each new review.
+- Changing the existing tokenized email flow.
+- Changing how moderated reviews render publicly.
+- SMS/email notification to admins on new public submission (can be added later if desired).
