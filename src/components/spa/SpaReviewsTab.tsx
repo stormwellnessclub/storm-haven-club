@@ -65,6 +65,20 @@ export function SpaReviewsTab({ initialServiceId }: SpaReviewsTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Leave a review CTA */}
+      <div className="rounded-lg border border-border bg-gradient-to-br from-primary/5 to-transparent p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">Visited the spa?</p>
+          <p className="text-sm text-foreground">
+            Share your experience — reviews are moderated and only your first name &amp; last initial appear publicly.
+          </p>
+        </div>
+        <Button onClick={handleLeaveReview} className="shrink-0">
+          <Sparkles className="h-4 w-4 mr-2" />
+          Leave a Review
+        </Button>
+      </div>
+
       {/* Overall summary */}
       <div className="rounded-lg border border-border bg-card p-6 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Spa Reviews</p>
