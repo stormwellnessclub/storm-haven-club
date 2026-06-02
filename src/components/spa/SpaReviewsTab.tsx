@@ -26,6 +26,20 @@ export function SpaReviewsTab({ initialServiceId }: SpaReviewsTabProps) {
   const [serviceId, setServiceId] = useState<string>(initialServiceId || "all");
 
   const { data: allReviews = [] } = useSpaReviewsList(null);
+  const { data: pending = [] } = usePendingSpaReviews();
+  const [publicOpen, setPublicOpen] = useState(false);
+  const [pendingPickerOpen, setPendingPickerOpen] = useState(false);
+  const [pendingSelected, setPendingSelected] = useState<typeof pending[number] | null>(null);
+
+  const handleLeaveReview = () => {
+    if (pending.length === 1) {
+      setPendingSelected(pending[0]);
+    } else if (pending.length > 1) {
+      setPendingPickerOpen(true);
+    } else {
+      setPublicOpen(true);
+    }
+  };
 
   const overall = useMemo(() => {
     if (!allReviews.length) return { avg: 0, count: 0 };
