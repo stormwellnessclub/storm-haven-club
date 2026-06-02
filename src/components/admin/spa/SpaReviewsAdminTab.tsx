@@ -103,14 +103,27 @@ export function SpaReviewsAdminTab() {
             </SelectContent>
           </Select>
         </div>
-        <div className="min-w-[140px]">
-          <label className="text-xs text-muted-foreground mb-1 block">Visibility</label>
+        <div className="min-w-[160px]">
+          <label className="text-xs text-muted-foreground mb-1 block">Status</label>
           <Select value={visibilityFilter} onValueChange={setVisibilityFilter}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All</SelectItem>
-              <SelectItem value="visible">Visible only</SelectItem>
-              <SelectItem value="hidden">Hidden only</SelectItem>
+              <SelectItem value="pending">Pending moderation</SelectItem>
+              <SelectItem value="visible">Approved (visible)</SelectItem>
+              <SelectItem value="hidden">Hidden</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="min-w-[140px]">
+          <label className="text-xs text-muted-foreground mb-1 block">Source</label>
+          <Select value={sourceFilter} onValueChange={setSourceFilter}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All sources</SelectItem>
+              <SelectItem value="portal">Member portal</SelectItem>
+              <SelectItem value="token">Email link</SelectItem>
+              <SelectItem value="public">Public website</SelectItem>
             </SelectContent>
           </Select>
         </div>
