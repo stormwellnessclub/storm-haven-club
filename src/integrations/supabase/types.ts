@@ -6254,13 +6254,14 @@ export type Database = {
       }
       spa_reviews: {
         Row: {
-          appointment_id: string
+          appointment_id: string | null
           created_at: string
           id: string
           is_visible: boolean
           rating: number
           review_text: string | null
           reviewer_display_name: string | null
+          reviewer_email: string | null
           service_id: string
           source: string
           therapist_id: string | null
@@ -6268,13 +6269,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
-          appointment_id: string
+          appointment_id?: string | null
           created_at?: string
           id?: string
           is_visible?: boolean
           rating: number
           review_text?: string | null
           reviewer_display_name?: string | null
+          reviewer_email?: string | null
           service_id: string
           source?: string
           therapist_id?: string | null
@@ -6282,13 +6284,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
-          appointment_id?: string
+          appointment_id?: string | null
           created_at?: string
           id?: string
           is_visible?: boolean
           rating?: number
           review_text?: string | null
           reviewer_display_name?: string | null
+          reviewer_email?: string | null
           service_id?: string
           source?: string
           therapist_id?: string | null
@@ -8097,6 +8100,18 @@ export type Database = {
           p_credit_type: string
           p_member_id: string
           p_staff_notes?: string
+        }
+        Returns: Json
+      }
+      submit_public_spa_review: {
+        Args: {
+          _display_name: string
+          _email: string
+          _honeypot?: string
+          _rating: number
+          _review_text: string
+          _service_id: string
+          _therapist_id: string
         }
         Returns: Json
       }
