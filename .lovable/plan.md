@@ -1,38 +1,23 @@
-# Teresa Pay Log PDF — 5/18/26 to 5/31/26
+## Issue
+Summer Haidous's Kids Care subscription successfully renewed on Stripe (charge `py_3TZI2zLyZrsSqLhs0Ku2DmZk`, $77.55 against `cus_TtNJbHvxfYdbJT`), but no new `class_passes` row was provisioned. Her last active pass (`f6a0f59c-…`) expired 2026-05-19, so the booking gate sees "no active pass" and tells her to buy one.
 
-Generate a one-off Storm-branded PDF (saved to `/mnt/documents/`) matching the prior format, with turnover time now **paid** and shown in its own box.
+## Fix (data-only, one INSERT)
 
-## Numbers
+Create a new active kids_care pass for Summer covering the new billing cycle, mirroring the prior pass row:
 
-**Service Hours (paid @ $26/hr)**
-- 90-min: 5 sessions × 1.5 hr = 7.5 hrs → $195.00
-  (Carly 5/22, Lama 5/23, Duha 5/28, Nada 5/30, Fatemah Ayoub 5/30 — upgraded from 60)
-- 60-min: 3 sessions × 1.0 hr = 3.0 hrs → $78.00
-  (Susan 5/21, Khadijah 5/23, Jehad 5/30)
-- **Subtotal: 10.5 hrs / $273.00**
+- `user_id`: `f865462f-ba02-4d00-86ea-5475add08cd9`
+- `member_id`: `3c7f0bfc-d7ca-46bf-a62a-0903444e3012`
+- `pass_type`: `kids_care`
+- `category`: `other`
+- `classes_total`: 16
+- `classes_remaining`: 16
+- `status`: `active`
+- `purchased_at`: 2026-05-20 00:00:00 America/Chicago
+- `expires_at`: 2026-06-19 23:59:59 America/Chicago (cycle_start + 1 month − 1 day, per credit-management rule)
+- `price_paid`: 75.00
+- `is_member_price`: true
 
-**Turnover (paid — separate box, @ $26/hr)**
-- 8 sessions × 15 min = 2.0 hrs → **$52.00**
+No code changes. After insert, Summer's KidsCarePassGate will see an active pass and the "buy new pass" prompt goes away; she can immediately book for Aria.
 
-**Credit Card Tips (to pay out)**
-- Lama $40, Duha $60, Nada $40.50, Jehad $40, Fatemah Ayoub $20 → **$200.50**
-
-**Cash Tips (already received — informational)**
-- Susan $45, Carly $30 → **$75.00**
-
-**TOTAL TO PAY:** $273.00 + $52.00 + $200.50 = **$525.50**
-Total earned incl. cash tips: **$600.50**
-Total hours worked: **12.5 hrs**
-
-## Deliverable
-
-A single Storm-branded PDF written to `/mnt/documents/pay_summary-Teresa_5-18-26_TO_5-31-26.pdf` with sections:
-1. Header — Storm Wellness Club branding, therapist name, pay period
-2. Appointments detail table (date, customer, duration, tip, payment method)
-3. Service Hours box (subtotal $273.00)
-4. **Turnover Time box — PAID** (2.0 hrs, $52.00)
-5. Credit Card Tips box ($200.50)
-6. Cash Tips box (informational, $75.00)
-7. Total Pay Summary highlight ($525.50)
-
-No app code changes — script-generated PDF only.
+## Out of scope
+- Investigating why the renewal webhook didn't auto-provision the pass (separate follow-up if you want me to dig into `stripe-webhook` for the `invoice.payment_succeeded` event on her kids_care subscription).
