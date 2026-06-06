@@ -3158,12 +3158,11 @@ serve(async (req) => {
             break;
           }
 
-          // Find member by subscription ID
-          const { data: memberData, error: memberError } = await supabase
-            .from('members')
-            .select('id')
-            .eq('stripe_subscription_id', invoice.subscription as string)
-            .maybeSingle();
+          const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
+            supabase,
+            invoice,
+            'id, stripe_subscription_id, annual_fee_subscription_id',
+          );
 
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_ACTION_REQUIRED_MEMBER_LOOKUP");
@@ -3189,6 +3188,7 @@ serve(async (req) => {
               p_status: 'requires_action',
               p_attempt_number: invoice.attempt_count || 1,
               p_metadata: {
+                charge_type: subscriptionType,
                 billing_reason: invoice.billing_reason,
                 payment_intent_client_secret: typeof paymentIntent === 'object' ? paymentIntent.client_secret : null
               }
