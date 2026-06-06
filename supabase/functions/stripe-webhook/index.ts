@@ -164,6 +164,97 @@ const errorResponse = (error: unknown, context?: string) => {
 };
 
 type InvoiceChargeType = 'membership_dues' | 'annual_fee' | 'class_pass' | 'guest_pass' | 'pos_other';
+type SubscriptionInvoiceType = 'membership_dues' | 'annual_fee';
+
+const ANNUAL_FEE_PRICE_IDS = new Set(['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN']);
+
+const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
+  const subscription = invoice.subscription as Stripe.Subscription | string | null | undefined;
+  return typeof subscription === 'string' ? subscription : subscription?.id ?? null;
+};
+
+const getInvoiceCustomerId = (invoice: Stripe.Invoice): string | null => {
+  const customer = invoice.customer as Stripe.Customer | string | null | undefined;
+  return typeof customer === 'string' ? customer : customer?.id ?? null;
+};
+
+const isAnnualFeeInvoice = (invoice: Stripe.Invoice): boolean => {
+  return invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) =>
+    line.price?.id ? ANNUAL_FEE_PRICE_IDS.has(line.price.id as string) : false
+  ) || false;
+};
+
+async function resolveSubscriptionInvoiceMember(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  invoice: Stripe.Invoice,
+  selectColumns = 'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
+): Promise<{ memberData: any | null; subscriptionType: SubscriptionInvoiceType; memberError: unknown | null }> {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  const customerId = getInvoiceCustomerId(invoice);
+  const likelyAnnualFee = isAnnualFeeInvoice(invoice);
+  const preferredLookups: Array<{ column: 'stripe_subscription_id' | 'annual_fee_subscription_id'; type: SubscriptionInvoiceType }> = likelyAnnualFee
+    ? [{ column: 'annual_fee_subscription_id', type: 'annual_fee' }, { column: 'stripe_subscription_id', type: 'membership_dues' }]
+    : [{ column: 'stripe_subscription_id', type: 'membership_dues' }, { column: 'annual_fee_subscription_id', type: 'annual_fee' }];
+
+  let memberError: unknown = null;
+  if (subscriptionId) {
+    for (const lookup of preferredLookups) {
+      const { data, error } = await supabase
+        .from('members')
+        .select(selectColumns)
+        .eq(lookup.column, subscriptionId)
+        .maybeSingle();
+
+      if (error) {
+        memberError = error;
+      } else if (data) {
+        return { memberData: data, subscriptionType: lookup.type, memberError: null };
+      }
+    }
+  }
+
+  if (customerId) {
+    const { data, error } = await supabase
+      .from('members')
+      .select(selectColumns)
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle();
+
+    if (error) {
+      return { memberData: null, subscriptionType: likelyAnnualFee ? 'annual_fee' : 'membership_dues', memberError: error };
+    }
+
+    if (data) {
+      const subscriptionType: SubscriptionInvoiceType = likelyAnnualFee ? 'annual_fee' : 'membership_dues';
+      const healColumn = subscriptionType === 'annual_fee' ? 'annual_fee_subscription_id' : 'stripe_subscription_id';
+      if (subscriptionId && !data[healColumn]) {
+        const { error: healError } = await supabase
+          .from('members')
+          .update({ [healColumn]: subscriptionId, updated_at: new Date().toISOString() })
+          .eq('id', data.id)
+          .is(healColumn, null);
+
+        if (healError) {
+          logError(healError, 'SUBSCRIPTION_INVOICE_SELF_HEAL');
+        } else {
+          data[healColumn] = subscriptionId;
+          logStep('Self-healed member subscription id from invoice customer fallback', {
+            memberId: data.id,
+            customerId,
+            subscriptionId,
+            column: healColumn,
+            invoiceId: invoice.id,
+          });
+        }
+      }
+
+      return { memberData: data, subscriptionType, memberError: null };
+    }
+  }
+
+  return { memberData: null, subscriptionType: likelyAnnualFee ? 'annual_fee' : 'membership_dues', memberError };
+}
 
 function normalizeInvoiceChargeType(value: string | null | undefined): InvoiceChargeType | null {
   if (!value) return null;
