@@ -3633,6 +3633,94 @@ serve(async (req) => {
         break;
       }
 
+      case 'invoice.finalized': {
+        // Mirror every newly finalized subscription invoice into billing_arrears so
+        // monthly cycles appear the moment Stripe bills them — no waiting for the
+        // first decline or a manual admin sync.
+        try {
+          const invoice = event.data.object as Stripe.Invoice;
+          const subscriptionId = getInvoiceSubscriptionId(invoice);
+          if (!subscriptionId) {
+            logStep('invoice.finalized: skipping non-subscription invoice', { invoiceId: invoice.id });
+            break;
+          }
+
+          const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
+            supabase,
+            invoice,
+            'id, status, stripe_subscription_id, annual_fee_subscription_id',
+          );
+
+          if (memberError) {
+            logError(memberError, 'INVOICE_FINALIZED_MEMBER_LOOKUP');
+          }
+          if (!memberData) {
+            logStep('invoice.finalized: no member matched', { invoiceId: invoice.id, subscriptionId });
+            break;
+          }
+
+          // Skip mirror for terminated members; the cancelled-member guards elsewhere
+          // void/delete the invoice instead.
+          if (['cancelled', 'expired', 'suspended'].includes(memberData.status)) {
+            logStep('invoice.finalized: skipping arrears mirror for terminated member', {
+              memberId: memberData.id,
+              memberStatus: memberData.status,
+            });
+            break;
+          }
+
+          const amountDueCents = invoice.amount_due || 0;
+          const amountPaidCents = invoice.amount_paid || 0;
+          let arrearsStatus: 'paid' | 'partial' | 'unpaid' = 'unpaid';
+          if (invoice.status === 'paid' || amountPaidCents >= amountDueCents) {
+            arrearsStatus = 'paid';
+          } else if (amountPaidCents > 0) {
+            arrearsStatus = 'partial';
+          }
+
+          const periodStart = invoice.period_start
+            ? new Date(invoice.period_start * 1000).toISOString().split('T')[0]
+            : new Date(invoice.created * 1000).toISOString().split('T')[0];
+          const periodEnd = invoice.period_end
+            ? new Date(invoice.period_end * 1000).toISOString().split('T')[0]
+            : periodStart;
+
+          const { error: arrErr } = await supabase
+            .from('billing_arrears')
+            .upsert({
+              member_id: memberData.id,
+              stripe_invoice_id: invoice.id,
+              billing_type: subscriptionType,
+              period_start: periodStart,
+              period_end: periodEnd,
+              amount_due_cents: amountDueCents,
+              amount_paid_cents: amountPaidCents,
+              stripe_subscription_id: subscriptionId,
+              status: arrearsStatus,
+              attempt_count: invoice.attempt_count || 0,
+              next_retry_at: invoice.next_payment_attempt
+                ? new Date(invoice.next_payment_attempt * 1000).toISOString()
+                : null,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'member_id,stripe_invoice_id' });
+
+          if (arrErr) {
+            logError(arrErr, 'BILLING_ARREARS_UPSERT_FINALIZED');
+          } else {
+            logStep('Billing arrears mirrored from invoice.finalized', {
+              memberId: memberData.id,
+              invoiceId: invoice.id,
+              subscriptionType,
+              status: arrearsStatus,
+              amountDueCents,
+            });
+          }
+        } catch (finalizedErr) {
+          logError(finalizedErr, 'INVOICE_FINALIZED');
+        }
+        break;
+      }
+
       default:
         logStep(`Unhandled event type: ${event.type}`, { eventId: event.id });
     }
