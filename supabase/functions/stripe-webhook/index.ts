@@ -1846,47 +1846,38 @@ serve(async (req) => {
                 logStep("Annual fee subscription deleted - cleared from member", { memberId: memberData.id });
               }
             } else {
-              // Membership dues subscription - update status with history tracking
-              const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-                p_member_id: memberData.id,
-                p_stripe_subscription_id: subscription.id,
-                p_new_status: 'cancelled',
-                p_reason: 'subscription_deleted',
-                p_stripe_event_id: event.id,
-                p_changed_by: 'stripe',
-                p_metadata: {}
+              // Membership dues subscription deletion — DO NOT auto-cancel the member.
+              // Per policy (Stripe is configured to leave failed subs as past_due, never auto-cancel),
+              // any cancel event arriving here is either a manual Stripe dashboard action,
+              // a fraud block, or an explicit admin cancellation already handled in-app.
+              // We refuse to flip member.status to 'cancelled' from this webhook to preserve
+              // the membership contract and keep billing_arrears tracking accurate.
+              const cancelReason = (subscription as any)?.cancellation_details?.reason ?? null;
+              logStep("IGNORING customer.subscription.deleted for dues sub — member NOT auto-cancelled", {
+                memberId: memberData.id,
+                subscriptionId: subscription.id,
+                cancellation_reason: cancelReason,
               });
 
-              if (updateError) {
-                logError(updateError, "SUBSCRIPTION_DELETED");
-              } else {
-                logStep("Subscription deleted - member status updated", { memberId: memberData.id });
-              }
-
-              // Only clear subscription fields if the deleted subscription matches the stored one
-              if (memberData.stripe_subscription_id === subscription.id || !memberData.stripe_subscription_id) {
-                const { error: clearError } = await supabase
-                  .from('members')
-                  .update({
-                    stripe_subscription_id: null,
-                    subscription_status: 'none',
-                    updated_at: new Date().toISOString()
-                  })
-                  .eq('id', memberData.id);
-
-                if (clearError) {
-                  logError(clearError, "SUBSCRIPTION_DELETED_CLEAR_FIELDS");
-                } else {
-                  logStep("Cleared stale subscription fields", { memberId: memberData.id });
-                }
-              } else {
-                logStep("Deleted subscription does not match stored subscription - skipping clear", {
-                  memberId: memberData.id,
-                  deletedSubId: subscription.id,
-                  storedSubId: memberData.stripe_subscription_id
+              try {
+                await supabase.from('audit_logs').insert({
+                  action: 'stripe_subscription_deleted_ignored',
+                  entity_type: 'subscription',
+                  entity_id: subscription.id,
+                  metadata: {
+                    member_id: memberData.id,
+                    stripe_subscription_id: subscription.id,
+                    cancellation_reason: cancelReason,
+                    note: 'Dues sub deleted in Stripe — member intentionally NOT auto-cancelled. Admin must review.',
+                    stripe_event_id: event.id,
+                  },
                 });
+              } catch (auditErr) {
+                logStep("Warning: failed to write audit log for ignored sub deletion", { error: String(auditErr) });
               }
+              // Intentionally do NOT clear stripe_subscription_id or update member.status.
             }
+
           } else {
             logStep("Member not found for deleted subscription", { subscriptionId: subscription.id });
           }
