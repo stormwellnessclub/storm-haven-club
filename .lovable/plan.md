@@ -1,46 +1,66 @@
-## Goal
-Now that Stripe is set to leave failed subscriptions as `past_due` (never auto-cancel), our side needs to (1) make sure a stray cancel can't wipe a member, (2) auto-record every failed/new unpaid invoice into `billing_arrears` so the red "$X owed" badge stays accurate without anyone hitting "Sync from Stripe," and (3) give admins a one-click way to retry the saved card.
 
-## Changes
+## What's wrong (confirmed in Jeree's data)
 
-### 1. Harden the Stripe webhook against `customer.subscription.deleted`
-File: `supabase/functions/stripe-webhook/index.ts`
-- On `customer.subscription.deleted`: do **not** set `members.status = 'cancelled'`, do **not** null out `stripe_subscription_id`, do **not** revoke benefits.
-- Instead: log to `application_status_history` (or a new `subscription_events` note) with reason `stripe_cancel_received_ignored`, keep the member active, and surface a banner in admin (reuse existing arrears banner — no new UI table needed).
-- Rationale: with Smart Retries set to `past_due`, Stripe should never cancel on its own. If a cancel still fires (manual dashboard action, fraud block, etc.) we keep the contract intact and an admin reviews it.
+Jeree's `members.stripe_subscription_id` is **NULL**, but Stripe still has her active dues subscription with new invoices each month.
 
-### 2. Auto-write every unpaid invoice into `billing_arrears`
-File: `supabase/functions/stripe-webhook/index.ts`
-Wire these events to the same upsert path that `sync_member_arrears` already uses:
-- `invoice.payment_failed` → upsert arrears row (status `unpaid`), bump `attempt_count`, store `failure_message` / `decline_code` / `next_payment_attempt`.
-- `invoice.created` (when `billing_reason in ('subscription_cycle','subscription_create')` and the sub is already `past_due`/`unpaid`) → upsert arrears row so month 2, month 3, … appear automatically.
-- `invoice.payment_succeeded` → mark matching arrears row `paid`, set `amount_paid_cents`.
-- `invoice.voided` / `invoice.marked_uncollectible` → mark `resolved` with reason.
-- `customer.subscription.updated` where status flips to `past_due` → ensure latest open invoice has an arrears row.
+- Stripe invoice `in_1TWfDI…` ($257.55, created May 9) — **not in our DB at all**
+- Stripe invoice `in_1TLmuR…` ($257.55) — Stripe says **paid**, our DB still says **unpaid**
+- Stripe invoice `in_1TIdq7…` ($360.77, March→April cycle) — correctly **unpaid** in DB
 
-Net effect: the red "$X owed" badge on the member row and the `ArrearsCard` total climb on their own each billing cycle. No one has to click "Sync from Stripe."
+### Why nothing is auto-updating
 
-### 3. "Charge saved card now" admin button
-New action on the member admin page (next to the existing `ArrearsCard`):
-- New edge function `charge-member-arrears` that:
-  - Takes `memberId` + optional `invoiceId` (defaults to oldest open invoice on that customer).
-  - Calls `stripe.invoices.pay(invoiceId, { payment_method: <default pm> })` against the saved card.
-  - On success: webhook flow already marks arrears `paid`; function also returns the result for instant UI feedback.
-  - On decline: returns HTTP 200 with `success: false` + decline reason (per project's Stripe edge-function convention).
-- Button in `ArrearsCard.tsx`: "Charge saved card now" with confirm dialog, shows toast with result, invalidates `member-arrears` query.
+`supabase/functions/stripe-webhook/index.ts` finds the member with:
 
-### 4. Small admin surfacing
-- `/admin/billing-arrears` page already aggregates `billing_arrears` — no schema change needed.
-- Add a "Charge now" button on each row there too so you can work the list top-to-bottom.
+```ts
+.eq('stripe_subscription_id', invoice.subscription)   // dues
+// then fallback:
+.eq('annual_fee_subscription_id', invoice.subscription)
+```
 
-## Out of scope
-- No DB migration; `billing_arrears` schema already supports all of this.
-- No change to dues/annual-fee subscription creation logic.
-- No change to the freeze/unfreeze flow.
-- Not touching the `reconcile-arrear` classifier — it keeps working as-is.
+Both lookups fail for Jeree (her `stripe_subscription_id` is null), so:
+- `invoice.payment_failed` → no arrears row is upserted → May/June never appear
+- `invoice.payment_succeeded` → status never flips to `paid` → April still shows unpaid
 
-## Verification after build
-1. Pick a member with a known unpaid invoice → confirm arrears row exists without anyone hitting "Sync from Stripe."
-2. Simulate `invoice.payment_failed` via Stripe CLI → arrears row appears within seconds.
-3. Click "Charge saved card now" on a test member with a good card → invoice paid, arrears row flips to `paid`, badge disappears.
-4. Manually cancel a test subscription in Stripe dashboard → member stays `active`, banner appears, no benefits revoked.
+`sync_member_arrears` works (it queries by `stripe_customer_id`), but it only runs when an admin clicks **Sync from Stripe**, so the page is stale until then.
+
+This isn't just Jeree — any member whose `stripe_subscription_id` was nulled out previously (cancel/freeze/old webhook) has the same silent gap.
+
+## The fix
+
+### 1. Webhook: customer-based fallback + self-heal
+
+In `supabase/functions/stripe-webhook/index.ts`, for `invoice.payment_failed`, `invoice.payment_succeeded`, and `invoice.payment_action_required`:
+
+1. Try `stripe_subscription_id` (current behavior).
+2. Try `annual_fee_subscription_id` (current behavior).
+3. **NEW** — fallback: look up the member by `stripe_customer_id = invoice.customer`. Decide dues vs annual fee by scanning the invoice's line-item price IDs against the annual-fee price set (`price_1SlA2BLyZrsSqLhs8VX17F0C`, `price_1SlA2RLyZrsSqLhsK3XQuANN`); everything else is dues.
+4. **Self-heal**: when fallback matches, write the discovered `invoice.subscription` back to the member (`stripe_subscription_id` for dues, `annual_fee_subscription_id` for annual fee) — only if that column is currently null, never overwrite an existing value.
+5. After member is resolved, run the existing arrears upsert path unchanged (this already handles `paid` / `unpaid` / `partial` / `void` / `uncollectible`).
+
+### 2. Webhook: handle `invoice.finalized` too
+
+Add a new case for `invoice.finalized` (fires the moment Stripe creates the monthly cycle invoice, before the first charge attempt). Same member-resolution chain as #1, then upsert a `billing_arrears` row with status `unpaid` (or `open`). This makes May/June/July show up on the day Stripe bills them — no waiting for the first decline, no waiting for a manual sync.
+
+### 3. Backfill Jeree right now (one-off data fix)
+
+- Restore her `members.stripe_subscription_id` to her live dues subscription (identified by scanning her customer's active/past_due Stripe subs, excluding the annual-fee sub).
+- Run `sync_member_arrears` for her — this pulls all open/paid/void/uncollectible invoices and reconciles the rows, so April flips to paid and May/June (and any further cycles) appear with correct totals.
+
+### Out of scope
+
+- No DB migration.
+- No changes to `charge-member-arrears`, the Arrears UI, or `reconcile-arrear`.
+- No change to Stripe Smart-Retry / past_due policy (already correct).
+- No mass backfill of every member tonight — the webhook + finalized handler will self-heal them as their next invoice event arrives. We can add a one-click "Sync all past-due members" admin button as a follow-up if you want.
+
+### Files touched
+
+- `supabase/functions/stripe-webhook/index.ts` — add customer-id fallback + self-heal in 3 invoice cases; add `invoice.finalized` case.
+- Data backfill for Jeree only (no code change).
+
+### How we'll verify
+
+1. Jeree's `/admin/members/<id>` page shows: April `$360.77` unpaid, May `$257.55` unpaid, June `$257.55` unpaid (or whatever Stripe currently has open), April-13 proration flipped to paid if Stripe paid it.
+2. Total owed badge matches the sum of remaining-due invoices in Stripe.
+3. Trigger a test `invoice.payment_failed` (or wait for the next real one) → arrears row appears within seconds with no manual sync.
+4. Next monthly cycle invoice triggers `invoice.finalized` → row appears immediately at the start of the cycle.
