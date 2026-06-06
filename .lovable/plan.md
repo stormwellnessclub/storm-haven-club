@@ -1,23 +1,46 @@
-## Issue
-Summer Haidous's Kids Care subscription successfully renewed on Stripe (charge `py_3TZI2zLyZrsSqLhs0Ku2DmZk`, $77.55 against `cus_TtNJbHvxfYdbJT`), but no new `class_passes` row was provisioned. Her last active pass (`f6a0f59c-…`) expired 2026-05-19, so the booking gate sees "no active pass" and tells her to buy one.
+## Goal
+Now that Stripe is set to leave failed subscriptions as `past_due` (never auto-cancel), our side needs to (1) make sure a stray cancel can't wipe a member, (2) auto-record every failed/new unpaid invoice into `billing_arrears` so the red "$X owed" badge stays accurate without anyone hitting "Sync from Stripe," and (3) give admins a one-click way to retry the saved card.
 
-## Fix (data-only, one INSERT)
+## Changes
 
-Create a new active kids_care pass for Summer covering the new billing cycle, mirroring the prior pass row:
+### 1. Harden the Stripe webhook against `customer.subscription.deleted`
+File: `supabase/functions/stripe-webhook/index.ts`
+- On `customer.subscription.deleted`: do **not** set `members.status = 'cancelled'`, do **not** null out `stripe_subscription_id`, do **not** revoke benefits.
+- Instead: log to `application_status_history` (or a new `subscription_events` note) with reason `stripe_cancel_received_ignored`, keep the member active, and surface a banner in admin (reuse existing arrears banner — no new UI table needed).
+- Rationale: with Smart Retries set to `past_due`, Stripe should never cancel on its own. If a cancel still fires (manual dashboard action, fraud block, etc.) we keep the contract intact and an admin reviews it.
 
-- `user_id`: `f865462f-ba02-4d00-86ea-5475add08cd9`
-- `member_id`: `3c7f0bfc-d7ca-46bf-a62a-0903444e3012`
-- `pass_type`: `kids_care`
-- `category`: `other`
-- `classes_total`: 16
-- `classes_remaining`: 16
-- `status`: `active`
-- `purchased_at`: 2026-05-20 00:00:00 America/Chicago
-- `expires_at`: 2026-06-19 23:59:59 America/Chicago (cycle_start + 1 month − 1 day, per credit-management rule)
-- `price_paid`: 75.00
-- `is_member_price`: true
+### 2. Auto-write every unpaid invoice into `billing_arrears`
+File: `supabase/functions/stripe-webhook/index.ts`
+Wire these events to the same upsert path that `sync_member_arrears` already uses:
+- `invoice.payment_failed` → upsert arrears row (status `unpaid`), bump `attempt_count`, store `failure_message` / `decline_code` / `next_payment_attempt`.
+- `invoice.created` (when `billing_reason in ('subscription_cycle','subscription_create')` and the sub is already `past_due`/`unpaid`) → upsert arrears row so month 2, month 3, … appear automatically.
+- `invoice.payment_succeeded` → mark matching arrears row `paid`, set `amount_paid_cents`.
+- `invoice.voided` / `invoice.marked_uncollectible` → mark `resolved` with reason.
+- `customer.subscription.updated` where status flips to `past_due` → ensure latest open invoice has an arrears row.
 
-No code changes. After insert, Summer's KidsCarePassGate will see an active pass and the "buy new pass" prompt goes away; she can immediately book for Aria.
+Net effect: the red "$X owed" badge on the member row and the `ArrearsCard` total climb on their own each billing cycle. No one has to click "Sync from Stripe."
+
+### 3. "Charge saved card now" admin button
+New action on the member admin page (next to the existing `ArrearsCard`):
+- New edge function `charge-member-arrears` that:
+  - Takes `memberId` + optional `invoiceId` (defaults to oldest open invoice on that customer).
+  - Calls `stripe.invoices.pay(invoiceId, { payment_method: <default pm> })` against the saved card.
+  - On success: webhook flow already marks arrears `paid`; function also returns the result for instant UI feedback.
+  - On decline: returns HTTP 200 with `success: false` + decline reason (per project's Stripe edge-function convention).
+- Button in `ArrearsCard.tsx`: "Charge saved card now" with confirm dialog, shows toast with result, invalidates `member-arrears` query.
+
+### 4. Small admin surfacing
+- `/admin/billing-arrears` page already aggregates `billing_arrears` — no schema change needed.
+- Add a "Charge now" button on each row there too so you can work the list top-to-bottom.
 
 ## Out of scope
-- Investigating why the renewal webhook didn't auto-provision the pass (separate follow-up if you want me to dig into `stripe-webhook` for the `invoice.payment_succeeded` event on her kids_care subscription).
+- No DB migration; `billing_arrears` schema already supports all of this.
+- No change to dues/annual-fee subscription creation logic.
+- No change to the freeze/unfreeze flow.
+- Not touching the `reconcile-arrear` classifier — it keeps working as-is.
+
+## Verification after build
+1. Pick a member with a known unpaid invoice → confirm arrears row exists without anyone hitting "Sync from Stripe."
+2. Simulate `invoice.payment_failed` via Stripe CLI → arrears row appears within seconds.
+3. Click "Charge saved card now" on a test member with a good card → invoice paid, arrears row flips to `paid`, badge disappears.
+4. Manually cancel a test subscription in Stripe dashboard → member stays `active`, banner appears, no benefits revoked.
