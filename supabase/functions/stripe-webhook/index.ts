@@ -2719,40 +2719,14 @@ serve(async (req) => {
             break;
           }
 
-          // Find member by subscription ID (check both dues and annual fee subscriptions)
-          let memberData: { id: string; status: string; email: string; first_name: string; last_name: string } | null = null;
-          let subscriptionType: 'membership_dues' | 'annual_fee' = 'membership_dues';
-          
-          // First try to find by dues subscription
-          const { data: duesMember, error: duesError } = await supabase
-            .from('members')
-            .select('id, status, email, first_name, last_name')
-            .eq('stripe_subscription_id', invoice.subscription as string)
-            .maybeSingle();
+          const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
+            supabase,
+            invoice,
+            'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
+          );
 
-          if (duesError) {
-            logError(duesError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP_DUES");
-          }
-          
-          if (duesMember) {
-            memberData = duesMember;
-            subscriptionType = 'membership_dues';
-          } else {
-            // If not found, try annual_fee_subscription_id
-            const { data: annualFeeMember, error: annualFeeError } = await supabase
-              .from('members')
-              .select('id, status, email, first_name, last_name')
-              .eq('annual_fee_subscription_id', invoice.subscription as string)
-              .maybeSingle();
-            
-            if (annualFeeError) {
-              logError(annualFeeError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP_ANNUAL_FEE");
-            }
-            
-            if (annualFeeMember) {
-              memberData = annualFeeMember;
-              subscriptionType = 'annual_fee';
-            }
+          if (memberError) {
+            logError(memberError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP");
           }
 
           if (memberData) {
