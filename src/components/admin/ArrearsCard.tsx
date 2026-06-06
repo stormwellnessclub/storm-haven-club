@@ -1,9 +1,23 @@
+import { useState } from "react";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   DollarSign,
@@ -11,6 +25,7 @@ import {
   Loader2,
   XCircle,
   Calendar,
+  CreditCard,
 } from "lucide-react";
 
 interface ArrearsCardProps {
@@ -19,17 +34,46 @@ interface ArrearsCardProps {
 
 export function ArrearsCard({ memberId }: ArrearsCardProps) {
   const { data, isLoading, isSyncing, syncArrears } = useMemberArrears(memberId);
+  const queryClient = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isCharging, setIsCharging] = useState(false);
 
   if (isLoading || !data) return null;
 
   const hasDebt = data.total_owed_cents > 0;
-
   if (!hasDebt) return null;
+
+  const handleChargeNow = async () => {
+    setIsCharging(true);
+    try {
+      const { data: res, error } = await supabase.functions.invoke("charge-member-arrears", {
+        body: { memberId },
+      });
+      if (error) throw error;
+      if (res?.success) {
+        toast.success(
+          `Charged $${((res.amount_paid_cents ?? 0) / 100).toFixed(2)} successfully`,
+        );
+      } else {
+        toast.error(res?.error || "Charge failed", {
+          description: res?.decline_code ? `Decline code: ${res.decline_code}` : undefined,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["member-arrears", memberId] });
+      queryClient.invalidateQueries({ queryKey: ["member-arrears-indicator", memberId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-member-billing-health", memberId] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Charge failed");
+    } finally {
+      setIsCharging(false);
+      setConfirmOpen(false);
+    }
+  };
 
   return (
     <Card className="border-destructive/50">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2 text-destructive">
             <DollarSign className="h-5 w-5" />
             Amount Owed
@@ -37,10 +81,29 @@ export function ArrearsCard({ memberId }: ArrearsCardProps) {
               ${(data.total_owed_cents / 100).toFixed(2)}
             </Badge>
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={syncArrears} disabled={isSyncing}>
-            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-            Sync from Stripe
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => setConfirmOpen(true)}
+              disabled={isCharging}
+            >
+              {isCharging ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <CreditCard className="h-4 w-4 mr-1" />
+              )}
+              Charge saved card now
+            </Button>
+            <Button variant="outline" size="sm" onClick={syncArrears} disabled={isSyncing}>
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-1" />
+              )}
+              Sync from Stripe
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -92,6 +155,25 @@ export function ArrearsCard({ memberId }: ArrearsCardProps) {
           </>
         )}
       </CardContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Charge saved card now?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will attempt to pay the oldest open invoice (${(data.total_owed_cents / 100).toFixed(2)} total
+              owed) against the member's saved card on file. If the card declines, no
+              charge is made and you'll see the reason.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCharging}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleChargeNow} disabled={isCharging}>
+              {isCharging ? "Charging…" : "Charge now"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
