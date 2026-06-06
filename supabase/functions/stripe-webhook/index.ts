@@ -164,6 +164,97 @@ const errorResponse = (error: unknown, context?: string) => {
 };
 
 type InvoiceChargeType = 'membership_dues' | 'annual_fee' | 'class_pass' | 'guest_pass' | 'pos_other';
+type SubscriptionInvoiceType = 'membership_dues' | 'annual_fee';
+
+const ANNUAL_FEE_PRICE_IDS = new Set(['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN']);
+
+const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
+  const subscription = invoice.subscription as Stripe.Subscription | string | null | undefined;
+  return typeof subscription === 'string' ? subscription : subscription?.id ?? null;
+};
+
+const getInvoiceCustomerId = (invoice: Stripe.Invoice): string | null => {
+  const customer = invoice.customer as Stripe.Customer | string | null | undefined;
+  return typeof customer === 'string' ? customer : customer?.id ?? null;
+};
+
+const isAnnualFeeInvoice = (invoice: Stripe.Invoice): boolean => {
+  return invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) =>
+    line.price?.id ? ANNUAL_FEE_PRICE_IDS.has(line.price.id as string) : false
+  ) || false;
+};
+
+async function resolveSubscriptionInvoiceMember(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  invoice: Stripe.Invoice,
+  selectColumns = 'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
+): Promise<{ memberData: any | null; subscriptionType: SubscriptionInvoiceType; memberError: unknown | null }> {
+  const subscriptionId = getInvoiceSubscriptionId(invoice);
+  const customerId = getInvoiceCustomerId(invoice);
+  const likelyAnnualFee = isAnnualFeeInvoice(invoice);
+  const preferredLookups: Array<{ column: 'stripe_subscription_id' | 'annual_fee_subscription_id'; type: SubscriptionInvoiceType }> = likelyAnnualFee
+    ? [{ column: 'annual_fee_subscription_id', type: 'annual_fee' }, { column: 'stripe_subscription_id', type: 'membership_dues' }]
+    : [{ column: 'stripe_subscription_id', type: 'membership_dues' }, { column: 'annual_fee_subscription_id', type: 'annual_fee' }];
+
+  let memberError: unknown = null;
+  if (subscriptionId) {
+    for (const lookup of preferredLookups) {
+      const { data, error } = await supabase
+        .from('members')
+        .select(selectColumns)
+        .eq(lookup.column, subscriptionId)
+        .maybeSingle();
+
+      if (error) {
+        memberError = error;
+      } else if (data) {
+        return { memberData: data, subscriptionType: lookup.type, memberError: null };
+      }
+    }
+  }
+
+  if (customerId) {
+    const { data, error } = await supabase
+      .from('members')
+      .select(selectColumns)
+      .eq('stripe_customer_id', customerId)
+      .maybeSingle();
+
+    if (error) {
+      return { memberData: null, subscriptionType: likelyAnnualFee ? 'annual_fee' : 'membership_dues', memberError: error };
+    }
+
+    if (data) {
+      const subscriptionType: SubscriptionInvoiceType = likelyAnnualFee ? 'annual_fee' : 'membership_dues';
+      const healColumn = subscriptionType === 'annual_fee' ? 'annual_fee_subscription_id' : 'stripe_subscription_id';
+      if (subscriptionId && !data[healColumn]) {
+        const { error: healError } = await supabase
+          .from('members')
+          .update({ [healColumn]: subscriptionId, updated_at: new Date().toISOString() })
+          .eq('id', data.id)
+          .is(healColumn, null);
+
+        if (healError) {
+          logError(healError, 'SUBSCRIPTION_INVOICE_SELF_HEAL');
+        } else {
+          data[healColumn] = subscriptionId;
+          logStep('Self-healed member subscription id from invoice customer fallback', {
+            memberId: data.id,
+            customerId,
+            subscriptionId,
+            column: healColumn,
+            invoiceId: invoice.id,
+          });
+        }
+      }
+
+      return { memberData: data, subscriptionType, memberError: null };
+    }
+  }
+
+  return { memberData: null, subscriptionType: likelyAnnualFee ? 'annual_fee' : 'membership_dues', memberError };
+}
 
 function normalizeInvoiceChargeType(value: string | null | undefined): InvoiceChargeType | null {
   if (!value) return null;
@@ -2116,36 +2207,12 @@ serve(async (req) => {
             // Don't break — continue to process payment attempt logging below
           }
 
-          // Check if this is an annual fee subscription or membership subscription
-          // Annual fee subscriptions: price_1SlA2BLyZrsSqLhs8VX17F0C (women), price_1SlA2RLyZrsSqLhsK3XQuANN (men)
-          const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
-          const isAnnualFeeInvoice = invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) => 
-            line.price && annualFeePriceIds.includes(line.price.id as string)
-          ) || false;
-
-          // Find member by subscription ID (check both membership and annual fee subscriptions)
-          let memberData: { id: string; status: string } | null = null;
-          let memberError: unknown = null;
-
-          if (isAnnualFeeInvoice) {
-            // Find member by annual fee subscription ID
-            const { data, error } = await supabase
-              .from('members')
-              .select('id, status')
-              .eq('annual_fee_subscription_id', invoice.subscription as string)
-              .maybeSingle();
-            memberData = data;
-            memberError = error;
-          } else {
-            // Find member by membership subscription ID
-            const { data, error } = await supabase
-              .from('members')
-              .select('id, status')
-              .eq('stripe_subscription_id', invoice.subscription as string)
-              .maybeSingle();
-            memberData = data;
-            memberError = error;
-          }
+          const annualFeeInvoice = isAnnualFeeInvoice(invoice);
+          const { memberData, memberError } = await resolveSubscriptionInvoiceMember(
+            supabase,
+            invoice,
+            'id, status, stripe_subscription_id, annual_fee_subscription_id',
+          );
 
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_SUCCEEDED_MEMBER_LOOKUP");
@@ -2188,7 +2255,7 @@ serve(async (req) => {
                 return successResponse({ blocked: true, memberId: memberData.id });
               }
             }
-            const chargeType: InvoiceChargeType = isAnnualFeeInvoice ? 'annual_fee' : 'membership_dues';
+            const chargeType: InvoiceChargeType = annualFeeInvoice ? 'annual_fee' : 'membership_dues';
 
             // Log successful payment attempt
             const { error: logAttemptError } = await supabase.rpc('log_payment_attempt', {
@@ -2224,7 +2291,7 @@ serve(async (req) => {
             try {
               const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
               const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000).toISOString().split('T')[0] : periodStart;
-              const billingType = isAnnualFeeInvoice ? 'annual_fee' : 'membership_dues';
+              const billingType = annualFeeInvoice ? 'annual_fee' : 'membership_dues';
 
               const { error: arrUpsertErr } = await supabase
                 .from('billing_arrears')
@@ -2258,7 +2325,7 @@ serve(async (req) => {
             }
 
             // Handle annual fee subscription renewals
-            if (isAnnualFeeInvoice) {
+            if (annualFeeInvoice) {
               // Update annual_fee_paid_at on annual fee subscription renewal
               const { error: annualFeeUpdateError } = await supabase
                 .from('members')
@@ -2652,40 +2719,14 @@ serve(async (req) => {
             break;
           }
 
-          // Find member by subscription ID (check both dues and annual fee subscriptions)
-          let memberData: { id: string; status: string; email: string; first_name: string; last_name: string } | null = null;
-          let subscriptionType: 'membership_dues' | 'annual_fee' = 'membership_dues';
-          
-          // First try to find by dues subscription
-          const { data: duesMember, error: duesError } = await supabase
-            .from('members')
-            .select('id, status, email, first_name, last_name')
-            .eq('stripe_subscription_id', invoice.subscription as string)
-            .maybeSingle();
+          const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
+            supabase,
+            invoice,
+            'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
+          );
 
-          if (duesError) {
-            logError(duesError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP_DUES");
-          }
-          
-          if (duesMember) {
-            memberData = duesMember;
-            subscriptionType = 'membership_dues';
-          } else {
-            // If not found, try annual_fee_subscription_id
-            const { data: annualFeeMember, error: annualFeeError } = await supabase
-              .from('members')
-              .select('id, status, email, first_name, last_name')
-              .eq('annual_fee_subscription_id', invoice.subscription as string)
-              .maybeSingle();
-            
-            if (annualFeeError) {
-              logError(annualFeeError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP_ANNUAL_FEE");
-            }
-            
-            if (annualFeeMember) {
-              memberData = annualFeeMember;
-              subscriptionType = 'annual_fee';
-            }
+          if (memberError) {
+            logError(memberError, "INVOICE_PAYMENT_FAILED_MEMBER_LOOKUP");
           }
 
           if (memberData) {
@@ -3117,12 +3158,11 @@ serve(async (req) => {
             break;
           }
 
-          // Find member by subscription ID
-          const { data: memberData, error: memberError } = await supabase
-            .from('members')
-            .select('id')
-            .eq('stripe_subscription_id', invoice.subscription as string)
-            .maybeSingle();
+          const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
+            supabase,
+            invoice,
+            'id, stripe_subscription_id, annual_fee_subscription_id',
+          );
 
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_ACTION_REQUIRED_MEMBER_LOOKUP");
@@ -3148,6 +3188,7 @@ serve(async (req) => {
               p_status: 'requires_action',
               p_attempt_number: invoice.attempt_count || 1,
               p_metadata: {
+                charge_type: subscriptionType,
                 billing_reason: invoice.billing_reason,
                 payment_intent_client_secret: typeof paymentIntent === 'object' ? paymentIntent.client_secret : null
               }
