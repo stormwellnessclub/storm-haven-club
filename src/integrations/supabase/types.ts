@@ -6229,6 +6229,75 @@ export type Database = {
           },
         ]
       }
+      sms_template_history: {
+        Row: {
+          action: string
+          body: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          template_key: string
+          version: number
+        }
+        Insert: {
+          action: string
+          body: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          template_key: string
+          version: number
+        }
+        Update: {
+          action?: string
+          body?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          template_key?: string
+          version?: number
+        }
+        Relationships: []
+      }
+      sms_template_overrides: {
+        Row: {
+          created_at: string
+          draft_body: string | null
+          draft_updated_at: string | null
+          draft_updated_by: string | null
+          published_at: string | null
+          published_body: string | null
+          published_by: string | null
+          template_key: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          draft_body?: string | null
+          draft_updated_at?: string | null
+          draft_updated_by?: string | null
+          published_at?: string | null
+          published_body?: string | null
+          published_by?: string | null
+          template_key: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          draft_body?: string | null
+          draft_updated_at?: string | null
+          draft_updated_by?: string | null
+          published_at?: string | null
+          published_body?: string | null
+          published_by?: string | null
+          template_key?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       spa_appointments: {
         Row: {
           amount_paid: number | null
