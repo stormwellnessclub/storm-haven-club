@@ -160,10 +160,12 @@ serve(async (req) => {
     }
 
     log("Charges pass complete", { chargesProcessed, chargesInserted, chargesSkipped });
+    } // end charges phase
 
     // ── Pass 2: Invoices (for arrears/unpaid tracking) ──
+    if (phase === "invoices" || phase === "both") {
     let invStartingAfter: string | undefined;
-    safety = 0;
+    let safety = 0;
     while (true) {
       if (++safety > 200) break;
       const list = await stripe.invoices.list({
