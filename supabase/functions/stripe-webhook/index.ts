@@ -18,7 +18,191 @@ const logError = (error: unknown, context?: string) => {
   const errorStack = error instanceof Error ? error.stack : undefined;
   const contextStr = context ? `[${context}] ` : '';
   console.error(`[STRIPE-WEBHOOK] ERROR ${contextStr}${errorMessage}`, errorStack || '');
-};
+// ──────────────────────────────────────────────────────────────────────────────
+// Past-due dunning helpers (see plan: payment_dunning_state + 5-touch sequence)
+// ──────────────────────────────────────────────────────────────────────────────
+type DunningSupabase = ReturnType<typeof createClient>;
+
+async function upsertDunningOnFailure(
+  supabase: DunningSupabase,
+  args: {
+    member: { id: string; email?: string | null; first_name?: string | null; last_name?: string | null };
+    invoice: Stripe.Invoice;
+    failureReason?: string | null;
+    failureCode?: string | null;
+    subscriptionType?: string | null;
+  }
+) {
+  const { member, invoice, failureReason, failureCode, subscriptionType } = args;
+  try {
+    // Only run dunning for the recurring monthly dues subscription, not annual fee one-offs
+    if (subscriptionType === 'annual_fee') {
+      logStep('Dunning skipped (annual_fee invoice)', { invoiceId: invoice.id });
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 1. Flip past_due flag on member (separate from members.status)
+    const { error: flagErr } = await supabase
+      .from('members')
+      .update({
+        payment_past_due: true,
+        payment_past_due_since: nowIso,
+        updated_at: nowIso,
+      })
+      .eq('id', member.id)
+      .eq('payment_past_due', false); // only set since-time on transition
+    if (flagErr) logError(flagErr, 'DUNNING_FLAG_UPDATE');
+
+    // Ensure flag is set even if the transition update matched 0 rows
+    await supabase
+      .from('members')
+      .update({ payment_past_due: true })
+      .eq('id', member.id)
+      .eq('payment_past_due', false);
+
+    // 2. Upsert dunning state row
+    const { data: existing } = await supabase
+      .from('payment_dunning_state')
+      .select('id, emails_sent, status')
+      .eq('member_id', member.id)
+      .eq('stripe_invoice_id', invoice.id)
+      .maybeSingle();
+
+    const emailsSent: Array<{ day: number; sent_at: string }> = Array.isArray(existing?.emails_sent)
+      ? (existing!.emails_sent as Array<{ day: number; sent_at: string }>)
+      : [];
+
+    const payload = {
+      member_id: member.id,
+      stripe_invoice_id: invoice.id,
+      stripe_subscription_id: (invoice.subscription as string) || null,
+      stripe_customer_id: (invoice.customer as string) || null,
+      amount_cents: invoice.amount_due || 0,
+      currency: invoice.currency || 'usd',
+      failure_reason: failureReason || null,
+      failure_code: failureCode || null,
+      status: 'active',
+      updated_at: nowIso,
+    };
+
+    const { error: upsertErr } = await supabase
+      .from('payment_dunning_state')
+      .upsert(payload, { onConflict: 'member_id,stripe_invoice_id' });
+    if (upsertErr) {
+      logError(upsertErr, 'DUNNING_STATE_UPSERT');
+      return;
+    }
+
+    // 3. Send Day 0 email (idempotent: skip if already in emails_sent)
+    const day0AlreadySent = emailsSent.some((e) => e.day === 0);
+    if (day0AlreadySent) {
+      logStep('Dunning Day 0 already sent — skipping', { memberId: member.id, invoiceId: invoice.id });
+      return;
+    }
+    if (!member.email) {
+      logStep('Dunning Day 0 skipped — no email', { memberId: member.id });
+      return;
+    }
+
+    const firstName = member.first_name || 'Member';
+    const { error: emailErr } = await supabase.functions.invoke('send-email', {
+      body: {
+        type: 'dunning_day_0',
+        to: member.email,
+        data: {
+          first_name: firstName,
+          amount: (invoice.amount_due || 0) / 100,
+          decline_reason: failureReason || 'the card on file could not be charged',
+          invoice_id: invoice.id,
+        },
+      },
+    });
+    if (emailErr) {
+      logError(emailErr, 'DUNNING_DAY_0_EMAIL');
+      return;
+    }
+
+    emailsSent.push({ day: 0, sent_at: nowIso });
+    await supabase
+      .from('payment_dunning_state')
+      .update({ emails_sent: emailsSent })
+      .eq('member_id', member.id)
+      .eq('stripe_invoice_id', invoice.id);
+
+    logStep('Dunning Day 0 sent', { memberId: member.id, invoiceId: invoice.id });
+  } catch (err) {
+    logError(err, 'DUNNING_ON_FAILURE');
+  }
+}
+
+async function markDunningRecovered(
+  supabase: DunningSupabase,
+  args: { member: { id: string; email?: string | null; first_name?: string | null }; invoice: Stripe.Invoice }
+) {
+  const { member, invoice } = args;
+  try {
+    const nowIso = new Date().toISOString();
+
+    // 1. Mark any active dunning rows for this invoice as recovered
+    const { data: dunningRows, error: selErr } = await supabase
+      .from('payment_dunning_state')
+      .select('id, status')
+      .eq('member_id', member.id)
+      .eq('stripe_invoice_id', invoice.id);
+
+    if (selErr) {
+      logError(selErr, 'DUNNING_RECOVERY_SELECT');
+    }
+
+    const wasActive = (dunningRows || []).some((r: { status: string }) => r.status === 'active');
+
+    if (wasActive) {
+      await supabase
+        .from('payment_dunning_state')
+        .update({ status: 'recovered', recovered_at: nowIso, updated_at: nowIso })
+        .eq('member_id', member.id)
+        .eq('stripe_invoice_id', invoice.id);
+    }
+
+    // 2. Clear past_due flag IF no other active dunning rows remain for this member
+    const { data: otherActive } = await supabase
+      .from('payment_dunning_state')
+      .select('id')
+      .eq('member_id', member.id)
+      .eq('status', 'active')
+      .limit(1);
+
+    if (!otherActive || otherActive.length === 0) {
+      await supabase
+        .from('members')
+        .update({ payment_past_due: false, payment_past_due_since: null, updated_at: nowIso })
+        .eq('id', member.id);
+    }
+
+    // 3. Send recovery email only if we just recovered an active dunning row
+    if (wasActive && member.email) {
+      const firstName = member.first_name || 'Member';
+      const { error: emailErr } = await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'dunning_recovered',
+          to: member.email,
+          data: {
+            first_name: firstName,
+            amount: (invoice.amount_paid || invoice.amount_due || 0) / 100,
+          },
+        },
+      });
+      if (emailErr) logError(emailErr, 'DUNNING_RECOVERY_EMAIL');
+      else logStep('Dunning recovery email sent', { memberId: member.id, invoiceId: invoice.id });
+    }
+  } catch (err) {
+    logError(err, 'DUNNING_RECOVERY');
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 
 // Credit allocations by tier
 const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo: number }> = {
