@@ -495,9 +495,7 @@ function MemberArrearsDetail({ row, onLogOutreach }: { row: ArrearsRow; onLogOut
     </>
   );
 }
-    </>
-  );
-}
+
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
