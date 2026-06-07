@@ -4073,6 +4073,8 @@ export type Database = {
           next_annual_fee_date: string | null
           next_billing_date: string | null
           original_tier_at_application: string | null
+          payment_past_due: boolean
+          payment_past_due_since: string | null
           pending_tier_change: string | null
           pending_tier_change_at: string | null
           pending_tier_change_by: string | null
@@ -4122,6 +4124,8 @@ export type Database = {
           next_annual_fee_date?: string | null
           next_billing_date?: string | null
           original_tier_at_application?: string | null
+          payment_past_due?: boolean
+          payment_past_due_since?: string | null
           pending_tier_change?: string | null
           pending_tier_change_at?: string | null
           pending_tier_change_by?: string | null
@@ -4171,6 +4175,8 @@ export type Database = {
           next_annual_fee_date?: string | null
           next_billing_date?: string | null
           original_tier_at_application?: string | null
+          payment_past_due?: boolean
+          payment_past_due_since?: string | null
           pending_tier_change?: string | null
           pending_tier_change_at?: string | null
           pending_tier_change_by?: string | null
@@ -4880,6 +4886,100 @@ export type Database = {
             columns: ["superseded_by_attempt_id"]
             isOneToOne: false
             referencedRelation: "payment_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_dunning_state: {
+        Row: {
+          abandoned_at: string | null
+          amount_cents: number
+          created_at: string
+          currency: string
+          emails_sent: Json
+          failure_code: string | null
+          failure_reason: string | null
+          first_failed_at: string
+          id: string
+          last_retry_at: string | null
+          member_id: string
+          metadata: Json
+          next_email_day: number | null
+          next_email_due_at: string | null
+          recovered_at: string | null
+          retry_count: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_invoice_id: string
+          stripe_subscription_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          abandoned_at?: string | null
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          emails_sent?: Json
+          failure_code?: string | null
+          failure_reason?: string | null
+          first_failed_at?: string
+          id?: string
+          last_retry_at?: string | null
+          member_id: string
+          metadata?: Json
+          next_email_day?: number | null
+          next_email_due_at?: string | null
+          recovered_at?: string | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abandoned_at?: string | null
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          emails_sent?: Json
+          failure_code?: string | null
+          failure_reason?: string | null
+          first_failed_at?: string
+          id?: string
+          last_retry_at?: string | null
+          member_id?: string
+          metadata?: Json
+          next_email_day?: number | null
+          next_email_due_at?: string | null
+          recovered_at?: string | null
+          retry_count?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_invoice_id?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_dunning_state_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_dunning_state_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_dunning_state_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
             referencedColumns: ["id"]
           },
         ]
@@ -7932,6 +8032,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
+      is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
       join_waitlist_with_hold: {
         Args: {
           p_credit_id?: string

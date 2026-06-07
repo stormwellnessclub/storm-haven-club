@@ -49,7 +49,7 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 }
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder';
   to: string;
   data: Record<string, any>;
 }
@@ -2357,6 +2357,64 @@ serve(async (req) => {
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'dunning_day_0': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your monthly Storm membership payment';
+        const reasonStr = data.decline_reason || data.failureReason || 'the card on file could not be charged';
+        const updateUrl = `${BASE_URL}/member/payment-methods${data.invoice_id ? `?retry=${encodeURIComponent(data.invoice_id)}` : ''}`;
+        subject = 'A note regarding your Storm membership payment';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Your monthly Storm membership payment of ${amountStr} was unable to be processed today (${reasonStr}). Your account is currently past due, and member privileges &mdash; including monthly credits and member pricing &mdash; are paused until the balance is resolved.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 10px;">
+                You may update your payment method at any time:
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                For assistance, email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message Member Services from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'dunning_recovered': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your outstanding balance';
+        subject = 'Payment received \u2014 welcome back';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Your payment of ${amountStr} has been received and your Storm membership is once again in good standing. Full member privileges have been restored.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Thank you, and we look forward to seeing you at the Club.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
               </div>
             </div>
             ${getEmailFooter()}
