@@ -18,6 +18,8 @@ const logError = (error: unknown, context?: string) => {
   const errorStack = error instanceof Error ? error.stack : undefined;
   const contextStr = context ? `[${context}] ` : '';
   console.error(`[STRIPE-WEBHOOK] ERROR ${contextStr}${errorMessage}`, errorStack || '');
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Past-due dunning helpers (see plan: payment_dunning_state + 5-touch sequence)
 // ──────────────────────────────────────────────────────────────────────────────
