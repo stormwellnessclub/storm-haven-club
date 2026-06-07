@@ -421,6 +421,25 @@ export function useBookClass() {
               },
             });
           }
+
+          // Parallel SMS — only sends if member has sms_opt_in = true
+          try {
+            await supabase.functions.invoke("send-sms", {
+              body: {
+                to: { userId: currentUser?.id },
+                templateKey: isWaitlistClaim ? "waitlist-promoted" : "class-booking-confirmation",
+                variables: {
+                  className: classType?.name || "Class",
+                  date: formattedDate,
+                  time: formattedTime,
+                },
+                idempotencyKey: `book-sms-${sessionId}-${currentUser?.id}-${Date.now()}`,
+                metadata: { source: "useBooking", sessionId, isWaitlistClaim },
+              },
+            });
+          } catch (smsErr) {
+            console.error("Failed to send booking SMS:", smsErr);
+          }
         }
       } catch (emailError) {
         console.error("Failed to send confirmation email:", emailError);
