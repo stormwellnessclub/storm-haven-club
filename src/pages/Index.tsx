@@ -21,6 +21,7 @@ import sauna from "@/assets/sauna.jpg";
 import saunaBlue from "@/assets/sauna-blue.jpeg";
 import saltRoom from "@/assets/salt-room.jpg";
 import zerobodyFloat from "@/assets/zerobody-float.jpeg";
+import { SmsSignupSection } from "@/components/home/SmsSignupSection";
 
 // Brand imagery
 import mainLobby from "@/assets/main-lobby.jpeg";
@@ -307,6 +308,9 @@ export default function Index() {
           </AnimatedSection>
         </div>
       </section>
+
+      {/* SMS lead capture */}
+      <SmsSignupSection />
 
       {/* Philosophy - Why We Exist */}
       <section className="relative py-32 bg-background text-foreground overflow-hidden">

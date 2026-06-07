@@ -6112,6 +6112,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_marketing_leads: {
+        Row: {
+          consent_at: string
+          consent_given: boolean
+          consent_version: string | null
+          created_at: string
+          email: string | null
+          id: string
+          phone: string
+          source: string
+          user_agent: string | null
+        }
+        Insert: {
+          consent_at?: string
+          consent_given?: boolean
+          consent_version?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          phone: string
+          source?: string
+          user_agent?: string | null
+        }
+        Update: {
+          consent_at?: string
+          consent_given?: boolean
+          consent_version?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          phone?: string
+          source?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       sms_messages: {
         Row: {
           campaign_id: string | null

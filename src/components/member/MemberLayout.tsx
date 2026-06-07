@@ -10,7 +10,7 @@ import { PastDueBanner } from "./PastDueBanner";
 import { CardExpiringNotice } from "./CardExpiringNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
-import { SmsOptInBannerContent } from "./SmsOptInBannerContent";
+import { SmsOptInGate } from "./SmsOptInGate";
 import { MemorialDayHoursBanner } from "./MemorialDayHoursBanner";
 
 
@@ -88,14 +88,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
       }
     }
 
-    // SMS opt-in nudge (lowest priority, dismissible)
-    if (profile && profile.sms_opt_in !== true) {
-      items.push({
-        id: "sms_opt_in",
-        priority: 4,
-        content: <SmsOptInBannerContent phone={profile.phone} />,
-      });
-    }
+    // SMS opt-in is now handled by the non-dismissible <SmsOptInGate /> below.
 
     return items;
   }, [isPendingActivation, membership, hasPaymentIssues, isInitiationFeePaid, profile]);
@@ -142,6 +135,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
               </div>
             </header>
             <PWAInstallPrompt />
+            <SmsOptInGate />
             <main className="p-4 sm:p-6 pb-20 md:pb-6 safe-area-bottom">
               {children}
             </main>
