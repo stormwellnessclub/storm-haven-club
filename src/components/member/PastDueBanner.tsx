@@ -33,7 +33,7 @@ export function PastDueBanner() {
         .limit(1)
         .maybeSingle();
       if (error) throw error;
-      return data as { amount_cents: number; failure_reason: string | null; retry_count: number; status: string; first_failed_at: string } | null;
+      return data as unknown as { amount_cents: number; failure_reason: string | null; retry_count: number; status: string; first_failed_at: string } | null;
     },
     staleTime: 30_000,
   });
