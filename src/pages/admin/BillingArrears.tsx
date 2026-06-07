@@ -165,6 +165,7 @@ export default function BillingArrears() {
   const [search, setSearch] = useState("");
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [minMonths, setMinMonths] = useState<string>("1");
+  const [typeFilter, setTypeFilter] = useState<"dues" | "kids_care" | "other" | "all">("dues");
   const [selected, setSelected] = useState<ArrearsRow | null>(null);
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [outreachTarget, setOutreachTarget] = useState<ArrearsRow | null>(null);
@@ -177,7 +178,8 @@ export default function BillingArrears() {
     search: search || undefined,
     includeCancelled,
     minMonthsBehind: Number(minMonths) || 1,
-  }), [search, includeCancelled, minMonths]);
+    typeFilter,
+  }), [search, includeCancelled, minMonths, typeFilter]);
 
   const { data: rows = [], isLoading, refetch, isFetching } = useBillingArrears(filters);
 
