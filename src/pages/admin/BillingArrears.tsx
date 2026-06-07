@@ -17,15 +17,19 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock, Mail, RefreshCw, Loader2 } from "lucide-react";
+import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock, Mail, RefreshCw, Loader2, CreditCard, MessageSquare, X } from "lucide-react";
 import {
   useBillingArrears,
-  useMemberOutreach,
   useCreateOutreach,
   type ArrearsRow,
 } from "@/hooks/useBillingArrears";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DunningTimeline } from "@/components/admin/DunningTimeline";
+import { BulkChargeDialog } from "@/components/admin/BulkChargeDialog";
+import { BulkSmsDialog } from "@/components/admin/BulkSmsDialog";
+import { BulkOutreachDialog } from "@/components/admin/BulkOutreachDialog";
 
 function DunningBadge({ row }: { row: ArrearsRow }) {
   if (!row.dunning_status) return <span className="text-muted-foreground">—</span>;
