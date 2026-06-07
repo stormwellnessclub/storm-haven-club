@@ -119,6 +119,7 @@ function exportCsv(rows: ArrearsRow[]) {
     "Name","Email","Phone","Tier","Member Status","Subscription Status","Card",
     "Months Behind","Oldest Due","Outstanding","Last Successful Payment",
     "Next Retry","Last Outreach","Last Outcome","Follow-up","Latest Failure",
+    "Dunning Status","Dunning Retry Count","Dunning Emails Sent","Dunning Next Email Day","Dunning Next Email Due","First Failed At",
   ];
   const csv = [
     headers.join(","),
@@ -139,6 +140,12 @@ function exportCsv(rows: ArrearsRow[]) {
       outcomeLabel(r.last_outreach_outcome),
       r.open_follow_up_at || "",
       `"${(r.latest_failure_message || "").replace(/"/g,'""')}"`,
+      r.dunning_status || "",
+      r.dunning_retry_count ?? "",
+      r.dunning_emails_sent_count ?? 0,
+      r.dunning_next_email_day ?? "",
+      r.dunning_next_email_due_at || "",
+      r.dunning_first_failed_at || "",
     ].join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
