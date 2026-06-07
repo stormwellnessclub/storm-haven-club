@@ -1027,11 +1027,19 @@ export default function Apply() {
                   <Input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleInputChange} placeholder="(123) 456-7890" className="mt-1" required />
                 </div>
 
-                <SmsConsentCheckbox
-                  checked={formData.smsConsent}
-                  onCheckedChange={(v) => setFormData((prev) => ({ ...prev, smsConsent: v }))}
-                  id="apply-sms-consent"
-                />
+                <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <div>
+                    <p className="font-medium text-sm">📱 Stay in the loop by text</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Class reminders, waitlist alerts, billing notices, and time-sensitive updates — straight to your phone. Standard rates apply. Reply STOP anytime to opt out.
+                    </p>
+                  </div>
+                  <SmsConsentCheckbox
+                    checked={formData.smsConsent}
+                    onCheckedChange={(v) => setFormData((prev) => ({ ...prev, smsConsent: v }))}
+                    id="apply-sms-consent"
+                  />
+                </div>
               </div>
             </div>
 
