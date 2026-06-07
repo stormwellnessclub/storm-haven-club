@@ -28,6 +28,13 @@ export interface ArrearsRow {
   last_outreach_outcome: string | null;
   open_follow_up_at: string | null;
   arrears_ids: string[];
+  // Dunning cadence (from payment_dunning_state)
+  dunning_status: string | null;
+  dunning_retry_count: number | null;
+  dunning_next_email_day: number | null;
+  dunning_next_email_due_at: string | null;
+  dunning_emails_sent_count: number;
+  dunning_first_failed_at: string | null;
 }
 
 const DUES_TYPES = ["membership_dues", "subscription_cycle", "subscription_update", "subscription_create"];
@@ -91,6 +98,19 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
           openFollowUpByMember.set(o.member_id, o.follow_up_at);
         }
       }
+
+      // Dunning cadence state (active rows only, latest per member)
+      const { data: dunning } = await supabase
+        .from("payment_dunning_state" as any)
+        .select("member_id, status, retry_count, next_email_day, next_email_due_at, emails_sent, first_failed_at")
+        .in("member_id", memberIds)
+        .eq("status", "active")
+        .order("first_failed_at", { ascending: false });
+      const dunningByMember = new Map<string, any>();
+      for (const d of (dunning || []) as any[]) {
+        if (!dunningByMember.has(d.member_id)) dunningByMember.set(d.member_id, d);
+      }
+
 
       // Aggregate per member
       const byMember = new Map<string, ArrearsRow>();
