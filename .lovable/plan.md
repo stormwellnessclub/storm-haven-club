@@ -1,65 +1,60 @@
-# Batch 2 — Dunning scheduler + benefit gates
+# Batch 3 — Upcoming Renewal Reminders
 
-Picks up where Batch 1 left off. Data layer, webhook, Day 0 email, and recovery email already ship. This batch finishes the email cadence and turns the `payment_past_due` flag into actual behavior.
+Pre-charge heads-up emails so members know what's coming off their card before it happens. Pure addition — no changes to existing dunning, billing, or RPC logic.
 
-## 1. Four remaining email templates
+## 1. Email templates (4 new)
 
-Add to `send-email/index.ts` (same pattern as `dunning_day_0`), using locked copy from `.lovable/plan.md`:
+Added to `supabase/functions/send-email/index.ts`. Same Storm branding (`#312D28` / `#E8DED1`), luxury formal tone, signed "— The Storm Wellness Club Team". Contact line: `admin@stormwellnessclub.com` or Member Services in portal.
 
-- `dunning_day_1` — "Your Storm account remains past due" + Resolve Balance CTA
-- `dunning_day_3` — "Past due — action required to preserve your Storm membership" (reapplication-risk language + Update Payment Method CTA)
-- `dunning_day_5` — "Action required: Storm membership in arrears" + Update Payment Method CTA
-- `dunning_day_7` — "Immediate Action Required" (revised body, NOT a final notice) + Resolve Balance CTA
+- **`renewal_monthly_dues_3day`** — Subject: *"Your upcoming Storm monthly dues"*. Body: friendly reminder that `{amount}` will be charged on `{charge_date}` to `{card_brand} ending {last4}`. CTA: **Update Payment Method**.
+- **`renewal_annual_dues_14day`** — Subject: *"Your Storm annual dues renew in 14 days"*. Body: 14-day notice for founding/annual members. Same card/amount/date merge fields. CTA: **Update Payment Method**.
+- **`renewal_annual_fee_14day`** — Subject: *"Your Storm annual fee renews in 14 days"*. Body: explains the annual facility fee (separate from dues) is renewing. CTA: **Update Payment Method**.
+- **`renewal_annual_fee_3day`** — Subject: *"Reminder: Storm annual fee charges in 3 days"*. Body: final heads-up before the annual fee posts. CTA: **Update Payment Method**.
 
-All include the standard contact line and Storm branding (`#312D28` / `#E8DED1`). No "last automated notice" wording anywhere.
+No reminders for monthly dues at 14-day mark (too noisy month-over-month).
 
-## 2. `process-payment-dunning` edge function (new)
+## 2. Tracking table
 
-Hourly scheduler. For every row in `payment_dunning_state` with `status = 'active'`:
+```text
+payment_renewal_reminders
+  id, member_id, reminder_type (enum), charge_date, sent_at, idempotency_key (unique)
+```
 
-1. Compute `days_since = floor((now - failed_at) / 1 day)`.
-2. Determine the next due touchpoint from `{0, 1, 3, 5, 7}` that is `<= days_since` and not present in `emails_sent`.
-3. Send the matching template via `send-email` with idempotency key `dunning-{invoice_id}-day-{n}`.
-4. Append `{ day: n, sent_at: now }` to `emails_sent` jsonb.
-5. After Day 7 is sent, leave `status = 'active'` (future cadence will extend it) — do NOT mark abandoned.
+`idempotency_key` format: `renewal-{member_id}-{reminder_type}-{charge_date}` — guarantees one send per charge per type, even if the scheduler runs many times.
 
-Skip rows where the member's `payment_past_due` flag has been cleared (webhook will already have sent recovery).
+RLS: service-role only (admin can read, no member access needed).
 
-Schedule via `pg_cron` hourly using `net.http_post` (insert with `supabase--insert`, not migration, since URL/anon key are project-specific).
+## 3. `process-renewal-reminders` edge function (new)
 
-## 3. Booking + credit RPC guards
+Runs daily at 9 AM Central via `pg_cron`. Logic:
 
-Add `payment_past_due` checks to the credit/member-priced paths only. Paid-out-of-pocket paths stay open.
+1. For each member with `subscription_status = 'active'` AND `payment_past_due = false` AND no active freeze:
+   - **Monthly dues members**: if `next_billing_date = today + 3`, send `renewal_monthly_dues_3day`.
+   - **Annual dues members** (founding or annual cadence): if `next_billing_date = today + 14`, send `renewal_annual_dues_14day`.
+   - **All members with `next_annual_fee_date`**: if `= today + 14`, send `renewal_annual_fee_14day`; if `= today + 3`, send `renewal_annual_fee_3day`.
+2. Skip if `idempotency_key` already exists in `payment_renewal_reminders`.
+3. Insert row on successful send.
 
-- `book_class_session` / class-pass deduction RPC — if `is_member_past_due(member_id)` AND the booking uses included monthly credits OR member pricing, raise `EXCEPTION 'PAYMENT_PAST_DUE: Account past due — please update your payment method, or proceed at the drop-in rate.'`. Drop-in / class-pass purchases bypass.
-- Wellness booking RPC (Red Light / Cryo / ZeroBody) — block credit-backed sessions, allow paid sessions.
-- Kids Care booking RPC — block credit-backed sessions; explicit single-session purchase remains allowed.
-- Spa: no change (already paid at checkout).
-- Cafe / retail: no change.
+Skips frozen members (they don't get charged) and past-due members (they're already in dunning cadence — no need for double messaging).
 
-Frontend surfaces the raised message verbatim through existing booking error toasts — no UI changes required this batch.
-
-## 4. Scanner / building entry
-
-`process_member_scan` already enforces billing blocks. Add a parallel branch: if `payment_past_due = true` AND no active drop-in/pass for today, return `denied` with reason `payment_past_due`. If they have a paid pass for today, allow entry. (Login is still untouched.)
-
-## Files touched
+## 4. Files touched
 
 - `supabase/functions/send-email/index.ts` — 4 new templates
-- `supabase/functions/process-payment-dunning/index.ts` (new)
-- Migration: update booking/credit/scanner RPCs with `payment_past_due` guard
-- Insert (not migration): hourly `pg_cron` job for `process-payment-dunning`
+- `supabase/functions/process-renewal-reminders/index.ts` (new)
+- Migration — `payment_renewal_reminders` table + RLS
+- Insert (not migration) — daily `pg_cron` job at 9 AM Central
 
 ## Guarantees
 
-- No change to `members.status`, login, `member_freezes`, or pay-as-you-go transactions.
-- All sends idempotent via `emails_sent` jsonb + `idempotencyKey`.
-- Day 7 is the last *scheduled* touch this build — schema supports adding Day 10/14/30 later without migration.
-- Recovery email (Batch 1) still fires the moment Stripe reports `payment_succeeded`.
+- **No double-sends** — unique idempotency key per member/type/charge date.
+- **No interference with dunning** — skips past-due members entirely.
+- **No interference with freezes** — skips frozen members.
+- **Pure additive** — no changes to webhooks, RPCs, or member portal.
 
 ## Out of scope (later batches)
 
-- Upcoming renewal reminders (Batch 3)
-- Auto-retry on card update + manual "Retry Payment" button (Batch 4)
-- `PastDueBanner` + admin `/billing-arrears` dunning columns (Batch 4)
-- Backfill (Batch 5)
+- `PastDueBanner` + manual "Retry Payment" button (Batch 4)
+- Admin `/billing-arrears` dunning columns (Batch 4)
+- Backfill of existing past-due members into `payment_dunning_state` (Batch 5)
+- Scanner gate for past-due members (separate gap)
+- Kids Care credit guard (separate gap)
