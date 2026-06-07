@@ -232,6 +232,7 @@ serve(async (req) => {
     }
 
     log("Invoices pass complete", { invoicesProcessed, arrearsUpserted });
+    } // end invoices phase
 
     return new Response(
       JSON.stringify({
