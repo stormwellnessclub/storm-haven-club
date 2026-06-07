@@ -143,6 +143,104 @@ function CreateDuesSubButton({ row, onDone }: { row: ArrearsRow; onDone: () => v
 }
 
 
+function SendNoticeButton({ row, onDone }: { row: ArrearsRow; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const handle = async () => {
+    if (!row.email) { toast.error("Member has no email on file"); return; }
+    const amount = (row.outstanding_cents / 100).toFixed(2);
+    if (!confirm(
+      `Send FORMAL past-due notice to ${row.first_name} ${row.last_name}?\n\n` +
+      `Email: ${row.email}\n` +
+      `Amount: $${amount}\n` +
+      `Months behind: ${row.months_behind}\n\n` +
+      `This sends a formal demand for payment citing late fees, membership revocation, and collections consequences.`
+    )) return;
+
+    setBusy(true);
+    try {
+      // Fetch itemized arrears for this member
+      const { data: items } = await supabase
+        .from("billing_arrears")
+        .select("period_start, period_end, amount_due_cents, amount_paid_cents, updated_at")
+        .in("id", row.arrears_ids)
+        .order("period_start", { ascending: true });
+
+      const today = new Date();
+      const unpaid_invoices = (items || []).map((it: any) => {
+        const due = (it.amount_due_cents - (it.amount_paid_cents || 0)) / 100;
+        const periodLabel = it.period_start
+          ? format(new Date(it.period_start), "MMM yyyy")
+          : "Unknown period";
+        const daysOverdue = it.period_end
+          ? Math.max(0, Math.floor((today.getTime() - new Date(it.period_end).getTime()) / (1000 * 60 * 60 * 24)))
+          : null;
+        return { period: periodLabel, amount: due, days_overdue: daysOverdue ?? "—" };
+      });
+
+      const oldestDue = items && items.length && items[0].period_start
+        ? format(new Date(items[0].period_start), "MMMM d, yyyy")
+        : "—";
+
+      const { error } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "past_due_formal_notice",
+          to: row.email,
+          data: {
+            first_name: row.first_name,
+            last_name: row.last_name,
+            member_email: row.email,
+            tier: row.membership_type || "Membership",
+            total_owed: amount,
+            months_late: row.months_behind,
+            oldest_due_date: oldestDue,
+            card_brand: row.card_brand || null,
+            card_last4: row.card_last4 || null,
+            last_attempt_date: row.next_retry_at
+              ? format(new Date(row.next_retry_at), "MMM d, yyyy")
+              : (row.latest_failure_message ? "recently" : "—"),
+            unpaid_invoices,
+          },
+        },
+      });
+      if (error) throw error;
+
+      // Log to billing_outreach_logs
+      const { data: userData } = await supabase.auth.getUser();
+      await supabase.from("billing_outreach_logs" as any).insert({
+        member_id: row.member_id,
+        channel: "email",
+        outcome: "no_response",
+        note: `Sent formal past-due notice ($${amount}, ${row.months_behind} months behind)`,
+        outstanding_at_contact_cents: row.outstanding_cents,
+        months_behind_at_contact: row.months_behind,
+        created_by: userData?.user?.id ?? null,
+        created_by_email: userData?.user?.email ?? null,
+      } as any);
+
+      toast.success(`Formal notice sent to ${row.email}`);
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send notice");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button
+      size="sm"
+      variant="destructive"
+      onClick={handle}
+      disabled={busy || !row.email || row.outstanding_cents <= 0}
+      title="Send formal past-due collection notice"
+    >
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><AlertCircle className="h-3.5 w-3.5 mr-1" /> Send Notice</>}
+    </Button>
+  );
+}
+
+
+
+
 
 const CHANNELS = [
   { value: "call", label: "Call" },
