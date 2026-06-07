@@ -2552,6 +2552,59 @@ serve(async (req) => {
         break;
       }
 
+      case 'renewal_monthly_dues_3day':
+      case 'renewal_annual_dues_14day':
+      case 'renewal_annual_fee_14day':
+      case 'renewal_annual_fee_3day': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your scheduled amount';
+        const chargeDate = data.charge_date || 'your next billing date';
+        const cardBrand = data.card_brand || 'card on file';
+        const last4 = data.card_last4 ? ` ending in ${data.card_last4}` : '';
+        const updateUrl = `${BASE_URL}/member/payment-methods`;
+
+        let body = '';
+        if (type === 'renewal_monthly_dues_3day') {
+          subject = 'Your upcoming Storm monthly dues';
+          body = `This is a courtesy reminder that your Storm monthly dues of ${amountStr} are scheduled to be charged on <strong>${chargeDate}</strong> to your ${cardBrand}${last4}. No action is needed if everything looks correct &mdash; we simply wish to keep you informed.`;
+        } else if (type === 'renewal_annual_dues_14day') {
+          subject = 'Your Storm annual dues renew in 14 days';
+          body = `As a courtesy, we are writing to let you know that your Storm annual dues of ${amountStr} are scheduled to renew on <strong>${chargeDate}</strong>, billed to your ${cardBrand}${last4}. Should you wish to review or update the payment method on file, you may do so at any time.`;
+        } else if (type === 'renewal_annual_fee_14day') {
+          subject = 'Your Storm annual fee renews in 14 days';
+          body = `This is a courtesy notice that your Storm annual fee of ${amountStr} &mdash; the yearly facility fee billed separately from your dues &mdash; is scheduled to renew on <strong>${chargeDate}</strong> to your ${cardBrand}${last4}.`;
+        } else {
+          subject = 'Reminder: Storm annual fee charges in 3 days';
+          body = `A brief reminder that your Storm annual fee of ${amountStr} will post to your ${cardBrand}${last4} on <strong>${chargeDate}</strong>. If you wish to update the payment method on file, please do so before that date.`;
+        }
+
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                ${body}
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 10px;">
+                To review or update the payment method on file:
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                For assistance, email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message Member Services from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
 
         throw new Error(`Unknown email type: ${type}`);
