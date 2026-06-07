@@ -185,11 +185,21 @@ export function useSpaBookAppointment() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async (appt) => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Spa appointment booked successfully!");
+
+      // Fire confirmation email + SMS (best-effort, never block the success path).
+      try {
+        await sendSpaNotifications({
+          appointment: appt,
+          kind: "confirmation",
+        });
+      } catch (e) {
+        console.warn("spa confirmation notify failed (non-fatal):", e);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to book appointment");
@@ -391,11 +401,16 @@ export function useCancelSpaAppointment() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async (appt) => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Appointment cancelled successfully");
+      try {
+        await sendSpaNotifications({ appointment: appt, kind: "cancellation" });
+      } catch (e) {
+        console.warn("spa cancellation notify failed (non-fatal):", e);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to cancel appointment");
