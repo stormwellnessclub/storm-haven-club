@@ -547,7 +547,25 @@ export default function BillingArrears() {
                           {r.oldest_due_period ? format(new Date(r.oldest_due_period), "MMM d, yyyy") : "—"}
                         </TableCell>
                         <TableCell className="text-xs">
-                          {r.card_last4 ? `${r.card_brand || ""} ****${r.card_last4}` : <span className="text-destructive">No card</span>}
+                          {r.card_last4 ? (
+                            <div className="flex flex-col gap-0.5">
+                              <span>{`${r.card_brand || ""} ****${r.card_last4}`}</span>
+                              {(() => {
+                                if (!r.card_exp_month || !r.card_exp_year) return null;
+                                const expiry = new Date(r.card_exp_year, r.card_exp_month, 0);
+                                const days = Math.ceil((expiry.getTime() - Date.now()) / 86_400_000);
+                                if (days > 60) return null;
+                                const label = `Exp ${String(r.card_exp_month).padStart(2, "0")}/${String(r.card_exp_year).slice(-2)}`;
+                                return (
+                                  <Badge variant={days <= 30 ? "destructive" : "outline"} className="text-[10px] w-fit">
+                                    {days < 0 ? "Card expired" : days <= 30 ? `${label} • ${days}d` : label}
+                                  </Badge>
+                                );
+                              })()}
+                            </div>
+                          ) : (
+                            <span className="text-destructive">No card</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs">
                           {r.last_outreach_at ? (

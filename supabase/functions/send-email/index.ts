@@ -49,7 +49,7 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 }
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
   to: string;
   data: Record<string, any>;
 }
@@ -2685,6 +2685,59 @@ serve(async (req) => {
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
                 <p style="font-weight: 600; color: #1C170F; margin: 0;">Sincerely,</p>
                 <p style="font-weight: 600; color: #1C170F; margin: 4px 0 0;">Storm Wellness Club — Billing Office</p>
+                <p style="color: #88766B; font-size: 13px; margin: 4px 0 0;">stormwellnessclub.com</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'card_expiring': {
+        const firstName = data.first_name || 'Member';
+        const cardBrand = data.card_brand || 'Card';
+        const last4 = data.card_last4 || '••••';
+        const expMonth = String(data.exp_month ?? '').padStart(2, '0');
+        const expYear = String(data.exp_year ?? '').slice(-2);
+        const nextBillingDate = data.next_billing_date || 'your next billing date';
+        const nextAmount = data.next_amount != null ? `$${Number(data.next_amount).toFixed(2)}` : null;
+        const daysOut = Number(data.days_out ?? 60);
+        const portalUrl = `${BASE_URL}/member/payment-methods`;
+        const urgencyNote = daysOut <= 7
+          ? `Your card expires within the next week. Please update immediately to prevent a failed charge.`
+          : daysOut <= 30
+            ? `Your card expires within the next 30 days.`
+            : `Your card expires within the next two months.`;
+
+        subject = `Your card on file expires soon — update to avoid interruption`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                The credit card we have on file for your Storm Wellness Club membership is expiring soon. ${urgencyNote}
+              </p>
+              <div style="${emailStyles.warningBox}">
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Card:</strong> ${cardBrand} ending in ${last4}</p>
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Expires:</strong> ${expMonth}/${expYear}</p>
+                ${nextAmount ? `<p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Next charge:</strong> ${nextBillingDate} — ${nextAmount}</p>` : `<p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Next charge:</strong> ${nextBillingDate}</p>`}
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                To avoid a failed payment and any interruption to your membership benefits — including class bookings, recovery services, and club access — please update your payment method before your next billing date.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${portalUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-size: 15px; line-height: 1.7; color: #1C170F; margin-top: 20px;">
+                If your card has already been replaced, updating now takes less than a minute and prevents late fees or service holds.
+              </p>
+              <p style="font-size: 15px; line-height: 1.7; color: #1C170F; margin-top: 20px;">
+                Questions? Reply to this email or contact us at <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a>.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">— Storm Wellness Club</p>
                 <p style="color: #88766B; font-size: 13px; margin: 4px 0 0;">stormwellnessclub.com</p>
               </div>
             </div>

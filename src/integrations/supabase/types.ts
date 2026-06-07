@@ -1014,6 +1014,67 @@ export type Database = {
           },
         ]
       }
+      card_expiry_notices: {
+        Row: {
+          card_last4: string | null
+          channel: string
+          created_at: string
+          days_out: number
+          exp_month: number
+          exp_year: number
+          id: string
+          member_id: string
+          sent_at: string
+          stripe_payment_method_id: string
+        }
+        Insert: {
+          card_last4?: string | null
+          channel: string
+          created_at?: string
+          days_out: number
+          exp_month: number
+          exp_year: number
+          id?: string
+          member_id: string
+          sent_at?: string
+          stripe_payment_method_id: string
+        }
+        Update: {
+          card_last4?: string | null
+          channel?: string
+          created_at?: string
+          days_out?: number
+          exp_month?: number
+          exp_year?: number
+          id?: string
+          member_id?: string
+          sent_at?: string
+          stripe_payment_method_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "card_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       card_setup_attempts: {
         Row: {
           application_id: string | null

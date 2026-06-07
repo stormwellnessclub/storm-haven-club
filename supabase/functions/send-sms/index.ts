@@ -81,6 +81,11 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     ),
   "cafe-order-ready": (v) =>
     tmpl(`Storm Cafe: Your order #{{orderNumber}} is ready for pickup.`, v),
+  "card-expiring": (v) =>
+    tmpl(
+      `Storm Wellness Club: Your card ending {{last4}} expires {{expMonth}}/{{expYear}}. Update at stormwellnessclub.com/member/payment-methods to avoid interrupted billing. Reply STOP to opt out.`,
+      v,
+    ),
   // Admin freeform: passes through customBody verbatim. Auto-appends opt-out only when not already present.
   "admin-custom": (v) => {
     const raw = String(v.customBody ?? "").trim();

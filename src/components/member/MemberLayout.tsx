@@ -7,6 +7,7 @@ import { NotificationBar, NotificationItem } from "./NotificationBar";
 import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { PastDueBanner } from "./PastDueBanner";
+import { CardExpiringNotice } from "./CardExpiringNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SmsOptInBannerContent } from "./SmsOptInBannerContent";
@@ -104,6 +105,9 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
       <div className="min-h-screen flex flex-col w-full bg-background">
         {/* Past-due dunning banner (highest priority) */}
         <PastDueBanner />
+
+        {/* Card expiring banner (next priority) */}
+        <CardExpiringNotice />
 
         {/* Consolidated notification bar */}
         <NotificationBar items={notifications} />
