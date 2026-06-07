@@ -1,71 +1,61 @@
-# Expiring Card Alerts — Email, SMS, Portal Banner
+## Goal
 
-Approved email copy from preview. SMS added (will troubleshoot delivery separately). Idempotency prevents duplicate sends per card per expiration period.
+Drive SMS opt-in from ~3% (23/721) to near-universal by surfacing it everywhere a member touches the product, with a hard interstitial gate inside the portal that has no "dismiss" — only "Enable SMS Alerts."
 
-## 1. New `card_expiry_notices` tracking table
+## 1. Signup (Apply form) — pre-checked
 
-Tracks what's been sent so we never re-spam the same card/exp combo.
+File: `src/pages/Apply.tsx`
 
-Columns: `member_id`, `stripe_payment_method_id`, `card_last4`, `exp_month`, `exp_year`, `email_sent_at`, `sms_sent_at`, `days_out_email` (60/30/7), `days_out_sms` (30/7).
+- Flip `SmsConsentCheckbox` to default `checked={true}` when the form mounts (current state defaults to false).
+- Move the checkbox out of the fine-print zone into its own bordered card directly above the submit button, with a short value prop:
+  > "📱 Get class reminders, waitlist alerts, and billing notifications by text. Standard rates apply. Reply STOP to opt out."
+- Persist `sms_opt_in = true`, `sms_opt_in_at`, `sms_opt_in_source = "apply_form"` to `profiles` on application submit (already wired — just confirm the pre-checked value flows through).
 
-Unique constraint: `(member_id, stripe_payment_method_id, exp_month, exp_year, days_out_email)` for email, parallel for SMS.
+## 2. Public homepage (/) — phone capture widget
 
-## 2. Email — added to `send-email/index.ts`
+File: `src/pages/Index.tsx` (a new small section, placed after the Recovery section, before Philosophy to match `mem://style/homepage/layout-order`).
 
-New type `card_expiring` using the approved copy:
+New component: `src/components/home/SmsSignupSection.tsx`
+- Headline: "Never miss a class drop."
+- Single phone input + "Text me alerts" button.
+- On submit → call existing `send-sms` edge function once with a welcome confirmation, then insert into a new lightweight `sms_marketing_leads` table (email optional, phone required, source = "homepage"). Marks `consent_given = true` with disclosure version + timestamp.
+- Compliance copy underneath matches `SMS_DISCLOSURE_TEXT` (already in `SmsConsentCheckbox.tsx`).
 
-> Subject: **Your card on file expires soon — update to avoid interruption**
->
-> Hi {first_name}, the {card_brand} ending in {card_last4} expires {exp_month}/{exp_year}. Next charge: {next_billing_date} for ${next_amount}. [Update Payment Method] → /member/payment-methods. Reply or admin@stormwellnessclub.com.
+Migration: create `public.sms_marketing_leads (id, phone, email, source, consent_given, consent_version, consent_at, user_agent, created_at)` with RLS allowing `anon` INSERT only, admin/service_role full access. Grants per project rules.
 
-## 3. SMS — added to existing `send-sms` function
+## 3. Member portal — hard interstitial gate
 
-Template (160 chars, A2P-compliant):
+Replace the dismissible banner with a forcing modal.
 
-> Storm Wellness Club: Your card ending {last4} expires {MM}/{YY}. Update at stormwellnessclub.com/member/payment-methods to avoid interrupted billing. Reply STOP to opt out.
+New component: `src/components/member/SmsOptInGate.tsx`
+- Renders a non-dismissible `<Dialog>` (no `X`, `onOpenChange` no-op, no overlay click-to-close) inside `MemberLayout` whenever the logged-in `profile.sms_opt_in !== true`.
+- Single primary CTA: **"Enable SMS Alerts"** (per user request, no decline option). 
+- Sub-text explains why: "We use SMS for class reminders, waitlist promotions, billing notices, and time-sensitive updates. You can reply STOP at any time to unsubscribe."
+- If `profile.phone` is missing → CTA changes to "Add phone number" linking to `/member/profile`.
+- On confirm → writes `sms_opt_in=true`, logs to `sms_consent_log` with `source='portal_gate'`, invalidates `user-profile`, dismisses.
 
-Only sent to members with `sms_consent = true`.
+Wiring:
+- `src/components/member/MemberLayout.tsx`: remove the existing SMS banner item from the notification bar (lines around 92–96), mount `<SmsOptInGate />` instead at layout root.
+- Same gate applies to the non-member portal layout (`/portal`), reading `non_member_profiles.sms_opt_in`.
 
-## 4. New edge function `check-expiring-cards` (daily cron, 9am CT)
+Edge cases:
+- Members with `sms_opt_out_at` set within the last 30 days → suppress the gate (respect explicit opt-out so we don't harass them; admins can see opt-out status).
+- Admin/staff impersonation → suppress gate.
 
-Logic per active member with `stripe_customer_id`:
-1. List Stripe payment methods, find default
-2. Compute months-until-expiry from `exp_month/exp_year` vs today (America/Chicago)
-3. Touchpoints:
-   - **60 days out** → email only
-   - **30 days out** → email + SMS
-   - **7 days out** → email + SMS (final)
-4. Skip if `card_expiry_notices` already has a row for `(member, pm_id, exp_month, exp_year, days_out_*)`
-5. Skip if card was updated (different `pm_id` or different exp)
-6. Write `billing_outreach_logs` entry per send
+## 4. Admin visibility
 
-Cron: pg_cron job hits the function once daily.
+File: `src/pages/admin/Members.tsx` (or wherever the member list lives) — add a small "SMS" column / badge showing opt-in status so staff can ask members in person.
 
-## 5. Member portal banner `CardExpiringNotice`
+(Skip if it slows things down; not blocking.)
 
-Shown on `/member` and `/member/membership` when default card expires ≤60 days:
+## Technical notes
 
-- **Amber** for 31–60 days, **red** for ≤30 days
-- Text: "Your {brand} ending {last4} expires {MM}/{YY}. Update to avoid interruption."
-- Button: "Update Card" → `/member/payment-methods`
-- Dismissible per-session, returns next page load
-- Sits above `PaymentDueNotice` / `AnnualFeeNotice` in banner stack
-- Uses new hook `useCardExpiryStatus` that queries Stripe default PM via existing `useAdminMemberPaymentMethods`-style edge function (new `get-member-card-expiry`)
-
-## 6. Admin visibility
-
-"Card Expiring" badge column on `/admin/billing-arrears` and member detail when card expires ≤60 days (amber/red).
-
-## Technical Notes
-
-- Idempotency: DB unique constraint on `card_expiry_notices` is the source of truth — INSERT with `ON CONFLICT DO NOTHING`, only send if insert succeeded
-- Card replacement detection: if Stripe returns a different `pm.id` than last logged, treat as resolved and skip
-- Timezone: all "days out" math in `America/Chicago`
-- Stripe pagination: only checks default payment method, not all saved cards
-- SMS opt-in respected: skips members without `sms_consent`
+- New table `sms_marketing_leads` is the only schema change; everything else reads existing `profiles.sms_opt_in*` columns and `sms_consent_log`.
+- Gate uses `useUserProfile` hook — already in context throughout the portal.
+- All writes log to `sms_consent_log` for A2P 10DLC compliance (per `mem://compliance/sms-consent-system`).
+- No changes to `send-sms` edge function or any transactional flows; this is purely opt-in capture.
 
 ## Out of scope
 
-- Bulk admin "send expiring notice" button (cron handles it)
-- Actually fixing SMS delivery (separate troubleshoot)
-- Notices for non-default secondary cards
+- Removing existing opt-outs (we respect their choice).
+- Bulk re-prompting the 698 non-opted members via email — separate campaign decision.
