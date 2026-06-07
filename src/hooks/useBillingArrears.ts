@@ -38,24 +38,37 @@ export interface ArrearsRow {
 }
 
 const DUES_TYPES = ["membership_dues", "subscription_cycle", "subscription_update", "subscription_create"];
+const KIDS_CARE_TYPES = ["kids_care"];
+const OTHER_TYPES = ["class_pass", "guest_pass", "shop", "annual_fee", "manual", "other", "pos_other"];
+const ALL_TRACKED_TYPES = [...DUES_TYPES, ...KIDS_CARE_TYPES, ...OTHER_TYPES];
 const COLLECTIBLE_STATUSES = ["active", "past_due", "suspended", "pending_activation", "frozen"];
+
+export type ArrearsTypeFilter = "dues" | "kids_care" | "other" | "all";
 
 export interface ArrearsFilters {
   search?: string;
   includeCancelled?: boolean;
   minMonthsBehind?: number; // 1 = at least 1 month
+  typeFilter?: ArrearsTypeFilter; // default "dues"
 }
 
 export function useBillingArrears(filters: ArrearsFilters = {}) {
   return useQuery<ArrearsRow[]>({
     queryKey: ["billing-arrears-summary", filters],
     queryFn: async () => {
+      const typeFilter = filters.typeFilter ?? "dues";
+      const billingTypes =
+        typeFilter === "dues" ? DUES_TYPES
+        : typeFilter === "kids_care" ? KIDS_CARE_TYPES
+        : typeFilter === "other" ? OTHER_TYPES
+        : ALL_TRACKED_TYPES;
+
       // Pull all open arrears items
       const { data: arrears, error: arrearsErr } = await supabase
         .from("billing_arrears")
         .select("id, member_id, billing_type, period_start, period_end, amount_due_cents, amount_paid_cents, status, failure_message, decline_code, next_retry_at, updated_at")
         .in("status", ["unpaid", "partial", "past_due", "open"])
-        .in("billing_type", DUES_TYPES);
+        .in("billing_type", billingTypes);
       if (arrearsErr) throw arrearsErr;
 
       const memberIds = Array.from(new Set((arrears || []).map(a => a.member_id).filter(Boolean))) as string[];
