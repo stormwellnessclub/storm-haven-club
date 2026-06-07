@@ -569,6 +569,8 @@ export default function BillingArrears() {
                               <CreateDuesSubButton row={r} onDone={() => refetch()} />
                             )}
                             <ChargeCardButton row={r} />
+                            <SendNoticeButton row={r} onDone={() => refetch()} />
+
                             <Button size="sm" variant="outline" onClick={() => { setOutreachTarget(r); setOutreachOpen(true); }}>
                               <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Log
                             </Button>
