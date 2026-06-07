@@ -342,6 +342,9 @@ export type Database = {
           period_start: string
           reopened_at: string | null
           reopened_reason: string | null
+          resolution_reason: string | null
+          resolved_at: string | null
+          resolved_by_email: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
@@ -366,6 +369,9 @@ export type Database = {
           period_start: string
           reopened_at?: string | null
           reopened_reason?: string | null
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by_email?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -390,6 +396,9 @@ export type Database = {
           period_start?: string
           reopened_at?: string | null
           reopened_reason?: string | null
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by_email?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
