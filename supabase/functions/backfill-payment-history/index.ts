@@ -20,6 +20,45 @@ interface BackfillBody {
   phase?: "charges" | "invoices" | "both"; // default both
 }
 
+// Known dues / annual-fee / kids-care price IDs.
+// Keep in sync with stripe-webhook PRICE_ID_MAP + product config.
+const ANNUAL_FEE_PRICE_IDS = new Set([
+  "price_1SlA2BLyZrsSqLhs8VX17F0C",
+  "price_1SlA2RLyZrsSqLhsK3XQuANN",
+]);
+const CLASS_PASS_PRICE_IDS = new Set([
+  "price_1SlA2vLyZrsSqLhsBHHWlQPD","price_1T2XzALyZrsSqLhs1N07i160",
+  "price_1SlA9sLyZrsSqLhsM0X8VDhN","price_1T2XzfLyZrsSqLhsd8Gu4c7B",
+  "price_1T2XmKLyZrsSqLhsmtaMSUiF","price_1SlABFLyZrsSqLhsGOpvWGFE",
+  "price_1T2YiALyZrsSqLhsuJGaqAaK","price_1T2XoiLyZrsSqLhsjN7Hb2Lk",
+]);
+const GUEST_PASS_PRICE_IDS = new Set(["price_1SxATYLyZrsSqLhs6vDu1QWg"]);
+
+function classifyInvoice(inv: Stripe.Invoice): string {
+  const lines = inv.lines?.data ?? [];
+  for (const line of lines) {
+    const priceId = line.price?.id;
+    if (!priceId) continue;
+    if (ANNUAL_FEE_PRICE_IDS.has(priceId)) return "annual_fee";
+    if (CLASS_PASS_PRICE_IDS.has(priceId)) return "class_pass";
+    if (GUEST_PASS_PRICE_IDS.has(priceId)) return "guest_pass";
+  }
+  // Description / product-name heuristics for kids care + shop
+  for (const line of lines) {
+    const desc = (line.description || "").toLowerCase();
+    if (desc.includes("kids care") || desc.includes("kidscare") || desc.includes("kids_care")) return "kids_care";
+    if (desc.includes("guest pass")) return "guest_pass";
+    if (desc.includes("class pass")) return "class_pass";
+    if (desc.includes("shop") || desc.includes("merch")) return "shop";
+  }
+  // Amount-based fallback for known kids-care subscription price ($75 + processing fee = $77.55)
+  if ((inv.amount_due ?? 0) === 7755) return "kids_care";
+  // Subscription invoices default to membership dues; otherwise other.
+  if (inv.subscription) return "membership_dues";
+  return "other";
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
