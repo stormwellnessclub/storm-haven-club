@@ -1,60 +1,75 @@
-# Batch 3 — Upcoming Renewal Reminders
+# Batch 6 — Access Gating for Past-Due Members
 
-Pre-charge heads-up emails so members know what's coming off their card before it happens. Pure addition — no changes to existing dunning, billing, or RPC logic.
+Three surfaces respond to `members.payment_past_due = true`. Frozen logic untouched.
 
-## 1. Email templates (4 new)
+## 1. Scanner — HARD BLOCK (lose member access)
 
-Added to `supabase/functions/send-email/index.ts`. Same Storm branding (`#312D28` / `#E8DED1`), luxury formal tone, signed "— The Storm Wellness Club Team". Contact line: `admin@stormwellnessclub.com` or Member Services in portal.
+Update `process_member_scan` RPC. After existing frozen/blocked checks, add:
 
-- **`renewal_monthly_dues_3day`** — Subject: *"Your upcoming Storm monthly dues"*. Body: friendly reminder that `{amount}` will be charged on `{charge_date}` to `{card_brand} ending {last4}`. CTA: **Update Payment Method**.
-- **`renewal_annual_dues_14day`** — Subject: *"Your Storm annual dues renew in 14 days"*. Body: 14-day notice for founding/annual members. Same card/amount/date merge fields. CTA: **Update Payment Method**.
-- **`renewal_annual_fee_14day`** — Subject: *"Your Storm annual fee renews in 14 days"*. Body: explains the annual facility fee (separate from dues) is renewing. CTA: **Update Payment Method**.
-- **`renewal_annual_fee_3day`** — Subject: *"Reminder: Storm annual fee charges in 3 days"*. Body: final heads-up before the annual fee posts. CTA: **Update Payment Method**.
-
-No reminders for monthly dues at 14-day mark (too noisy month-over-month).
-
-## 2. Tracking table
-
-```text
-payment_renewal_reminders
-  id, member_id, reminder_type (enum), charge_date, sent_at, idempotency_key (unique)
+```sql
+IF v_member.payment_past_due = true THEN
+  RETURN jsonb_build_object(
+    'allowed', false,
+    'reason', 'payment_past_due',
+    'message', 'Membership on hold — payment past due',
+    'member_id', v_member.id,
+    'first_name', v_member.first_name,
+    'last_name', v_member.last_name,
+    'amount_owed_cents', <sum from billing_arrears>,
+    'override_allowed', false
+  );
+END IF;
 ```
 
-`idempotency_key` format: `renewal-{member_id}-{reminder_type}-{charge_date}` — guarantees one send per charge per type, even if the scheduler runs many times.
+- Un-overridable (matches existing frozen/unpaid policy in Core memory).
+- Front-desk scanner UI: red "Payment past due — $X owed" panel with **Take Payment** shortcut → opens existing `charge-member-arrears` flow.
+- Same treatment for Manual and Camera modes.
 
-RLS: service-role only (admin can read, no member access needed).
+## 2. Kids Care — HARD BLOCK
 
-## 3. `process-renewal-reminders` edge function (new)
+In the booking RPCs (`book_kids_care_session` and the hour-request/monthly-pack equivalents), after the existing frozen check:
 
-Runs daily at 9 AM Central via `pg_cron`. Logic:
+```sql
+IF v_member.payment_past_due = true THEN
+  RAISE EXCEPTION 'Kids Care booking unavailable — membership payment past due'
+    USING ERRCODE = 'P0001';
+END IF;
+```
 
-1. For each member with `subscription_status = 'active'` AND `payment_past_due = false` AND no active freeze:
-   - **Monthly dues members**: if `next_billing_date = today + 3`, send `renewal_monthly_dues_3day`.
-   - **Annual dues members** (founding or annual cadence): if `next_billing_date = today + 14`, send `renewal_annual_dues_14day`.
-   - **All members with `next_annual_fee_date`**: if `= today + 14`, send `renewal_annual_fee_14day`; if `= today + 3`, send `renewal_annual_fee_3day`.
-2. Skip if `idempotency_key` already exists in `payment_renewal_reminders`.
-3. Insert row on successful send.
+Frontend (`/member/kids-care` + `/member/kids-care-bookings`): if `payment_past_due`, hide the booking CTA and render the existing `PastDueBanner` with copy *"Update your payment method to resume Kids Care booking."*
 
-Skips frozen members (they don't get charged) and past-due members (they're already in dunning cadence — no need for double messaging).
+## 3. Classes — SOFT WARN (booking still allowed)
+
+No RPC change. Pure UI:
+
+- On `/member/book` and `/portal/book` class detail/booking dialogs, when `payment_past_due`, show an amber inline alert above the "Confirm booking" button:
+  > **Heads up — your dues are past due.** Your booking will still go through, but membership access is on hold until payment clears. [Update payment method]
+- Reuse `useMemberArrears` for the flag; link to `/member/payment-methods`.
 
 ## 4. Files touched
 
-- `supabase/functions/send-email/index.ts` — 4 new templates
-- `supabase/functions/process-renewal-reminders/index.ts` (new)
-- Migration — `payment_renewal_reminders` table + RLS
-- Insert (not migration) — daily `pg_cron` job at 9 AM Central
+**Migration**
+- Edit `process_member_scan` — add `payment_past_due` branch + amount_owed lookup.
+- Edit Kids Care booking RPC(s) — add `payment_past_due` guard.
 
-## Guarantees
+**Frontend**
+- `src/pages/admin/CheckInHistory.tsx` / scanner result handler — render new `payment_past_due` reason with red panel + Take Payment button.
+- Kids Care: `src/pages/member/KidsCare.tsx`, `src/pages/member/KidsCareBookings.tsx`, `src/components/kids-care/HourRequestForm.tsx` — gate CTA + show banner.
+- Classes: booking dialog components under `src/components/booking/` (and `/portal/book` equivalents) — amber warning alert.
 
-- **No double-sends** — unique idempotency key per member/type/charge date.
-- **No interference with dunning** — skips past-due members entirely.
-- **No interference with freezes** — skips frozen members.
-- **Pure additive** — no changes to webhooks, RPCs, or member portal.
+## 5. Guarantees
 
-## Out of scope (later batches)
+- **Frozen logic untouched** — frozen still wins precedence; past_due is a separate independent block.
+- **No double-blocking** — if a member is also frozen, frozen reason shows (existing behavior).
+- **No class flow regression** — classes RPC unchanged; warning is presentation-only.
+- **Reversible** — the moment `retry-my-payment` / Stripe success clears `payment_past_due`, all three surfaces unlock automatically (no admin action needed).
 
-- `PastDueBanner` + manual "Retry Payment" button (Batch 4)
-- Admin `/billing-arrears` dunning columns (Batch 4)
-- Backfill of existing past-due members into `payment_dunning_state` (Batch 5)
-- Scanner gate for past-due members (separate gap)
-- Kids Care credit guard (separate gap)
+## 6. Out of scope (Batch 7)
+
+- Dunning Activity timeline on `MemberDetailSheet`
+- Bulk actions on `/admin/billing-arrears`
+- Past-due member backfill (waiting on your list)
+
+## 7. Memory update after merge
+
+Update `mem://admin/access-control/effective-status` to note `payment_past_due` is now un-overridable at the scanner alongside frozen/unpaid.
