@@ -149,6 +149,14 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
             last_outreach_outcome: outreach?.outcome ?? null,
             open_follow_up_at: openFollowUpByMember.get(a.member_id) ?? null,
             arrears_ids: [a.id],
+            dunning_status: dunningByMember.get(a.member_id)?.status ?? null,
+            dunning_retry_count: dunningByMember.get(a.member_id)?.retry_count ?? null,
+            dunning_next_email_day: dunningByMember.get(a.member_id)?.next_email_day ?? null,
+            dunning_next_email_due_at: dunningByMember.get(a.member_id)?.next_email_due_at ?? null,
+            dunning_emails_sent_count: Array.isArray(dunningByMember.get(a.member_id)?.emails_sent)
+              ? dunningByMember.get(a.member_id)!.emails_sent.length
+              : 0,
+            dunning_first_failed_at: dunningByMember.get(a.member_id)?.first_failed_at ?? null,
           });
         } else {
           existing.months_behind += 1;
