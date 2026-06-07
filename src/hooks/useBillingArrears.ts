@@ -79,7 +79,7 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
       // Members
       const { data: members, error: mErr } = await supabase
         .from("members")
-        .select("id, first_name, last_name, email, phone, status, membership_type, subscription_status, card_last4, card_brand, card_exp_month, card_exp_year, stripe_customer_id, stripe_subscription_id")
+        .select("id, first_name, last_name, email, phone, status, membership_type, subscription_status, card_last4, card_brand, card_exp_month, card_exp_year, stripe_customer_id, stripe_subscription_id, gender, is_founding_member")
         .in("id", memberIds);
       if (mErr) throw mErr;
       const memberById = new Map(((members || []) as any[]).map(m => [m.id, m]));
