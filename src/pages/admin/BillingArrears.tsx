@@ -168,6 +168,10 @@ export default function BillingArrears() {
   const [selected, setSelected] = useState<ArrearsRow | null>(null);
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [outreachTarget, setOutreachTarget] = useState<ArrearsRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkChargeOpen, setBulkChargeOpen] = useState(false);
+  const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
+  const [bulkOutreachOpen, setBulkOutreachOpen] = useState(false);
 
   const filters = useMemo(() => ({
     search: search || undefined,
@@ -176,6 +180,32 @@ export default function BillingArrears() {
   }), [search, includeCancelled, minMonths]);
 
   const { data: rows = [], isLoading, refetch, isFetching } = useBillingArrears(filters);
+
+  const selectedRows = useMemo(
+    () => rows.filter(r => selectedIds.has(r.member_id)),
+    [rows, selectedIds],
+  );
+
+  const toggleRow = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelectedIds(prev => {
+      if (prev.size === rows.length) return new Set();
+      return new Set(rows.map(r => r.member_id));
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const bulkTotal = selectedRows.reduce((s, r) => s + r.outstanding_cents, 0);
+  const bulkChargeable = selectedRows.filter(r => !!r.card_last4).length;
+  const bulkReachable = selectedRows.filter(r => !!r.phone).length;
 
   const summary = useMemo(() => {
     const total = rows.reduce((s, r) => s + r.outstanding_cents, 0);
