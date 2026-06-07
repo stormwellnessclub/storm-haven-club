@@ -419,6 +419,22 @@ export default function BillingArrears() {
         onOpenChange={setOutreachOpen}
         target={outreachTarget}
       />
+
+      <BulkChargeDialog
+        open={bulkChargeOpen}
+        onOpenChange={setBulkChargeOpen}
+        targets={selectedRows}
+      />
+      <BulkSmsDialog
+        open={bulkSmsOpen}
+        onOpenChange={setBulkSmsOpen}
+        targets={selectedRows}
+      />
+      <BulkOutreachDialog
+        open={bulkOutreachOpen}
+        onOpenChange={setBulkOutreachOpen}
+        targets={selectedRows}
+      />
     </AdminLayout>
   );
 }
@@ -437,7 +453,6 @@ function StatCard({ icon, label, value, tone }: { icon: React.ReactNode; label: 
 }
 
 function MemberArrearsDetail({ row, onLogOutreach }: { row: ArrearsRow; onLogOutreach: () => void }) {
-  const { data: history = [], isLoading } = useMemberOutreach(row.member_id);
   return (
     <>
       <SheetHeader>
@@ -475,39 +490,11 @@ function MemberArrearsDetail({ row, onLogOutreach }: { row: ArrearsRow; onLogOut
           </Button>
         </div>
 
-        <div>
-          <div className="text-sm font-semibold mb-2">Outreach history</div>
-          {isLoading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
-          ) : history.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No outreach logged yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {history.map(h => (
-                <Card key={h.id}>
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-sm font-medium">
-                          {outcomeLabel(h.outcome)} · <span className="text-muted-foreground capitalize">{h.channel.replace("_"," ")}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(h.created_at), "MMM d, yyyy h:mm a")}
-                          {h.created_by_email && ` · by ${h.created_by_email}`}
-                        </div>
-                      </div>
-                      {h.follow_up_at && (
-                        <Badge variant="outline">Follow-up {format(new Date(h.follow_up_at), "MMM d")}</Badge>
-                      )}
-                    </div>
-                    {h.note && <div className="text-sm mt-2 whitespace-pre-wrap">{h.note}</div>}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+        <DunningTimeline memberId={row.member_id} />
       </div>
+    </>
+  );
+}
     </>
   );
 }

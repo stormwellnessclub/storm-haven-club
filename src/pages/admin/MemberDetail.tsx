@@ -1723,6 +1723,11 @@ export default function MemberDetail() {
               />
             </div>
             
+            {/* Dunning Activity Timeline */}
+            <div className="mb-6">
+              <DunningTimeline memberId={member.id} />
+            </div>
+
             {/* Payment Timeline - Chronological view of all payment events */}
             <div className="mb-6">
               <PaymentTimeline memberId={member.id} maxItems={50} />
