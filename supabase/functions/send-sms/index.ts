@@ -33,6 +33,16 @@ function tmpl(s: string, v: Record<string, unknown>) {
 const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
   "test-message": (v) =>
     `Storm Wellness Club: test message${v.note ? ` — ${v.note}` : ""}. Reply STOP to opt out.`,
+  "class-booking-confirmation": (v) =>
+    tmpl(
+      `Storm: You're booked for {{className}} on {{date}} at {{time}}. See you soon!`,
+      v,
+    ),
+  "class-booking-cancellation": (v) =>
+    tmpl(
+      `Storm: Your {{className}} on {{date}} at {{time}} was cancelled.{{refundNote}}`,
+      v,
+    ),
   "class-reminder-24h": (v) =>
     tmpl(
       `Storm: Reminder — {{className}} tomorrow at {{time}}. Reply STOP to opt out.`,
