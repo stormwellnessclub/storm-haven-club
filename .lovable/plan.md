@@ -1,72 +1,32 @@
+## Manual Past-Due Notice on Billing Arrears
 
-## Goal
+Add a "Send Past-Due Notice" button per member on the Billing Arrears page. Admin clicks → formal collection email is sent to that member only. Logs every send so we can see when each member was last contacted.
 
-Create new monthly Stripe dues subscriptions for **Sherene Albosaraj** and **Jeree Spicer** so they actually get billed going forward. Both currently have `stripe_subscription_id = NULL` after past cancellations.
+### What gets built
 
-## Member facts (verified from DB)
+1. **New transactional email template** — `past-due-notice.tsx` in `supabase/functions/_shared/transactional-email-templates/`
+   - Uses the approved copy (formal demand, itemized balance, 7-day window, late fee / revocation / collections / forfeiture consequences)
+   - Reply-to: `admin@stormwellnessclub.com`
+   - Variables: `firstName`, `lastName`, `memberEmail`, `tier`, `totalOwed`, `monthsLate`, `oldestDueDate`, `cardBrand`, `last4`, `lastAttemptDate`, `unpaidInvoices[]`, `portalUrl`
+   - Registered in `registry.ts`
 
-| Member | Tier | Gender → price | Card | Stripe customer |
-|---|---|---|---|---|
-| Sherene Albosaraj | Gold | women → **$250/mo base** | •••• 1642 | `cus_TtOsmHEP7aEKZw` |
-| Jeree Spicer | Gold | women → **$250/mo base** | •••• 7193 | `cus_TuXPZdIkORPvQO` |
+2. **New edge function** — `send-past-due-notice`
+   - Admin-only (verify role: super_admin / admin / manager)
+   - Input: `memberId`
+   - Server-side: loads member, queries Stripe for `past_due` / `unpaid` open invoices on the dues sub, builds itemized list, calls `send-transactional-email` with `templateName: 'past-due-notice'` and idempotency key `past-due-notice-{memberId}-{YYYY-MM-DD}` (one send per member per day max)
+   - Writes a row to `outreach_log` (existing table per memory: Dues Arrears & Outreach) with type `past_due_notice`
 
-Processing fee gross-up is applied as a separate recurring line item by the existing code (matches their old arrears amounts: Sherene $250 flat, Jeree $257.55 with fee).
+3. **UI button on Billing Arrears page**
+   - New "Send Notice" button in the Actions column, shown only when member has outstanding balance > $0
+   - Confirmation dialog showing: member name, email, amount that will be in the notice
+   - On success: toast + refetch so the "Last contacted" column updates
+   - Show last-sent timestamp inline so admin doesn't re-spam
 
-## How
+### Out of scope (deliberately)
+- No cron / no auto-send
+- No actual late-fee assessment (email warns about it; you'd assess manually via Manual Charge Cart)
+- No collections-agency integration
 
-The edge function `stripe-payment` already has the exact action we need: **`admin_create_member_subscription`** (line 2807).
-
-It does everything correctly:
-- Looks up tier/gender price from `STRIPE_PRODUCTS`
-- Attaches saved card as `default_payment_method`
-- Adds recurring processing-fee line item via `addRecurringProcessingFeeItems`
-- Writes `stripe_subscription_id` and resets `subscription_status` to `active`
-- Optional `firstChargeDate` to defer the first charge
-
-So **no code changes needed** — just two invocations.
-
-### Execution
-
-For each member, call `supabase.functions.invoke('stripe-payment', { body: ... })` with:
-
-```json
-{
-  "action": "admin_create_member_subscription",
-  "memberId": "<id>",
-  "tier": "Gold",
-  "gender": "women",
-  "billingType": "monthly",
-  "isFoundingMember": false,
-  "startDate": "<today>",
-  "firstChargeDate": "<first charge date — see below>"
-}
-```
-
-### Critical decision: when does the first new charge hit?
-
-Their **arrears for past months (Mar–Jun) stay in the `billing_arrears` ledger** and are collected separately via the existing "charge arrears" flow (step 1 of the bigger plan). The new subscription is for **future months only**.
-
-Two choices for `firstChargeDate`:
-
-- **A. Charge today** — they immediately get billed for the current/upcoming cycle. Cleanest, no missed months going forward, but back-to-back with whatever arrears collection you also run.
-- **B. Defer to July 1 (or next 1st of month)** — gives breathing room, aligns billing to month start.
-
-I recommend **B (defer to the 1st of next month)** so arrears can be addressed independently without two charges hitting on the same day.
-
-## After the subscriptions are created
-
-1. Confirm the new `stripe_subscription_id` is on each member record.
-2. Confirm `subscription_status = 'active'` on each.
-3. The persistent red "$X owed" banner stays until step 1 of the larger plan (charge arrears) is completed — that is correct and expected.
-
-## Out of scope for this step
-
-- Charging the existing $2,077.68 in arrears (separate step).
-- Touching Mariam/Ayah — they already have `incomplete` subs, handled in step 1 next.
-- Emails/SMS — separate outreach step.
-
-## Question for you
-
-Confirm:
-1. **First-charge date** — defer to **July 1** (recommended), or charge **today**?
-2. Both Sherene & Jeree confirmed as **Gold / women pricing ($250 base + fee)** — correct?
+### Confirmations needed before build
+- Email copy is locked in as previously approved
+- Template uses existing Lovable Emails infrastructure (already configured for this project)
