@@ -17,6 +17,8 @@ export interface ArrearsRow {
   card_exp_year: number | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  gender: string | null;
+  is_founding_member: boolean | null;
   months_behind: number;
   outstanding_cents: number;
   oldest_due_period: string | null;
