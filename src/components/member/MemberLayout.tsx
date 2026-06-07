@@ -106,6 +106,9 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         {/* Past-due dunning banner (highest priority) */}
         <PastDueBanner />
 
+        {/* Card expiring banner (next priority) */}
+        <CardExpiringNotice />
+
         {/* Consolidated notification bar */}
         <NotificationBar items={notifications} />
         
