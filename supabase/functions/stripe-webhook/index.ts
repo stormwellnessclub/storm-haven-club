@@ -3278,6 +3278,21 @@ serve(async (req) => {
               logStep("Skipping payment failure email - no email or name", { memberId: memberData.id });
             }
 
+            // ── Dunning flow: flip past_due flag, upsert dunning state, send Day 0 ──
+            await upsertDunningOnFailure(supabase, {
+              member: {
+                id: memberData.id,
+                email: memberData.email,
+                first_name: memberData.first_name,
+                last_name: memberData.last_name,
+              },
+              invoice,
+              failureReason: declineReason || failureMessage,
+              failureCode,
+              subscriptionType,
+            });
+
+
             // Send admin alert email
             try {
               const memberNameForAdmin = memberData.first_name && memberData.last_name 
