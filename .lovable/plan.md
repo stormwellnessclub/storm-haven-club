@@ -1,35 +1,58 @@
-# Backfill Plan — Last 6 Months, No Emails
+# Arrears cleanup + charge-type classification
 
-## Goal
-Pull every Stripe charge + invoice from the last 6 months into `payment_attempts` and `billing_arrears` so existing past-due members surface in `/admin/billing-arrears`. **No dunning emails or SMS are sent.**
+## Part 1 — Data cleanup (one-time)
 
-## Why this is safe
-The `backfill-payment-history` edge function only writes to two tables:
-- `payment_attempts` (via `log_payment_attempt` RPC) — pure history log, no side effects
-- `billing_arrears` (upsert by `member_id, stripe_invoice_id`) — also just a ledger row
+Resolve the false/stale arrears rows surfaced by the 6-month backfill:
 
-Neither write triggers an email or SMS. The dunning email/SMS system fires from the Stripe webhook (`invoice.payment_failed` live events) and from explicit admin actions in the Bulk dialogs — not from backfill inserts. So this run is silent by design.
+- **Sarah Siddiqui** — archive member record (set `status='archived'`) and resolve all her `billing_arrears` rows as `not_a_member`.
+- **Maryam Hachem** — resolve all arrears as `kids_care_cancelled`.
+- **Jessica Seagull** — resolve all arrears as `kids_care_paid`.
+- **Zahna Abdallah** — resolve all arrears as `paid_externally`.
+- **Rama Alhoussaini** — resolve all arrears as `paid_externally` (current as of today).
+- **Jeree Spicer** — resolve April invoice as `paid_late` (Stripe shows succeeded); keep May open.
+- **Mariam Alsheeblawy** — leave April + May open (15th cycle).
+- **Sherene Albosaraj** — leave March + April + May open (9th cycle).
+- **Ayah Boussi** — leave April + May open (10th cycle).
 
-## Steps
+Each resolution sets `status='resolved'`, `resolution_reason=<reason>`, `resolved_at=now()`, scoped per member's `member_id`.
 
-1. **Invoke the edge function** with a 6-month window:
-   - `start` = 2025-12-07 (today − 6 months)
-   - `end` = now
-   - `dryRun: false` (we want the data written so you can review it in the admin UI)
+## Part 2 — Make the system differentiate charge types
 
-2. **Report back** the result counts:
-   - charges processed / inserted / skipped (no matching member)
-   - invoices processed / arrears rows upserted
-   - any errors
+The core bug: backfill labels every invoice `membership_dues` (or whatever Stripe's `billing_reason` says, which collapses unrelated subs together). Kids care, class passes, and shop charges are bleeding into the dues arrears view.
 
-3. **You review** the resulting list at `/admin/billing-arrears` — filter to unpaid/past_due, eyeball who's there, flag anyone missing or wrong.
+### 2a. Backfill classifier (`supabase/functions/backfill-payment-history/index.ts`)
+Before upserting `billing_arrears`, fetch invoice line items and classify against `PRICE_ID_MAP` + product-name keywords:
 
-4. **Hold for your confirmation** before any bulk SMS / bulk charge / dunning is triggered against this list. Nothing in the backfill itself contacts members.
+- `membership_dues` — monthly/annual dues price IDs
+- `annual_fee` — annual facility fee price IDs
+- `kids_care` — kids-care subscription price IDs (month-to-month, separate)
+- `class_pass` — pilates/cycling pass price IDs
+- `guest_pass` — guest pass price IDs
+- `shop` — storm shop products
+- `other` — fallback
 
-## After you confirm the list
-Then (separate turn) we can:
-- Seed `payment_dunning_state` rows for the unpaid ones so the timeline + retry buttons light up, OR
-- Use the Bulk Charge / Bulk SMS dialogs you already have on `/admin/billing-arrears` to actually reach out.
+Stored on `billing_arrears.billing_type` so downstream queries can filter cleanly.
 
-## Open question
-Do you want me to also seed `payment_dunning_state` rows during the backfill (so the dunning timeline shows them and "Retry charge" works one-click), or keep this run strictly to history + arrears and add dunning state only after you bless the list? Default plan above is the latter — strictly silent ledger import.
+### 2b. One-time reclassification
+After deploy, re-run a scoped invoice pass (or a small SQL update keyed off cached `stripe_invoice_id`) to backfill `billing_type` on the 440 existing rows.
+
+### 2c. Arrears page (`/admin/billing-arrears`)
+- `useBillingArrears` already filters `DUES_TYPES` — confirmed correct. Kids care will drop out automatically once reclassified.
+- Add a small "Type" segmented control above the table: **Dues** (default) · **Kids Care** · **Other** · **All**, so non-dues debt is still visible without polluting the dues view.
+- Each row's outstanding badge stays scoped to the selected type.
+
+### 2d. Member detail (`/admin/members/:id`)
+The arrears card on member detail should also group by `billing_type` so "owes May dues" doesn't get conflated with "owes kids care".
+
+## Part 3 — Verification
+
+After Parts 1 & 2:
+1. Re-pull `/admin/billing-arrears` (Dues filter). Expected list: Jeree (May), Mariam (Apr+May), Sherene (Mar+Apr+May), Ayah (Apr+May). Total ~$1,400.
+2. Switch to "Kids Care" filter — should be empty (Maryam/Jessica resolved).
+3. No emails or SMS sent. Outreach still requires explicit click in Bulk dialogs.
+
+## Technical notes
+- Resolutions use the data-update tool (UPDATE statements scoped by `member_id` + `billing_type` where applicable).
+- Classifier is a pure-function lookup added to the edge function; no schema change needed (`billing_type` column already exists).
+- Type filter on arrears page is a 1-line addition to `ArrearsFilters` + a `<ToggleGroup>` in `BillingArrears.tsx`.
+- Kids care subs stay completely outside the dues dunning pipeline — `payment_dunning_state` is only seeded for `membership_dues` / `annual_fee` rows.
