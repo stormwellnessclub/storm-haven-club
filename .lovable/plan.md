@@ -1,58 +1,61 @@
-# Arrears cleanup + charge-type classification
+# Fix auto-cancelled members + close the cancel-on-failure gap
 
-## Part 1 — Data cleanup (one-time)
+## Part 1 — Stop billing from cancelling subs on failure (root cause)
 
-Resolve the false/stale arrears rows surfaced by the 6-month backfill:
+Per project policy Stripe Smart Retries already leaves failed subs as `past_due`, and the webhook ignores `customer.subscription.deleted` for dues. **One remaining loophole**: `stripe-webhook` still flips a member to `cancelled` when a dues subscription returns status `incomplete_expired` (first invoice never collected). That's how a brand-new sub gets killed silently if the first charge fails.
 
-- **Sarah Siddiqui** — archive member record (set `status='archived'`) and resolve all her `billing_arrears` rows as `not_a_member`.
-- **Maryam Hachem** — resolve all arrears as `kids_care_cancelled`.
-- **Jessica Seagull** — resolve all arrears as `kids_care_paid`.
-- **Zahna Abdallah** — resolve all arrears as `paid_externally`.
-- **Rama Alhoussaini** — resolve all arrears as `paid_externally` (current as of today).
-- **Jeree Spicer** — resolve April invoice as `paid_late` (Stripe shows succeeded); keep May open.
-- **Mariam Alsheeblawy** — leave April + May open (15th cycle).
-- **Sherene Albosaraj** — leave March + April + May open (9th cycle).
-- **Ayah Boussi** — leave April + May open (10th cycle).
+Change (webhook `customer.subscription.updated` branch, ~line 2008):
+- For **dues** subs: on `canceled` / `incomplete_expired`, set `members.subscription_status='past_due'` and `members.status='past_due'` instead of `cancelled`. Log an admin alert; never null out `stripe_subscription_id`.
+- For **annual fee** subs: behavior unchanged.
 
-Each resolution sets `status='resolved'`, `resolution_reason=<reason>`, `resolved_at=now()`, scoped per member's `member_id`.
+Also harden `charge-member-arrears` so a failed `invoices.pay` does **not** rely on the sub still being active — already correct, but we'll also allow the function to fall back to a fresh `PaymentIntent` against the saved card + reconcile to the matching `billing_arrears` row when the original Stripe invoice was voided by cancellation. This is what makes "retry now" actually work for these 4.
 
-## Part 2 — Make the system differentiate charge types
+## Part 2 — Rewrite arrears to match Stripe-verified truth
 
-The core bug: backfill labels every invoice `membership_dues` (or whatever Stripe's `billing_reason` says, which collapses unrelated subs together). Kids care, class passes, and shop charges are bleeding into the dues arrears view.
+Per-member dues amount = each member's most recent successfully-paid recurring dues invoice (already gross-up'd):
 
-### 2a. Backfill classifier (`supabase/functions/backfill-payment-history/index.ts`)
-Before upserting `billing_arrears`, fetch invoice line items and classify against `PRICE_ID_MAP` + product-name keywords:
+| Member | Tier | Per-month | Cycle day | Owed months |
+|---|---|---|---|---|
+| Mariam Alsheeblawy | Silver | $200.00 | 15th | Apr (Mar 15–Apr 15), May (Apr 15–May 15) |
+| Sherene Albosaraj | Gold | $250.00 | 9th | Mar, Apr, May |
+| Ayah Boussi | Silver | $206.29 | 10th | Apr, May |
+| Jeree Spicer | Gold | $257.55 | 4th | May, Jun |
 
-- `membership_dues` — monthly/annual dues price IDs
-- `annual_fee` — annual facility fee price IDs
-- `kids_care` — kids-care subscription price IDs (month-to-month, separate)
-- `class_pass` — pilates/cycling pass price IDs
-- `guest_pass` — guest pass price IDs
-- `shop` — storm shop products
-- `other` — fallback
+Steps:
+1. **Resolve** every existing `unpaid` row for these 4 members with `resolution_reason='superseded_by_admin_correction_2026_06'`. (Keeps audit trail; drops them from the dunning view.)
+2. **Insert** new `billing_arrears` rows exactly matching the table above: `billing_type='membership_dues'`, `status='unpaid'`, `period_start` = cycle day, `period_end` = +1 month, `amount_due_cents` per the table, `stripe_invoice_id=NULL` (these are admin-created, not Stripe-originated).
+3. Set the 4 members to `status='past_due'`, `subscription_status='past_due'`, `payment_past_due=true`, `payment_past_due_since=now()` so the red owed banner shows everywhere.
 
-Stored on `billing_arrears.billing_type` so downstream queries can filter cleanly.
+## Part 3 — Reinstate the recurring dues subscriptions
 
-### 2b. One-time reclassification
-After deploy, re-run a scoped invoice pass (or a small SQL update keyed off cached `stripe_invoice_id`) to backfill `billing_type` on the 440 existing rows.
+Mariam (`sub_1TfZOB…`) and Ayah (`sub_1TfSx2…`) already have current Stripe subs in DB — verify they're `active`/`past_due` (not cancelled) and reattach if needed. After Part 1's fix, future failures won't kill them again.
 
-### 2c. Arrears page (`/admin/billing-arrears`)
-- `useBillingArrears` already filters `DUES_TYPES` — confirmed correct. Kids care will drop out automatically once reclassified.
-- Add a small "Type" segmented control above the table: **Dues** (default) · **Kids Care** · **Other** · **All**, so non-dues debt is still visible without polluting the dues view.
-- Each row's outstanding badge stays scoped to the selected type.
+Sherene and Jeree have no sub. Create new monthly dues subs:
+- `customer = stripe_customer_id`, `default_payment_method` = their saved card.
+- `items[0].price` = same Stripe price they were on before (look up from last paid invoice line item).
+- `billing_cycle_anchor` = next cycle day in `America/Chicago` (Sherene → 2026-07-09, Jeree → 2026-07-04).
+- `proration_behavior: 'none'`, `collection_method: 'charge_automatically'`.
+- Write `stripe_subscription_id` + `next_billing_date` back to `members`.
+- The new arrears rows from Part 2 are **separate** from Stripe — collected via the existing "Charge saved card" admin button (Part 1's hardening makes that work even though the original invoices were voided).
 
-### 2d. Member detail (`/admin/members/:id`)
-The arrears card on member detail should also group by `billing_type` so "owes May dues" doesn't get conflated with "owes kids care".
+## Part 4 — Hold all outreach
 
-## Part 3 — Verification
+Nothing dunning-related (email/SMS/auto-retry) fires from this plan. The admin still has to click "Charge saved card" or "Send reminder" per row in `/admin/billing-arrears` after you confirm the rewritten list.
 
-After Parts 1 & 2:
-1. Re-pull `/admin/billing-arrears` (Dues filter). Expected list: Jeree (May), Mariam (Apr+May), Sherene (Mar+Apr+May), Ayah (Apr+May). Total ~$1,400.
-2. Switch to "Kids Care" filter — should be empty (Maryam/Jessica resolved).
-3. No emails or SMS sent. Outreach still requires explicit click in Bulk dialogs.
+## Verification
 
-## Technical notes
-- Resolutions use the data-update tool (UPDATE statements scoped by `member_id` + `billing_type` where applicable).
-- Classifier is a pure-function lookup added to the edge function; no schema change needed (`billing_type` column already exists).
-- Type filter on arrears page is a 1-line addition to `ArrearsFilters` + a `<ToggleGroup>` in `BillingArrears.tsx`.
-- Kids care subs stay completely outside the dues dunning pipeline — `payment_dunning_state` is only seeded for `membership_dues` / `annual_fee` rows.
+After execution, re-pull `/admin/billing-arrears` (Dues filter). Expected list:
+- Ayah Boussi — 2 rows · $412.58
+- Jeree Spicer — 2 rows · $515.10
+- Mariam Alsheeblawy — 2 rows · $400.00
+- Sherene Albosaraj — 3 rows · $750.00
+- **Total owed: $2,077.68**
+
+Confirm subs in Stripe: 4 active monthly dues subs anchored to the right days.
+
+## Files touched (build phase)
+
+- `supabase/functions/stripe-webhook/index.ts` — neutralize cancel/incomplete_expired path for dues
+- `supabase/functions/charge-member-arrears/index.ts` — fallback to PaymentIntent for admin-created arrears (no Stripe invoice)
+- Data ops via `insert` tool: resolve old arrears, insert corrected ones, update 4 members
+- Stripe ops: create 2 new subscriptions (Sherene, Jeree)
