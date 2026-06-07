@@ -60,6 +60,11 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
       `Storm: A spot opened for {{className}} on {{date}} at {{time}}. You're booked.`,
       v,
     ),
+  "waitlist-joined": (v) =>
+    tmpl(
+      `Storm: You're on the waitlist for {{className}} on {{date}} at {{time}}. We'll text if a spot opens.`,
+      v,
+    ),
   "appointment-confirmation": (v) =>
     tmpl(
       `Storm: {{service}} confirmed for {{date}} at {{time}} with {{provider}}.`,
