@@ -1,5 +1,9 @@
 // Outbound transactional SMS sender via Twilio REST (HTTP Basic Auth).
 // Hard-gates on sms_opt_in, checks blocked_persons, idempotent on idempotency_key.
+//
+// ⚠️  KEEP `src/lib/smsTemplates.ts` IN SYNC WITH THE TEMPLATES BELOW.
+//     That file powers the admin "SMS Templates" tab — drift means admins
+//     audit the wrong wording.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {

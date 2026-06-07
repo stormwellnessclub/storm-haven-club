@@ -49,7 +49,7 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 }
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
   to: string;
   data: Record<string, any>;
 }
@@ -2740,6 +2740,107 @@ serve(async (req) => {
                 <p style="font-weight: 600; color: #1C170F; margin: 0;">— Storm Wellness Club</p>
                 <p style="color: #88766B; font-size: 13px; margin: 4px 0 0;">stormwellnessclub.com</p>
               </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'waitlist_joined': {
+        subject = `You're on the waitlist — ${data.className}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">You're on the Waitlist</h2>
+              <p>We've added you to the waitlist for <strong>${data.className}</strong> on <strong>${data.date}</strong> at <strong>${data.time}</strong>${data.position ? `. You're #${data.position} in line.` : '.'}</p>
+              <div style="${emailStyles.infoBox}">
+                <p style="margin: 0; color: #1C170F; font-size: 14px;">
+                  If a spot opens, we'll text and email you and your held credit will be applied automatically. If the spot doesn't open, your credit will be refunded.
+                </p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Bookings</a>
+              </div>
+              <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'spa_appointment_confirmation': {
+        subject = `Spa appointment confirmed — ${data.service}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Appointment Confirmed ✓</h2>
+              <p>Looking forward to seeing you. Here are the details:</p>
+              <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Service</td><td style="padding: 8px 0; font-weight: 600;">${data.service}</td></tr>
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Date</td><td style="padding: 8px 0; font-weight: 600;">${data.date}</td></tr>
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Time</td><td style="padding: 8px 0; font-weight: 600;">${data.time}</td></tr>
+                  ${data.provider ? `<tr><td style="padding: 8px 0; color: #6b7280;">With</td><td style="padding: 8px 0; font-weight: 600;">${data.provider}</td></tr>` : ''}
+                  ${data.duration ? `<tr><td style="padding: 8px 0; color: #6b7280;">Duration</td><td style="padding: 8px 0; font-weight: 600;">${data.duration} min</td></tr>` : ''}
+                </table>
+              </div>
+              <div style="background: #FEF8E7; border-left: 3px solid #D4A84B; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Arrival</p>
+                <p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please arrive 10 minutes early to settle in. Cancellations within 24 hours may incur a fee.</p>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/bookings" style="${emailStyles.button}">View My Appointments</a>
+              </div>
+              <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'spa_appointment_reminder': {
+        const when = data.window === '2h' ? 'in 2 hours' : 'tomorrow';
+        subject = `Reminder — your spa appointment is ${when}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Reminder: ${data.service}</h2>
+              <p>This is a friendly reminder that your appointment is <strong>${when}</strong>.</p>
+              <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Service</td><td style="padding: 8px 0; font-weight: 600;">${data.service}</td></tr>
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Date</td><td style="padding: 8px 0; font-weight: 600;">${data.date}</td></tr>
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Time</td><td style="padding: 8px 0; font-weight: 600;">${data.time}</td></tr>
+                  ${data.provider ? `<tr><td style="padding: 8px 0; color: #6b7280;">With</td><td style="padding: 8px 0; font-weight: 600;">${data.provider}</td></tr>` : ''}
+                </table>
+              </div>
+              <p style="${emailStyles.muted}">Need to reschedule? <a href="${BASE_URL}/member/bookings" style="${emailStyles.link}">Manage your appointment</a>.</p>
+              <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'spa_appointment_cancellation': {
+        subject = `Spa appointment cancelled — ${data.service}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Appointment Cancelled</h2>
+              <p>Your <strong>${data.service}</strong> appointment on <strong>${data.date}</strong> at <strong>${data.time}</strong> has been cancelled.${data.refundNote ? ` ${data.refundNote}` : ''}</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/spa" style="${emailStyles.button}">Book Again</a>
+              </div>
+              <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>
             </div>
             ${getEmailFooter()}
           </div>
