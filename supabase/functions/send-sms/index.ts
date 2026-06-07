@@ -33,6 +33,16 @@ function tmpl(s: string, v: Record<string, unknown>) {
 const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
   "test-message": (v) =>
     `Storm Wellness Club: test message${v.note ? ` — ${v.note}` : ""}. Reply STOP to opt out.`,
+  "class-booking-confirmation": (v) =>
+    tmpl(
+      `Storm: You're booked for {{className}} on {{date}} at {{time}}. See you soon!`,
+      v,
+    ),
+  "class-booking-cancellation": (v) =>
+    tmpl(
+      `Storm: Your {{className}} on {{date}} at {{time}} was cancelled.{{refundNote}}`,
+      v,
+    ),
   "class-reminder-24h": (v) =>
     tmpl(
       `Storm: Reminder — {{className}} tomorrow at {{time}}. Reply STOP to opt out.`,
@@ -124,28 +134,35 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: userData, error: userErr } = await userClient.auth.getUser(
-      authHeader.replace("Bearer ", ""),
-    );
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const token = authHeader.replace("Bearer ", "");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-    // Determine if caller is admin/staff (used for bypassConsent)
-    const callerUserId = userData.user.id;
-    const { data: roleRows } = await admin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", callerUserId);
-    const callerIsAdmin = !!(roleRows ?? []).some((r: any) =>
-      ["admin", "super_admin", "front_desk", "manager", "staff"].includes(r.role),
-    );
+    // Trusted server callers: service role or anon key (cron/internal function-to-function).
+    const isServerCaller = token === SERVICE_ROLE || token === anonKey;
+
+    let callerUserId: string | null = null;
+    let callerIsAdmin = isServerCaller; // server callers can bypassConsent
+
+    if (!isServerCaller) {
+      const userClient = createClient(SUPABASE_URL, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      callerUserId = userData.user.id;
+      const { data: roleRows } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerUserId);
+      callerIsAdmin = !!(roleRows ?? []).some((r: any) =>
+        ["admin", "super_admin", "front_desk", "manager", "staff"].includes(r.role),
+      );
+    }
 
     const body: SendInput = await req.json();
     if (!body?.templateKey || !body?.idempotencyKey || !body?.to) {

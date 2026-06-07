@@ -203,6 +203,24 @@ serve(async (req) => {
           console.log(`Reminder sent to ${userData.user.email} for ${classType?.name}`);
           sentCount++;
         }
+
+        // Parallel SMS — only sent when member has sms_opt_in = true
+        try {
+          await supabase.functions.invoke('send-sms', {
+            body: {
+              to: { userId: booking.user_id },
+              templateKey: 'class-reminder-24h',
+              variables: {
+                className: classType?.name || 'Class',
+                time: formattedTime,
+              },
+              idempotencyKey: `class-reminder-24h-${booking.id}-${booking.session.session_date}`,
+              metadata: { source: 'send-class-reminders', booking_id: booking.id },
+            },
+          });
+        } catch (smsErr) {
+          console.error(`SMS reminder failed for ${booking.user_id}:`, smsErr);
+        }
       } catch (err) {
         console.error(`Error processing booking ${booking.id}:`, err);
         errorCount++;

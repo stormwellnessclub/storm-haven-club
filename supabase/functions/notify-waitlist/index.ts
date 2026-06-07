@@ -228,6 +228,25 @@ serve(async (req) => {
       },
     });
 
+    // Parallel SMS — only sent when member has sms_opt_in = true
+    try {
+      await supabase.functions.invoke('send-sms', {
+        body: {
+          to: { userId: nextInLine.user_id },
+          templateKey: 'waitlist-promoted',
+          variables: {
+            className: classType?.name || 'Class',
+            date: formattedDate,
+            time: formattedTime,
+          },
+          idempotencyKey: `waitlist-sms-${nextInLine.id}`,
+          metadata: { source: 'notify-waitlist', waitlist_id: nextInLine.id },
+        },
+      });
+    } catch (smsErr) {
+      console.error('Failed to send waitlist SMS:', smsErr);
+    }
+
     if (emailError) {
       console.error('Error sending waitlist notification email:', emailError);
     } else {
