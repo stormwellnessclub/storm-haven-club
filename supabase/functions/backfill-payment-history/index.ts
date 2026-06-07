@@ -17,6 +17,7 @@ interface BackfillBody {
   start?: string; // ISO date — default 12 months ago
   end?: string;   // ISO date — default now
   dryRun?: boolean;
+  phase?: "charges" | "invoices" | "both"; // default both
 }
 
 serve(async (req) => {
