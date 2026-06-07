@@ -25,6 +25,7 @@ import { ConfirmedPaymentIssues } from "@/components/admin/MemberDetail/Confirme
 import { MemberArrearsBanner } from "@/components/admin/MemberArrearsBanner";
 import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
+import { DunningTimeline } from "@/components/admin/DunningTimeline";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
@@ -1723,6 +1724,11 @@ export default function MemberDetail() {
               />
             </div>
             
+            {/* Dunning Activity Timeline */}
+            <div className="mb-6">
+              <DunningTimeline memberId={member.id} />
+            </div>
+
             {/* Payment Timeline - Chronological view of all payment events */}
             <div className="mb-6">
               <PaymentTimeline memberId={member.id} maxItems={50} />

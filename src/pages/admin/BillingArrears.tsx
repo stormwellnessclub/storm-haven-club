@@ -17,15 +17,19 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock, Mail, RefreshCw, Loader2 } from "lucide-react";
+import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock, Mail, RefreshCw, Loader2, CreditCard, MessageSquare, X } from "lucide-react";
 import {
   useBillingArrears,
-  useMemberOutreach,
   useCreateOutreach,
   type ArrearsRow,
 } from "@/hooks/useBillingArrears";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { DunningTimeline } from "@/components/admin/DunningTimeline";
+import { BulkChargeDialog } from "@/components/admin/BulkChargeDialog";
+import { BulkSmsDialog } from "@/components/admin/BulkSmsDialog";
+import { BulkOutreachDialog } from "@/components/admin/BulkOutreachDialog";
 
 function DunningBadge({ row }: { row: ArrearsRow }) {
   if (!row.dunning_status) return <span className="text-muted-foreground">—</span>;
@@ -164,6 +168,10 @@ export default function BillingArrears() {
   const [selected, setSelected] = useState<ArrearsRow | null>(null);
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [outreachTarget, setOutreachTarget] = useState<ArrearsRow | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkChargeOpen, setBulkChargeOpen] = useState(false);
+  const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
+  const [bulkOutreachOpen, setBulkOutreachOpen] = useState(false);
 
   const filters = useMemo(() => ({
     search: search || undefined,
@@ -172,6 +180,32 @@ export default function BillingArrears() {
   }), [search, includeCancelled, minMonths]);
 
   const { data: rows = [], isLoading, refetch, isFetching } = useBillingArrears(filters);
+
+  const selectedRows = useMemo(
+    () => rows.filter(r => selectedIds.has(r.member_id)),
+    [rows, selectedIds],
+  );
+
+  const toggleRow = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    setSelectedIds(prev => {
+      if (prev.size === rows.length) return new Set();
+      return new Set(rows.map(r => r.member_id));
+    });
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const bulkTotal = selectedRows.reduce((s, r) => s + r.outstanding_cents, 0);
+  const bulkChargeable = selectedRows.filter(r => !!r.card_last4).length;
+  const bulkReachable = selectedRows.filter(r => !!r.phone).length;
 
   const summary = useMemo(() => {
     const total = rows.reduce((s, r) => s + r.outstanding_cents, 0);
@@ -234,6 +268,31 @@ export default function BillingArrears() {
           </CardContent>
         </Card>
 
+        {selectedIds.size > 0 && (
+          <Card className="sticky top-2 z-20 border-primary/40 bg-card shadow-sm">
+            <CardContent className="py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="font-semibold">{selectedIds.size} selected</span>
+                <span className="text-muted-foreground"> · {money(bulkTotal)} outstanding · {bulkChargeable} chargeable · {bulkReachable} reachable by SMS</span>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={() => setBulkChargeOpen(true)} disabled={bulkChargeable === 0}>
+                  <CreditCard className="h-4 w-4 mr-1" /> Charge saved cards
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setBulkSmsOpen(true)} disabled={bulkReachable === 0}>
+                  <MessageSquare className="h-4 w-4 mr-1" /> Send SMS
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setBulkOutreachOpen(true)}>
+                  <MessageSquarePlus className="h-4 w-4 mr-1" /> Log outreach
+                </Button>
+                <Button size="sm" variant="ghost" onClick={clearSelection}>
+                  <X className="h-4 w-4 mr-1" /> Clear
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
@@ -252,6 +311,13 @@ export default function BillingArrears() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={rows.length > 0 && selectedIds.size === rows.length}
+                          onCheckedChange={toggleAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
                       <TableHead>Member</TableHead>
                       <TableHead>Tier</TableHead>
                       <TableHead>Status</TableHead>
@@ -267,7 +333,14 @@ export default function BillingArrears() {
                   </TableHeader>
                   <TableBody>
                     {rows.map(r => (
-                      <TableRow key={r.member_id} className="hover:bg-muted/40">
+                      <TableRow key={r.member_id} className={`hover:bg-muted/40 ${selectedIds.has(r.member_id) ? "bg-muted/30" : ""}`}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(r.member_id)}
+                            onCheckedChange={() => toggleRow(r.member_id)}
+                            aria-label={`Select ${r.first_name} ${r.last_name}`}
+                          />
+                        </TableCell>
                         <TableCell>
                           <div className="font-medium">{r.first_name} {r.last_name}</div>
                           <div className="text-xs text-muted-foreground">{r.email}</div>
@@ -346,6 +419,22 @@ export default function BillingArrears() {
         onOpenChange={setOutreachOpen}
         target={outreachTarget}
       />
+
+      <BulkChargeDialog
+        open={bulkChargeOpen}
+        onOpenChange={setBulkChargeOpen}
+        targets={selectedRows}
+      />
+      <BulkSmsDialog
+        open={bulkSmsOpen}
+        onOpenChange={setBulkSmsOpen}
+        targets={selectedRows}
+      />
+      <BulkOutreachDialog
+        open={bulkOutreachOpen}
+        onOpenChange={setBulkOutreachOpen}
+        targets={selectedRows}
+      />
     </AdminLayout>
   );
 }
@@ -364,7 +453,6 @@ function StatCard({ icon, label, value, tone }: { icon: React.ReactNode; label: 
 }
 
 function MemberArrearsDetail({ row, onLogOutreach }: { row: ArrearsRow; onLogOutreach: () => void }) {
-  const { data: history = [], isLoading } = useMemberOutreach(row.member_id);
   return (
     <>
       <SheetHeader>
@@ -402,42 +490,12 @@ function MemberArrearsDetail({ row, onLogOutreach }: { row: ArrearsRow; onLogOut
           </Button>
         </div>
 
-        <div>
-          <div className="text-sm font-semibold mb-2">Outreach history</div>
-          {isLoading ? (
-            <div className="text-sm text-muted-foreground">Loading…</div>
-          ) : history.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No outreach logged yet.</div>
-          ) : (
-            <div className="space-y-2">
-              {history.map(h => (
-                <Card key={h.id}>
-                  <CardContent className="pt-4 pb-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="text-sm font-medium">
-                          {outcomeLabel(h.outcome)} · <span className="text-muted-foreground capitalize">{h.channel.replace("_"," ")}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(h.created_at), "MMM d, yyyy h:mm a")}
-                          {h.created_by_email && ` · by ${h.created_by_email}`}
-                        </div>
-                      </div>
-                      {h.follow_up_at && (
-                        <Badge variant="outline">Follow-up {format(new Date(h.follow_up_at), "MMM d")}</Badge>
-                      )}
-                    </div>
-                    {h.note && <div className="text-sm mt-2 whitespace-pre-wrap">{h.note}</div>}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+        <DunningTimeline memberId={row.member_id} />
       </div>
     </>
   );
 }
+
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
