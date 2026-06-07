@@ -273,6 +273,47 @@ function TemplateRow({
     onError: (e: any) => toast.error(e.message ?? "Failed to revert"),
   });
 
+  const sendTest = useMutation({
+    mutationFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const userId = auth.user?.id;
+      if (!userId) throw new Error("Not signed in");
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("phone, sms_opt_in")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!prof?.phone) {
+        throw new Error(
+          "No phone on your admin profile — add one in Member Portal first",
+        );
+      }
+      const testBody = `[TEST] ${draftPreview}`;
+      const { data, error } = await supabase.functions.invoke("send-sms", {
+        body: {
+          to: { userId },
+          templateKey: "admin-custom",
+          variables: { customBody: testBody },
+          idempotencyKey: `tmpl-test-${template.key}-${userId}-${Date.now()}`,
+          bypassConsent: true,
+          metadata: {
+            kind: "template_preview_test",
+            template_key: template.key,
+          },
+        },
+      });
+      if (error) throw error;
+      if (data && data.success === false) {
+        throw new Error(data.error ?? "Send failed");
+      }
+      return prof.phone as string;
+    },
+    onSuccess: (phone) => {
+      toast.success(`Test SMS sent to ${phone}`);
+    },
+    onError: (e: any) => toast.error(e.message ?? "Failed to send test"),
+  });
+
   const isCustomized = !!override?.published_body?.trim();
 
   const copy = () => {
