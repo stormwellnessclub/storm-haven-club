@@ -467,6 +467,9 @@ export default function BillingArrears() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            {!r.stripe_subscription_id && r.card_last4 && r.stripe_customer_id && r.member_status !== "cancelled" && (
+                              <CreateDuesSubButton row={r} onDone={() => refetch()} />
+                            )}
                             <ChargeCardButton row={r} />
                             <Button size="sm" variant="outline" onClick={() => { setOutreachTarget(r); setOutreachOpen(true); }}>
                               <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Log
