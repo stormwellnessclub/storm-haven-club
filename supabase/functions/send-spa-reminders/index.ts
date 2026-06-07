@@ -137,16 +137,11 @@ async function processWindow(admin: any, window: Window) {
       let provider = "Storm Wellness";
       if (a.staff_id) {
         const { data: staff } = await admin
-          .from("spa_staff")
-          .select("display_name, first_name, last_name")
+          .from("spa_therapists")
+          .select("full_name")
           .eq("id", a.staff_id)
           .maybeSingle();
-        if (staff) {
-          provider =
-            staff.display_name ||
-            [staff.first_name, staff.last_name].filter(Boolean).join(" ") ||
-            provider;
-        }
+        if (staff?.full_name) provider = staff.full_name;
       }
 
       const dateLabel = new Date(`${a.appointment_date}T00:00:00`).toLocaleDateString("en-US", {

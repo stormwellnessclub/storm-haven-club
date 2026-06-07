@@ -105,16 +105,11 @@ async function sendSpaNotifications(args: {
   // Provider name (optional).
   let provider = "Storm Wellness";
   if (a.staff_id) {
-    const { data: staff } = await (supabase.from as any)("spa_staff")
-      .select("display_name, first_name, last_name")
+    const { data: staff } = await (supabase.from as any)("spa_therapists")
+      .select("full_name")
       .eq("id", a.staff_id)
       .maybeSingle();
-    if (staff) {
-      provider =
-        staff.display_name ||
-        [staff.first_name, staff.last_name].filter(Boolean).join(" ") ||
-        provider;
-    }
+    if (staff?.full_name) provider = staff.full_name;
   }
 
   const dateStr = format(parse(a.appointment_date, "yyyy-MM-dd", new Date()), "EEE MMM d");
