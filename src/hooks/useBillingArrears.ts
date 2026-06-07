@@ -28,6 +28,13 @@ export interface ArrearsRow {
   last_outreach_outcome: string | null;
   open_follow_up_at: string | null;
   arrears_ids: string[];
+  // Dunning cadence (from payment_dunning_state)
+  dunning_status: string | null;
+  dunning_retry_count: number | null;
+  dunning_next_email_day: number | null;
+  dunning_next_email_due_at: string | null;
+  dunning_emails_sent_count: number;
+  dunning_first_failed_at: string | null;
 }
 
 const DUES_TYPES = ["membership_dues", "subscription_cycle", "subscription_update", "subscription_create"];
@@ -92,6 +99,19 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
         }
       }
 
+      // Dunning cadence state (active rows only, latest per member)
+      const { data: dunning } = await supabase
+        .from("payment_dunning_state" as any)
+        .select("member_id, status, retry_count, next_email_day, next_email_due_at, emails_sent, first_failed_at")
+        .in("member_id", memberIds)
+        .eq("status", "active")
+        .order("first_failed_at", { ascending: false });
+      const dunningByMember = new Map<string, any>();
+      for (const d of (dunning || []) as any[]) {
+        if (!dunningByMember.has(d.member_id)) dunningByMember.set(d.member_id, d);
+      }
+
+
       // Aggregate per member
       const byMember = new Map<string, ArrearsRow>();
       for (const a of arrears || []) {
@@ -129,6 +149,14 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
             last_outreach_outcome: outreach?.outcome ?? null,
             open_follow_up_at: openFollowUpByMember.get(a.member_id) ?? null,
             arrears_ids: [a.id],
+            dunning_status: dunningByMember.get(a.member_id)?.status ?? null,
+            dunning_retry_count: dunningByMember.get(a.member_id)?.retry_count ?? null,
+            dunning_next_email_day: dunningByMember.get(a.member_id)?.next_email_day ?? null,
+            dunning_next_email_due_at: dunningByMember.get(a.member_id)?.next_email_due_at ?? null,
+            dunning_emails_sent_count: Array.isArray(dunningByMember.get(a.member_id)?.emails_sent)
+              ? dunningByMember.get(a.member_id)!.emails_sent.length
+              : 0,
+            dunning_first_failed_at: dunningByMember.get(a.member_id)?.first_failed_at ?? null,
           });
         } else {
           existing.months_behind += 1;

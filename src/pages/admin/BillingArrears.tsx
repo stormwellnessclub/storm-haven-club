@@ -17,13 +17,66 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
-import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock } from "lucide-react";
+import { AlertCircle, Download, ExternalLink, MessageSquarePlus, Phone, Search, DollarSign, Users, CalendarClock, Mail, RefreshCw, Loader2 } from "lucide-react";
 import {
   useBillingArrears,
   useMemberOutreach,
   useCreateOutreach,
   type ArrearsRow,
 } from "@/hooks/useBillingArrears";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+function DunningBadge({ row }: { row: ArrearsRow }) {
+  if (!row.dunning_status) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="space-y-0.5">
+      <Badge variant={row.dunning_status === "active" ? "destructive" : "secondary"} className="text-xs">
+        {row.dunning_status}
+      </Badge>
+      <div className="text-xs text-muted-foreground">
+        {row.dunning_emails_sent_count} email{row.dunning_emails_sent_count === 1 ? "" : "s"} · retry {row.dunning_retry_count ?? 0}
+      </div>
+      {row.dunning_next_email_due_at && (
+        <div className="text-xs text-muted-foreground flex items-center gap-1">
+          <Mail className="h-3 w-3" /> Day {row.dunning_next_email_day ?? "?"} — {format(new Date(row.dunning_next_email_due_at), "MMM d")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChargeCardButton({ row }: { row: ArrearsRow }) {
+  const [busy, setBusy] = useState(false);
+  const handle = async () => {
+    if (!row.card_last4) {
+      toast.error("No card on file");
+      return;
+    }
+    if (!confirm(`Charge ${row.card_brand || "card"} ****${row.card_last4} for ${`$${(row.outstanding_cents / 100).toFixed(2)}`}?`)) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("charge-member-arrears", {
+        body: { memberId: row.member_id },
+      });
+      if (error) throw error;
+      if (data?.success) {
+        toast.success("Payment succeeded");
+      } else {
+        toast.error(data?.error || "Charge failed");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Charge failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button size="sm" variant="outline" onClick={handle} disabled={busy || !row.card_last4}>
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+    </Button>
+  );
+}
 
 const CHANNELS = [
   { value: "call", label: "Call" },
@@ -66,6 +119,7 @@ function exportCsv(rows: ArrearsRow[]) {
     "Name","Email","Phone","Tier","Member Status","Subscription Status","Card",
     "Months Behind","Oldest Due","Outstanding","Last Successful Payment",
     "Next Retry","Last Outreach","Last Outcome","Follow-up","Latest Failure",
+    "Dunning Status","Dunning Retry Count","Dunning Emails Sent","Dunning Next Email Day","Dunning Next Email Due","First Failed At",
   ];
   const csv = [
     headers.join(","),
@@ -86,6 +140,12 @@ function exportCsv(rows: ArrearsRow[]) {
       outcomeLabel(r.last_outreach_outcome),
       r.open_follow_up_at || "",
       `"${(r.latest_failure_message || "").replace(/"/g,'""')}"`,
+      r.dunning_status || "",
+      r.dunning_retry_count ?? "",
+      r.dunning_emails_sent_count ?? 0,
+      r.dunning_next_email_day ?? "",
+      r.dunning_next_email_due_at || "",
+      r.dunning_first_failed_at || "",
     ].join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -200,6 +260,7 @@ export default function BillingArrears() {
                       <TableHead>Oldest Due</TableHead>
                       <TableHead>Card</TableHead>
                       <TableHead>Last Outreach</TableHead>
+                      <TableHead>Dunning</TableHead>
                       <TableHead>Follow-up</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -242,11 +303,13 @@ export default function BillingArrears() {
                             <span className="text-muted-foreground">Never</span>
                           )}
                         </TableCell>
+                        <TableCell><DunningBadge row={r} /></TableCell>
                         <TableCell className="text-xs">
                           {r.open_follow_up_at ? format(new Date(r.open_follow_up_at), "MMM d") : "—"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <ChargeCardButton row={r} />
                             <Button size="sm" variant="outline" onClick={() => { setOutreachTarget(r); setOutreachOpen(true); }}>
                               <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Log
                             </Button>
