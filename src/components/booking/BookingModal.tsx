@@ -4,6 +4,7 @@ import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUserMembership } from "@/hooks/useUserMembership";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
 import { useJoinWaitlist, useLeaveWaitlist, useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
@@ -62,6 +63,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { user } = useAuth();
   const navigate = useNavigate();
   const { profile, signWaiver, isSigningWaiver } = useUserProfile();
+  const { data: membership } = useUserMembership();
+  const isPastDue = !!(membership as any)?.payment_past_due;
   const { profile: nonMemberProfile } = useNonMemberProfile();
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
@@ -650,22 +653,33 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
           {/* Normal booking button when class has spots */}
           {!isClassFull && (!user || isFundraiser || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
-            <Button
-              onClick={handleBook}
-              disabled={
-                bookClass.isPending ||
-                isFundraiserCheckingOut ||
-                (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
-                (!!user && isFundraiser && !hasLiabilityWaiver)
-              }
-              className="min-h-[44px]"
-            >
-              {!user
-                ? "Sign In to Book"
-                : isFundraiser
-                ? (isFundraiserCheckingOut ? "Starting checkout..." : `Donate $${fundraiserAmount.toFixed(0)} & Reserve Spot`)
-                : (bookClass.isPending ? "Booking..." : "Confirm Booking")}
-            </Button>
+            <div className="flex flex-col gap-2 w-full sm:w-auto">
+              {!!user && isPastDue && (
+                <Alert className="border-amber-500/40 bg-amber-500/10">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-sm">
+                    <strong>Heads up — your dues are past due.</strong> Your booking will still go through, but your membership access is on hold until payment clears.{" "}
+                    <a href="/member/payment-methods" className="underline font-medium">Update payment method</a>.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <Button
+                onClick={handleBook}
+                disabled={
+                  bookClass.isPending ||
+                  isFundraiserCheckingOut ||
+                  (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
+                  (!!user && isFundraiser && !hasLiabilityWaiver)
+                }
+                className="min-h-[44px]"
+              >
+                {!user
+                  ? "Sign In to Book"
+                  : isFundraiser
+                  ? (isFundraiserCheckingOut ? "Starting checkout..." : `Donate $${fundraiserAmount.toFixed(0)} & Reserve Spot`)
+                  : (bookClass.isPending ? "Booking..." : "Confirm Booking")}
+              </Button>
+            </div>
           )}
         </DialogFooter>
       </DialogContent>
