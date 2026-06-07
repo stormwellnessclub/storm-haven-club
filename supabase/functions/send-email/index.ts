@@ -2605,6 +2605,95 @@ serve(async (req) => {
         break;
       }
 
+      case 'past_due_formal_notice': {
+        const firstName = data.first_name || 'Member';
+        const lastName = data.last_name || '';
+        const memberEmail = data.member_email || to;
+        const tier = data.tier || 'Membership';
+        const totalOwed = Number(data.total_owed || 0).toFixed(2);
+        const monthsLate = data.months_late ?? '—';
+        const oldestDueDate = data.oldest_due_date || '—';
+        const cardBrand = data.card_brand || 'card on file';
+        const last4 = data.card_last4 ? `ending in ${data.card_last4}` : '(no card on file)';
+        const lastAttemptDate = data.last_attempt_date || '—';
+        const invoices: Array<{ period: string; amount: number | string; days_overdue?: number | string }> = Array.isArray(data.unpaid_invoices) ? data.unpaid_invoices : [];
+        const portalUrl = `${BASE_URL}/member/payment-methods`;
+
+        const itemsHtml = invoices.length
+          ? `<table style="width:100%; border-collapse: collapse; margin: 10px 0;">
+              <thead>
+                <tr style="background:#DEDACE;">
+                  <th align="left" style="padding:8px; border:1px solid #C1B19C; font-family:Georgia,serif; font-size:14px;">Period</th>
+                  <th align="right" style="padding:8px; border:1px solid #C1B19C; font-family:Georgia,serif; font-size:14px;">Amount</th>
+                  <th align="right" style="padding:8px; border:1px solid #C1B19C; font-family:Georgia,serif; font-size:14px;">Days Overdue</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoices.map(inv => `
+                  <tr>
+                    <td style="padding:8px; border:1px solid #C1B19C; font-family:Georgia,serif; font-size:14px;">${inv.period}</td>
+                    <td align="right" style="padding:8px; border:1px solid #C1B19C; font-family:Georgia,serif; font-size:14px;">$${Number(inv.amount).toFixed(2)}</td>
+                    <td align="right" style="padding:8px; border:1px solid #C1B19C; font-family:Georgia,serif; font-size:14px;">${inv.days_overdue ?? '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>`
+          : '';
+
+        subject = 'Past-Due Membership Balance — Immediate Payment Required';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName} ${lastName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Our records indicate that your Storm Wellness Club membership account is past due. Despite multiple billing attempts, the following balance remains outstanding:
+              </p>
+              <div style="${emailStyles.warningBox}">
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Account:</strong> ${memberEmail}</p>
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Membership Tier:</strong> ${tier}</p>
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Outstanding Balance:</strong> $${totalOwed}</p>
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Months Past Due:</strong> ${monthsLate} (since ${oldestDueDate})</p>
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Card on File:</strong> ${cardBrand} ${last4} — last declined ${lastAttemptDate}</p>
+              </div>
+              ${itemsHtml ? `<p style="font-size:16px; color:#1C170F; margin-bottom:6px;"><strong>Itemized balance:</strong></p>${itemsHtml}` : ''}
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 24px;">
+                Per the Membership Agreement you signed at enrollment, you are responsible for all monthly dues for the duration of your membership term, regardless of usage or attendance.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                <strong>Required action within 7 days of this notice:</strong><br/>
+                Remit the full balance of <strong>$${totalOwed}</strong> by updating your payment method and authorizing the charge at the link below, or by contacting our billing office directly.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${portalUrl}" style="${emailStyles.button}">Pay Outstanding Balance</a>
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                <strong>Failure to resolve this balance will result in:</strong>
+              </p>
+              <ol style="font-size: 15px; line-height: 1.8; color: #1C170F; padding-left: 22px;">
+                <li>Assessment of a <strong>$25 late fee</strong> per outstanding month, added to your balance.</li>
+                <li><strong>Revocation of membership acceptance</strong>, including loss of any founding-member status, tier benefits, accrued credits, and class reservations.</li>
+                <li>Continued responsibility for the <strong>full unpaid balance</strong>, which will be referred to a third-party collections agency and reported accordingly.</li>
+                <li>Permanent forfeiture of eligibility to re-apply for membership at Storm Wellness Club.</li>
+              </ol>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                Cancellation of your membership does not release you from amounts already owed for periods in which your membership was active.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                If you believe this notice is in error, or if you wish to discuss a payment arrangement, contact our billing office immediately at <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or reply to this email.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">Sincerely,</p>
+                <p style="font-weight: 600; color: #1C170F; margin: 4px 0 0;">Storm Wellness Club — Billing Office</p>
+                <p style="color: #88766B; font-size: 13px; margin: 4px 0 0;">stormwellnessclub.com</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
 
         throw new Error(`Unknown email type: ${type}`);
