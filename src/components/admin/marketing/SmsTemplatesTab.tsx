@@ -446,6 +446,17 @@ function TemplateRow({
             <div className="flex flex-wrap items-center gap-2 pt-1">
               <Button
                 size="sm"
+                variant="secondary"
+                onClick={() => sendTest.mutate()}
+                disabled={sendTest.isPending}
+                className="h-8 text-xs"
+                title="Send the draft preview to your admin phone"
+              >
+                <Smartphone className="h-3 w-3 mr-1" />
+                {sendTest.isPending ? "Sending…" : "Send test to my phone"}
+              </Button>
+              <Button
+                size="sm"
                 variant="outline"
                 onClick={() => saveDraft.mutate()}
                 disabled={!dirty || saveDraft.isPending}
