@@ -8,6 +8,7 @@ import { HourRequestForm } from "@/components/kids-care/HourRequestForm";
 import { KidsCareBookingModal } from "@/components/booking/KidsCareBookingModal";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useMyKidsCareBookings, useCancelKidsCareBooking, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { useUserMembership } from "@/hooks/useUserMembership";
 import { useConfirmPickup, useUpcomingKidsCareSlots } from "@/hooks/useKidsCareHours";
 import { KidsCarePassGate } from "@/components/booking/KidsCarePassGate";
 import { format, parseISO } from "date-fns";
@@ -25,7 +26,15 @@ import { Textarea } from "@/components/ui/textarea";
 export default function KidsCareBookings() {
   const { data: bookings, isLoading } = useMyKidsCareBookings();
   const { data: passes } = useKidsCarePasses();
+  const { data: membership } = useUserMembership();
+  const isPastDue = !!(membership as any)?.payment_past_due;
   const hasActivePass = (passes?.length ?? 0) > 0;
+  const canBook = hasActivePass && !isPastDue;
+  const bookDisabledTitle = isPastDue
+    ? "Membership payment past due — update payment to resume Kids Care"
+    : !hasActivePass
+    ? "Active Kids Care Pass required"
+    : undefined;
   const cancelBooking = useCancelKidsCareBooking();
   const confirmPickup = useConfirmPickup();
   const { data: upcomingSlots, isLoading: slotsLoading } = useUpcomingKidsCareSlots(7);
@@ -104,16 +113,27 @@ export default function KidsCareBookings() {
           <Button
             onClick={() => openBookingForDate()}
             className="gap-2"
-            disabled={!hasActivePass}
-            title={!hasActivePass ? "Active Kids Care Pass required" : undefined}
+            disabled={!canBook}
+            title={bookDisabledTitle}
           >
             <Plus className="h-4 w-4" />
             Book a Session
           </Button>
         </div>
 
+        {isPastDue && (
+          <Alert className="border-destructive/40 bg-destructive/10">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <AlertDescription className="text-sm">
+              <strong>Kids Care is paused.</strong> Your membership payment is past due.{" "}
+              <a href="/member/payment-methods" className="underline font-medium">Update your payment method</a> to resume booking.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Pass gate — inline buy CTA when no active pass */}
         <KidsCarePassGate />
+
 
         {/* Registration Reminder */}
         <Alert className="border-accent/30 bg-accent/5">
@@ -148,9 +168,9 @@ export default function KidsCareBookings() {
               {Object.entries(slotsByDate).map(([date, slots]) => (
                 <Card
                   key={date}
-                  className={`transition-colors ${hasActivePass ? "cursor-pointer hover:border-accent/50" : "opacity-60 cursor-not-allowed"}`}
-                  onClick={() => hasActivePass && openBookingForDate(parseISO(date))}
-                  title={!hasActivePass ? "Active Kids Care Pass required" : undefined}
+                  className={`transition-colors ${canBook ? "cursor-pointer hover:border-accent/50" : "opacity-60 cursor-not-allowed"}`}
+                  onClick={() => canBook && openBookingForDate(parseISO(date))}
+                  title={bookDisabledTitle}
                 >
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
@@ -161,7 +181,7 @@ export default function KidsCareBookings() {
                         variant="ghost"
                         size="sm"
                         className="text-xs text-accent h-auto py-1 px-2"
-                        disabled={!hasActivePass}
+                        disabled={!canBook}
                       >
                         Book →
                       </Button>
