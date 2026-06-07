@@ -26,6 +26,7 @@ import {
   RotateCcw,
   CheckCircle2,
   PencilLine,
+  Smartphone,
 } from "lucide-react";
 import {
   SMS_TEMPLATES,
