@@ -135,6 +135,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
               </div>
             </header>
             <PWAInstallPrompt />
+            <SmsOptInGate />
             <main className="p-4 sm:p-6 pb-20 md:pb-6 safe-area-bottom">
               {children}
             </main>
