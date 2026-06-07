@@ -2694,6 +2694,59 @@ serve(async (req) => {
         break;
       }
 
+      case 'card_expiring': {
+        const firstName = data.first_name || 'Member';
+        const cardBrand = data.card_brand || 'Card';
+        const last4 = data.card_last4 || '••••';
+        const expMonth = String(data.exp_month ?? '').padStart(2, '0');
+        const expYear = String(data.exp_year ?? '').slice(-2);
+        const nextBillingDate = data.next_billing_date || 'your next billing date';
+        const nextAmount = data.next_amount != null ? `$${Number(data.next_amount).toFixed(2)}` : null;
+        const daysOut = Number(data.days_out ?? 60);
+        const portalUrl = `${BASE_URL}/member/payment-methods`;
+        const urgencyNote = daysOut <= 7
+          ? `Your card expires within the next week. Please update immediately to prevent a failed charge.`
+          : daysOut <= 30
+            ? `Your card expires within the next 30 days.`
+            : `Your card expires within the next two months.`;
+
+        subject = `Your card on file expires soon — update to avoid interruption`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                The credit card we have on file for your Storm Wellness Club membership is expiring soon. ${urgencyNote}
+              </p>
+              <div style="${emailStyles.warningBox}">
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Card:</strong> ${cardBrand} ending in ${last4}</p>
+                <p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Expires:</strong> ${expMonth}/${expYear}</p>
+                ${nextAmount ? `<p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Next charge:</strong> ${nextBillingDate} — ${nextAmount}</p>` : `<p style="margin:4px 0; font-family:Georgia,serif; color:#1C170F;"><strong>Next charge:</strong> ${nextBillingDate}</p>`}
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                To avoid a failed payment and any interruption to your membership benefits — including class bookings, recovery services, and club access — please update your payment method before your next billing date.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${portalUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-size: 15px; line-height: 1.7; color: #1C170F; margin-top: 20px;">
+                If your card has already been replaced, updating now takes less than a minute and prevents late fees or service holds.
+              </p>
+              <p style="font-size: 15px; line-height: 1.7; color: #1C170F; margin-top: 20px;">
+                Questions? Reply to this email or contact us at <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a>.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">— Storm Wellness Club</p>
+                <p style="color: #88766B; font-size: 13px; margin: 4px 0 0;">stormwellnessclub.com</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
 
         throw new Error(`Unknown email type: ${type}`);
