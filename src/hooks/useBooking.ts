@@ -507,6 +507,8 @@ export function useCancelBooking() {
 
         if (currentUser?.email && cancelResult.session_date) {
           const firstName = (currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '').split(' ')[0] || 'there';
+          const fmtDate = format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy");
+          const fmtTime = format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a");
           await supabase.functions.invoke("send-email", {
             body: {
               type: "booking_cancellation",
@@ -514,12 +516,32 @@ export function useCancelBooking() {
               data: {
                 name: firstName,
                 className: cancelResult.class_name || "Class",
-                date: format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy"),
-                time: format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a"),
+                date: fmtDate,
+                time: fmtTime,
                 creditRefunded: !cancelResult.forfeit_credit,
               },
             },
           });
+
+          // Parallel SMS
+          try {
+            await supabase.functions.invoke("send-sms", {
+              body: {
+                to: { userId: currentUser.id },
+                templateKey: "class-booking-cancellation",
+                variables: {
+                  className: cancelResult.class_name || "Class",
+                  date: fmtDate,
+                  time: fmtTime,
+                  refundNote: !cancelResult.forfeit_credit ? " Credit refunded." : "",
+                },
+                idempotencyKey: `cancel-sms-${bookingId}`,
+                metadata: { source: "useBooking.cancel", bookingId },
+              },
+            });
+          } catch (smsErr) {
+            console.error("Failed to send cancellation SMS:", smsErr);
+          }
         }
       } catch (emailError) {
         console.error("Failed to send cancellation email:", emailError);
