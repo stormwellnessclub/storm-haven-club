@@ -21,6 +21,7 @@ import sauna from "@/assets/sauna.jpg";
 import saunaBlue from "@/assets/sauna-blue.jpeg";
 import saltRoom from "@/assets/salt-room.jpg";
 import zerobodyFloat from "@/assets/zerobody-float.jpeg";
+import { SmsSignupSection } from "@/components/home/SmsSignupSection";
 
 // Brand imagery
 import mainLobby from "@/assets/main-lobby.jpeg";
