@@ -3362,7 +3362,7 @@ serve(async (req) => {
           const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
             supabase,
             invoice,
-            'id, stripe_subscription_id, annual_fee_subscription_id',
+            'id, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
           );
 
           if (memberError) {
@@ -3399,7 +3399,22 @@ serve(async (req) => {
               logError(logAttemptError, "INVOICE_PAYMENT_ACTION_REQUIRED_LOG");
               console.error("[PAYMENT_TRACKING_DRIFT] log_payment_attempt(requires_action) failed", logAttemptError);
             }
+
+            // ── Dunning flow: treat requires_action like a failure for past-due handling ──
+            await upsertDunningOnFailure(supabase, {
+              member: {
+                id: memberData.id,
+                email: memberData.email,
+                first_name: memberData.first_name,
+                last_name: memberData.last_name,
+              },
+              invoice,
+              failureReason: 'card requires authentication',
+              failureCode: 'authentication_required',
+              subscriptionType,
+            });
           }
+
         } catch (invoiceError) {
           logError(invoiceError, "INVOICE_PAYMENT_ACTION_REQUIRED");
           return errorResponse(invoiceError, "INVOICE_PAYMENT_ACTION_REQUIRED");
