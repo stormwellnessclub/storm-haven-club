@@ -308,6 +308,9 @@ export default function Index() {
         </div>
       </section>
 
+      {/* SMS lead capture */}
+      <SmsSignupSection />
+
       {/* Philosophy - Why We Exist */}
       <section className="relative py-32 bg-background text-foreground overflow-hidden">
         <AnimatedSection className="container mx-auto px-6 text-center" animation="scale-in">
