@@ -1,61 +1,72 @@
-# Fix auto-cancelled members + close the cancel-on-failure gap
 
-## Part 1 — Stop billing from cancelling subs on failure (root cause)
+## Goal
 
-Per project policy Stripe Smart Retries already leaves failed subs as `past_due`, and the webhook ignores `customer.subscription.deleted` for dues. **One remaining loophole**: `stripe-webhook` still flips a member to `cancelled` when a dues subscription returns status `incomplete_expired` (first invoice never collected). That's how a brand-new sub gets killed silently if the first charge fails.
+Create new monthly Stripe dues subscriptions for **Sherene Albosaraj** and **Jeree Spicer** so they actually get billed going forward. Both currently have `stripe_subscription_id = NULL` after past cancellations.
 
-Change (webhook `customer.subscription.updated` branch, ~line 2008):
-- For **dues** subs: on `canceled` / `incomplete_expired`, set `members.subscription_status='past_due'` and `members.status='past_due'` instead of `cancelled`. Log an admin alert; never null out `stripe_subscription_id`.
-- For **annual fee** subs: behavior unchanged.
+## Member facts (verified from DB)
 
-Also harden `charge-member-arrears` so a failed `invoices.pay` does **not** rely on the sub still being active — already correct, but we'll also allow the function to fall back to a fresh `PaymentIntent` against the saved card + reconcile to the matching `billing_arrears` row when the original Stripe invoice was voided by cancellation. This is what makes "retry now" actually work for these 4.
-
-## Part 2 — Rewrite arrears to match Stripe-verified truth
-
-Per-member dues amount = each member's most recent successfully-paid recurring dues invoice (already gross-up'd):
-
-| Member | Tier | Per-month | Cycle day | Owed months |
+| Member | Tier | Gender → price | Card | Stripe customer |
 |---|---|---|---|---|
-| Mariam Alsheeblawy | Silver | $200.00 | 15th | Apr (Mar 15–Apr 15), May (Apr 15–May 15) |
-| Sherene Albosaraj | Gold | $250.00 | 9th | Mar, Apr, May |
-| Ayah Boussi | Silver | $206.29 | 10th | Apr, May |
-| Jeree Spicer | Gold | $257.55 | 4th | May, Jun |
+| Sherene Albosaraj | Gold | women → **$250/mo base** | •••• 1642 | `cus_TtOsmHEP7aEKZw` |
+| Jeree Spicer | Gold | women → **$250/mo base** | •••• 7193 | `cus_TuXPZdIkORPvQO` |
 
-Steps:
-1. **Resolve** every existing `unpaid` row for these 4 members with `resolution_reason='superseded_by_admin_correction_2026_06'`. (Keeps audit trail; drops them from the dunning view.)
-2. **Insert** new `billing_arrears` rows exactly matching the table above: `billing_type='membership_dues'`, `status='unpaid'`, `period_start` = cycle day, `period_end` = +1 month, `amount_due_cents` per the table, `stripe_invoice_id=NULL` (these are admin-created, not Stripe-originated).
-3. Set the 4 members to `status='past_due'`, `subscription_status='past_due'`, `payment_past_due=true`, `payment_past_due_since=now()` so the red owed banner shows everywhere.
+Processing fee gross-up is applied as a separate recurring line item by the existing code (matches their old arrears amounts: Sherene $250 flat, Jeree $257.55 with fee).
 
-## Part 3 — Reinstate the recurring dues subscriptions
+## How
 
-Mariam (`sub_1TfZOB…`) and Ayah (`sub_1TfSx2…`) already have current Stripe subs in DB — verify they're `active`/`past_due` (not cancelled) and reattach if needed. After Part 1's fix, future failures won't kill them again.
+The edge function `stripe-payment` already has the exact action we need: **`admin_create_member_subscription`** (line 2807).
 
-Sherene and Jeree have no sub. Create new monthly dues subs:
-- `customer = stripe_customer_id`, `default_payment_method` = their saved card.
-- `items[0].price` = same Stripe price they were on before (look up from last paid invoice line item).
-- `billing_cycle_anchor` = next cycle day in `America/Chicago` (Sherene → 2026-07-09, Jeree → 2026-07-04).
-- `proration_behavior: 'none'`, `collection_method: 'charge_automatically'`.
-- Write `stripe_subscription_id` + `next_billing_date` back to `members`.
-- The new arrears rows from Part 2 are **separate** from Stripe — collected via the existing "Charge saved card" admin button (Part 1's hardening makes that work even though the original invoices were voided).
+It does everything correctly:
+- Looks up tier/gender price from `STRIPE_PRODUCTS`
+- Attaches saved card as `default_payment_method`
+- Adds recurring processing-fee line item via `addRecurringProcessingFeeItems`
+- Writes `stripe_subscription_id` and resets `subscription_status` to `active`
+- Optional `firstChargeDate` to defer the first charge
 
-## Part 4 — Hold all outreach
+So **no code changes needed** — just two invocations.
 
-Nothing dunning-related (email/SMS/auto-retry) fires from this plan. The admin still has to click "Charge saved card" or "Send reminder" per row in `/admin/billing-arrears` after you confirm the rewritten list.
+### Execution
 
-## Verification
+For each member, call `supabase.functions.invoke('stripe-payment', { body: ... })` with:
 
-After execution, re-pull `/admin/billing-arrears` (Dues filter). Expected list:
-- Ayah Boussi — 2 rows · $412.58
-- Jeree Spicer — 2 rows · $515.10
-- Mariam Alsheeblawy — 2 rows · $400.00
-- Sherene Albosaraj — 3 rows · $750.00
-- **Total owed: $2,077.68**
+```json
+{
+  "action": "admin_create_member_subscription",
+  "memberId": "<id>",
+  "tier": "Gold",
+  "gender": "women",
+  "billingType": "monthly",
+  "isFoundingMember": false,
+  "startDate": "<today>",
+  "firstChargeDate": "<first charge date — see below>"
+}
+```
 
-Confirm subs in Stripe: 4 active monthly dues subs anchored to the right days.
+### Critical decision: when does the first new charge hit?
 
-## Files touched (build phase)
+Their **arrears for past months (Mar–Jun) stay in the `billing_arrears` ledger** and are collected separately via the existing "charge arrears" flow (step 1 of the bigger plan). The new subscription is for **future months only**.
 
-- `supabase/functions/stripe-webhook/index.ts` — neutralize cancel/incomplete_expired path for dues
-- `supabase/functions/charge-member-arrears/index.ts` — fallback to PaymentIntent for admin-created arrears (no Stripe invoice)
-- Data ops via `insert` tool: resolve old arrears, insert corrected ones, update 4 members
-- Stripe ops: create 2 new subscriptions (Sherene, Jeree)
+Two choices for `firstChargeDate`:
+
+- **A. Charge today** — they immediately get billed for the current/upcoming cycle. Cleanest, no missed months going forward, but back-to-back with whatever arrears collection you also run.
+- **B. Defer to July 1 (or next 1st of month)** — gives breathing room, aligns billing to month start.
+
+I recommend **B (defer to the 1st of next month)** so arrears can be addressed independently without two charges hitting on the same day.
+
+## After the subscriptions are created
+
+1. Confirm the new `stripe_subscription_id` is on each member record.
+2. Confirm `subscription_status = 'active'` on each.
+3. The persistent red "$X owed" banner stays until step 1 of the larger plan (charge arrears) is completed — that is correct and expected.
+
+## Out of scope for this step
+
+- Charging the existing $2,077.68 in arrears (separate step).
+- Touching Mariam/Ayah — they already have `incomplete` subs, handled in step 1 next.
+- Emails/SMS — separate outreach step.
+
+## Question for you
+
+Confirm:
+1. **First-charge date** — defer to **July 1** (recommended), or charge **today**?
+2. Both Sherene & Jeree confirmed as **Gold / women pricing ($250 base + fee)** — correct?
