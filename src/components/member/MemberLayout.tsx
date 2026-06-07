@@ -7,6 +7,7 @@ import { NotificationBar, NotificationItem } from "./NotificationBar";
 import { AnnualFeeNotice } from "./AnnualFeeNotice";
 import { PaymentDueNotice } from "./PaymentDueNotice";
 import { PastDueBanner } from "./PastDueBanner";
+import { CardExpiringNotice } from "./CardExpiringNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SmsOptInBannerContent } from "./SmsOptInBannerContent";
