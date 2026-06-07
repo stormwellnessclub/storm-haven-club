@@ -2006,31 +2006,27 @@ serve(async (req) => {
               newStatus = 'active';
               reason = 'subscription_active';
             } else if (subscription.status === 'canceled' || subscription.status === 'incomplete_expired') {
-              // Treat incomplete_expired the same as canceled - subscription failed before starting
-              newStatus = 'pending_activation';
-              reason = subscription.status === 'canceled' ? 'subscription_canceled' : 'subscription_incomplete_expired';
-              
-              // Only clear the subscription ID if it matches the one we're tracking
-              // This prevents a canceled duplicate subscription from wiping the active one
-              if (memberData.stripe_subscription_id === subscription.id) {
-                const { error: clearSubError } = await supabase.from('members')
-                  .update({ stripe_subscription_id: null, subscription_status: 'none' })
-                  .eq('id', memberData.id);
-                
-                if (clearSubError) {
-                  logStep("Failed to clear dead subscription ID", { error: clearSubError.message });
-                } else {
-                  logStep("Cleared dead subscription ID for member", { memberId: memberData.id });
-                }
-              } else {
-                logStep("Canceled subscription does not match stored subscription - skipping clear", {
+              // POLICY: dues subs never auto-cancel the member from a webhook.
+              // Smart Retries leaves failed subs as past_due. If Stripe still emits
+              // canceled/incomplete_expired (manual Stripe action, fraud block, or first
+              // invoice expired on a new sub), flip the member to past_due so the arrears
+              // banner shows and admin can retry — but never null out stripe_subscription_id,
+              // since the admin still needs it to look up invoices.
+              if (memberData.stripe_subscription_id && memberData.stripe_subscription_id !== subscription.id) {
+                logStep("Canceled sub does not match stored sub - ignoring", {
                   memberId: memberData.id,
                   canceledSubId: subscription.id,
-                  storedSubId: memberData.stripe_subscription_id
+                  storedSubId: memberData.stripe_subscription_id,
                 });
-                // Don't change member status either since their tracked subscription is still active
                 break;
               }
+              newStatus = 'past_due';
+              reason = subscription.status === 'canceled' ? 'subscription_canceled_kept_past_due' : 'subscription_incomplete_expired_kept_past_due';
+              logStep("Dues sub canceled/expired — member kept as past_due, sub ID retained", {
+                memberId: memberData.id,
+                subscriptionId: subscription.id,
+                stripeStatus: subscription.status,
+              });
             } else if (subscription.status === 'incomplete') {
               // Payment failed on first attempt - don't activate, keep as pending
               // Keep the subscription ID but mark status as incomplete so we can track it
