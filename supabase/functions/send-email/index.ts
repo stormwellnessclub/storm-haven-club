@@ -2423,7 +2423,137 @@ serve(async (req) => {
         break;
       }
 
+      case 'dunning_day_1': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your outstanding balance';
+        const failedDateStr = data.failed_date || 'the original billing date';
+        const updateUrl = `${BASE_URL}/member/payment-methods${data.invoice_id ? `?retry=${encodeURIComponent(data.invoice_id)}` : ''}`;
+        subject = 'Your Storm account remains past due';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                A brief reminder that the outstanding balance of ${amountStr} from ${failedDateStr} has not yet been resolved. Your account remains past due.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Resolve Balance</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                For assistance, email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message Member Services from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'dunning_day_3': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your outstanding balance';
+        const failedDateStr = data.failed_date || 'the original billing date';
+        const updateUrl = `${BASE_URL}/member/payment-methods${data.invoice_id ? `?retry=${encodeURIComponent(data.invoice_id)}` : ''}`;
+        subject = 'Past due \u2014 action required to preserve your Storm membership';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Your Storm membership has been past due for three days. Member privileges remain suspended, and an outstanding balance of ${amountStr} is owed from ${failedDateStr}.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Per the terms of your membership agreement, contractual dues continue to accrue while your account is in arrears and remain your responsibility regardless of access. Should the balance remain unresolved, your acceptance into the Club may be forfeited &mdash; at which point reinstatement would require submitting a new application for review.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 10px;">
+                We would be glad to keep your standing intact. Resolving the balance restores full benefits immediately:
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                For assistance, email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message Member Services from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'dunning_day_5': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your outstanding balance';
+        const failedDateStr = data.failed_date || 'the original billing date';
+        const updateUrl = `${BASE_URL}/member/payment-methods${data.invoice_id ? `?retry=${encodeURIComponent(data.invoice_id)}` : ''}`;
+        subject = 'Action required: Storm membership in arrears';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Your account has now been past due for five days. Despite our prior attempts to process payment, the ${amountStr} balance from ${failedDateStr} remains outstanding.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                We kindly ask that you update your payment method at your earliest convenience to bring your account current and restore the full benefits of membership.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                For assistance, email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message Member Services from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'dunning_day_7': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your outstanding balance';
+        const failedDateStr = data.failed_date || 'the original billing date';
+        const updateUrl = `${BASE_URL}/member/payment-methods${data.invoice_id ? `?retry=${encodeURIComponent(data.invoice_id)}` : ''}`;
+        subject = 'Immediate Action Required';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                We have made several attempts over the past week to resolve the ${amountStr} balance outstanding on your Storm membership since ${failedDateStr}. Per your membership agreement, dues continue to accrue and remain your contractual responsibility. To preserve your standing at the Club and avoid further review of your membership, we ask that you take a moment to resolve the balance today:
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Resolve Balance</a>
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-top: 20px;">
+                Should circumstances warrant a conversation about your account, we welcome you to reach us directly at <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or through Member Services in your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
+
         throw new Error(`Unknown email type: ${type}`);
     }
 
