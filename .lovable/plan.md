@@ -1,61 +1,109 @@
 ## Goal
 
-Drive SMS opt-in from ~3% (23/721) to near-universal by surfacing it everywhere a member touches the product, with a hard interstitial gate inside the portal that has no "dismiss" — only "Enable SMS Alerts."
+1. Force SMS opt-in for non-member portal too.
+2. Add email + SMS for spa appointment confirmations & reminders (and waitlist join), for both members and non-members.
+3. Give you a single admin screen showing every word of every automated SMS that goes out.
+4. Confirm/extend the bulk SMS blast tool you already have.
 
-## 1. Signup (Apply form) — pre-checked
+---
 
-File: `src/pages/Apply.tsx`
+## 1. Non-member portal gate
 
-- Flip `SmsConsentCheckbox` to default `checked={true}` when the form mounts (current state defaults to false).
-- Move the checkbox out of the fine-print zone into its own bordered card directly above the submit button, with a short value prop:
-  > "📱 Get class reminders, waitlist alerts, and billing notifications by text. Standard rates apply. Reply STOP to opt out."
-- Persist `sms_opt_in = true`, `sms_opt_in_at`, `sms_opt_in_source = "apply_form"` to `profiles` on application submit (already wired — just confirm the pre-checked value flows through).
+New component: `src/components/portal/NonMemberSmsOptInGate.tsx` — mirrors `SmsOptInGate` but reads/writes `non_member_profiles`.
 
-## 2. Public homepage (/) — phone capture widget
+- Non-dismissible modal blocking the entire `/portal/*` shell when `sms_opt_in !== true`.
+- Single "Enable SMS Alerts" CTA. Routes to `/portal/profile` if no phone on file.
+- Respects 30-day explicit opt-out window.
+- Mounted in `src/components/portal/PortalLayout.tsx` directly after the existing `PortalPhoneGate` check (phone-first, then SMS gate).
 
-File: `src/pages/Index.tsx` (a new small section, placed after the Recovery section, before Philosophy to match `mem://style/homepage/layout-order`).
+Tiny update to `src/hooks/useNonMemberProfile.ts` to surface `sms_opt_in` / `sms_opt_in_at` / `sms_opt_out_at` / `sms_opt_in_source` on the type and select.
 
-New component: `src/components/home/SmsSignupSection.tsx`
-- Headline: "Never miss a class drop."
-- Single phone input + "Text me alerts" button.
-- On submit → call existing `send-sms` edge function once with a welcome confirmation, then insert into a new lightweight `sms_marketing_leads` table (email optional, phone required, source = "homepage"). Marks `consent_given = true` with disclosure version + timestamp.
-- Compliance copy underneath matches `SMS_DISCLOSURE_TEXT` (already in `SmsConsentCheckbox.tsx`).
+---
 
-Migration: create `public.sms_marketing_leads (id, phone, email, source, consent_given, consent_version, consent_at, user_agent, created_at)` with RLS allowing `anon` INSERT only, admin/service_role full access. Grants per project rules.
+## 2. Spa appointment notifications (email + SMS, members + non-members)
 
-## 3. Member portal — hard interstitial gate
+Currently `useSpaBooking.ts` sends **nothing** — no email, no SMS, no reminder. I'll wire all three.
 
-Replace the dismissible banner with a forcing modal.
+### 2a. New: spa confirmation on booking
+Inside the existing `useSpaBookAppointment` mutation success path:
+- After insert into `spa_appointments`, look up contact (try `profiles` first, fall back to `non_member_profiles`) by `user_id` to get `email`, `phone`, `sms_opt_in`.
+- Fire `send-email` (`type: 'spa_appointment_confirmation'`) and `send-sms` (`templateKey: 'appointment-confirmation'`) in parallel, gated by `sms_opt_in`.
+- Both already exist in the registry. Variables: `{ service, date, time, provider }`.
 
-New component: `src/components/member/SmsOptInGate.tsx`
-- Renders a non-dismissible `<Dialog>` (no `X`, `onOpenChange` no-op, no overlay click-to-close) inside `MemberLayout` whenever the logged-in `profile.sms_opt_in !== true`.
-- Single primary CTA: **"Enable SMS Alerts"** (per user request, no decline option). 
-- Sub-text explains why: "We use SMS for class reminders, waitlist promotions, billing notices, and time-sensitive updates. You can reply STOP at any time to unsubscribe."
-- If `profile.phone` is missing → CTA changes to "Add phone number" linking to `/member/profile`.
-- On confirm → writes `sms_opt_in=true`, logs to `sms_consent_log` with `source='portal_gate'`, invalidates `user-profile`, dismisses.
+New email template added to `send-email`: `spa_appointment_confirmation` — brand-consistent with existing class confirmation, signed "The Storm Wellness Club Team".
 
-Wiring:
-- `src/components/member/MemberLayout.tsx`: remove the existing SMS banner item from the notification bar (lines around 92–96), mount `<SmsOptInGate />` instead at layout root.
-- Same gate applies to the non-member portal layout (`/portal`), reading `non_member_profiles.sms_opt_in`.
+### 2b. New: spa 24-hour and 2-hour reminders
+New edge function: `supabase/functions/send-spa-reminders/index.ts`
+- Queries `spa_appointments` where `status = 'confirmed'`, joining staff for provider name.
+- Sends `appointment-reminder-24h` for appts ~24 hrs out, `appointment-reminder-2h` for appts ~2 hrs out, in `America/Chicago` (matches `mem://features/classes/timezone-policy`).
+- Idempotent via new columns `reminder_24h_sent_at` / `reminder_2h_sent_at` on `spa_appointments` (migration).
+- Sends both email and SMS in parallel; SMS gated by recipient `sms_opt_in`.
 
-Edge cases:
-- Members with `sms_opt_out_at` set within the last 30 days → suppress the gate (respect explicit opt-out so we don't harass them; admins can see opt-out status).
-- Admin/staff impersonation → suppress gate.
+Two new pg_cron entries (every 15 min for 24h reminder, every 5 min for 2h reminder) — added via `supabase--insert` SQL with project URL + anon key, per cron policy.
 
-## 4. Admin visibility
+### 2c. Spa cancellation
+Hook up cancellation in `useSpaBooking.ts` (already exists, just no notify): send `appointment-confirmation` style cancellation email + SMS template `class-booking-cancellation` reused with spa-friendly variables. (Optional polish; included.)
 
-File: `src/pages/admin/Members.tsx` (or wherever the member list lives) — add a small "SMS" column / badge showing opt-in status so staff can ask members in person.
+### 2d. Waitlist join confirmation (classes)
+Currently only `notify-waitlist` sends on **promotion**. I'll add a small email+SMS on `useBooking.ts`'s waitlist-join path:
+- Email type: `waitlist_joined`
+- New SMS template: `waitlist-joined` → `Storm: You're on the waitlist for {{className}} on {{date}} at {{time}}. We'll text if a spot opens.`
 
-(Skip if it slows things down; not blocking.)
+Works for members and non-members (same waitlist table).
 
-## Technical notes
+---
 
-- New table `sms_marketing_leads` is the only schema change; everything else reads existing `profiles.sms_opt_in*` columns and `sms_consent_log`.
-- Gate uses `useUserProfile` hook — already in context throughout the portal.
-- All writes log to `sms_consent_log` for A2P 10DLC compliance (per `mem://compliance/sms-consent-system`).
-- No changes to `send-sms` edge function or any transactional flows; this is purely opt-in capture.
+## 3. Centralized SMS language viewer
+
+The hardcoded SMS strings live inside `supabase/functions/send-sms/index.ts`. I'll lift them into a shared registry the admin UI can read from.
+
+- New file: `src/lib/smsTemplates.ts` — exports a `SMS_TEMPLATES` array with `{ key, label, category, body, sampleVariables, triggers }` for every template currently in send-sms (14 templates).
+- The edge function still owns the actual renderer (faster, no extra DB hop), with a clear "MUST MIRROR src/lib/smsTemplates.ts" header comment. Both files stay in sync.
+
+New admin tab in `src/pages/admin/Marketing.tsx`: **"SMS Templates"** (next to existing "Email Templates").
+- For each template: shows the exact body text, where it fires from (trigger description), example rendered with sample variables, character count + Twilio segment count.
+- Read-only with a "Request edit" note explaining why these are code-controlled (deliverability + compliance).
+- Lets you audit every word that goes out without me having to send screenshots.
+
+---
+
+## 4. Bulk SMS blast
+
+This **already exists** at `/admin/marketing → SMS Blast` tab — and you've used it before via `mem://admin/marketing/automation-hub`. I'll do two small upgrades:
+
+- Add a **"Campaigns"** preset section above the compose box with one-click templates for common notices: "Holiday hours", "Class cancellation (mass)", "New schedule live", "Membership promotion", "Event invite".
+- Confirm the existing audience filters cover **non-members** (currently it pulls from `profiles` only). Extend the audience picker to optionally include `non_member_profiles` (class-pass holders) — gated by `sms_opt_in`.
+
+---
+
+## Files
+
+**New**
+- `src/components/portal/NonMemberSmsOptInGate.tsx`
+- `supabase/functions/send-spa-reminders/index.ts`
+- `src/lib/smsTemplates.ts`
+- `src/components/admin/marketing/SmsTemplatesTab.tsx`
+
+**Modified**
+- `src/components/portal/PortalLayout.tsx` — mount the gate
+- `src/hooks/useNonMemberProfile.ts` — expose sms_opt_in fields
+- `src/hooks/useSpaBooking.ts` — confirmation + cancellation notifies
+- `src/hooks/useBooking.ts` — waitlist join notify
+- `supabase/functions/send-sms/index.ts` — add `waitlist-joined` template
+- `supabase/functions/send-email/index.ts` — add `spa_appointment_confirmation`, `spa_appointment_reminder`, `waitlist_joined` types
+- `src/pages/admin/Marketing.tsx` — mount new tab
+- `src/components/admin/marketing/SmsBlastTab.tsx` — campaign presets + non-member audience option
+
+**Migrations**
+- Add `reminder_24h_sent_at`, `reminder_2h_sent_at` columns to `spa_appointments`.
+
+**pg_cron (via supabase--insert)**
+- Spa 24h reminder cron (every 15 min)
+- Spa 2h reminder cron (every 5 min)
+
+---
 
 ## Out of scope
-
-- Removing existing opt-outs (we respect their choice).
-- Bulk re-prompting the 698 non-opted members via email — separate campaign decision.
+- Email templates for spa **cancellation by admin** mass-flow (admin spa ops already has its own confirm dialog).
+- Backfilling past spa appointments with reminder cron history.
+- Editing SMS template text from the admin UI (read-only by design for compliance — ping me and I'll change the code).
