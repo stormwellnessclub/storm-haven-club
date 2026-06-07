@@ -268,22 +268,6 @@ export default function BillingArrears() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Members owing dues ({rows.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">Loading…</div>
-            ) : rows.length === 0 ? (
-              <div className="py-12 text-center text-sm text-muted-foreground">
-                No open dues balances match your filters. 🎉
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
         {selectedIds.size > 0 && (
           <Card className="sticky top-2 z-20 border-primary/40 bg-card shadow-sm">
             <CardContent className="py-3 flex flex-wrap items-center justify-between gap-3">
@@ -356,6 +340,15 @@ export default function BillingArrears() {
                             onCheckedChange={() => toggleRow(r.member_id)}
                             aria-label={`Select ${r.first_name} ${r.last_name}`}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{r.first_name} {r.last_name}</div>
+                          <div className="text-xs text-muted-foreground">{r.email}</div>
+                          {r.phone && (
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Phone className="h-3 w-3" /> {r.phone}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>{r.membership_type || "—"}</TableCell>
                         <TableCell>{statusBadge(r.member_status)}</TableCell>
