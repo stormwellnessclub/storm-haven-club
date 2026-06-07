@@ -165,6 +165,7 @@ export default function BillingArrears() {
   const [search, setSearch] = useState("");
   const [includeCancelled, setIncludeCancelled] = useState(false);
   const [minMonths, setMinMonths] = useState<string>("1");
+  const [typeFilter, setTypeFilter] = useState<"dues" | "kids_care" | "other" | "all">("dues");
   const [selected, setSelected] = useState<ArrearsRow | null>(null);
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [outreachTarget, setOutreachTarget] = useState<ArrearsRow | null>(null);
@@ -177,7 +178,8 @@ export default function BillingArrears() {
     search: search || undefined,
     includeCancelled,
     minMonthsBehind: Number(minMonths) || 1,
-  }), [search, includeCancelled, minMonths]);
+    typeFilter,
+  }), [search, includeCancelled, minMonths, typeFilter]);
 
   const { data: rows = [], isLoading, refetch, isFetching } = useBillingArrears(filters);
 
@@ -265,8 +267,29 @@ export default function BillingArrears() {
               <Switch checked={includeCancelled} onCheckedChange={setIncludeCancelled} id="cancelled" />
               <Label htmlFor="cancelled" className="text-sm">Include cancelled/removed members</Label>
             </div>
+            <div className="w-full">
+              <Label className="text-xs">Charge type</Label>
+              <div className="inline-flex rounded-md border bg-muted/30 p-0.5 mt-1">
+                {([
+                  { v: "dues", l: "Dues" },
+                  { v: "kids_care", l: "Kids Care" },
+                  { v: "other", l: "Other" },
+                  { v: "all", l: "All" },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.v}
+                    type="button"
+                    onClick={() => setTypeFilter(opt.v)}
+                    className={`px-3 py-1 text-xs rounded ${typeFilter === opt.v ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}
+                  >
+                    {opt.l}
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
+
 
         {selectedIds.size > 0 && (
           <Card className="sticky top-2 z-20 border-primary/40 bg-card shadow-sm">
