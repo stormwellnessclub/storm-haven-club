@@ -153,6 +153,8 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
             card_exp_year: m.card_exp_year,
             stripe_customer_id: m.stripe_customer_id,
             stripe_subscription_id: m.stripe_subscription_id,
+            gender: m.gender ?? null,
+            is_founding_member: m.is_founding_member ?? null,
             months_behind: 1,
             outstanding_cents: outstanding,
             oldest_due_period: a.period_start ?? null,
