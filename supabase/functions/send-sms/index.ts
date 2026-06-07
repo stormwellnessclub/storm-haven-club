@@ -181,12 +181,26 @@ Deno.serve(async (req) => {
       );
     }
 
-    const renderer = TEMPLATES[body.templateKey];
-    if (!renderer) {
+    const defaultRenderer = TEMPLATES[body.templateKey];
+    if (!defaultRenderer) {
       return new Response(
         JSON.stringify({ error: `Unknown template: ${body.templateKey}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // Apply admin-published override (if any). Admin-custom always uses code path.
+    let renderer = defaultRenderer;
+    if (body.templateKey !== "admin-custom") {
+      const { data: override } = await admin
+        .from("sms_template_overrides")
+        .select("published_body")
+        .eq("template_key", body.templateKey)
+        .maybeSingle();
+      const publishedBody = override?.published_body;
+      if (publishedBody && typeof publishedBody === "string" && publishedBody.trim()) {
+        renderer = (v: Record<string, unknown>) => tmpl(publishedBody, v);
+      }
     }
 
     // Idempotency check
