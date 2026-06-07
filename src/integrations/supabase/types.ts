@@ -5092,6 +5092,58 @@ export type Database = {
           },
         ]
       }
+      payment_renewal_reminders: {
+        Row: {
+          charge_date: string
+          created_at: string
+          id: string
+          idempotency_key: string
+          member_id: string
+          reminder_type: string
+          sent_at: string
+        }
+        Insert: {
+          charge_date: string
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          member_id: string
+          reminder_type: string
+          sent_at?: string
+        }
+        Update: {
+          charge_date?: string
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          member_id?: string
+          reminder_type?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_renewal_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_renewal_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_renewal_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_tracking_health_log: {
         Row: {
           alert_sent: boolean
