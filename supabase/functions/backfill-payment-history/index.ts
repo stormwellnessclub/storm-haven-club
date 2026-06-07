@@ -193,15 +193,15 @@ serve(async (req) => {
 
         if (body.dryRun) continue;
 
+        const billingType = classifyInvoice(inv);
+
         const { error: arrErr } = await supabase
           .from("billing_arrears")
           .upsert(
             {
               member_id: memberId,
               stripe_invoice_id: inv.id,
-              billing_type: inv.billing_reason === "subscription_create"
-                ? "membership_dues"
-                : inv.billing_reason || "membership_dues",
+              billing_type: billingType,
               period_start: periodStart,
               period_end: periodEnd,
               amount_due_cents: inv.amount_due ?? 0,
