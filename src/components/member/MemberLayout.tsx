@@ -10,7 +10,7 @@ import { PastDueBanner } from "./PastDueBanner";
 import { CardExpiringNotice } from "./CardExpiringNotice";
 import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
-import { SmsOptInBannerContent } from "./SmsOptInBannerContent";
+import { SmsOptInGate } from "./SmsOptInGate";
 import { MemorialDayHoursBanner } from "./MemorialDayHoursBanner";
 
 
