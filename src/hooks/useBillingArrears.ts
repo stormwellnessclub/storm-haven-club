@@ -17,6 +17,8 @@ export interface ArrearsRow {
   card_exp_year: number | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  gender: string | null;
+  is_founding_member: boolean | null;
   months_behind: number;
   outstanding_cents: number;
   oldest_due_period: string | null;
@@ -77,7 +79,7 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
       // Members
       const { data: members, error: mErr } = await supabase
         .from("members")
-        .select("id, first_name, last_name, email, phone, status, membership_type, subscription_status, card_last4, card_brand, card_exp_month, card_exp_year, stripe_customer_id, stripe_subscription_id")
+        .select("id, first_name, last_name, email, phone, status, membership_type, subscription_status, card_last4, card_brand, card_exp_month, card_exp_year, stripe_customer_id, stripe_subscription_id, gender, is_founding_member")
         .in("id", memberIds);
       if (mErr) throw mErr;
       const memberById = new Map(((members || []) as any[]).map(m => [m.id, m]));
@@ -151,6 +153,8 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
             card_exp_year: m.card_exp_year,
             stripe_customer_id: m.stripe_customer_id,
             stripe_subscription_id: m.stripe_subscription_id,
+            gender: m.gender ?? null,
+            is_founding_member: m.is_founding_member ?? null,
             months_behind: 1,
             outstanding_cents: outstanding,
             oldest_due_period: a.period_start ?? null,
