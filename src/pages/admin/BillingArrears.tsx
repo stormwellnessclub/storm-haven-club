@@ -82,6 +82,65 @@ function ChargeCardButton({ row }: { row: ArrearsRow }) {
   );
 }
 
+function CreateDuesSubButton({ row, onDone }: { row: ArrearsRow; onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+  // Default first-charge date = 1st of next month (YYYY-MM-DD)
+  const defaultDate = useMemo(() => {
+    const d = new Date();
+    const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
+  }, []);
+  const handle = async () => {
+    if (!row.stripe_customer_id || !row.card_last4) {
+      toast.error("Member needs a saved card before creating a subscription");
+      return;
+    }
+    if (row.stripe_subscription_id) {
+      toast.error("Member already has an active dues subscription");
+      return;
+    }
+    const tier = (row.membership_type || "").trim();
+    if (!tier) { toast.error("Member has no tier set"); return; }
+    const genderRaw = (row.gender || "").toLowerCase();
+    const gender = (genderRaw === "male" || genderRaw === "men" || genderRaw === "man" || genderRaw === "m") ? "men" : "women";
+    const firstCharge = window.prompt(
+      `Create monthly dues subscription for ${row.first_name} ${row.last_name}\n` +
+      `Tier: ${tier}  Gender: ${gender}  Card: ****${row.card_last4}\n\n` +
+      `First charge date (YYYY-MM-DD):`,
+      defaultDate,
+    );
+    if (!firstCharge) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(firstCharge)) { toast.error("Invalid date format"); return; }
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "admin_create_member_subscription",
+          memberId: row.member_id,
+          tier,
+          gender,
+          billingType: "monthly",
+          isFoundingMember: !!row.is_founding_member,
+          startDate: firstCharge,
+          firstChargeDate: firstCharge,
+        },
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data?.error || "Failed");
+      toast.success(`Dues subscription created · first charge ${firstCharge}`);
+      onDone();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create subscription");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button size="sm" variant="default" onClick={handle} disabled={busy} title="Create monthly dues subscription">
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><CalendarClock className="h-3.5 w-3.5 mr-1" /> Create sub</>}
+    </Button>
+  );
+
 const CHANNELS = [
   { value: "call", label: "Call" },
   { value: "sms", label: "SMS" },
