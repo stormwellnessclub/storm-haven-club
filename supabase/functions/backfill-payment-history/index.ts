@@ -73,7 +73,10 @@ serve(async (req) => {
     let arrearsUpserted = 0;
     const errors: string[] = [];
 
+    const phase = body.phase ?? "both";
+
     // ── Pass 1: Charges ──
+    if (phase === "charges" || phase === "both") {
     let startingAfter: string | undefined;
     let safety = 0;
     while (true) {
