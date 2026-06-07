@@ -25,6 +25,7 @@ import { ConfirmedPaymentIssues } from "@/components/admin/MemberDetail/Confirme
 import { MemberArrearsBanner } from "@/components/admin/MemberArrearsBanner";
 import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
+import { DunningTimeline } from "@/components/admin/DunningTimeline";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
 import { useMemberNotes, useCreateMemberNote, useUpdateMemberNote, useDeleteMemberNote } from "@/hooks/useMemberNotes";
 import { useMemberTags, useCreateMemberTag, useDeleteMemberTag } from "@/hooks/useMemberTags";
