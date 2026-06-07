@@ -2397,12 +2397,20 @@ serve(async (req) => {
           const { memberData, memberError } = await resolveSubscriptionInvoiceMember(
             supabase,
             invoice,
-            'id, status, stripe_subscription_id, annual_fee_subscription_id',
+            'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
           );
 
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_SUCCEEDED_MEMBER_LOOKUP");
           } else if (memberData) {
+            // ── Dunning recovery: if this invoice was tracked in active dunning, clear it and notify ──
+            if (!annualFeeInvoice) {
+              await markDunningRecovered(supabase, {
+                member: { id: memberData.id, email: (memberData as any).email, first_name: (memberData as any).first_name },
+                invoice,
+              });
+            }
+
             // Block check: if member's email is blocked, refund and cancel
             const { data: memberEmail } = await supabase
               .from('members')
