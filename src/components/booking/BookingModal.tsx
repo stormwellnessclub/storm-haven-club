@@ -4,6 +4,7 @@ import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { useUserMembership } from "@/hooks/useUserMembership";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { useAllAgreements } from "@/hooks/useAllAgreements";
 import { useJoinWaitlist, useLeaveWaitlist, useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
@@ -62,6 +63,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { user } = useAuth();
   const navigate = useNavigate();
   const { profile, signWaiver, isSigningWaiver } = useUserProfile();
+  const { data: membership } = useUserMembership();
+  const isPastDue = !!(membership as any)?.payment_past_due;
   const { profile: nonMemberProfile } = useNonMemberProfile();
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
