@@ -17,6 +17,7 @@ interface BackfillBody {
   start?: string; // ISO date — default 12 months ago
   end?: string;   // ISO date — default now
   dryRun?: boolean;
+  phase?: "charges" | "invoices" | "both"; // default both
 }
 
 serve(async (req) => {
@@ -72,7 +73,10 @@ serve(async (req) => {
     let arrearsUpserted = 0;
     const errors: string[] = [];
 
+    const phase = body.phase ?? "both";
+
     // ── Pass 1: Charges ──
+    if (phase === "charges" || phase === "both") {
     let startingAfter: string | undefined;
     let safety = 0;
     while (true) {
@@ -156,10 +160,12 @@ serve(async (req) => {
     }
 
     log("Charges pass complete", { chargesProcessed, chargesInserted, chargesSkipped });
+    } // end charges phase
 
     // ── Pass 2: Invoices (for arrears/unpaid tracking) ──
+    if (phase === "invoices" || phase === "both") {
     let invStartingAfter: string | undefined;
-    safety = 0;
+    let safety = 0;
     while (true) {
       if (++safety > 200) break;
       const list = await stripe.invoices.list({
@@ -226,6 +232,7 @@ serve(async (req) => {
     }
 
     log("Invoices pass complete", { invoicesProcessed, arrearsUpserted });
+    } // end invoices phase
 
     return new Response(
       JSON.stringify({
