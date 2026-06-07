@@ -62,6 +62,105 @@ interface CheckAvailabilityParams {
   excludeAppointmentId?: string;
 }
 
+/**
+ * Best-effort spa email + SMS notify. Looks up contact info for the appointment's
+ * user (members table → profiles → non_member_profiles) and fires send-email +
+ * send-sms in parallel. Never throws — failures are logged only.
+ */
+async function sendSpaNotifications(args: {
+  appointment: SpaAppointment;
+  kind: "confirmation" | "cancellation";
+}) {
+  const a = args.appointment;
+  if (!a?.user_id) return;
+
+  // Pull contact + sms_opt_in from profiles first, fall back to non_member_profiles.
+  let email: string | null = null;
+  let phone: string | null = null;
+  let smsOptIn = false;
+
+  const { data: p } = await supabase
+    .from("profiles")
+    .select("email, phone, sms_opt_in")
+    .eq("user_id", a.user_id)
+    .maybeSingle();
+  if (p) {
+    email = (p as any).email ?? null;
+    phone = (p as any).phone ?? null;
+    smsOptIn = (p as any).sms_opt_in === true;
+  }
+  if (!email || !phone) {
+    const { data: nm } = await supabase
+      .from("non_member_profiles")
+      .select("email, phone, sms_opt_in")
+      .eq("user_id", a.user_id)
+      .maybeSingle();
+    if (nm) {
+      email = email ?? (nm as any).email ?? null;
+      phone = phone ?? (nm as any).phone ?? null;
+      smsOptIn = smsOptIn || (nm as any).sms_opt_in === true;
+    }
+  }
+
+  // Provider name (optional).
+  let provider = "Storm Wellness";
+  if (a.staff_id) {
+    const { data: staff } = await (supabase.from as any)("spa_therapists")
+      .select("full_name")
+      .eq("id", a.staff_id)
+      .maybeSingle();
+    if (staff?.full_name) provider = staff.full_name;
+  }
+
+  const dateStr = format(parse(a.appointment_date, "yyyy-MM-dd", new Date()), "EEE MMM d");
+  const timeStr = format(
+    parse(a.appointment_time.slice(0, 5), "HH:mm", new Date()),
+    "h:mm a",
+  );
+
+  const emailType =
+    args.kind === "confirmation"
+      ? "spa_appointment_confirmation"
+      : "spa_appointment_cancellation";
+  const smsKey =
+    args.kind === "confirmation"
+      ? "appointment-confirmation"
+      : "class-booking-cancellation";
+  const smsVars: Record<string, string> =
+    args.kind === "confirmation"
+      ? { service: a.service_name, date: dateStr, time: timeStr, provider }
+      : { className: a.service_name, date: dateStr, time: timeStr, refundNote: "" };
+
+  await Promise.allSettled([
+    email
+      ? supabase.functions.invoke("send-email", {
+          body: {
+            type: emailType,
+            to: email,
+            data: {
+              service: a.service_name,
+              date: dateStr,
+              time: timeStr,
+              provider,
+              duration: a.duration_minutes,
+            },
+          },
+        })
+      : Promise.resolve(),
+    phone && smsOptIn
+      ? supabase.functions.invoke("send-sms", {
+          body: {
+            to: { phone, userId: a.user_id },
+            templateKey: smsKey,
+            variables: smsVars,
+            idempotencyKey: `spa-${args.kind}-${a.id}`,
+            metadata: { source: "spa_booking", appointmentId: a.id },
+          },
+        })
+      : Promise.resolve(),
+  ]);
+}
+
 export function useSpaBookAppointment() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -185,11 +284,21 @@ export function useSpaBookAppointment() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async (appt) => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Spa appointment booked successfully!");
+
+      // Fire confirmation email + SMS (best-effort, never block the success path).
+      try {
+        await sendSpaNotifications({
+          appointment: appt,
+          kind: "confirmation",
+        });
+      } catch (e) {
+        console.warn("spa confirmation notify failed (non-fatal):", e);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to book appointment");
@@ -391,11 +500,16 @@ export function useCancelSpaAppointment() {
         throw error;
       }
     },
-    onSuccess: () => {
+    onSuccess: async (appt) => {
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Appointment cancelled successfully");
+      try {
+        await sendSpaNotifications({ appointment: appt, kind: "cancellation" });
+      } catch (e) {
+        console.warn("spa cancellation notify failed (non-fatal):", e);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to cancel appointment");

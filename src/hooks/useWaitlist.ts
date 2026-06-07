@@ -74,9 +74,9 @@ export function useJoinWaitlist() {
 
       if (error) throw error;
       const result = data as { position: number; payment_method: string };
-      return result;
+      return { ...result, sessionId };
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["waitlist-status"] });
       queryClient.invalidateQueries({ queryKey: ["waitlist-counts"] });
       queryClient.invalidateQueries({ queryKey: ["available-credits"] });
@@ -86,6 +86,79 @@ export function useJoinWaitlist() {
       toast.success("Added to Waitlist", {
         description: `You're #${data.position} on the waitlist. We've held ${heldLabel} — it'll be refunded if you leave or the spot doesn't open.`,
       });
+
+      // Fire confirmation email + SMS (best-effort).
+      if (!user) return;
+      try {
+        // Lookup session + contact in parallel.
+        const [{ data: session }, { data: prof }, { data: nonMember }] = await Promise.all([
+          (supabase.from as any)("class_sessions")
+            .select("id, scheduled_date, scheduled_time, class_types(name)")
+            .eq("id", data.sessionId)
+            .maybeSingle(),
+          supabase
+            .from("profiles")
+            .select("email, phone, sms_opt_in")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("non_member_profiles")
+            .select("email, phone, sms_opt_in")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
+
+        const email =
+          (prof as any)?.email ?? (nonMember as any)?.email ?? user.email ?? null;
+        const phone = (prof as any)?.phone ?? (nonMember as any)?.phone ?? null;
+        const smsOptIn =
+          (prof as any)?.sms_opt_in === true ||
+          (nonMember as any)?.sms_opt_in === true;
+
+        const className =
+          (session as any)?.class_types?.name ?? "your class";
+        const rawDate = (session as any)?.scheduled_date as string | undefined;
+        const rawTime = (session as any)?.scheduled_time as string | undefined;
+        const dateStr = rawDate
+          ? new Date(rawDate + "T00:00:00").toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              timeZone: "America/Chicago",
+            })
+          : "";
+        const timeStr = rawTime
+          ? new Date(`2000-01-01T${rawTime.slice(0, 5)}:00`).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            })
+          : "";
+
+        await Promise.allSettled([
+          email
+            ? supabase.functions.invoke("send-email", {
+                body: {
+                  type: "waitlist_joined",
+                  to: email,
+                  data: { className, date: dateStr, time: timeStr, position: data.position },
+                },
+              })
+            : Promise.resolve(),
+          phone && smsOptIn
+            ? supabase.functions.invoke("send-sms", {
+                body: {
+                  to: { phone, userId: user.id },
+                  templateKey: "waitlist-joined",
+                  variables: { className, date: dateStr, time: timeStr },
+                  idempotencyKey: `waitlist-join-${data.sessionId}-${user.id}`,
+                  metadata: { source: "waitlist_join" },
+                },
+              })
+            : Promise.resolve(),
+        ]);
+      } catch (e) {
+        console.warn("waitlist join notify failed (non-fatal):", e);
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message);

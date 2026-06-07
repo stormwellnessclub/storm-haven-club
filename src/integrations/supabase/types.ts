@@ -6252,6 +6252,8 @@ export type Database = {
           member_price: number | null
           payment_intent_id: string | null
           payment_method: string | null
+          reminder_24h_sent_at: string | null
+          reminder_2h_sent_at: string | null
           room_id: string | null
           service_category: string
           service_id: string
@@ -6286,6 +6288,8 @@ export type Database = {
           member_price?: number | null
           payment_intent_id?: string | null
           payment_method?: string | null
+          reminder_24h_sent_at?: string | null
+          reminder_2h_sent_at?: string | null
           room_id?: string | null
           service_category: string
           service_id: string
@@ -6320,6 +6324,8 @@ export type Database = {
           member_price?: number | null
           payment_intent_id?: string | null
           payment_method?: string | null
+          reminder_24h_sent_at?: string | null
+          reminder_2h_sent_at?: string | null
           room_id?: string | null
           service_category?: string
           service_id?: string

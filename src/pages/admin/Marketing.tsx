@@ -7,10 +7,11 @@ import { ReferralCampaignTab } from "@/components/admin/marketing/ReferralCampai
 import { TemplatesTab } from "@/components/admin/marketing/TemplatesTab";
 import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytics";
 import { SmsBlastTab } from "@/components/admin/marketing/SmsBlastTab";
+import { SmsTemplatesTab } from "@/components/admin/marketing/SmsTemplatesTab";
 import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
 import { ContactsTab } from "@/components/admin/marketing/ContactsTab";
 import { AnnouncementsTab } from "@/components/admin/marketing/AnnouncementsTab";
-import { Megaphone, MessageSquare, Coffee, Mail, Bell } from "lucide-react";
+import { Megaphone, MessageSquare, Coffee, Mail, Bell, MessageCircle } from "lucide-react";
 
 export default function Marketing() {
   const [params, setParams] = useSearchParams();
@@ -51,10 +52,13 @@ export default function Marketing() {
               <Coffee className="h-3.5 w-3.5" /> Cafe
             </TabsTrigger>
             <TabsTrigger value="sms" className="gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" /> SMS
+              <MessageSquare className="h-3.5 w-3.5" /> SMS Blast
+            </TabsTrigger>
+            <TabsTrigger value="sms-templates" className="gap-1.5">
+              <MessageCircle className="h-3.5 w-3.5" /> SMS Templates
             </TabsTrigger>
             <TabsTrigger value="referrals">Referrals</TabsTrigger>
-            <TabsTrigger value="templates">Templates</TabsTrigger>
+            <TabsTrigger value="templates">Email Templates</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
@@ -75,6 +79,9 @@ export default function Marketing() {
           </TabsContent>
           <TabsContent value="sms">
             <SmsBlastTab />
+          </TabsContent>
+          <TabsContent value="sms-templates">
+            <SmsTemplatesTab />
           </TabsContent>
           <TabsContent value="referrals">
             <ReferralCampaignTab />

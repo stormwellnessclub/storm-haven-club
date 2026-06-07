@@ -9,6 +9,7 @@ import { CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
 import { PortalPhoneGate } from "./PortalPhoneGate";
+import { NonMemberSmsOptInGate } from "./NonMemberSmsOptInGate";
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -26,6 +27,7 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
 
   return (
     <SidebarProvider>
+      <NonMemberSmsOptInGate />
       <div className="min-h-screen flex flex-col w-full bg-background">
         <MemorialDayHoursBanner />
         {/* Card on file requirement banner */}
