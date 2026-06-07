@@ -296,11 +296,13 @@ export default function BillingArrears() {
                             <span className="text-muted-foreground">Never</span>
                           )}
                         </TableCell>
+                        <TableCell><DunningBadge row={r} /></TableCell>
                         <TableCell className="text-xs">
                           {r.open_follow_up_at ? format(new Date(r.open_follow_up_at), "MMM d") : "—"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            <ChargeCardButton row={r} />
                             <Button size="sm" variant="outline" onClick={() => { setOutreachTarget(r); setOutreachOpen(true); }}>
                               <MessageSquarePlus className="h-3.5 w-3.5 mr-1" /> Log
                             </Button>
