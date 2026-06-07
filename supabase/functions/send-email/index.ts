@@ -2365,6 +2365,64 @@ serve(async (req) => {
         break;
       }
 
+      case 'dunning_day_0': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your monthly Storm membership payment';
+        const reasonStr = data.decline_reason || data.failureReason || 'the card on file could not be charged';
+        const updateUrl = `${BASE_URL}/member/payment-methods${data.invoice_id ? `?retry=${encodeURIComponent(data.invoice_id)}` : ''}`;
+        subject = 'A note regarding your Storm membership payment';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Your monthly Storm membership payment of ${amountStr} was unable to be processed today (${reasonStr}). Your account is currently past due, and member privileges &mdash; including monthly credits and member pricing &mdash; are paused until the balance is resolved.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 10px;">
+                You may update your payment method at any time:
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${updateUrl}" style="${emailStyles.button}">Update Payment Method</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                For assistance, email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message Member Services from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'dunning_recovered': {
+        const firstName = data.first_name || data.name || 'Member';
+        const amountStr = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your outstanding balance';
+        subject = 'Payment received \u2014 welcome back';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Your payment of ${amountStr} has been received and your Storm membership is once again in good standing. Full member privileges have been restored.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Thank you, and we look forward to seeing you at the Club.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
         throw new Error(`Unknown email type: ${type}`);
     }
