@@ -65,6 +65,7 @@ import UpdatePassword from "./pages/UpdatePassword";
 import MyBookings from "./pages/MyBookings";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import SmsOptInProof from "./pages/SmsOptInProof";
 
 import FAQ from "./pages/FAQ";
 import GuestPass from "./pages/GuestPass";
