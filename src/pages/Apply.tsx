@@ -819,7 +819,7 @@ export default function Apply() {
         return;
       }
 
-      // Log SMS consent (best-effort, non-blocking)
+      // Log SMS consent + send opt-in confirmation SMS (best-effort, non-blocking)
       if (formData.smsConsent) {
         (supabase.from('sms_consent_log') as any).insert({
           phone: formData.phone,
@@ -831,7 +831,20 @@ export default function Apply() {
         }).then(({ error: logErr }: any) => {
           if (logErr) console.warn('SMS consent log failed:', logErr);
         });
+
+        supabase.functions.invoke('send-sms', {
+          body: {
+            templateKey: 'opt-in-confirmation',
+            to: formData.phone,
+            idempotencyKey: `opt-in-confirm:${formData.email}:${Date.now()}`,
+            variables: {},
+            bypassConsent: true,
+          },
+        }).then(({ error: smsErr }) => {
+          if (smsErr) console.warn('Opt-in confirmation SMS failed:', smsErr);
+        });
       }
+
 
       // Send confirmation email
       supabase.functions.invoke('send-email', {
