@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     if (["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT"].includes(keyword)) {
       action = "opt_out";
       reply = STOP_REPLY;
-    } else if (["START", "UNSTOP", "YES"].includes(keyword)) {
+    } else if (["START", "UNSTOP", "YES", "JOIN", "SUBSCRIBE"].includes(keyword)) {
       action = "opt_in";
       reply = START_REPLY;
     } else if (["HELP", "INFO"].includes(keyword)) {
