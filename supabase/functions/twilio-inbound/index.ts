@@ -10,7 +10,7 @@ const HELP_REPLY =
 const STOP_REPLY =
   "You are unsubscribed from Storm Wellness Club SMS. No more messages will be sent. Reply START to re-subscribe.";
 const START_REPLY =
-  "You are re-subscribed to Storm Wellness Club SMS. Msg & data rates may apply. Reply STOP to opt out.";
+  "Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.";
 
 function twiml(body?: string) {
   if (!body) return `<?xml version="1.0" encoding="UTF-8"?><Response/>`;
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     if (["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT"].includes(keyword)) {
       action = "opt_out";
       reply = STOP_REPLY;
-    } else if (["START", "UNSTOP", "YES"].includes(keyword)) {
+    } else if (["START", "UNSTOP", "YES", "JOIN", "SUBSCRIBE"].includes(keyword)) {
       action = "opt_in";
       reply = START_REPLY;
     } else if (["HELP", "INFO"].includes(keyword)) {
