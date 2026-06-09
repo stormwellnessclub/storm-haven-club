@@ -1,46 +1,69 @@
-## Why your second campaign FAILED
 
-Twilio error **30909 — Call to Action / Message Flow rejected**. Your opt-in description is detailed, but Twilio's reviewer couldn't *verify* it because:
+## What I found
 
-1. **Opt-in Message and Opt-in Keywords are blank** (the screenshot shows "-" for both). Reviewers expect at least one opt-in keyword (e.g. JOIN, START) OR a clear confirmation message users receive after opting in.
-2. **No screenshot/proof of the consent checkbox** was attached, so reviewers can't see the actual CTA on `/apply`, `/auth`, or `/portal/profile`.
-3. The signup pages may require login, so the reviewer literally cannot reach the consent checkbox to verify it.
+### Bug 1 — Rayanne wasn't actually charged
 
-This is a **Twilio submission problem**, not a code problem. No app code change will get the campaign approved — but I can make your signup pages reviewer-friendly so the resubmission passes.
+In `src/pages/admin/ClassRoster.tsx`, the **"Promote from waitlist"** flow (lines 552–562) inserts a booking with `payment_method: "walk_in"` and `amount_paid: 2500`… and **never calls Stripe**. No `manual_charges` row, no payment intent. The toast says "Promoted from waitlist" so it looks successful, but no money moves.
+
+Verified in the DB for Rayanne Haidar:
+- Booking `96b67ac9…` (Full Body Strength Sat) was created at 03:14 with `amount_paid 25.00`, then cancelled at 03:18 — no matching `manual_charges` row, no Stripe PI. So you were right: no charge happened.
+
+The regular **"Add to class"** drop-in path (lines 688–721) *does* call Stripe, but when it fails it only shows an `info` toast "collect at desk" and leaves the booking row sitting there with `amount_paid` looking paid. Same misleading signal.
+
+### Bug 2 — No confirmation emails on admin actions
+
+- `promoteMutation` (waitlist → confirmed) sends **no email or SMS** to the member.
+- `addMutation` (admin manually adds member to class) also sends nothing.
+- Templates `booking_confirmation`, `waitlist_claim_confirmation`, and the SMS equivalents already exist in `send-email` / `send-sms`; they're just not invoked from these admin flows.
+
+The automated paths (member self-books, waitlist auto-notify) already wire emails correctly via `notify-waitlist` and `useBooking` / `useWaitlist`. The gap is admin-driven actions only.
+
+---
 
 ## Plan
 
-### 1. Make consent CTA publicly reviewable (code changes)
-Create a dedicated public page `/sms-opt-in-proof` that shows:
-- Screenshots/mockups of the exact consent checkbox shown on `/apply`, `/auth`, and `/portal/profile`
-- The full disclosure text verbatim
-- Frequency, STOP/HELP instructions, links to Terms + Privacy
-- This gives Twilio reviewers one URL to verify everything without needing an account
+### 1. Fix promote-from-waitlist "drop-in" to actually charge the card
 
-### 2. Add a visible consent disclosure block on `/apply`
-Right now the consent text may be small or buried. Add a clearly labeled, bordered consent box directly above the submit button on the public application form so a reviewer landing on `/apply` immediately sees it without logging in.
+In `ClassRoster.tsx` `promoteMutation` (`method === "dropin"` branch):
+- Call `supabase.functions.invoke("stripe-payment", { body: { action: "charge_saved_card", memberId, amount, description: "Drop-in: <class> on <date> (waitlist promotion)" } })` **before** inserting the booking.
+- If `success: false` or no card on file → throw with the Stripe decline message → mutation `onError` shows a clear red toast ("Card declined — $X NOT collected: <reason>"). Do not create the booking row.
+- If success → insert booking as today, then mark waitlist `claimed`.
+- Show success toast with explicit amount: `"Charged $25.00 to <member name>'s card and promoted from waitlist"`.
 
-### 3. Auto-send opt-in confirmation SMS
-When a user checks the SMS consent box and submits, send an immediate confirmation:
-> "Storm Wellness Club: You're subscribed to account & class alerts. Msg freq varies. Msg&data rates may apply. Reply HELP for help, STOP to cancel."
+### 2. Fix add-to-class drop-in (same file, `addMutation` `dropin` branch)
 
-This satisfies the "Opt-in Message" field Twilio flagged as blank.
+Restructure to **charge first, then insert booking** so the two states can't disagree:
+- Charge via `stripe-payment` first.
+- On decline → red error toast "Card declined — $X NOT collected: <reason>. Booking NOT created." Return.
+- On success → insert booking with `amount_paid`. Toast: `"Charged $X to <member>'s card — added to class"`.
+- Keep the existing "no member / non-member walk-in" path: insert with `amount_paid` and the "collect at desk" info toast — that one is legitimately unpaid.
 
-### 4. Populate Opt-in Keyword
-Add `START` and `JOIN` handling in the `twilio-inbound-sms` webhook so users texting these words get re-subscribed and a confirmation. Then you can fill the "Opt-in Keywords" field in Twilio with `START, JOIN`.
+### 3. Send confirmation email + SMS on admin promote-from-waitlist
 
-### 5. Resubmission checklist (you do in Twilio)
-After the above ships, edit the rejected campaign with:
-- **Opt-in Message**: paste the confirmation SMS text from step 3
-- **Opt-in Keywords**: `START, JOIN`
-- **Call-to-Action / Message Flow**: add the new `https://stormwellnessclub.com/sms-opt-in-proof` URL plus 2-3 screenshots of the checkbox on `/apply`
-- **Sample messages**: 3 examples (class reminder, billing notice, waitlist alert)
-- Resubmit
+After the booking insert succeeds in `promoteMutation`, fire (best-effort, parallel `Promise.allSettled`, non-fatal):
+- `supabase.functions.invoke("send-email", { body: { type: "waitlist_claim_confirmation", to, data: { className, date, time, paymentMethod } } })`
+- `supabase.functions.invoke("send-sms", { body: { templateKey: "waitlist-claimed", … } })` if member has `sms_opt_in` and phone.
 
-### 6. Save the rule
-Record in project memory: A2P resubmissions require a public CTA-proof URL + filled Opt-in Message + Opt-in Keyword fields.
+Look up the member's email/phone the same way `useWaitlist.ts` does (members → profiles → non_member_profiles fallback). Use an `idempotencyKey` of `waitlist-promote-<bookingId>`.
 
-## What I will NOT do
-- Touch the working approved campaign
-- Change `send-sms` logic (the code is fine — the campaign approval is the blocker)
-- Promise the resubmission will be approved (only Twilio's reviewer decides)
+### 4. Send confirmation email + SMS on admin add-to-class
+
+After `addMutation` succeeds, send `booking_confirmation` email + `booking-confirmed` SMS the same way. Idempotency key `admin-add-<bookingId>`.
+
+### 5. Verify SMS templates exist
+
+Confirm `waitlist-claimed` and `booking-confirmed` keys exist in `src/lib/smsTemplates.ts` and `send-sms/index.ts`. Add them if missing (short copy mirroring the existing `waitlist-joined` style — under 160 chars, brand prefix, STOP/HELP not required on confirmations).
+
+---
+
+## Technical notes
+
+- No DB schema changes.
+- All work is in `src/pages/admin/ClassRoster.tsx` plus possibly a small append to `src/lib/smsTemplates.ts` and `supabase/functions/send-sms/index.ts`.
+- `stripe-payment / charge_saved_card` already records `manual_charges`, applies the standard processing-fee gross-up, and returns HTTP 200 with `success: false` on decline (per the project convention) — so we just need to read `data.success` and surface `data.error` / `data.decline_code`.
+- Emails/SMS use existing edge functions and templates — no new infra.
+
+## Out of scope (parking lot)
+
+- Twilio A2P campaign resubmission (already on your todo list).
+- Reconciling the existing orphaned `walk_in` bookings with `amount_paid` set but no `manual_charges` row (you may want a one-time admin report; flag if you want it built).
