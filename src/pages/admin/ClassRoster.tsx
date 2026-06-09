@@ -832,31 +832,44 @@ export default function ClassRoster() {
           ? `Donation: ${className} on ${session?.session_date}${fundraiserBeneficiary ? ` — ${fundraiserBeneficiary}` : ""}`
           : `Drop-in: ${className} on ${session?.session_date}`;
 
-        await supabase.from("class_bookings").insert({
-          session_id: sessionId!, user_id: userId, member_id: memberId,
-          status: "confirmed",
-          payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
-          amount_paid: amountCents,
-          walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
-          booked_at: new Date().toISOString(),
-        });
-
         if (memberId) {
+          // Charge the saved card FIRST. If it fails, do not create the booking
+          // so the UI never claims they were charged when they weren't.
+          let chargeData: any = null;
+          let chargeErr: any = null;
           try {
-            const { data, error: chargeErr } = await supabase.functions.invoke("stripe-payment", {
+            const res = await supabase.functions.invoke("stripe-payment", {
               body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
             });
-            if (chargeErr || !data?.success) {
-              toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)} at desk`, { duration: 5000 });
-              return;
-            }
-          } catch {
-            toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)} at desk`, { duration: 5000 });
-            return;
+            chargeData = res.data;
+            chargeErr = res.error;
+          } catch (e: any) {
+            chargeErr = e;
           }
+          if (chargeErr || !chargeData?.success) {
+            const reason = chargeData?.error || chargeErr?.message || "Card declined";
+            throw new Error(`Card declined — $${(amountCents / 100).toFixed(2)} NOT collected: ${reason}. Booking NOT created.`);
+          }
+          await supabase.from("class_bookings").insert({
+            session_id: sessionId!, user_id: userId, member_id: memberId,
+            status: "confirmed",
+            payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
+            amount_paid: amountCents,
+            walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+            booked_at: new Date().toISOString(),
+          });
+          chargedAmountCents = amountCents;
         } else {
-          toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)}${isFundraiserSession ? " donation" : " drop-in fee"} at desk`, { duration: 5000 });
-          return;
+          // Non-member walk-in: record the booking with the price; collect at the desk.
+          await supabase.from("class_bookings").insert({
+            session_id: sessionId!, user_id: userId, member_id: memberId,
+            status: "confirmed",
+            payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
+            amount_paid: amountCents,
+            walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+            booked_at: new Date().toISOString(),
+          });
+          collectAtDeskCents = amountCents;
         }
       } else if (paymentMethod === "comp") {
         await supabase.from("class_bookings").insert({
@@ -866,13 +879,48 @@ export default function ClassRoster() {
           booked_at: new Date().toISOString(),
         });
       }
+
+      // Best-effort confirmation email + SMS for the newly-added attendee.
+      if (userId) {
+        const dateLabel = session?.session_date
+          ? new Date(session.session_date + "T00:00:00").toLocaleDateString("en-US", {
+              weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago",
+            })
+          : "";
+        const timeLabel = session?.start_time
+          ? new Date(`2000-01-01T${String(session.start_time).slice(0, 5)}:00`).toLocaleTimeString("en-US", {
+              hour: "numeric", minute: "2-digit",
+            })
+          : "";
+        await sendClassConfirmationNotifications({
+          userId,
+          fallbackEmail: walkInEmailVal,
+          fallbackPhone: walkInPhoneVal,
+          fallbackName: walkInName,
+          emailType: "booking_confirmation",
+          smsTemplateKey: "class-booking-confirmation",
+          className: className || "your class",
+          dateLabel,
+          timeLabel,
+          bookingId: `${sessionId}-${userId}`,
+          source: "admin_add_to_class",
+        });
+      }
+
+      return { chargedAmountCents, collectAtDeskCents };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
       queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
       resetForm();
-      toast.success("Added to class");
+      if (result?.chargedAmountCents) {
+        toast.success(`Charged $${(result.chargedAmountCents / 100).toFixed(2)} — added to class`);
+      } else if (result?.collectAtDeskCents) {
+        toast.info(`Booking added — collect $${(result.collectAtDeskCents / 100).toFixed(2)} at desk`, { duration: 5000 });
+      } else {
+        toast.success("Added to class");
+      }
     },
     onError: (err: Error) => toast.error(err.message || "Failed to add"),
   });
