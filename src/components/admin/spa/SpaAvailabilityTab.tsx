@@ -636,6 +636,20 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
         appointment={completionAppointment}
         retroactive={isRetroactive}
       />
+
+      <IntakeFormViewDialog
+        open={!!intakeViewAppointment}
+        onOpenChange={(open) => { if (!open) setIntakeViewAppointment(null); }}
+        appointmentId={intakeViewAppointment?.id ?? null}
+        clientName={
+          intakeViewAppointment?.customer
+            ? `${intakeViewAppointment.customer.first_name} ${intakeViewAppointment.customer.last_name}`.trim() || intakeViewAppointment.customer.email
+            : intakeViewAppointment?.member
+            ? `${intakeViewAppointment.member.first_name} ${intakeViewAppointment.member.last_name}`
+            : undefined
+        }
+        serviceName={intakeViewAppointment?.service_name}
+      />
     </div>
   );
 }
