@@ -38,6 +38,8 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const updateStatus = useUpdateSpaAppointmentStatus();
   const checkAvail = useCheckSpaAvailability();
 
+  const { data: intake } = useIntakeForm(appointment?.id ?? null);
+
   const [serviceId, setServiceId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState(""); // HH:mm
