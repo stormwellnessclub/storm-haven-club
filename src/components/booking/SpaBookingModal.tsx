@@ -239,7 +239,19 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     };
   }, [availability, service, selectedDate]);
 
-  if (!service) return null;
+  // When no service is selected the booking dialog is hidden, but we still need
+  // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
+  // appear after the parent clears `selectedService`.
+  if (!service) {
+    return (
+      <IntakeFormDialog
+        open={intakeOpen}
+        onOpenChange={setIntakeOpen}
+        appointmentId={intakeAppointmentId}
+        memberId={intakeMemberId}
+      />
+    );
+  }
 
   const durationMinutes = service.duration_minutes;
   const cleanupMinutes = service.cleanup_minutes;
