@@ -20,6 +20,8 @@ import {
   latestStartTime,
 } from "@/lib/spaAvailability";
 import { AdminSpaAppointment, useUpdateSpaAppointment, useUpdateSpaAppointmentStatus, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
+import { useIntakeForm } from "@/hooks/useSpaIntake";
+import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
 
 interface Props {
   appointment: AdminSpaAppointment | null;
@@ -35,6 +37,8 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
   const updateAppt = useUpdateSpaAppointment();
   const updateStatus = useUpdateSpaAppointmentStatus();
   const checkAvail = useCheckSpaAvailability();
+
+  const { data: intake } = useIntakeForm(appointment?.id ?? null);
 
   const [serviceId, setServiceId] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
@@ -431,6 +435,11 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
               rows={2}
             />
           </div>
+          {/* Client intake form */}
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <IntakeFormSummary intake={intake} />
+          </div>
+
 
           {priceChanged && (
             <Alert>

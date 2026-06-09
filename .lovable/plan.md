@@ -1,39 +1,32 @@
-# Add Sports Stretching Service
+# Spa Intake Form Fixes
 
-Add a new spa service offering under the Recovery category using the Sport Stretch USA method, requiring a therapist.
+Two real bugs cause the intake form to be invisible to both clients and staff. All massage services already have `requires_intake_form = true` in the database — the data is fine, the UI flow is broken.
 
-## What gets added
+## Problem 1 — Client never gets the intake prompt (from `/spa`)
 
-Two new rows in `spa_services`:
+`SpaBookingModal.tsx` has `if (!service) return null;` at line 242, and the `<IntakeFormDialog>` is rendered inside that same component (line 969). When booking succeeds, the modal calls `onOpenChange(false)`, and the parent `Spa.tsx` (line 542) then calls `setSelectedService(null)`. That unmounts the entire `SpaBookingModal` — taking the intake dialog with it — before the dialog ever opens. So the user sees the booking close and… nothing.
 
-1. **Sports Stretching – 60 min**
-   - Category: `Recovery`
-   - Duration: 60 min
-   - Cleanup: 15 min
-   - Requires therapist: yes
-   - Price / member price: **TBD (you'll provide)**
+(`member/Wellness.tsx` doesn't null `selectedService`, so it works there — confirming the bug is the unmount on `/spa`, which is the path clients use for massages.)
 
-2. **Sports Stretching – 90 min**
-   - Category: `Recovery`
-   - Duration: 90 min
-   - Cleanup: 15 min
-   - Requires therapist: yes
-   - Price / member price: **TBD (you'll provide)**
+**Fix:** Restructure `SpaBookingModal` so the `IntakeFormDialog` lives outside the `if (!service) return null;` guard. Render it always (it self-guards on `appointmentId == null`), keep `intakeOpen` / `intakeAppointmentId` / `intakeMemberId` state in a small wrapper component or hoist the early return so the intake dialog remains mounted after the booking dialog closes.
 
-Both share a description referencing the Sport Stretch USA method (assisted stretching for mobility, recovery, and performance). Both set `is_active = true`, `popular = false`.
+## Problem 2 — Staff can't view submitted intake forms
 
-## After insert — what you'll still need to do in admin
+Admins/staff today can only see the intake form inside `SpaCompletionDialog` (i.e. when checking out an already-completed appointment). There's no way to view it from the Therapist Schedule or the appointment edit modal before/during the session, so therapists can't actually prepare.
 
-- **Therapists tab** → mark which therapist(s) are certified/can perform Sports Stretching (links via `spa_therapist_services`).
-- **Rooms tab** → assign which room(s) it can use (if it needs a dedicated room — otherwise any).
-- **Availability tab** → create availability windows (day/time + therapist + room) so it shows up as bookable on the customer side.
+**Fix:** Add intake form visibility in two places:
 
-## Open question before insert
+1. **`SpaAppointmentEditModal`** — add a "Client Intake Form" section using the existing `useIntakeForm` hook and `IntakeFormSummary` component. Show the summary if submitted, or a muted "Not yet submitted" note if not.
+2. **Therapist Schedule day/week view (`SpaAvailabilityTab`)** — on each appointment card/popover, show a small badge ("Intake ✓" / "Intake pending") and a "View intake" button that opens a lightweight dialog wrapping `IntakeFormSummary`.
 
-Confirm pricing for each duration (regular + member price), then I'll insert both rows and you can configure therapist/room/availability in the admin UI.
+## Files touched
 
-## Technical notes
+- `src/components/booking/SpaBookingModal.tsx` — hoist `IntakeFormDialog` above the `if (!service) return null;` guard so it survives unmount.
+- `src/components/admin/spa/SpaAppointmentEditModal.tsx` — render intake summary section.
+- `src/components/admin/spa/SpaAvailabilityTab.tsx` — add intake status badge + view button on appointment items.
+- (No DB / RLS changes — `spa_intake_forms` policies already allow staff reads.)
 
-- Insert into `public.spa_services` only — schema already supports duration_minutes, cleanup_minutes, price, member_price, category, description, is_active, popular.
-- No schema migration needed.
-- Recovery-category services in this project follow the direct-booking flow (no waiver/card gate like Massage), per the spa booking logic memory — Sports Stretching will inherit that automatically by being categorized `Recovery`. If you want it to behave like Massage (waiver + card required) instead, say so and I'll adjust.
+## Out of scope
+
+- No changes to the intake form itself, no new fields, no schema migrations.
+- Sports Stretching services keep `requires_intake_form = false` (per your earlier instruction).

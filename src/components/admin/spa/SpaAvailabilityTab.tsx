@@ -14,12 +14,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle2, CreditCard } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle2, CreditCard, ClipboardCheck } from "lucide-react";
 import { SpaCompletionDialog } from "./SpaCompletionDialog";
 import { format, parse } from "date-fns";
 import { formatSpaTime, formatSpaTimeRange } from "@/lib/spaTime";
 import { parseTimeInput } from "@/lib/parseTimeInput";
 import { formatTime12h } from "@/lib/timeFormat";
+import { useIntakeFormStatuses } from "@/hooks/useSpaIntake";
+import { IntakeFormViewDialog } from "@/components/spa/IntakeFormViewDialog";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -84,11 +86,19 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
   const [scheduleDate, setScheduleDate] = useState(initialDate || format(new Date(), "yyyy-MM-dd"));
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
+  const [intakeViewAppointment, setIntakeViewAppointment] = useState<AdminSpaAppointment | null>(null);
 
   // Fetch appointments for schedule view
   const { data: dayAppointments } = useAdminSpaAppointments({
     appointmentDate: new Date(scheduleDate + "T12:00:00"),
   });
+
+  // Bulk-load intake form submission status so we can show a per-appointment badge.
+  const appointmentIds = useMemo(
+    () => (dayAppointments || []).map((a) => a.id),
+    [dayAppointments]
+  );
+  const { data: intakeStatuses } = useIntakeFormStatuses(appointmentIds);
 
   const openNew = () => { 
     setForm(emptySlot()); 
@@ -332,6 +342,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                                 {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                               </span>
                               <span className="text-xs">{apt.service_name}</span>
+                              {intakeStatuses?.[apt.id] && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
+                                  onClick={(e) => { e.stopPropagation(); setIntakeViewAppointment(apt); }}
+                                  title="View intake form"
+                                >
+                                  <ClipboardCheck className="h-3 w-3" />Intake
+                                </Badge>
+                              )}
                               <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
                               {apt.bookedBy && (
                                 <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
@@ -388,6 +408,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
+                            {intakeStatuses?.[apt.id] && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
+                                onClick={(e) => { e.stopPropagation(); setIntakeViewAppointment(apt); }}
+                                title="View intake form"
+                              >
+                                <ClipboardCheck className="h-3 w-3" />Intake
+                              </Badge>
+                            )}
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
                             {apt.bookedBy && (
                               <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
@@ -444,6 +474,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
+                            {intakeStatuses?.[apt.id] && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
+                                onClick={(e) => { e.stopPropagation(); setIntakeViewAppointment(apt); }}
+                                title="View intake form"
+                              >
+                                <ClipboardCheck className="h-3 w-3" />Intake
+                              </Badge>
+                            )}
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
                             {apt.bookedBy && (
                               <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
@@ -595,6 +635,20 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
         }}
         appointment={completionAppointment}
         retroactive={isRetroactive}
+      />
+
+      <IntakeFormViewDialog
+        open={!!intakeViewAppointment}
+        onOpenChange={(open) => { if (!open) setIntakeViewAppointment(null); }}
+        appointmentId={intakeViewAppointment?.id ?? null}
+        clientName={
+          intakeViewAppointment?.customer
+            ? `${intakeViewAppointment.customer.first_name} ${intakeViewAppointment.customer.last_name}`.trim() || intakeViewAppointment.customer.email
+            : intakeViewAppointment?.member
+            ? `${intakeViewAppointment.member.first_name} ${intakeViewAppointment.member.last_name}`
+            : undefined
+        }
+        serviceName={intakeViewAppointment?.service_name}
       />
     </div>
   );
