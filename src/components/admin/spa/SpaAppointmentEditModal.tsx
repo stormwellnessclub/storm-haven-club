@@ -435,6 +435,11 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
               rows={2}
             />
           </div>
+          {/* Client intake form */}
+          <div className="rounded-lg border bg-muted/20 p-3">
+            <IntakeFormSummary intake={intake} />
+          </div>
+
 
           {priceChanged && (
             <Alert>
