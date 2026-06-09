@@ -91,6 +91,13 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
     appointmentDate: new Date(scheduleDate + "T12:00:00"),
   });
 
+  // Bulk-load intake form submission status so we can show a per-appointment badge.
+  const appointmentIds = useMemo(
+    () => (dayAppointments || []).map((a) => a.id),
+    [dayAppointments]
+  );
+  const { data: intakeStatuses } = useIntakeFormStatuses(appointmentIds);
+
   const openNew = () => { 
     setForm(emptySlot()); 
     setEditingId(null); 
