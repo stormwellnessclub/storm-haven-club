@@ -14,12 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle2, CreditCard } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, AlertTriangle, CalendarDays, CheckCircle2, CreditCard, ClipboardCheck } from "lucide-react";
 import { SpaCompletionDialog } from "./SpaCompletionDialog";
 import { format, parse } from "date-fns";
 import { formatSpaTime, formatSpaTimeRange } from "@/lib/spaTime";
 import { parseTimeInput } from "@/lib/parseTimeInput";
 import { formatTime12h } from "@/lib/timeFormat";
+import { useIntakeFormStatuses } from "@/hooks/useSpaIntake";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
