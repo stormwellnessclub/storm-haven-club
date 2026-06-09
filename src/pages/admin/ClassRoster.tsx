@@ -627,6 +627,32 @@ export default function ClassRoster() {
         const amountCents = isFundraiserSession
           ? fundraiserAmountCents
           : (dropInRate === "member" ? 2500 : 3000);
+        const chargeDescription = isFundraiserSession
+          ? `Donation: ${className} on ${session?.session_date}${fundraiserBeneficiary ? ` — ${fundraiserBeneficiary}` : ""} (waitlist promotion)`
+          : `Drop-in: ${className} on ${session?.session_date} (waitlist promotion)`;
+
+        // Charge the saved card BEFORE creating the booking so the UI never claims
+        // the member was charged when they weren't.
+        if (memberId) {
+          let chargeData: any = null;
+          let chargeErr: any = null;
+          try {
+            const res = await supabase.functions.invoke("stripe-payment", {
+              body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
+            });
+            chargeData = res.data;
+            chargeErr = res.error;
+          } catch (e: any) {
+            chargeErr = e;
+          }
+          if (chargeErr || !chargeData?.success) {
+            const reason = chargeData?.error || chargeErr?.message || "Card declined";
+            throw new Error(`Card declined — $${(amountCents / 100).toFixed(2)} NOT collected: ${reason}`);
+          }
+        } else {
+          throw new Error("No member on file — use the manual add flow to record a drop-in to be collected at the desk.");
+        }
+
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed",
@@ -649,8 +675,43 @@ export default function ClassRoster() {
         .from("class_waitlist")
         .update({ status: "claimed" as any, claimed_at: new Date().toISOString() })
         .eq("id", waitlistId);
+
+      // Look up the booking we just created so we can send a confirmation.
+      const { data: bookingRow } = await supabase
+        .from("class_bookings")
+        .select("id")
+        .eq("session_id", sessionId!)
+        .eq("user_id", userId)
+        .eq("status", "confirmed")
+        .order("booked_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Best-effort confirmation email + SMS — never blocks the promotion.
+      const dateLabel = session?.session_date
+        ? new Date(session.session_date + "T00:00:00").toLocaleDateString("en-US", {
+            weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago",
+          })
+        : "";
+      const timeLabel = session?.start_time
+        ? new Date(`2000-01-01T${String(session.start_time).slice(0, 5)}:00`).toLocaleTimeString("en-US", {
+            hour: "numeric", minute: "2-digit",
+          })
+        : "";
+      await sendClassConfirmationNotifications({
+        userId,
+        emailType: "waitlist_claim_confirmation",
+        smsTemplateKey: "waitlist-promoted",
+        className: className || "your class",
+        dateLabel,
+        timeLabel,
+        bookingId: bookingRow?.id || waitlistId,
+        source: "waitlist_promote",
+      });
+
+      return { method, amountCents: method === "dropin" ? (isFundraiserSession ? fundraiserAmountCents : (dropInRate === "member" ? 2500 : 3000)) : 0 };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
       queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
@@ -658,7 +719,11 @@ export default function ClassRoster() {
       setPromoteMethod(null);
       setPromotePassId(null);
       setPromoteCreditId(null);
-      toast.success("Promoted from waitlist");
+      if (result?.method === "dropin" && result.amountCents > 0) {
+        toast.success(`Charged $${(result.amountCents / 100).toFixed(2)} and promoted from waitlist`);
+      } else {
+        toast.success("Promoted from waitlist");
+      }
     },
     onError: (err: Error) => toast.error(err.message || "Failed to promote"),
   });
