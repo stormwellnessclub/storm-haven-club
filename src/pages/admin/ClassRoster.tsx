@@ -754,6 +754,8 @@ export default function ClassRoster() {
       const walkInName = addTab === "walkin" ? `${walkInFirst.trim()} ${walkInLast.trim()}` : null;
       const walkInEmailVal = addTab === "walkin" && walkInEmail.trim() ? walkInEmail.trim() : null;
       const walkInPhoneVal = addTab === "walkin" && walkInPhone.trim() ? walkInPhone.trim() : null;
+      let chargedAmountCents = 0;
+      let collectAtDeskCents = 0;
 
       if (userId) {
         const { data: existing } = await supabase
