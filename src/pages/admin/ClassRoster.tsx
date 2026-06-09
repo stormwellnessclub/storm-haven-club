@@ -22,6 +22,80 @@ import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/ro
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
 
+// Best-effort: resolve email/phone for a userId, then send confirmation email + SMS.
+// Non-fatal: errors are logged and swallowed so the booking flow isn't blocked.
+async function sendClassConfirmationNotifications(args: {
+  userId: string | null;
+  fallbackEmail?: string | null;
+  fallbackPhone?: string | null;
+  fallbackName?: string | null;
+  emailType: "booking_confirmation" | "waitlist_claim_confirmation";
+  smsTemplateKey: "class-booking-confirmation" | "waitlist-promoted";
+  className: string;
+  dateLabel: string;
+  timeLabel: string;
+  instructor?: string;
+  bookingId: string;
+  source: string;
+}) {
+  try {
+    let email = args.fallbackEmail ?? null;
+    let phone = args.fallbackPhone ?? null;
+    let smsOptIn = false;
+    let firstName = args.fallbackName ?? "";
+
+    if (args.userId) {
+      const [{ data: member }, { data: prof }, { data: nonMember }] = await Promise.all([
+        supabase.from("members").select("email, phone, first_name").eq("user_id", args.userId).maybeSingle(),
+        supabase.from("profiles").select("email, phone, sms_opt_in, first_name").eq("user_id", args.userId).maybeSingle(),
+        supabase.from("non_member_profiles").select("email, phone, sms_opt_in, first_name").eq("user_id", args.userId).maybeSingle(),
+      ]);
+      email = email || (member as any)?.email || (prof as any)?.email || (nonMember as any)?.email || null;
+      phone = phone || (member as any)?.phone || (prof as any)?.phone || (nonMember as any)?.phone || null;
+      smsOptIn = (prof as any)?.sms_opt_in === true || (nonMember as any)?.sms_opt_in === true;
+      firstName = firstName || (member as any)?.first_name || (prof as any)?.first_name || (nonMember as any)?.first_name || "";
+    }
+
+    const emailData =
+      args.emailType === "waitlist_claim_confirmation"
+        ? {
+            class_name: args.className,
+            date: args.dateLabel,
+            time: args.timeLabel,
+            instructor: args.instructor || "TBA",
+            first_name: firstName,
+          }
+        : {
+            className: args.className,
+            date: args.dateLabel,
+            time: args.timeLabel,
+            instructor: args.instructor || "TBA",
+            first_name: firstName,
+          };
+
+    await Promise.allSettled([
+      email
+        ? supabase.functions.invoke("send-email", {
+            body: { type: args.emailType, to: email, data: emailData },
+          })
+        : Promise.resolve(),
+      phone && smsOptIn
+        ? supabase.functions.invoke("send-sms", {
+            body: {
+              to: { phone, userId: args.userId },
+              templateKey: args.smsTemplateKey,
+              variables: { className: args.className, date: args.dateLabel, time: args.timeLabel },
+              idempotencyKey: `${args.source}-${args.bookingId}`,
+              metadata: { source: args.source, booking_id: args.bookingId },
+            },
+          })
+        : Promise.resolve(),
+    ]);
+  } catch (e) {
+    console.warn("sendClassConfirmationNotifications failed (non-fatal):", e);
+  }
+}
+
 export default function ClassRoster() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
@@ -553,6 +627,32 @@ export default function ClassRoster() {
         const amountCents = isFundraiserSession
           ? fundraiserAmountCents
           : (dropInRate === "member" ? 2500 : 3000);
+        const chargeDescription = isFundraiserSession
+          ? `Donation: ${className} on ${session?.session_date}${fundraiserBeneficiary ? ` — ${fundraiserBeneficiary}` : ""} (waitlist promotion)`
+          : `Drop-in: ${className} on ${session?.session_date} (waitlist promotion)`;
+
+        // Charge the saved card BEFORE creating the booking so the UI never claims
+        // the member was charged when they weren't.
+        if (memberId) {
+          let chargeData: any = null;
+          let chargeErr: any = null;
+          try {
+            const res = await supabase.functions.invoke("stripe-payment", {
+              body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
+            });
+            chargeData = res.data;
+            chargeErr = res.error;
+          } catch (e: any) {
+            chargeErr = e;
+          }
+          if (chargeErr || !chargeData?.success) {
+            const reason = chargeData?.error || chargeErr?.message || "Card declined";
+            throw new Error(`Card declined — $${(amountCents / 100).toFixed(2)} NOT collected: ${reason}`);
+          }
+        } else {
+          throw new Error("No member on file — use the manual add flow to record a drop-in to be collected at the desk.");
+        }
+
         await supabase.from("class_bookings").insert({
           session_id: sessionId!, user_id: userId, member_id: memberId,
           status: "confirmed",
@@ -575,8 +675,43 @@ export default function ClassRoster() {
         .from("class_waitlist")
         .update({ status: "claimed" as any, claimed_at: new Date().toISOString() })
         .eq("id", waitlistId);
+
+      // Look up the booking we just created so we can send a confirmation.
+      const { data: bookingRow } = await supabase
+        .from("class_bookings")
+        .select("id")
+        .eq("session_id", sessionId!)
+        .eq("user_id", userId)
+        .eq("status", "confirmed")
+        .order("booked_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      // Best-effort confirmation email + SMS — never blocks the promotion.
+      const dateLabel = session?.session_date
+        ? new Date(session.session_date + "T00:00:00").toLocaleDateString("en-US", {
+            weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago",
+          })
+        : "";
+      const timeLabel = session?.start_time
+        ? new Date(`2000-01-01T${String(session.start_time).slice(0, 5)}:00`).toLocaleTimeString("en-US", {
+            hour: "numeric", minute: "2-digit",
+          })
+        : "";
+      await sendClassConfirmationNotifications({
+        userId,
+        emailType: "waitlist_claim_confirmation",
+        smsTemplateKey: "waitlist-promoted",
+        className: className || "your class",
+        dateLabel,
+        timeLabel,
+        bookingId: bookingRow?.id || waitlistId,
+        source: "waitlist_promote",
+      });
+
+      return { method, amountCents: method === "dropin" ? (isFundraiserSession ? fundraiserAmountCents : (dropInRate === "member" ? 2500 : 3000)) : 0 };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
       queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
@@ -584,7 +719,11 @@ export default function ClassRoster() {
       setPromoteMethod(null);
       setPromotePassId(null);
       setPromoteCreditId(null);
-      toast.success("Promoted from waitlist");
+      if (result?.method === "dropin" && result.amountCents > 0) {
+        toast.success(`Charged $${(result.amountCents / 100).toFixed(2)} and promoted from waitlist`);
+      } else {
+        toast.success("Promoted from waitlist");
+      }
     },
     onError: (err: Error) => toast.error(err.message || "Failed to promote"),
   });
@@ -615,6 +754,8 @@ export default function ClassRoster() {
       const walkInName = addTab === "walkin" ? `${walkInFirst.trim()} ${walkInLast.trim()}` : null;
       const walkInEmailVal = addTab === "walkin" && walkInEmail.trim() ? walkInEmail.trim() : null;
       const walkInPhoneVal = addTab === "walkin" && walkInPhone.trim() ? walkInPhone.trim() : null;
+      let chargedAmountCents = 0;
+      let collectAtDeskCents = 0;
 
       if (userId) {
         const { data: existing } = await supabase
@@ -693,31 +834,44 @@ export default function ClassRoster() {
           ? `Donation: ${className} on ${session?.session_date}${fundraiserBeneficiary ? ` — ${fundraiserBeneficiary}` : ""}`
           : `Drop-in: ${className} on ${session?.session_date}`;
 
-        await supabase.from("class_bookings").insert({
-          session_id: sessionId!, user_id: userId, member_id: memberId,
-          status: "confirmed",
-          payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
-          amount_paid: amountCents,
-          walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
-          booked_at: new Date().toISOString(),
-        });
-
         if (memberId) {
+          // Charge the saved card FIRST. If it fails, do not create the booking
+          // so the UI never claims they were charged when they weren't.
+          let chargeData: any = null;
+          let chargeErr: any = null;
           try {
-            const { data, error: chargeErr } = await supabase.functions.invoke("stripe-payment", {
+            const res = await supabase.functions.invoke("stripe-payment", {
               body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
             });
-            if (chargeErr || !data?.success) {
-              toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)} at desk`, { duration: 5000 });
-              return;
-            }
-          } catch {
-            toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)} at desk`, { duration: 5000 });
-            return;
+            chargeData = res.data;
+            chargeErr = res.error;
+          } catch (e: any) {
+            chargeErr = e;
           }
+          if (chargeErr || !chargeData?.success) {
+            const reason = chargeData?.error || chargeErr?.message || "Card declined";
+            throw new Error(`Card declined — $${(amountCents / 100).toFixed(2)} NOT collected: ${reason}. Booking NOT created.`);
+          }
+          await supabase.from("class_bookings").insert({
+            session_id: sessionId!, user_id: userId, member_id: memberId,
+            status: "confirmed",
+            payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
+            amount_paid: amountCents,
+            walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+            booked_at: new Date().toISOString(),
+          });
+          chargedAmountCents = amountCents;
         } else {
-          toast.info(`Booking added — collect $${(amountCents / 100).toFixed(2)}${isFundraiserSession ? " donation" : " drop-in fee"} at desk`, { duration: 5000 });
-          return;
+          // Non-member walk-in: record the booking with the price; collect at the desk.
+          await supabase.from("class_bookings").insert({
+            session_id: sessionId!, user_id: userId, member_id: memberId,
+            status: "confirmed",
+            payment_method: isFundraiserSession ? "fundraiser" : "walk_in",
+            amount_paid: amountCents,
+            walk_in_name: walkInName, walk_in_email: walkInEmailVal, walk_in_phone: walkInPhoneVal,
+            booked_at: new Date().toISOString(),
+          });
+          collectAtDeskCents = amountCents;
         }
       } else if (paymentMethod === "comp") {
         await supabase.from("class_bookings").insert({
@@ -727,13 +881,48 @@ export default function ClassRoster() {
           booked_at: new Date().toISOString(),
         });
       }
+
+      // Best-effort confirmation email + SMS for the newly-added attendee.
+      if (userId) {
+        const dateLabel = session?.session_date
+          ? new Date(session.session_date + "T00:00:00").toLocaleDateString("en-US", {
+              weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago",
+            })
+          : "";
+        const timeLabel = session?.start_time
+          ? new Date(`2000-01-01T${String(session.start_time).slice(0, 5)}:00`).toLocaleTimeString("en-US", {
+              hour: "numeric", minute: "2-digit",
+            })
+          : "";
+        await sendClassConfirmationNotifications({
+          userId,
+          fallbackEmail: walkInEmailVal,
+          fallbackPhone: walkInPhoneVal,
+          fallbackName: walkInName,
+          emailType: "booking_confirmation",
+          smsTemplateKey: "class-booking-confirmation",
+          className: className || "your class",
+          dateLabel,
+          timeLabel,
+          bookingId: `${sessionId}-${userId}`,
+          source: "admin_add_to_class",
+        });
+      }
+
+      return { chargedAmountCents, collectAtDeskCents };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       invalidateAll();
       queryClient.invalidateQueries({ queryKey: ["roster-passes"] });
       queryClient.invalidateQueries({ queryKey: ["roster-credits"] });
       resetForm();
-      toast.success("Added to class");
+      if (result?.chargedAmountCents) {
+        toast.success(`Charged $${(result.chargedAmountCents / 100).toFixed(2)} — added to class`);
+      } else if (result?.collectAtDeskCents) {
+        toast.info(`Booking added — collect $${(result.collectAtDeskCents / 100).toFixed(2)} at desk`, { duration: 5000 });
+      } else {
+        toast.success("Added to class");
+      }
     },
     onError: (err: Error) => toast.error(err.message || "Failed to add"),
   });
