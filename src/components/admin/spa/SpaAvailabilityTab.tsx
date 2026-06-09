@@ -86,6 +86,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
   const [scheduleDate, setScheduleDate] = useState(initialDate || format(new Date(), "yyyy-MM-dd"));
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
   const [isRetroactive, setIsRetroactive] = useState(false);
+  const [intakeViewAppointment, setIntakeViewAppointment] = useState<AdminSpaAppointment | null>(null);
 
   // Fetch appointments for schedule view
   const { data: dayAppointments } = useAdminSpaAppointments({
