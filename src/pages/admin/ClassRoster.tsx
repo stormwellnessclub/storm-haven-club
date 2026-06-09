@@ -22,6 +22,80 @@ import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/ro
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
 
+// Best-effort: resolve email/phone for a userId, then send confirmation email + SMS.
+// Non-fatal: errors are logged and swallowed so the booking flow isn't blocked.
+async function sendClassConfirmationNotifications(args: {
+  userId: string | null;
+  fallbackEmail?: string | null;
+  fallbackPhone?: string | null;
+  fallbackName?: string | null;
+  emailType: "booking_confirmation" | "waitlist_claim_confirmation";
+  smsTemplateKey: "class-booking-confirmation" | "waitlist-promoted";
+  className: string;
+  dateLabel: string;
+  timeLabel: string;
+  instructor?: string;
+  bookingId: string;
+  source: string;
+}) {
+  try {
+    let email = args.fallbackEmail ?? null;
+    let phone = args.fallbackPhone ?? null;
+    let smsOptIn = false;
+    let firstName = args.fallbackName ?? "";
+
+    if (args.userId) {
+      const [{ data: member }, { data: prof }, { data: nonMember }] = await Promise.all([
+        supabase.from("members").select("email, phone, first_name").eq("user_id", args.userId).maybeSingle(),
+        supabase.from("profiles").select("email, phone, sms_opt_in, first_name").eq("user_id", args.userId).maybeSingle(),
+        supabase.from("non_member_profiles").select("email, phone, sms_opt_in, first_name").eq("user_id", args.userId).maybeSingle(),
+      ]);
+      email = email || (member as any)?.email || (prof as any)?.email || (nonMember as any)?.email || null;
+      phone = phone || (member as any)?.phone || (prof as any)?.phone || (nonMember as any)?.phone || null;
+      smsOptIn = (prof as any)?.sms_opt_in === true || (nonMember as any)?.sms_opt_in === true;
+      firstName = firstName || (member as any)?.first_name || (prof as any)?.first_name || (nonMember as any)?.first_name || "";
+    }
+
+    const emailData =
+      args.emailType === "waitlist_claim_confirmation"
+        ? {
+            class_name: args.className,
+            date: args.dateLabel,
+            time: args.timeLabel,
+            instructor: args.instructor || "TBA",
+            first_name: firstName,
+          }
+        : {
+            className: args.className,
+            date: args.dateLabel,
+            time: args.timeLabel,
+            instructor: args.instructor || "TBA",
+            first_name: firstName,
+          };
+
+    await Promise.allSettled([
+      email
+        ? supabase.functions.invoke("send-email", {
+            body: { type: args.emailType, to: email, data: emailData },
+          })
+        : Promise.resolve(),
+      phone && smsOptIn
+        ? supabase.functions.invoke("send-sms", {
+            body: {
+              to: { phone, userId: args.userId },
+              templateKey: args.smsTemplateKey,
+              variables: { className: args.className, date: args.dateLabel, time: args.timeLabel },
+              idempotencyKey: `${args.source}-${args.bookingId}`,
+              metadata: { source: args.source, booking_id: args.bookingId },
+            },
+          })
+        : Promise.resolve(),
+    ]);
+  } catch (e) {
+    console.warn("sendClassConfirmationNotifications failed (non-fatal):", e);
+  }
+}
+
 export default function ClassRoster() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
