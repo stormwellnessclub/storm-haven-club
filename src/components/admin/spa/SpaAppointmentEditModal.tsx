@@ -20,6 +20,8 @@ import {
   latestStartTime,
 } from "@/lib/spaAvailability";
 import { AdminSpaAppointment, useUpdateSpaAppointment, useUpdateSpaAppointmentStatus, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
+import { useIntakeForm } from "@/hooks/useSpaIntake";
+import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
 
 interface Props {
   appointment: AdminSpaAppointment | null;
