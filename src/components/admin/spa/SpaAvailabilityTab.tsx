@@ -408,6 +408,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
                             <span className="text-xs">{apt.service_name}</span>
+                            {intakeStatuses?.[apt.id] && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
+                                onClick={(e) => { e.stopPropagation(); setIntakeViewAppointment(apt); }}
+                                title="View intake form"
+                              >
+                                <ClipboardCheck className="h-3 w-3" />Intake
+                              </Badge>
+                            )}
                             <Badge variant="outline" className="text-xs ml-auto">{apt.status}</Badge>
                             {apt.bookedBy && (
                               <span className="text-[10px] text-muted-foreground italic" title={`Booked by: ${apt.bookedBy.name}`}>
