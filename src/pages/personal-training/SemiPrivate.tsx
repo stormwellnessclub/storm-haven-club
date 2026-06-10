@@ -9,6 +9,7 @@ export default function SemiPrivate() {
       serviceName="Semi-Private Training"
       defaultService="semi_private"
       pricingFormat="semi_private"
+      membersOnly
       h1="Semi-Private Training — Up to 4"
       subhead="Train with friends or family in a focused small-group setting. Capped at 4 so every rep still gets coached."
       body={[
@@ -22,6 +23,10 @@ export default function SemiPrivate() {
         "Anyone who trains better with company",
       ]}
       faqs={[
+        {
+          q: "Do I need to be a member?",
+          a: "Yes — Semi-Private Training is reserved for active Storm Wellness Club members (all participants in the group must be members). Private Pilates on the Reformer is open to non-members.",
+        },
         {
           q: "What's the maximum group size?",
           a: "Four people per session, plus the coach. Capping at four keeps cueing personal and the energy tight.",

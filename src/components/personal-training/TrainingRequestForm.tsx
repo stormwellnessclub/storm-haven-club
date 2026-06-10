@@ -38,9 +38,10 @@ const schema = z.object({
 interface Props {
   defaultService?: TrainingServiceValue;
   compact?: boolean;
+  membersOnly?: boolean;
 }
 
-export function TrainingRequestForm({ defaultService = "one_on_one", compact }: Props) {
+export function TrainingRequestForm({ defaultService = "one_on_one", compact, membersOnly }: Props) {
   const [service, setService] = useState<string>(defaultService);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -66,6 +67,10 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact }: 
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Please complete required fields");
+      return;
+    }
+    if (membersOnly && !parsed.data.is_member) {
+      toast.error("This format is for Storm Wellness Club members only. Please apply for membership first.");
       return;
     }
     setSubmitting(true);
