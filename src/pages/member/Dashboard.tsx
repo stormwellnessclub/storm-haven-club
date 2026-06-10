@@ -340,6 +340,10 @@ export default function MemberDashboard() {
           </StaggerContainer>
         </AnimatedSection>
 
+        <AnimatedSection animation="fade-up" delay={60}>
+          <UpcomingPTAppointmentsCard />
+        </AnimatedSection>
+
         {/* === NEW: Up Next - Upcoming Bookings at top === */}
         <AnimatedSection animation="fade-up" delay={80}>
           <div className="flex items-center justify-between mb-3">
