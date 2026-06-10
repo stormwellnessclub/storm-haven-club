@@ -57,7 +57,7 @@ export default function PersonalTrainingOverview() {
                 One hour that counts.
               </h1>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
-                Personal training inside the circular club — quiet rooms, premium equipment,
+                Private coaching at Storm Wellness Club — quiet rooms, premium equipment,
                 and coaches who program for the body in front of them. Not a chain. Not a
                 template. Yours.
               </p>
