@@ -40,7 +40,7 @@ export default function PersonalTrainingOverview() {
     <Layout>
       <SEOHead
         title="Personal Training at Storm Wellness Club — Livonia, MI"
-        description="Private coaching at Storm Wellness Club. 1:1 personal training, private Pilates, and semi-private sessions inside the circular club in Livonia, MI."
+        description="Private personal training, reformer Pilates, and small-group semi-private sessions at Storm Wellness Club in Livonia, MI."
         path="/personal-training"
       />
 
@@ -53,16 +53,16 @@ export default function PersonalTrainingOverview() {
                 Storm Wellness Club · Private Coaching
               </p>
               <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
-                One body.
+                Trained for
                 <br />
-                <span className="italic text-accent">One coach.</span>
+                <span className="italic text-accent">your goal.</span>
                 <br />
-                One hour that counts.
+                Coached at your level.
               </h1>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
-                Private coaching at Storm Wellness Club — quiet rooms, premium equipment,
-                and coaches who program for the body in front of them. Not a chain. Not a
-                template. Yours.
+                Private coaching at Storm Wellness Club. Every session is programmed
+                around your goal, your level, and where your body is today — by a
+                certified coach who knows your name.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <Button asChild size="lg">
