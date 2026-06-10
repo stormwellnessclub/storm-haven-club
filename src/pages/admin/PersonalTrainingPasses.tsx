@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Minus, Save, ChevronDown, ChevronRight, UserPlus } from "lucide-react";
+import { Loader2, Plus, Minus, Save, ChevronDown, ChevronRight, UserPlus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format as fmtDate, parseISO, differenceInDays } from "date-fns";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
+import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { PT_FORMAT_LABEL, PtFormat, PtPass, formatCents } from "@/lib/ptFormat";
+import { Link } from "react-router-dom";
 
 interface UserLite {
   id: string;
@@ -35,6 +37,8 @@ export default function PersonalTrainingPasses() {
   const qc = useQueryClient();
   const [sellOpen, setSellOpen] = useState(false);
   const [sellPreset, setSellPreset] = useState<{ id: string; label: string } | undefined>();
+  const [bookOpen, setBookOpen] = useState(false);
+  const [bookPreset, setBookPreset] = useState<{ id: string; label: string } | undefined>();
   const [filter, setFilter] = useState<"all" | PtFormat>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
@@ -203,14 +207,17 @@ export default function PersonalTrainingPasses() {
               Personal Training packs grouped by customer. Click a customer to view, edit, or sell more.
             </p>
           </div>
-          <Button
-            onClick={() => {
-              setSellPreset(undefined);
-              setSellOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4 mr-2" /> Sell PT
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/admin/personal-training/schedule"><Calendar className="h-4 w-4 mr-2" /> Schedule</Link>
+            </Button>
+            <Button variant="outline" onClick={() => { setBookPreset(undefined); setBookOpen(true); }}>
+              <Calendar className="h-4 w-4 mr-2" /> Book Session
+            </Button>
+            <Button onClick={() => { setSellPreset(undefined); setSellOpen(true); }}>
+              <Plus className="h-4 w-4 mr-2" /> Sell PT
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -338,9 +345,17 @@ export default function PersonalTrainingPasses() {
                         {selectedGroup.user?.email}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => openSellForCustomer(selectedGroup)}>
-                      <UserPlus className="h-3.5 w-3.5 mr-1" /> Sell pack
-                    </Button>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="default" onClick={() => {
+                        setBookPreset({ id: selectedGroup.userId, label: selectedGroup.user ? `${selectedGroup.user.name} (${selectedGroup.user.email})` : selectedGroup.userId });
+                        setBookOpen(true);
+                      }}>
+                        <Calendar className="h-3.5 w-3.5 mr-1" /> Book
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openSellForCustomer(selectedGroup)}>
+                        <UserPlus className="h-3.5 w-3.5 mr-1" /> Sell
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
@@ -515,6 +530,13 @@ export default function PersonalTrainingPasses() {
         }}
         presetUserId={sellPreset?.id}
         presetUserName={sellPreset?.label}
+      />
+      <BookPTSessionDialog
+        open={bookOpen}
+        onOpenChange={(v) => { setBookOpen(v); if (!v) setBookPreset(undefined); }}
+        presetUserId={bookPreset?.id}
+        presetUserName={bookPreset?.label}
+        onSellPack={(id, label) => { setBookOpen(false); setSellPreset({ id, label }); setSellOpen(true); }}
       />
     </AdminLayout>
   );
