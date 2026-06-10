@@ -261,7 +261,22 @@ export default function PersonalTrainingPage({
       {/* Request */}
       <section id="request" className="py-16 bg-background border-t border-border scroll-mt-24">
         <div className="container mx-auto px-6 max-w-2xl">
-          <TrainingRequestForm defaultService={defaultService} />
+          {membersOnly && (
+            <div className="mb-6 rounded-lg border border-accent/30 bg-accent/5 p-4 text-sm">
+              <span className="font-medium text-accent">Members only.</span>{" "}
+              Please confirm you're an active Storm Wellness Club member below. If you're
+              not a member yet,{" "}
+              <Link to="/memberships" className="underline underline-offset-4 hover:text-accent">
+                apply for membership
+              </Link>{" "}
+              first — or book{" "}
+              <Link to="/personal-training/private-pilates" className="underline underline-offset-4 hover:text-accent">
+                Private Pilates (Reformer)
+              </Link>
+              , which is open to everyone.
+            </div>
+          )}
+          <TrainingRequestForm defaultService={defaultService} membersOnly={membersOnly} />
         </div>
       </section>
     </Layout>
