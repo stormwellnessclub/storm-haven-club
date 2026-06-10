@@ -152,6 +152,7 @@ import PTSemiPrivate from "@/pages/personal-training/SemiPrivate";
 import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
 import AdminPersonalTrainingPacks from "@/pages/admin/PersonalTrainingPacks";
 import AdminPersonalTrainingPasses from "@/pages/admin/PersonalTrainingPasses";
+import AdminPersonalTrainingSchedule from "@/pages/admin/PersonalTrainingSchedule";
 
 
 const queryClient = new QueryClient();
