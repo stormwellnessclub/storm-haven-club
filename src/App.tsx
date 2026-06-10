@@ -144,6 +144,14 @@ import PortalProfile from "@/pages/portal/Profile";
 import PortalSupport from "@/pages/portal/Support";
 import PortalRecovery from "@/pages/portal/Recovery";
 
+import PersonalTrainingOverview from "@/pages/personal-training/Overview";
+import PTOneOnOne from "@/pages/personal-training/OneOnOne";
+import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
+import PTPrivateCycling from "@/pages/personal-training/PrivateCycling";
+import PTSemiPrivate from "@/pages/personal-training/SemiPrivate";
+import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
+
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -184,6 +192,11 @@ const App = () => (
               <Route path="/cafe" element={<Cafe />} />
               <Route path="/amenities" element={<Amenities />} />
               <Route path="/kids-care" element={<KidsCare />} />
+              <Route path="/personal-training" element={<PersonalTrainingOverview />} />
+              <Route path="/personal-training/one-on-one" element={<PTOneOnOne />} />
+              <Route path="/personal-training/private-pilates" element={<PTPrivatePilates />} />
+              <Route path="/personal-training/private-cycling" element={<PTPrivateCycling />} />
+              <Route path="/personal-training/semi-private" element={<PTSemiPrivate />} />
               <Route path="/class-passes" element={<ClassPasses />} />
               <Route path="/memberships" element={<Memberships />} />
               <Route path="/apply" element={<Apply />} />
@@ -303,6 +316,7 @@ const App = () => (
               <Route path="/admin/mothers-day" element={<ProtectedAdminRoute><MothersDayAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
               <Route path="/admin/abandoned-class-pass-checkouts" element={<ProtectedAdminRoute><AbandonedClassPassCheckouts /></ProtectedAdminRoute>} />
+              <Route path="/admin/training-requests" element={<ProtectedAdminRoute><AdminTrainingRequests /></ProtectedAdminRoute>} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
