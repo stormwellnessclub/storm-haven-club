@@ -5627,6 +5627,154 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_packs: {
+        Row: {
+          created_at: string
+          display_order: number
+          expiration_days: number
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          is_active: boolean
+          is_public: boolean
+          name: string
+          notes: string | null
+          price_cents: number
+          sessions: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          expiration_days: number
+          format: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          is_active?: boolean
+          is_public?: boolean
+          name: string
+          notes?: string | null
+          price_cents: number
+          sessions: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          expiration_days?: number
+          format?: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          is_active?: boolean
+          is_public?: boolean
+          name?: string
+          notes?: string | null
+          price_cents?: number
+          sessions?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pt_passes: {
+        Row: {
+          activated_at: string
+          created_at: string
+          expires_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          notes: string | null
+          pack_id: string | null
+          pack_name: string
+          payment_method: string | null
+          price_cents_charged: number
+          sessions_remaining: number
+          sessions_total: number
+          sold_by_admin_id: string | null
+          status: Database["public"]["Enums"]["pt_pass_status"]
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string
+          created_at?: string
+          expires_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          notes?: string | null
+          pack_id?: string | null
+          pack_name: string
+          payment_method?: string | null
+          price_cents_charged?: number
+          sessions_remaining: number
+          sessions_total: number
+          sold_by_admin_id?: string | null
+          status?: Database["public"]["Enums"]["pt_pass_status"]
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string
+          created_at?: string
+          expires_at?: string
+          format?: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          notes?: string | null
+          pack_id?: string | null
+          pack_name?: string
+          payment_method?: string | null
+          price_cents_charged?: number
+          sessions_remaining?: number
+          sessions_total?: number
+          sold_by_admin_id?: string | null
+          status?: Database["public"]["Enums"]["pt_pass_status"]
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_passes_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "pt_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_session_usage: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          pass_id: string
+          used_at: string
+          used_by_admin_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pass_id: string
+          used_at?: string
+          used_by_admin_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          pass_id?: string
+          used_at?: string
+          used_by_admin_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_session_usage_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth_key: string
@@ -8535,6 +8683,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      use_pt_session: {
+        Args: { _notes?: string; _pass_id: string }
+        Returns: Json
+      }
       validate_manager_refund_code: {
         Args: { _code: string }
         Returns: boolean
@@ -8584,6 +8736,13 @@ export type Database = {
         | "refunded"
       note_visibility: "all_staff" | "specific_roles" | "specific_users"
       pass_status: "active" | "expired" | "exhausted"
+      pt_format: "one_on_one" | "reformer_one_on_one" | "semi_private"
+      pt_pass_status:
+        | "active"
+        | "exhausted"
+        | "expired"
+        | "refunded"
+        | "cancelled"
       sequence_channel: "email" | "sms" | "both"
       sequence_trigger:
         | "guest_visit"
@@ -8786,6 +8945,14 @@ export const Constants = {
       ],
       note_visibility: ["all_staff", "specific_roles", "specific_users"],
       pass_status: ["active", "expired", "exhausted"],
+      pt_format: ["one_on_one", "reformer_one_on_one", "semi_private"],
+      pt_pass_status: [
+        "active",
+        "exhausted",
+        "expired",
+        "refunded",
+        "cancelled",
+      ],
       sequence_channel: ["email", "sms", "both"],
       sequence_trigger: [
         "guest_visit",
