@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
+import { MyPTPassesSection } from "@/components/portal/MyPTPassesSection";
 
 export default function PortalPasses() {
   const { user } = useAuth();
@@ -88,6 +89,7 @@ export default function PortalPasses() {
     <PortalLayout title="My Passes">
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       <div className="max-w-3xl space-y-6">
+        <MyPTPassesSection />
         <PromoBanner className="rounded-lg" />
         <div className="flex items-center justify-end gap-3">
           <Button variant="outline" asChild>
