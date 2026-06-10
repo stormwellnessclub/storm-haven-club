@@ -258,6 +258,34 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const durationMinutes = service.duration_minutes;
   const cleanupMinutes = service.cleanup_minutes;
 
+  // Treat massage/body services as intake-required even if the DB flag is off.
+  const categoryLower = (service.category || "").toLowerCase();
+  const nameLower = (service.name || "").toLowerCase();
+  const needsIntake =
+    service.requires_intake_form === true ||
+    categoryLower.includes("massage") ||
+    categoryLower.includes("body") ||
+    nameLower.includes("massage");
+
+  const triggerIntake = (appointmentId: string, memberId: string | null) => {
+    if (onIntakeRequired) {
+      // Parent will own the intake dialog so it survives this modal unmounting.
+      onIntakeRequired({ appointmentId, memberId, serviceName: service.name });
+      onOpenChange(false);
+      setSelectedDate(undefined);
+      setSelectedTime("");
+      setMemberNotes("");
+    } else {
+      setIntakeAppointmentId(appointmentId);
+      setIntakeMemberId(memberId);
+      onOpenChange(false);
+      setIntakeOpen(true);
+      setSelectedDate(undefined);
+      setSelectedTime("");
+      setMemberNotes("");
+    }
+  };
+
   let finalPrice = service.price;
   if (membership) {
     const tier = membership.membership_type?.toLowerCase() || "";
