@@ -147,7 +147,7 @@ import PortalRecovery from "@/pages/portal/Recovery";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
 import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
-import PTPrivateCycling from "@/pages/personal-training/PrivateCycling";
+
 import PTSemiPrivate from "@/pages/personal-training/SemiPrivate";
 import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
 import AdminPersonalTrainingPacks from "@/pages/admin/PersonalTrainingPacks";
@@ -198,7 +198,7 @@ const App = () => (
               <Route path="/personal-training" element={<PersonalTrainingOverview />} />
               <Route path="/personal-training/one-on-one" element={<PTOneOnOne />} />
               <Route path="/personal-training/private-pilates" element={<PTPrivatePilates />} />
-              <Route path="/personal-training/private-cycling" element={<PTPrivateCycling />} />
+              
               <Route path="/personal-training/semi-private" element={<PTSemiPrivate />} />
               <Route path="/class-passes" element={<ClassPasses />} />
               <Route path="/memberships" element={<Memberships />} />
