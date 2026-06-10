@@ -7,10 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
+import { calculateProcessingFee } from "@/lib/processingFee";
 
 interface Props {
   open: boolean;
@@ -26,6 +29,17 @@ interface UserOption {
   isMember: boolean;
 }
 
+interface SavedCard {
+  id: string;
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+  isDefault: boolean;
+}
+
+type PaymentChoice = "card_on_file" | "offline" | "external";
+
 export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName }: Props) {
   const qc = useQueryClient();
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>(presetUserId);
@@ -37,9 +51,11 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [quantity, setQuantity] = useState(1);
   const [activatedAt, setActivatedAt] = useState<string>(fmtDate(new Date(), "yyyy-MM-dd"));
   const [expiresAt, setExpiresAt] = useState<string>("");
-  const [paymentMethod, setPaymentMethod] = useState<"offline" | "external">("offline");
+  const [paymentChoice, setPaymentChoice] = useState<PaymentChoice>("card_on_file");
+  const [selectedCardId, setSelectedCardId] = useState<string>("");
   const [adminNotes, setAdminNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [chargeError, setChargeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (presetUserId) {
@@ -48,6 +64,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     }
   }, [presetUserId, presetUserName, open]);
 
+  // ----- Pack data -----
   const { data: packs = [] } = useQuery({
     queryKey: ["pt-packs-all"],
     queryFn: async () => {
@@ -68,14 +85,12 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   );
   const selectedPack = formatPacks.find((p) => p.id === packId);
 
-  // Auto-pick first pack when format changes
   useEffect(() => {
     if (formatPacks.length > 0 && !formatPacks.find((p) => p.id === packId)) {
       setPackId(formatPacks[0].id);
     }
   }, [formatPacks, packId]);
 
-  // Recompute expiration when pack or activation changes
   useEffect(() => {
     if (!selectedPack) return;
     try {
@@ -87,6 +102,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     }
   }, [selectedPack?.id, activatedAt]);
 
+  // ----- Customer search -----
   const { data: users = [] } = useQuery({
     queryKey: ["pt-user-search", searchQuery],
     queryFn: async (): Promise<UserOption[]> => {
@@ -122,7 +138,42 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     enabled: !selectedUserId && searchQuery.length >= 2,
   });
 
-  const totalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
+  // ----- Cards on file -----
+  const { data: cardsData, isLoading: cardsLoading } = useQuery({
+    queryKey: ["pt-user-payment-methods", selectedUserId],
+    enabled: !!selectedUserId && open,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "admin_list_user_payment_methods", userId: selectedUserId },
+      });
+      if (error) throw error;
+      return data as {
+        paymentMethods: SavedCard[];
+        hasPaymentMethod: boolean;
+        memberEmail?: string;
+      };
+    },
+  });
+
+  const cards = cardsData?.paymentMethods ?? [];
+
+  // Auto-select default card whenever cards list refreshes
+  useEffect(() => {
+    if (cards.length === 0) {
+      if (paymentChoice === "card_on_file") setPaymentChoice("offline");
+      setSelectedCardId("");
+      return;
+    }
+    const def = cards.find((c) => c.isDefault) ?? cards[0];
+    setSelectedCardId((prev) => (prev && cards.find((c) => c.id === prev) ? prev : def.id));
+    setPaymentChoice("card_on_file");
+  }, [cards.map((c) => c.id).join(",")]);
+
+  // ----- Totals -----
+  const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
+  const willCharge = paymentChoice === "card_on_file";
+  const processingFeeCents = willCharge ? calculateProcessingFee(subtotalCents) : 0;
+  const totalCents = subtotalCents + processingFeeCents;
 
   function reset() {
     setSelectedUserId(presetUserId);
@@ -133,40 +184,89 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setQuantity(1);
     setActivatedAt(fmtDate(new Date(), "yyyy-MM-dd"));
     setExpiresAt("");
-    setPaymentMethod("offline");
+    setPaymentChoice("card_on_file");
+    setSelectedCardId("");
     setAdminNotes("");
+    setChargeError(null);
+  }
+
+  async function insertPasses(opts: {
+    paymentMethod: string;
+    stripePaymentIntentId?: string | null;
+  }) {
+    if (!selectedUserId || !selectedPack) return;
+    const { data: { user: adminUser } } = await supabase.auth.getUser();
+    const rows = Array.from({ length: quantity }).map(() => ({
+      user_id: selectedUserId,
+      pack_id: selectedPack.id,
+      format: selectedPack.format,
+      pack_name: selectedPack.name,
+      sessions_total: selectedPack.sessions,
+      sessions_remaining: selectedPack.sessions,
+      price_cents_charged: selectedPack.price_cents,
+      activated_at: activatedAt,
+      expires_at: expiresAt,
+      status: "active",
+      payment_method: opts.paymentMethod,
+      stripe_payment_intent_id: opts.stripePaymentIntentId ?? null,
+      sold_by_admin_id: adminUser?.id ?? null,
+      notes: adminNotes || null,
+    }));
+    const { error } = await (supabase as any).from("pt_passes").insert(rows);
+    if (error) throw error;
   }
 
   async function submit() {
+    setChargeError(null);
     if (!selectedUserId) return toast.error("Select a customer");
     if (!selectedPack) return toast.error("Select a pack");
     if (!expiresAt) return toast.error("Expiration date required");
+    if (paymentChoice === "card_on_file" && !selectedCardId) {
+      return toast.error("Choose a card on file");
+    }
 
     setSubmitting(true);
     try {
-      const { data: { user: adminUser } } = await supabase.auth.getUser();
-      const rows = Array.from({ length: quantity }).map(() => ({
-        user_id: selectedUserId,
-        pack_id: selectedPack.id,
-        format: selectedPack.format,
-        pack_name: selectedPack.name,
-        sessions_total: selectedPack.sessions,
-        sessions_remaining: selectedPack.sessions,
-        price_cents_charged: selectedPack.price_cents,
-        activated_at: activatedAt,
-        expires_at: expiresAt,
-        status: "active",
-        payment_method: paymentMethod,
-        sold_by_admin_id: adminUser?.id ?? null,
-        notes: adminNotes || null,
-      }));
-      const { error } = await (supabase as any).from("pt_passes").insert(rows);
-      if (error) throw error;
-      toast.success(`Sold ${quantity} × ${selectedPack.name}`);
+      if (paymentChoice === "card_on_file") {
+        const description = `Personal Training: ${quantity} × ${selectedPack.name}`;
+        const { data, error } = await supabase.functions.invoke("stripe-payment", {
+          body: {
+            action: "admin_charge_user_saved_card",
+            userId: selectedUserId,
+            paymentMethodId: selectedCardId,
+            amount: subtotalCents,
+            description,
+            grossUpFee: true,
+            metadata: {
+              pt_pack_id: selectedPack.id,
+              pt_format: selectedPack.format,
+              quantity: String(quantity),
+              sessions_per_pack: String(selectedPack.sessions),
+            },
+          },
+        });
+        if (error) throw error;
+        if (!data?.success) {
+          setChargeError(data?.error || `Charge failed (status: ${data?.status ?? "unknown"})`);
+          setSubmitting(false);
+          return;
+        }
+        await insertPasses({
+          paymentMethod: "card_on_file",
+          stripePaymentIntentId: data.paymentIntentId,
+        });
+        toast.success(`Charged ${(data.totalAmount / 100).toFixed(2)} · ${quantity} × ${selectedPack.name}`);
+      } else {
+        await insertPasses({ paymentMethod: paymentChoice });
+        toast.success(`Sold ${quantity} × ${selectedPack.name}`);
+      }
+
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
+      qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
       reset();
       onOpenChange(false);
     } catch (e: any) {
+      setChargeError(e?.message ?? "Failed to record sale");
       toast.error(e?.message ?? "Failed to record sale");
     } finally {
       setSubmitting(false);
@@ -175,12 +275,11 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Sell Personal Training</DialogTitle>
           <DialogDescription>
-            Record a PT pack sale. Charging is recorded as offline/external —
-            wire in Stripe charging in a follow-up if needed.
+            Record a PT pack sale and (optionally) charge the customer's card on file.
           </DialogDescription>
         </DialogHeader>
 
@@ -257,7 +356,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             </div>
           </div>
 
-          {/* Quantity */}
+          {/* Quantity / dates */}
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-2">
               <Label>Quantity</Label>
@@ -295,29 +394,92 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label>Payment method</Label>
-            <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v as any)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="offline">Paid offline / in person</SelectItem>
-                <SelectItem value="external">Charged externally (Stripe link, etc.)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Payment */}
+          {selectedUserId && (
+            <div className="space-y-2">
+              <Label>Payment</Label>
+              <RadioGroup
+                value={paymentChoice}
+                onValueChange={(v) => setPaymentChoice(v as PaymentChoice)}
+                className="space-y-2"
+              >
+                <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "card_on_file" ? "border-primary bg-primary/5" : ""}`}>
+                  <RadioGroupItem value="card_on_file" disabled={cards.length === 0} className="mt-1" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <CreditCard className="h-4 w-4" />
+                      Charge card on file
+                      {cardsLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                    </div>
+                    {cards.length === 0 && !cardsLoading && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        No card on file for this customer.
+                      </div>
+                    )}
+                    {cards.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {cards.map((c) => (
+                          <button
+                            type="button"
+                            key={c.id}
+                            onClick={() => { setSelectedCardId(c.id); setPaymentChoice("card_on_file"); }}
+                            className={`w-full text-left text-xs flex items-center gap-2 px-2 py-1.5 rounded border ${selectedCardId === c.id ? "border-primary bg-background" : "border-transparent hover:bg-muted"}`}
+                          >
+                            <span className="capitalize font-medium">{c.brand}</span>
+                            <span>•••• {c.last4}</span>
+                            <span className="text-muted-foreground">
+                              {String(c.expMonth ?? "").padStart(2, "0")}/{String(c.expYear ?? "").slice(-2)}
+                            </span>
+                            {c.isDefault && <Badge variant="secondary" className="text-[10px] py-0 h-4">Default</Badge>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </label>
+
+                <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "offline" ? "border-primary bg-primary/5" : ""}`}>
+                  <RadioGroupItem value="offline" className="mt-1" />
+                  <div className="text-sm">Paid offline / in person</div>
+                </label>
+
+                <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "external" ? "border-primary bg-primary/5" : ""}`}>
+                  <RadioGroupItem value="external" className="mt-1" />
+                  <div className="text-sm">Charged externally (Stripe link, etc.)</div>
+                </label>
+              </RadioGroup>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label>Internal notes (optional)</Label>
             <Textarea rows={2} value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} />
           </div>
 
-          {/* Total */}
+          {/* Totals */}
           {selectedPack && (
-            <div className="rounded-md border bg-muted/40 px-4 py-3 flex justify-between items-center">
-              <div className="text-sm">
-                {quantity} × {selectedPack.name}
+            <div className="rounded-md border bg-muted/40 px-4 py-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>{quantity} × {selectedPack.name}</span>
+                <span>{formatCents(subtotalCents)}</span>
               </div>
-              <div className="text-lg font-semibold">{formatCents(totalCents)}</div>
+              {willCharge && (
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Processing fee (2.9% + $0.30)</span>
+                  <span>{formatCents(processingFeeCents)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                <span>{willCharge ? "Total to charge" : "Total"}</span>
+                <span>{formatCents(totalCents)}</span>
+              </div>
+            </div>
+          )}
+
+          {chargeError && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 mt-0.5" />
+              <div>{chargeError}</div>
             </div>
           )}
         </div>
@@ -326,7 +488,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Record sale
+            {willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
           </Button>
         </DialogFooter>
       </DialogContent>
