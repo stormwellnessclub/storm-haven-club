@@ -12,7 +12,7 @@ const services = [
     icon: Dumbbell,
     title: "1:1 Personal Training",
     blurb:
-      "A coach, a plan, and a room built for the work. Strength, conditioning, and the kind of accountability that actually moves the needle.",
+      "Private coaching built around your goal and your level. Programmed for you, progressed week to week.",
     membersOnly: true,
   },
   {
@@ -21,16 +21,16 @@ const services = [
     icon: CircleDot,
     title: "Private Pilates",
     blurb:
-      "One reformer, one teacher, one body. Slow, precise, and tuned to what you walked in with today.",
+      "One reformer, one instructor, one body. Every spring and cue dialed to where you are today.",
     membersOnly: false,
   },
   {
     to: "/personal-training/semi-private",
     number: "03",
     icon: Users,
-    title: "Semi-Private (up to 4)",
+    title: "Semi-Private (3–4 people)",
     blurb:
-      "Train with the people you actually want to train with. Programmed for the group, scaled for each body.",
+      "Small groups of 3 to 4. Each workout is customized for the individual based on goal and level.",
     membersOnly: true,
   },
 ];
