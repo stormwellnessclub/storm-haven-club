@@ -150,6 +150,8 @@ import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
 import PTPrivateCycling from "@/pages/personal-training/PrivateCycling";
 import PTSemiPrivate from "@/pages/personal-training/SemiPrivate";
 import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
+import AdminPersonalTrainingPacks from "@/pages/admin/PersonalTrainingPacks";
+import AdminPersonalTrainingPasses from "@/pages/admin/PersonalTrainingPasses";
 
 
 const queryClient = new QueryClient();
@@ -317,6 +319,9 @@ const App = () => (
               <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
               <Route path="/admin/abandoned-class-pass-checkouts" element={<ProtectedAdminRoute><AbandonedClassPassCheckouts /></ProtectedAdminRoute>} />
               <Route path="/admin/training-requests" element={<ProtectedAdminRoute><AdminTrainingRequests /></ProtectedAdminRoute>} />
+              <Route path="/admin/personal-training/packs" element={<ProtectedAdminRoute><AdminPersonalTrainingPacks /></ProtectedAdminRoute>} />
+              <Route path="/admin/personal-training/passes" element={<ProtectedAdminRoute><AdminPersonalTrainingPasses /></ProtectedAdminRoute>} />
+              
               
               <Route path="*" element={<NotFound />} />
             </Routes>

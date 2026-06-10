@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,8 @@ import {
   TrainingRequestForm,
   TrainingServiceValue,
 } from "@/components/personal-training/TrainingRequestForm";
+import { supabase } from "@/integrations/supabase/client";
+import { PtFormat, PtPack, formatCents, formatExpiration, perSessionPrice } from "@/lib/ptFormat";
 
 interface FAQ {
   q: string;
@@ -24,6 +27,8 @@ export interface PersonalTrainingPageProps {
   subhead: string;
   body: string[];
   whoFor: string[];
+  /** When set, pricing tiles are pulled from pt_packs for this format. */
+  pricingFormat?: PtFormat;
   pricing?: { label: string; price: string; note?: string }[];
   faqs?: FAQ[];
 }
@@ -41,9 +46,37 @@ export default function PersonalTrainingPage({
   body,
   whoFor,
   pricing,
+  pricingFormat,
   faqs,
 }: PersonalTrainingPageProps) {
   const fullUrl = `${BASE_URL}${path}`;
+
+  const { data: dbPacks } = useQuery({
+    queryKey: ["pt-packs-public", pricingFormat],
+    enabled: !!pricingFormat,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pt_packs")
+        .select("*")
+        .eq("format", pricingFormat)
+        .eq("is_active", true)
+        .eq("is_public", true)
+        .gt("price_cents", 0)
+        .order("display_order");
+      if (error) throw error;
+      return (data ?? []) as PtPack[];
+    },
+  });
+
+  const livePricing = (dbPacks ?? []).map((p) => ({
+    label: p.name,
+    price: formatCents(p.price_cents),
+    note: [perSessionPrice(p), `Expires in ${formatExpiration(p.expiration_days)}`]
+      .filter(Boolean)
+      .join(" · "),
+  }));
+
+  const effectivePricing = pricingFormat ? livePricing : pricing ?? [];
 
   const serviceLd = {
     "@context": "https://schema.org",
@@ -139,12 +172,12 @@ export default function PersonalTrainingPage({
       </section>
 
       {/* Pricing */}
-      {pricing && pricing.length > 0 && (
+      {effectivePricing.length > 0 && (
         <section className="py-16 bg-secondary/30 border-t border-border">
           <div className="container mx-auto px-6 max-w-4xl">
             <h2 className="font-serif text-3xl mb-8 text-center">Pricing</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pricing.map((p) => (
+              {effectivePricing.map((p) => (
                 <div key={p.label} className="rounded-lg border border-border bg-background p-6">
                   <div className="text-sm uppercase tracking-widest text-muted-foreground mb-2">
                     {p.label}
