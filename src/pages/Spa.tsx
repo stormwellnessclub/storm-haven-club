@@ -539,6 +539,7 @@ export default function Spa() {
         service={selectedService}
         open={showBookingModal}
         initialVoucherCode={activeVoucherCode}
+        onIntakeRequired={(info) => setIntakeInfo(info)}
         onOpenChange={(open) => {
           setShowBookingModal(open);
           if (!open) {
@@ -552,6 +553,17 @@ export default function Spa() {
           }
         }}
       />
+
+      {/* Post-booking intake form (mounted at page level so it survives the booking modal closing) */}
+      <IntakeFormDialog
+        open={!!intakeInfo}
+        onOpenChange={(open) => { if (!open) setIntakeInfo(null); }}
+        appointmentId={intakeInfo?.appointmentId ?? null}
+        memberId={intakeInfo?.memberId ?? null}
+        serviceName={intakeInfo?.serviceName}
+        onSubmitted={() => setIntakeInfo(null)}
+      />
+
 
       {/* Generic voucher / gift card redemption */}
       <RedeemVoucherDialog
