@@ -531,6 +531,13 @@ export default function PersonalTrainingPasses() {
         presetUserId={sellPreset?.id}
         presetUserName={sellPreset?.label}
       />
+      <BookPTSessionDialog
+        open={bookOpen}
+        onOpenChange={(v) => { setBookOpen(v); if (!v) setBookPreset(undefined); }}
+        presetUserId={bookPreset?.id}
+        presetUserName={bookPreset?.label}
+        onSellPack={(id, label) => { setBookOpen(false); setSellPreset({ id, label }); setSellOpen(true); }}
+      />
     </AdminLayout>
   );
 }
