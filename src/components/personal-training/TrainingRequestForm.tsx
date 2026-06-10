@@ -71,10 +71,18 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact }: 
     }
     setSubmitting(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("training_requests").insert({
-      ...parsed.data,
+    const row = {
+      service: parsed.data.service,
+      full_name: parsed.data.full_name,
+      email: parsed.data.email,
+      phone: parsed.data.phone,
+      preferred_times: parsed.data.preferred_times || null,
+      experience_level: parsed.data.experience_level || null,
+      goals: parsed.data.goals || null,
+      is_member: parsed.data.is_member,
       submitted_by_user_id: user?.id ?? null,
-    });
+    };
+    const { error } = await supabase.from("training_requests").insert(row);
     setSubmitting(false);
     if (error) {
       toast.error("Could not send your request. Please call us instead.");
