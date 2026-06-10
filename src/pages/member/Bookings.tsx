@@ -31,6 +31,7 @@ export default function MemberBookings() {
   const { data: upcomingBookings, isLoading: upcomingLoading } = useUpcomingBookings();
   const { data: pastBookings, isLoading: pastLoading } = usePastBookings();
   const { data: myReviews = [] } = useMyReviews();
+  const { upcomingSpa, pastSpa, upcomingPT, pastPT } = useAllAppointmentHistory();
 
   const reviewByBooking = Object.fromEntries(myReviews.map((r) => [r.booking_id, r]));
 
