@@ -5627,6 +5627,105 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_appointments: {
+        Row: {
+          booked_by_admin_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          confirmation_email_sent_at: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          instructor_id: string | null
+          notes: string | null
+          pass_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["pt_appointment_status"]
+          updated_at: string
+          usage_id: string | null
+          user_id: string
+        }
+        Insert: {
+          booked_by_admin_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          confirmation_email_sent_at?: string | null
+          created_at?: string
+          duration_minutes?: number
+          ends_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          instructor_id?: string | null
+          notes?: string | null
+          pass_id?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["pt_appointment_status"]
+          updated_at?: string
+          usage_id?: string | null
+          user_id: string
+        }
+        Update: {
+          booked_by_admin_id?: string | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          confirmation_email_sent_at?: string | null
+          created_at?: string
+          duration_minutes?: number
+          ends_at?: string
+          format?: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          instructor_id?: string | null
+          notes?: string | null
+          pass_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["pt_appointment_status"]
+          updated_at?: string
+          usage_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_appointments_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_appointments_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_appointments_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_appointments_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_appointments_usage_id_fkey"
+            columns: ["usage_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_usage"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_packs: {
         Row: {
           created_at: string
@@ -8097,6 +8196,43 @@ export type Database = {
         Args: { _referred_member_id: string; _referring_member_id: string }
         Returns: undefined
       }
+      book_pt_appointment: {
+        Args: {
+          p_duration_minutes?: number
+          p_format: Database["public"]["Enums"]["pt_format"]
+          p_instructor_id?: string
+          p_notes?: string
+          p_pass_id?: string
+          p_starts_at: string
+          p_user_id: string
+        }
+        Returns: {
+          booked_by_admin_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          confirmation_email_sent_at: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          instructor_id: string | null
+          notes: string | null
+          pass_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["pt_appointment_status"]
+          updated_at: string
+          usage_id: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       book_wellness_appointment: {
         Args: {
           p_appointment_date: string
@@ -8124,6 +8260,35 @@ export type Database = {
         Returns: boolean
       }
       cancel_class_booking: { Args: { _booking_id: string }; Returns: Json }
+      cancel_pt_appointment: {
+        Args: { p_appointment_id: string; p_reason?: string }
+        Returns: {
+          booked_by_admin_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          confirmation_email_sent_at: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          instructor_id: string | null
+          notes: string | null
+          pass_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["pt_appointment_status"]
+          updated_at: string
+          usage_id: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       check_and_award_achievements: {
         Args: { _member_id: string }
         Returns: undefined
@@ -8736,6 +8901,12 @@ export type Database = {
         | "refunded"
       note_visibility: "all_staff" | "specific_roles" | "specific_users"
       pass_status: "active" | "expired" | "exhausted"
+      pt_appointment_status:
+        | "scheduled"
+        | "completed"
+        | "cancelled"
+        | "late_cancel"
+        | "no_show"
       pt_format: "one_on_one" | "reformer_one_on_one" | "semi_private"
       pt_pass_status:
         | "active"
@@ -8945,6 +9116,13 @@ export const Constants = {
       ],
       note_visibility: ["all_staff", "specific_roles", "specific_users"],
       pass_status: ["active", "expired", "exhausted"],
+      pt_appointment_status: [
+        "scheduled",
+        "completed",
+        "cancelled",
+        "late_cancel",
+        "no_show",
+      ],
       pt_format: ["one_on_one", "reformer_one_on_one", "semi_private"],
       pt_pass_status: [
         "active",
