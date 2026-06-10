@@ -103,17 +103,59 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
         const cycleStart = format(new Date(), "yyyy-MM-dd");
         const cycleEnd = format(expiresAt, "yyyy-MM-dd");
         const creditType = grantType === "guest_pass_credit" ? "guest_pass" : grantType;
-        const { error } = await supabase.from("member_credits").insert({
-          user_id: prefill?.userId || null,
-          member_id: prefill?.memberId || null,
-          credit_type: creditType,
-          credits_total: quantity,
-          credits_remaining: quantity,
-          cycle_start: cycleStart,
-          cycle_end: cycleEnd,
-          expires_at: expiresAt.toISOString(),
-        } as any);
-        if (error) throw error;
+
+        // If member already has an active (non-expired, remaining > 0) credit of this type,
+        // add to that existing row instead of creating a parallel row that would hide it.
+        let existingCredit: { id: string; credits_total: number; credits_remaining: number } | null = null;
+        if (prefill?.memberId) {
+          const { data: existing } = await supabase
+            .from("member_credits")
+            .select("id, credits_total, credits_remaining")
+            .eq("member_id", prefill.memberId)
+            .eq("credit_type", creditType)
+            .gt("credits_remaining", 0)
+            .gt("expires_at", new Date().toISOString())
+            .order("cycle_start", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          existingCredit = (existing as any) || null;
+        }
+
+        if (existingCredit) {
+          const prevRemaining = existingCredit.credits_remaining;
+          const newTotal = existingCredit.credits_total + quantity;
+          const newRemaining = existingCredit.credits_remaining + quantity;
+          const { error: updateError } = await supabase
+            .from("member_credits")
+            .update({ credits_total: newTotal, credits_remaining: newRemaining })
+            .eq("id", existingCredit.id);
+          if (updateError) throw updateError;
+
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          await supabase.from("credit_adjustments").insert({
+            member_id: prefill!.memberId!,
+            member_credit_id: existingCredit.id,
+            credit_type: creditType,
+            adjustment_type: "add",
+            amount: quantity,
+            previous_balance: prevRemaining,
+            new_balance: newRemaining,
+            reason: notes || "Admin grant (added to existing cycle)",
+            adjusted_by: authUser?.id || null,
+          } as any);
+        } else {
+          const { error } = await supabase.from("member_credits").insert({
+            user_id: prefill?.userId || null,
+            member_id: prefill?.memberId || null,
+            credit_type: creditType,
+            credits_total: quantity,
+            credits_remaining: quantity,
+            cycle_start: cycleStart,
+            cycle_end: cycleEnd,
+            expires_at: expiresAt.toISOString(),
+          } as any);
+          if (error) throw error;
+        }
       }
     },
     onSuccess: () => {
