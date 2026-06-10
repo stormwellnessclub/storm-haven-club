@@ -134,7 +134,14 @@ export default function PersonalTrainingOverview() {
                     <Icon className="h-5 w-5" />
                   </div>
                   <div className="col-span-7 md:col-span-6">
-                    <div className="font-serif text-2xl md:text-3xl">{s.title}</div>
+                    <div className="font-serif text-2xl md:text-3xl flex items-center gap-3 flex-wrap">
+                      {s.title}
+                      {s.membersOnly && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent text-[10px] tracking-[0.2em] uppercase">
+                          Members only
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="col-span-10 md:col-span-3 text-sm text-muted-foreground md:text-left col-start-3 md:col-start-auto">
                     {s.blurb}
