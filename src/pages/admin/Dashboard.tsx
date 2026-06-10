@@ -579,10 +579,15 @@ export default function Dashboard() {
                     <div
                       key={index}
                       className="py-2 border-b border-border last:border-0 cursor-pointer hover:bg-muted/50 rounded px-1 -mx-1 transition-colors"
-                      onClick={() => navigate('/admin/appointments')}
+                      onClick={() => navigate(apt.kind === 'pt' ? '/admin/personal-training/schedule' : '/admin/appointments')}
                     >
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm">{apt.member}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-medium text-sm flex items-center gap-2">
+                          {apt.member}
+                          {apt.kind === 'pt' && (
+                            <Badge variant="outline" className="text-[10px] py-0">PT</Badge>
+                          )}
+                        </p>
                         <Badge variant="outline" className="text-xs">{apt.time}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1">
