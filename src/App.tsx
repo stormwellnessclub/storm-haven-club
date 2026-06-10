@@ -147,7 +147,7 @@ import PortalRecovery from "@/pages/portal/Recovery";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
 import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
-import PTPrivateCycling from "@/pages/personal-training/PrivateCycling";
+
 import PTSemiPrivate from "@/pages/personal-training/SemiPrivate";
 import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
 import AdminPersonalTrainingPacks from "@/pages/admin/PersonalTrainingPacks";
