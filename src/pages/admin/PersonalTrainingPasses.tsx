@@ -37,6 +37,8 @@ export default function PersonalTrainingPasses() {
   const qc = useQueryClient();
   const [sellOpen, setSellOpen] = useState(false);
   const [sellPreset, setSellPreset] = useState<{ id: string; label: string } | undefined>();
+  const [bookOpen, setBookOpen] = useState(false);
+  const [bookPreset, setBookPreset] = useState<{ id: string; label: string } | undefined>();
   const [filter, setFilter] = useState<"all" | PtFormat>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
