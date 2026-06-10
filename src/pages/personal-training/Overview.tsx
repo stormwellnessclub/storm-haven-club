@@ -2,33 +2,33 @@ import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Dumbbell, CircleDot, Bike, Users, Sparkles } from "lucide-react";
+import { ChevronRight, Dumbbell, CircleDot, Users } from "lucide-react";
 import { TrainingRequestForm } from "@/components/personal-training/TrainingRequestForm";
 
 const services = [
   {
     to: "/personal-training/one-on-one",
+    number: "01",
     icon: Dumbbell,
     title: "1:1 Personal Training",
-    blurb: "Strength, conditioning, and accountability with a dedicated coach.",
+    blurb:
+      "A coach, a plan, and a room built for the work. Strength, conditioning, and the kind of accountability that actually moves the needle.",
   },
   {
     to: "/personal-training/private-pilates",
+    number: "02",
     icon: CircleDot,
     title: "Private Pilates",
-    blurb: "1:1 reformer sessions tailored to your body and goals.",
-  },
-  {
-    to: "/personal-training/private-cycling",
-    icon: Bike,
-    title: "Private Cycling",
-    blurb: "1:1 indoor cycling coaching — form, power, and pacing.",
+    blurb:
+      "One reformer, one teacher, one body. Slow, precise, and tuned to what you walked in with today.",
   },
   {
     to: "/personal-training/semi-private",
+    number: "03",
     icon: Users,
     title: "Semi-Private (up to 4)",
-    blurb: "Train with friends or family in a focused small-group setting.",
+    blurb:
+      "Train with the people you actually want to train with. Programmed for the group, scaled for each body.",
   },
 ];
 
@@ -36,55 +36,108 @@ export default function PersonalTrainingOverview() {
   return (
     <Layout>
       <SEOHead
-        title="Personal Training in Livonia, MI"
-        description="1:1 personal training, private Pilates, private cycling, and semi-private sessions at Storm Wellness Club in Livonia, MI."
+        title="Personal Training at Storm Wellness Club — Livonia, MI"
+        description="Private coaching at Storm Wellness Club. 1:1 personal training, private Pilates, and semi-private sessions inside the circular club in Livonia, MI."
         path="/personal-training"
       />
 
-      {/* Hero */}
-      <section className="pt-32 pb-12 bg-secondary/30">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <p className="text-accent text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> Personal Training
-          </p>
-          <h1 className="heading-display mb-4">Coaching, one body at a time.</h1>
-          <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
-            Private coaching for strength, Pilates, cycling, and small groups — built around your
-            goals, schedule, and body. Open to members and the wider Detroit metro community.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <a href="#request">Request a session</a>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link to="/memberships">View memberships</Link>
-            </Button>
+      {/* Hero — editorial, asymmetric */}
+      <section className="relative pt-32 pb-20 bg-background overflow-hidden">
+        <div className="container mx-auto px-6">
+          <div className="grid lg:grid-cols-12 gap-10 items-end">
+            <div className="lg:col-span-8">
+              <p className="text-accent text-[11px] uppercase tracking-[0.4em] mb-6">
+                Storm Wellness Club · Private Coaching
+              </p>
+              <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
+                One body.
+                <br />
+                <span className="italic text-accent">One coach.</span>
+                <br />
+                One hour that counts.
+              </h1>
+              <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
+                Personal training inside the circular club — quiet rooms, premium equipment,
+                and coaches who program for the body in front of them. Not a chain. Not a
+                template. Yours.
+              </p>
+              <div className="mt-10 flex flex-wrap gap-3">
+                <Button asChild size="lg">
+                  <a href="#request">Request a coach</a>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link to="/memberships">View memberships</Link>
+                </Button>
+              </div>
+            </div>
+
+            <aside className="lg:col-span-4 lg:pl-8 lg:border-l border-border">
+              <div className="space-y-6 text-sm">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
+                    Where
+                  </div>
+                  <div className="font-serif text-xl">18340 Middlebelt Rd, Livonia</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
+                    Who it's for
+                  </div>
+                  <div className="text-foreground/90">
+                    Members and the wider Detroit metro community — beginners welcome, advanced
+                    respected.
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
+                    Session length
+                  </div>
+                  <div className="text-foreground/90">45–60 minutes, by appointment.</div>
+                </div>
+              </div>
+            </aside>
           </div>
         </div>
       </section>
 
-      {/* Service tiles */}
-      <section className="py-16 bg-background">
-        <div className="container mx-auto px-6 max-w-5xl">
-          <h2 className="font-serif text-3xl mb-8 text-center">Choose your format</h2>
-          <div className="grid sm:grid-cols-2 gap-4">
+      {/* Services — numbered editorial list */}
+      <section className="py-20 bg-secondary/30 border-t border-border">
+        <div className="container mx-auto px-6 max-w-6xl">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.4em] text-accent mb-2">
+                The formats
+              </p>
+              <h2 className="font-serif text-4xl md:text-5xl">Three ways in.</h2>
+            </div>
+            <p className="hidden md:block text-sm text-muted-foreground max-w-xs">
+              Pick the format. We'll match the coach.
+            </p>
+          </div>
+
+          <div className="divide-y divide-border border-y border-border">
             {services.map((s) => {
               const Icon = s.icon;
               return (
                 <Link
                   key={s.to}
                   to={s.to}
-                  className="group flex items-start gap-4 p-6 rounded-lg border border-border hover:border-accent hover:bg-secondary/30 transition-colors"
+                  className="group grid grid-cols-12 gap-4 md:gap-8 py-8 items-center hover:bg-background/60 transition-colors px-2 -mx-2"
                 >
-                  <div className="w-12 h-12 rounded-full bg-accent/10 text-accent flex items-center justify-center shrink-0">
-                    <Icon className="h-6 w-6" />
+                  <div className="col-span-2 md:col-span-1 font-serif text-2xl md:text-3xl text-accent/70">
+                    {s.number}
                   </div>
-                  <div className="flex-1">
-                    <div className="font-serif text-xl mb-1 flex items-center gap-2">
-                      {s.title}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                    </div>
-                    <p className="text-sm text-muted-foreground">{s.blurb}</p>
+                  <div className="hidden md:flex md:col-span-1 w-12 h-12 rounded-full bg-accent/10 text-accent items-center justify-center">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="col-span-7 md:col-span-6">
+                    <div className="font-serif text-2xl md:text-3xl">{s.title}</div>
+                  </div>
+                  <div className="col-span-10 md:col-span-3 text-sm text-muted-foreground md:text-left col-start-3 md:col-start-auto">
+                    {s.blurb}
+                  </div>
+                  <div className="col-span-2 md:col-span-1 flex justify-end text-muted-foreground group-hover:text-accent group-hover:translate-x-1 transition-all">
+                    <ChevronRight className="h-6 w-6" />
                   </div>
                 </Link>
               );
@@ -93,27 +146,35 @@ export default function PersonalTrainingOverview() {
         </div>
       </section>
 
-      {/* Why */}
-      <section className="py-16 bg-secondary/30">
+      {/* Philosophy — quiet, confident, brand-aligned */}
+      <section className="py-24 bg-background">
         <div className="container mx-auto px-6 max-w-4xl">
-          <h2 className="font-serif text-3xl mb-8 text-center">Why train with Storm</h2>
-          <div className="grid md:grid-cols-3 gap-6 text-center">
+          <p className="text-[11px] uppercase tracking-[0.4em] text-accent mb-6 text-center">
+            What you can expect
+          </p>
+          <p className="font-serif text-3xl md:text-4xl leading-snug text-center text-foreground/90">
+            Training at Storm Wellness Club is intentionally quiet. Circular architecture,
+            cedar-and-Santal air, equipment chosen for the work — and a coach whose only job
+            for the next hour is <span className="italic text-accent">you</span>.
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
             {[
               {
                 t: "Credentialed coaches",
-                d: "Certified trainers and instructors with deep technical backgrounds.",
+                d: "Certified, technical, and chosen for how they teach — not how they sell.",
               },
               {
-                t: "Considered environment",
-                d: "Premium equipment, quiet studios, and a club designed for focus.",
+                t: "Considered rooms",
+                d: "Reformers, racks, and recovery within a few steps of each other. No waiting.",
               },
               {
-                t: "Built around you",
-                d: "Programming that fits your goals, history, and the way you actually live.",
+                t: "Built around your week",
+                d: "Programming that fits the body you have and the schedule you actually keep.",
               },
             ].map((b) => (
               <div key={b.t}>
-                <h3 className="font-serif text-xl mb-2">{b.t}</h3>
+                <div className="font-serif text-xl mb-2">{b.t}</div>
                 <p className="text-muted-foreground text-sm leading-relaxed">{b.d}</p>
               </div>
             ))}
@@ -122,8 +183,20 @@ export default function PersonalTrainingOverview() {
       </section>
 
       {/* Request form */}
-      <section id="request" className="py-16 bg-background scroll-mt-24">
+      <section
+        id="request"
+        className="py-20 bg-secondary/30 border-t border-border scroll-mt-24"
+      >
         <div className="container mx-auto px-6 max-w-2xl">
+          <div className="text-center mb-10">
+            <p className="text-[11px] uppercase tracking-[0.4em] text-accent mb-3">
+              Start here
+            </p>
+            <h2 className="font-serif text-4xl mb-3">Tell us about your training.</h2>
+            <p className="text-muted-foreground">
+              A coach from Storm Wellness Club will reach out within one business day.
+            </p>
+          </div>
           <TrainingRequestForm />
         </div>
       </section>
