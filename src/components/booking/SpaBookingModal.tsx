@@ -59,11 +59,13 @@ interface SpaBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialVoucherCode?: string | null;
+  /** If set, parent owns the post-booking intake prompt. Receives appointment info. */
+  onIntakeRequired?: (info: { appointmentId: string; memberId: string | null; serviceName: string }) => void;
 }
 
 type PaymentMethodType = "card" | "member_account" | "credit";
 
-export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCode }: SpaBookingModalProps) {
+export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCode, onIntakeRequired }: SpaBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
