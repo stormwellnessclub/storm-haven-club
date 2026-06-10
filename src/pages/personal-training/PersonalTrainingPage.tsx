@@ -50,6 +50,7 @@ export default function PersonalTrainingPage({
   pricing,
   pricingFormat,
   faqs,
+  membersOnly,
 }: PersonalTrainingPageProps) {
   const fullUrl = `${BASE_URL}${path}`;
 
