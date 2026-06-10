@@ -8,6 +8,7 @@ export default function SemiPrivate() {
       path="/personal-training/semi-private"
       serviceName="Semi-Private Training"
       defaultService="semi_private"
+      pricingFormat="semi_private"
       h1="Semi-Private Training — Up to 4"
       subhead="Train with friends or family in a focused small-group setting. Capped at 4 so every rep still gets coached."
       body={[

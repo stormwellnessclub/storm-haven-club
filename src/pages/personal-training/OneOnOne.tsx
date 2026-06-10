@@ -8,6 +8,7 @@ export default function OneOnOne() {
       path="/personal-training/one-on-one"
       serviceName="1:1 Personal Training"
       defaultService="one_on_one"
+      pricingFormat="one_on_one"
       h1="1:1 Personal Training"
       subhead="Private coaching built around your goals — strength, conditioning, fat loss, post-rehab, or sport-specific performance."
       body={[

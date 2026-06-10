@@ -8,6 +8,7 @@ export default function PrivatePilates() {
       path="/personal-training/private-pilates"
       serviceName="Private Pilates"
       defaultService="private_pilates"
+      pricingFormat="reformer_one_on_one"
       h1="Private Pilates — Reformer"
       subhead="One-on-one reformer Pilates with a certified instructor. Precise, scalable, and tailored to your body."
       body={[
