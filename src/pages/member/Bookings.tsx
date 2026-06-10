@@ -22,6 +22,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAllAppointmentHistory } from "@/hooks/useAllAppointmentHistory";
+import { SpaAppointmentRow } from "@/components/portal/SpaAppointmentRow";
+import { PTAppointmentRow } from "@/components/portal/PTAppointmentRow";
 
 export default function MemberBookings() {
   const navigate = useNavigate();
@@ -88,48 +91,61 @@ export default function MemberBookings() {
             <TabsTrigger value="past">Past</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="upcoming" className="mt-6">
-            {upcomingLoading ? (
-              <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div>
-            ) : upcomingBookings && upcomingBookings.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingBookings.map((booking: any) => (
-                  <BookingCard key={booking.id} booking={booking} isUpcoming reviewByBooking={reviewByBooking} onReview={setReviewTarget} />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <h3 className="font-semibold text-lg mb-2">No Upcoming Classes</h3>
-                  <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-                    You haven't booked any classes yet. Browse our schedule to find classes that fit your routine.
-                  </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button asChild><Link to="/schedule">Browse Schedule</Link></Button>
-                    <Button variant="outline" asChild><Link to="/class-passes">Buy Class Passes</Link></Button>
-                  </div>
-                </CardContent>
-              </Card>
+          <TabsContent value="upcoming" className="mt-6 space-y-8">
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground">Classes</h3>
+              {upcomingLoading ? (
+                <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div>
+              ) : upcomingBookings && upcomingBookings.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingBookings.map((booking: any) => (
+                    <BookingCard key={booking.id} booking={booking} isUpcoming reviewByBooking={reviewByBooking} onReview={setReviewTarget} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">No upcoming classes.</p>
+              )}
+            </section>
+            {upcomingSpa.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
+                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel />)}
+              </section>
+            )}
+            {upcomingPT.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Personal Training</h3>
+                {upcomingPT.map((a) => <PTAppointmentRow key={a.id} appt={a} />)}
+              </section>
             )}
           </TabsContent>
 
-          <TabsContent value="past" className="mt-6">
-            {pastLoading ? (
-              <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div>
-            ) : pastBookings && pastBookings.length > 0 ? (
-              <div className="space-y-4">
-                {pastBookings.map((booking: any) => (
-                  <BookingCard key={booking.id} booking={booking} isUpcoming={false} reviewByBooking={reviewByBooking} onReview={setReviewTarget} />
-                ))}
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">No past bookings</p>
-                </CardContent>
-              </Card>
+          <TabsContent value="past" className="mt-6 space-y-8">
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold text-muted-foreground">Classes</h3>
+              {pastLoading ? (
+                <div className="space-y-4"><Skeleton className="h-32 w-full" /><Skeleton className="h-32 w-full" /></div>
+              ) : pastBookings && pastBookings.length > 0 ? (
+                <div className="space-y-4">
+                  {pastBookings.map((booking: any) => (
+                    <BookingCard key={booking.id} booking={booking} isUpcoming={false} reviewByBooking={reviewByBooking} onReview={setReviewTarget} />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">No past classes.</p>
+              )}
+            </section>
+            {pastSpa.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
+                {pastSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} />)}
+              </section>
+            )}
+            {pastPT.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Personal Training</h3>
+                {pastPT.map((a) => <PTAppointmentRow key={a.id} appt={a} />)}
+              </section>
             )}
           </TabsContent>
         </Tabs>
