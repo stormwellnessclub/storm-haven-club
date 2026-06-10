@@ -19,7 +19,6 @@ import { z } from "zod";
 export const TRAINING_SERVICES = [
   { value: "one_on_one", label: "1:1 Personal Training" },
   { value: "private_pilates", label: "Private Pilates (Reformer)" },
-  { value: "private_cycling", label: "Private Cycling" },
   { value: "semi_private", label: "Semi-Private (up to 4)" },
 ] as const;
 
