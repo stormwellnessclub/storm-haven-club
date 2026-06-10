@@ -69,6 +69,10 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact, me
       toast.error(parsed.error.issues[0]?.message ?? "Please complete required fields");
       return;
     }
+    if (membersOnly && !parsed.data.is_member) {
+      toast.error("This format is for Storm Wellness Club members only. Please apply for membership first.");
+      return;
+    }
     setSubmitting(true);
     const { data: { user } } = await supabase.auth.getUser();
     const row = {
