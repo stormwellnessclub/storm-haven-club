@@ -135,11 +135,33 @@ export default function PersonalTrainingPage({
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground">{serviceName}</span>
           </nav>
-          <p className="text-accent text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
+          <p className="text-accent text-sm uppercase tracking-widest mb-4 flex items-center gap-2 flex-wrap">
             <Sparkles className="h-4 w-4" /> Personal Training
+            {membersOnly && (
+              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent text-[10px] tracking-[0.2em] normal-case sm:uppercase">
+                Members only
+              </span>
+            )}
           </p>
           <h1 className="heading-display mb-4">{h1}</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">{subhead}</p>
+          {membersOnly && (
+            <div className="mt-6 rounded-lg border border-accent/30 bg-accent/5 p-4 max-w-2xl">
+              <p className="text-sm text-foreground/90">
+                <span className="font-medium text-accent">Members only.</span>{" "}
+                {serviceName} is reserved for active Storm Wellness Club members. Not a
+                member yet?{" "}
+                <Link to="/memberships" className="underline underline-offset-4 hover:text-accent">
+                  Apply for membership
+                </Link>{" "}
+                — or explore our{" "}
+                <Link to="/personal-training/private-pilates" className="underline underline-offset-4 hover:text-accent">
+                  Private Pilates on the Reformer
+                </Link>
+                , which is open to everyone.
+              </p>
+            </div>
+          )}
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
               <a href="#request">Request a session</a>
