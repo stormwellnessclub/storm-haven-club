@@ -163,24 +163,23 @@ export default function PersonalTrainingOverview() {
             What you can expect
           </p>
           <p className="font-serif text-3xl md:text-4xl leading-snug text-center text-foreground/90">
-            Training at Storm Wellness Club is intentionally quiet. Considered rooms,
-            equipment chosen for the work, and a coach whose only job for the next hour
-            is <span className="italic text-accent">you</span>.
+            Every session is programmed for the person in front of the coach — your
+            goal, your level, your <span className="italic text-accent">today</span>.
           </p>
 
           <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
             {[
               {
-                t: "Credentialed coaches",
-                d: "Certified, technical, and chosen for how they teach — not how they sell.",
+                t: "Certified coaches",
+                d: "Credentialed trainers and Pilates instructors who actually coach the session — not sell you the next one.",
               },
               {
-                t: "Considered rooms",
-                d: "Reformers, racks, and recovery within a few steps of each other. No waiting.",
+                t: "Programmed for you",
+                d: "Your goal and level drive the plan. Strength, mobility, Pilates, post-rehab, or sport-specific.",
               },
               {
-                t: "Built around your week",
-                d: "Programming that fits the body you have and the schedule you actually keep.",
+                t: "Progressed weekly",
+                d: "Real progressions tracked week to week so the work compounds — not a recycled workout.",
               },
             ].map((b) => (
               <div key={b.t}>
