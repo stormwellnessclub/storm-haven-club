@@ -358,14 +358,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           toast.error(`Voucher redeem failed: ${e.message}. Please contact the front desk.`);
         }
 
-        if (service.requires_intake_form && appt?.id) {
-          setIntakeAppointmentId(appt.id);
-          setIntakeMemberId(appt.member_id || null);
-          onOpenChange(false);
-          setIntakeOpen(true);
-          setSelectedDate(undefined);
-          setSelectedTime("");
-          setMemberNotes("");
+        if (needsIntake && appt?.id) {
+          triggerIntake(appt.id, appt.member_id || null);
           return;
         }
 
@@ -410,14 +404,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
         // Capture appointment id for intake follow-up (RPC returns it as appointment_id)
         const newAppointmentId = result?.appointment_id || result?.id || null;
-        if (service.requires_intake_form && newAppointmentId) {
-          setIntakeAppointmentId(newAppointmentId);
-          setIntakeMemberId(null);
-          onOpenChange(false);
-          setIntakeOpen(true);
-          setSelectedDate(undefined);
-          setSelectedTime("");
-          setMemberNotes("");
+        if (needsIntake && newAppointmentId) {
+          triggerIntake(newAppointmentId, null);
           return;
         }
 
@@ -488,14 +476,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           roomId: slot.room_id || undefined,
         });
 
-        if (service.requires_intake_form && appt?.id) {
-          setIntakeAppointmentId(appt.id);
-          setIntakeMemberId(appt.member_id || null);
-          onOpenChange(false);
-          setIntakeOpen(true);
-          setSelectedDate(undefined);
-          setSelectedTime("");
-          setMemberNotes("");
+        if (needsIntake && appt?.id) {
+          triggerIntake(appt.id, appt.member_id || null);
           return;
         }
       }
