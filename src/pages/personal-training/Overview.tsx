@@ -13,6 +13,7 @@ const services = [
     title: "1:1 Personal Training",
     blurb:
       "A coach, a plan, and a room built for the work. Strength, conditioning, and the kind of accountability that actually moves the needle.",
+    membersOnly: true,
   },
   {
     to: "/personal-training/private-pilates",
@@ -21,6 +22,7 @@ const services = [
     title: "Private Pilates",
     blurb:
       "One reformer, one teacher, one body. Slow, precise, and tuned to what you walked in with today.",
+    membersOnly: false,
   },
   {
     to: "/personal-training/semi-private",
@@ -29,6 +31,7 @@ const services = [
     title: "Semi-Private (up to 4)",
     blurb:
       "Train with the people you actually want to train with. Programmed for the group, scaled for each body.",
+    membersOnly: true,
   },
 ];
 
