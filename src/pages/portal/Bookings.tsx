@@ -33,6 +33,7 @@ export default function PortalBookings() {
   const navigate = useNavigate();
   const cancelBooking = useCancelBooking();
   const { data: myReviews = [] } = useMyReviews();
+  const { upcomingSpa, pastSpa, upcomingPT, pastPT } = useAllAppointmentHistory();
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["portal-bookings", user?.id],
