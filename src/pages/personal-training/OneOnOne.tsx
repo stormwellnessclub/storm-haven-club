@@ -29,7 +29,7 @@ export default function OneOnOne() {
         },
         {
           q: "Do I need to be a member?",
-          a: "No — personal training is open to members and non-members. Members receive preferred rates.",
+          a: "Yes — 1:1 Personal Training is reserved for active Storm Wellness Club members. If you're not a member yet, you can apply for membership, or book Private Pilates on the Reformer, which is open to everyone.",
         },
         {
           q: "What if I cancel?",
