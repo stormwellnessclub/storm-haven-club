@@ -7017,6 +7017,232 @@ serve(async (req) => {
         );
       }
 
+      case 'admin_list_user_payment_methods': {
+        const { userId } = body;
+        if (!userId) throw new Error("userId is required");
+
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager', 'front_desk']);
+        if (!roleData || roleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        let email: string | null = null;
+        let memberRecordId: string | null = null;
+        let stripeCustomerId: string | null = null;
+
+        const { data: m } = await supabase
+          .from('members')
+          .select('id, email, stripe_customer_id')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (m) {
+          email = m.email;
+          memberRecordId = m.id;
+          stripeCustomerId = m.stripe_customer_id;
+        }
+        if (!email) {
+          const { data: nm } = await supabase
+            .from('non_member_profiles')
+            .select('email, stripe_customer_id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (nm) {
+            email = nm.email;
+            stripeCustomerId = stripeCustomerId || (nm as any).stripe_customer_id || null;
+          }
+        }
+        if (!email) {
+          const { data: p } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (p) email = p.email;
+        }
+
+        if (!stripeCustomerId && email) {
+          const customers = await stripe.customers.list({ email, limit: 1 });
+          if (customers.data.length > 0) stripeCustomerId = customers.data[0].id;
+        }
+
+        if (!stripeCustomerId) {
+          return new Response(
+            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, memberEmail: email }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+
+        const customer = await stripe.customers.retrieve(stripeCustomerId);
+        const defaultPmId = !customer.deleted ? (customer.invoice_settings?.default_payment_method as string | null) : null;
+
+        const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
+        const formatted = pms.data.map((pm: any) => ({
+          id: pm.id,
+          brand: pm.card?.brand,
+          last4: pm.card?.last4,
+          expMonth: pm.card?.exp_month,
+          expYear: pm.card?.exp_year,
+          nickname: pm.metadata?.nickname || null,
+          isDefault: pm.id === defaultPmId,
+          createdAt: new Date(pm.created * 1000).toISOString(),
+        }));
+
+        return new Response(
+          JSON.stringify({
+            paymentMethods: formatted,
+            hasPaymentMethod: formatted.length > 0,
+            stripeCustomerId,
+            memberEmail: email,
+            memberRecordId,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_charge_user_saved_card': {
+        const {
+          userId,
+          paymentMethodId,
+          amount,
+          description,
+          grossUpFee = true,
+          metadata: extraMetadata = {},
+        } = body;
+
+        if (!userId || !amount || !description) {
+          throw new Error("userId, amount, and description are required");
+        }
+        if (amount < 50) throw new Error("Minimum charge amount is $0.50");
+
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager', 'front_desk']);
+        if (!roleData || roleData.length === 0) {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        let email: string | null = null;
+        let memberRecordId: string | null = null;
+        let stripeCustomerId: string | null = null;
+        let displayName = 'Customer';
+
+        const { data: m } = await supabase
+          .from('members')
+          .select('id, email, stripe_customer_id, first_name, last_name')
+          .eq('user_id', userId)
+          .maybeSingle();
+        if (m) {
+          email = m.email;
+          memberRecordId = m.id;
+          stripeCustomerId = m.stripe_customer_id;
+          displayName = `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim() || email || displayName;
+        }
+        if (!email) {
+          const { data: nm } = await supabase
+            .from('non_member_profiles')
+            .select('email, stripe_customer_id, first_name, last_name')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (nm) {
+            email = nm.email;
+            stripeCustomerId = stripeCustomerId || (nm as any).stripe_customer_id || null;
+            displayName = `${nm.first_name ?? ''} ${nm.last_name ?? ''}`.trim() || email || displayName;
+          }
+        }
+        if (!email) {
+          const { data: p } = await supabase
+            .from('profiles')
+            .select('email, full_name')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (p) {
+            email = p.email;
+            displayName = (p as any).full_name || email || displayName;
+          }
+        }
+
+        if (!stripeCustomerId && email) {
+          const customers = await stripe.customers.list({ email, limit: 1 });
+          if (customers.data.length > 0) stripeCustomerId = customers.data[0].id;
+        }
+        if (!stripeCustomerId) throw new Error("No payment method on file for this customer.");
+
+        let pmId: string | undefined = paymentMethodId;
+        if (!pmId) {
+          const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card', limit: 1 });
+          if (pms.data.length === 0) throw new Error("No payment method on file");
+          pmId = pms.data[0].id;
+        }
+
+        const baseAmount = Number(amount);
+        const processingFeeCents = grossUpFee ? calculateProcessingFee(baseAmount) : 0;
+        const totalAmount = baseAmount + processingFeeCents;
+        const fullDescription = processingFeeCents > 0
+          ? `${description} (includes $${(processingFeeCents / 100).toFixed(2)} processing fee)`
+          : description;
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: totalAmount,
+          currency: 'usd',
+          customer: stripeCustomerId,
+          payment_method: pmId,
+          off_session: true,
+          confirm: true,
+          description: fullDescription,
+          metadata: {
+            type: 'admin_user_charge',
+            user_id: userId,
+            member_id: memberRecordId || '',
+            charged_by: user.id,
+            customer_name: displayName,
+            base_amount: String(baseAmount),
+            processing_fee: String(processingFeeCents),
+            ...Object.fromEntries(
+              Object.entries(extraMetadata || {}).map(([k, v]) => [k, String(v)])
+            ),
+          },
+        });
+
+        const { error: chargeInsertError } = await supabase
+          .from('manual_charges')
+          .insert({
+            member_id: memberRecordId,
+            user_id: userId,
+            amount: totalAmount,
+            description: fullDescription,
+            stripe_payment_intent_id: paymentIntent.id,
+            status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
+            charged_by: user.id,
+          });
+        if (chargeInsertError) {
+          logStep("Warning: failed to record manual_charges row", { error: chargeInsertError.message });
+        }
+
+        const pm = await stripe.paymentMethods.retrieve(pmId);
+        const cardBrand = pm.card?.brand ? pm.card.brand.charAt(0).toUpperCase() + pm.card.brand.slice(1) : 'Card';
+        const cardLast4 = pm.card?.last4 || '****';
+
+        return new Response(
+          JSON.stringify({
+            success: paymentIntent.status === 'succeeded',
+            paymentIntentId: paymentIntent.id,
+            status: paymentIntent.status,
+            cardBrand,
+            cardLast4,
+            baseAmount,
+            processingFee: processingFeeCents,
+            totalAmount,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
