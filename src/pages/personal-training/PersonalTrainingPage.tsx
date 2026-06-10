@@ -31,6 +31,8 @@ export interface PersonalTrainingPageProps {
   pricingFormat?: PtFormat;
   pricing?: { label: string; price: string; note?: string }[];
   faqs?: FAQ[];
+  /** If true, this format is only available to active Storm Wellness Club members. */
+  membersOnly?: boolean;
 }
 
 const BASE_URL = "https://stormwellnessclub.com";
