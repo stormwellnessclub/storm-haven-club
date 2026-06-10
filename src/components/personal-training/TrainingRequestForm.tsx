@@ -38,9 +38,10 @@ const schema = z.object({
 interface Props {
   defaultService?: TrainingServiceValue;
   compact?: boolean;
+  membersOnly?: boolean;
 }
 
-export function TrainingRequestForm({ defaultService = "one_on_one", compact }: Props) {
+export function TrainingRequestForm({ defaultService = "one_on_one", compact, membersOnly }: Props) {
   const [service, setService] = useState<string>(defaultService);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
