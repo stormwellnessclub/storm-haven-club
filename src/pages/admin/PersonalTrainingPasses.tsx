@@ -345,9 +345,17 @@ export default function PersonalTrainingPasses() {
                         {selectedGroup.user?.email}
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => openSellForCustomer(selectedGroup)}>
-                      <UserPlus className="h-3.5 w-3.5 mr-1" /> Sell pack
-                    </Button>
+                    <div className="flex gap-1 shrink-0">
+                      <Button size="sm" variant="default" onClick={() => {
+                        setBookPreset({ id: selectedGroup.userId, label: selectedGroup.user ? `${selectedGroup.user.name} (${selectedGroup.user.email})` : selectedGroup.userId });
+                        setBookOpen(true);
+                      }}>
+                        <Calendar className="h-3.5 w-3.5 mr-1" /> Book
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openSellForCustomer(selectedGroup)}>
+                        <UserPlus className="h-3.5 w-3.5 mr-1" /> Sell
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-2 max-h-[70vh] overflow-y-auto pr-1">
