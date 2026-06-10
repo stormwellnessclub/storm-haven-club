@@ -7,6 +7,7 @@ import { RedeemVoucherDialog } from "@/components/spa/RedeemVoucherDialog";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
+import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 import { useSpaServices, type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -62,6 +63,8 @@ export default function Spa() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
   const [showRedeemDialog, setShowRedeemDialog] = useState(false);
+  // Post-booking intake form (owned by page so it survives the booking modal closing)
+  const [intakeInfo, setIntakeInfo] = useState<{ appointmentId: string; memberId: string | null; serviceName: string } | null>(null);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
