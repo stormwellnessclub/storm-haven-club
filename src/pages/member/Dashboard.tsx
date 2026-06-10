@@ -25,6 +25,7 @@ import { useMemberBenefitsStatus } from "@/hooks/useMemberBenefitsStatus";
 import { Progress } from "@/components/ui/progress";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
+import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppointmentsCard";
 
 import {
   CreditCard,
