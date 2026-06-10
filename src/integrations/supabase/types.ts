@@ -7383,6 +7383,57 @@ export type Database = {
         }
         Relationships: []
       }
+      training_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string
+          experience_level: string | null
+          full_name: string
+          goals: string | null
+          id: string
+          is_member: boolean
+          phone: string
+          preferred_times: string | null
+          service: string
+          status: string
+          submitted_by_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email: string
+          experience_level?: string | null
+          full_name: string
+          goals?: string | null
+          id?: string
+          is_member?: boolean
+          phone: string
+          preferred_times?: string | null
+          service: string
+          status?: string
+          submitted_by_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string
+          experience_level?: string | null
+          full_name?: string
+          goals?: string | null
+          id?: string
+          is_member?: boolean
+          phone?: string
+          preferred_times?: string | null
+          service?: string
+          status?: string
+          submitted_by_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string | null
