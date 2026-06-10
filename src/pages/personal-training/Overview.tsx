@@ -12,7 +12,7 @@ const services = [
     icon: Dumbbell,
     title: "1:1 Personal Training",
     blurb:
-      "A coach, a plan, and a room built for the work. Strength, conditioning, and the kind of accountability that actually moves the needle.",
+      "Private coaching built around your goal and your level. Programmed for you, progressed week to week.",
     membersOnly: true,
   },
   {
@@ -21,16 +21,16 @@ const services = [
     icon: CircleDot,
     title: "Private Pilates",
     blurb:
-      "One reformer, one teacher, one body. Slow, precise, and tuned to what you walked in with today.",
+      "One reformer, one instructor, one body. Every spring and cue dialed to where you are today.",
     membersOnly: false,
   },
   {
     to: "/personal-training/semi-private",
     number: "03",
     icon: Users,
-    title: "Semi-Private (up to 4)",
+    title: "Semi-Private (3–4 people)",
     blurb:
-      "Train with the people you actually want to train with. Programmed for the group, scaled for each body.",
+      "Small groups of 3 to 4. Each workout is customized for the individual based on goal and level.",
     membersOnly: true,
   },
 ];
@@ -40,7 +40,7 @@ export default function PersonalTrainingOverview() {
     <Layout>
       <SEOHead
         title="Personal Training at Storm Wellness Club — Livonia, MI"
-        description="Private coaching at Storm Wellness Club. 1:1 personal training, private Pilates, and semi-private sessions inside the circular club in Livonia, MI."
+        description="Private personal training, reformer Pilates, and small-group semi-private sessions at Storm Wellness Club in Livonia, MI."
         path="/personal-training"
       />
 
@@ -53,16 +53,16 @@ export default function PersonalTrainingOverview() {
                 Storm Wellness Club · Private Coaching
               </p>
               <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
-                One body.
+                Trained for
                 <br />
-                <span className="italic text-accent">One coach.</span>
+                <span className="italic text-accent">your goal.</span>
                 <br />
-                One hour that counts.
+                Coached at your level.
               </h1>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
-                Private coaching at Storm Wellness Club — quiet rooms, premium equipment,
-                and coaches who program for the body in front of them. Not a chain. Not a
-                template. Yours.
+                Private coaching at Storm Wellness Club. Every session is programmed
+                around your goal, your level, and where your body is today — by a
+                certified coach who knows your name.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <Button asChild size="lg">
@@ -163,24 +163,23 @@ export default function PersonalTrainingOverview() {
             What you can expect
           </p>
           <p className="font-serif text-3xl md:text-4xl leading-snug text-center text-foreground/90">
-            Training at Storm Wellness Club is intentionally quiet. Considered rooms,
-            equipment chosen for the work, and a coach whose only job for the next hour
-            is <span className="italic text-accent">you</span>.
+            Every session is programmed for the person in front of the coach — your
+            goal, your level, your <span className="italic text-accent">today</span>.
           </p>
 
           <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
             {[
               {
-                t: "Credentialed coaches",
-                d: "Certified, technical, and chosen for how they teach — not how they sell.",
+                t: "Certified coaches",
+                d: "Credentialed trainers and Pilates instructors who actually coach the session — not sell you the next one.",
               },
               {
-                t: "Considered rooms",
-                d: "Reformers, racks, and recovery within a few steps of each other. No waiting.",
+                t: "Programmed for you",
+                d: "Your goal and level drive the plan. Strength, mobility, Pilates, post-rehab, or sport-specific.",
               },
               {
-                t: "Built around your week",
-                d: "Programming that fits the body you have and the schedule you actually keep.",
+                t: "Progressed weekly",
+                d: "Real progressions tracked week to week so the work compounds — not a recycled workout.",
               },
             ].map((b) => (
               <div key={b.t}>

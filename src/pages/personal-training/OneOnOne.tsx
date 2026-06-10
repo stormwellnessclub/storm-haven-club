@@ -11,10 +11,10 @@ export default function OneOnOne() {
       pricingFormat="one_on_one"
       membersOnly
       h1="1:1 Personal Training"
-      subhead="Private coaching built around your goals — strength, conditioning, fat loss, post-rehab, or sport-specific performance."
+      subhead="Private coaching programmed around your goal and your current level — strength, conditioning, fat loss, post-rehab, or sport-specific."
       body={[
-        "Our 1:1 personal training program pairs you with a credentialed coach who programs every session around your body, your history, and what you actually want to feel like in six months.",
-        "Sessions blend strength, conditioning, and mobility on premium equipment in a focused, no-nonsense environment. You'll have a written plan, real progressions, and someone in your corner.",
+        "Your coach builds a plan from where you are today, then progresses it week to week. Strength, conditioning, mobility, and recovery work — sequenced to your goal, scaled to your body.",
+        "Sessions are private, focused, and tracked. You'll know what you did, why you did it, and what's coming next.",
       ]}
       whoFor={[
         "Brand-new to training and want to learn properly",
