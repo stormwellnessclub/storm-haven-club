@@ -28,6 +28,10 @@ export default function SemiPrivate() {
           a: "Yes — Semi-Private Training is reserved for active Storm Wellness Club members (all participants in the group must be members). Private Pilates on the Reformer is open to non-members.",
         },
         {
+          q: "What's the maximum group size?",
+          a: "Four people per session, plus the coach. Capping at four keeps cueing personal and the energy tight.",
+        },
+        {
           q: "Do all four people pay separately?",
           a: "Pricing is per person and confirmed when your coach reaches out. Group rates are significantly less per person than private sessions.",
         },
