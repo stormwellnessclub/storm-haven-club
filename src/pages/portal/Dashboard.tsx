@@ -177,6 +177,7 @@ export default function PortalDashboard() {
         )}
 
         <UpcomingPTAppointmentsCard />
+        <UpcomingSpaAppointmentsCard />
 
         {/* Upcoming Bookings - Detailed */}
         <Card>
