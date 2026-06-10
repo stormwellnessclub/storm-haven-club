@@ -7,6 +7,7 @@ import { RedeemVoucherDialog } from "@/components/spa/RedeemVoucherDialog";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
+import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 import { useSpaServices, type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -62,6 +63,8 @@ export default function Spa() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
   const [showRedeemDialog, setShowRedeemDialog] = useState(false);
+  // Post-booking intake form (owned by page so it survives the booking modal closing)
+  const [intakeInfo, setIntakeInfo] = useState<{ appointmentId: string; memberId: string | null; serviceName: string } | null>(null);
 
   // Gate states
   const [showWaiverGate, setShowWaiverGate] = useState(false);
@@ -536,6 +539,7 @@ export default function Spa() {
         service={selectedService}
         open={showBookingModal}
         initialVoucherCode={activeVoucherCode}
+        onIntakeRequired={(info) => setIntakeInfo(info)}
         onOpenChange={(open) => {
           setShowBookingModal(open);
           if (!open) {
@@ -549,6 +553,17 @@ export default function Spa() {
           }
         }}
       />
+
+      {/* Post-booking intake form (mounted at page level so it survives the booking modal closing) */}
+      <IntakeFormDialog
+        open={!!intakeInfo}
+        onOpenChange={(open) => { if (!open) setIntakeInfo(null); }}
+        appointmentId={intakeInfo?.appointmentId ?? null}
+        memberId={intakeInfo?.memberId ?? null}
+        serviceName={intakeInfo?.serviceName}
+        onSubmitted={() => setIntakeInfo(null)}
+      />
+
 
       {/* Generic voucher / gift card redemption */}
       <RedeemVoucherDialog

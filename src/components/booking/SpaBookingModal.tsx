@@ -59,11 +59,13 @@ interface SpaBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialVoucherCode?: string | null;
+  /** If set, parent owns the post-booking intake prompt. Receives appointment info. */
+  onIntakeRequired?: (info: { appointmentId: string; memberId: string | null; serviceName: string }) => void;
 }
 
 type PaymentMethodType = "card" | "member_account" | "credit";
 
-export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCode }: SpaBookingModalProps) {
+export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCode, onIntakeRequired }: SpaBookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: membership } = useUserMembership();
@@ -256,6 +258,34 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const durationMinutes = service.duration_minutes;
   const cleanupMinutes = service.cleanup_minutes;
 
+  // Treat massage/body services as intake-required even if the DB flag is off.
+  const categoryLower = (service.category || "").toLowerCase();
+  const nameLower = (service.name || "").toLowerCase();
+  const needsIntake =
+    service.requires_intake_form === true ||
+    categoryLower.includes("massage") ||
+    categoryLower.includes("body") ||
+    nameLower.includes("massage");
+
+  const triggerIntake = (appointmentId: string, memberId: string | null) => {
+    if (onIntakeRequired) {
+      // Parent will own the intake dialog so it survives this modal unmounting.
+      onIntakeRequired({ appointmentId, memberId, serviceName: service.name });
+      onOpenChange(false);
+      setSelectedDate(undefined);
+      setSelectedTime("");
+      setMemberNotes("");
+    } else {
+      setIntakeAppointmentId(appointmentId);
+      setIntakeMemberId(memberId);
+      onOpenChange(false);
+      setIntakeOpen(true);
+      setSelectedDate(undefined);
+      setSelectedTime("");
+      setMemberNotes("");
+    }
+  };
+
   let finalPrice = service.price;
   if (membership) {
     const tier = membership.membership_type?.toLowerCase() || "";
@@ -328,14 +358,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           toast.error(`Voucher redeem failed: ${e.message}. Please contact the front desk.`);
         }
 
-        if (service.requires_intake_form && appt?.id) {
-          setIntakeAppointmentId(appt.id);
-          setIntakeMemberId(appt.member_id || null);
-          onOpenChange(false);
-          setIntakeOpen(true);
-          setSelectedDate(undefined);
-          setSelectedTime("");
-          setMemberNotes("");
+        if (needsIntake && appt?.id) {
+          triggerIntake(appt.id, appt.member_id || null);
           return;
         }
 
@@ -380,14 +404,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
         // Capture appointment id for intake follow-up (RPC returns it as appointment_id)
         const newAppointmentId = result?.appointment_id || result?.id || null;
-        if (service.requires_intake_form && newAppointmentId) {
-          setIntakeAppointmentId(newAppointmentId);
-          setIntakeMemberId(null);
-          onOpenChange(false);
-          setIntakeOpen(true);
-          setSelectedDate(undefined);
-          setSelectedTime("");
-          setMemberNotes("");
+        if (needsIntake && newAppointmentId) {
+          triggerIntake(newAppointmentId, null);
           return;
         }
 
@@ -458,14 +476,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           roomId: slot.room_id || undefined,
         });
 
-        if (service.requires_intake_form && appt?.id) {
-          setIntakeAppointmentId(appt.id);
-          setIntakeMemberId(appt.member_id || null);
-          onOpenChange(false);
-          setIntakeOpen(true);
-          setSelectedDate(undefined);
-          setSelectedTime("");
-          setMemberNotes("");
+        if (needsIntake && appt?.id) {
+          triggerIntake(appt.id, appt.member_id || null);
           return;
         }
       }
