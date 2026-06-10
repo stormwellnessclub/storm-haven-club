@@ -16,6 +16,7 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { MyCafeCreditCard } from "@/components/portal/MyCafeCreditCard";
+import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppointmentsCard";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
