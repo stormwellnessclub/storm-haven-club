@@ -202,33 +202,79 @@ export default function Dashboard() {
     enabled: authReady && !!user,
   });
 
-  // Fetch upcoming appointments
+  // Fetch upcoming appointments (spa + PT)
   const { data: upcomingAppointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ['admin-upcoming-appointments', today],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('spa_appointments')
-        .select(`
-          id,
-          appointment_date,
-          appointment_time,
-          service_name,
-          members (
-            first_name,
-            last_name
-          )
-        `)
-        .eq('appointment_date', today)
-        .eq('status', 'confirmed')
-        .order('appointment_time', { ascending: true })
-        .limit(10);
+      const dayStart = new Date(`${today}T00:00:00`).toISOString();
+      const dayEnd = new Date(`${today}T23:59:59`).toISOString();
+      const [spaRes, ptRes] = await Promise.all([
+        supabase
+          .from('spa_appointments')
+          .select(`id, appointment_date, appointment_time, service_name,
+            members ( first_name, last_name )`)
+          .eq('appointment_date', today)
+          .eq('status', 'confirmed')
+          .order('appointment_time', { ascending: true })
+          .limit(10),
+        (supabase as any)
+          .from('pt_appointments')
+          .select('id, user_id, starts_at, format, instructor_id, status')
+          .eq('status', 'scheduled')
+          .gte('starts_at', dayStart)
+          .lte('starts_at', dayEnd)
+          .order('starts_at', { ascending: true })
+          .limit(20),
+      ]);
 
-      if (error) throw error;
-      return (data || []).map((apt: any) => ({
+      if (spaRes.error) throw spaRes.error;
+
+      const spaItems = (spaRes.data || []).map((apt: any) => ({
+        kind: 'spa' as const,
+        sortKey: apt.appointment_time || '00:00',
         member: `${apt.members?.first_name || ''} ${apt.members?.last_name || ''}`.trim() || 'Unknown',
-        service: apt.service_name || 'Service',
+        service: apt.service_name || 'Spa service',
         time: apt.appointment_time ? format(new Date(`2000-01-01T${apt.appointment_time}`), 'h:mm a') : 'TBD',
       }));
+
+      const ptRows = (ptRes?.data ?? []) as any[];
+      const userIds = Array.from(new Set(ptRows.map((r) => r.user_id)));
+      const instructorIds = Array.from(new Set(ptRows.map((r) => r.instructor_id).filter(Boolean)));
+      const [{ data: members }, { data: profiles }, { data: instructors }] = await Promise.all([
+        userIds.length
+          ? supabase.from('members').select('user_id, first_name, last_name').in('user_id', userIds)
+          : Promise.resolve({ data: [] as any[] }),
+        userIds.length
+          ? supabase.from('profiles').select('user_id, full_name, email').in('user_id', userIds)
+          : Promise.resolve({ data: [] as any[] }),
+        instructorIds.length
+          ? supabase.from('instructors').select('id, first_name, last_name').in('id', instructorIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+      const nameMap: Record<string, string> = {};
+      (profiles ?? []).forEach((p: any) => { nameMap[p.user_id] = p.full_name ?? p.email ?? 'Unknown'; });
+      (members ?? []).forEach((m: any) => {
+        nameMap[m.user_id] = `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim() || nameMap[m.user_id] || 'Unknown';
+      });
+      const instMap: Record<string, string> = {};
+      (instructors ?? []).forEach((i: any) => { instMap[i.id] = `${i.first_name} ${i.last_name}`; });
+      const ptLabel: Record<string, string> = {
+        one_on_one: '1:1 PT',
+        reformer_one_on_one: 'Reformer 1:1',
+        semi_private: 'Semi-Private PT',
+      };
+      const ptItems = ptRows.map((r) => {
+        const d = new Date(r.starts_at);
+        return {
+          kind: 'pt' as const,
+          sortKey: `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+          member: nameMap[r.user_id] || 'Member',
+          service: `${ptLabel[r.format] ?? 'PT'}${r.instructor_id && instMap[r.instructor_id] ? ` · ${instMap[r.instructor_id]}` : ''}`,
+          time: format(d, 'h:mm a'),
+        };
+      });
+
+      return [...spaItems, ...ptItems].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
     },
     enabled: authReady && !!user,
   });
