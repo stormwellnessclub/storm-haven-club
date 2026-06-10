@@ -135,7 +135,8 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin', 'manager', 'front_desk'],
     items: [
       { title: "Training Requests", url: "/admin/training-requests", icon: Dumbbell },
-      { title: "PT Passes", url: "/admin/personal-training/passes", icon: Ticket },
+      { title: "PT Schedule", url: "/admin/personal-training/schedule", icon: Calendar },
+      { title: "PT Customers & Passes", url: "/admin/personal-training/passes", icon: Ticket },
       { title: "PT Packs & Pricing", url: "/admin/personal-training/packs", icon: ClipboardList },
     ],
   },
