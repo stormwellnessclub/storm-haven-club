@@ -26,6 +26,7 @@ import { Progress } from "@/components/ui/progress";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppointmentsCard";
+import { UpcomingSpaAppointmentsCard } from "@/components/portal/UpcomingSpaAppointmentsCard";
 
 import {
   CreditCard,
@@ -342,6 +343,7 @@ export default function MemberDashboard() {
 
         <AnimatedSection animation="fade-up" delay={60}>
           <UpcomingPTAppointmentsCard />
+          <UpcomingSpaAppointmentsCard />
         </AnimatedSection>
 
         {/* === NEW: Up Next - Upcoming Bookings at top === */}

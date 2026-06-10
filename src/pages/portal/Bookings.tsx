@@ -24,12 +24,16 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useAllAppointmentHistory } from "@/hooks/useAllAppointmentHistory";
+import { SpaAppointmentRow } from "@/components/portal/SpaAppointmentRow";
+import { PTAppointmentRow } from "@/components/portal/PTAppointmentRow";
 
 export default function PortalBookings() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const cancelBooking = useCancelBooking();
   const { data: myReviews = [] } = useMyReviews();
+  const { upcomingSpa, pastSpa, upcomingPT, pastPT } = useAllAppointmentHistory();
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ["portal-bookings", user?.id],
@@ -204,18 +208,48 @@ export default function PortalBookings() {
         <LeaveSpaReviewBanner />
         <Tabs defaultValue="upcoming">
           <TabsList>
-            <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
-            <TabsTrigger value="past">Past ({past.length})</TabsTrigger>
+            <TabsTrigger value="upcoming">Upcoming ({upcoming.length + upcomingSpa.length + upcomingPT.length})</TabsTrigger>
+            <TabsTrigger value="past">Past ({past.length + pastSpa.length + pastPT.length})</TabsTrigger>
           </TabsList>
-          <TabsContent value="upcoming" className="space-y-3 mt-4">
-            {upcoming.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No upcoming bookings.</p>
-            ) : upcoming.map((b) => <BookingCard key={b.id} booking={b} showCancel />)}
+          <TabsContent value="upcoming" className="space-y-6 mt-4">
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground">Classes</h3>
+              {upcoming.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No upcoming classes.</p>
+              ) : upcoming.map((b) => <BookingCard key={b.id} booking={b} showCancel />)}
+            </section>
+            {upcomingSpa.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
+                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel />)}
+              </section>
+            )}
+            {upcomingPT.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Personal Training</h3>
+                {upcomingPT.map((a) => <PTAppointmentRow key={a.id} appt={a} />)}
+              </section>
+            )}
           </TabsContent>
-          <TabsContent value="past" className="space-y-3 mt-4">
-            {past.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No past bookings.</p>
-            ) : past.map((b) => <BookingCard key={b.id} booking={b} showReview />)}
+          <TabsContent value="past" className="space-y-6 mt-4">
+            <section className="space-y-3">
+              <h3 className="text-sm font-semibold text-muted-foreground">Classes</h3>
+              {past.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No past classes.</p>
+              ) : past.map((b) => <BookingCard key={b.id} booking={b} showReview />)}
+            </section>
+            {pastSpa.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
+                {pastSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} />)}
+              </section>
+            )}
+            {pastPT.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground">Personal Training</h3>
+                {pastPT.map((a) => <PTAppointmentRow key={a.id} appt={a} />)}
+              </section>
+            )}
           </TabsContent>
         </Tabs>
       </div>
