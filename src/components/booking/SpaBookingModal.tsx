@@ -1057,7 +1057,27 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             Cancel
           </Button>
           <Button
-            onClick={handleBook}
+            onClick={() => {
+              if (needsIntake) {
+                // Validate prerequisites before advancing to intake step
+                if (!selectedDate || !selectedTime) {
+                  toast.error("Please select a date and time");
+                  return;
+                }
+                if (
+                  !usingVoucher &&
+                  paymentMethod === "card" &&
+                  !selectedPaymentMethodId &&
+                  savedPaymentMethods.length > 0
+                ) {
+                  toast.error("Please select a payment method");
+                  return;
+                }
+                setStep("intake");
+                return;
+              }
+              void handleBook();
+            }}
             disabled={
               !selectedDate ||
               !selectedTime ||
@@ -1070,6 +1090,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Booking...
               </>
+            ) : needsIntake ? (
+              <>Continue to Intake <ArrowRight className="w-4 h-4 ml-2" /></>
             ) : usingVoucher ? (
               "Book with Voucher"
             ) : paymentMethod === "credit" ? (
@@ -1079,6 +1101,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             )}
           </Button>
         </div>
+
         </>
         )}
       </DialogContent>
