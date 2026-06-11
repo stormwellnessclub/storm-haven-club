@@ -49,6 +49,8 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
+import { SpaIntakeForm } from "@/components/spa/SpaIntakeForm";
+import { useIntakeForm, useSubmitIntakeForm } from "@/hooks/useSpaIntake";
 import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
 import { Input } from "@/components/ui/input";
 import { Heart, X } from "lucide-react";
@@ -553,27 +555,24 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               </div>
 
               {confirmation.needsIntake && confirmation.appointmentId && (
-                <div className="w-full max-w-md mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-left">
-                  <div className="flex items-start gap-3">
+                <div className="w-full mt-6 rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 text-left">
+                  <div className="flex items-start gap-3 mb-4">
                     <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                     <div className="flex-1">
                       <p className="text-sm font-semibold">Complete your intake form</p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Help your therapist prepare for your session. Takes about a minute.
+                        Please fill this out now so your therapist can prepare. Takes about a minute.
                       </p>
                     </div>
                   </div>
-                  <Button
-                    className="w-full mt-3"
-                    onClick={() => {
-                      setIntakeAppointmentId(confirmation.appointmentId!);
-                      setIntakeMemberId(confirmation.memberId ?? null);
-                      setIntakeOpen(true);
+                  <InlineIntakeForm
+                    appointmentId={confirmation.appointmentId}
+                    memberId={confirmation.memberId ?? null}
+                    onDone={() => {
+                      setConfirmation((c) => c ? { ...c, needsIntake: false } : c);
+                      toast.success("Intake form saved");
                     }}
-                  >
-                    <ClipboardCheck className="h-4 w-4 mr-2" />
-                    Complete Intake Form
-                  </Button>
+                  />
                 </div>
               )}
 
@@ -1020,5 +1019,34 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       serviceName={service?.name}
     />
     </>
+  );
+}
+
+function InlineIntakeForm({
+  appointmentId,
+  memberId,
+  onDone,
+}: {
+  appointmentId: string;
+  memberId: string | null;
+  onDone: () => void;
+}) {
+  const { data: existing } = useIntakeForm(appointmentId);
+  const submit = useSubmitIntakeForm();
+  return (
+    <SpaIntakeForm
+      initial={existing}
+      isSubmitting={submit.isPending}
+      submitLabel={existing ? "Update Intake Form" : "Submit Intake Form"}
+      showHeader={false}
+      onSubmit={async (values) => {
+        await submit.mutateAsync({
+          ...values,
+          appointment_id: appointmentId,
+          member_id: memberId,
+        });
+        onDone();
+      }}
+    />
   );
 }
