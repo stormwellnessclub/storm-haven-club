@@ -472,31 +472,33 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
         if (needsIntake && appt?.id) {
           triggerIntake(appt.id, appt.member_id || null);
-          return;
         }
-      }
 
-      // Build payment summary for confirmation
-      let paymentSummary = "Booking confirmed";
-      if (paymentMethod === "card") {
-        const pm = savedPaymentMethods.find((m) => m.id === selectedPaymentMethodId);
-        const last4 = pm?.card?.last4 || pm?.last4;
-        const brand = pm?.card?.brand || pm?.brand || "card";
-        const total = finalPrice + calculateProcessingFeeFromDollars(finalPrice);
-        paymentSummary = last4
-          ? `$${total.toFixed(2)} charged to ${brand} •••• ${last4}`
-          : `$${total.toFixed(2)} charged to your card`;
-      } else if (paymentMethod === "member_account") {
-        paymentSummary = `$${finalPrice.toFixed(2)} charged to your member account`;
-      }
+        // Build payment summary for confirmation
+        let paymentSummary = "Booking confirmed";
+        if (paymentMethod === "card") {
+          const pm = savedPaymentMethods.find((m) => m.id === selectedPaymentMethodId);
+          const last4 = pm?.card?.last4 || pm?.last4;
+          const brand = pm?.card?.brand || pm?.brand || "card";
+          const total = finalPrice + calculateProcessingFeeFromDollars(finalPrice);
+          paymentSummary = last4
+            ? `$${total.toFixed(2)} charged to ${brand} •••• ${last4}`
+            : `$${total.toFixed(2)} charged to your card`;
+        } else if (paymentMethod === "member_account") {
+          paymentSummary = `$${finalPrice.toFixed(2)} charged to your member account`;
+        }
 
-      setConfirmation({
-        serviceName: service.name,
-        date: selectedDate,
-        time: selectedTime,
-        durationMinutes,
-        paymentSummary,
-      });
+        setConfirmation({
+          serviceName: service.name,
+          date: selectedDate,
+          time: selectedTime,
+          durationMinutes,
+          paymentSummary,
+          appointmentId: appt?.id ?? null,
+          memberId: appt?.member_id ?? null,
+          needsIntake: needsIntake && !!appt?.id,
+        });
+      }
     } catch (error: any) {
       console.error("Booking error:", error);
       toast.error(error.message || "Failed to book appointment");
