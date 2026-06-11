@@ -1,41 +1,33 @@
-## Problem
+# Make the Spa Intake Form Actually Reachable
 
-History/Upcoming views in both the **member portal** (`/member/bookings`) and **non-member portal** (`/portal/bookings`, `/portal` dashboard) only query `class_bookings`. Past spa visits (Red Light, Cryo, Massage, etc.) and PT sessions never appear, and non-members can't see upcoming spa appointments at all.
+## What's broken
 
-## Fix (UI only — no schema changes)
+When a member/non-member books a massage from `/spa`, the post-booking `IntakeFormDialog` is supposed to pop up automatically. In practice the prompt is easy to miss (it can race with the booking modal closing, gets dismissed accidentally, or never appears if the booked appointment object is returned before state propagates). Either way the user has **no way to open the intake form again** afterward — there is no button anywhere in the portal/member appointment rows.
 
-### 1. Unified "appointment history" hook
-Create `src/hooks/useAllAppointmentHistory.ts` that, for the current `user.id`, fetches in parallel:
-- `class_bookings` (existing logic) — already covered, keep separate
-- `spa_appointments` where `user_id = auth.uid()` — both upcoming (`appointment_date >= today` and status in `confirmed, pending, checked_in, in_progress`) and past (everything else, including `completed`, `cancelled`, `no_show`)
-- `pt_appointments` where `user_id = auth.uid()` — upcoming (`starts_at >= now` and `status = scheduled`) and past (anything else or `starts_at < now`)
+## Fix (UI-only)
 
-Returns `{ upcomingSpa, pastSpa, upcomingPT, pastPT }` with resolved instructor/therapist names.
+Make the intake form reachable from three places, so it never gets lost:
 
-### 2. Member `My Bookings` page (`src/pages/member/Bookings.tsx`)
-- Keep existing class tabs.
-- In the **Past** tab, append two new sections below class history:
-  - "Past Spa & Recovery" — list spa appointments (service name, date/time, therapist, status badge)
-  - "Past Personal Training" — list PT appointments (format label via `PT_FORMAT_LABEL`, date/time, trainer, status)
-- In the **Upcoming** tab, append "Upcoming Spa & Recovery" section listing upcoming spa appointments with a "Cancel" button that calls the existing spa cancel flow. (PT upcoming already shown via `UpcomingPTAppointmentsCard` on dashboard — add it here too for parity.)
+### 1. Inline on the booking confirmation screen
+In `SpaBookingModal.tsx`, when the just-booked service needs an intake (massage / body / `requires_intake_form`), show a prominent **"Complete Intake Form"** button on the existing "Booking Confirmed" screen. Clicking it opens `IntakeFormDialog` with the new `appointmentId` + `memberId`. This replaces the current "fire-and-forget" auto-popup behavior that the user keeps missing.
 
-### 3. Non-member portal `Bookings` page (`src/pages/portal/Bookings.tsx`)
-Same treatment: in both **Upcoming** and **Past** tabs, render class cards, then spa cards, then PT cards. Reuse the `UpcomingPTAppointmentsCard` for upcoming PT.
+Also keep the auto-open behavior as a safety net via the page-level `onIntakeRequired` callback, but no longer close the modal early — let the user see the confirmation first and click through.
 
-### 4. Non-member portal `Dashboard` (`src/pages/portal/Dashboard.tsx`)
-Add a new `UpcomingSpaAppointmentsCard` (mirrors `UpcomingPTAppointmentsCard`) above "Upcoming Classes" so non-members see their next massage / Red Light / Cryo / etc. with the same date/time/therapist row.
+### 2. Inline button on `UpcomingSpaAppointmentsCard` and `SpaAppointmentRow`
+For any upcoming massage/body appointment where `requires_intake_form` is true (or category/name indicates massage) **and** no intake row exists yet for that appointment, render a small **"Complete Intake Form"** button next to Cancel. Uses the existing `useIntakeFormStatuses` hook to know which ones are missing. Opens the same `IntakeFormDialog`.
 
-### 5. Reusable presentation
-Create `src/components/portal/SpaAppointmentRow.tsx` and `PTAppointmentRow.tsx` so the member page, portal bookings page, and dashboard cards render identically.
+### 3. Dashboard reminder
+On both `src/pages/member/Dashboard.tsx` and `src/pages/portal/Dashboard.tsx`, if the user has any upcoming spa appointment that needs intake and hasn't completed it, show a single amber banner: *"Intake form needed for your upcoming [service name] on [date]"* with a "Complete Now" CTA that opens the dialog.
 
-## Files
+## Files touched
 
-- new: `src/hooks/useAllAppointmentHistory.ts`
-- new: `src/components/portal/UpcomingSpaAppointmentsCard.tsx`
-- new: `src/components/portal/SpaAppointmentRow.tsx`
-- new: `src/components/portal/PTAppointmentRow.tsx`
-- edit: `src/pages/member/Bookings.tsx` — add spa + PT sections to Upcoming and Past tabs
-- edit: `src/pages/portal/Bookings.tsx` — add spa + PT sections to Upcoming and Past tabs
-- edit: `src/pages/portal/Dashboard.tsx` — mount `UpcomingSpaAppointmentsCard`
+- `src/components/booking/SpaBookingModal.tsx` — add "Complete Intake Form" CTA to confirmation screen for intake-required services; stop auto-closing the modal before the user sees confirmation.
+- `src/components/portal/SpaAppointmentRow.tsx` — add inline "Intake Form" button when missing.
+- `src/components/portal/UpcomingSpaAppointmentsCard.tsx` — same inline button.
+- `src/pages/member/Dashboard.tsx` and `src/pages/portal/Dashboard.tsx` — amber intake-needed reminder banner.
+- (no DB / RLS / hook changes — `useSpaIntake`, `useIntakeFormStatuses`, and `IntakeFormDialog` already do the work.)
 
-No DB migrations, no RLS changes (existing policies already allow `user_id = auth.uid()` reads on `spa_appointments` and `pt_appointments`).
+## Out of scope
+
+- Changing the intake form fields themselves.
+- Making intake mandatory / blocking check-in (can be a follow-up if desired).
