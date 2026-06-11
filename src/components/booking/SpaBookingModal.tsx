@@ -49,6 +49,8 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { supabase } from "@/integrations/supabase/client";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
+import { SpaIntakeForm } from "@/components/spa/SpaIntakeForm";
+import { useIntakeForm, useSubmitIntakeForm } from "@/hooks/useSpaIntake";
 import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
 import { Input } from "@/components/ui/input";
 import { Heart, X } from "lucide-react";

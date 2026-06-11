@@ -1,33 +1,20 @@
-# Make the Spa Intake Form Actually Reachable
+I found the likely issue: the intake form is not part of the booking flow itself. It only appears after a successful massage booking as a secondary dialog, and the page-level `onIntakeRequired` fallback is currently passed in but not actually used. That means the form can be missed or fail to appear when the booking dialog/focus state changes.
 
-## What's broken
+Plan:
 
-When a member/non-member books a massage from `/spa`, the post-booking `IntakeFormDialog` is supposed to pop up automatically. In practice the prompt is easy to miss (it can race with the booking modal closing, gets dismissed accidentally, or never appears if the booked appointment object is returned before state propagates). Either way the user has **no way to open the intake form again** afterward — there is no button anywhere in the portal/member appointment rows.
+1. Make the massage intake form unavoidable after booking
+- In `SpaBookingModal.tsx`, replace the current “Complete Intake Form” secondary-dialog CTA with the actual `SpaIntakeForm` embedded directly on the booking confirmation screen for massage/body services.
+- After the appointment is created, the confirmation screen will immediately show the form fields below the booking details.
+- The user can submit it right there without needing another popup to load.
 
-## Fix (UI-only)
+2. Keep a clear fallback button
+- Keep a visible “Complete Later” / “View My Appointments” path so booking is not blocked if someone needs to leave.
+- Upcoming massage appointments will still show the existing “Intake Form” button in portal/member bookings.
 
-Make the intake form reachable from three places, so it never gets lost:
+3. Wire the page-level fallback correctly
+- Update the intake trigger so it calls the parent `onIntakeRequired` when needed, instead of only storing local state.
+- This makes the page-level intake dialog work if the booking modal closes.
 
-### 1. Inline on the booking confirmation screen
-In `SpaBookingModal.tsx`, when the just-booked service needs an intake (massage / body / `requires_intake_form`), show a prominent **"Complete Intake Form"** button on the existing "Booking Confirmed" screen. Clicking it opens `IntakeFormDialog` with the new `appointmentId` + `memberId`. This replaces the current "fire-and-forget" auto-popup behavior that the user keeps missing.
-
-Also keep the auto-open behavior as a safety net via the page-level `onIntakeRequired` callback, but no longer close the modal early — let the user see the confirmation first and click through.
-
-### 2. Inline button on `UpcomingSpaAppointmentsCard` and `SpaAppointmentRow`
-For any upcoming massage/body appointment where `requires_intake_form` is true (or category/name indicates massage) **and** no intake row exists yet for that appointment, render a small **"Complete Intake Form"** button next to Cancel. Uses the existing `useIntakeFormStatuses` hook to know which ones are missing. Opens the same `IntakeFormDialog`.
-
-### 3. Dashboard reminder
-On both `src/pages/member/Dashboard.tsx` and `src/pages/portal/Dashboard.tsx`, if the user has any upcoming spa appointment that needs intake and hasn't completed it, show a single amber banner: *"Intake form needed for your upcoming [service name] on [date]"* with a "Complete Now" CTA that opens the dialog.
-
-## Files touched
-
-- `src/components/booking/SpaBookingModal.tsx` — add "Complete Intake Form" CTA to confirmation screen for intake-required services; stop auto-closing the modal before the user sees confirmation.
-- `src/components/portal/SpaAppointmentRow.tsx` — add inline "Intake Form" button when missing.
-- `src/components/portal/UpcomingSpaAppointmentsCard.tsx` — same inline button.
-- `src/pages/member/Dashboard.tsx` and `src/pages/portal/Dashboard.tsx` — amber intake-needed reminder banner.
-- (no DB / RLS / hook changes — `useSpaIntake`, `useIntakeFormStatuses`, and `IntakeFormDialog` already do the work.)
-
-## Out of scope
-
-- Changing the intake form fields themselves.
-- Making intake mandatory / blocking check-in (can be a follow-up if desired).
+4. Verify against real massage data
+- Confirm massage services are marked as intake-required.
+- Check that new confirmed massage appointments show an intake form prompt immediately and remain accessible from upcoming appointments if incomplete.
