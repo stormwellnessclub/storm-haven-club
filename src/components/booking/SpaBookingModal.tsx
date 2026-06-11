@@ -350,7 +350,6 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
         if (needsIntake && appt?.id) {
           triggerIntake(appt.id, appt.member_id || null);
-          return;
         }
 
         setConfirmation({
@@ -359,6 +358,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           time: selectedTime,
           durationMinutes,
           paymentSummary: `Prepaid with Mother's Day Voucher (${appliedVoucher!.code})`,
+          appointmentId: appt?.id ?? null,
+          memberId: appt?.member_id ?? null,
+          needsIntake: needsIntake && !!appt?.id,
         });
         return;
       }
