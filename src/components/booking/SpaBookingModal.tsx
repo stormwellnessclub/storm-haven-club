@@ -508,6 +508,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           triggerIntake(appt.id, appt.member_id || null);
         }
 
+        const intakeSaved = await persistIntake(appt?.id, appt?.member_id);
+
         // Build payment summary for confirmation
         let paymentSummary = "Booking confirmed";
         if (paymentMethod === "card") {
@@ -530,7 +532,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           paymentSummary,
           appointmentId: appt?.id ?? null,
           memberId: appt?.member_id ?? null,
-          needsIntake: needsIntake && !!appt?.id,
+          needsIntake: needsIntake && !!appt?.id && !intakeSaved,
         });
       }
     } catch (error: any) {
