@@ -1021,3 +1021,32 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     </>
   );
 }
+
+function InlineIntakeForm({
+  appointmentId,
+  memberId,
+  onDone,
+}: {
+  appointmentId: string;
+  memberId: string | null;
+  onDone: () => void;
+}) {
+  const { data: existing } = useIntakeForm(appointmentId);
+  const submit = useSubmitIntakeForm();
+  return (
+    <SpaIntakeForm
+      initial={existing}
+      isSubmitting={submit.isPending}
+      submitLabel={existing ? "Update Intake Form" : "Submit Intake Form"}
+      showHeader={false}
+      onSubmit={async (values) => {
+        await submit.mutateAsync({
+          ...values,
+          appointment_id: appointmentId,
+          member_id: memberId,
+        });
+        onDone();
+      }}
+    />
+  );
+}
