@@ -398,7 +398,6 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
         const newAppointmentId = result?.appointment_id || result?.id || null;
         if (needsIntake && newAppointmentId) {
           triggerIntake(newAppointmentId, null);
-          return;
         }
 
         // Show in-modal confirmation
@@ -408,6 +407,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           time: selectedTime,
           durationMinutes,
           paymentSummary: `Paid with 1 ${getCreditTypeDisplayName(creditType)} Credit · ${result?.credits_remaining ?? 0} remaining`,
+          appointmentId: newAppointmentId,
+          memberId: null,
+          needsIntake: needsIntake && !!newAppointmentId,
         });
         return;
       } else {
