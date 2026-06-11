@@ -297,7 +297,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }
 
-  const handleBook = async () => {
+  const handleBook = async (
+    intakeValues?: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id">,
+  ) => {
     if (!user) {
       navigate("/auth");
       onOpenChange(false);
