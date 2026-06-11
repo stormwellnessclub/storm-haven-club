@@ -382,6 +382,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           triggerIntake(appt.id, appt.member_id || null);
         }
 
+        const intakeSaved = await persistIntake(appt?.id, appt?.member_id);
+
         setConfirmation({
           serviceName: service.name,
           date: selectedDate,
@@ -390,7 +392,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           paymentSummary: `Prepaid with Mother's Day Voucher (${appliedVoucher!.code})`,
           appointmentId: appt?.id ?? null,
           memberId: appt?.member_id ?? null,
-          needsIntake: needsIntake && !!appt?.id,
+          needsIntake: needsIntake && !!appt?.id && !intakeSaved,
         });
         return;
       }
