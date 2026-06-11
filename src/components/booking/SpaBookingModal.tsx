@@ -300,6 +300,27 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const handleBook = async (
     intakeValues?: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id">,
   ) => {
+    // Persist intake form against a newly-created appointment.
+    // Returns true if saved successfully (so confirmation can hide the fallback block).
+    const persistIntake = async (
+      appointmentId: string | null | undefined,
+      memberId: string | null | undefined,
+    ): Promise<boolean> => {
+      if (!intakeValues || !appointmentId) return false;
+      try {
+        await submitIntake.mutateAsync({
+          ...intakeValues,
+          appointment_id: appointmentId,
+          member_id: memberId ?? null,
+        });
+        return true;
+      } catch (e: any) {
+        console.error("Intake save failed:", e);
+        toast.error("Booking confirmed, but the intake form did not save. You can complete it below.");
+        return false;
+      }
+    };
+
     if (!user) {
       navigate("/auth");
       onOpenChange(false);
