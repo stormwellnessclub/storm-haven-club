@@ -17,7 +17,7 @@ export function UpcomingSpaAppointmentsCard({ canCancel = true }: { canCancel?: 
       </CardHeader>
       <CardContent className="space-y-2">
         {upcomingSpa.slice(0, 5).map((a) => (
-          <SpaAppointmentRow key={a.id} appt={a} showCancel={canCancel} />
+          <SpaAppointmentRow key={a.id} appt={a} showCancel={canCancel} showIntake />
         ))}
         <p className="text-[11px] text-muted-foreground pt-1">
           Free cancellation up to 24 hours before your appointment.
