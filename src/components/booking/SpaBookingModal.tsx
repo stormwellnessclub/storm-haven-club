@@ -632,6 +632,44 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             </div>
           </>
 
+        ) : step === "intake" && needsIntake ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Intake Form — {service.name}</DialogTitle>
+              <DialogDescription>
+                Last step. Share a few details so your therapist can tailor your session.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2"
+                onClick={() => setStep("details")}
+                disabled={bookAppointment.isPending || submitIntake.isPending}
+              >
+                ← Back to booking details
+              </Button>
+              <SpaIntakeForm
+                showHeader={false}
+                isSubmitting={bookAppointment.isPending || submitIntake.isPending}
+                submitLabel={
+                  usingVoucher
+                    ? "Confirm & Book with Voucher"
+                    : paymentMethod === "credit"
+                    ? "Confirm & Book with Credit"
+                    : `Confirm & Book $${(paymentMethod === "card"
+                        ? finalPrice + calculateProcessingFeeFromDollars(finalPrice)
+                        : finalPrice
+                      ).toFixed(2)}`
+                }
+                onSubmit={async (values) => {
+                  await handleBook(values);
+                }}
+              />
+            </div>
+          </>
         ) : (
           <>
         <DialogHeader>
@@ -640,6 +678,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             Select your preferred date and time for this {service.duration_minutes} min service.
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-6 py-4">
           {/* Service Details */}
