@@ -40,7 +40,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addMonths, startOfDay, isSameDay, addMinutes as addMinutesFn } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
-import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check, ArrowRight } from "lucide-react";
+import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check, ArrowRight, ClipboardCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -111,6 +111,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     time: string;
     durationMinutes: number;
     paymentSummary: string;
+    appointmentId?: string | null;
+    memberId?: string | null;
+    needsIntake?: boolean;
   };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
@@ -268,22 +271,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     nameLower.includes("massage");
 
   const triggerIntake = (appointmentId: string, memberId: string | null) => {
-    if (onIntakeRequired) {
-      // Parent will own the intake dialog so it survives this modal unmounting.
-      onIntakeRequired({ appointmentId, memberId, serviceName: service.name });
-      onOpenChange(false);
-      setSelectedDate(undefined);
-      setSelectedTime("");
-      setMemberNotes("");
-    } else {
-      setIntakeAppointmentId(appointmentId);
-      setIntakeMemberId(memberId);
-      onOpenChange(false);
-      setIntakeOpen(true);
-      setSelectedDate(undefined);
-      setSelectedTime("");
-      setMemberNotes("");
-    }
+    // Always remember so the confirmation screen can offer an "Open Intake Form" CTA.
+    setIntakeAppointmentId(appointmentId);
+    setIntakeMemberId(memberId);
   };
 
   let finalPrice = service.price;
@@ -360,7 +350,6 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
         if (needsIntake && appt?.id) {
           triggerIntake(appt.id, appt.member_id || null);
-          return;
         }
 
         setConfirmation({
@@ -369,6 +358,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           time: selectedTime,
           durationMinutes,
           paymentSummary: `Prepaid with Mother's Day Voucher (${appliedVoucher!.code})`,
+          appointmentId: appt?.id ?? null,
+          memberId: appt?.member_id ?? null,
+          needsIntake: needsIntake && !!appt?.id,
         });
         return;
       }
@@ -406,7 +398,6 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
         const newAppointmentId = result?.appointment_id || result?.id || null;
         if (needsIntake && newAppointmentId) {
           triggerIntake(newAppointmentId, null);
-          return;
         }
 
         // Show in-modal confirmation
@@ -416,6 +407,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           time: selectedTime,
           durationMinutes,
           paymentSummary: `Paid with 1 ${getCreditTypeDisplayName(creditType)} Credit · ${result?.credits_remaining ?? 0} remaining`,
+          appointmentId: newAppointmentId,
+          memberId: null,
+          needsIntake: needsIntake && !!newAppointmentId,
         });
         return;
       } else {
@@ -478,31 +472,33 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
         if (needsIntake && appt?.id) {
           triggerIntake(appt.id, appt.member_id || null);
-          return;
         }
-      }
 
-      // Build payment summary for confirmation
-      let paymentSummary = "Booking confirmed";
-      if (paymentMethod === "card") {
-        const pm = savedPaymentMethods.find((m) => m.id === selectedPaymentMethodId);
-        const last4 = pm?.card?.last4 || pm?.last4;
-        const brand = pm?.card?.brand || pm?.brand || "card";
-        const total = finalPrice + calculateProcessingFeeFromDollars(finalPrice);
-        paymentSummary = last4
-          ? `$${total.toFixed(2)} charged to ${brand} •••• ${last4}`
-          : `$${total.toFixed(2)} charged to your card`;
-      } else if (paymentMethod === "member_account") {
-        paymentSummary = `$${finalPrice.toFixed(2)} charged to your member account`;
-      }
+        // Build payment summary for confirmation
+        let paymentSummary = "Booking confirmed";
+        if (paymentMethod === "card") {
+          const pm = savedPaymentMethods.find((m) => m.id === selectedPaymentMethodId);
+          const last4 = pm?.card?.last4 || pm?.last4;
+          const brand = pm?.card?.brand || pm?.brand || "card";
+          const total = finalPrice + calculateProcessingFeeFromDollars(finalPrice);
+          paymentSummary = last4
+            ? `$${total.toFixed(2)} charged to ${brand} •••• ${last4}`
+            : `$${total.toFixed(2)} charged to your card`;
+        } else if (paymentMethod === "member_account") {
+          paymentSummary = `$${finalPrice.toFixed(2)} charged to your member account`;
+        }
 
-      setConfirmation({
-        serviceName: service.name,
-        date: selectedDate,
-        time: selectedTime,
-        durationMinutes,
-        paymentSummary,
-      });
+        setConfirmation({
+          serviceName: service.name,
+          date: selectedDate,
+          time: selectedTime,
+          durationMinutes,
+          paymentSummary,
+          appointmentId: appt?.id ?? null,
+          memberId: appt?.member_id ?? null,
+          needsIntake: needsIntake && !!appt?.id,
+        });
+      }
     } catch (error: any) {
       console.error("Booking error:", error);
       toast.error(error.message || "Failed to book appointment");
@@ -556,6 +552,31 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 </div>
               </div>
 
+              {confirmation.needsIntake && confirmation.appointmentId && (
+                <div className="w-full max-w-md mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-left">
+                  <div className="flex items-start gap-3">
+                    <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold">Complete your intake form</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Help your therapist prepare for your session. Takes about a minute.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full mt-3"
+                    onClick={() => {
+                      setIntakeAppointmentId(confirmation.appointmentId!);
+                      setIntakeMemberId(confirmation.memberId ?? null);
+                      setIntakeOpen(true);
+                    }}
+                  >
+                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                    Complete Intake Form
+                  </Button>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-2 w-full max-w-md mt-6">
                 <Button
                   variant="outline"
@@ -577,6 +598,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               </div>
             </div>
           </>
+
         ) : (
           <>
         <DialogHeader>

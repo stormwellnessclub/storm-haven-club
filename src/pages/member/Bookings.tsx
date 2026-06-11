@@ -110,7 +110,7 @@ export default function MemberBookings() {
             {upcomingSpa.length > 0 && (
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
-                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel />)}
+                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel showIntake />)}
               </section>
             )}
             {upcomingPT.length > 0 && (
