@@ -111,6 +111,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     time: string;
     durationMinutes: number;
     paymentSummary: string;
+    appointmentId?: string | null;
+    memberId?: string | null;
+    needsIntake?: boolean;
   };
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
