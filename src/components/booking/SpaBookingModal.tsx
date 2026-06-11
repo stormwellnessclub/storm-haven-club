@@ -101,10 +101,14 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
   const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
 
-  // Intake form follow-up state
+  // Intake form follow-up state (legacy fallback only)
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeAppointmentId, setIntakeAppointmentId] = useState<string | null>(null);
   const [intakeMemberId, setIntakeMemberId] = useState<string | null>(null);
+
+  // Two-step wizard for intake-required services
+  const [step, setStep] = useState<"details" | "intake">("details");
+  const submitIntake = useSubmitIntakeForm();
 
   // In-modal booking confirmation
   type Confirmation = {
