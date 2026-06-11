@@ -101,10 +101,14 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
   const { data: bookedSlots } = useSpaBookedSlots(selectedDate);
 
-  // Intake form follow-up state
+  // Intake form follow-up state (legacy fallback only)
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeAppointmentId, setIntakeAppointmentId] = useState<string | null>(null);
   const [intakeMemberId, setIntakeMemberId] = useState<string | null>(null);
+
+  // Two-step wizard for intake-required services
+  const [step, setStep] = useState<"details" | "intake">("details");
+  const submitIntake = useSubmitIntakeForm();
 
   // In-modal booking confirmation
   type Confirmation = {
@@ -132,6 +136,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       setSelectedTime("");
       setMemberNotes("");
       setVoucherInput("");
+      setStep("details");
       clearVoucher();
     }
   }, [open, clearVoucher]);
@@ -292,7 +297,30 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }
 
-  const handleBook = async () => {
+  const handleBook = async (
+    intakeValues?: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id">,
+  ) => {
+    // Persist intake form against a newly-created appointment.
+    // Returns true if saved successfully (so confirmation can hide the fallback block).
+    const persistIntake = async (
+      appointmentId: string | null | undefined,
+      memberId: string | null | undefined,
+    ): Promise<boolean> => {
+      if (!intakeValues || !appointmentId) return false;
+      try {
+        await submitIntake.mutateAsync({
+          ...intakeValues,
+          appointment_id: appointmentId,
+          member_id: memberId ?? null,
+        });
+        return true;
+      } catch (e: any) {
+        console.error("Intake save failed:", e);
+        toast.error("Booking confirmed, but the intake form did not save. You can complete it below.");
+        return false;
+      }
+    };
+
     if (!user) {
       navigate("/auth");
       onOpenChange(false);
@@ -354,6 +382,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           triggerIntake(appt.id, appt.member_id || null);
         }
 
+        const intakeSaved = await persistIntake(appt?.id, appt?.member_id);
+
         setConfirmation({
           serviceName: service.name,
           date: selectedDate,
@@ -362,7 +392,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           paymentSummary: `Prepaid with Mother's Day Voucher (${appliedVoucher!.code})`,
           appointmentId: appt?.id ?? null,
           memberId: appt?.member_id ?? null,
-          needsIntake: needsIntake && !!appt?.id,
+          needsIntake: needsIntake && !!appt?.id && !intakeSaved,
         });
         return;
       }
@@ -402,6 +432,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           triggerIntake(newAppointmentId, null);
         }
 
+        const intakeSaved = await persistIntake(newAppointmentId, null);
+
         // Show in-modal confirmation
         setConfirmation({
           serviceName: service.name,
@@ -411,7 +443,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           paymentSummary: `Paid with 1 ${getCreditTypeDisplayName(creditType)} Credit · ${result?.credits_remaining ?? 0} remaining`,
           appointmentId: newAppointmentId,
           memberId: null,
-          needsIntake: needsIntake && !!newAppointmentId,
+          needsIntake: needsIntake && !!newAppointmentId && !intakeSaved,
         });
         return;
       } else {
@@ -476,6 +508,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           triggerIntake(appt.id, appt.member_id || null);
         }
 
+        const intakeSaved = await persistIntake(appt?.id, appt?.member_id);
+
         // Build payment summary for confirmation
         let paymentSummary = "Booking confirmed";
         if (paymentMethod === "card") {
@@ -498,7 +532,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           paymentSummary,
           appointmentId: appt?.id ?? null,
           memberId: appt?.member_id ?? null,
-          needsIntake: needsIntake && !!appt?.id,
+          needsIntake: needsIntake && !!appt?.id && !intakeSaved,
         });
       }
     } catch (error: any) {
@@ -598,6 +632,44 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             </div>
           </>
 
+        ) : step === "intake" && needsIntake ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Intake Form — {service.name}</DialogTitle>
+              <DialogDescription>
+                Last step. Share a few details so your therapist can tailor your session.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mb-2 -ml-2"
+                onClick={() => setStep("details")}
+                disabled={bookAppointment.isPending || submitIntake.isPending}
+              >
+                ← Back to booking details
+              </Button>
+              <SpaIntakeForm
+                showHeader={false}
+                isSubmitting={bookAppointment.isPending || submitIntake.isPending}
+                submitLabel={
+                  usingVoucher
+                    ? "Confirm & Book with Voucher"
+                    : paymentMethod === "credit"
+                    ? "Confirm & Book with Credit"
+                    : `Confirm & Book $${(paymentMethod === "card"
+                        ? finalPrice + calculateProcessingFeeFromDollars(finalPrice)
+                        : finalPrice
+                      ).toFixed(2)}`
+                }
+                onSubmit={async (values) => {
+                  await handleBook(values);
+                }}
+              />
+            </div>
+          </>
         ) : (
           <>
         <DialogHeader>
@@ -606,6 +678,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             Select your preferred date and time for this {service.duration_minutes} min service.
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-6 py-4">
           {/* Service Details */}
@@ -984,7 +1057,27 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             Cancel
           </Button>
           <Button
-            onClick={handleBook}
+            onClick={() => {
+              if (needsIntake) {
+                // Validate prerequisites before advancing to intake step
+                if (!selectedDate || !selectedTime) {
+                  toast.error("Please select a date and time");
+                  return;
+                }
+                if (
+                  !usingVoucher &&
+                  paymentMethod === "card" &&
+                  !selectedPaymentMethodId &&
+                  savedPaymentMethods.length > 0
+                ) {
+                  toast.error("Please select a payment method");
+                  return;
+                }
+                setStep("intake");
+                return;
+              }
+              void handleBook();
+            }}
             disabled={
               !selectedDate ||
               !selectedTime ||
@@ -997,6 +1090,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Booking...
               </>
+            ) : needsIntake ? (
+              <>Continue to Intake <ArrowRight className="w-4 h-4 ml-2" /></>
             ) : usingVoucher ? (
               "Book with Voucher"
             ) : paymentMethod === "credit" ? (
@@ -1006,6 +1101,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             )}
           </Button>
         </div>
+
         </>
         )}
       </DialogContent>

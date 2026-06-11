@@ -1,20 +1,53 @@
-I found the likely issue: the intake form is not part of the booking flow itself. It only appears after a successful massage booking as a secondary dialog, and the page-level `onIntakeRequired` fallback is currently passed in but not actually used. That means the form can be missed or fail to appear when the booking dialog/focus state changes.
+## Goal
 
-Plan:
+Stop hiding the intake form below the booking-confirmation card. Make it an explicit, unmissable step in the massage booking flow — collected BEFORE we charge the card and create the appointment, then saved against the new appointment immediately afterwards.
 
-1. Make the massage intake form unavoidable after booking
-- In `SpaBookingModal.tsx`, replace the current “Complete Intake Form” secondary-dialog CTA with the actual `SpaIntakeForm` embedded directly on the booking confirmation screen for massage/body services.
-- After the appointment is created, the confirmation screen will immediately show the form fields below the booking details.
-- The user can submit it right there without needing another popup to load.
+## What changes (user-visible)
 
-2. Keep a clear fallback button
-- Keep a visible “Complete Later” / “View My Appointments” path so booking is not blocked if someone needs to leave.
-- Upcoming massage appointments will still show the existing “Intake Form” button in portal/member bookings.
+In `SpaBookingModal`, for any service flagged `requires_intake_form` (all massages today), the booking flow becomes a two-step wizard inside the same dialog:
 
-3. Wire the page-level fallback correctly
-- Update the intake trigger so it calls the parent `onIntakeRequired` when needed, instead of only storing local state.
-- This makes the page-level intake dialog work if the booking modal closes.
+```text
+Step 1: Booking details                Step 2: Intake form
+┌────────────────────────────┐         ┌────────────────────────────┐
+│ Service / date / time /    │         │ Focus areas (body diagram) │
+│ voucher / payment method   │   →     │ Pressure, pain, health,    │
+│                            │         │ allergies, goals, consent  │
+│ [ Continue to Intake → ]   │         │ [ ← Back ]  [ Confirm &    │
+│                            │         │              Book $XX.XX ] │
+└────────────────────────────┘         └────────────────────────────┘
+                                                    ↓
+                                       Booking Confirmed screen
+                                       (no intake block — already done)
+```
 
-4. Verify against real massage data
-- Confirm massage services are marked as intake-required.
-- Check that new confirmed massage appointments show an intake form prompt immediately and remain accessible from upcoming appointments if incomplete.
+- Non-intake services (red light, dry cryo, salt room, etc.) keep today's single-step flow unchanged.
+- The "Booking Confirmed" screen stays, but the amber "Complete your intake form" block is removed for the standard path. We keep it only as a fallback for legacy appointments that somehow reach confirmation without an intake on file.
+
+## Why this is better
+
+- The user physically cannot finish booking a massage without seeing the form — no scroll, no dismiss, no second dialog to load.
+- Therapist always has the form by the time the appointment exists in the DB.
+- Removes reliance on the post-booking dialog/secondary mount that has been the source of the "form doesn't show" reports.
+
+## Technical notes
+
+1. `SpaBookingModal.tsx`
+   - Add `step: "details" | "intake"` local state. Default `"details"`.
+   - Compute `needsIntake` as today (DB flag + massage/body name/category fallback).
+   - Replace the bottom "Book for $X" button with:
+     - If `needsIntake && step === "details"`: button label "Continue to Intake →", on click validates date/time/waiver/payment selection then `setStep("intake")` (no charge yet).
+     - If `!needsIntake`: keep existing single Book button.
+   - When `step === "intake"`:
+     - Render `<SpaIntakeForm showHeader={false} submitLabel="Confirm & Book $X.XX" onSubmit={...} />` in place of the details body.
+     - Add a "← Back to details" link at the top.
+     - `onSubmit` of the intake form is the new commit handler: it runs the existing `handleBook` logic (voucher / credit / card charge → `bookAppointment.mutateAsync`), then immediately calls `useSubmitIntakeForm().mutateAsync({ ...intakeValues, appointment_id: appt.id, member_id })`, then sets `confirmation`.
+     - If the intake save fails after booking succeeds, surface a toast and keep the confirmation screen's fallback amber block visible so they can retry — appointment is not lost.
+2. Remove the `InlineIntakeForm` block (lines 557–577) from the confirmation screen for the happy path; keep the component definition and render it only as a fallback when `confirmation.needsIntake === true` (set only on the failure path above).
+3. Leave `Spa.tsx`'s page-level `IntakeFormDialog` mounted as-is for safety, but it should rarely trigger now.
+4. No DB, RPC, hook, or edge-function changes. `useSubmitIntakeForm` and `useIntakeForm` already exist and stay unchanged.
+
+## Out of scope
+
+- No changes to non-massage services.
+- No changes to admin spa flows.
+- No changes to the intake form fields themselves.
