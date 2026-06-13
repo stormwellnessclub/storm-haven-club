@@ -153,8 +153,8 @@ export default function PersonalTrainingOverview() {
             What you can expect
           </p>
           <p className="font-serif text-3xl md:text-4xl leading-snug text-center text-foreground/90">
-            Every session is programmed for the person in front of the coach — your
-            goal, your level, your <span className="italic text-accent">today</span>.
+            Built on exercise science, recovery, nutrition, and behavioral
+            psychology — <span className="italic text-accent">not</span> on a generic template.
           </p>
 
           <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
@@ -177,6 +177,69 @@ export default function PersonalTrainingOverview() {
                 <p className="text-muted-foreground text-sm leading-relaxed">{b.d}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* The Storm Method — editorial long-form */}
+      <section className="py-24 bg-background border-t border-border">
+        <div className="container mx-auto px-6 max-w-5xl">
+          <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
+            <div className="lg:col-span-4">
+              <div className="lg:sticky lg:top-28">
+                <p className="text-[11px] uppercase tracking-[0.4em] text-accent mb-4">
+                  The Method
+                </p>
+                <h2 className="font-serif text-4xl md:text-5xl leading-[1.05] mb-6">
+                  The Storm <span className="italic">Method</span>
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+                  Developed by founder Dr. Storm Durant from research on exercise adherence.
+                </p>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7 lg:col-start-6 space-y-6">
+              <p className="text-foreground/90 text-lg leading-relaxed">
+                The Storm Method is a psychology-driven training system that combines
+                fitness, recovery, nutrition, and behavioral science to build a plan
+                around the individual — not a generic program.
+              </p>
+              <p className="text-foreground/80 leading-relaxed">
+                It begins with understanding how your body responds to training,
+                recovery, stress, and nutrition. That becomes your biological
+                blueprint, and every part of the program is personalized from it — to
+                improve results and increase long-term consistency.
+              </p>
+
+              <div className="pt-6">
+                <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-4">
+                  What it integrates
+                </p>
+                <ul className="grid sm:grid-cols-2 gap-x-8">
+                  {[
+                    "Movement & Exercise Programming",
+                    "Recovery Optimization",
+                    "Nutrition & Lifestyle Factors",
+                    "Accountability & Behavioral Coaching",
+                    "Performance & Wellness Metrics",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="border-l border-accent/40 pl-4 py-2 text-foreground/90 text-sm"
+                    >
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <p className="font-serif text-xl md:text-2xl italic leading-snug text-foreground/90 pt-6 border-t border-border mt-6">
+                The goal isn't to help someone exercise more — it's to build a system
+                they can actually sustain, so results become a lifestyle, not a
+                short-term outcome.
+              </p>
+            </div>
           </div>
         </div>
       </section>
