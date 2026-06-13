@@ -14,6 +14,9 @@ export interface AdminCafeOrder extends CafeOrder {
   user?: {
     id: string;
     email: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    phone?: string | null;
   } | null;
 }
 
@@ -66,11 +69,37 @@ export function useAdminCafeOrders(filters?: AdminCafeOrdersFilters) {
           throw error;
         }
 
-        return (data || []).map((order: any) => ({
+        const rows = (data || []).map((order: any) => ({
           ...order,
           member: order.member ? (Array.isArray(order.member) ? order.member[0] : order.member) : null,
-          user: null, // User info can be fetched separately if needed
+          user: null as AdminCafeOrder["user"],
         })) as AdminCafeOrder[];
+
+        // Look up non-member profile info for orders without a member record
+        const nonMemberUserIds = Array.from(new Set(
+          rows.filter((r) => !r.member && r.user_id).map((r) => r.user_id as string)
+        ));
+        if (nonMemberUserIds.length > 0) {
+          const { data: nmProfiles } = await supabase
+            .from("non_member_profiles")
+            .select("user_id, first_name, last_name, email, phone")
+            .in("user_id", nonMemberUserIds);
+          const byUserId = new Map<string, any>();
+          (nmProfiles || []).forEach((p: any) => byUserId.set(p.user_id, p));
+          rows.forEach((r) => {
+            if (!r.member && r.user_id && byUserId.has(r.user_id)) {
+              const p = byUserId.get(r.user_id);
+              r.user = {
+                id: r.user_id,
+                email: p.email || "",
+                first_name: p.first_name,
+                last_name: p.last_name,
+                phone: p.phone,
+              };
+            }
+          });
+        }
+        return rows;
       } catch (error: any) {
         if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
           console.warn("cafe_orders table not found, returning empty array");
