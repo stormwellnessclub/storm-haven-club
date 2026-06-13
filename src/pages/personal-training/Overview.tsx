@@ -61,8 +61,7 @@ export default function PersonalTrainingOverview() {
               </h1>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
                 Private coaching at Storm Wellness Club. Every session is programmed
-                around your goal, your level, and where your body is today — by a
-                certified coach who knows your name.
+                around your goal, your level, and where your body is today.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <Button asChild size="lg">
@@ -81,15 +80,6 @@ export default function PersonalTrainingOverview() {
                     Where
                   </div>
                   <div className="font-serif text-xl">18340 Middlebelt Rd, Livonia</div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
-                    Who it's for
-                  </div>
-                  <div className="text-foreground/90">
-                    Members and the wider Detroit metro community — beginners welcome, advanced
-                    respected.
-                  </div>
                 </div>
                 <div>
                   <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
@@ -170,16 +160,16 @@ export default function PersonalTrainingOverview() {
           <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
             {[
               {
-                t: "Certified coaches",
-                d: "Credentialed trainers and Pilates instructors who actually coach the session — not sell you the next one.",
+                t: "The Storm Method",
+                d: "A proprietary coaching framework refined over 15 years in the industry — assessment, programming, and progression built on movement science, not trend.",
               },
               {
-                t: "Programmed for you",
-                d: "Your goal and level drive the plan. Strength, mobility, Pilates, post-rehab, or sport-specific.",
+                t: "Programmed for your physiology",
+                d: "Every plan is written around your goal, your training age, and your body's current capacity. Strength, mobility, Pilates, post-rehab, sport-specific — calibrated, never recycled.",
               },
               {
-                t: "Progressed weekly",
-                d: "Real progressions tracked week to week so the work compounds — not a recycled workout.",
+                t: "Progressed with intent",
+                d: "Load, tempo, and volume are tracked and progressed week to week so adaptation compounds. Measured work, measurable change.",
               },
             ].map((b) => (
               <div key={b.t}>
