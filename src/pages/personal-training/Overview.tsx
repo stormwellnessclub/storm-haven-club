@@ -85,7 +85,7 @@ export default function PersonalTrainingOverview() {
                   <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
                     Session length
                   </div>
-                  <div className="text-foreground/90">45–60 minutes, by appointment.</div>
+                  <div className="text-foreground/90">60 minutes, by appointment.</div>
                 </div>
               </div>
             </aside>
