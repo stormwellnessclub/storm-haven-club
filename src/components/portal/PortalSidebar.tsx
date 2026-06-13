@@ -13,6 +13,7 @@ import {
   Receipt,
   Zap,
   ShoppingBag,
+  Coffee,
 } from "lucide-react";
 import {
   Sidebar,
@@ -43,6 +44,7 @@ const portalMenuItems: MenuItem[] = [
   
   { title: "Buy Passes", url: "/class-passes", icon: CreditCard },
   { title: "Recovery Booking", url: "/portal/wellness", icon: Zap },
+  { title: "Cafe Order", url: "/portal/cafe", icon: Coffee },
   { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
   { title: "Payment Methods", url: "/portal/payment-methods", icon: Wallet },
   { title: "Payment History", url: "/portal/payment-history", icon: Receipt },
