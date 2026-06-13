@@ -83,15 +83,6 @@ export default function PersonalTrainingOverview() {
                 </div>
                 <div>
                   <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
-                    Who it's for
-                  </div>
-                  <div className="text-foreground/90">
-                    Members and the wider Detroit metro community — beginners welcome, advanced
-                    respected.
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
                     Session length
                   </div>
                   <div className="text-foreground/90">45–60 minutes, by appointment.</div>
