@@ -6513,6 +6513,104 @@ serve(async (req) => {
         );
       }
 
+      case 'charge_nonmember_saved_card': {
+        const {
+          amount: nmAmount,
+          description: nmDesc,
+          paymentMethodId: nmPmId,
+          processingFee: nmFee,
+          taxAmount: nmTax,
+          subtotal: nmSub,
+          chargeType: nmChargeType,
+        } = body;
+
+        if (!nmAmount || !nmDesc) {
+          throw new Error("Amount and description are required");
+        }
+        if (nmAmount < 50) {
+          throw new Error("Minimum charge amount is $0.50");
+        }
+
+        const { data: nmProfileForCharge } = await supabase
+          .from('non_member_profiles')
+          .select('stripe_customer_id, first_name, last_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!nmProfileForCharge?.stripe_customer_id) {
+          throw new Error("No payment method on file. Please add a card first.");
+        }
+
+        const nmCustomerId = nmProfileForCharge.stripe_customer_id;
+        const nmCustomerName = `${nmProfileForCharge.first_name || ''} ${nmProfileForCharge.last_name || ''}`.trim() || (user.email || 'Non-member');
+
+        // Determine payment method: prefer caller-provided, else first card on customer
+        let nmPaymentMethodId = nmPmId as string | undefined;
+        if (!nmPaymentMethodId) {
+          const nmPms = await stripe.paymentMethods.list({
+            customer: nmCustomerId,
+            type: 'card',
+            limit: 1,
+          });
+          if (nmPms.data.length === 0) {
+            throw new Error("No payment method on file. Please add a card first.");
+          }
+          nmPaymentMethodId = nmPms.data[0].id;
+        }
+
+        // For POS charges, the frontend has already grossed-up the fee into amount.
+        const nmIsPos = nmChargeType === 'pos';
+        const nmProcessingFeeCents = nmIsPos
+          ? (nmFee || 0)
+          : calculateProcessingFee(nmAmount);
+        const nmTotal = nmIsPos ? nmAmount : nmAmount + nmProcessingFeeCents;
+
+        try {
+          const nmPaymentIntent = await stripe.paymentIntents.create({
+            amount: nmTotal,
+            currency: 'usd',
+            customer: nmCustomerId,
+            payment_method: nmPaymentMethodId,
+            off_session: true,
+            confirm: true,
+            description: nmDesc,
+            metadata: {
+              type: nmIsPos ? 'pos' : 'nonmember_charge',
+              user_id: user.id,
+              customer_name: nmCustomerName,
+              base_amount: nmIsPos ? String(nmAmount - nmProcessingFeeCents) : String(nmAmount),
+              processing_fee: String(nmProcessingFeeCents),
+              ...(nmTax ? { tax_amount: String(nmTax) } : {}),
+              ...(nmSub ? { subtotal: String(nmSub) } : {}),
+            },
+          });
+
+          logStep("Non-member POS payment intent created", {
+            paymentIntentId: nmPaymentIntent.id,
+            status: nmPaymentIntent.status,
+            userId: user.id,
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: nmPaymentIntent.status === 'succeeded',
+              paymentIntentId: nmPaymentIntent.id,
+              status: nmPaymentIntent.status,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        } catch (chargeErr: any) {
+          logStep("Non-member charge failed", { error: chargeErr.message });
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: chargeErr.message || 'Card was declined',
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+      }
+
       case 'list_nonmember_payment_methods': {
         logStep("Listing non-member payment methods", { userId: user.id });
 

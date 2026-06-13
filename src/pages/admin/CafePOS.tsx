@@ -244,7 +244,11 @@ export default function CafePOS() {
                         <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
                       </div>
                       <CardDescription>
-                        {order.member ? `${order.member.first_name} ${order.member.last_name}` : order.user?.email || "Guest"}
+                        {order.member
+                          ? `${order.member.first_name} ${order.member.last_name}`
+                          : (order.user?.first_name || order.user?.last_name)
+                            ? `${order.user?.first_name || ""} ${order.user?.last_name || ""}`.trim() + " (non-member)"
+                            : order.user?.email || "Guest"}
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">

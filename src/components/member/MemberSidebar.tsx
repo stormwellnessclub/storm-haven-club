@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ShoppingBag,
   Baby,
+  Coffee,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,7 +62,7 @@ const mainItems: MenuItem[] = [
   { title: "Dashboard", url: "/member", icon: LayoutDashboard },
   { title: "Member Entry", url: "/member/entry", icon: ScanLine },
   { title: "Support", url: "/member/support", icon: MessageCircle },
-  
+  { title: "Cafe Order", url: "/member/cafe", icon: Coffee },
   { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
 ];
 

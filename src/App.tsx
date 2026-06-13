@@ -53,6 +53,8 @@ import MothersDay from "./pages/MothersDay";
 import MothersDayRedeem from "./pages/MothersDayRedeem";
 import MothersDayPackRedeem from "./pages/MothersDayPackRedeem";
 import Cafe from "./pages/Cafe";
+import MemberCafe from "./pages/member/Cafe";
+import PortalCafe from "./pages/portal/Cafe";
 import Amenities from "./pages/Amenities";
 import KidsCare from "./pages/KidsCare";
 import ClassPasses from "./pages/ClassPasses";
@@ -254,6 +256,7 @@ const App = () => (
               <Route path="/member/check-in-history" element={<ProtectedMemberRoute><CheckInHistory /></ProtectedMemberRoute>} />
               
               <Route path="/member/referrals" element={<ProtectedMemberRoute><MemberReferrals /></ProtectedMemberRoute>} />
+              <Route path="/member/cafe" element={<ProtectedMemberRoute><MemberCafe /></ProtectedMemberRoute>} />
               
               {/* Portal Routes - Non-Member Class Portal */}
               <Route path="/portal" element={<ProtectedPortalRoute><PortalDashboard /></ProtectedPortalRoute>} />
@@ -266,6 +269,7 @@ const App = () => (
               <Route path="/portal/profile" element={<ProtectedPortalRoute><PortalProfile /></ProtectedPortalRoute>} />
               <Route path="/portal/support" element={<ProtectedPortalRoute><PortalSupport /></ProtectedPortalRoute>} />
               <Route path="/portal/wellness" element={<ProtectedPortalRoute><PortalRecovery /></ProtectedPortalRoute>} />
+              <Route path="/portal/cafe" element={<ProtectedPortalRoute><PortalCafe /></ProtectedPortalRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
