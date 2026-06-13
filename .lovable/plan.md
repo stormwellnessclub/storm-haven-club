@@ -1,53 +1,38 @@
-## Goal
+# Fix: SMS Opt-In Gate Is Confusing When Phone Is Missing
 
-Stop hiding the intake form below the booking-confirmation card. Make it an explicit, unmissable step in the massage booking flow — collected BEFORE we charge the card and create the appointment, then saved against the new appointment immediately afterwards.
+## Problem
+Users hitting `SmsOptInGate` / `NonMemberSmsOptInGate` with no phone on file see a bare interstitial whose only action is a small "Add phone number to continue" link. It's unclear what they're being asked, why they're stuck, and what to do. Many of these users almost certainly have a phone number elsewhere in our records (membership application, non-member profile, Stripe customer) — it just isn't on the row the gate is reading.
 
-## What changes (user-visible)
+## Fix — two parts
 
-In `SpaBookingModal`, for any service flagged `requires_intake_form` (all massages today), the booking flow becomes a two-step wizard inside the same dialog:
+### 1. Make the "missing phone" state self-service and obvious
+Rewrite the gate UI so when no phone is on file it becomes a clear, in-place fix instead of a redirect:
 
-```text
-Step 1: Booking details                Step 2: Intake form
-┌────────────────────────────┐         ┌────────────────────────────┐
-│ Service / date / time /    │         │ Focus areas (body diagram) │
-│ voucher / payment method   │   →     │ Pressure, pain, health,    │
-│                            │         │ allergies, goals, consent  │
-│ [ Continue to Intake → ]   │         │ [ ← Back ]  [ Confirm &    │
-│                            │         │              Book $XX.XX ] │
-└────────────────────────────┘         └────────────────────────────┘
-                                                    ↓
-                                       Booking Confirmed screen
-                                       (no intake block — already done)
-```
+- Headline changes to **"We need your mobile number"** with a one-sentence explanation: *"We send class reminders, waitlist alerts, and appointment confirmations by text. Add your number to continue."*
+- Show a labeled phone input directly inside the dialog (auto-formatted `(555) 555-5555`, `tel` keyboard on mobile).
+- Primary button **"Save & Enable SMS"** — disabled until 10+ digits entered. On click:
+  1. Update `phone` + `sms_opt_in=true` + `sms_opt_in_at` + `sms_opt_in_source='portal_gate'` on the right table (`profiles` for members, `non_member_profiles` for non-members).
+  2. Insert `opt_in` row in `sms_consent_log` (same shape it already uses).
+  3. Invalidate the profile query so the gate closes.
+- Keep the existing SMS disclosure text below the input (already required for A2P compliance).
+- The "Add phone number to continue" redirect link goes away — no more bounce to /member/profile or /portal/profile.
 
-- Non-intake services (red light, dry cryo, salt room, etc.) keep today's single-step flow unchanged.
-- The "Booking Confirmed" screen stays, but the amber "Complete your intake form" block is removed for the standard path. We keep it only as a fallback for legacy appointments that somehow reach confirmation without an intake on file.
+If a phone IS already on file, the gate behaves as it does today (single "Enable SMS Alerts" button), just with a clearer headline/subhead.
 
-## Why this is better
+### 2. Pre-fill the phone field from any record we have
+Before showing the empty input, look up a fallback phone in this order and pre-populate (user can edit before saving):
 
-- The user physically cannot finish booking a massage without seeing the form — no scroll, no dismiss, no second dialog to load.
-- Therapist always has the form by the time the appointment exists in the DB.
-- Removes reliance on the post-booking dialog/secondary mount that has been the source of the "form doesn't show" reports.
+- Members: `profiles.phone` → `members.phone` (matched by email) → `membership_applications.phone` (latest by email).
+- Non-members: `non_member_profiles.phone` → `pending_non_member_imports.phone` (matched by email) → `members.phone` (matched by email).
 
-## Technical notes
+This is what the user means by "you probably just don't have it linked" — the number often exists, we're just not reading it. Pre-filling means most users tap one button instead of typing.
 
-1. `SpaBookingModal.tsx`
-   - Add `step: "details" | "intake"` local state. Default `"details"`.
-   - Compute `needsIntake` as today (DB flag + massage/body name/category fallback).
-   - Replace the bottom "Book for $X" button with:
-     - If `needsIntake && step === "details"`: button label "Continue to Intake →", on click validates date/time/waiver/payment selection then `setStep("intake")` (no charge yet).
-     - If `!needsIntake`: keep existing single Book button.
-   - When `step === "intake"`:
-     - Render `<SpaIntakeForm showHeader={false} submitLabel="Confirm & Book $X.XX" onSubmit={...} />` in place of the details body.
-     - Add a "← Back to details" link at the top.
-     - `onSubmit` of the intake form is the new commit handler: it runs the existing `handleBook` logic (voucher / credit / card charge → `bookAppointment.mutateAsync`), then immediately calls `useSubmitIntakeForm().mutateAsync({ ...intakeValues, appointment_id: appt.id, member_id })`, then sets `confirmation`.
-     - If the intake save fails after booking succeeds, surface a toast and keep the confirmation screen's fallback amber block visible so they can retry — appointment is not lost.
-2. Remove the `InlineIntakeForm` block (lines 557–577) from the confirmation screen for the happy path; keep the component definition and render it only as a fallback when `confirmation.needsIntake === true` (set only on the failure path above).
-3. Leave `Spa.tsx`'s page-level `IntakeFormDialog` mounted as-is for safety, but it should rarely trigger now.
-4. No DB, RPC, hook, or edge-function changes. `useSubmitIntakeForm` and `useIntakeForm` already exist and stay unchanged.
+## Files to change
+- `src/components/member/SmsOptInGate.tsx` — new headline/subhead, inline phone input + save handler, fallback phone lookup.
+- `src/components/portal/NonMemberSmsOptInGate.tsx` — same treatment against `non_member_profiles` with its own fallback chain.
+- (Optional, small) `src/hooks/useUserProfile.ts` / `src/hooks/useNonMemberProfile.ts` — only if a tiny helper is needed to expose the fallback lookup; otherwise do it inline in the gate with a one-shot Supabase query.
 
 ## Out of scope
-
-- No changes to non-massage services.
-- No changes to admin spa flows.
-- No changes to the intake form fields themselves.
+- No schema changes — all columns already exist.
+- Not adding a "No thanks / decline" path (separate concern; user explicitly said this isn't about decline).
+- Not changing how/when the gate triggers — only what the user sees and can do inside it.
