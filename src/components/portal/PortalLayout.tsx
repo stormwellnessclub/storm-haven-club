@@ -4,8 +4,6 @@ import { PortalBottomNav } from "./PortalBottomNav";
 import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
 import { PortalPhoneGate } from "./PortalPhoneGate";
@@ -18,7 +16,6 @@ interface PortalLayoutProps {
 
 export function PortalLayout({ children, title }: PortalLayoutProps) {
   const { profile, isLoading } = useNonMemberProfile();
-  const hasCard = profile?.card_last4;
   const hasPhone = !!profile?.phone?.trim();
 
   if (profile && !isLoading && !hasPhone) {
@@ -30,20 +27,8 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
       <NonMemberSmsOptInGate />
       <div className="min-h-screen flex flex-col w-full bg-background">
         <MemorialDayHoursBanner />
-        {/* Card on file requirement banner */}
-        {profile && !hasCard && (
-          <div className="border-b border-destructive/30 bg-destructive/5 px-4 py-3">
-            <Alert variant="destructive" className="border-0 bg-transparent p-0">
-              <CreditCard className="h-4 w-4" />
-              <AlertDescription className="flex items-center gap-2">
-                <span>A payment method is required.</span>
-                <Link to="/portal/payment-methods" className="underline font-medium">
-                  Add a card now
-                </Link>
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
+
+
 
         <div className="flex flex-1 flex-col md:flex-row">
           <PortalSidebar />
