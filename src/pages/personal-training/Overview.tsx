@@ -160,16 +160,16 @@ export default function PersonalTrainingOverview() {
           <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
             {[
               {
-                t: "Certified coaches",
-                d: "Credentialed trainers and Pilates instructors who actually coach the session — not sell you the next one.",
+                t: "The Storm Method",
+                d: "A proprietary coaching framework refined over 15 years in the industry — assessment, programming, and progression built on movement science, not trend.",
               },
               {
-                t: "Programmed for you",
-                d: "Your goal and level drive the plan. Strength, mobility, Pilates, post-rehab, or sport-specific.",
+                t: "Programmed for your physiology",
+                d: "Every plan is written around your goal, your training age, and your body's current capacity. Strength, mobility, Pilates, post-rehab, sport-specific — calibrated, never recycled.",
               },
               {
-                t: "Progressed weekly",
-                d: "Real progressions tracked week to week so the work compounds — not a recycled workout.",
+                t: "Progressed with intent",
+                d: "Load, tempo, and volume are tracked and progressed week to week so adaptation compounds. Measured work, measurable change.",
               },
             ].map((b) => (
               <div key={b.t}>
