@@ -1,33 +1,61 @@
-## Personal Training UI refinements
+## Goal
 
-Scope: `src/pages/personal-training/Overview.tsx` only. Copy edits and one removed tile — no layout, routing, or functional changes.
+Integrate Dr. Storm Durant's long-form Storm Method copy into `/personal-training` without making the page feel heavy. Replace the cliché pull-quote at the same time.
 
-### 1. Hero subhead (lines 62–66)
-Remove the trailing "— by a certified coach who knows your name." clause.
+## Edits to `src/pages/personal-training/Overview.tsx`
 
-New copy:
-> Private coaching at Storm Wellness Club. Every session is programmed around your goal, your level, and where your body is today.
+### 1. Replace the cliché pull-quote
+Current:
+> "Every session is programmed for the person in front of the coach — your goal, your level, your today."
 
-### 2. Hero sidebar (lines 85–93)
-Remove the entire "Who it's for" block (the "Members and the wider Detroit metro community — beginners welcome, advanced respected." item). Leave the "Where" and "Session length" blocks untouched.
+New (short, science-led, sets up the section below):
+> "Built on exercise science, recovery, nutrition, and behavioral psychology — not on a generic template."
 
-### 3. Philosophy tiles (lines 171–183)
-Remove the "Certified coaches" tile entirely. Rewrite the remaining two and add a third so the section reads as premium, science-led, Storm Method, 15 years in the space. Keep the existing 3-column grid intact.
+Section eyebrow stays: "What you can expect".
 
-Proposed copy (open to tweaks):
+### 2. Keep the three tiles below, unchanged
+- The Storm Method
+- Programmed for your physiology
+- Progressed with intent
 
-- **The Storm Method**
-  A proprietary coaching framework refined over 15 years in the industry — assessment, programming, and progression built on movement science, not trend.
+### 3. Add a new section: "The Storm Method" — placed directly AFTER the three-tile philosophy block, BEFORE the request form
 
-- **Programmed for your physiology**
-  Every plan is written around your goal, your training age, and your body's current capacity. Strength, mobility, Pilates, post-rehab, sport-specific — calibrated, never recycled.
+Editorial, two-column layout on desktop, single-column on mobile. Restrained, generous whitespace, no icons, no cards — to keep it from dragging.
 
-- **Progressed with intent**
-  Load, tempo, and volume are tracked and progressed week to week so adaptation compounds. Measured work, measurable change.
+**Left column (sticky on desktop)** — small eyebrow + serif headline + attribution:
+- Eyebrow: `THE METHOD`
+- Headline (serif, large): *The Storm Method*
+- Attribution line (muted, small): "Developed by founder Dr. Storm Durant from research on exercise adherence."
 
-### Out of scope
-- `PersonalTrainingPage.tsx` (the per-format detail pages) and the "Who it's for" bullet list rendered there.
-- Pricing, request form, and all other sections of Overview.
-- Sub-pages: `OneOnOne.tsx`, `PrivatePilates.tsx`, `SemiPrivate.tsx`.
+**Right column** — the long copy, broken into three short paragraphs and one tight pillar list. Each paragraph is short (2–3 lines) so the eye keeps moving.
 
-Confirm the three rewritten tiles read the way you want, or tell me to adjust wording / add a fourth (e.g. a 15-years stat tile) before I implement.
+Paragraph 1 (lede):
+> The Storm Method is a psychology-driven training system that combines fitness, recovery, nutrition, and behavioral science to build a plan around the individual — not a generic program.
+
+Paragraph 2:
+> The method begins with understanding how your body responds to training, recovery, stress, and nutrition. That data becomes your biological blueprint, and every part of the program is personalized from it — to improve results and increase long-term consistency.
+
+Pillar list (compact, two columns on desktop, single line items — NOT cards):
+- Movement & Exercise Programming
+- Recovery Optimization
+- Nutrition & Lifestyle Factors
+- Accountability & Behavioral Coaching
+- Performance & Wellness Metrics
+
+Closing line (italic serif, slightly larger, sets the takeaway):
+> "The goal isn't to help someone exercise more — it's to build a system they can actually sustain, so results become a lifestyle, not a short-term outcome."
+
+### 4. Visual treatment to prevent drag
+- Section background: `bg-background` (clean) with thin top border to separate from the philosophy block above.
+- Vertical padding: `py-24`, max-width `max-w-5xl`.
+- Two-column grid `lg:grid-cols-12`: left = `lg:col-span-4` (sticky), right = `lg:col-span-7 lg:col-start-6`.
+- No icons, no badges, no cards — only type, rule lines, and one accent color on the eyebrow + final italic line.
+- Pillar list uses a hairline left border on each item or a small accent dot — not bullet chips.
+
+## Out of scope
+- `PersonalTrainingPage.tsx` (sub-format detail pages).
+- Pricing, request form, FAQs.
+- Homepage and other site sections.
+
+## Files touched
+- `src/pages/personal-training/Overview.tsx` — pull-quote replacement + new Storm Method section.

@@ -153,8 +153,8 @@ export default function PersonalTrainingOverview() {
             What you can expect
           </p>
           <p className="font-serif text-3xl md:text-4xl leading-snug text-center text-foreground/90">
-            Every session is programmed for the person in front of the coach — your
-            goal, your level, your <span className="italic text-accent">today</span>.
+            Built on exercise science, recovery, nutrition, and behavioral
+            psychology — <span className="italic text-accent">not</span> on a generic template.
           </p>
 
           <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
