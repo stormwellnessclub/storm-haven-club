@@ -1,153 +1,107 @@
-# Full Search Enhancement Implementation Plan
+# Get stormwellnessclub.com fully indexed by Google + Bing
 
-Implement every Google-supported structured-data enhancement applicable to Storm Wellness Club, plus the supporting metadata and crawlability infrastructure required for each to actually appear in search results. Nothing optional skipped.
-
-## Scope: enhancements being added
-
-1. **LocalBusiness / HealthClub schema** (sitewide, in `index.html`)
-   - Full NAP (name, address, phone), geo coordinates, opening hours, price range, payment methods accepted, logo, image, sameAs (Instagram, Facebook), areaServed (Livonia + 8 surrounding cities), department info if any.
-   - Enables Maps eligibility, knowledge panel, hours/phone in results.
-
-2. **Organization schema** (sitewide)
-   - Legal name, URL, logo, contactPoint (customer service phone/email), sameAs social profiles.
-
-3. **WebSite schema with SearchAction** (sitewide)
-   - Enables sitelinks search box in Google results pointing at `/schedule` or `/blog` search.
-
-4. **BreadcrumbList schema** (every non-home page)
-   - Replace flat URL in SERP with breadcrumb trail. Extend the existing breadcrumb pattern from `ServiceLandingPage.tsx` to: spa pages, class pages, membership pages, personal training, cafe, blog posts, kids care.
-
-5. **Service schema** (every service page)
-   - Already partially present on spa subpages and PT pages. Audit + add to: `/memberships`, `/classes` (Pilates, Cycling, Yoga as individual `Service` blocks), `/kids-care`, `/cafe` if treated as service, `/personal-training/*`, all `/spa/*` subpages confirmed.
-
-6. **FAQPage schema** (every page with a Q&A section)
-   - Audit existing FAQ blocks (`/faq`, spa pages, PT pages, memberships) and ensure each renders FAQPage JSON-LD. Add FAQ sections + schema where natural (memberships, classes, kids care, cafe).
-
-7. **Product / Offer schema**
-   - Membership tiers as `Product` with `Offer` (price, priceCurrency USD, availability, priceValidUntil).
-   - Class passes as `Product` with offers (single $25/$30, multi-packs).
-   - Personal training packs from `pt_packs` table — already rendered, add `Product`+`Offer` JSON-LD per pack.
-   - Storm Shop merch — `Product` per item with price, availability, brand.
-
-8. **Event schema** (class schedule)
-   - One `Event` (`EventStatus`, `EventAttendanceMode: OfflineEventAttendanceMode`) per upcoming class session on `/schedule` and `/classes/:type`. Includes startDate, endDate, location (HealthClub), offers, performer (instructor), maximumAttendeeCapacity, remainingAttendeeCapacity.
-   - Eligible for Google's event experience in search and Google Events.
-
-9. **Review / AggregateRating schema**
-   - Class types: aggregate from `get_all_class_type_ratings` RPC → `AggregateRating` on each `/classes/:type` page and on the related `Service`.
-   - Spa services: from `useSpaReviews` → `AggregateRating` on each spa page.
-   - Enables star ratings in SERP.
-
-10. **Article / BlogPosting schema** (every blog post)
-    - headline, image, datePublished, dateModified, author, publisher (Organization), mainEntityOfPage.
-
-11. **ImageObject** in critical schemas
-    - Provide `image` array (1x1, 4x3, 16x9) per Google guidelines on Article, Product, Event, LocalBusiness.
-
-12. **VideoObject schema** — only if/where the site embeds video. Audit; add where present (homepage hero video if any, spa pages with video).
-
-13. **Logo** (Organization.logo) — explicit absolute URL, ≥112×112, on transparent or solid background.
-
-14. **MenuItem / Menu schema** (`/cafe`)
-    - Cafe menu items as `Menu` → `MenuSection` → `MenuItem` with name, description, price, suitableForDiet, nutrition (calories already shown).
-    - Eligible for Google's restaurant menu experience.
-
-15. **Speakable schema** (blog posts, FAQ) — marks sections for voice-assistant readout.
-
-16. **HowTo schema** — only if any page contains step-by-step instructions (e.g., "how to book a class"). Audit; add to onboarding/help pages if appropriate.
-
-## Supporting work (required for the above to actually appear)
-
-A. **Sitemap audit + dynamic regeneration**
-   - Convert `public/sitemap.xml` (static) to `scripts/generate-sitemap.ts` running on `predev`/`prebuild`.
-   - Include: all static routes from `App.tsx` (home, /memberships, /classes, /schedule, /spa, /spa/*, /personal-training, /personal-training/*, /cafe, /kids-care, /blog, /blog/:slug, /class-passes, /faq, /privacy, /terms, /sms-terms, /sms-opt-in-proof).
-   - Dynamic: one entry per published blog post, per active class type, per spa service, per PT pack page, per storm shop product.
-   - Exclude all `/admin/*`, `/portal/*`, `/member/*`, `/kiosk/*`, `/auth*`, `/reset-password`, `/update-password`, `/site-audit`, `/not-found`.
-   - lastmod from DB `updated_at` where available.
-
-B. **robots.txt**
-   - Keep current allow-all. Explicitly `Disallow:` the private route prefixes above so crawl budget isn't wasted on auth-walled pages.
-
-C. **Per-route head metadata audit**
-   - Every public route needs a unique `<title>`, `<meta description>`, self-referential `canonical`, `og:title/description/url/image`, `twitter:card`.
-   - `SEOHead` already exists — audit every public page imports it with correct values. Add to pages missing it.
-
-D. **Open Graph image strategy**
-   - Currently using `/pwa-512x512.png` (logo) as default. Generate per-section OG images (1200×630) for: home, memberships, spa, classes, cafe, kids care, blog. Per-blog-post OG uses post hero image.
-
-E. **Prerendering for crawlers**
-   - Existing `seo-prerender` edge function — audit it covers every route in the sitemap and renders the JSON-LD server-side (not just after hydration). Critical: review-snippet, event, and product enhancements require the JSON-LD in the initial HTML for reliable indexing.
-
-F. **Search Console submission**
-   - After deploy: resubmit sitemap, request indexing on the homepage + 10 key landing pages, validate each new schema type in Google's Rich Results Test.
-
-## Technical implementation breakdown
-
-### New files
-- `scripts/generate-sitemap.ts` — dynamic sitemap generator (reads Supabase for blog posts, class types, spa services, PT packs, merch).
-- `src/lib/seo/schemas.ts` — typed builders: `buildLocalBusinessLd()`, `buildOrganizationLd()`, `buildWebSiteLd()`, `buildBreadcrumbLd(items)`, `buildServiceLd(svc)`, `buildFAQLd(faqs)`, `buildProductLd(product)`, `buildEventLd(session)`, `buildAggregateRatingLd(rating)`, `buildArticleLd(post)`, `buildMenuLd(menu)`, `buildHowToLd(steps)`.
-- `src/components/seo/JsonLd.tsx` — wrapper that renders `<script type="application/ld+json">` via Helmet, accepts one or many schemas, deep-merges into `@graph`.
-- `src/components/seo/BreadcrumbTrail.tsx` — visual + schema breadcrumb component.
-- OG image assets generated into `src/assets/og/`.
-
-### Files updated
-- `index.html` — add Organization + LocalBusiness/HealthClub + WebSite/SearchAction JSON-LD blocks. Add sitewide og:image absolute URL.
-- `src/components/SEOHead.tsx` — accept optional `image`, `imageAlt`, `noindex`, `jsonLd[]` props; emit `twitter:card=summary_large_image`, `og:image:width/height`, `og:site_name`, `og:locale`.
-- `package.json` — add `predev` + `prebuild` hooks calling sitemap generator.
-- `public/robots.txt` — add disallow lines for private prefixes.
-- Every public page component — wire `SEOHead` + schema builders. Specifically:
-  - `src/pages/Home` (or Index) — Organization + LocalBusiness already in index.html; add WebSite SearchAction confirmed.
-  - `src/pages/Memberships.tsx` — Product+Offer per tier, FAQPage, BreadcrumbList.
-  - `src/pages/Classes.tsx` — ItemList of Service (Pilates/Cycling/Yoga/etc).
-  - `src/pages/ClassTypeDetail.tsx` — Service + AggregateRating + FAQPage + ItemList of upcoming Events.
-  - `src/pages/Schedule.tsx` — ItemList of Event for next 14 days.
-  - `src/pages/Cafe.tsx` — Restaurant + Menu schema with all items.
-  - `src/pages/spa/*.tsx` — confirm Service+Breadcrumb+FAQ; add AggregateRating from spa reviews.
-  - `src/pages/personal-training/*.tsx` — add Product+Offer per pack, AggregateRating if available.
-  - `src/pages/FAQ.tsx` — FAQPage schema for the full list.
-  - `src/pages/Privacy.tsx`, `Terms.tsx`, `SmsOptInProof.tsx`, `sms-terms` — basic metadata + Breadcrumb only.
-  - Blog list page — ItemList of BlogPosting.
-  - Blog post page — BlogPosting/Article + Breadcrumb + Speakable.
-  - Storm Shop list — ItemList of Product.
-  - Storm Shop product — Product + Offer + AggregateRating if reviews exist.
-
-### Data the schemas need (must confirm before populating)
-- Exact business **legal name** for Organization (Storm Wellness Club LLC?).
-- **Public phone number** for LocalBusiness contactPoint.
-- **Opening hours** week-by-week.
-- **Price range** (`$`, `$$`, `$$$`).
-- **Geo coordinates** for 18340 Middlebelt Rd (will geocode if not provided).
-- **Social profile URLs** (Instagram, Facebook, TikTok, YouTube) for `sameAs`.
-- **Founding date** for Organization (optional but recommended).
-
-### Validation
-For every schema type added: run the page URL through Google's Rich Results Test and Schema.org validator before claiming complete. Document results in a checklist.
-
-## Order of execution (so each phase is independently verifiable)
-
-1. Confirm business data (questions to user — see "Data needed").
-2. Schema builder library + `JsonLd` component.
-3. Sitewide schemas in `index.html` (Organization, LocalBusiness, WebSite).
-4. Dynamic sitemap + robots updates.
-5. Per-route metadata + Breadcrumb + Service/FAQ on every existing public page.
-6. Product/Offer (memberships, class passes, PT packs, merch).
-7. Event schema (schedule, class type pages).
-8. AggregateRating (classes, spa).
-9. Article schema (blog).
-10. Menu schema (cafe).
-11. OG image generation per section.
-12. Prerender audit to ensure JSON-LD ships in initial HTML.
-13. Rich Results Test validation pass for each type.
-14. Search Console: resubmit sitemap, request indexing on key URLs.
-
-## Out of scope (explicitly)
-- No business-logic, billing, RPC, RLS, or admin UI changes.
-- No design/visual changes other than rendering breadcrumb component on pages that lack one.
-- No new pages created solely for SEO (no doorway pages).
-
-## Estimated size
-Large. ~25–40 file edits, 3 new files, 1 generator script, ~10 OG images. Will be broken into the 14 phases above and committed phase-by-phase so the user can review progress.
+Goal: register every property type in Google Search Console, submit the sitemap, push instant index notifications, and confirm Googlebot sees pre-rendered HTML so pages actually get indexed.
 
 ---
 
-**Before implementation begins I need the data in "Data the schemas need" above** — I'll ask those as follow-up questions the moment you approve this plan.
+## 1. Google Search Console — verify all property types
+
+I'll register the site three ways so you have full coverage no matter how Google sees the URL:
+
+### A. URL-prefix property: `https://stormwellnessclub.com/`
+- Request a META verification token from the GSC API
+- Inject `<meta name="google-site-verification" content="..." />` into `index.html` `<head>`
+- Call verify → add property to GSC
+
+### B. URL-prefix property: `https://www.stormwellnessclub.com/`
+- Same flow. Same meta tag works for both since they resolve to the same HTML.
+
+### C. Domain property: `stormwellnessclub.com` (covers all subdomains + http/https)
+- This requires a **DNS TXT record** on your domain registrar.
+- I **cannot add DNS records** for you — only you have access to your DNS provider (Cloudflare / GoDaddy / wherever the domain is registered).
+- I'll request the TXT token from Google and give you the exact record (name + value) to paste in. Once you confirm it's added, I'll click verify.
+
+After verification, each property is added to your GSC account via API and shows up in your dashboard.
+
+---
+
+## 2. Sitemap submission
+
+For each verified URL-prefix property:
+- Submit `https://stormwellnessclub.com/sitemap.xml` (and the www variant) via the GSC Sitemaps API
+- This will make the "Sitemaps" report in your console show the file with a "Success" status
+
+I'll also fix a small inconsistency: the `serve-static` edge function still has an old hardcoded sitemap with only 15 routes pointing at `www.`. I'll either retire it or sync it to match `public/sitemap.xml` (40+ routes, root domain). Recommendation: retire the edge-function sitemap since `public/sitemap.xml` is the canonical one.
+
+---
+
+## 3. IndexNow (instant Bing + Yandex notification)
+
+- Generate a 32-char IndexNow key
+- Drop `public/<key>.txt` containing the key (Bing's required verification file)
+- Create a tiny `supabase/functions/indexnow-ping` edge function that POSTs a URL list to `https://api.indexnow.org/indexnow`
+- Wire it into your existing publish/deploy flow so every push pings the major URLs automatically
+- Initial bulk submission of all 40+ sitemap URLs right after setup
+
+IndexNow is Bing-led but also feeds Yandex, Seznam, Naver. Google does not consume IndexNow — that's what the GSC indexing API in step 4 is for.
+
+---
+
+## 4. Request indexing for top pages (Google)
+
+After verification, I'll use the GSC URL Inspection API to request indexing for your highest-priority pages:
+- `/` (home)
+- `/memberships`
+- `/apply`
+- `/class-passes`
+- `/spa`
+- `/schedule`
+- `/cafe`
+- `/personal-training`
+- `/kids-care`
+- `/guest-pass`
+
+This puts each page in the priority crawl queue (vs. waiting for Google to find them organically).
+
+---
+
+## 5. Pre-render verification
+
+Your site is a React SPA. Google can render JS, but it's slower and lower priority than static HTML. You already have a `seo-prerender` edge function — I'll verify it's actually intercepting Googlebot user-agents and serving pre-rendered HTML for the main routes by:
+- Curl-testing 3-4 routes with `User-Agent: Googlebot` and checking the response contains real content (not just the empty `<div id="root">`)
+- If it's broken or not catching all routes, fix it
+
+If pre-rendering isn't working, indexing will stall regardless of sitemap submission — this is the most likely root cause of "no pages indexing."
+
+---
+
+## 6. Quick blocker audit
+
+- Scan all page-level `SEOHead` calls for any accidental `noindex` flag (unlikely but cheap to check)
+- Verify canonical tags resolve to the root domain (not the preview/lovable.app URL)
+- Confirm `robots.txt` doesn't accidentally block anything important (already reviewed — looks clean)
+
+---
+
+## What you need to do during this
+
+1. **Approve this plan** (toggle to build mode)
+2. **Add the DNS TXT record** I give you (only required for the Domain property — steps A and B happen fully automatically)
+3. **Publish the app** after I add the verification meta tag, so Google can fetch it from the live domain
+
+Everything else runs through the connected GSC API and IndexNow — no manual GSC clicking required.
+
+---
+
+## Technical details
+
+- **GSC integration**: already connected via `google_search_console` connector
+- **Verification method**: META tag in `index.html` (the only method that works for Lovable apps — DNS-only for domain property)
+- **API endpoints used**:
+  - `POST /siteVerification/v1/token` → get meta token
+  - `POST /siteVerification/v1/webResource` → verify
+  - `PUT /webmasters/v3/sites/{encoded-url}` → add property
+  - `PUT /webmasters/v3/sites/{encoded-url}/sitemaps/{encoded-sitemap-url}` → submit sitemap
+  - `POST /urlInspection/v1/index:requestIndexing` (if available on your plan; otherwise URL Inspection only)
+- **IndexNow endpoint**: `POST https://api.indexnow.org/indexnow` with `{ host, key, keyLocation, urlList }`
+- **Files touched**: `index.html` (add verification meta), `public/<key>.txt` (IndexNow key), `supabase/functions/indexnow-ping/index.ts` (new), `supabase/functions/serve-static/index.ts` (sync or retire old sitemap)
