@@ -3,16 +3,16 @@ import ServiceLandingPage from "@/components/seo/ServiceLandingPage";
 export default function Zerobody() {
   return (
     <ServiceLandingPage
-      title="Starpool ZeroBody Dry Float in Livonia, MI"
-      description="Starpool ZeroBody dry-float recovery pod at Storm Wellness Club in Livonia, MI. Weightless relaxation for stress, sleep, and recovery."
+      title="Starpool ZeroBody Dry Float Near Me — Livonia, MI"
+      description="Starpool ZeroBody dry-float pod near Livonia, MI. Weightless 30-minute recovery at Storm Wellness Club for stress, sleep, and nervous-system reset."
       path="/spa/zerobody"
       serviceName="Starpool ZeroBody Dry Float"
-      h1="Starpool ZeroBody Dry Float in Livonia, MI"
+      h1="Starpool ZeroBody Dry Float Near Livonia, MI"
       subhead="An Italian-engineered dry-float pod that suspends you on a warm membrane — delivering the benefits of float therapy without water, suits, or showering."
       body={[
         "Starpool ZeroBody is dry-float technology: you lie on a heated, body-conforming membrane that distributes pressure so evenly your body essentially stops sensing weight. The result is a 30-minute reset for your nervous system unlike anything else in the club.",
         "Members use it for stress recovery, sleep support, mental reset before a big day, and as a complement to massage or training. It's one of the most uniquely Storm experiences in our recovery suite.",
-        "Storm Wellness Club is one of the few destinations in Michigan offering the Starpool ZeroBody — book ahead, it tends to fill quickly.",
+        "Looking for float therapy near you? Storm Wellness Club is one of the few destinations in Michigan offering the Starpool ZeroBody — centrally located in Livonia, a short drive from Farmington Hills, Plymouth, Northville, Novi, Redford, Westland, Canton, Garden City, and Southfield. Book ahead, it tends to fill quickly.",
       ]}
       benefits={[
         "Float-therapy benefits with no water and no showering",
@@ -25,6 +25,10 @@ export default function Zerobody() {
         {
           q: "Do I get wet?",
           a: "No — ZeroBody is a dry-float pod. You stay fully clothed and lie on a warm, body-conforming membrane.",
+        },
+        {
+          q: "How is dry float different from a traditional float tank?",
+          a: "Traditional float tanks use Epsom-salt water, require showering, and can feel claustrophobic for some users. The Starpool ZeroBody delivers the weightless feeling without water, salt, or showering — you stay warm and fully clothed.",
         },
         {
           q: "How long is the session?",
@@ -40,6 +44,7 @@ export default function Zerobody() {
         { to: "/spa/red-light-therapy", label: "Red Light Therapy" },
         { to: "/spa/infrared-sauna", label: "Infrared Sauna" },
         { to: "/spa/salt-room", label: "Salt Room" },
+        { to: "/cafe", label: "Refuel at Storm Café" },
       ]}
     />
   );
