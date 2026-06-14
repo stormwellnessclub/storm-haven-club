@@ -13,4 +13,22 @@ Allow: /
 User-agent: *
 Allow: /
 
+# Private / authenticated areas — do not waste crawl budget here
+Disallow: /admin
+Disallow: /admin/
+Disallow: /member
+Disallow: /member/
+Disallow: /portal
+Disallow: /portal/
+Disallow: /kiosk
+Disallow: /kiosk/
+Disallow: /front-desk
+Disallow: /auth
+Disallow: /reset-password
+Disallow: /update-password
+Disallow: /my-bookings
+Disallow: /design-system
+Disallow: /site-audit
+Disallow: /review/
+
 Sitemap: https://stormwellnessclub.com/sitemap.xml
