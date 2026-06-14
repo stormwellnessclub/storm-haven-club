@@ -8,12 +8,20 @@ const BASE_URL = "https://stormwellnessclub.com";
 
 const cafeFaqs = [
   {
+    q: "Is there a juice bar or smoothie bar near Livonia, MI?",
+    a: "Yes — Storm Café inside Storm Wellness Club at 18340 Middlebelt Rd in Livonia is a full juice bar and smoothie bar. Cold-pressed juices, real-fruit smoothies, protein shakes, and wellness shots are made fresh daily. A short drive from Farmington Hills, Plymouth, Northville, Novi, Redford, Westland, Canton, and Southfield.",
+  },
+  {
     q: "Is the Storm Café open to non-members?",
     a: "Yes — the Storm Café is open to the public during club hours. You don't need a Storm Wellness Club membership to order smoothies, protein shakes, açaí bowls, juices, or coffee. Walk in, order on the screen, and we'll have it ready.",
   },
   {
-    q: "What's in your protein shakes?",
-    a: "Our protein shakes are blended with a clean whey or plant-based protein, real fruit, nut milk or oat milk, and optional add-ins like nut butter, greens, or collagen. Full nutrition is listed on every item — tap any menu item for macros.",
+    q: "Is the café open for breakfast?",
+    a: "Yes — we open with the club in the morning and serve breakfast smoothies, açaí bowls, espresso drinks, and grab-and-go bites. It's a popular pre-class breakfast spot for members training before work.",
+  },
+  {
+    q: "Where can I get the best protein shake near me in Livonia?",
+    a: "Storm Café blends protein shakes with clean whey or plant-based protein, real fruit, nut or oat milk, and add-ins like nut butter, greens, or collagen — 25–35g of protein per shake, no powdered fillers. Tap any item on the menu for full macros.",
   },
   {
     q: "Do you offer dairy-free, vegan, or gluten-free options?",
@@ -21,7 +29,7 @@ const cafeFaqs = [
   },
   {
     q: "Where can I get an açaí bowl near Livonia?",
-    a: "The Storm Café inside Storm Wellness Club at 18340 Middlebelt Rd in Livonia serves fresh açaí and pitaya bowls daily, made with frozen fruit, granola, nut butter, and seasonal toppings — a short drive from Farmington Hills, Plymouth, Northville, Novi, Redford, Westland, and Southfield.",
+    a: "Storm Café serves fresh açaí and pitaya bowls daily, made with frozen fruit, granola, nut butter, and seasonal toppings — a short drive from Farmington Hills, Plymouth, Northville, Novi, Redford, Westland, and Southfield.",
   },
   {
     q: "Can I order ahead?",
@@ -101,8 +109,8 @@ export default function Cafe() {
   return (
     <Layout>
       <SEOHead
-        title="Smoothie Bar, Protein Shakes & Açaí Bowls — Livonia, MI"
-        description="Storm Café in Livonia, MI: smoothies, protein shakes, açaí bowls, cold-pressed juices, espresso, and healthy snacks. Open to the public — serving the greater Detroit metro."
+        title="Café, Juice Bar & Smoothie Bar — Livonia, MI"
+        description="Storm Café in Livonia, MI: smoothies, protein shakes, açaí bowls, cold-pressed juice, espresso & healthy snacks. Open to the public — serving the Detroit metro."
         path="/cafe"
       />
       <Helmet>
@@ -118,15 +126,18 @@ export default function Cafe() {
             Storm Café · Livonia, MI
           </p>
           <h1 className="heading-display mb-4">
-            Smoothie Bar, Protein Shakes &amp; Açaí Bowls in Livonia, MI
+            Café, Juice Bar &amp; Smoothie Bar in Livonia, MI
           </h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
-            The Storm Café is the in-house smoothie bar and healthy café inside
-            Storm Wellness Club — serving fresh smoothies, protein shakes,
-            açaí bowls, cold-pressed juices, espresso, and clean snacks every
-            day. Open to members and the public, centrally located at 18340
-            Middlebelt Rd in Livonia and a short drive from Farmington Hills,
-            Plymouth, Northville, Novi, Redford, Westland, and Southfield.
+            The Storm Café is the in-house café, juice bar, and smoothie bar
+            inside Storm Wellness Club — serving fresh smoothies, protein
+            shakes, açaí bowls, cold-pressed juices, espresso, and clean
+            snacks every day. Open to members and the public, centrally
+            located at 18340 Middlebelt Rd in Livonia and a short drive from
+            Farmington Hills, Plymouth, Northville, Novi, Redford, Westland,
+            Canton, and Southfield. If you're searching for a healthy café
+            near you, a juice bar near you, or a smoothie bar near you in
+            the Detroit metro — you've found it.
           </p>
         </div>
       </section>

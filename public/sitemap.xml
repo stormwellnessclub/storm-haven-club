@@ -44,6 +44,10 @@
   <url><loc>https://stormwellnessclub.com/classes/a8b5fee4-4ec8-4ea8-9c96-62a63304ea1c</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
   <url><loc>https://stormwellnessclub.com/classes/3a9eadcc-fc06-47bc-88f6-fa81880e9ef7</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
 
+
+  <url><loc>https://stormwellnessclub.com/mothers-day</loc><lastmod>2026-06-14</lastmod><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://stormwellnessclub.com/mothers-day/redeem</loc><lastmod>2026-06-14</lastmod><changefreq>monthly</changefreq><priority>0.4</priority></url>
+
   <url><loc>https://stormwellnessclub.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://stormwellnessclub.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
 </urlset>
