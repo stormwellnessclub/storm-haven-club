@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
@@ -285,7 +286,34 @@ export default function Spa() {
 
   return (
     <Layout>
-      <SEOHead title="Recovery Spa" description="Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Livonia, MI." path="/spa" />
+      <SEOHead
+        title="Recovery Spa Near Me — Livonia, MI"
+        description="Recovery spa near Livonia, MI: red light therapy, cryotherapy, infrared sauna, cold plunge, steam room, salt room, Starpool ZeroBody dry float, and licensed massage at Storm Wellness Club."
+        path="/spa"
+      />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://stormwellnessclub.com" },
+            { "@type": "ListItem", position: 2, name: "Recovery Spa", item: "https://stormwellnessclub.com/spa" },
+          ],
+        })}</script>
+      </Helmet>
+
+      {/* Hidden SEO intro — crawlable copy naming every modality and the service area */}
+      <section className="sr-only" aria-hidden="true">
+        <h2>Recovery Spa Near Livonia, MI</h2>
+        <p>
+          Aella by Storm Wellness Club is a full recovery spa near Livonia, Michigan, featuring
+          red light therapy, whole-body cryotherapy, infrared sauna, cold plunge, traditional sauna
+          and steam room, salt room halotherapy, Starpool ZeroBody dry float, and licensed
+          therapeutic massage including Swedish, deep tissue, sports, and prenatal modalities.
+          We serve the greater Detroit metro including Farmington Hills, Plymouth, Northville,
+          Novi, Redford, Westland, Canton, Garden City, and Southfield.
+        </p>
+      </section>
       {/* Hero */}
       <section className="relative pt-20 min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
