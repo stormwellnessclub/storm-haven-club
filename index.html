@@ -45,108 +45,141 @@
     <meta name="twitter:image" content="https://stormwellnessclub.com/pwa-512x512.png" />
 
     <!-- JSON-LD Structured Data -->
+    <!-- Source of truth: src/lib/seo/business.ts. Keep these in sync. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "HealthClub",
-      "name": "Storm Wellness Club",
-      "description": "Premium fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
-      "url": "https://stormwellnessclub.com",
-      "logo": "https://stormwellnessclub.com/pwa-512x512.png",
-      "image": "https://stormwellnessclub.com/pwa-512x512.png",
-      "address": {
-        "@type": "PostalAddress",
-        "streetAddress": "18340 Middlebelt Rd",
-        "addressLocality": "Livonia",
-        "addressRegion": "MI",
-        "postalCode": "48152",
-        "addressCountry": "US"
-      },
-      "geo": {
-        "@type": "GeoCoordinates",
-        "latitude": 42.4034,
-        "longitude": -83.3497
-      },
-      "areaServed": [
-        { "@type": "City", "name": "Livonia, MI" },
-        { "@type": "City", "name": "Detroit, MI" },
-        { "@type": "City", "name": "Dearborn, MI" },
-        { "@type": "City", "name": "Farmington Hills, MI" },
-        { "@type": "City", "name": "Redford, MI" },
-        { "@type": "City", "name": "Garden City, MI" },
-        { "@type": "City", "name": "Westland, MI" },
-        { "@type": "City", "name": "Plymouth, MI" },
-        { "@type": "City", "name": "Canton, MI" },
-        { "@type": "City", "name": "Northville, MI" },
-        { "@type": "City", "name": "Novi, MI" },
-        { "@type": "City", "name": "Southfield, MI" }
-      ],
-      "sameAs": [
-        "https://www.instagram.com/stormwellnessclub",
-        "https://www.facebook.com/stormwellnessclub"
-      ],
-      "hasOfferCatalog": {
-        "@type": "OfferCatalog",
-        "name": "Wellness Services",
-        "itemListElement": [
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@type": "Service",
-              "name": "Reformer Pilates",
-              "description": "Heated and non-heated reformer Pilates classes"
-            }
-          },
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@type": "Service",
-              "name": "Indoor Cycling",
-              "description": "High-energy indoor cycling classes"
-            }
-          },
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@type": "Service",
-              "name": "Yoga",
-              "description": "Yoga classes for all levels"
-            }
-          },
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@type": "Service",
-              "name": "Recovery Spa",
-              "description": "Sauna, steam room, cold plunge, infrared therapy, massage, and body treatments"
-            }
-          },
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@type": "Service",
-              "name": "Café",
-              "description": "In-house café with smoothies, protein shakes, acai bowls, and healthy snacks"
-            }
-          },
-          {
-            "@type": "Offer",
-            "itemOffered": {
-              "@type": "Service",
-              "name": "Kids Care",
-              "description": "Supervised childcare for members during workouts"
-            }
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://stormwellnessclub.com/#organization",
+          "name": "Storm Wellness Club",
+          "legalName": "Storm Wellness Club",
+          "url": "https://stormwellnessclub.com",
+          "logo": "https://stormwellnessclub.com/pwa-512x512.png",
+          "image": "https://stormwellnessclub.com/pwa-512x512.png",
+          "description": "Premium fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
+          "email": "contact@stormwellnessclub.com",
+          "telephone": "+1-313-286-5070",
+          "foundingDate": "2024",
+          "sameAs": [
+            "https://www.instagram.com/stormwellnessclub",
+            "https://www.facebook.com/stormwellnessclub"
+          ],
+          "contactPoint": [{
+            "@type": "ContactPoint",
+            "telephone": "+1-313-286-5070",
+            "email": "contact@stormwellnessclub.com",
+            "contactType": "customer service",
+            "areaServed": "US",
+            "availableLanguage": ["English"]
+          }],
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "18340 Middlebelt Rd",
+            "addressLocality": "Livonia",
+            "addressRegion": "MI",
+            "postalCode": "48152",
+            "addressCountry": "US"
           }
-        ]
-      }
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Storm Wellness Club",
-      "url": "https://stormwellnessclub.com"
+        },
+        {
+          "@type": ["HealthClub", "LocalBusiness", "SportsActivityLocation"],
+          "@id": "https://stormwellnessclub.com/#localbusiness",
+          "name": "Storm Wellness Club",
+          "description": "Premium fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
+          "url": "https://stormwellnessclub.com",
+          "logo": "https://stormwellnessclub.com/pwa-512x512.png",
+          "image": "https://stormwellnessclub.com/pwa-512x512.png",
+          "telephone": "+1-313-286-5070",
+          "email": "contact@stormwellnessclub.com",
+          "priceRange": "$$",
+          "currenciesAccepted": "USD",
+          "paymentAccepted": "Cash, Credit Card, Debit Card, Apple Pay, Google Pay",
+          "parentOrganization": { "@id": "https://stormwellnessclub.com/#organization" },
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "18340 Middlebelt Rd",
+            "addressLocality": "Livonia",
+            "addressRegion": "MI",
+            "postalCode": "48152",
+            "addressCountry": "US"
+          },
+          "geo": {
+            "@type": "GeoCoordinates",
+            "latitude": 42.4034,
+            "longitude": -83.3497
+          },
+          "hasMap": "https://www.google.com/maps/search/?api=1&query=42.4034,-83.3497",
+          "openingHoursSpecification": [
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday"],
+              "opens": "05:30",
+              "closes": "23:00"
+            },
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Friday"],
+              "opens": "05:30",
+              "closes": "20:00"
+            },
+            {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": ["Saturday","Sunday"],
+              "opens": "07:00",
+              "closes": "19:00"
+            }
+          ],
+          "areaServed": [
+            { "@type": "City", "name": "Livonia, MI" },
+            { "@type": "City", "name": "Detroit, MI" },
+            { "@type": "City", "name": "Dearborn, MI" },
+            { "@type": "City", "name": "Farmington Hills, MI" },
+            { "@type": "City", "name": "Redford, MI" },
+            { "@type": "City", "name": "Garden City, MI" },
+            { "@type": "City", "name": "Westland, MI" },
+            { "@type": "City", "name": "Plymouth, MI" },
+            { "@type": "City", "name": "Canton, MI" },
+            { "@type": "City", "name": "Northville, MI" },
+            { "@type": "City", "name": "Novi, MI" },
+            { "@type": "City", "name": "Southfield, MI" }
+          ],
+          "sameAs": [
+            "https://www.instagram.com/stormwellnessclub",
+            "https://www.facebook.com/stormwellnessclub"
+          ],
+          "hasOfferCatalog": {
+            "@type": "OfferCatalog",
+            "name": "Wellness Services",
+            "itemListElement": [
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Reformer Pilates", "description": "Heated and non-heated reformer Pilates classes" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Indoor Cycling", "description": "High-energy indoor cycling classes" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Yoga", "description": "Yoga classes for all levels" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Recovery Spa", "description": "Sauna, steam room, cold plunge, infrared, red light, salt room, massage" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Personal Training", "description": "1-on-1, semi-private, and private Pilates training" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Café", "description": "In-house café with smoothies, protein shakes, acai bowls" } },
+              { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Kids Care", "description": "Supervised childcare for members during workouts" } }
+            ]
+          }
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://stormwellnessclub.com/#website",
+          "url": "https://stormwellnessclub.com",
+          "name": "Storm Wellness Club",
+          "inLanguage": "en-US",
+          "publisher": { "@id": "https://stormwellnessclub.com/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://stormwellnessclub.com/schedule?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        }
+      ]
     }
     </script>
   </head>
