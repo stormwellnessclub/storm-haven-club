@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
+import { buildBreadcrumbLd, buildServiceLd, buildFAQLd } from "@/lib/seo/schemas";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, Dumbbell, CircleDot, Users } from "lucide-react";
 import { TrainingRequestForm } from "@/components/personal-training/TrainingRequestForm";
@@ -42,6 +43,35 @@ export default function PersonalTrainingOverview() {
         title="Personal Training at Storm Wellness Club — Livonia, MI"
         description="Private personal training, reformer Pilates, and small-group semi-private sessions at Storm Wellness Club in Livonia, MI."
         path="/personal-training"
+        jsonLd={[
+          buildBreadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Personal Training", path: "/personal-training" },
+          ]),
+          buildServiceLd({
+            name: "1:1 Personal Training",
+            description: "Private coaching built around your goal and level. Programmed for you, progressed week to week. Members only.",
+            path: "/personal-training/one-on-one",
+            serviceType: "Personal Training",
+          }),
+          buildServiceLd({
+            name: "Private Pilates on the Reformer",
+            description: "One reformer, one instructor, one body. Every spring and cue dialed to where you are today. Open to everyone.",
+            path: "/personal-training/private-pilates",
+            serviceType: "Pilates Instruction",
+          }),
+          buildServiceLd({
+            name: "Semi-Private Personal Training (3–4 people)",
+            description: "Small groups of 3 to 4. Each workout is customized for the individual based on goal and level. Members only.",
+            path: "/personal-training/semi-private",
+            serviceType: "Personal Training",
+          }),
+          buildFAQLd([
+            { q: "Do I have to be a member to train?", a: "Private Pilates on the Reformer is open to everyone. 1:1 and Semi-Private training are reserved for active Storm Wellness Club members." },
+            { q: "How do I get matched with a coach?", a: "Submit a request with your goals and availability. Our team matches you with the right trainer, who reaches out to schedule your first session." },
+            { q: "What's the difference between Private Pilates and 1:1?", a: "Private Pilates is reformer-only and open to non-members. 1:1 Personal Training is strength, conditioning, and full-program coaching for members." },
+          ]),
+        ]}
       />
 
       {/* Hero — editorial, asymmetric */}
