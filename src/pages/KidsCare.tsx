@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SEOHead } from "@/components/SEOHead";
+import { buildBreadcrumbLd, buildFAQLd, buildProductLd, buildServiceLd } from "@/lib/seo/schemas";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,44 @@ export default function KidsCare() {
 
   return (
     <Layout>
-      <SEOHead title="Kids Care & Childcare in Livonia, MI" description="Supervised childcare for ages 4 months to 8 years while you work out at Storm Wellness Club in Livonia, MI. Safe, engaging, member-only." path="/kids-care" />
+      <SEOHead
+        title="Kids Care & Childcare in Livonia, MI"
+        description="Supervised childcare for ages 4 months to 8 years while you work out at Storm Wellness Club in Livonia, MI. Safe, engaging, member-only."
+        path="/kids-care"
+        jsonLd={[
+          buildBreadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Kids Care", path: "/kids-care" },
+          ]),
+          buildServiceLd({
+            name: "Kids Care Childcare",
+            description: "On-site supervised childcare for ages 4 months to 8 years. Little Stars (4 months – 1 year) and Big Stars (5 – 8 years). Available during club hours for active members.",
+            path: "/kids-care",
+            serviceType: "Childcare",
+          }),
+          buildProductLd({
+            name: "Kids Care Monthly Pass",
+            description: "16 sessions per month of supervised childcare for Storm Wellness Club members.",
+            path: "/kids-care",
+            price: 75,
+            sku: "kids-care-monthly",
+            category: "Childcare",
+          }),
+          buildProductLd({
+            name: "Kids Care Single Session",
+            description: "Drop-in supervised childcare session for active members.",
+            path: "/kids-care",
+            price: 40,
+            sku: "kids-care-single",
+            category: "Childcare",
+          }),
+          buildFAQLd([
+            { q: "What ages do you care for?", a: "We care for children 4 months through 8 years. Little Stars is 4 months to 1 year; Big Stars is 5 to 8 years." },
+            { q: "What hours is Kids Care open?", a: "Monday–Friday 8:00 AM – 8:00 PM, Saturday–Sunday 8:00 AM – 5:00 PM." },
+            { q: "How much does it cost?", a: "$75/month for 16 sessions, or $40 per single drop-in. Member-only benefit." },
+          ]),
+        ]}
+      />
       {/* Soft Launch Banner */}
       {isSoftLaunch && (
         <section className="bg-accent/10 border-b border-accent/20">

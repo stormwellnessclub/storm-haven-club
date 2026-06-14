@@ -6,6 +6,11 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { CheckCircle2, Sparkles, Crown, Gem, Star } from "lucide-react";
 import membershipsHero from "@/assets/memberships-hero.jpg";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
+import {
+  buildBreadcrumbLd,
+  buildFAQLd,
+  buildProductLd,
+} from "@/lib/seo/schemas";
 
 // Amenity banner images
 import gymArea1 from "@/assets/gym-area-1.jpg";
@@ -130,7 +135,46 @@ const luxuriousSpaAmenities = [
 export default function Memberships() {
   return (
     <Layout>
-      <SEOHead title="Memberships" description="Membership tiers and pricing. Standard, Premium, and Executive options with wellness credits, guest passes, and spa access at Storm Wellness Club." path="/memberships" />
+      <SEOHead
+        title="Memberships"
+        description="Membership tiers and pricing. Silver, Gold, Platinum, and Diamond options with wellness credits, spa access, and recovery at Storm Wellness Club in Livonia, MI."
+        path="/memberships"
+        image={membershipsHero}
+        jsonLd={[
+          buildBreadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Memberships", path: "/memberships" },
+          ]),
+          ...membershipTiers.map((t) =>
+            buildProductLd({
+              name: `${t.name} Membership — ${t.tagline}`,
+              description: `${t.name} tier monthly membership. ${t.features.join(". ")}. Annual fee ${t.annualFee}.`,
+              path: "/memberships",
+              price: Number(t.price.replace(/[^0-9.]/g, "")),
+              sku: `membership-${t.name.toLowerCase()}`,
+              category: "Gym Membership",
+            })
+          ),
+          buildFAQLd([
+            {
+              q: "How does the membership application work?",
+              a: "Apply online, then our team reviews your application and contacts you within 48 hours to schedule a personalized tour. During the tour we'll match you to the right tier.",
+            },
+            {
+              q: "Is there an annual fee?",
+              a: "Yes — all tiers include a $300 annual fee in addition to monthly dues. This funds facility upgrades and equipment maintenance.",
+            },
+            {
+              q: "Can I freeze my membership?",
+              a: "Yes. Active members in good standing may freeze their membership through their member portal. Freezes pause both billing and benefits.",
+            },
+            {
+              q: "What's included in Silver vs Diamond?",
+              a: "Silver includes full gym + wet spa access. Diamond adds 10 monthly classes, 10 Red Light sessions, 6 Dry Cryo sessions, priority booking, and exclusive events.",
+            },
+          ]),
+        ]}
+      />
       {/* Hero Section */}
       <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div className="absolute inset-0">

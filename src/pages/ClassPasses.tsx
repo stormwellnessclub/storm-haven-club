@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { SEOHead } from "@/components/SEOHead";
+import { buildBreadcrumbLd, buildProductLd, buildFAQLd } from "@/lib/seo/schemas";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
@@ -436,7 +437,38 @@ export default function ClassPasses() {
 
   return (
     <Layout>
-      <SEOHead title="Class Passes" description="Purchase class passes for all studio classes. Single class and 10-pack options available with member and non-member pricing at Storm Wellness Club." path="/class-passes" />
+      <SEOHead
+        title="Class Passes"
+        description="Buy single class passes ($25 member / $30 non-member) or 10-class packs ($170 / $285) for Reformer Pilates, cycling, and yoga at Storm Wellness Club, Livonia MI."
+        path="/class-passes"
+        jsonLd={[
+          buildBreadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Class Passes", path: "/class-passes" },
+          ]),
+          buildProductLd({
+            name: "Single Class Pass",
+            description: "One drop-in class for any Reformer Pilates, indoor cycling, or yoga session.",
+            path: "/class-passes",
+            price: 30,
+            sku: "class-pass-single",
+            category: "Class Pass",
+          }),
+          buildProductLd({
+            name: "10 Class Pack",
+            description: "Ten-class pack valid for any Reformer Pilates, indoor cycling, or yoga session. Members save with discounted pricing.",
+            path: "/class-passes",
+            price: 285,
+            sku: "class-pass-10pack",
+            category: "Class Pack",
+          }),
+          buildFAQLd([
+            { q: "Do class passes expire?", a: "Yes — 10-class packs are typically valid for several months. Exact expiration is shown at checkout and in your account." },
+            { q: "Do I need to be a member?", a: "No — anyone can purchase class passes with a free account. Members automatically receive discounted pricing." },
+            { q: "Can I cancel a class?", a: "Cancellations follow our standard policy shown on the schedule page. Late cancellations may forfeit the credit." },
+          ]),
+        ]}
+      />
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
