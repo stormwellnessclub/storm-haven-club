@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Preset = "7d" | "30d" | "90d" | "ytd" | "12m" | "all" | "custom";
+type Preset = "7d" | "30d" | "90d" | "ytd" | "12m" | "all" | "month" | "custom";
 
 const PRESETS: { value: Preset; label: string }[] = [
   { value: "7d", label: "Last 7 days" },
@@ -39,11 +39,17 @@ const PRESETS: { value: Preset; label: string }[] = [
   { value: "90d", label: "Last 90 days" },
   { value: "ytd", label: "Year to date" },
   { value: "12m", label: "Last 12 months" },
+  { value: "month", label: "By month" },
   { value: "all", label: "All time" },
   { value: "custom", label: "Custom" },
 ];
 
-function rangeForPreset(preset: Preset): DateRange {
+const MONTH_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
+  offset: i,
+  label: format(subMonths(new Date(), i), "MMMM yyyy"),
+}));
+
+function rangeForPreset(preset: Preset, monthOffset = 0): DateRange {
   const now = new Date();
   switch (preset) {
     case "7d": return { from: subDays(now, 7), to: now };
@@ -52,6 +58,10 @@ function rangeForPreset(preset: Preset): DateRange {
     case "ytd": return { from: startOfYear(now), to: now };
     case "12m": return { from: subMonths(now, 12), to: now };
     case "all": return { from: new Date("2024-01-01"), to: now };
+    case "month": {
+      const m = subMonths(now, monthOffset);
+      return { from: startOfMonth(m), to: endOfMonth(m) };
+    }
     case "custom": return { from: subDays(now, 30), to: now };
   }
 }
