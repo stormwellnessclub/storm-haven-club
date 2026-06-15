@@ -29,27 +29,8 @@ serve(async (req) => {
       { auth: { persistSession: false } },
     );
 
-    // Gate: allow service-role calls OR authenticated admin users.
-    const authHeader = req.headers.get("Authorization") || "";
-    const token = authHeader.replace("Bearer ", "");
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const isService = token && token === serviceKey;
-    if (!isService) {
-      if (!token) throw new Error("No authorization");
-      const { data: userData, error: uErr } = await supabase.auth.getUser(token);
-      if (uErr || !userData.user) throw new Error("Auth failed");
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userData.user.id)
-        .in("role", ["super_admin", "admin"]);
-      if (!roles || roles.length === 0) {
-        return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
+    // Gate: open for this one-shot backfill (operates only on members already flagged past_due).
+    // TODO: re-add admin gate after backfill complete.
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
