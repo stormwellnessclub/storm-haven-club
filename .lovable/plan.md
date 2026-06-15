@@ -1,159 +1,34 @@
-I understand the priority: this is not just “SEO”; this is local survival/discovery. The plan below separates what I can directly implement in the app from what must be changed in Google Business Profile manually because this project only has Search Console connected, not Business Profile management access.
+## Confirming the bad news first
 
-## Goal
-Make Storm more eligible for searches like:
-- “massage near me”
-- “cafe near me”
-- “smoothie near me”
-- “juice bar near me”
-- “protein shake near me”
-- “food near me” where Google considers Storm Café relevant
-- “spa near me” / “recovery spa near me”
+Yes — to be blunt: **no member has ever received a Day 0, 1, 3, 5, or 7 failed-payment email.** `email_audit_log` has zero rows for any `dunning_*` template, and `payment_dunning_state` has zero rows ever. The system was wired but two column-name typos in the cron worker made it silently no-op, and the webhook seeding never produced rows for the 4 currently past-due members (they were flagged via admin/arrears paths, not the Stripe webhook).
 
-## What I will implement in the website
+The good news: `application_card_declined` and `card_expiring` emails *are* sending fine, so the send infrastructure works — only the dunning branch is broken.
 
-### 1. Fix the prerender problem with real static HTML
-Googlebot currently receives the generic app shell for service routes. I will add a build-time static prerender system that writes crawlable HTML for key public routes before publish.
+## Plan
 
-Routes to prerender first:
-- `/`
-- `/spa`
-- `/spa/massage`
-- `/cafe`
-- `/amenities`
-- `/personal-training`
-- `/personal-training/one-on-one`
-- `/personal-training/private-pilates`
-- `/personal-training/semi-private`
-- `/classes`
-- `/schedule`
-- `/memberships`
-- `/apply`
-- `/class-passes`
-- `/kids-care`
-- `/guest-pass`
+### 1. Fix the column-name bugs in `process-payment-dunning`
+- Line ~51: `row.failed_at` → `row.first_failed_at` (current bug produces `NaN` days → no email ever qualifies)
+- Line ~73: `row.amount_due_cents` → `row.amount_cents` (would render "$undefined" in body)
 
-Technical approach:
-- Add `scripts/prerender-static-html.ts`.
-- Add `prebuild` script so this runs before publish builds.
-- Generate route-level `index.html` files under `public/<route>/index.html` with unique title, meta description, canonical, OG URL, readable body copy, internal links, and JSON-LD.
-- Keep React hydration intact so users still get the live app experience.
+### 2. Backfill `payment_dunning_state` for currently past-due members
+- New one-shot edge function `backfill-dunning-state` (admin-invocable)
+- For each member with `payment_past_due = true` and no open `payment_dunning_state` row: look up their latest open/past_due Stripe invoice, insert a seed row with `first_failed_at = invoice.created`, `attempt_count`, `amount_cents`, `stripe_invoice_id`
+- After backfill the hourly cron picks them up and the Day 1/3/5/7 sequence kicks in based on actual age
 
-### 2. Build local service landing pages, not generic pages
-The site already has `/spa/massage` and `/cafe`, but I will strengthen them and add/adjust page-level local intent.
+### 3. Wire `admin_payment_failed_alert` so you get notified
+- Fire from `stripe-webhook` on `invoice.payment_failed` (right after the member Day 0 send)
+- Fire from `charge-member-arrears` when a manual retry fails
+- Recipient: `storm@stormwellnessclub.com` (confirm if you want a different inbox)
+- Payload: member name, email, amount, attempt #, Stripe invoice link
 
-Massage page upgrades:
-- “Massage near Livonia, MI” language above the fold.
-- Specific modalities: Swedish, deep tissue, sports, prenatal.
-- Pricing-range/service-table content where available from existing site content.
-- Clear address and service area copy.
-- FAQ content that directly matches local queries.
-- Links back to `/spa`, booking flow, and related recovery services.
+### 4. Add Day 0 send to `charge-member-arrears` failure path
+- When the admin one-click retry fails, also seed/update `payment_dunning_state` and trigger the Day 0 dunning email — currently this path bypasses the webhook entirely so no email goes out at all
 
-Café page upgrades:
-- Treat it as a local café/juice bar/smoothie bar page, not just a gym amenity.
-- Stronger copy for: café near me, smoothie bar near me, juice bar near me, protein shake near me, açaí bowl near me, healthy food near me.
-- Keep “food near me” carefully positioned as healthy café/light meals/snacks so Google gets the correct intent without pretending Storm is a full restaurant.
-- Add explicit public-access wording if the café is open to non-members.
+### Verification after build
+- Re-deploy `process-payment-dunning`, `stripe-webhook`, `charge-member-arrears`, `backfill-dunning-state`
+- Run the backfill once → check `payment_dunning_state` has 4 rows
+- Manually invoke `process-payment-dunning` → check `email_audit_log` for `dunning_*` rows for the 4 affected members
+- Confirm one admin alert lands in your inbox
 
-### 3. Add stronger structured data
-I will add page-specific JSON-LD for:
-- `HealthClub` / `LocalBusiness` sitewide
-- `Service` for massage
-- `DaySpa` or spa-service schema where appropriate
-- `CafeOrCoffeeShop` for Storm Café
-- `Menu` / `OfferCatalog` for café categories if menu data is available in the current code/data model
-- `FAQPage` for massage and café pages
-- `BreadcrumbList` for all service pages
-- `WebSite` + `Organization` sitewide
-
-I will reuse existing Storm business data already in the project:
-- Name: Storm Wellness Club
-- Address: 18340 Middlebelt Rd, Livonia, MI 48152
-- Phone: +1-313-286-5070
-- Domain: https://stormwellnessclub.com
-
-### 4. Add/repair sitemap coverage
-I will update the sitemap to prioritize the local-discovery pages and include the prerendered route list.
-
-Specific changes:
-- Keep `https://stormwellnessclub.com` as the canonical domain.
-- Ensure `/spa/massage` and `/cafe` are high-priority public URLs.
-- Remove or reduce crawl priority for internal/low-conversion utility routes where needed.
-- Keep protected routes blocked in `robots.txt`.
-
-### 5. Add internal local-discovery links
-I will add crawlable internal links so Google can understand the service relationships:
-- Homepage → Massage page
-- Homepage → Café page
-- Spa → Massage page
-- Massage → Spa booking + related recovery services
-- Café → recovery/spa pages
-- Footer or relevant sections → address/local service links if already consistent with the design
-
-### 6. Post-change submission
-After implementation and publish:
-- Recheck production HTML with Googlebot user agent.
-- Confirm `/spa/massage` and `/cafe` return route-specific crawlable HTML, not only the app shell.
-- Re-submit sitemap in Search Console.
-- Fire IndexNow for the updated URLs.
-- Report exactly what is live and what Google can now crawl.
-
-## Google Business Profile work that still must happen outside the app
-I cannot directly edit the Google Business Profile from this project because there is no connected Business Profile integration available. I will still prepare exact copy/instructions for you to apply.
-
-### 7. Google Business Profile category recommendations
-I will prepare the exact recommended category/service setup, but you must approve category changes because they affect how Google classifies the business.
-
-Likely recommendations to review:
-- Primary category should remain whatever best describes the core business if membership/fitness is primary.
-- Add secondary categories where Google allows them, likely around:
-  - Spa
-  - Massage therapist
-  - Cafe
-  - Juice shop / smoothie shop if available
-  - Personal trainer / gym / fitness center as appropriate
-
-I will not assume the final category order without your approval.
-
-### 8. Google Business Profile services/menu copy
-I will produce paste-ready GBP service entries for:
-- Therapeutic Massage
-- Deep Tissue Massage
-- Sports Massage
-- Prenatal Massage
-- Swedish Massage
-- Recovery Spa
-- Red Light Therapy
-- Cold Plunge
-- Infrared Sauna
-- Sauna / Steam
-- Salt Room
-- Smoothies
-- Protein Shakes
-- Açaí Bowls
-- Cold-Pressed Juice
-- Coffee / Espresso
-- Healthy Snacks / Light Meals
-
-### 9. Review-generation language
-I will create a review request script/template that asks real customers to naturally mention the service they used, without incentivizing or manipulating reviews.
-
-Examples:
-- “If you loved your massage, it helps us if your review mentions massage and Livonia.”
-- “If you visited the café, mentioning smoothies, protein shakes, or açaí bowls helps neighbors find us.”
-
-## What I will not do
-- I will not claim this guarantees top ranking immediately.
-- I will not fake reviews, fake locations, or stuff keywords unnaturally.
-- I will not change business classification assumptions without flagging them.
-- I will not replace the current sitemap system with a different mechanism unless it is necessary for the prerender fix and tied directly to this plan.
-
-## Success checks
-After build approval and publish, I will verify:
-- `curl -A Googlebot https://stormwellnessclub.com/spa/massage` shows massage-specific title, H1, copy, schema, and canonical.
-- `curl -A Googlebot https://stormwellnessclub.com/cafe` shows café-specific title, H1, copy, schema, and canonical.
-- Sitemap includes the priority local pages.
-- Robots does not block public service pages.
-- Search Console sitemap submission succeeds.
-- IndexNow accepts the updated URLs.
+### One question before I build
+For the 4 currently past-due members: do you want me to **send them the catch-up dunning emails now** (Day 0 immediately, then Day 1/3/5/7 staggered based on how long they've been past due), or **silently seed the state** so only *future* failures get the sequence? Catching them up is the right move for revenue recovery but it will land 1-4 emails in their inbox today.
