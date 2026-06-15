@@ -133,6 +133,7 @@ function exportCsv(rows: FailedHistoryRow[]) {
 export default function FailedPaymentsHistory() {
   const navigate = useNavigate();
   const [preset, setPreset] = useState<Preset>("12m");
+  const [monthOffset, setMonthOffset] = useState<number>(0);
   const [range, setRange] = useState<DateRange>(rangeForPreset("12m"));
   const [search, setSearch] = useState("");
   const [billingType, setBillingType] = useState<HistoryBillingType>("all");
