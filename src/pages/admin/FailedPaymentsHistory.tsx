@@ -500,6 +500,14 @@ export default function FailedPaymentsHistory() {
                               {r.member_id && (
                                 <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/members/${r.member_id}`)}>View</Button>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="View emails sent to this member"
+                                onClick={() => navigate(`/admin/billing-emails?recipient=${encodeURIComponent(r.member_email)}`)}
+                              >
+                                <Mail className="h-3 w-3 mr-1" /> Emails
+                              </Button>
                               {r.stripe_charge_id && (
                                 <Button variant="ghost" size="icon" asChild>
                                   <a href={`https://dashboard.stripe.com/payments/${r.stripe_charge_id}`} target="_blank" rel="noopener noreferrer">
