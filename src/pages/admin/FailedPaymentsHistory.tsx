@@ -362,12 +362,33 @@ export default function FailedPaymentsHistory() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-3">
-              <Select value={preset} onValueChange={(v: Preset) => { setPreset(v); if (v !== "custom") setRange(rangeForPreset(v)); }}>
+              <Select value={preset} onValueChange={(v: Preset) => {
+                setPreset(v);
+                if (v === "month") setRange(rangeForPreset("month", monthOffset));
+                else if (v !== "custom") setRange(rangeForPreset(v));
+              }}>
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PRESETS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {preset === "month" && (
+                <Select
+                  value={String(monthOffset)}
+                  onValueChange={(v) => {
+                    const o = Number(v);
+                    setMonthOffset(o);
+                    setRange(rangeForPreset("month", o));
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MONTH_OPTIONS.map((m) => (
+                      <SelectItem key={m.offset} value={String(m.offset)}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {preset === "custom" && (
                 <DateRangePicker value={range} onChange={setRange} className="w-[280px]" />
               )}
