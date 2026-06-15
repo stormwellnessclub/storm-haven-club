@@ -25,6 +25,7 @@ import {
   UserCog,
   UserPlus,
   MessageSquare,
+  Mail,
   Snowflake,
   ScanLine,
   BarChart3,
