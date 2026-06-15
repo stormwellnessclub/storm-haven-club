@@ -163,6 +163,104 @@ serve(async (req) => {
       const declineCode = payErr?.raw?.decline_code || payErr?.code || null;
       log("Invoice pay failed", { error: stripeMsg, declineCode });
 
+      // ── Seed/refresh dunning state, send Day 0, notify admin ──
+      try {
+        const nowIso = new Date().toISOString();
+        const invoice = targetInvoice;
+
+        // Flip past_due flag
+        await supabase
+          .from("members")
+          .update({ payment_past_due: true, payment_past_due_since: nowIso, updated_at: nowIso })
+          .eq("id", member.id)
+          .eq("payment_past_due", false);
+        await supabase
+          .from("members")
+          .update({ payment_past_due: true })
+          .eq("id", member.id);
+
+        // Upsert dunning state row
+        const { data: existing } = await supabase
+          .from("payment_dunning_state")
+          .select("id, emails_sent")
+          .eq("member_id", member.id)
+          .eq("stripe_invoice_id", invoice.id)
+          .maybeSingle();
+
+        const emailsSent: Array<{ day: number; sent_at: string }> = Array.isArray(existing?.emails_sent)
+          ? (existing!.emails_sent as Array<{ day: number; sent_at: string }>)
+          : [];
+
+        await supabase
+          .from("payment_dunning_state")
+          .upsert(
+            {
+              member_id: member.id,
+              stripe_invoice_id: invoice.id,
+              stripe_subscription_id: (invoice.subscription as string) || null,
+              stripe_customer_id: member.stripe_customer_id,
+              amount_cents: invoice.amount_due || 0,
+              currency: invoice.currency || "usd",
+              failure_reason: stripeMsg,
+              failure_code: declineCode,
+              status: "active",
+              first_failed_at: existing ? undefined : nowIso,
+              updated_at: nowIso,
+            },
+            { onConflict: "member_id,stripe_invoice_id" },
+          );
+
+        // Send Day 0 if not already sent
+        const day0Sent = emailsSent.some((e) => e.day === 0);
+        if (!day0Sent && member.email) {
+          const { error: emailErr } = await supabase.functions.invoke("send-email", {
+            body: {
+              type: "dunning_day_0",
+              to: member.email,
+              data: {
+                first_name: member.first_name || "Member",
+                amount: (invoice.amount_due || 0) / 100,
+                decline_reason: stripeMsg,
+                invoice_id: invoice.id,
+              },
+            },
+          });
+          if (!emailErr) {
+            emailsSent.push({ day: 0, sent_at: nowIso });
+            await supabase
+              .from("payment_dunning_state")
+              .update({ emails_sent: emailsSent })
+              .eq("member_id", member.id)
+              .eq("stripe_invoice_id", invoice.id);
+          } else {
+            log("Day 0 email failed", { err: String(emailErr) });
+          }
+        }
+
+        // Admin alert
+        const adminAlertEmail = Deno.env.get("ADMIN_ALERT_EMAIL") || "hello@stormwellnessclub.com";
+        const memberName =
+          [member.first_name, member.last_name].filter(Boolean).join(" ") || "Unknown Member";
+        await supabase.functions.invoke("send-email", {
+          body: {
+            type: "admin_payment_failed_alert",
+            to: adminAlertEmail,
+            data: {
+              memberName,
+              memberEmail: member.email || "",
+              memberId: member.id,
+              amount: (invoice.amount_due || 0) / 100,
+              failureReason: stripeMsg,
+              subscriptionType: "Manual Retry (Arrears)",
+              willRetry: false,
+              nextRetryDate: null,
+            },
+          },
+        });
+      } catch (dunningErr) {
+        log("Dunning seed on manual retry failed", { err: String(dunningErr) });
+      }
+
       return new Response(
         JSON.stringify({
           success: false,
