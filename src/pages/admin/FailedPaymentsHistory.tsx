@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 import {
-  XCircle, Download, ExternalLink, Loader2, RefreshCw, CheckCircle2, History, DollarSign, Users, TrendingUp, Wand2,
+  XCircle, Download, ExternalLink, Loader2, RefreshCw, CheckCircle2, History, DollarSign, Users, TrendingUp, Wand2, Mail,
 } from "lucide-react";
-import { format, subDays, subMonths, startOfYear } from "date-fns";
+import { format, subDays, subMonths, startOfYear, startOfMonth, endOfMonth } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import {
   useFailedPaymentsHistory,
