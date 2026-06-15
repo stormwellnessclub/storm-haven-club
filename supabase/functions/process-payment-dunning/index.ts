@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        const failedAt = new Date(row.failed_at);
+        const failedAt = new Date(row.first_failed_at);
         const daysSince = Math.floor((Date.now() - failedAt.getTime()) / 86_400_000);
         const sentDays = new Set<number>(
           ((row.emails_sent as Array<{ day: number }>) ?? []).map((e) => e.day),
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
             to: member.email,
             data: {
               first_name: member.first_name,
-              amount: row.amount_due_cents ? row.amount_due_cents / 100 : undefined,
+              amount: row.amount_cents ? row.amount_cents / 100 : undefined,
               failed_date: failedAt.toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
