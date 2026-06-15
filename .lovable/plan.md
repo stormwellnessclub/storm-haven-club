@@ -1,34 +1,55 @@
-## Confirming the bad news first
+## Scope: Billing/payment emails only
 
-Yes — to be blunt: **no member has ever received a Day 0, 1, 3, 5, or 7 failed-payment email.** `email_audit_log` has zero rows for any `dunning_*` template, and `payment_dunning_state` has zero rows ever. The system was wired but two column-name typos in the cron worker made it silently no-op, and the webhook seeding never produced rows for the 4 currently past-due members (they were flagged via admin/arrears paths, not the Stripe webhook).
+Email Log will only show these templates:
+- `dunning_day_0`, `dunning_day_1`, `dunning_day_3`, `dunning_day_5`, `dunning_day_7`
+- `application_card_declined`
+- `card_expiring`
+- `admin_payment_failed_alert`
 
-The good news: `application_card_declined` and `card_expiring` emails *are* sending fine, so the send infrastructure works — only the dunning branch is broken.
+(All other email types — receipts, bookings, marketing — excluded.)
 
-## Plan
+---
 
-### 1. Fix the column-name bugs in `process-payment-dunning`
-- Line ~51: `row.failed_at` → `row.first_failed_at` (current bug produces `NaN` days → no email ever qualifies)
-- Line ~73: `row.amount_due_cents` → `row.amount_cents` (would render "$undefined" in body)
+## 1. Failed Payments History — add Month filtering
 
-### 2. Backfill `payment_dunning_state` for currently past-due members
-- New one-shot edge function `backfill-dunning-state` (admin-invocable)
-- For each member with `payment_past_due = true` and no open `payment_dunning_state` row: look up their latest open/past_due Stripe invoice, insert a seed row with `first_failed_at = invoice.created`, `attempt_count`, `amount_cents`, `stripe_invoice_id`
-- After backfill the hourly cron picks them up and the Day 1/3/5/7 sequence kicks in based on actual age
+File: `src/pages/admin/FailedPaymentsHistory.tsx` (+ `useFailedPaymentsHistory` hook)
 
-### 3. Wire `admin_payment_failed_alert` so you get notified
-- Fire from `stripe-webhook` on `invoice.payment_failed` (right after the member Day 0 send)
-- Fire from `charge-member-arrears` when a manual retry fails
-- Recipient: `storm@stormwellnessclub.com` (confirm if you want a different inbox)
-- Payload: member name, email, amount, attempt #, Stripe invoice link
+- Add a **Month picker** dropdown next to the existing range presets — last 24 months, labeled "June 2026", "May 2026", etc. Selecting one sets the range to that calendar month.
+- Add a **"Group by month"** toggle. When on, the table renders collapsible month sections with subtotal header rows (count + total $ failed) and expands the current month by default.
+- Keep all existing filters (status, billing type, search, presets, custom range) working alongside.
 
-### 4. Add Day 0 send to `charge-member-arrears` failure path
-- When the admin one-click retry fails, also seed/update `payment_dunning_state` and trigger the Day 0 dunning email — currently this path bypasses the webhook entirely so no email goes out at all
+## 2. New page `/admin/emails` — Billing Email Activity Log
 
-### Verification after build
-- Re-deploy `process-payment-dunning`, `stripe-webhook`, `charge-member-arrears`, `backfill-dunning-state`
-- Run the backfill once → check `payment_dunning_state` has 4 rows
-- Manually invoke `process-payment-dunning` → check `email_audit_log` for `dunning_*` rows for the 4 affected members
-- Confirm one admin alert lands in your inbox
+New files:
+- `src/pages/admin/BillingEmailLog.tsx`
+- `src/hooks/useBillingEmailLog.ts`
+- Route registration + sidebar entry under "Membership Management" → "Billing Emails"
 
-### One question before I build
-For the 4 currently past-due members: do you want me to **send them the catch-up dunning emails now** (Day 0 immediately, then Day 1/3/5/7 staggered based on how long they've been past due), or **silently seed the state** so only *future* failures get the sequence? Catching them up is the right move for revenue recovery but it will land 1-4 emails in their inbox today.
+Layout:
+- **Summary cards** (top): Total sent, Failed, Suppressed, Most-used template — for selected range, scoped to the 8 billing templates above.
+- **Filters bar**:
+  - Time range presets (24h / 7d / 30d / 90d) + Month picker (last 24 months) + Custom range
+  - Email type multi-select (8 billing templates, defaulted to all)
+  - Status (All / Sent / Failed / Suppressed)
+  - Recipient search (email or member name)
+- **Table** (sortable, paginated 50/page):
+  - Sent at • Template (color badge) • Recipient • Member (link to member detail) • Status badge • Error (if failed) • expandable row showing full payload/metadata
+- **CSV export** button (current filtered set)
+
+Data source: `email_audit_log` filtered to the 8 template names. Join to `members` by `recipient_email` for name + member link.
+
+## 3. Cross-links between the two pages
+
+- In `FailedPaymentsHistory` row actions: add a small **"📧 emails"** link that opens `/admin/emails?recipient=<email>&range=<failure_month>` pre-filtered.
+- In `FailedPaymentDetailSheet`: replace the current dunning info with a compact **timeline** (Day 0 / 1 / 3 / 5 / 7 dots, green=sent, red=failed, grey=not-yet-due) sourced from `email_audit_log` for that member.
+
+---
+
+## Technical notes
+
+- All queries deduplicate by `message_id` per the email dashboard guide.
+- No new tables or migrations.
+- ~3 new files + extensions to `FailedPaymentsHistory.tsx`, `useFailedPaymentsHistory.ts`, `FailedPaymentDetailSheet.tsx`, and the admin sidebar config.
+- Admin-only route guard reused from existing admin layout.
+
+Ready to build on approval.

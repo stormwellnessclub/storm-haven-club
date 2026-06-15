@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 import {
-  XCircle, Download, ExternalLink, Loader2, RefreshCw, CheckCircle2, History, DollarSign, Users, TrendingUp, Wand2,
+  XCircle, Download, ExternalLink, Loader2, RefreshCw, CheckCircle2, History, DollarSign, Users, TrendingUp, Wand2, Mail,
 } from "lucide-react";
-import { format, subDays, subMonths, startOfYear } from "date-fns";
+import { format, subDays, subMonths, startOfYear, startOfMonth, endOfMonth } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import {
   useFailedPaymentsHistory,
@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Preset = "7d" | "30d" | "90d" | "ytd" | "12m" | "all" | "custom";
+type Preset = "7d" | "30d" | "90d" | "ytd" | "12m" | "all" | "month" | "custom";
 
 const PRESETS: { value: Preset; label: string }[] = [
   { value: "7d", label: "Last 7 days" },
@@ -39,11 +39,17 @@ const PRESETS: { value: Preset; label: string }[] = [
   { value: "90d", label: "Last 90 days" },
   { value: "ytd", label: "Year to date" },
   { value: "12m", label: "Last 12 months" },
+  { value: "month", label: "By month" },
   { value: "all", label: "All time" },
   { value: "custom", label: "Custom" },
 ];
 
-function rangeForPreset(preset: Preset): DateRange {
+const MONTH_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
+  offset: i,
+  label: format(subMonths(new Date(), i), "MMMM yyyy"),
+}));
+
+function rangeForPreset(preset: Preset, monthOffset = 0): DateRange {
   const now = new Date();
   switch (preset) {
     case "7d": return { from: subDays(now, 7), to: now };
@@ -52,6 +58,10 @@ function rangeForPreset(preset: Preset): DateRange {
     case "ytd": return { from: startOfYear(now), to: now };
     case "12m": return { from: subMonths(now, 12), to: now };
     case "all": return { from: new Date("2024-01-01"), to: now };
+    case "month": {
+      const m = subMonths(now, monthOffset);
+      return { from: startOfMonth(m), to: endOfMonth(m) };
+    }
     case "custom": return { from: subDays(now, 30), to: now };
   }
 }
@@ -123,6 +133,7 @@ function exportCsv(rows: FailedHistoryRow[]) {
 export default function FailedPaymentsHistory() {
   const navigate = useNavigate();
   const [preset, setPreset] = useState<Preset>("12m");
+  const [monthOffset, setMonthOffset] = useState<number>(0);
   const [range, setRange] = useState<DateRange>(rangeForPreset("12m"));
   const [search, setSearch] = useState("");
   const [billingType, setBillingType] = useState<HistoryBillingType>("all");
@@ -351,12 +362,33 @@ export default function FailedPaymentsHistory() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-3">
-              <Select value={preset} onValueChange={(v: Preset) => { setPreset(v); if (v !== "custom") setRange(rangeForPreset(v)); }}>
+              <Select value={preset} onValueChange={(v: Preset) => {
+                setPreset(v);
+                if (v === "month") setRange(rangeForPreset("month", monthOffset));
+                else if (v !== "custom") setRange(rangeForPreset(v));
+              }}>
                 <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {PRESETS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {preset === "month" && (
+                <Select
+                  value={String(monthOffset)}
+                  onValueChange={(v) => {
+                    const o = Number(v);
+                    setMonthOffset(o);
+                    setRange(rangeForPreset("month", o));
+                  }}
+                >
+                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MONTH_OPTIONS.map((m) => (
+                      <SelectItem key={m.offset} value={String(m.offset)}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {preset === "custom" && (
                 <DateRangePicker value={range} onChange={setRange} className="w-[280px]" />
               )}
@@ -468,6 +500,14 @@ export default function FailedPaymentsHistory() {
                               {r.member_id && (
                                 <Button variant="ghost" size="sm" onClick={() => navigate(`/admin/members/${r.member_id}`)}>View</Button>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="View emails sent to this member"
+                                onClick={() => navigate(`/admin/billing-emails?recipient=${encodeURIComponent(r.member_email)}`)}
+                              >
+                                <Mail className="h-3 w-3 mr-1" /> Emails
+                              </Button>
                               {r.stripe_charge_id && (
                                 <Button variant="ghost" size="icon" asChild>
                                   <a href={`https://dashboard.stripe.com/payments/${r.stripe_charge_id}`} target="_blank" rel="noopener noreferrer">
