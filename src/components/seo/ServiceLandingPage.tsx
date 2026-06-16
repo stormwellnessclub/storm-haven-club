@@ -15,31 +15,28 @@ export interface RelatedService {
   label: string;
 }
 
-export interface ServiceLandingPageProps {
-  /** SEO title (no brand suffix — appended automatically) */
-  title: string;
-  /** SEO meta description, <160 chars */
-  description: string;
-  /** Path, e.g. /spa/red-light-therapy */
+export interface BreadcrumbStep {
+  label: string;
   path: string;
-  /** Page H1 */
+}
+
+export interface ServiceLandingPageProps {
+  title: string;
+  description: string;
+  path: string;
   h1: string;
-  /** Short hero subhead */
   subhead: string;
-  /** 2-4 paragraphs of body copy */
   body: string[];
-  /** Optional bullet list of benefits */
   benefits?: string[];
-  /** Optional FAQ items — also rendered as FAQPage JSON-LD */
   faqs?: FAQItem[];
-  /** Service name for schema.org Service JSON-LD */
   serviceName: string;
-  /** Primary CTA href (defaults to /apply) */
   ctaHref?: string;
-  /** Primary CTA label */
   ctaLabel?: string;
-  /** Related service cross-links */
   related?: RelatedService[];
+  relatedHeading?: string;
+  eyebrow?: string;
+  /** Optional intermediate breadcrumbs between /spa and the current service */
+  extraBreadcrumbs?: BreadcrumbStep[];
 }
 
 const BASE_URL = "https://stormwellnessclub.com";
