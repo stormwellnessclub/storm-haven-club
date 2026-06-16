@@ -184,14 +184,26 @@ const App = () => (
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />
+              {/* Recovery standalone modality pages */}
               <Route path="/spa/red-light-therapy" element={<SpaRedLightTherapy />} />
               <Route path="/spa/cryotherapy" element={<SpaCryotherapy />} />
               <Route path="/spa/infrared-sauna" element={<SpaInfraredSauna />} />
               <Route path="/spa/cold-plunge" element={<SpaColdPlunge />} />
               <Route path="/spa/sauna-steam" element={<SpaSaunaSteam />} />
-              <Route path="/spa/massage" element={<SpaMassage />} />
               <Route path="/spa/salt-room" element={<SpaSaltRoom />} />
               <Route path="/spa/zerobody" element={<SpaZerobody />} />
+              {/* Category hubs */}
+              <Route path="/spa/massage" element={<SpaCategoryHub category="massage" />} />
+              <Route path="/spa/facials" element={<SpaCategoryHub category="facials" />} />
+              <Route path="/spa/body-wraps" element={<SpaCategoryHub category="body-wraps" />} />
+              <Route path="/spa/body-rituals" element={<SpaCategoryHub category="body-rituals" />} />
+              <Route path="/spa/recovery" element={<SpaCategoryHub category="recovery" />} />
+              {/* Individual service pages */}
+              <Route path="/spa/massage/:slug" element={<SpaServicePage category="massage" />} />
+              <Route path="/spa/facials/:slug" element={<SpaServicePage category="facials" />} />
+              <Route path="/spa/body-wraps/:slug" element={<SpaServicePage category="body-wraps" />} />
+              <Route path="/spa/body-rituals/:slug" element={<SpaServicePage category="body-rituals" />} />
+              <Route path="/spa/recovery/:slug" element={<SpaServicePage category="recovery" />} />
               <Route path="/mothers-day" element={<MothersDay />} />
               <Route path="/mothers-day/success" element={<MothersDay />} />
               <Route path="/mothers-day/redeem" element={<MothersDayRedeem />} />
