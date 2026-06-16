@@ -205,7 +205,7 @@ export default function ServiceLandingPage({
       {related && related.length > 0 && (
         <section className="py-16 bg-background border-t border-border">
           <div className="container mx-auto px-6 max-w-4xl">
-            <h2 className="font-serif text-2xl mb-6">Explore other recovery services</h2>
+            <h2 className="font-serif text-2xl mb-6">{relatedHeading}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {related.map((r) => (
                 <Link
