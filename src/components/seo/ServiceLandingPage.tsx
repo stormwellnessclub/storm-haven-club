@@ -15,31 +15,28 @@ export interface RelatedService {
   label: string;
 }
 
-export interface ServiceLandingPageProps {
-  /** SEO title (no brand suffix — appended automatically) */
-  title: string;
-  /** SEO meta description, <160 chars */
-  description: string;
-  /** Path, e.g. /spa/red-light-therapy */
+export interface BreadcrumbStep {
+  label: string;
   path: string;
-  /** Page H1 */
+}
+
+export interface ServiceLandingPageProps {
+  title: string;
+  description: string;
+  path: string;
   h1: string;
-  /** Short hero subhead */
   subhead: string;
-  /** 2-4 paragraphs of body copy */
   body: string[];
-  /** Optional bullet list of benefits */
   benefits?: string[];
-  /** Optional FAQ items — also rendered as FAQPage JSON-LD */
   faqs?: FAQItem[];
-  /** Service name for schema.org Service JSON-LD */
   serviceName: string;
-  /** Primary CTA href (defaults to /apply) */
   ctaHref?: string;
-  /** Primary CTA label */
   ctaLabel?: string;
-  /** Related service cross-links */
   related?: RelatedService[];
+  relatedHeading?: string;
+  eyebrow?: string;
+  /** Optional intermediate breadcrumbs between /spa and the current service */
+  extraBreadcrumbs?: BreadcrumbStep[];
 }
 
 const BASE_URL = "https://stormwellnessclub.com";
@@ -57,6 +54,9 @@ export default function ServiceLandingPage({
   ctaHref = "/apply",
   ctaLabel = "Apply for Membership",
   related,
+  relatedHeading = "Explore other recovery services",
+  eyebrow = "Recovery & Wellness",
+  extraBreadcrumbs = [],
 }: ServiceLandingPageProps) {
   const fullUrl = `${BASE_URL}${path}`;
 
@@ -98,7 +98,13 @@ export default function ServiceLandingPage({
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: BASE_URL },
       { "@type": "ListItem", position: 2, name: "Recovery Spa", item: `${BASE_URL}/spa` },
-      { "@type": "ListItem", position: 3, name: serviceName, item: fullUrl },
+      ...extraBreadcrumbs.map((b, i) => ({
+        "@type": "ListItem",
+        position: 3 + i,
+        name: b.label,
+        item: `${BASE_URL}${b.path}`,
+      })),
+      { "@type": "ListItem", position: 3 + extraBreadcrumbs.length, name: serviceName, item: fullUrl },
     ],
   };
 
@@ -124,15 +130,21 @@ export default function ServiceLandingPage({
       {/* Hero */}
       <section className="pt-32 pb-12 bg-secondary/30">
         <div className="container mx-auto px-6 max-w-4xl">
-          <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+          <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground mb-4 flex items-center gap-1 flex-wrap">
             <Link to="/" className="hover:text-foreground">Home</Link>
             <ChevronRight className="h-3 w-3" />
             <Link to="/spa" className="hover:text-foreground">Recovery Spa</Link>
+            {extraBreadcrumbs.map((b) => (
+              <span key={b.path} className="flex items-center gap-1">
+                <ChevronRight className="h-3 w-3" />
+                <Link to={b.path} className="hover:text-foreground">{b.label}</Link>
+              </span>
+            ))}
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground">{serviceName}</span>
           </nav>
           <p className="text-accent text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> Recovery & Wellness
+            <Sparkles className="h-4 w-4" /> {eyebrow}
           </p>
           <h1 className="heading-display mb-4">{h1}</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">{subhead}</p>
@@ -193,7 +205,7 @@ export default function ServiceLandingPage({
       {related && related.length > 0 && (
         <section className="py-16 bg-background border-t border-border">
           <div className="container mx-auto px-6 max-w-4xl">
-            <h2 className="font-serif text-2xl mb-6">Explore other recovery services</h2>
+            <h2 className="font-serif text-2xl mb-6">{relatedHeading}</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {related.map((r) => (
                 <Link

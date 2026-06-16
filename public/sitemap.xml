@@ -13,9 +13,54 @@
   <url><loc>https://stormwellnessclub.com/spa/infrared-sauna</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://stormwellnessclub.com/spa/cold-plunge</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://stormwellnessclub.com/spa/sauna-steam</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://stormwellnessclub.com/spa/massage</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://stormwellnessclub.com/spa/salt-room</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://stormwellnessclub.com/spa/zerobody</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <!-- Aella Spa category hubs -->
+  <url><loc>https://stormwellnessclub.com/spa/massage</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/recovery</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Massage services -->
+  <url><loc>https://stormwellnessclub.com/spa/massage/storm-signature</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/massage/deep-relief</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/massage/sports-performance</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/massage/lymph-and-flow</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/massage/prenatal</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Facials -->
+  <url><loc>https://stormwellnessclub.com/spa/facials/customized</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/botanical-bliss</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/age-defying</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/detoxifying-purity</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/hydration-infusion</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/radiant-glow</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/vitamin-c-brightening</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/facials/peptide-renewal</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Body Wraps -->
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/avocado-coconut</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/body-sculpting</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/detox-seaweed-charcoal</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/brightening-vitamin-c</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/anti-aging-collagen</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/mud-therapy</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/hydration-aloe</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-wraps/relaxing-chamomile</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Body Rituals -->
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/root-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/sacral-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/solar-plexus-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/heart-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/throat-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/third-eye-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://stormwellnessclub.com/spa/body-rituals/crown-chakra</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- Recovery sub-services -->
+  <url><loc>https://stormwellnessclub.com/spa/recovery/sports-stretching</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
 
   <url><loc>https://stormwellnessclub.com/personal-training</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://stormwellnessclub.com/personal-training/one-on-one</loc><lastmod>2026-06-16</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>
