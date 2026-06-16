@@ -54,6 +54,9 @@ export default function ServiceLandingPage({
   ctaHref = "/apply",
   ctaLabel = "Apply for Membership",
   related,
+  relatedHeading = "Explore other recovery services",
+  eyebrow = "Recovery & Wellness",
+  extraBreadcrumbs = [],
 }: ServiceLandingPageProps) {
   const fullUrl = `${BASE_URL}${path}`;
 
