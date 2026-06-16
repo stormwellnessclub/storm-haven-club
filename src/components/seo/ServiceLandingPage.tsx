@@ -98,7 +98,13 @@ export default function ServiceLandingPage({
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: BASE_URL },
       { "@type": "ListItem", position: 2, name: "Recovery Spa", item: `${BASE_URL}/spa` },
-      { "@type": "ListItem", position: 3, name: serviceName, item: fullUrl },
+      ...extraBreadcrumbs.map((b, i) => ({
+        "@type": "ListItem",
+        position: 3 + i,
+        name: b.label,
+        item: `${BASE_URL}${b.path}`,
+      })),
+      { "@type": "ListItem", position: 3 + extraBreadcrumbs.length, name: serviceName, item: fullUrl },
     ],
   };
 
