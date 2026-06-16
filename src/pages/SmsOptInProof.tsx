@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 /**
  * Public, no-login page for Twilio A2P 10DLC reviewers.
@@ -9,6 +10,7 @@ import { Link } from "react-router-dom";
 export default function SmsOptInProof() {
   return (
     <div className="min-h-screen bg-background text-foreground py-12 px-4">
+      <NoIndex />
       <div className="max-w-3xl mx-auto space-y-8">
         <header className="space-y-2">
           <h1 className="text-3xl font-semibold">SMS Opt-In Proof &amp; Call to Action</h1>

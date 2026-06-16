@@ -16,6 +16,7 @@ import { WaiverSigningStep } from "@/components/WaiverSigningStep";
 import { StaffWelcome } from "@/components/staff/StaffWelcome";
 import { getDefaultAdminPage } from "@/lib/permissions";
 import { Shield, AlertCircle } from "lucide-react";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -462,6 +463,7 @@ export default function Auth() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      <NoIndex />
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">

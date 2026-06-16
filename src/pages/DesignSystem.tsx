@@ -17,6 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { AlertCircle, Check, Copy, Info, Palette, Type, Square, FormInput, Bell, Sparkles, Move, Layout as LayoutIcon } from "lucide-react";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 // Color swatch component
 function ColorSwatch({ name, variable, hsl, className }: { name: string; variable: string; hsl: string; className?: string }) {
@@ -86,6 +87,7 @@ export default function DesignSystem() {
 
   return (
     <Layout>
+      <NoIndex />
       <div className="min-h-screen bg-background">
         {/* Header */}
         <div className="bg-gradient-dark text-cream py-16">
