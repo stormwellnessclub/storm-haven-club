@@ -130,15 +130,21 @@ export default function ServiceLandingPage({
       {/* Hero */}
       <section className="pt-32 pb-12 bg-secondary/30">
         <div className="container mx-auto px-6 max-w-4xl">
-          <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+          <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground mb-4 flex items-center gap-1 flex-wrap">
             <Link to="/" className="hover:text-foreground">Home</Link>
             <ChevronRight className="h-3 w-3" />
             <Link to="/spa" className="hover:text-foreground">Recovery Spa</Link>
+            {extraBreadcrumbs.map((b) => (
+              <span key={b.path} className="flex items-center gap-1">
+                <ChevronRight className="h-3 w-3" />
+                <Link to={b.path} className="hover:text-foreground">{b.label}</Link>
+              </span>
+            ))}
             <ChevronRight className="h-3 w-3" />
             <span className="text-foreground">{serviceName}</span>
           </nav>
           <p className="text-accent text-sm uppercase tracking-widest mb-4 flex items-center gap-2">
-            <Sparkles className="h-4 w-4" /> Recovery & Wellness
+            <Sparkles className="h-4 w-4" /> {eyebrow}
           </p>
           <h1 className="heading-display mb-4">{h1}</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">{subhead}</p>
