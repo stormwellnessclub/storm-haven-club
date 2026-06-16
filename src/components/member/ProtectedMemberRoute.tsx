@@ -121,5 +121,5 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   }
 
   // For active members or users without applications, show the member portal
-  return <>{children}</>;
+  return <><NoIndex />{children}</>;
 }
