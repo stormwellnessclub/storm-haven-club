@@ -10,6 +10,7 @@ import { UnlinkedMemberFix } from "./UnlinkedMemberFix";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDefaultAdminPage } from "@/lib/permissions";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 interface ProtectedMemberRouteProps {
   children: ReactNode;
