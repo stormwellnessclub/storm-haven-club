@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Clock, MapPin, User, Flame, X } from "lucide-react";
 import { format, parse, parseISO, differenceInHours } from "date-fns";
 import { Navigate, Link } from "react-router-dom";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 function BookingCard({ booking, showCancel = false }: { booking: Booking; showCancel?: boolean }) {
   const cancelBooking = useCancelBooking();
@@ -89,6 +90,7 @@ export default function MyBookings() {
 
   return (
     <Layout>
+      <NoIndex />
       <div className="container py-8 max-w-3xl">
         <div className="flex justify-between items-center mb-8">
           <div>

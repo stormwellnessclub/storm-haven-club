@@ -25,6 +25,7 @@ import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import { formatTime12h } from "@/lib/timeFormat";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 // ─── Type badge config ───────────────────────────────────────────────
 type AnyType = KioskVisitorType | KioskAttendanceType;
@@ -412,11 +413,17 @@ export default function FrontDeskPage() {
   );
 
   if (!isUnlocked) {
-    return <KioskPinGate onUnlock={() => setIsUnlocked(true)} />;
+    return (
+      <>
+        <NoIndex />
+        <KioskPinGate onUnlock={() => setIsUnlocked(true)} />
+      </>
+    );
   }
 
   return (
     <>
+      <NoIndex />
       <AudioUnlocker />
       <AdminSupportChime />
       <AdminCafeChime />

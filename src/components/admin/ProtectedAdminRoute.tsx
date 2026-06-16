@@ -5,6 +5,7 @@ import { useUserRoles } from '@/hooks/useUserRoles';
 import { canAccessPage, getDefaultAdminPage } from '@/lib/permissions';
 import { Loader2, ShieldX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NoIndex } from '@/components/seo/NoIndex';
 
 interface ProtectedAdminRouteProps {
   children: ReactNode;
@@ -82,5 +83,5 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
     return <Navigate to={defaultPage} replace />;
   }
 
-  return <>{children}</>;
+  return <><NoIndex />{children}</>;
 }

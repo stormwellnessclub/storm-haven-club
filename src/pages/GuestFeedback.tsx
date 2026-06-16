@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Star, CheckCircle2, Loader2 } from "lucide-react";
 import stormLogo from "@/assets/storm-logo-gold.png";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 export default function GuestFeedback() {
   const [searchParams] = useSearchParams();
@@ -108,6 +109,7 @@ export default function GuestFeedback() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <NoIndex />
       <Card className="max-w-md w-full">
         <CardHeader className="text-center space-y-4">
           <img src={stormLogo} alt="Storm Wellness Club" className="h-14 mx-auto" />

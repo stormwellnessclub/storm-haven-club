@@ -5,6 +5,7 @@ import { useBlockedStatus } from "@/hooks/useBlockedStatus";
 import { AccessRevoked } from "@/components/member/AccessRevoked";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 interface ProtectedPortalRouteProps {
   children: ReactNode;
@@ -82,5 +83,5 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
     return <Navigate to="/admin" replace />;
   }
 
-  return <>{children}</>;
+  return <><NoIndex />{children}</>;
 }

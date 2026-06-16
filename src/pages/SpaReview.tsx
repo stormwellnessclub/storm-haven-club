@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 type TokenInfo = {
   valid: boolean;
@@ -84,6 +85,7 @@ export default function SpaReview() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <NoIndex />
       <div className="w-full max-w-lg">
         <div className="text-center mb-6">
           <Link to="/" className="font-serif text-2xl tracking-wide">Storm Wellness Club</Link>

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 import logo from "@/assets/storm-logo.png";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 export default function UpdatePassword() {
   const [password, setPassword] = useState("");
@@ -170,6 +171,7 @@ export default function UpdatePassword() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      <NoIndex />
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">

@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Mail, CheckCircle } from "lucide-react";
 import { z } from "zod";
 import logo from "@/assets/storm-logo.png";
+import { NoIndex } from "@/components/seo/NoIndex";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 
@@ -65,6 +66,7 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-background flex">
+      <NoIndex />
       {/* Left side - Form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">

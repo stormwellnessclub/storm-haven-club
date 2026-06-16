@@ -1,103 +1,126 @@
-# SEO Resume Plan — 3 Phases, Step-by-Step
 
-Each phase ends with a checkpoint so you can review before I move on.
+# Per-page SEO rebuild — full coverage, no shortcuts
 
----
+## Why this plan exists
 
-## Phase 1 — Post-publish verification (no code changes)
+The previous approach (`scripts/prerender.mjs` writing per-route HTML files into `dist/`) is dead — Lovable hosting serves `index.html` for every path, so those files are never delivered. Every page currently inherits the homepage `<title>`, description, canonical, and JSON-LD when viewed without JS.
 
-Confirm the prerender + GBP work shipped on June 15 is actually live and re-prime the crawlers.
+`react-helmet-async` is already installed and `HelmetProvider` is already wired in `src/main.tsx`. A few pages (FAQ, ClassTypeDetail, Cafe) already use `<Helmet>`. The job is to do it everywhere — correctly, with real content per page.
 
-1. **Verify prerendered HTML is live on production.** Curl each of the 16 prerendered routes (`/`, `/spa`, `/spa/massage`, `/cafe`, `/memberships`, `/apply`, `/classes`, `/schedule`, `/class-passes`, `/personal-training` + 3 children, `/amenities`, `/kids-care`, `/guest-pass`) with a Googlebot user agent. Confirm each response contains the route-specific `<title>`, meta description, canonical, and visible body copy — not the empty SPA shell.
-2. **Re-submit both sitemaps to Google Search Console** via the GSC connector for the root and www properties. Confirm `lastDownloaded` updates.
-3. **Fire IndexNow bulk ping** to Bing/Yandex for all 16 priority URLs. Confirm HTTP 202.
-4. **Audit head tags on production** — pull rendered HTML for the 16 routes, verify canonical and `og:url` self-reference (not pointing at homepage), confirm no stray `noindex`, JSON-LD parses, and the GSC verification meta tag is intact.
-5. **Report back** a per-URL pass/fail table. If any URL still serves an empty shell, stop and diagnose before Phase 2.
+Googlebot executes JavaScript, so Helmet's per-route tags will be read for search. Social-preview crawlers (LinkedIn/Slack/Facebook) don't execute JS and will keep using the sitewide `og:*` in `index.html` — that's an acknowledged tradeoff Lovable hosting cannot solve without SSR.
 
-**Output:** verification report. No file changes.
+## Phase 1 — Cleanup and foundation
 
----
+1. Delete `scripts/prerender.mjs` and remove its call from the `build` script in `package.json`. This stops misleading anyone (including future-me) into thinking per-route HTML files are being served.
+2. Remove the sitewide `<link rel="canonical">` from `index.html` so per-route canonicals from Helmet are the only one shipped. Leave sitewide `og:*` as the no-JS fallback.
+3. Audit `index.html` — keep Organization/WebSite JSON-LD sitewide; remove anything page-specific that leaked in.
 
-## Phase 2 — Expand prerender coverage
+## Phase 2 — Deep-content service pages (handwritten copy + rich JSON-LD)
 
-Extend the static prerender to every public route that should be indexable, so nothing crawl-worthy is left as an empty shell.
+For each page below I'll write unique, keyword-targeted, locally-relevant copy and a page-appropriate JSON-LD block. No template repetition. Each page gets:
 
-1. **Inventory public routes.** Read `src/App.tsx` and list every public `<Route>` not already in the prerender. Expected additions:
-   - `/spa/red-light`, `/spa/cryo`, `/spa/salt-room`, `/spa/sauna`, `/spa/recovery`, `/spa/zero-body`
-   - `/personal-training/*` children not already covered
-   - `/storm-shop`, `/storm-shop/*` category landing pages
-   - `/wellness-hub`, `/community`, `/about`, `/contact`, `/faq`, `/team`, `/philosophy`
-   - Legal pages: `/terms`, `/privacy`, `/sms-terms`, `/waiver-info`
-   - Booking/info: `/non-member`, `/non-member/credits`, `/recovery`
-   - Verify each is intended for indexing — exclude any admin/portal/auth/booking-flow routes.
-2. **Confirm exclusions** with you: there will be routes I'm unsure about (e.g. `/non-member/credits` checkout flow, internal landing pages) — I'll bring the list back for a quick yes/no.
-3. **Extend `scripts/prerender.mjs`** `PAGE_META` map: title, description, canonical, OG, Twitter, JSON-LD, and a short crawlable body block for each new route. Reuse Storm business data already in `business.ts`.
-4. **Update `public/sitemap.xml`** (or the generator script if one exists) so every prerendered route is listed with a sensible `changefreq`/`priority`. Local-discovery pages get higher priority.
-5. **Update `public/robots.txt`** only if needed — confirm nothing crawl-worthy is blocked, nothing portal/admin is allowed.
-6. **After publish:** re-run the Phase 1 verification on every new URL, re-submit sitemap, fire IndexNow for the new URLs.
+- Unique `<title>` (under 60 chars, primary keyword + brand)
+- Unique `<meta description>` (under 160 chars, distinct value proposition)
+- Self-referencing `canonical` and `og:url`
+- `og:title`, `og:description`, `og:type`, `twitter:card`
+- Page-specific JSON-LD (type chosen per page, listed below)
+- Crawlable in-page body content: H1, intro paragraph, benefits, what to expect, FAQ block, pricing/booking CTA, internal links
 
-**Output:** expanded prerender + sitemap + verification pass.
+### Spa & recovery (deep treatment)
+- `/spa` — `HealthAndBeautyBusiness` + `BreadcrumbList`. Overview of all modalities, member pricing, hours, address.
+- `/spa/massage` — `MassageTherapy` + `FAQPage` + `BreadcrumbList`. Swedish, deep tissue, sports, prenatal, couples — modalities, durations, pricing, therapist qualifications, what to expect, aftercare, contraindications, booking CTA.
+- `/spa/red-light-therapy` — `MedicalTherapy` + `FAQPage`. Wavelengths used, session length, benefits (skin, recovery, mood), evidence summary, member credits, who it's for, contraindications.
+- `/spa/cryotherapy` — `MedicalTherapy` + `FAQPage`. Whole-body cryo protocol, temperature, duration, recovery benefits, athlete use cases, safety, who shouldn't use.
+- `/spa/infrared-sauna` — `HealthAndBeautyBusiness` + `FAQPage`. Far-infrared specs, session protocol, detox/recovery claims framed honestly, hydration guidance.
+- `/spa/cold-plunge` — `HealthAndBeautyBusiness` + `FAQPage`. Water temperature, recommended duration, breathing protocol, who it's for, contraindications.
+- `/spa/sauna-steam` — `HealthAndBeautyBusiness` + `FAQPage`. Traditional Finnish sauna + eucalyptus steam, etiquette, session length, member access.
+- `/spa/salt-room` — `HealthAndBeautyBusiness` + `FAQPage`. Halotherapy explanation, respiratory/skin benefits framed honestly, session protocol.
+- `/spa/zerobody` — `HealthAndBeautyBusiness` + `FAQPage`. Starpool ZeroBody dry-float, sensory deprivation benefits, session length, what to wear.
 
----
+### Memberships & access
+- `/memberships` — `Service` (catalog) + `FAQPage` + `BreadcrumbList`. Every tier (including Diamond for women), monthly dues, annual fee, included credits, benefits, freeze policy summary, application process.
+- `/apply` — `Service`. Application steps, what's required, review timeline, link to memberships.
+- `/class-passes` — `Product`/`Offer`. Pilates/cycling pass pricing ($25/$30 singles, packs), expiration rules, who can buy.
+- `/guest-pass` — `Service`. How guest passes work, pricing, restrictions.
 
-## Phase 3 — Deeper local SEO content
+### Classes & training
+- `/classes` — `ItemList` of class types + `BreadcrumbList`. Reformer Pilates, cycling, yoga, etc. — class descriptions, capacities (Reformer 8, Cycling 10), instructor approach.
+- `/schedule` and `/book` — `Service`. Live schedule overview, how booking works, cancellation policy. `/book` canonical points to `/schedule` (same component, choose one as canonical).
+- `/personal-training` — `Service` + `BreadcrumbList`. PT philosophy, trainer roster overview.
+- `/personal-training/one-on-one` — `Service` + `FAQPage`. 1:1 sessions, pricing, what's included, session length, packages.
+- `/personal-training/private-pilates` — `Service` + `FAQPage`. Private Reformer Pilates, instructor matching, pricing, packages.
+- `/personal-training/semi-private` — `Service` + `FAQPage`. 2–4 person groups, pricing, format.
 
-Targeted content that captures "near me" and Livonia/metro Detroit local search intent. Built in 4 sub-steps so you can stop after any of them.
+### Wellness Hub & recovery
+- `/amenities` — `LocalBusiness` amenities list + `BreadcrumbList`. Full facility tour: studios, recovery, cafe, kids care, locker rooms, parking. (This is the "wellness club" overview page per the user's request.)
 
-### 3a. Massage modality landing pages
-New routes (and prerendered HTML for each):
-- `/spa/massage/swedish`
-- `/spa/massage/deep-tissue`
-- `/spa/massage/sports`
-- `/spa/massage/prenatal`
-- `/spa/massage/couples` (if offered — confirm with you)
+### Cafe & kids
+- `/cafe` — already has Helmet; expand with `Restaurant` + `Menu` JSON-LD (sourced from `cafe_menu_items` table). Hours, menu categories, ingredient highlights, member ordering perks.
+- `/kids-care` — `ChildCare` + `FAQPage`. Age range (4mo–8y), Little Stars/Big Stars groups, pricing ($75/mo for 16 sessions or $40 single), reservation process, what to bring.
 
-Each page: keyword-targeted H1 (e.g. "Deep Tissue Massage in Livonia, MI"), 400–600 words of editorial copy, pricing, duration, "what to expect" section, FAQ section, `MassageTherapy` + `FAQPage` JSON-LD, internal link back to `/spa/massage`.
+### Promotions (kept short)
+- `/mothers-day` — `Offer` + landing copy.
+- `/mothers-day/redeem`, `/mothers-day-pack-redeem` — `noindex` (transactional landing pages).
 
-### 3b. "Near me" city landing pages
-For metro Detroit cities within 15–20 mi of Livonia (per existing SEO Strategy memory):
-- `/locations/livonia`
-- `/locations/plymouth`
-- `/locations/northville`
-- `/locations/farmington-hills`
-- `/locations/westland`
-- `/locations/canton`
+### Marketing / informational
+- `/faq` — already has Helmet; verify `FAQPage` JSON-LD is complete.
+- `/merch` and `/shop` — `Store` + `ItemList`. `/shop` canonical points to `/merch`.
 
-Each page: "[Service] near [City]" focused, drive-time from city center, embedded map link, services overview, local cross-links. JSON-LD: `LocalBusiness` with `areaServed`.
+### Legal / utility (light treatment)
+- `/terms` — title/description/canonical only, no JSON-LD beyond breadcrumb.
+- `/privacy` — same.
+- `/sms-opt-in-proof` — same; `noindex` is fine here.
 
-### 3c. Cafe SEO depth
-- `/cafe/smoothies`, `/cafe/protein-shakes`, `/cafe/acai-bowls`, `/cafe/coffee` — one page per category with the full menu items inline, prices, ingredients, "open to public" callout.
-- `Menu` + `OfferCatalog` JSON-LD on `/cafe`, populated from `cafe_menu_items`.
-- Update `/cafe` to cross-link to all category pages.
+### Auth/account pages
+- `/auth`, `/reset-password`, `/update-password`, `/my-bookings`, all `/member/*`, all `/portal/*` — set `noindex` via Helmet. Not for search.
 
-### 3d. Strengthen internal linking
-- Homepage hero/footer: prominent links to `/spa/massage`, `/cafe`, top 3 location pages.
-- Spa page: link to every modality + recovery service.
-- Massage page: link to each modality.
-- Cafe page: link to each category.
-- Add a `BreadcrumbList` JSON-LD to every nested route.
+### Internal / admin / kiosk
+- `/admin/*`, `/kiosk/*`, `/front-desk`, `/design-system`, `/site-audit`, `/guest-feedback`, `/review/spa/*` — set `noindex` via Helmet.
 
-**Output:** ~15–20 new indexable pages, deeper internal linking graph, richer structured data. Followed by another verification + sitemap re-submission pass.
+## Phase 3 — Implementation pattern
 
----
+To keep this clean and consistent without templating:
 
-## Order of execution
+1. Create `src/components/seo/SEO.tsx` — a thin wrapper around `<Helmet>` that takes `title`, `description`, `path`, optional `ogType`, optional `noindex`, optional `jsonLd` (array of schema objects). It builds the canonical/og:url from `path`, deduplicates JSON-LD output, and sets `twitter:card`. **This is a structural helper, not a content template** — every page passes its own handwritten copy.
+2. For each page above, add `<SEO ... jsonLd={[...]} />` at the top of the JSX and write the page's body content (H1, sections, FAQ markup that matches the FAQPage JSON-LD).
+3. Pages where the body already has good copy: only add `<SEO>` and JSON-LD, don't rewrite the UI.
+4. Pages with thin bodies (most spa modality pages, currently brief): expand with handwritten sections so the JSON-LD is backed by real on-page content.
 
-1. Phase 1 (verification only) — quick, no risk. **Stop and review.**
-2. Phase 2 (expand prerender) — medium scope. **Stop and review.**
-3. Phase 3 — built in sub-steps 3a → 3b → 3c → 3d, each followed by publish + verify before moving to the next.
+## Phase 4 — Sitemap reconciliation
 
-## What I'll bring back to you before doing it
+Update `public/sitemap.xml`:
+- Remove dynamic class UUID entries that no longer exist; keep the ones that resolve to live class types.
+- Confirm every indexable route in the plan has a sitemap entry. Add anything missing (e.g. `/amenities` and `/spa/zerobody` are already there — verify after).
+- Bump `lastmod` to today on every edited route.
+- Leave `noindex` routes (member/portal/admin/kiosk/auth/redeem) out of the sitemap.
 
-- **Phase 2 step 2:** the route inclusion/exclusion list.
-- **Phase 3a:** confirm the massage modalities Storm actually offers (and pricing per modality) before writing copy.
-- **Phase 3b:** confirm city list and that drive-time/embedded-map approach is what you want vs. simpler text pages.
-- **Phase 3c:** confirm which cafe categories to split out.
+## Phase 5 — Verification (after you publish)
 
-## Technical notes
+I'll fetch each priority URL with a headless renderer (executes JS so we see Helmet output, not the static shell). Output: a per-URL table showing actual rendered `<title>`, meta description, canonical, og:url, and JSON-LD type. Any URL that's still wrong gets fixed before I report done.
 
-- All prerender additions go through the existing `scripts/prerender.mjs` `PAGE_META` map — same pattern shipped on June 15, no new infra.
-- Sitemap edits hit `public/sitemap.xml` (currently a hand-edited static file). I'll keep it static unless you want to migrate to a generator script.
-- All GSC + IndexNow calls go through the existing connector gateway / `indexnow-ping` edge function — no new secrets needed.
-- Per-route head tags can stay in the prerendered HTML; no need to introduce `react-helmet-async` since the static HTML already wins for crawlers.
-- No database migrations. No new edge functions. No new tables.
+Then I'll:
+- Submit the updated sitemap via the Google Search Console connector.
+- Trigger the Lovable SEO scanner and address its findings.
+
+## Phase 6 — Followups (separate, after Phase 5 lands)
+
+Discussed earlier but not part of this build:
+- Per-city landing pages (`/locations/livonia`, `/plymouth`, etc.) under `LocalBusiness`.
+- Massage modality sub-pages (`/spa/massage/swedish`, `/deep-tissue`, etc.).
+- Cafe category sub-pages (`/cafe/smoothies`, etc.).
+
+These will be proposed as their own plan once Phase 1–5 is verified live.
+
+## Technical details
+
+- `src/components/seo/SEO.tsx` — new helper component (~60 lines). Accepts typed props, no defaults that would mask missing input — if `title` or `description` is missing, TS errors.
+- Files edited: `index.html` (remove canonical), `package.json` (remove prerender from build), `public/sitemap.xml` (refresh), every page listed above (add `<SEO>` and expanded body where noted).
+- Files deleted: `scripts/prerender.mjs`.
+- No new dependencies. No DB migrations. No edge functions. No new routes.
+- No `og:image` per page; sitewide `og:image` in `index.html` stays as the fallback. We can revisit per-page images later if you want.
+
+## Out of scope (will not touch)
+
+- Member/portal/admin/kiosk pages beyond adding `noindex`.
+- Backend, billing, Stripe, RLS, edge functions.
+- Visual redesign of any page. Body-copy additions to thin spa pages will follow the existing design system (no new components, no new color tokens).
