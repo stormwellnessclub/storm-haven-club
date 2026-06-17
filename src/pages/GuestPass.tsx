@@ -626,9 +626,19 @@ export default function GuestPass() {
             
             <AccountRequiredSection 
               redirectTo="/guest-pass"
-              title="Create an Account to Purchase"
-              description="To purchase a guest pass, please create an account or sign in. This helps us prepare for your visit."
+              title="Sign in to Purchase a Guest Pass"
+              description="If you've visited us or taken a class before, please sign in with that same email. Creating a second account can prevent your guest pass from going through."
+              signInLabel="Sign In to Continue"
+              createAccountLabel="I'm New — Create Account"
             />
+            <div className="text-center mt-4">
+              <p className="text-xs text-muted-foreground">
+                Having trouble? Email{" "}
+                <a href="mailto:info@stormwellnessclub.com" className="underline">
+                  info@stormwellnessclub.com
+                </a>
+              </p>
+            </div>
           </div>
         </div>
       </Layout>

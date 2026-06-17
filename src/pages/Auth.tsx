@@ -289,12 +289,13 @@ export default function Auth() {
         });
 
         if (error) {
-          if (error.message.includes("already registered")) {
+          if (error.message.includes("already registered") || error.message.toLowerCase().includes("already")) {
             toast({
-              title: "Account exists",
-              description: "This email is already registered. Please sign in instead.",
+              title: "You already have an account",
+              description: "This email is already registered. Please switch to Sign In below, or use 'Forgot Password' to reset it.",
               variant: "destructive",
             });
+            setIsSignUp(false);
           } else {
             toast({
               title: "Sign up failed",
