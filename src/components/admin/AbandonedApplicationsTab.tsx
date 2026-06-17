@@ -52,7 +52,7 @@ export function AbandonedApplicationsTab() {
       // Deduplicate by email - keep only the most recent attempt per email
       const seenEmails = new Set<string>();
       const deduplicated: AbandonedAttempt[] = [];
-      
+
       for (const attempt of (data || [])) {
         const meta = attempt.metadata as AbandonedAttempt["metadata"];
         const email = meta?.applicant_email?.toLowerCase();
@@ -66,9 +66,34 @@ export function AbandonedApplicationsTab() {
         }
       }
 
-      return deduplicated;
+      // Exclude emails that already submitted an application or became members
+      const emails = Array.from(seenEmails);
+      if (emails.length === 0) return deduplicated;
+
+      const [appsRes, membersRes] = await Promise.all([
+        supabase.from("membership_applications").select("email").in("email", emails),
+        supabase.from("members").select("email").in("email", emails),
+      ]);
+
+      const excluded = new Set<string>();
+      for (const row of appsRes.data || []) {
+        if (row.email) excluded.add(row.email.toLowerCase());
+      }
+      for (const row of membersRes.data || []) {
+        if (row.email) excluded.add(row.email.toLowerCase());
+      }
+
+      // Also handle case-variant emails by re-checking with ilike for each
+      // (in case stored email casing differs)
+      const remaining = deduplicated.filter((a) => {
+        const e = a.metadata?.applicant_email?.toLowerCase();
+        return e && !excluded.has(e);
+      });
+
+      return remaining;
     },
   });
+
 
   const sendReminderMutation = useMutation({
     mutationFn: async ({ id, email, name }: { id: string; email: string; name: string }) => {
