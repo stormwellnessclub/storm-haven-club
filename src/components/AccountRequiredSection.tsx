@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UserPlus, LogIn, KeyRound } from "lucide-react";
+import { UserPlus, LogIn } from "lucide-react";
 
 interface AccountRequiredSectionProps {
   redirectTo: string;
@@ -9,24 +9,17 @@ interface AccountRequiredSectionProps {
   description?: string;
   createAccountLabel?: string;
   signInLabel?: string;
-  /**
-   * When true (default), shows messaging targeted at returning guests
-   * who may already have an account from a prior class or visit.
-   */
-  showReturningGuestHint?: boolean;
 }
 
 export function AccountRequiredSection({
   redirectTo,
   title = "Sign in or Create an Account",
-  description = "If you've taken a class or visited us before, please sign in with that email instead of creating a new account.",
-  createAccountLabel = "Create New Account",
+  description = "Sign in to your account, or create a free one to continue.",
+  createAccountLabel = "Create Account",
   signInLabel = "Sign In",
-  showReturningGuestHint = true,
 }: AccountRequiredSectionProps) {
   const signInUrl = `/auth?redirect=${encodeURIComponent(redirectTo)}`;
   const signUpUrl = `/auth?mode=signup&redirect=${encodeURIComponent(redirectTo)}`;
-  const resetUrl = `/auth?redirect=${encodeURIComponent(redirectTo)}#forgot`;
 
   return (
     <div className="flex items-center justify-center min-h-[400px] px-6">
@@ -51,20 +44,6 @@ export function AccountRequiredSection({
               {createAccountLabel}
             </Link>
           </Button>
-          {showReturningGuestHint && (
-            <div className="text-center pt-2 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-2">
-                Forgot your password? You may already have an account.
-              </p>
-              <Link
-                to={resetUrl}
-                className="text-sm text-accent hover:underline inline-flex items-center gap-1"
-              >
-                <KeyRound className="h-3 w-3" />
-                Reset password
-              </Link>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

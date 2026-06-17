@@ -289,20 +289,11 @@ export default function Auth() {
         });
 
         if (error) {
-          if (error.message.includes("already registered") || error.message.toLowerCase().includes("already")) {
-            toast({
-              title: "You already have an account",
-              description: "This email is already registered. Please switch to Sign In below, or use 'Forgot Password' to reset it.",
-              variant: "destructive",
-            });
-            setIsSignUp(false);
-          } else {
-            toast({
-              title: "Sign up failed",
-              description: error.message,
-              variant: "destructive",
-            });
-          }
+          toast({
+            title: "Sign up failed",
+            description: error.message,
+            variant: "destructive",
+          });
         } else {
           // Attempt member link after signup (server trigger does this too)
           await attemptMemberLink();

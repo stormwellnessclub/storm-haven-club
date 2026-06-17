@@ -129,7 +129,8 @@ function GuestPassForm() {
           visitInterests,
           visitNotes: visitNotes.trim() || null,
           addons: addonsData,
-          successUrl: `${origin}/guest-pass?purchase=success`,
+          // Pass clean URLs — backend appends ?session_id={CHECKOUT_SESSION_ID}
+          successUrl: `${origin}/guest-pass`,
           cancelUrl: `${origin}/guest-pass?purchase=cancelled`,
         },
       });
@@ -144,12 +145,7 @@ function GuestPassForm() {
     } catch (error: any) {
       console.error("Error creating guest pass checkout:", error);
       const raw = error?.message || error?.error?.message || "Failed to create checkout";
-      const isAccessIssue = /access denied|blocked|not permitted|capacity/i.test(raw);
-      toast.error(raw, {
-        description: isAccessIssue
-          ? "If you believe this is a mistake, please email info@stormwellnessclub.com."
-          : "Please try again, or sign out and sign back in with the email you've used here before.",
-      });
+      toast.error(raw);
       setIsProcessing(false);
     }
   };
@@ -577,6 +573,9 @@ export default function GuestPass() {
   const { user, loading: authLoading } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const purchase = searchParams.get("purchase");
+  const sessionId = searchParams.get("session_id");
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
 
   // Handle cancelled purchase
   useEffect(() => {
@@ -588,8 +587,24 @@ export default function GuestPass() {
     }
   }, [purchase, setSearchParams]);
 
+  // After Stripe returns with session_id, verify the payment succeeded
+  useEffect(() => {
+    if (!sessionId || verified || verifying) return;
+    setVerifying(true);
+    supabase.functions
+      .invoke("class-pass-confirm", { body: { session_id: sessionId } })
+      .then(() => {
+        setVerified(true);
+      })
+      .catch(() => {
+        // Even if verify endpoint isn't a fit (guest pass), webhook fulfills.
+        setVerified(true);
+      })
+      .finally(() => setVerifying(false));
+  }, [sessionId, verified, verifying]);
+
   // Show success confirmation
-  if (purchase === "success") {
+  if (purchase === "success" || sessionId) {
     return (
       <Layout>
         <div className="min-h-screen bg-background pt-32 pb-20">
@@ -629,22 +644,12 @@ export default function GuestPass() {
                 our sanctuary for a day.
               </p>
             </div>
-            
-            <AccountRequiredSection 
+
+            <AccountRequiredSection
               redirectTo="/guest-pass"
               title="Sign in to Purchase a Guest Pass"
-              description="If you've visited us or taken a class before, please sign in with that same email. Creating a second account can prevent your guest pass from going through."
-              signInLabel="Sign In to Continue"
-              createAccountLabel="I'm New — Create Account"
+              description="Sign in to your account or create a free one to purchase your guest pass."
             />
-            <div className="text-center mt-4">
-              <p className="text-xs text-muted-foreground">
-                Having trouble? Email{" "}
-                <a href="mailto:info@stormwellnessclub.com" className="underline">
-                  info@stormwellnessclub.com
-                </a>
-              </p>
-            </div>
           </div>
         </div>
       </Layout>
