@@ -109,8 +109,8 @@ export default function Cafe() {
   return (
     <Layout>
       <SEOHead
-        title="Café, Juice Bar & Smoothie Bar — Livonia, MI"
-        description="Storm Café in Livonia, MI: smoothies, protein shakes, açaí bowls, cold-pressed juice, espresso & healthy snacks. Open to the public — serving the Detroit metro."
+        title="Café, Juice & Smoothie Bar in Livonia"
+        description="Healthy café in Livonia, MI — smoothies, protein shakes, açaí bowls, cold-pressed juice & espresso. Open to the public at Storm Wellness Club."
         path="/cafe"
       />
       <Helmet>

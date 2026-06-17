@@ -225,19 +225,23 @@ const membershipTiers = [
 export default function Amenities() {
   return (
     <Layout>
-      <SEOHead title="Luxury Gym Amenities in Livonia, MI" description="Sauna, steam room, cold plunge, infrared sauna, salt room, outdoor terrace, premium locker rooms, and towel service at Storm Wellness Club in Livonia, MI." path="/amenities" />
+      <SEOHead title="Sauna, Salt Room & Amenities in Livonia" description="Infrared sauna, Himalayan salt room, cold plunge, steam room, luxury locker rooms, café & kids care at Storm Wellness Club in Livonia, MI." path="/amenities" />
+
+      {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
+      <h1 className="sr-only">Storm Wellness Club Amenities in Livonia, MI — Sauna, Salt Room, Cold Plunge & More</h1>
+
       {/* Hero - Full bleed */}
       <section className="relative min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={woodenLockers} alt="Storm Wellness Club Members Only" className="w-full h-full object-cover" />
+          <img src={woodenLockers} alt="Wooden lockers with gold accents inside Storm Wellness Club's members-only locker rooms in Livonia, MI" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-charcoal/95 via-charcoal/80 to-charcoal/50" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-32">
           <div className="max-w-2xl">
             <p className="text-gold-light text-sm uppercase tracking-[0.3em] mb-6 font-medium">Members Only</p>
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-serif text-primary-foreground mb-8 leading-[1.1]">
+            <h2 className="text-5xl md:text-6xl lg:text-7xl font-serif text-primary-foreground mb-8 leading-[1.1]">
               A Sanctuary of<br />Wellness & Luxury
-            </h1>
+            </h2>
             <p className="text-primary-foreground/80 text-lg md:text-xl leading-relaxed max-w-lg">
               Every aspect of our space is designed with your holistic wellness in mind—nurturing body, mind, and spirit.
             </p>
@@ -364,7 +368,7 @@ export default function Amenities() {
       <section className="relative">
         {/* Hero Image */}
         <div className="relative h-[50vh] min-h-[400px]">
-          <img src={classesHero} alt="Storm Wellness Group Fitness" className="w-full h-full object-cover" />
+          <img src={classesHero} alt="Group fitness class in session at Storm Wellness Club in Livonia, MI" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/40 to-charcoal" />
           <div className="absolute inset-0 flex items-center justify-center text-center">
             <div className="max-w-3xl px-6">

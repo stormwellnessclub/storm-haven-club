@@ -97,26 +97,32 @@ export default function Index() {
   const { isIOS, isStandalone, showIOSModal, handleInstall, closeIOSModal } = usePWAInstall();
 
   return <Layout>
-      <SEOHead title="Premium Fitness & Wellness in Livonia, MI" description="Reformer Pilates, cycling, yoga, recovery spa, café & kids care in Livonia, MI. Serving the Detroit metro." path="/" />
+      <SEOHead title="Wellness Club in Livonia, MI" description="Storm Wellness Club is Livonia's premier wellness club & fitness center — Reformer Pilates, cycling, recovery spa, sauna, café, kids care & family memberships." path="/" />
+
+      {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
+      <h1 className="sr-only">Wellness Club & Fitness Center in Livonia, MI</h1>
 
       {/* Hero Section */}
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
         <div className="absolute inset-0">
           <img 
             src={lobbyHero} 
-            alt="Storm Wellness Club Lobby" 
-            className="w-full h-full object-cover object-center opacity-60" 
+            alt="Storm Wellness Club lobby interior in Livonia, Michigan — entry to fitness studios, recovery spa, and café" 
+            className="w-full h-full object-cover object-center opacity-60"
+            width={1920}
+            height={1080}
+            fetchPriority="high"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/20 via-charcoal/35 to-charcoal/55" />
         </div>
         
         <div className="relative z-10 container mx-auto px-4 sm:px-6 text-center py-20 sm:py-0">
           
-          <h1 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
+          <h2 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
             This is what it feels like
             <br />
             <span>to finally </span><span className="text-accent">arrive.</span>
-          </h1>
+          </h2>
           <p className="text-primary-foreground/80 text-base sm:text-lg max-w-xl mx-auto mb-8 sm:mb-10 animate-fade-up opacity-0 stagger-3 px-4 sm:px-0">
             A private wellness club designed for people who take every detail of their life seriously.
           </p>
@@ -203,7 +209,7 @@ export default function Index() {
           <AnimatedSection className="mt-16" delay={300}>
             <img 
               src={communityBanner} 
-              alt="Community" 
+              alt="Storm Wellness Club members training together inside our Livonia fitness studio" 
               className="w-full rounded-sm" 
               loading="lazy"
             />

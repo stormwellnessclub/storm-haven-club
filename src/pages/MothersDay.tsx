@@ -281,8 +281,8 @@ export default function MothersDay() {
   return (
     <Layout>
       <SEOHead
-        title="Mother's Day — Custom Massage + Wet Spa"
-        description="Treat mom to a Custom Massage plus Wet Spa Access (sauna, steam, Himalayan salt room) at Storm Wellness Club. Redeemable for 6 months."
+        title="Mother's Day Spa Package"
+        description="Treat mom to a custom massage plus wet spa access (sauna, steam, Himalayan salt room) at Storm Wellness Club in Livonia, MI. Redeemable for 6 months."
         path="/mothers-day"
       />
 
