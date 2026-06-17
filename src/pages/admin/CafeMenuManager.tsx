@@ -475,9 +475,7 @@ function ItemEditDialog({
   onSave: (updates: Partial<CafeMenuItem>) => Promise<void>;
 }) {
   const [form, setForm] = useState<Partial<CafeMenuItem>>({});
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Reset form when item changes
   const resetForm = () => {
@@ -490,6 +488,7 @@ function ItemEditDialog({
         description: item.description,
         price: item.price,
         image_url: item.image_url,
+        image_urls: item.image_urls || (item.image_url ? [item.image_url] : []),
         stock_quantity: item.stock_quantity,
         is_seasonal: item.is_seasonal,
         seasonal_label: item.seasonal_label,
@@ -497,21 +496,6 @@ function ItemEditDialog({
         calories: item.calories,
         dietary_tags: item.dietary_tags,
       });
-    }
-  };
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const url = await uploadCafeMenuImage(file);
-      setForm((f) => ({ ...f, image_url: url }));
-      toast.success("Image uploaded");
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
     }
   };
 
