@@ -38,6 +38,7 @@ export default function Merch() {
   const [selectedSize, setSelectedSize] = useState("");
   const [selectedColor, setSelectedColor] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [activeImageIdx, setActiveImageIdx] = useState(0);
 
   // Cart
   const [cart, setCart] = useState<CartItem[]>([]);
