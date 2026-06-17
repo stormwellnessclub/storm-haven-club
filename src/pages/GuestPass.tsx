@@ -143,7 +143,13 @@ function GuestPassForm() {
       }
     } catch (error: any) {
       console.error("Error creating guest pass checkout:", error);
-      toast.error(error?.message || "Failed to create checkout");
+      const raw = error?.message || error?.error?.message || "Failed to create checkout";
+      const isAccessIssue = /access denied|blocked|not permitted|capacity/i.test(raw);
+      toast.error(raw, {
+        description: isAccessIssue
+          ? "If you believe this is a mistake, please email info@stormwellnessclub.com."
+          : "Please try again, or sign out and sign back in with the email you've used here before.",
+      });
       setIsProcessing(false);
     }
   };
