@@ -144,9 +144,23 @@ export function CreateSubscriptionDialog({
     const price = PRICES[tier]?.[billingType]?.[gender] || 0;
     const interval = billingType === "annual" ? "/yr" : "/mo";
 
+    // Charge breakdown — mirrors backend addRecurringProcessingFeeItems +
+    // annual-fee subscription created when not already paid/linked.
+    const membershipBase = price;
+    const membershipFee = calculateProcessingFeeFromDollars(membershipBase);
+
+    const willChargeAnnualFee =
+      !member.annual_fee_paid_at && !member.annual_fee_subscription_id;
+    const annualFeeBase = willChargeAnnualFee ? getAnnualFeeAmount(gender as "men" | "women") : 0;
+    const annualFeeFee = willChargeAnnualFee ? calculateProcessingFeeFromDollars(annualFeeBase) : 0;
+
+    const chargeTotal = membershipBase + membershipFee + annualFeeBase + annualFeeFee;
+
     return {
       tier: normalizeTierDisplay(member.membership_type),
       billingType: getBillingCadenceLabel(billingType, member.is_founding_member),
+      billingTypeRaw: billingType,
+      gender,
       price: `$${price}${interval}`,
       credits,
       cardInfo:
@@ -155,6 +169,12 @@ export function CreateSubscriptionDialog({
           : "No card on file",
       startDate: format(startDate, "MMM d, yyyy"),
       hasCard: !!(member.card_brand && member.card_last4),
+      membershipBase,
+      membershipFee,
+      willChargeAnnualFee,
+      annualFeeBase,
+      annualFeeFee,
+      chargeTotal,
     };
   }, [member, startDate]);
 
