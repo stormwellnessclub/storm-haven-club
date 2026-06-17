@@ -388,6 +388,97 @@ export function SingleActivationDialog({
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Charge Summary */}
+          {(() => {
+            if (!paymentStatus?.hasCard) return null;
+            const tier = extractTier(application.membership_plan);
+            const gender = normalizeGender(application.gender);
+            const willChargeInit = !paymentStatus.isPaid && chargeUnpaidFees;
+            const willCreateSub = activationMode === "immediate" && createSubscription;
+            const subStartsToday =
+              willCreateSub && !!startDate && startDate <= today && !(firstMonthCash && isSuperAdmin);
+
+            if (!willChargeInit && !willCreateSub) return null;
+
+            const lines: { label: string; base: number; fee: number; note?: string; immediate: boolean }[] = [];
+
+            if (willChargeInit) {
+              const base = getInitiationFee(gender);
+              lines.push({
+                label: "Initiation fee",
+                base,
+                fee: calculateProcessingFeeFromDollars(base),
+                immediate: true,
+              });
+            }
+
+            if (willCreateSub) {
+              if (isFoundingMember) {
+                const base = getAnnualPrice(tier, gender);
+                lines.push({
+                  label: subStartsToday ? "First annual payment (today)" : "First annual payment",
+                  base,
+                  fee: calculateProcessingFeeFromDollars(base),
+                  note: "Processing fee recurs each renewal.",
+                  immediate: subStartsToday,
+                });
+              } else {
+                const base = getMonthlyPrice(tier, gender);
+                lines.push({
+                  label: subStartsToday ? "First monthly payment (today)" : "First monthly payment",
+                  base,
+                  fee: calculateProcessingFeeFromDollars(base),
+                  note: "Processing fee recurs each month.",
+                  immediate: subStartsToday,
+                });
+              }
+            }
+
+            const todayLines = lines.filter((l) => l.immediate);
+            const totalBase = todayLines.reduce((s, l) => s + l.base, 0);
+            const totalFee = todayLines.reduce((s, l) => s + l.fee, 0);
+            const grandTotal = totalBase + totalFee;
+
+            const fmt = (n: number) =>
+              n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+            return (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  Charge summary (card on file)
+                </div>
+                <div className="space-y-2">
+                  {lines.map((l, i) => (
+                    <div key={i} className="text-xs space-y-0.5">
+                      <div className="flex justify-between font-medium">
+                        <span>{l.label}</span>
+                        <span>{fmt(l.base + l.fee)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Base {fmt(l.base)} + processing fee {fmt(l.fee)}</span>
+                      </div>
+                      {l.note && (
+                        <div className="text-[11px] text-muted-foreground italic">{l.note}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {todayLines.length > 0 && (
+                  <div className="border-t pt-2 flex justify-between text-sm font-semibold">
+                    <span>Total charged today</span>
+                    <span>{fmt(grandTotal)}</span>
+                  </div>
+                )}
+                {willCreateSub && !subStartsToday && (
+                  <div className="text-[11px] text-muted-foreground italic border-t pt-2">
+                    Subscription begins {startDate ? format(startDate, "MMM d, yyyy") : "on start date"}; first charge (base + processing fee) runs then.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         <DialogFooter>
