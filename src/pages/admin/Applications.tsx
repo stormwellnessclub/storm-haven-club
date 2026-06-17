@@ -86,6 +86,7 @@ function formatTierDisplay(rawPlan: string): string {
   return `${tier} Membership`;
 }
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 
 type Application = {
   id: string;
