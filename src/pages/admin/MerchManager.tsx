@@ -66,7 +66,7 @@ export default function MerchManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<MerchProduct | null>(null);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState<MerchProduct | null>(null);
   const [inventoryValues, setInventoryValues] = useState<Record<string, number>>({});
