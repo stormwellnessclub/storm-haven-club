@@ -1,27 +1,33 @@
-I found two likely reasons this feels like “it’s not working” for returning non-members:
-
-1. **Returning guests with existing accounts are being pushed to create an account again.** If they previously bought/booked classes, their email may already exist, so signup fails and they may not realize they should sign in/reset password.
-2. **Guest pass checkout is tied to the logged-in account, not the guest email they type.** If someone signs in with one email but enters a different guest email, the backend uses the signed-in user for payment/block checks and Stripe customer matching, which can confuse returning non-member flows.
+I’ll fix the purchase path directly so guest passes and class passes do the three required things: collect information, take payment, and require waiver/agreement signing.
 
 Plan:
 
-1. **Improve the account gate on Guest Pass**
-   - Change the guest pass account prompt so the primary action is “Sign In” for returning guests.
-   - Keep “Create Account” available, but make it clear returning class/guest visitors should sign in or reset password instead of creating another account.
-   - Ensure the create-account link explicitly uses signup mode (`/auth?mode=signup&redirect=/guest-pass`).
+1. **Remove the confusing account messaging I added**
+   - Stop pushing “returning visitors” toward reset-password language on guest/class pass purchase screens.
+   - Keep the simple requirement: sign in or create an account to purchase.
+   - Fix any reset links that currently point to the wrong place.
 
-2. **Improve class pass account guidance**
-   - On `/class-passes`, update the unsigned-in prompt text to explicitly say: if you’ve taken classes before, sign in with that email or reset your password.
-   - Keep non-member pricing and checkout logic unchanged.
+2. **Fix Stripe return URLs for guest pass and class pass checkout**
+   - The current code can create a bad URL with two question marks, like `?purchase=success?session_id=...`.
+   - Update checkout creation so `session_id` is appended correctly whether the URL already has query parameters or not.
+   - Make class pass return reliably run the confirmation/reconcile step.
 
-3. **Make auth errors more helpful**
-   - In `Auth.tsx`, when signup detects an existing email, change the toast to direct them to sign in or reset password.
-   - If sign-in fails, keep the error but make the next step clearer: reset password if they attended before.
+3. **Harden class pass purchase completion**
+   - Keep the existing required liability waiver + class pass agreement gate before payment.
+   - After payment, confirm the checkout session, reconcile if the webhook is delayed, refresh active passes, and show success only after the paid session is verified.
+   - Preserve idempotency so refreshes/webhook retries do not double-create class passes.
 
-4. **Add better checkout error visibility**
-   - On Guest Pass and Class Pass checkout errors, show the actual backend message when available and include a “try signing in/reset password” style message for account-related failures.
-   - This helps staff understand what the guest hit instead of only “not working.”
+4. **Harden guest pass purchase completion**
+   - Keep required liability waiver + guest pass agreement before the form.
+   - Keep required guest information validation: name, email, phone, sex, visit date, and visit interests.
+   - After payment return, verify/reconcile the checkout instead of only showing a generic success state.
+   - Ensure the paid guest pass record includes guest info, visit date, phone, add-ons, Stripe payment/customer IDs, and any class add-on pass records.
 
-Out of scope for this pass:
-- I won’t remove the current gender/capacity block or blocked-person enforcement unless you explicitly want that changed.
-- I won’t change pricing, waivers, or payment processing.
+5. **Add backend safeguards where needed**
+   - Use the existing payment function/webhook patterns.
+   - Treat duplicate fulfillment as success, not failure.
+   - Avoid leaving successful payments without a guest pass/class pass if webhook delivery is delayed.
+
+6. **Validate the flow**
+   - Check the updated code paths for guest pass checkout, class pass checkout, waiver signing, and return handling.
+   - Confirm the return URL parsing and session confirmation logic are consistent for both purchases.

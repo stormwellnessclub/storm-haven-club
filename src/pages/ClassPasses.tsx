@@ -408,7 +408,8 @@ export default function ClassPasses() {
           category,
           passType,
           isMember,
-          successUrl: `${origin}/class-passes?purchase=success`,
+          // Pass clean URLs — backend appends ?session_id={CHECKOUT_SESSION_ID}
+          successUrl: `${origin}/class-passes`,
           cancelUrl: `${origin}/class-passes?purchase=cancelled`,
         },
       });
@@ -481,28 +482,13 @@ export default function ClassPasses() {
               Members receive discounted pricing on all class packages.
             </p>
             {!user ? (
-              <div className="mt-6 card-luxury p-5 border border-border max-w-xl">
-                <p className="text-sm text-foreground mb-1">
-                  <strong>Sign in or create a free account to purchase.</strong>
-                </p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Already taken a class or visited us before? Sign in with that same email — don't create a new account. Members automatically receive discounted pricing.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Button asChild variant="gold" size="sm">
-                    <Link to="/auth?redirect=/class-passes">Sign In</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <Link to="/auth?mode=signup&redirect=/class-passes">I'm New — Create Account</Link>
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground mt-3">
-                  Forgot your password?{" "}
-                  <Link to="/auth?redirect=/class-passes" className="underline">
-                    Reset it here
-                  </Link>
-                  .
-                </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button asChild variant="gold" size="sm">
+                  <Link to="/auth?redirect=/class-passes">Sign In</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/auth?mode=signup&redirect=/class-passes">Create Free Account</Link>
+                </Button>
               </div>
             ) : (
               <div className="mt-4 flex flex-wrap items-center gap-3">
