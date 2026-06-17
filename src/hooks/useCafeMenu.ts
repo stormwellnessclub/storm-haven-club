@@ -188,6 +188,7 @@ export function useAddCafeMenuItem() {
       description?: string;
       price: number;
       image_url?: string;
+      image_urls?: string[];
       stock_quantity?: number | null;
       is_seasonal?: boolean;
       seasonal_label?: string;
