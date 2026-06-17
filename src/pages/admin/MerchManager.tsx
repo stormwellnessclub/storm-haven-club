@@ -356,25 +356,13 @@ export default function MerchManager() {
                 </div>
               </div>
 
-              <div>
-                <Label>Product Image</Label>
-                <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="mt-1" />
-                {editingProduct && editingProduct.image_urls.length > 0 && (
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {editingProduct.image_urls.map((url, i) => (
-                      <div key={i} className="relative">
-                        <img src={url} className="h-16 w-16 object-cover rounded" alt="" />
-                        <button
-                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center"
-                          onClick={() => removeImage(editingProduct, url)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MultiImageUploader
+                label="Product Images"
+                value={imageUrls}
+                onChange={setImageUrls}
+                upload={uploadMerchImage}
+                maxImages={8}
+              />
 
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">
