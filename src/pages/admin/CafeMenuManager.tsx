@@ -575,28 +575,13 @@ function ItemEditDialog({
               />
             )}
           </div>
-          <div>
-            <Label>Image</Label>
-            <div className="flex items-center gap-3 mt-1">
-              {form.image_url ? (
-                <img src={form.image_url} alt="" className="h-16 w-16 rounded object-cover" />
-              ) : (
-                <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                Upload
-              </Button>
-              {form.image_url && (
-                <Button variant="ghost" size="sm" onClick={() => setForm((f) => ({ ...f, image_url: null }))}>
-                  Remove
-                </Button>
-              )}
-            </div>
-          </div>
+          <MultiImageUploader
+            label="Images"
+            value={form.image_urls || []}
+            onChange={(urls) => setForm((f) => ({ ...f, image_urls: urls, image_url: urls[0] ?? null }))}
+            upload={uploadCafeMenuImage}
+            maxImages={8}
+          />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
