@@ -62,7 +62,7 @@ export default function CafeMenuManager() {
   const [editingItem, setEditingItem] = useState<CafeMenuItem | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CafeMenuCategory | null>(null);
-  const [uploading, setUploading] = useState(false);
+  
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || categories[0];
   const categoryItems = allItems.filter((i) => i.category_id === selectedCategory?.id);
