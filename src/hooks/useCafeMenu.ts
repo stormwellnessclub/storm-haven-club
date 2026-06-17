@@ -28,6 +28,7 @@ export interface CafeMenuItem {
   price: number;
   is_active: boolean;
   image_url: string | null;
+  image_urls: string[];
   stock_quantity: number | null;
   is_seasonal: boolean;
   seasonal_label: string | null;
