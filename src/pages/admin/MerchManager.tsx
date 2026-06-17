@@ -76,6 +76,7 @@ export default function MerchManager() {
   const openCreate = () => {
     setEditingProduct(null);
     setForm(emptyForm);
+    setImageUrls([]);
     setDialogOpen(true);
   };
 
@@ -91,26 +92,12 @@ export default function MerchManager() {
       allow_preorder: p.allow_preorder,
       is_active: p.is_active,
     });
+    setImageUrls(p.image_urls || []);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.name || !form.price) return;
-    let imageUrl: string | undefined;
-
-    if (imageFile) {
-      setUploading(true);
-      const ext = imageFile.name.split(".").pop();
-      const path = `${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("merch-images").upload(path, imageFile);
-      setUploading(false);
-      if (uploadError) {
-        toast.error("Image upload failed");
-        return;
-      }
-      const { data: urlData } = supabase.storage.from("merch-images").getPublicUrl(path);
-      imageUrl = urlData.publicUrl;
-    }
 
     const payload: any = {
       name: form.name,
@@ -121,20 +108,17 @@ export default function MerchManager() {
       colors: form.colors,
       allow_preorder: form.allow_preorder,
       is_active: form.is_active,
+      image_urls: imageUrls,
     };
 
     if (editingProduct) {
-      if (imageUrl) {
-        payload.image_urls = [...(editingProduct.image_urls || []), imageUrl];
-      }
       await updateProduct.mutateAsync({ id: editingProduct.id, ...payload });
     } else {
-      if (imageUrl) payload.image_urls = [imageUrl];
       await createProduct.mutateAsync(payload);
     }
 
     setDialogOpen(false);
-    setImageFile(null);
+    setImageUrls([]);
   };
 
   const toggleSize = (size: string) => {
