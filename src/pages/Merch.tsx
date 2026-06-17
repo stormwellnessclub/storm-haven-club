@@ -101,6 +101,7 @@ export default function Merch() {
     setSelectedSize("");
     setSelectedColor("");
     setQuantity(1);
+    setActiveImageIdx(0);
   };
 
   const resetAll = () => {
