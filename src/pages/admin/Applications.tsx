@@ -1147,7 +1147,7 @@ export default function Applications() {
         }
         
         queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-        toast.success(`Successfully charged $${amountNum.toFixed(2)}`);
+        toast.success(`Successfully charged $${chargeTotal.toFixed(2)} (incl. $${chargeFee.toFixed(2)} fee)`);
       } else {
         throw new Error("Charge was not successful");
       }
