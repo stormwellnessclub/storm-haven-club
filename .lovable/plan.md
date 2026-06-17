@@ -1,39 +1,27 @@
-## Goal
+I found two likely reasons this feels like “it’s not working” for returning non-members:
 
-When approving / activating a member, the "Activate Member" dialog should clearly show the processing fee being added on top of the initiation fee and (for founding members) the annual subscription — so you can see the exact total before clicking Activate.
+1. **Returning guests with existing accounts are being pushed to create an account again.** If they previously bought/booked classes, their email may already exist, so signup fails and they may not realize they should sign in/reset password.
+2. **Guest pass checkout is tied to the logged-in account, not the guest email they type.** If someone signs in with one email but enters a different guest email, the backend uses the signed-in user for payment/block checks and Stripe customer matching, which can confuse returning non-member flows.
 
-Today the dialog only has two checkboxes ("Charge initiation fee" / "Create subscription") with no dollar amounts. The fee IS being charged correctly by the backend; it just isn't visible in the UI.
+Plan:
 
-## Changes — frontend only
+1. **Improve the account gate on Guest Pass**
+   - Change the guest pass account prompt so the primary action is “Sign In” for returning guests.
+   - Keep “Create Account” available, but make it clear returning class/guest visitors should sign in or reset password instead of creating another account.
+   - Ensure the create-account link explicitly uses signup mode (`/auth?mode=signup&redirect=/guest-pass`).
 
-### 1. `src/components/admin/SingleActivationDialog.tsx`
+2. **Improve class pass account guidance**
+   - On `/class-passes`, update the unsigned-in prompt text to explicitly say: if you’ve taken classes before, sign in with that email or reset your password.
+   - Keep non-member pricing and checkout logic unchanged.
 
-Add a single "Charge summary" panel that appears whenever either checkbox is active and there's a card on file. It dynamically reflects the toggles.
+3. **Make auth errors more helpful**
+   - In `Auth.tsx`, when signup detects an existing email, change the toast to direct them to sign in or reset password.
+   - If sign-in fails, keep the error but make the next step clearer: reset password if they attended before.
 
-For each enabled line item, render: `Base $X.XX + Processing fee $Y.YY = Total $Z.ZZ`, then a final grand total at the bottom.
+4. **Add better checkout error visibility**
+   - On Guest Pass and Class Pass checkout errors, show the actual backend message when available and include a “try signing in/reset password” style message for account-related failures.
+   - This helps staff understand what the guest hit instead of only “not working.”
 
-Lines shown:
-- **Initiation fee** (when "Charge initiation fee" checked): base from `getInitiationFee(gender)` — $300 women / $175 men.
-- **First annual payment** (when "Create dues subscription" checked AND founding member): base from `getAnnualPrice(tier, gender)` — e.g. $2,400 for Silver woman.
-- **First monthly payment** (when "Create dues subscription" checked AND not founding): base from `getMonthlyPrice(tier, gender)`.
-
-Note for the subscription line: "First charge runs on {startDate}; processing fee recurs each cycle."
-
-All math uses existing `calculateProcessingFeeFromDollars()` from `src/lib/processingFee.ts`. Pull tier/gender helpers from `src/lib/membershipPricing.ts` (already imports clean — `extractTier`, `normalizeGender`, `getInitiationFee`, `getMonthlyPrice`, `getAnnualPrice`).
-
-Dialog props get two extras passed through from `Applications.tsx`: `membership_plan` and `gender` (already on the `application` object — just widen `Application` interface here).
-
-### 2. `src/pages/admin/Applications.tsx` — small follow-on so the receipt matches
-
-In `handleSingleActivation` (line ~932) and `handleChargeApplicationCard` (line ~1088), the success toast and `charge_confirmation` email currently report only the base amount ($300.00). Update them to report the **total actually charged** (base + processing fee, computed with `calculateProcessingFeeFromDollars`) and add a "(includes $X.XX processing fee)" note. This matches what Stripe charges and what the customer sees on their statement.
-
-## Out of scope
-
-- No backend / edge-function changes. `charge_saved_card` and `admin_create_member_subscription` already gross up the fee correctly.
-- Not changing the hardcoded $300 initiation amount in `Applications.tsx` (separate issue — men's fee is actually $175). Flag only; do not fix here unless you ask.
-- No DB or schema changes.
-
-## Files touched
-
-- `src/components/admin/SingleActivationDialog.tsx` — add charge-summary panel, widen `Application` type.
-- `src/pages/admin/Applications.tsx` — include processing fee in toast + `charge_confirmation` email payload (two call sites).
+Out of scope for this pass:
+- I won’t remove the current gender/capacity block or blocked-person enforcement unless you explicitly want that changed.
+- I won’t change pricing, waivers, or payment processing.

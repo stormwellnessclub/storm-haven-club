@@ -483,19 +483,26 @@ export default function ClassPasses() {
             {!user ? (
               <div className="mt-6 card-luxury p-5 border border-border max-w-xl">
                 <p className="text-sm text-foreground mb-1">
-                  <strong>A free account is required to purchase class passes.</strong>
+                  <strong>Sign in or create a free account to purchase.</strong>
                 </p>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Already a member? Sign in with your member credentials to automatically receive member pricing.
+                  Already taken a class or visited us before? Sign in with that same email — don't create a new account. Members automatically receive discounted pricing.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button asChild variant="gold" size="sm">
-                    <Link to="/auth?mode=signup&redirect=/class-passes">Create Free Account</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
                     <Link to="/auth?redirect=/class-passes">Sign In</Link>
                   </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/auth?mode=signup&redirect=/class-passes">I'm New — Create Account</Link>
+                  </Button>
                 </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  Forgot your password?{" "}
+                  <Link to="/auth?redirect=/class-passes" className="underline">
+                    Reset it here
+                  </Link>
+                  .
+                </p>
               </div>
             ) : (
               <div className="mt-4 flex flex-wrap items-center gap-3">
