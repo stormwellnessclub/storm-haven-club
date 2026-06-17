@@ -23,6 +23,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
+import {
+  extractTier,
+  normalizeGender,
+  getInitiationFee,
+  getMonthlyPrice,
+  getAnnualPrice,
+} from "@/lib/membershipPricing";
 
 interface Application {
   id: string;
