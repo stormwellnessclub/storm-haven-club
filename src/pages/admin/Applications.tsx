@@ -86,6 +86,7 @@ function formatTierDisplay(rawPlan: string): string {
   return `${tier} Membership`;
 }
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 
 type Application = {
   id: string;
@@ -930,14 +931,17 @@ export default function Applications() {
 
         // Send charge confirmation email
         try {
+          const baseAnnual = 300;
+          const feeAnnual = calculateProcessingFeeFromDollars(baseAnnual);
+          const totalAnnual = baseAnnual + feeAnnual;
           await supabase.functions.invoke("send-email", {
             body: {
               type: "charge_confirmation",
               to: singleActivationTarget.email,
               data: {
                 name: singleActivationTarget.first_name || singleActivationTarget.full_name.split(" ")[0],
-                description: "Annual Membership Fee",
-                amount: "300.00",
+                description: `Annual Membership Fee (includes $${feeAnnual.toFixed(2)} processing fee)`,
+                amount: totalAnnual.toFixed(2),
                 date: new Date().toLocaleDateString("en-US", { 
                   year: "numeric", 
                   month: "long", 
@@ -1076,12 +1080,14 @@ export default function Applications() {
       if (data?.error) throw new Error(data.error);
 
       if (data?.success) {
-        // Show success state with card details
+        const chargeFee = calculateProcessingFeeFromDollars(amountNum);
+        const chargeTotal = amountNum + chargeFee;
+        // Show success state with card details — show total actually charged
         setChargeSuccessData({
           success: true,
           cardBrand: data.cardBrand || "Card",
           cardLast4: data.cardLast4 || "****",
-          amount: amountNum.toFixed(2),
+          amount: chargeTotal.toFixed(2),
         });
         
         // Send charge confirmation email
@@ -1092,8 +1098,8 @@ export default function Applications() {
               to: chargeTarget.email,
               data: {
                 name: chargeTarget.first_name || chargeTarget.full_name.split(" ")[0],
-                description: chargeDescription,
-                amount: amountNum.toFixed(2),
+                description: `${chargeDescription} (includes $${chargeFee.toFixed(2)} processing fee)`,
+                amount: chargeTotal.toFixed(2),
                 date: new Date().toLocaleDateString("en-US", { 
                   year: "numeric", 
                   month: "long", 
@@ -1141,7 +1147,7 @@ export default function Applications() {
         }
         
         queryClient.invalidateQueries({ queryKey: ["membership-applications"] });
-        toast.success(`Successfully charged $${amountNum.toFixed(2)}`);
+        toast.success(`Successfully charged $${chargeTotal.toFixed(2)} (incl. $${chargeFee.toFixed(2)} fee)`);
       } else {
         throw new Error("Charge was not successful");
       }
