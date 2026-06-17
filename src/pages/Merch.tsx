@@ -303,17 +303,28 @@ export default function Merch() {
           </div>
           <div className="grid md:grid-cols-2 gap-8">
             <div>
-              {selectedProduct.image_urls[0] ? (
-                <img src={selectedProduct.image_urls[0]} alt={selectedProduct.name} className="w-full rounded-lg object-cover aspect-square" />
+              {selectedProduct.image_urls[activeImageIdx] ?? selectedProduct.image_urls[0] ? (
+                <img
+                  src={selectedProduct.image_urls[activeImageIdx] ?? selectedProduct.image_urls[0]}
+                  alt={selectedProduct.name}
+                  className="w-full rounded-lg object-cover aspect-square"
+                />
               ) : (
                 <div className="w-full aspect-square bg-muted rounded-lg flex items-center justify-center">
                   <Package className="h-16 w-16 text-muted-foreground" />
                 </div>
               )}
               {selectedProduct.image_urls.length > 1 && (
-                <div className="flex gap-2 mt-3">
+                <div className="flex gap-2 mt-3 flex-wrap">
                   {selectedProduct.image_urls.map((url, i) => (
-                    <img key={i} src={url} className="h-16 w-16 object-cover rounded cursor-pointer border" alt="" />
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setActiveImageIdx(i)}
+                      className={`h-16 w-16 rounded overflow-hidden border-2 transition-colors ${i === activeImageIdx ? "border-primary" : "border-transparent hover:border-muted-foreground/40"}`}
+                    >
+                      <img src={url} className="h-full w-full object-cover" alt="" />
+                    </button>
                   ))}
                 </div>
               )}
