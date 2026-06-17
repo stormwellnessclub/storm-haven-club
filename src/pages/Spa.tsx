@@ -287,8 +287,8 @@ export default function Spa() {
   return (
     <Layout>
       <SEOHead
-        title="Recovery Spa Near Me — Livonia, MI"
-        description="Recovery spa near Livonia, MI: red light therapy, cryotherapy, infrared sauna, cold plunge, steam room, salt room, Starpool ZeroBody dry float, and licensed massage at Storm Wellness Club."
+        title="Massage & Recovery Spa in Livonia"
+        description="Massage, red light therapy, cold plunge, infrared sauna & cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — book today."
         path="/spa"
       />
       <Helmet>
@@ -301,6 +301,9 @@ export default function Spa() {
           ],
         })}</script>
       </Helmet>
+
+      {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
+      <h1 className="sr-only">Massage & Recovery Spa in Livonia, MI — Aella at Storm Wellness Club</h1>
 
       {/* Hidden SEO intro — crawlable copy naming every modality and the service area */}
       <section className="sr-only" aria-hidden="true">
@@ -317,16 +320,16 @@ export default function Spa() {
       {/* Hero */}
       <section className="relative pt-20 min-h-[70vh] flex items-center">
         <div className="absolute inset-0">
-          <img src={treatmentRoom} alt="Aella Spa" className="w-full h-full object-cover" />
+          <img src={treatmentRoom} alt="Aella Recovery Spa treatment room at Storm Wellness Club in Livonia, MI" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-r from-charcoal/90 via-charcoal/70 to-charcoal/40" />
         </div>
         <div className="relative z-10 container mx-auto px-6 py-24">
           <div className="max-w-xl">
             <img src={aellaLogo} alt="Aella" className="h-24 w-auto mb-6" />
             <p className="text-gold-light text-sm uppercase tracking-widest mb-4">by Storm Wellness Club</p>
-            <h1 className="heading-display text-primary-foreground mb-6">
+            <h2 className="heading-display text-primary-foreground mb-6">
               A Sanctuary for Renewal
-            </h1>
+            </h2>
             <p className="text-primary-foreground/80 text-lg leading-relaxed mb-8">
               Open to all—no membership required. Our holistic approach encompasses 
               world-class treatments designed to support every step of your wellness journey.

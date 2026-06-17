@@ -40,8 +40,8 @@ export default function PersonalTrainingOverview() {
   return (
     <Layout>
       <SEOHead
-        title="Personal Training at Storm Wellness Club — Livonia, MI"
-        description="Private personal training, reformer Pilates, and small-group semi-private sessions at Storm Wellness Club in Livonia, MI."
+        title="Personal Trainer in Livonia, MI"
+        description="1-on-1 personal training, private Pilates on the reformer & semi-private sessions in Livonia, MI. Certified coaches at Storm Wellness Club."
         path="/personal-training"
         jsonLd={[
           buildBreadcrumbLd([
@@ -82,13 +82,14 @@ export default function PersonalTrainingOverview() {
               <p className="text-accent text-[11px] uppercase tracking-[0.4em] mb-6">
                 Storm Wellness Club · Private Coaching
               </p>
-              <h1 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
+              <h1 className="sr-only">Personal Training & Private Pilates in Livonia, MI</h1>
+              <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
                 Trained for
                 <br />
                 <span className="italic text-accent">your goal.</span>
                 <br />
                 Coached at your level.
-              </h1>
+              </h2>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
                 Private coaching at Storm Wellness Club. Every session is programmed
                 around your goal, your level, and where your body is today.
