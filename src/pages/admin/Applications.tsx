@@ -1080,12 +1080,14 @@ export default function Applications() {
       if (data?.error) throw new Error(data.error);
 
       if (data?.success) {
-        // Show success state with card details
+        const chargeFee = calculateProcessingFeeFromDollars(amountNum);
+        const chargeTotal = amountNum + chargeFee;
+        // Show success state with card details — show total actually charged
         setChargeSuccessData({
           success: true,
           cardBrand: data.cardBrand || "Card",
           cardLast4: data.cardLast4 || "****",
-          amount: amountNum.toFixed(2),
+          amount: chargeTotal.toFixed(2),
         });
         
         // Send charge confirmation email
@@ -1096,8 +1098,8 @@ export default function Applications() {
               to: chargeTarget.email,
               data: {
                 name: chargeTarget.first_name || chargeTarget.full_name.split(" ")[0],
-                description: chargeDescription,
-                amount: amountNum.toFixed(2),
+                description: `${chargeDescription} (includes $${chargeFee.toFixed(2)} processing fee)`,
+                amount: chargeTotal.toFixed(2),
                 date: new Date().toLocaleDateString("en-US", { 
                   year: "numeric", 
                   month: "long", 
