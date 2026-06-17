@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import {
   type CafeMenuAddon,
   type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
+import { MultiImageUploader } from "@/components/admin/MultiImageUploader";
 
 import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
 
@@ -61,7 +62,7 @@ export default function CafeMenuManager() {
   const [editingItem, setEditingItem] = useState<CafeMenuItem | null>(null);
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CafeMenuCategory | null>(null);
-  const [uploading, setUploading] = useState(false);
+  
 
   const selectedCategory = categories.find((c) => c.id === selectedCategoryId) || categories[0];
   const categoryItems = allItems.filter((i) => i.category_id === selectedCategory?.id);
@@ -474,9 +475,7 @@ function ItemEditDialog({
   onSave: (updates: Partial<CafeMenuItem>) => Promise<void>;
 }) {
   const [form, setForm] = useState<Partial<CafeMenuItem>>({});
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Reset form when item changes
   const resetForm = () => {
@@ -489,6 +488,7 @@ function ItemEditDialog({
         description: item.description,
         price: item.price,
         image_url: item.image_url,
+        image_urls: item.image_urls || (item.image_url ? [item.image_url] : []),
         stock_quantity: item.stock_quantity,
         is_seasonal: item.is_seasonal,
         seasonal_label: item.seasonal_label,
@@ -496,21 +496,6 @@ function ItemEditDialog({
         calories: item.calories,
         dietary_tags: item.dietary_tags,
       });
-    }
-  };
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const url = await uploadCafeMenuImage(file);
-      setForm((f) => ({ ...f, image_url: url }));
-      toast.success("Image uploaded");
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -590,28 +575,13 @@ function ItemEditDialog({
               />
             )}
           </div>
-          <div>
-            <Label>Image</Label>
-            <div className="flex items-center gap-3 mt-1">
-              {form.image_url ? (
-                <img src={form.image_url} alt="" className="h-16 w-16 rounded object-cover" />
-              ) : (
-                <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                Upload
-              </Button>
-              {form.image_url && (
-                <Button variant="ghost" size="sm" onClick={() => setForm((f) => ({ ...f, image_url: null }))}>
-                  Remove
-                </Button>
-              )}
-            </div>
-          </div>
+          <MultiImageUploader
+            label="Images"
+            value={form.image_urls || []}
+            onChange={(urls) => setForm((f) => ({ ...f, image_urls: urls, image_url: urls[0] ?? null }))}
+            upload={uploadCafeMenuImage}
+            maxImages={8}
+          />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={saving}>
@@ -651,24 +621,8 @@ function AddItemDialog({
     is_seasonal: false,
     seasonal_label: "",
     stock_quantity: null as number | null,
-    image_url: "",
+    image_urls: [] as string[],
   });
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const url = await uploadCafeMenuImage(file);
-      setForm((f) => ({ ...f, image_url: url }));
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!form.item_name && !form.brand_name) {
@@ -692,13 +646,14 @@ function AddItemDialog({
       is_seasonal: form.is_seasonal,
       seasonal_label: form.seasonal_label || null,
       stock_quantity: form.stock_quantity,
-      image_url: form.image_url || null,
+      image_urls: form.image_urls,
+      image_url: form.image_urls[0] || null,
     });
     // Reset
     setForm({
       item_name: "", brand_name: "", flavor: "", size: "", description: "", price: 0,
       calories: null, dietary_tags: [], is_seasonal: false, seasonal_label: "",
-      stock_quantity: null, image_url: "",
+      stock_quantity: null, image_urls: [],
     });
   };
 
@@ -760,23 +715,13 @@ function AddItemDialog({
               <Input placeholder="e.g. Summer Special" value={form.seasonal_label} onChange={(e) => setForm((f) => ({ ...f, seasonal_label: e.target.value }))} className="flex-1" />
             )}
           </div>
-          <div>
-            <Label>Image</Label>
-            <div className="flex items-center gap-3 mt-1">
-              {form.image_url ? (
-                <img src={form.image_url} alt="" className="h-16 w-16 rounded object-cover" />
-              ) : (
-                <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
-                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
-              <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-                Upload
-              </Button>
-            </div>
-          </div>
+          <MultiImageUploader
+            label="Images"
+            value={form.image_urls}
+            onChange={(urls) => setForm((f) => ({ ...f, image_urls: urls }))}
+            upload={uploadCafeMenuImage}
+            maxImages={8}
+          />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={isPending}>

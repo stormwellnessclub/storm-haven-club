@@ -18,7 +18,17 @@ import {
   type MerchProduct,
 } from "@/hooks/useMerchProducts";
 import { supabase } from "@/integrations/supabase/client";
+import { MultiImageUploader } from "@/components/admin/MultiImageUploader";
 import { toast } from "sonner";
+
+async function uploadMerchImage(file: File): Promise<string> {
+  const ext = file.name.split(".").pop();
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from("merch-images").upload(path, file);
+  if (error) throw error;
+  const { data } = supabase.storage.from("merch-images").getPublicUrl(path);
+  return data.publicUrl;
+}
 
 const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy", "Red", "Blue", "Green", "Pink", "Purple", "Tan", "Brown", "Camo", "Olive"];
@@ -56,7 +66,7 @@ export default function MerchManager() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<MerchProduct | null>(null);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState<MerchProduct | null>(null);
   const [inventoryValues, setInventoryValues] = useState<Record<string, number>>({});
@@ -66,6 +76,7 @@ export default function MerchManager() {
   const openCreate = () => {
     setEditingProduct(null);
     setForm(emptyForm);
+    setImageUrls([]);
     setDialogOpen(true);
   };
 
@@ -81,26 +92,12 @@ export default function MerchManager() {
       allow_preorder: p.allow_preorder,
       is_active: p.is_active,
     });
+    setImageUrls(p.image_urls || []);
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.name || !form.price) return;
-    let imageUrl: string | undefined;
-
-    if (imageFile) {
-      setUploading(true);
-      const ext = imageFile.name.split(".").pop();
-      const path = `${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("merch-images").upload(path, imageFile);
-      setUploading(false);
-      if (uploadError) {
-        toast.error("Image upload failed");
-        return;
-      }
-      const { data: urlData } = supabase.storage.from("merch-images").getPublicUrl(path);
-      imageUrl = urlData.publicUrl;
-    }
 
     const payload: any = {
       name: form.name,
@@ -111,20 +108,17 @@ export default function MerchManager() {
       colors: form.colors,
       allow_preorder: form.allow_preorder,
       is_active: form.is_active,
+      image_urls: imageUrls,
     };
 
     if (editingProduct) {
-      if (imageUrl) {
-        payload.image_urls = [...(editingProduct.image_urls || []), imageUrl];
-      }
       await updateProduct.mutateAsync({ id: editingProduct.id, ...payload });
     } else {
-      if (imageUrl) payload.image_urls = [imageUrl];
       await createProduct.mutateAsync(payload);
     }
 
     setDialogOpen(false);
-    setImageFile(null);
+    setImageUrls([]);
   };
 
   const toggleSize = (size: string) => {
@@ -164,10 +158,6 @@ export default function MerchManager() {
     setInventoryDialog(null);
   };
 
-  const removeImage = async (product: MerchProduct, url: string) => {
-    const newUrls = product.image_urls.filter((u) => u !== url);
-    await updateProduct.mutateAsync({ id: product.id, image_urls: newUrls } as any);
-  };
 
   return (
     <AdminLayout>
@@ -362,25 +352,13 @@ export default function MerchManager() {
                 </div>
               </div>
 
-              <div>
-                <Label>Product Image</Label>
-                <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] || null)} className="mt-1" />
-                {editingProduct && editingProduct.image_urls.length > 0 && (
-                  <div className="flex gap-2 mt-2 flex-wrap">
-                    {editingProduct.image_urls.map((url, i) => (
-                      <div key={i} className="relative">
-                        <img src={url} className="h-16 w-16 object-cover rounded" alt="" />
-                        <button
-                          className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center"
-                          onClick={() => removeImage(editingProduct, url)}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MultiImageUploader
+                label="Product Images"
+                value={imageUrls}
+                onChange={setImageUrls}
+                upload={uploadMerchImage}
+                maxImages={8}
+              />
 
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2">

@@ -753,6 +753,7 @@ export type Database = {
           flavor: string | null
           id: string
           image_url: string | null
+          image_urls: string[]
           is_active: boolean
           is_seasonal: boolean
           item_name: string | null
@@ -774,6 +775,7 @@ export type Database = {
           flavor?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           is_active?: boolean
           is_seasonal?: boolean
           item_name?: string | null
@@ -795,6 +797,7 @@ export type Database = {
           flavor?: string | null
           id?: string
           image_url?: string | null
+          image_urls?: string[]
           is_active?: boolean
           is_seasonal?: boolean
           item_name?: string | null
