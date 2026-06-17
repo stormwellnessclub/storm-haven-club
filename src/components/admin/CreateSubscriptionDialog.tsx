@@ -21,6 +21,11 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, CreditCard, Calendar, DollarSign, Loader2, Zap, Banknote } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getBillingCadenceLabel } from "@/lib/billingTerminology";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
+import { getAnnualFeeAmount } from "@/lib/stripeProducts";
+
+const fmtUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 interface Member {
   first_name: string;
@@ -33,6 +38,8 @@ interface Member {
   card_brand?: string | null;
   card_last4?: string | null;
   stripe_customer_id?: string | null;
+  annual_fee_paid_at?: string | null;
+  annual_fee_subscription_id?: string | null;
 }
 
 interface CreateSubscriptionDialogProps {
