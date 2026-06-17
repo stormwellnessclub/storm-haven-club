@@ -21,6 +21,11 @@ import { cn } from "@/lib/utils";
 import { AlertTriangle, CreditCard, Calendar, DollarSign, Loader2, Zap, Banknote } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { getBillingCadenceLabel } from "@/lib/billingTerminology";
+import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
+import { getAnnualFeeAmount } from "@/lib/stripeProducts";
+
+const fmtUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 interface Member {
   first_name: string;
@@ -33,6 +38,8 @@ interface Member {
   card_brand?: string | null;
   card_last4?: string | null;
   stripe_customer_id?: string | null;
+  annual_fee_paid_at?: string | null;
+  annual_fee_subscription_id?: string | null;
 }
 
 interface CreateSubscriptionDialogProps {
@@ -137,9 +144,23 @@ export function CreateSubscriptionDialog({
     const price = PRICES[tier]?.[billingType]?.[gender] || 0;
     const interval = billingType === "annual" ? "/yr" : "/mo";
 
+    // Charge breakdown — mirrors backend addRecurringProcessingFeeItems +
+    // annual-fee subscription created when not already paid/linked.
+    const membershipBase = price;
+    const membershipFee = calculateProcessingFeeFromDollars(membershipBase);
+
+    const willChargeAnnualFee =
+      !member.annual_fee_paid_at && !member.annual_fee_subscription_id;
+    const annualFeeBase = willChargeAnnualFee ? getAnnualFeeAmount(gender as "men" | "women") : 0;
+    const annualFeeFee = willChargeAnnualFee ? calculateProcessingFeeFromDollars(annualFeeBase) : 0;
+
+    const chargeTotal = membershipBase + membershipFee + annualFeeBase + annualFeeFee;
+
     return {
       tier: normalizeTierDisplay(member.membership_type),
       billingType: getBillingCadenceLabel(billingType, member.is_founding_member),
+      billingTypeRaw: billingType,
+      gender,
       price: `$${price}${interval}`,
       credits,
       cardInfo:
@@ -148,6 +169,12 @@ export function CreateSubscriptionDialog({
           : "No card on file",
       startDate: format(startDate, "MMM d, yyyy"),
       hasCard: !!(member.card_brand && member.card_last4),
+      membershipBase,
+      membershipFee,
+      willChargeAnnualFee,
+      annualFeeBase,
+      annualFeeFee,
+      chargeTotal,
     };
   }, [member, startDate]);
 
@@ -411,9 +438,55 @@ export function CreateSubscriptionDialog({
                      )}
                      <p>• <span className="font-medium">Benefits start:</span> {subscriptionPreview.startDate}</p>
                      <p>• <span className="font-medium">First Stripe charge:</span> {format(firstChargeDate, "MMM d, yyyy")}</p>
+                     <p>• <span className="font-medium">First charge total:</span> {fmtUSD(subscriptionPreview.chargeTotal)} (incl. processing fee{subscriptionPreview.willChargeAnnualFee ? " & annual fee" : ""})</p>
                      <p>• <span className="font-medium">Member active immediately</span> with full benefits</p>
                    </div>
                  </div>
+               )}
+
+               {/* Today's charge breakdown */}
+               {isChargingNow && subscriptionPreview.hasCard && (
+                 <Card className="border-primary/30 bg-primary/5">
+                   <CardContent className="pt-4 space-y-2">
+                     <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                       <DollarSign className="h-4 w-4 text-primary" />
+                       Today's charge
+                     </div>
+                     <div className="text-sm space-y-1.5">
+                       <div className="flex justify-between">
+                         <span className="text-muted-foreground">
+                           Membership ({subscriptionPreview.tier} • {subscriptionPreview.billingTypeRaw === "annual" ? "Annual" : "Monthly"})
+                         </span>
+                         <span className="font-medium">{fmtUSD(subscriptionPreview.membershipBase)}</span>
+                       </div>
+                       <div className="flex justify-between">
+                         <span className="text-muted-foreground">Processing fee (2.9% + $0.30)</span>
+                         <span className="font-medium">{fmtUSD(subscriptionPreview.membershipFee)}</span>
+                       </div>
+                       {subscriptionPreview.willChargeAnnualFee && (
+                         <>
+                           <div className="flex justify-between">
+                             <span className="text-muted-foreground">
+                               Annual fee ({subscriptionPreview.gender === "men" ? "Men" : "Women"})
+                             </span>
+                             <span className="font-medium">{fmtUSD(subscriptionPreview.annualFeeBase)}</span>
+                           </div>
+                           <div className="flex justify-between">
+                             <span className="text-muted-foreground">Processing fee</span>
+                             <span className="font-medium">{fmtUSD(subscriptionPreview.annualFeeFee)}</span>
+                           </div>
+                         </>
+                       )}
+                       <div className="flex justify-between border-t pt-2 mt-1">
+                         <span className="font-semibold text-foreground">Total charged today</span>
+                         <span className="font-bold text-foreground">{fmtUSD(subscriptionPreview.chargeTotal)}</span>
+                       </div>
+                     </div>
+                     <p className="text-[11px] text-muted-foreground pt-1">
+                       Processing fee is passed through to the member so the club nets the full membership amount.
+                     </p>
+                   </CardContent>
+                 </Card>
                )}
 
                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md p-3 space-y-2">
@@ -424,8 +497,8 @@ export function CreateSubscriptionDialog({
                 <ul className="text-xs text-amber-700 dark:text-amber-400 space-y-1 ml-6 list-disc">
                   <li>
                     {useCustomChargeDate && firstChargeDate && isAfter(firstChargeDate, today)
-                      ? `Member's card will be charged on ${format(firstChargeDate, "MMM d, yyyy")}`
-                      : "Member's card will be charged TODAY"}
+                      ? `Member's card will be charged ${fmtUSD(subscriptionPreview.chargeTotal)} on ${format(firstChargeDate, "MMM d, yyyy")}`
+                      : `Member's card will be charged ${fmtUSD(subscriptionPreview.chargeTotal)} TODAY`}
                   </li>
                   <li>Subscription cannot be undone from this portal</li>
                   <li>To cancel, use the Stripe Dashboard or "Cancel" button</li>
@@ -448,8 +521,8 @@ export function CreateSubscriptionDialog({
             {isCashPaidAhead
               ? "Activate & Schedule Future Billing"
               : useCustomChargeDate && firstChargeDate && isAfter(firstChargeDate, today)
-                ? "Schedule Charge & Create"
-                : "Charge Now & Create"}
+                ? `Schedule ${fmtUSD(subscriptionPreview.chargeTotal)} for ${format(firstChargeDate, "MMM d, yyyy")}`
+                : `Charge ${fmtUSD(subscriptionPreview.chargeTotal)} Now & Create`}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
