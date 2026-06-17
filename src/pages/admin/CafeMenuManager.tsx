@@ -38,6 +38,7 @@ import {
   type CafeMenuAddon,
   type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
+import { MultiImageUploader } from "@/components/admin/MultiImageUploader";
 
 import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
 
