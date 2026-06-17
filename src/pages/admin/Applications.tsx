@@ -931,14 +931,17 @@ export default function Applications() {
 
         // Send charge confirmation email
         try {
+          const baseAnnual = 300;
+          const feeAnnual = calculateProcessingFeeFromDollars(baseAnnual);
+          const totalAnnual = baseAnnual + feeAnnual;
           await supabase.functions.invoke("send-email", {
             body: {
               type: "charge_confirmation",
               to: singleActivationTarget.email,
               data: {
                 name: singleActivationTarget.first_name || singleActivationTarget.full_name.split(" ")[0],
-                description: "Annual Membership Fee",
-                amount: "300.00",
+                description: `Annual Membership Fee (includes $${feeAnnual.toFixed(2)} processing fee)`,
+                amount: totalAnnual.toFixed(2),
                 date: new Date().toLocaleDateString("en-US", { 
                   year: "numeric", 
                   month: "long", 
