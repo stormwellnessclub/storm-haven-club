@@ -572,6 +572,7 @@ export default function Merch() {
                       setSelectedProduct(product);
                       setSelectedSize(product.sizes[0] || "");
                       setSelectedColor(product.colors[0] || "");
+                      setActiveImageIdx(0);
                     }}
                   >
                     {product.image_urls[0] ? (
