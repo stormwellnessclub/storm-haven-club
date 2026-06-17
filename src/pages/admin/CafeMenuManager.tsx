@@ -621,24 +621,8 @@ function AddItemDialog({
     is_seasonal: false,
     seasonal_label: "",
     stock_quantity: null as number | null,
-    image_url: "",
+    image_urls: [] as string[],
   });
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const url = await uploadCafeMenuImage(file);
-      setForm((f) => ({ ...f, image_url: url }));
-    } catch {
-      toast.error("Failed to upload image");
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!form.item_name && !form.brand_name) {
@@ -662,13 +646,14 @@ function AddItemDialog({
       is_seasonal: form.is_seasonal,
       seasonal_label: form.seasonal_label || null,
       stock_quantity: form.stock_quantity,
-      image_url: form.image_url || null,
+      image_urls: form.image_urls,
+      image_url: form.image_urls[0] || null,
     });
     // Reset
     setForm({
       item_name: "", brand_name: "", flavor: "", size: "", description: "", price: 0,
       calories: null, dietary_tags: [], is_seasonal: false, seasonal_label: "",
-      stock_quantity: null, image_url: "",
+      stock_quantity: null, image_urls: [],
     });
   };
 
