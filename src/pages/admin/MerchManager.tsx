@@ -158,10 +158,6 @@ export default function MerchManager() {
     setInventoryDialog(null);
   };
 
-  const removeImage = async (product: MerchProduct, url: string) => {
-    const newUrls = product.image_urls.filter((u) => u !== url);
-    await updateProduct.mutateAsync({ id: product.id, image_urls: newUrls } as any);
-  };
 
   return (
     <AdminLayout>
