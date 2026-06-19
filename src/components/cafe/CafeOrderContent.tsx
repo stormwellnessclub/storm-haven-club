@@ -246,9 +246,27 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
     }
   }, [resolvedMode, paymentMethod]);
 
+  // Scope public cafe page strictly to cafe-section items (categories are already filtered to section='cafe')
+  const cafeCategoryIds = new Set(categories.map((c) => c.id));
+  const sectionScopedItems =
+    variant === "public"
+      ? menuItems.filter((i) => i.category_id && cafeCategoryIds.has(i.category_id))
+      : menuItems;
   const filteredItems = selectedCategoryId
-    ? menuItems.filter((item) => item.category_id === selectedCategoryId)
-    : menuItems;
+    ? sectionScopedItems.filter((item) => item.category_id === selectedCategoryId)
+    : sectionScopedItems;
+
+  // Category-aware image framing: packaged goods get contained on a neutral bg, prepared food gets edge-to-edge cover
+  const CONTAIN_CATEGORIES = new Set([
+    "Energy Drinks",
+    "Water",
+    "Refreshers",
+    "Shots",
+    "Preworkout",
+    "Supplements",
+  ]);
+  const getImageFit = (categoryName: string): "contain" | "cover" =>
+    CONTAIN_CATEGORIES.has(categoryName) ? "contain" : "cover";
 
   const getAddonsForItem = (item: DbMenuItem): CafeMenuAddon[] => {
     if (!item.category_id) return [];

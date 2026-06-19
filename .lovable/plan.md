@@ -1,43 +1,48 @@
-## Problem
+## Cafe page refinement
 
-You're right — the Cafe page has visible, obviously-SEO copy at the top ("Café, Juice Bar & Smoothie Bar in Livonia, MI" + a paragraph listing surrounding cities like Farmington Hills, Plymouth, Northville, Novi, Redford, etc., plus a 6-tile grid of keyword-stuffed category descriptions). That reads like a chiropractor's landing page, not a premium club. None of it should be on screen.
+Two targeted fixes on the public `/cafe` page. Nothing about Storm Shop, admin menu manager, or POS changes — items stay where they live in the database; we only stop leaking them into the public cafe UI and clean up the image presentation.
 
-The other pages (Home, Spa, Amenities, Personal Training) already use `sr-only` for their SEO H1/intro — those are invisible to users and only read by crawlers/screen readers. So this fix is scoped to **Cafe.tsx**.
+### 1. Stop shop items from appearing on /cafe
 
-## Changes
+**Problem:** `useCafeMenuItems()` returns every active item with no section filter. The category chips on /cafe correctly show only cafe categories, but as soon as the page loads (no chip selected) `filteredItems = menuItems` renders *all* items — so Supplements, KITSCH, ZUMA, Socks, and Grip Socks bleed into the cafe grid.
 
-### `src/pages/Cafe.tsx`
+**Fix:** In `src/components/cafe/CafeOrderContent.tsx`, derive a set of cafe-section category IDs from the already-loaded `categories` (which is scoped via `useCafeMenuCategories('cafe')`), and filter `menuItems` against that set before applying the selected-category filter.
 
-1. **Editorial intro section** (lines 122–143) — convert to `sr-only`. Crawlers still get the H1 + intro paragraph; users see nothing. Drop the city list ("Farmington Hills, Plymouth…") entirely — it's keyword stuffing with no real value.
+```ts
+const cafeCategoryIds = new Set(categories.map(c => c.id));
+const cafeItems = menuItems.filter(i => i.category_id && cafeCategoryIds.has(i.category_id));
+const filteredItems = selectedCategoryId
+  ? cafeItems.filter(i => i.category_id === selectedCategoryId)
+  : cafeItems;
+```
 
-2. **Menu category descriptions grid** (lines 145–198) — remove from visible UI. Move a single condensed paragraph into the same hidden `sr-only` block so Google still sees "smoothies, protein shakes, açaí bowls, cold-pressed juice, espresso" once. The live `CafeOrderContent` already shows real menu items with prices — that's what users should see.
+No DB migration, no recategorization. Shop items continue to live under their shop categories and render on the Storm Shop page as today.
 
-3. **FAQ section** (lines 204–216) — keep visible (FAQs are genuinely useful + power the FAQPage JSON-LD), but rewrite the FAQ copy in `cafeFaqs` (lines 8–40) to brand voice: remove "near me", remove the Detroit-metro city dump, remove "best protein shake near me" phrasing. Questions stay informative ("Is the café open to non-members?", "Do you have dairy-free options?", etc.).
+### 2. Align product imagery by category
 
-4. **"After the café, recover" cross-link section** (lines 219–238) — keep, but tighten copy and drop "in Livonia" from the visible line.
+**Problem:** Photos are a mix of packaged goods (cans, bottles, tubs) and prepared food (bowls, smoothies, bites). The current `h-48 object-cover` crops cans awkwardly and makes the grid look uneven.
 
-5. **JSON-LD** (lines 41–105) — keep as-is. Schema.org data isn't visible and is the correct place for location/keywords.
+**Fix (still in `CafeOrderContent.tsx`, item card image block):** Switch to a uniform `aspect-[4/3]` frame and pick `object-contain` vs `object-cover` per category so each card has the same outer footprint but the photo is rendered appropriately.
 
-### Verification pass on the other pages
+```text
+┌─────────────────┐   ┌─────────────────┐
+│   [whole can]   │   │   plated bowl   │
+│  contain, bg    │   │  cover, edge    │
+└─────────────────┘   └─────────────────┘
+   Energy Drink           Açaí Bowl
+```
 
-Re-read Home, Spa, Amenities, Personal Training and confirm no visible keyword-stuffed paragraphs slipped in. Current state:
-- Index.tsx — H1 is `sr-only`, visible copy is brand philosophy. Good.
-- Spa.tsx — H1 + intro are `sr-only aria-hidden`. Good.
-- Amenities.tsx — H1 is `sr-only`. Good.
-- Personal Training Overview — H1 is `sr-only`, visible hero is brand voice. Good.
+- **Contain (packaged goods, full product visible, subtle muted bg):** Energy Drinks, Water, Refreshers, Shots, Preworkout, Coffee and Lattes when the photo is a branded can/bottle.
+- **Cover (prepared food, edge-to-edge crop):** Smoothies, Protein Smoothie, Amino Acid Slushie, Cafe Bites, Toast, Fruit Cups, Cold Pressed Juice.
 
-No edits needed there — just confirming.
+Implementation: a small lookup keyed by the category name (resolved via `categories.find(c => c.id === item.category_id)?.name`) returns `"contain"` or `"cover"`. Default to `cover` for anything unmapped. The dark gradient overlay stays only on `cover` cards (it would dirty a clean product shot on `contain`). Contain cards use `bg-secondary/40` behind the image so the framing reads intentional.
 
-### Alt text
+Both fixes also remove the gradient overlay on `contain` cards so packaged-product photos don't get darkened at the bottom.
 
-Alt text isn't rendered on screen (only read by screen readers / shown on broken images), so it doesn't affect the "premium look." I'll leave the descriptive alts in place but trim gratuitous ", Livonia, MI" tails from a few where it reads forced. Low priority.
+### Out of scope
+- No changes to Storm Shop, POS, admin menu manager, payment dialog, FAQs, SEO, or JSON-LD.
+- No category renaming or moving items between sections in the DB.
+- Mobile/desktop responsive behavior of the existing grid stays as-is.
 
-## Out of scope
-
-- No changes to `<SEOHead>` titles/descriptions, JSON-LD, sitemap, or canonical tags — those are head metadata, never visible.
-- No new pages or content marketing.
-- Performance/contrast findings — separate track.
-
-## Result
-
-Cafe page returns to the clean café look. All SEO signal (H1, descriptive intro, category keywords, FAQ schema, JSON-LD) still ships to Google via `sr-only` + head tags + structured data — just nothing screaming "SEO" at the visitor.
+### Files touched
+- `src/components/cafe/CafeOrderContent.tsx` — filter cafe-section items, category-aware image framing.
