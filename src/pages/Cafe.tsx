@@ -8,34 +8,27 @@ const BASE_URL = "https://stormwellnessclub.com";
 
 const cafeFaqs = [
   {
-    q: "Is there a juice bar or smoothie bar near Livonia, MI?",
-    a: "Yes — Storm Café inside Storm Wellness Club at 18340 Middlebelt Rd in Livonia is a full juice bar and smoothie bar. Cold-pressed juices, real-fruit smoothies, protein shakes, and wellness shots are made fresh daily. A short drive from Farmington Hills, Plymouth, Northville, Novi, Redford, Westland, Canton, and Southfield.",
-  },
-  {
     q: "Is the Storm Café open to non-members?",
-    a: "Yes — the Storm Café is open to the public during club hours. You don't need a Storm Wellness Club membership to order smoothies, protein shakes, açaí bowls, juices, or coffee. Walk in, order on the screen, and we'll have it ready.",
+    a: "Yes — the café is open to the public during club hours. Walk in, order at the kiosk, and we'll have it ready.",
   },
   {
     q: "Is the café open for breakfast?",
-    a: "Yes — we open with the club in the morning and serve breakfast smoothies, açaí bowls, espresso drinks, and grab-and-go bites. It's a popular pre-class breakfast spot for members training before work.",
-  },
-  {
-    q: "Where can I get the best protein shake near me in Livonia?",
-    a: "Storm Café blends protein shakes with clean whey or plant-based protein, real fruit, nut or oat milk, and add-ins like nut butter, greens, or collagen — 25–35g of protein per shake, no powdered fillers. Tap any item on the menu for full macros.",
+    a: "Yes — we open with the club each morning and serve breakfast smoothies, açaí bowls, espresso, and grab-and-go bites.",
   },
   {
     q: "Do you offer dairy-free, vegan, or gluten-free options?",
-    a: "Yes. Most smoothies, açaí bowls, and cold-pressed juices are dairy-free by default, and we offer plant-based protein and oat or almond milk swaps on request. Many bowls and snacks are gluten-free as well — check the menu tags.",
+    a: "Yes. Most smoothies, açaí bowls, and cold-pressed juices are dairy-free by default, with plant-based protein and oat or almond milk swaps on request. Many bowls and snacks are gluten-free — check the menu tags.",
   },
   {
-    q: "Where can I get an açaí bowl near Livonia?",
-    a: "Storm Café serves fresh açaí and pitaya bowls daily, made with frozen fruit, granola, nut butter, and seasonal toppings — a short drive from Farmington Hills, Plymouth, Northville, Novi, Redford, Westland, and Southfield.",
+    q: "What's in the protein shakes?",
+    a: "Clean whey or plant-based protein, real fruit, nut or oat milk, and optional add-ins like nut butter, greens, or collagen — 25–35g of protein per shake, no powdered fillers.",
   },
   {
     q: "Can I order ahead?",
     a: "Yes — members can order ahead from the member portal, and walk-ins can order at the kiosk. Most drinks are ready in 5–8 minutes.",
   },
 ];
+
 
 export default function Cafe() {
   const restaurantLd = {
