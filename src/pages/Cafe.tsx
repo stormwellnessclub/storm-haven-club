@@ -129,43 +129,6 @@ export default function Cafe() {
         <CafeOrderContent variant="public" showHero />
       </div>
 
-
-      {/* FAQ — also rendered as FAQPage JSON-LD above */}
-      <section className="py-16 bg-secondary/30 border-t border-border">
-        <div className="container mx-auto px-6 max-w-3xl">
-          <h2 className="font-serif text-3xl mb-8">Frequently Asked Questions</h2>
-          <div className="space-y-6">
-            {cafeFaqs.map((f) => (
-              <div key={f.q}>
-                <h3 className="font-serif text-xl mb-2">{f.q}</h3>
-                <p className="text-muted-foreground leading-relaxed">{f.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Cross-links to recovery to share authority across the club */}
-      <section className="py-12 bg-background border-t border-border">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <h2 className="font-serif text-2xl mb-4">After the café, recover.</h2>
-          <p className="text-muted-foreground mb-6">
-            Pair your shake with a recovery session — all under one roof.
-          </p>
-
-          <div className="flex flex-wrap gap-3">
-            <Link to="/spa/red-light-therapy" className="text-sm underline hover:text-accent">Red Light Therapy</Link>
-            <span className="text-muted-foreground">·</span>
-            <Link to="/spa/cryotherapy" className="text-sm underline hover:text-accent">Cryotherapy</Link>
-            <span className="text-muted-foreground">·</span>
-            <Link to="/spa/cold-plunge" className="text-sm underline hover:text-accent">Cold Plunge</Link>
-            <span className="text-muted-foreground">·</span>
-            <Link to="/spa/infrared-sauna" className="text-sm underline hover:text-accent">Infrared Sauna</Link>
-            <span className="text-muted-foreground">·</span>
-            <Link to="/spa/sauna-steam" className="text-sm underline hover:text-accent">Sauna &amp; Steam</Link>
-          </div>
-        </div>
-      </section>
     </Layout>
   );
 }
