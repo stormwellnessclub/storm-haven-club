@@ -112,86 +112,23 @@ export default function Cafe() {
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
       </Helmet>
 
-      {/* SEO editorial intro — keyword-rich, crawlable copy above the live menu */}
-      <section className="pt-28 pb-10 bg-secondary/30">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <p className="text-accent text-sm uppercase tracking-widest mb-4">
-            Storm Café · Livonia, MI
-          </p>
-          <h1 className="heading-display mb-4">
-            Café, Juice Bar &amp; Smoothie Bar in Livonia, MI
-          </h1>
-          <p className="text-muted-foreground text-lg leading-relaxed">
-            The Storm Café is the in-house café, juice bar, and smoothie bar
-            inside Storm Wellness Club — serving fresh smoothies, protein
-            shakes, açaí bowls, cold-pressed juices, espresso, and clean
-            snacks every day. Open to members and the public, centrally
-            located at 18340 Middlebelt Rd in Livonia and a short drive from
-            Farmington Hills, Plymouth, Northville, Novi, Redford, Westland,
-            Canton, and Southfield. If you're searching for a healthy café
-            near you, a juice bar near you, or a smoothie bar near you in
-            the Detroit metro — you've found it.
-          </p>
-        </div>
+      {/* Hidden SEO content — crawlable, not visible to users */}
+      <h1 className="sr-only">Café, Juice Bar & Smoothie Bar in Livonia, MI — Storm Café at Storm Wellness Club</h1>
+      <section className="sr-only" aria-hidden="true">
+        <h2>Storm Café</h2>
+        <p>
+          Storm Café is the in-house café, juice bar, and smoothie bar inside Storm Wellness Club at
+          18340 Middlebelt Rd in Livonia, Michigan. Open to members and the public, the café serves
+          fresh smoothies, protein shakes, açaí and pitaya bowls, cold-pressed juice, espresso, and
+          clean snacks daily.
+        </p>
       </section>
 
-      {/* Menu category descriptions — gives Google something to read */}
-      <section className="py-12 bg-background border-b border-border">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <div className="grid gap-8 md:grid-cols-2">
-            <div>
-              <h2 className="font-serif text-xl mb-2">Smoothies</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Real-fruit smoothies blended with nut or oat milk, optional
-                protein, and seasonal add-ins. A post-class staple for our
-                members and the easiest healthy lunch in Livonia.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-serif text-xl mb-2">Protein Shakes</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Clean whey and plant-based protein shakes built for recovery —
-                25–35g of protein per shake, blended with real ingredients,
-                never powdered fillers.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-serif text-xl mb-2">Açaí &amp; Pitaya Bowls</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Thick, frozen-fruit bowls topped with granola, nut butter,
-                fresh fruit, and seasonal toppings. The best açaí bowl near
-                Livonia, made to order.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-serif text-xl mb-2">Cold-Pressed Juice</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Rotating cold-pressed juices, wellness shots, and hydration
-                blends — designed for clean energy before training or as a
-                mid-day reset.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-serif text-xl mb-2">Coffee &amp; Espresso</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Espresso drinks, drip coffee, matcha, and seasonal lattes —
-                with dairy and plant-milk options.
-              </p>
-            </div>
-            <div>
-              <h2 className="font-serif text-xl mb-2">Snacks &amp; Light Meals</h2>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                Protein-forward snacks, grab-and-go bites, and seasonal items
-                — built for people training, recovering, or working from the
-                lounge.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Live ordering UI */}
+      <div className="pt-20">
+        <CafeOrderContent variant="public" showHero />
+      </div>
 
-      {/* Existing live ordering UI */}
-      <CafeOrderContent variant="public" showHero />
 
       {/* FAQ — also rendered as FAQPage JSON-LD above */}
       <section className="py-16 bg-secondary/30 border-t border-border">
