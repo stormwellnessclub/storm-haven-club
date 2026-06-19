@@ -1,24 +1,18 @@
-## Nothing to move — they're already in Storm Shop
+## Plan
 
-After checking the database, every non-food category you mentioned is **already** assigned to the `shop` section, not `cafe`:
+1. **Clean up the Cafe page UI**
+   - Remove the visible Cafe FAQ block from `/cafe`.
+   - Remove the visible “After the café, recover” cross-link section because it reads like SEO content rather than cafe UI.
+   - Keep the actual cafe ordering/menu experience unchanged.
 
-| Category | Section | Items |
-|---|---|---|
-| Supplements | shop | 7 |
-| KITSCH | shop | 15 |
-| SOCKS | shop | 19 |
-| ZUMA | shop | 5 |
-| Grip Socks | shop | 1 |
-| Apparel | shop | 0 |
+2. **Keep SEO hidden where it belongs**
+   - Keep `<SEOHead>` metadata and JSON-LD schema in the document head so search engines still get page metadata.
+   - Do not render FAQ/schema copy as visible content inside the cafe menu/page.
 
-The reason they *looked* like they were in the cafe before was a **frontend bug**: the `/cafe` page was loading every active menu item without filtering by section, so shop items leaked into the cafe grid. That bug was already fixed in the previous turn — `/cafe` now shows only `section='cafe'` items, and Storm Shop continues to show `section='shop'` items.
+3. **Audit obvious SEO-like UI sections**
+   - Check public pages for visible “SEO” scaffolding such as FAQ blocks added only for ranking, forced local-service link sections, or wording that looks written for crawlers.
+   - Prioritize removing/hiding crawler-only content from the actual user interface while preserving legitimate user-facing pages like the standalone `/faq` page.
 
-## What stays in Cafe (per your instruction)
-
-Energy Drinks, Water, Refreshers, Shots, Preworkout, plus all prepared food/drink (Smoothies, Coffee & Lattes, Cafe Bites, Toast, Fruit Cups, Cold Pressed Juice, Protein Smoothie, Amino Acid Slushie).
-
-## Proposed action
-
-**None — no code or data changes needed.** If you're still seeing Supplements/KITSCH/Socks/ZUMA on the `/cafe` page, it's a stale cache. Hard-refresh (Cmd/Ctrl+Shift+R) and they'll be gone.
-
-If instead you meant something different — e.g. you're seeing a *specific* item mislabeled, or you want me to verify the Storm Shop page is rendering all 47 shop items correctly — tell me which and I'll dig in.
+4. **Verify the result**
+   - Confirm `/cafe` no longer shows the cafe FAQ or SEO-style recovery link section.
+   - Confirm the cafe menu still loads cafe items only.
