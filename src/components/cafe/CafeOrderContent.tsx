@@ -246,9 +246,27 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
     }
   }, [resolvedMode, paymentMethod]);
 
+  // Scope public cafe page strictly to cafe-section items (categories are already filtered to section='cafe')
+  const cafeCategoryIds = new Set(categories.map((c) => c.id));
+  const sectionScopedItems =
+    variant === "public"
+      ? menuItems.filter((i) => i.category_id && cafeCategoryIds.has(i.category_id))
+      : menuItems;
   const filteredItems = selectedCategoryId
-    ? menuItems.filter((item) => item.category_id === selectedCategoryId)
-    : menuItems;
+    ? sectionScopedItems.filter((item) => item.category_id === selectedCategoryId)
+    : sectionScopedItems;
+
+  // Category-aware image framing: packaged goods get contained on a neutral bg, prepared food gets edge-to-edge cover
+  const CONTAIN_CATEGORIES = new Set([
+    "Energy Drinks",
+    "Water",
+    "Refreshers",
+    "Shots",
+    "Preworkout",
+    "Supplements",
+  ]);
+  const getImageFit = (categoryName: string): "contain" | "cover" =>
+    CONTAIN_CATEGORIES.has(categoryName) ? "contain" : "cover";
 
   const getAddonsForItem = (item: DbMenuItem): CafeMenuAddon[] => {
     if (!item.category_id) return [];
@@ -595,17 +613,22 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             <Badge variant="destructive" className="text-sm px-4 py-1">Sold Out</Badge>
                           </div>
                         )}
-                        {item.image_url && (
-                          <div className="relative h-48 overflow-hidden">
-                            <img
-                              src={item.image_url}
-                              alt={name}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                              loading="lazy"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                          </div>
-                        )}
+                        {item.image_url && (() => {
+                          const fit = getImageFit(catName);
+                          return (
+                            <div className={`relative aspect-[4/3] overflow-hidden ${fit === "contain" ? "bg-secondary/40" : ""}`}>
+                              <img
+                                src={item.image_url}
+                                alt={name}
+                                className={`w-full h-full transition-transform duration-500 group-hover:scale-105 ${fit === "contain" ? "object-contain p-4" : "object-cover"}`}
+                                loading="lazy"
+                              />
+                              {fit === "cover" && (
+                                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+                              )}
+                            </div>
+                          );
+                        })()}
                         <div className="p-5">
                           {item.is_seasonal && (
                             <div className="mb-2">
