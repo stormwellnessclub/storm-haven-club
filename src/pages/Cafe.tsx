@@ -150,9 +150,9 @@ export default function Cafe() {
         <div className="container mx-auto px-6 max-w-4xl">
           <h2 className="font-serif text-2xl mb-4">After the café, recover.</h2>
           <p className="text-muted-foreground mb-6">
-            Pair your post-workout shake with a recovery session — all under
-            one roof at Storm Wellness Club in Livonia.
+            Pair your shake with a recovery session — all under one roof.
           </p>
+
           <div className="flex flex-wrap gap-3">
             <Link to="/spa/red-light-therapy" className="text-sm underline hover:text-accent">Red Light Therapy</Link>
             <span className="text-muted-foreground">·</span>
