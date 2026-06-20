@@ -12,6 +12,7 @@ import { ActivationRequiredNotice } from "./ActivationRequiredNotice";
 import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SmsOptInGate } from "./SmsOptInGate";
 import { MemorialDayHoursBanner } from "./MemorialDayHoursBanner";
+import { MilestoneCelebrationHost } from "./MilestoneCelebrationHost";
 
 
 import { WifiBanner } from "./WifiBanner";
@@ -144,6 +145,9 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         
         {/* Mobile bottom tab bar */}
         <MemberBottomNav />
+
+        {/* Celestial Gold class-milestone celebration (auto-mounts when unseen) */}
+        <MilestoneCelebrationHost />
       </div>
     </SidebarProvider>
   );
