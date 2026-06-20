@@ -73,6 +73,7 @@ import SmsOptInProof from "./pages/SmsOptInProof";
 import FAQ from "./pages/FAQ";
 import GuestPass from "./pages/GuestPass";
 import NotFound from "./pages/NotFound";
+import MilestoneMockup from "./pages/mockup/MilestoneMockup";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
 import MemberDetail from "./pages/admin/MemberDetail";
@@ -179,6 +180,7 @@ const App = () => (
               
               {/* Public Routes */}
               <Route path="/" element={<Index />} />
+              <Route path="/mockup/milestones" element={<MilestoneMockup />} />
               <Route path="/classes" element={<Classes />} />
               <Route path="/classes/:classTypeId" element={<PublicClassTypeDetail />} />
               <Route path="/schedule" element={<Schedule />} />
