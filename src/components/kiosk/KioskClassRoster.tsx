@@ -107,6 +107,10 @@ export function KioskClassRoster({ sessionId, onCheckIn }: KioskClassRosterProps
                 </Badge>
               )}
             </div>
+
+            {isCheckedIn ? (
+              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 gap-1">
+                <CheckCircle2 className="h-3 w-3" /> In
               </Badge>
             ) : (
               <Button
