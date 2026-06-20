@@ -24,8 +24,8 @@ export function useUncelebratedAchievement() {
   const query = useQuery({
     queryKey: ["uncelebrated-achievement", user?.id],
     enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<UncelebratedAchievement | null> => {
       if (!user?.id) return null;
       const { data: rows, error } = await (supabase
