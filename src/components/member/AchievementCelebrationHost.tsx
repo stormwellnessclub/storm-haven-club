@@ -21,6 +21,7 @@ const SMALL_TYPES = new Set([
 
 const FOUNDING_TYPE = "founding_member";
 const SEEN_STORAGE_KEY = "swc:achievement-celebrated:v1";
+const memorySeen = new Set<string>();
 
 type Tier = "founding" | "big" | "small";
 
@@ -31,27 +32,43 @@ function tierFor(a: UncelebratedAchievement): Tier {
 }
 
 function loadSeen(): Set<string> {
+  const seen = new Set(memorySeen);
   try {
-    const raw = sessionStorage.getItem(SEEN_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    [localStorage.getItem(SEEN_STORAGE_KEY), sessionStorage.getItem(SEEN_STORAGE_KEY)].forEach((raw) => {
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) parsed.forEach((id) => seen.add(String(id)));
+    });
   } catch {
-    return new Set();
+    /* noop */
   }
+  return seen;
 }
 
 function persistSeen(set: Set<string>) {
   try {
-    sessionStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(Array.from(set)));
+    const payload = JSON.stringify(Array.from(set));
+    localStorage.setItem(SEEN_STORAGE_KEY, payload);
+    sessionStorage.setItem(SEEN_STORAGE_KEY, payload);
   } catch {
     /* noop */
   }
 }
 
-function markSeenLocal(id: string) {
+function seenKeys(a: UncelebratedAchievement, userId?: string | null) {
+  return [
+    `id:${a.id}`,
+    `type:${a.achievement_type}`,
+    userId ? `user:${userId}:type:${a.achievement_type}` : null,
+  ].filter(Boolean) as string[];
+}
+
+function markSeenLocal(keys: string[]) {
   const s = loadSeen();
-  s.add(id);
+  keys.forEach((key) => {
+    memorySeen.add(key);
+    s.add(key);
+  });
   persistSeen(s);
 }
 
@@ -65,12 +82,14 @@ export function AchievementCelebrationHost() {
   useEffect(() => {
     if (!pending) return;
     if (shown) return;
-    if (loadSeen().has(pending.id)) return;
+    const keys = seenKeys(pending, user?.id);
+    const seen = loadSeen();
+    if (keys.some((key) => seen.has(key))) return;
 
     const tier = tierFor(pending);
 
     // Mark seen locally + clear cache immediately so a refetch can't resurrect it
-    markSeenLocal(pending.id);
+    markSeenLocal(keys);
     qc.setQueryData(["uncelebrated-achievement", user?.id], null);
 
     if (tier === "small") {
@@ -80,11 +99,11 @@ export function AchievementCelebrationHost() {
         icon: <Sparkles className="h-4 w-4 text-[#c9a84c]" />,
         className: "border-[#c9a84c]/40",
       });
-      markSeen.mutate(pending.id);
+      markSeen.mutate({ achievementId: pending.id, achievementType: pending.achievement_type });
     } else {
       setShown(pending);
       // Fire DB write right away — don't wait for dismiss
-      markSeen.mutate(pending.id);
+      markSeen.mutate({ achievementId: pending.id, achievementType: pending.achievement_type });
     }
   }, [pending, shown, markSeen, qc, user?.id]);
 
