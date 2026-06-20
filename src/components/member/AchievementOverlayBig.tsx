@@ -127,7 +127,7 @@ export function AchievementOverlayBig({ name, description, onClose }: Props) {
 
         <div className="mt-10 text-[11px] tracking-[0.4em] uppercase text-[#c9a84c]"
           style={{ animation: "ach-fade-up 700ms 400ms both" }}>
-          Achievement Unlocked
+          You Showed Up
         </div>
         <h2 className="mt-3 font-serif text-4xl sm:text-5xl text-[#f5f0e0] font-light"
           style={{ animation: "ach-fade-up 700ms 550ms both", letterSpacing: "0.02em" }}>

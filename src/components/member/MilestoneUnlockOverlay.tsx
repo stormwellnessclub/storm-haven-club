@@ -6,14 +6,14 @@ interface Props {
 }
 
 const COPY: Record<number, string> = {
-  1: "The first step is the hardest.",
-  5: "A rhythm is forming.",
-  10: "Consistency is becoming you.",
-  25: "Devotion, measured in showings.",
-  50: "Few make it this far.",
-  100: "A practitioner.",
-  200: "Rare air.",
-  500: "Legendary.",
+  1: "One.",
+  5: "Five classes. A practice begins.",
+  10: "Ten.",
+  25: "Twenty-five classes.",
+  50: "Fifty.",
+  100: "One hundred.",
+  200: "Two hundred.",
+  500: "Five hundred.",
 };
 
 type Bokeh = { id: number; top: number; left: number; size: number; opacity: number; blur: number; delay: number };
@@ -259,7 +259,7 @@ export function MilestoneUnlockOverlay({ milestone, onClose }: Props) {
           className="mt-10 text-[11px] tracking-[0.4em] uppercase text-[#c9a84c]"
           style={{ animation: "mockup-fade-up 700ms 400ms both" }}
         >
-          Milestone Unlocked
+          You Showed Up
         </div>
         <h2
           className="mt-3 font-serif text-5xl sm:text-6xl text-[#f5f0e0] font-light"

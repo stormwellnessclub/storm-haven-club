@@ -151,8 +151,7 @@ export function FoundingMemberOverlay({ onClose }: Props) {
           className="mt-6 max-w-md text-[#c9a84c]/85 italic font-serif text-lg leading-relaxed"
           style={{ animation: "fm-fade-up 900ms 1100ms both" }}
         >
-          Thank you for being here from day one. Storm was built with members
-          like you in mind.
+          Here from the beginning.
         </p>
 
         {/* Ornamental bottom rule */}
