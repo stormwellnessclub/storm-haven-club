@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, User } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, Trophy, User } from "lucide-react";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -14,6 +14,10 @@ interface RosterEntry {
   status: string;
   checked_in_at: string | null;
   photo_url: string | null;
+  class_type_name?: string | null;
+  is_first_in_type?: boolean;
+  total_classes?: number;
+  milestone_hit?: boolean;
 }
 
 interface KioskClassRosterProps {
@@ -85,7 +89,24 @@ export function KioskClassRoster({ sessionId, onCheckIn }: KioskClassRosterProps
               </AvatarFallback>
             </Avatar>
 
-            <span className="flex-1 text-sm font-medium truncate">{entry.name}</span>
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-medium truncate">{entry.name}</span>
+              {entry.is_first_in_type && (
+                <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
+                  <Sparkles className="h-2.5 w-2.5" /> First {entry.class_type_name || "class"}
+                </Badge>
+              )}
+              {typeof entry.total_classes === "number" && entry.total_classes > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] gap-0.5">
+                  <Trophy className="h-2.5 w-2.5" /> {entry.total_classes}
+                </Badge>
+              )}
+              {entry.milestone_hit && (
+                <Badge className="h-5 px-1.5 text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                  🎉 {entry.total_classes}th class!
+                </Badge>
+              )}
+            </div>
 
             {isCheckedIn ? (
               <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 gap-1">
