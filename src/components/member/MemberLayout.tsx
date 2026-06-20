@@ -13,6 +13,7 @@ import { WaiverReminderNotice } from "./WaiverReminderNotice";
 import { SmsOptInGate } from "./SmsOptInGate";
 import { MemorialDayHoursBanner } from "./MemorialDayHoursBanner";
 import { MilestoneCelebrationHost } from "./MilestoneCelebrationHost";
+import { AchievementCelebrationHost } from "./AchievementCelebrationHost";
 
 
 import { WifiBanner } from "./WifiBanner";
@@ -148,6 +149,9 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
 
         {/* Celestial Gold class-milestone celebration (auto-mounts when unseen) */}
         <MilestoneCelebrationHost />
+
+        {/* Tiered achievement celebrations (Founding / Big / Small toast) */}
+        <AchievementCelebrationHost />
       </div>
     </SidebarProvider>
   );
