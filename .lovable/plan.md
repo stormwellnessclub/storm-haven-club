@@ -1,31 +1,18 @@
-# Mockup v6 — Final Refinements
+I understand: v3 mobile is the base. I will not redesign it, recolor it, or change its layout.
 
-Build **dash6.html** in `/tmp/browser/mock5/` from the v3 base. Render desktop AND mobile from the same source structure so they line up.
+Plan for the next mockup:
 
-## Changes from v3
-
-1. **Top-right "Quick Book" button → "Support"** — The black/shaded pill button next to the "Welcome back" header becomes a **Support** button (not added as a 5th booking tile). The booking tiles row stays as the original 4: 📅 Book Class, 💧 Book Amenity, 🎟 Buy Passes, 🔔.
-
-2. **Up Next on top** — Move the upcoming-appointment block (next class / spa / wellness) ABOVE the metric tiles row. It's the first thing seen under the welcome header.
-
-3. **Credits expiring → collapsed dropdown** — Replace the full expiring-credits card with a small inline pill: `● 3 credits expiring in 7 days ▾` that expands on click.
-
-4. **Remove Kids Care banner** — Strip the standalone Kids Care promo card from the dashboard body.
-
-5. **Sidebar — full comprehensive nav** (matching v4/v5):
-   - **Main**: Dashboard, Member Entry, Support, Cafe Order, Storm Shop
-   - **Membership & Billing**: My Membership, My Credits, Payment Methods, Payment History, Buy Passes
-   - **Bookings & Visits**: My Bookings, Visit History, Kids Care, Wellness Booking
-   - **Health & Wellness**: Health Score, Workouts ✨, Habits, Goals, Achievements, Fitness Profile
-   - **Account**: My Profile, Waivers, Freeze Request, Register Guest, Refer a Friend
-   - Footer: Back to Website, Sign Out
-   - Dark gradient styling preserved
-
-6. **Mobile mirrors desktop** — Same structure, same order, same labels (no shortened text, no reflowed layout). Single column where needed but the sequence is identical: Welcome + Support button → Up Next → 4 metric tiles → 4 booking tiles → expiring pill → Recent Activity + Habits.
-
-## Deliverables
-
-- `/mnt/documents/dashboard-desktop-v6.png`
-- `/mnt/documents/dashboard-mobile-v6.png`
-
-No app files touched. Approve v6 → then implement on `Dashboard.tsx` + `MemberSidebar.tsx`.
+1. Use `dashboard-mobile-v3.png` as the visual reference for mobile layout, spacing, order, and proportions.
+2. Keep the v3 cream/gold quick-book styling, not the dark v6/v7 treatment.
+3. Keep the four quick-book tabs as:
+   - Book a Class
+   - Spa Aella
+   - Cafe Order
+   - Buy Passes
+4. Change the top-right black/shaded “Quick Book” area across from “Welcome” into “Support”.
+5. Keep “Up Next” / upcoming appointment at the top, above the dashboard summary tiles.
+6. Collapse credits expiring into a small dropdown/pill instead of a large section.
+7. Remove the Kids Care banner.
+8. Use the expanded v4/v5-style sidebar breakdown under “Storm Wellness Club”.
+9. Make desktop and mobile match structurally: same order, same labels, same concept, with mobile using the v3 mobile layout.
+10. Produce a new mockup only, likely `dashboard-mobile-v8.png` and `dashboard-desktop-v8.png`; no app code changes until you approve the mockup.
