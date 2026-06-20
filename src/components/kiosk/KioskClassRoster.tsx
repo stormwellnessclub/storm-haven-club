@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Loader2, User } from "lucide-react";
+import { CheckCircle2, Loader2, Sparkles, Trophy, User } from "lucide-react";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -14,6 +14,10 @@ interface RosterEntry {
   status: string;
   checked_in_at: string | null;
   photo_url: string | null;
+  class_type_name?: string | null;
+  is_first_in_type?: boolean;
+  total_classes?: number;
+  milestone_hit?: boolean;
 }
 
 interface KioskClassRosterProps {
