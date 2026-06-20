@@ -1,61 +1,64 @@
-## Problem
+## Copy refresh — Set B (Aman voice) + "YOU SHOWED UP" header
 
-15 achievements exist (Century Club, Week Warrior, Spa Enthusiast, etc.) and a `check_and_award_achievements(_member_id)` RPC calculates them correctly. But only **1 row** exists in `member_achievements` across the entire database because:
-- The RPC is only called once per session on Dashboard mount
-- No DB triggers wire it to check-ins, workouts, spa appointments, habits, or goals
-- Existing members who already qualify (100+ check-ins, 30-day streaks, etc.) have nothing
-- Even when awarded, no celebration ever fires — members have to navigate to the Achievements page to discover them
+Wording only. No logic, schema, animation, or layout changes.
 
-## Solution
+### Universal header
 
-### 1. Backfill (migration)
+Replace "Milestone Unlocked" and "Achievement Unlocked" with:
 
-Loop `check_and_award_achievements(id)` over every member. This inserts every achievement each one currently qualifies for. For each member, mark all but their single highest-value (`points_reward`) achievement as already celebrated (`celebrated_at = now()`), leaving exactly **one** uncelebrated row queued for next portal visit — same pattern as class milestones, no flood.
+> **YOU SHOWED UP**
 
-### 2. Auto-fire going forward (DB triggers)
+Rendered in the existing small tracking-letter style above the badge on both the class-milestone overlay and the achievement overlay. Founding Member overlay keeps its own ornamental "Charter Recognition" header (it's a status, not a milestone).
 
-Add lightweight `AFTER INSERT` triggers on the source tables that call the RPC for the affected member:
-- `check_ins` → covers First Check-In, Century Club, Month Master, Week Warrior, Early Bird, Night Owl
-- `workout_logs` → Fitness Fanatic
-- `spa_appointments` (when status becomes confirmed/completed) → Spa Enthusiast
-- `class_bookings` (status confirmed/completed) → Class Explorer
-- `amenity_usage_logs` → Wellness Warrior
-- `habit_logs` / `habit_streaks` → Habit Hero, Perfect Week
-- `member_goals` (status → completed) → Goal Crusher
+### Class milestones — new copy
 
-Founding Member and Social Butterfly stay on the existing Dashboard-mount check.
+| Count | New line |
+|---|---|
+| 1 | One. |
+| 5 | Five classes. A practice begins. |
+| 10 | Ten. |
+| 25 | Twenty-five classes. |
+| 50 | Fifty. |
+| 100 | One hundred. |
+| 200 | Two hundred. |
+| 500 | Five hundred. |
 
-The RPC already no-ops if the row exists, so triggers are idempotent and cheap.
+The "{n} Classes" line below the disc stays as-is.
 
-### 3. Celebration UI (tiered)
+### Achievements — new names and descriptions
 
-Add `celebrated_at` column to `member_achievements`. New `useUncelebratedAchievement` hook polls + realtime-subscribes for any row with `celebrated_at IS NULL` for the current user.
+`achievement_type` slugs do NOT change (triggers and routing key off them).
 
-Three celebration tiers driven by `achievement_type`:
+| Type | New name | New description |
+|---|---|---|
+| first_check_in | Arrival | Your first class. |
+| century_club | One Hundred | One hundred classes. |
+| month_master | A Full Month | Thirty days. Thirty classes. |
+| week_warrior | Seven Days | Seven, consecutive. |
+| early_bird | At Dawn | Before seven. |
+| night_owl | At Dusk | After eight. |
+| fitness_fanatic | Twenty-Five | Twenty-five workouts. |
+| spa_enthusiast | Recovery | Five spa appointments. |
+| class_explorer | Range | Five disciplines. |
+| wellness_warrior | The Whole Club | Five amenities. |
+| social_butterfly | Introduction | You brought someone in. |
+| goal_crusher | Goal, Met | A goal completed. |
+| habit_hero | Thirty Days | A habit, held. |
+| perfect_week | A Full Week | Seven days. Every habit kept. |
+| founding_member | Founding Member | Here from the beginning. |
 
-| Tier                 | Achievements                                                                                         | UI                                                                                                                    |
-| -------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Founding Member**  | `founding_member`                                                                                    | Unique full-screen overlay — deep navy + warm gold, "Founding Member" wordmark, subtle particle shimmer, "Thank you for being here from day one" copy. Distinct from class-milestone gold. |
-| **Big (overlay)**    | Century Club, Month Master, Week Warrior, Perfect Week, Habit Hero, Goal Crusher, Wellness Warrior, Class Explorer, Fitness Fanatic, Spa Enthusiast | Reuse existing Celestial Gold overlay (same component as class milestones), with achievement name + icon + description |
-| **Small (toast)**    | First Check-In, Early Bird, Night Owl, Social Butterfly                                              | Sonner toast, gold accent, achievement icon, ~5s duration                                                              |
+### Implementation
 
-A single `<AchievementCelebrationHost />` component mounted in both `MemberLayout` and `PortalLayout` (so non-members get them too — same parity we just did for class milestones). It dequeues one uncelebrated row at a time, routes to the right tier, then marks `celebrated_at = now()`.
+1. **Data update (insert tool)** — `UPDATE` the `achievements` catalog (15 rows) with new names + descriptions. Then `UPDATE` `member_achievements` to retro-rename already-awarded rows so the Achievements page and the toast/overlay show the new copy for existing recipients. Keyed off `achievement_type`.
+2. **DB function update (migration)** — patch `check_and_award_achievements` so the `INSERT INTO member_achievements` literals match the new names/descriptions. Logic, triggers, and tier mapping unchanged.
+3. **Frontend copy** — update the three string tables:
+   - `src/components/member/MilestoneUnlockOverlay.tsx` → `COPY` map (the 8 lines) + header label changes to "YOU SHOWED UP"
+   - `src/components/member/AchievementOverlayBig.tsx` → header label changes to "YOU SHOWED UP"
+   - `src/components/member/FoundingMemberOverlay.tsx` → swap the body line under "Founding Member" to "Here from the beginning." (keep "Charter Recognition" ornamental header)
+4. **Tier mapping** — `AchievementCelebrationHost.tsx` keys off `achievement_type` slugs (unchanged), so Founding / Big-overlay / Small-toast routing keeps working with no edits.
 
-## Files to add
+### Out of scope
 
-- `supabase/migrations/<ts>_achievements_backfill_and_triggers.sql` — adds `celebrated_at`, backfills all members, creates the 7 triggers
-- `src/components/member/AchievementCelebrationHost.tsx`
-- `src/components/member/AchievementOverlayBig.tsx` (gold overlay, name-driven)
-- `src/components/member/FoundingMemberOverlay.tsx` (unique navy/gold treatment)
-- `src/hooks/useUncelebratedAchievement.ts`
-
-## Files to edit
-
-- `src/components/member/MemberLayout.tsx` — mount host
-- `src/components/portal/PortalLayout.tsx` — mount host (non-member parity)
-
-## Out of scope
-
-- No changes to the existing Achievements page UI
-- No changes to point rewards or criteria
-- Class milestones (already shipped) are untouched
+- Achievements page layout, icons, points, criteria
+- Trigger logic, RPC math
+- Any non-celebration UI strings
