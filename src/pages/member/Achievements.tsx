@@ -10,6 +10,7 @@ import { Trophy, Medal, Award, Star, CheckCircle2, Lock, Zap } from "lucide-reac
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
+import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
 
 export default function Achievements() {
   const { data: allAchievements, isLoading: allLoading } = useAchievements();
@@ -65,6 +66,10 @@ export default function Achievements() {
             Check Achievements
           </Button>
         </div>
+
+        <ClassMilestonesCard />
+
+
 
         {/* Points Summary */}
         <div className="grid gap-4 md:grid-cols-3">
