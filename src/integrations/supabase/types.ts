@@ -7688,6 +7688,7 @@ export type Database = {
         Row: {
           achievement_kind: string
           awarded_at: string
+          celebrated_at: string | null
           class_type_id: string | null
           id: string
           milestone: number | null
@@ -7697,6 +7698,7 @@ export type Database = {
         Insert: {
           achievement_kind: string
           awarded_at?: string
+          celebrated_at?: string | null
           class_type_id?: string | null
           id?: string
           milestone?: number | null
@@ -7706,6 +7708,7 @@ export type Database = {
         Update: {
           achievement_kind?: string
           awarded_at?: string
+          celebrated_at?: string | null
           class_type_id?: string | null
           id?: string
           milestone?: number | null
@@ -8550,6 +8553,7 @@ export type Database = {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
       }
+      get_pending_class_milestone: { Args: never; Returns: Json }
       get_pending_spa_reviews: {
         Args: never
         Returns: {
@@ -8745,6 +8749,7 @@ export type Database = {
         Returns: string
       }
       lookup_mothers_day_voucher: { Args: { p_code: string }; Returns: Json }
+      mark_class_milestones_seen: { Args: never; Returns: number }
       mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
       preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
       process_member_scan: {
