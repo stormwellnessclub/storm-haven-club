@@ -1,64 +1,31 @@
-## Copy refresh — Set B (Aman voice) + "YOU SHOWED UP" header
+# Mockup v6 — Final Refinements
 
-Wording only. No logic, schema, animation, or layout changes.
+Build **dash6.html** in `/tmp/browser/mock5/` from the v3 base. Render desktop AND mobile from the same source structure so they line up.
 
-### Universal header
+## Changes from v3
 
-Replace "Milestone Unlocked" and "Achievement Unlocked" with:
+1. **Top-right "Quick Book" button → "Support"** — The black/shaded pill button next to the "Welcome back" header becomes a **Support** button (not added as a 5th booking tile). The booking tiles row stays as the original 4: 📅 Book Class, 💧 Book Amenity, 🎟 Buy Passes, 🔔.
 
-> **YOU SHOWED UP**
+2. **Up Next on top** — Move the upcoming-appointment block (next class / spa / wellness) ABOVE the metric tiles row. It's the first thing seen under the welcome header.
 
-Rendered in the existing small tracking-letter style above the badge on both the class-milestone overlay and the achievement overlay. Founding Member overlay keeps its own ornamental "Charter Recognition" header (it's a status, not a milestone).
+3. **Credits expiring → collapsed dropdown** — Replace the full expiring-credits card with a small inline pill: `● 3 credits expiring in 7 days ▾` that expands on click.
 
-### Class milestones — new copy
+4. **Remove Kids Care banner** — Strip the standalone Kids Care promo card from the dashboard body.
 
-| Count | New line |
-|---|---|
-| 1 | One. |
-| 5 | Five classes. A practice begins. |
-| 10 | Ten. |
-| 25 | Twenty-five classes. |
-| 50 | Fifty. |
-| 100 | One hundred. |
-| 200 | Two hundred. |
-| 500 | Five hundred. |
+5. **Sidebar — full comprehensive nav** (matching v4/v5):
+   - **Main**: Dashboard, Member Entry, Support, Cafe Order, Storm Shop
+   - **Membership & Billing**: My Membership, My Credits, Payment Methods, Payment History, Buy Passes
+   - **Bookings & Visits**: My Bookings, Visit History, Kids Care, Wellness Booking
+   - **Health & Wellness**: Health Score, Workouts ✨, Habits, Goals, Achievements, Fitness Profile
+   - **Account**: My Profile, Waivers, Freeze Request, Register Guest, Refer a Friend
+   - Footer: Back to Website, Sign Out
+   - Dark gradient styling preserved
 
-The "{n} Classes" line below the disc stays as-is.
+6. **Mobile mirrors desktop** — Same structure, same order, same labels (no shortened text, no reflowed layout). Single column where needed but the sequence is identical: Welcome + Support button → Up Next → 4 metric tiles → 4 booking tiles → expiring pill → Recent Activity + Habits.
 
-### Achievements — new names and descriptions
+## Deliverables
 
-`achievement_type` slugs do NOT change (triggers and routing key off them).
+- `/mnt/documents/dashboard-desktop-v6.png`
+- `/mnt/documents/dashboard-mobile-v6.png`
 
-| Type | New name | New description |
-|---|---|---|
-| first_check_in | Arrival | Your first class. |
-| century_club | One Hundred | One hundred classes. |
-| month_master | A Full Month | Thirty days. Thirty classes. |
-| week_warrior | Seven Days | Seven, consecutive. |
-| early_bird | At Dawn | Before seven. |
-| night_owl | At Dusk | After eight. |
-| fitness_fanatic | Twenty-Five | Twenty-five workouts. |
-| spa_enthusiast | Recovery | Five spa appointments. |
-| class_explorer | Range | Five disciplines. |
-| wellness_warrior | The Whole Club | Five amenities. |
-| social_butterfly | Introduction | You brought someone in. |
-| goal_crusher | Goal, Met | A goal completed. |
-| habit_hero | Thirty Days | A habit, held. |
-| perfect_week | A Full Week | Seven days. Every habit kept. |
-| founding_member | Founding Member | Here from the beginning. |
-
-### Implementation
-
-1. **Data update (insert tool)** — `UPDATE` the `achievements` catalog (15 rows) with new names + descriptions. Then `UPDATE` `member_achievements` to retro-rename already-awarded rows so the Achievements page and the toast/overlay show the new copy for existing recipients. Keyed off `achievement_type`.
-2. **DB function update (migration)** — patch `check_and_award_achievements` so the `INSERT INTO member_achievements` literals match the new names/descriptions. Logic, triggers, and tier mapping unchanged.
-3. **Frontend copy** — update the three string tables:
-   - `src/components/member/MilestoneUnlockOverlay.tsx` → `COPY` map (the 8 lines) + header label changes to "YOU SHOWED UP"
-   - `src/components/member/AchievementOverlayBig.tsx` → header label changes to "YOU SHOWED UP"
-   - `src/components/member/FoundingMemberOverlay.tsx` → swap the body line under "Founding Member" to "Here from the beginning." (keep "Charter Recognition" ornamental header)
-4. **Tier mapping** — `AchievementCelebrationHost.tsx` keys off `achievement_type` slugs (unchanged), so Founding / Big-overlay / Small-toast routing keeps working with no edits.
-
-### Out of scope
-
-- Achievements page layout, icons, points, criteria
-- Trigger logic, RPC math
-- Any non-celebration UI strings
+No app files touched. Approve v6 → then implement on `Dashboard.tsx` + `MemberSidebar.tsx`.
