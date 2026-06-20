@@ -89,11 +89,24 @@ export function KioskClassRoster({ sessionId, onCheckIn }: KioskClassRosterProps
               </AvatarFallback>
             </Avatar>
 
-            <span className="flex-1 text-sm font-medium truncate">{entry.name}</span>
-
-            {isCheckedIn ? (
-              <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 gap-1">
-                <CheckCircle2 className="h-3 w-3" /> In
+            <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
+              <span className="text-sm font-medium truncate">{entry.name}</span>
+              {entry.is_first_in_type && (
+                <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
+                  <Sparkles className="h-2.5 w-2.5" /> First {entry.class_type_name || "class"}
+                </Badge>
+              )}
+              {typeof entry.total_classes === "number" && entry.total_classes > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 text-[10px] gap-0.5">
+                  <Trophy className="h-2.5 w-2.5" /> {entry.total_classes}
+                </Badge>
+              )}
+              {entry.milestone_hit && (
+                <Badge className="h-5 px-1.5 text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                  🎉 {entry.total_classes}th class!
+                </Badge>
+              )}
+            </div>
               </Badge>
             ) : (
               <Button
