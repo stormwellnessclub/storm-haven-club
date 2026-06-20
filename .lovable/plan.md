@@ -1,45 +1,70 @@
-## Goal
-Extend the class-count + milestone tracking so **walk-ins / non-members with accounts** (anyone with a `user_id` but no `member_id`) get the same first-class star, lifetime count, milestone badges on rosters — and a persistent achievements record they can see in their own portal.
+# Milestone Unlock Celebration — Interactive Mockup
 
-## What already works (from prior turn)
-The new `kiosk_class_roster` RPC already counts completed bookings by `user_id` when there's no `member_id`, so non-members **already** see ⭐ First [Class Type], 🏆 lifetime count, and 🎉 milestone badges on staff rosters. No change needed there.
+Build a standalone preview page at `/mockup/milestones` so you can play with the unlock moment before we wire it into the real portals. No backend, no real data — pure UX prototype using mock state.
 
-## What's missing — and what this plan adds
+## The psychology we're designing for
 
-### 1. Persistent achievement records for non-members
-Today `member_achievements` is keyed on `member_id` (required). Non-members have no row, so milestones aren't saved anywhere durable.
+1. **Anticipation** — visible "next milestone" with a progress ring that fills as you simulate completing classes. Brain releases dopamine *before* the reward, not after.
+2. **Peak moment** — the unlock itself: ring completes → gold burst → badge materializes → soft chime. ~2 seconds of pure earned pride.
+3. **Endowment** — once unlocked, the badge sits in a personal "trophy shelf" that's visibly *yours*. Loss aversion makes you protect it.
+4. **Goal gradient** — the closer you get to the next tier, the more the UI nudges (subtle glow intensifies near 90%).
+5. **Variable reward** — first-time-in-class-type ⭐ badges appear unpredictably alongside count milestones, keeping novelty alive.
 
-**Add** `user_class_achievements` table keyed on `user_id` (works for both members and non-members):
-- `user_id` (FK → auth.users)
-- `milestone` int (1, 5, 10, 25, 50, 100, 200, 500)
-- `class_type_id` nullable — null = lifetime milestone, set = "first [type]" achievement
-- `awarded_at`, unique on (user_id, milestone, class_type_id)
+## What the mockup will show
 
-### 2. Auto-award on check-in
-New SECURITY DEFINER RPC `award_class_milestones(p_booking_id uuid)` called from the existing check-in flow (`useKioskCheckIn`) after a successful check-in:
-- Computes the attendee's total completed bookings (by `user_id` or `member_id → user_id`).
-- Inserts any newly-crossed milestone rows (idempotent via unique constraint).
-- Inserts a `first_in_type` row if this was their first booking of that class type.
-- For members, ALSO mirrors into `member_achievements` so the existing member achievements page keeps working.
+A single page with three stacked sections:
 
-### 3. Portal visibility for non-members
-- New hook `useUserClassAchievements()` reading from `user_class_achievements` for the current `user_id`.
-- Add a small **"Class Milestones"** card on the non-member portal dashboard (`src/pages/portal/Dashboard.tsx`) showing lifetime count + earned milestones + first-class badges.
-- Member achievements page (`src/pages/member/Achievements.tsx`) gets an optional "Class milestones" section pulling from the same table so members see the same data without duplication.
+**Section 1 — Hero counter (calm luxury)**
+- Massive serif number ("12 classes") on near-black bg, soft gold glow underneath
+- Subhead: "Three away from your next milestone"
+- Gold progress ring around the number, animated fill on mount
 
-### 4. Backfill
-One-time migration step: walk all historical `class_bookings` where `status='completed'`, group by attendee, and seed `user_class_achievements` for every milestone already crossed (and first-in-type). Idempotent.
+**Section 2 — Simulator controls (the interactive part)**
+- A single primary button: "Complete a class →"
+- Each click increments the counter by 1 with a smooth count-up animation
+- When the count crosses a tier (1, 5, 10, 25, 50, 100, 200, 500): full-screen overlay unlock sequence
+  - Backdrop blur to charcoal
+  - Gold particle burst (Magic UI Meteors or custom)
+  - Badge scales in (serif numeral on brushed-gold disc)
+  - Headline: "10 Classes" / "Consistency is becoming you"
+  - Auto-dismiss after 3s or tap to close
+- Secondary buttons: "Reset" and "Jump to next milestone" (so you can demo without 25 clicks)
+- Toggle: "Trigger a First-in-Type ⭐ badge" — fires a smaller, side-sliding toast unlock for variety
 
-## RLS
-- `user_class_achievements`: user can SELECT their own rows; admins/front-desk/staff can SELECT all; only RPCs (security definer) INSERT.
-- GRANT SELECT to authenticated; GRANT ALL to service_role.
+**Section 3 — Trophy shelf**
+- Horizontal scrolling row of all milestone badges (1, 5, 10, 25, 50, 100, 200, 500)
+- Unlocked = full gold + soft glow; locked = charcoal outline with the number faintly visible
+- First-in-type badges below as a second row of smaller chips with ⭐ + class name
+- Hover/tap any unlocked badge → mini-modal showing "Earned [date]"
 
-## Files touched
-- New migration: table + RPC `award_class_milestones` + backfill.
-- `src/hooks/useKioskCheckIn.ts` — call `award_class_milestones` after success.
-- `src/hooks/useUserClassAchievements.ts` — new.
-- `src/pages/portal/Dashboard.tsx` — milestones card.
-- `src/pages/member/Achievements.tsx` — class milestones section.
+## Visual language (Storm calm luxury)
 
-## Out of scope
-- Walk-ins **without** an account stay untracked (no stable identity). The roster will still show them, just without history badges.
+- Background: `#0d0d0d` → `#1a1a1a` subtle vertical gradient
+- Primary gold: `#c9a84c`; highlight gold: `#f0d78c`; muted gold for locked states: `#3a3328`
+- Headlines: existing project serif (Cormorant / brand serif already in use)
+- Body: existing sans
+- Motion: slow, confident easing (cubic-bezier(0.22, 1, 0.36, 1)); nothing bouncy
+- Particles: gold flecks, low count (~20), fade out over 1.5s — luxurious, not Vegas
+
+## Technical details
+
+New files:
+- `src/pages/mockup/MilestoneMockup.tsx` — the page (all local state, no backend)
+- `src/components/mockup/MilestoneRing.tsx` — animated SVG progress ring
+- `src/components/mockup/MilestoneUnlockOverlay.tsx` — full-screen unlock sequence
+- `src/components/mockup/TrophyShelf.tsx` — badge grid
+- `src/components/mockup/FirstTypeToast.tsx` — side-sliding ⭐ unlock
+
+Add route in `src/App.tsx`: `/mockup/milestones` (public, no auth gate so you can share/preview easily).
+
+Reuse: existing shadcn `Button`, `Card`, `Dialog`; Tailwind `animate-fade-in` / `animate-scale-in`; Magic UI `Meteors` for the gold burst (install if not present).
+
+State is purely local React (`useState` for count, `useState<MilestoneTier[]>` for unlocked). No DB writes.
+
+## Out of scope (next step after you approve the feel)
+
+- Wiring the unlock overlay into the real `useKioskCheckIn` flow on actual class completion
+- Replacing the current `ClassMilestonesCard` with the new compact dashboard variant
+- Sound (chime) — easy to add but skipping until you've seen the visuals
+
+After you click around the mockup and approve, the second pass swaps mock state for the real `user_class_achievements` data and integrates into member/non-member portals.
