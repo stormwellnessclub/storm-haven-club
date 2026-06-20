@@ -22,6 +22,7 @@ import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
+import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
 
 
 export default function PortalDashboard() {
@@ -178,6 +179,7 @@ export default function PortalDashboard() {
 
         <UpcomingPTAppointmentsCard />
         <UpcomingSpaAppointmentsCard />
+        <ClassMilestonesCard />
 
         {/* Upcoming Bookings - Detailed */}
         <Card>
