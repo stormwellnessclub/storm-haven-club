@@ -7684,6 +7684,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_class_achievements: {
+        Row: {
+          achievement_kind: string
+          awarded_at: string
+          class_type_id: string | null
+          id: string
+          milestone: number | null
+          total_at_award: number | null
+          user_id: string
+        }
+        Insert: {
+          achievement_kind: string
+          awarded_at?: string
+          class_type_id?: string | null
+          id?: string
+          milestone?: number | null
+          total_at_award?: number | null
+          user_id: string
+        }
+        Update: {
+          achievement_kind?: string
+          awarded_at?: string
+          class_type_id?: string | null
+          id?: string
+          milestone?: number | null
+          total_at_award?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           assigned_at: string | null
@@ -8194,6 +8224,10 @@ export type Database = {
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
+      }
+      award_class_milestones: {
+        Args: { p_booking_id: string }
+        Returns: undefined
       }
       award_referral_points: {
         Args: { _referred_member_id: string; _referring_member_id: string }
