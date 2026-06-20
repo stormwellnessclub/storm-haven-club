@@ -85,15 +85,21 @@ export function useMarkAchievementCelebrated() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (achievementId: string) => {
-      const { error } = await (supabase
-        .from("member_achievements" as any)
-        .update({ celebrated_at: new Date().toISOString() })
-        .eq("id", achievementId) as any);
+    mutationFn: async ({ achievementId, achievementType }: { achievementId: string; achievementType: string }) => {
+      const { error } = await (supabase.rpc as any)("mark_member_achievement_celebrated", {
+        _achievement_id: achievementId,
+        _achievement_type: achievementType,
+      });
       if (error) throw error;
+    },
+    onMutate: () => {
+      qc.setQueryData(["uncelebrated-achievement", user?.id], null);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["uncelebrated-achievement", user?.id] });
+    },
+    onError: (error) => {
+      console.warn("mark achievement celebrated failed", error);
     },
   });
 }

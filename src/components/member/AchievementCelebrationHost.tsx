@@ -58,7 +58,6 @@ function persistSeen(set: Set<string>) {
 function seenKeys(a: UncelebratedAchievement, userId?: string | null) {
   return [
     `id:${a.id}`,
-    `type:${a.achievement_type}`,
     userId ? `user:${userId}:type:${a.achievement_type}` : null,
   ].filter(Boolean) as string[];
 }
