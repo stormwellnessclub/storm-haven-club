@@ -5,29 +5,42 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MilestoneUnlockOverlay } from "./MilestoneUnlockOverlay";
 
 const SEEN_STORAGE_KEY = "swc:milestone-celebrated:v1";
+const memorySeen = new Set<string>();
 
 function loadSeen(): Set<string> {
+  const seen = new Set(memorySeen);
   try {
-    const raw = sessionStorage.getItem(SEEN_STORAGE_KEY);
-    if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
-    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    [localStorage.getItem(SEEN_STORAGE_KEY), sessionStorage.getItem(SEEN_STORAGE_KEY)].forEach((raw) => {
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) parsed.forEach((id) => seen.add(String(id)));
+    });
   } catch {
-    return new Set();
+    /* noop */
   }
+  return seen;
 }
 
 function persistSeen(set: Set<string>) {
   try {
-    sessionStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(Array.from(set)));
+    const payload = JSON.stringify(Array.from(set));
+    localStorage.setItem(SEEN_STORAGE_KEY, payload);
+    sessionStorage.setItem(SEEN_STORAGE_KEY, payload);
   } catch {
     /* noop */
   }
 }
 
-function markSeenLocal(id: string) {
+function markSeenLocal(id: string, userId?: string | null, milestone?: number | null) {
   const s = loadSeen();
-  s.add(id);
+  const keys = [
+    `id:${id}`,
+    userId && milestone != null ? `user:${userId}:milestone:${milestone}` : null,
+  ].filter(Boolean) as string[];
+  keys.forEach((key) => {
+    memorySeen.add(key);
+    s.add(key);
+  });
   persistSeen(s);
 }
 
@@ -41,9 +54,13 @@ export function MilestoneCelebrationHost() {
   useEffect(() => {
     if (!pending?.milestone || !pending.id) return;
     if (shown != null) return;
-    if (loadSeen().has(pending.id)) return;
+    const seen = loadSeen();
+    if (
+      seen.has(`id:${pending.id}`) ||
+      seen.has(`user:${user?.id}:milestone:${pending.milestone}`)
+    ) return;
 
-    markSeenLocal(pending.id);
+    markSeenLocal(pending.id, user?.id, pending.milestone);
     qc.setQueryData(["pending-class-milestone", user?.id], null);
     setShown(pending.milestone);
     markSeen.mutate();
