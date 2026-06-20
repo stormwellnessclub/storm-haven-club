@@ -18,6 +18,8 @@ interface RosterEntry {
   is_first_in_type?: boolean;
   total_classes?: number;
   milestone_hit?: boolean;
+  next_milestone?: number | null;
+  prior_total?: number;
 }
 
 interface KioskClassRosterProps {
@@ -101,9 +103,27 @@ export function KioskClassRoster({ sessionId, onCheckIn }: KioskClassRosterProps
                   <Trophy className="h-2.5 w-2.5" /> {entry.total_classes}
                 </Badge>
               )}
+              {/* Approaching milestone heads-up (shows BEFORE check-in so staff can prepare) */}
+              {!entry.milestone_hit &&
+                typeof entry.next_milestone === "number" &&
+                typeof entry.prior_total === "number" &&
+                entry.next_milestone - entry.prior_total <= 2 &&
+                entry.next_milestone - entry.prior_total > 0 && (
+                  <Badge
+                    variant="outline"
+                    className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300"
+                  >
+                    <Trophy className="h-2.5 w-2.5" />
+                    {entry.next_milestone - entry.prior_total === 1
+                      ? `1 away from ${entry.next_milestone}!`
+                      : `${entry.next_milestone - entry.prior_total} from ${entry.next_milestone}`}
+                  </Badge>
+                )}
               {entry.milestone_hit && (
-                <Badge className="h-5 px-1.5 text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-                  🎉 {entry.total_classes}th class!
+                <Badge
+                  className="h-5 px-1.5 text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-[0_0_12px_rgba(245,158,11,0.6)] animate-pulse"
+                >
+                  🎉 {entry.total_classes}th class today!
                 </Badge>
               )}
             </div>
