@@ -1,19 +1,9 @@
-## View the current Celestial Gold celebration
+No code change — viewing step.
 
-No code changes — just a viewing step.
+**To see the mockup:**
+1. In the preview (right side), navigate to `/mockup/milestones`
+   - Full URL: `https://id-preview--a24a7b8b-d6e4-4c2f-81d9-9f3c79a7b031.lovable.app/mockup/milestones`
+2. Click **"Jump to next milestone"** to play the Celestial Gold celebration
+3. Tap anywhere to dismiss
 
-1. Navigate to `/mockup/milestones` in the preview.
-2. Click **"Jump to next milestone"** (or **"Complete a class →"** repeatedly until you cross 5).
-3. The new overlay plays for ~4.2s; tap anywhere to dismiss early.
-
-## After you watch it
-
-Tell me which dial to turn and I'll plan the next iteration:
-
-- **Particle density** — currently ~115 (10 bokeh + 18 flakes + 28 shimmer + 60 opening burst). Can push to 200+.
-- **Ray intensity** — conic-gradient rays sit at 18% opacity, blur 18px. Can brighten and sharpen.
-- **Duration** — auto-closes at 4.2s. Can extend to 6s for a longer "peak moment."
-- **Badge scale** — 220px disc. Can grow and add a second concentric ring.
-- **Sound** — currently silent. Could add a soft chime on unlock.
-
-Once you tell me what's missing, I'll write the focused plan for that pass.
+Then tell me what to tune: particle density, ray intensity, duration, badge size, or add a sound.
