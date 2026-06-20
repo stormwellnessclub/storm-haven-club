@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
 import { PortalPhoneGate } from "./PortalPhoneGate";
 import { NonMemberSmsOptInGate } from "./NonMemberSmsOptInGate";
+import { MilestoneCelebrationHost } from "@/components/member/MilestoneCelebrationHost";
 
 interface PortalLayoutProps {
   children: React.ReactNode;
@@ -54,6 +55,7 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
           </SidebarInset>
         </div>
         <PortalBottomNav />
+        <MilestoneCelebrationHost />
       </div>
     </SidebarProvider>
   );
