@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Sparkles } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useUncelebratedAchievement,
   useMarkAchievementCelebrated,
   type UncelebratedAchievement,
 } from "@/hooks/useUncelebratedAchievement";
+import { useAuth } from "@/contexts/AuthContext";
 import { AchievementOverlayBig } from "./AchievementOverlayBig";
 import { FoundingMemberOverlay } from "./FoundingMemberOverlay";
 
@@ -18,6 +20,7 @@ const SMALL_TYPES = new Set([
 ]);
 
 const FOUNDING_TYPE = "founding_member";
+const SEEN_STORAGE_KEY = "swc:achievement-celebrated:v1";
 
 type Tier = "founding" | "big" | "small";
 
@@ -27,28 +30,50 @@ function tierFor(a: UncelebratedAchievement): Tier {
   return "big";
 }
 
-/**
- * Mounts the right celebration UI for the signed-in user's most recent
- * uncelebrated achievement. Founding Member gets a unique navy/gold overlay,
- * big achievements reuse the Celestial Gold treatment, small ones surface
- * as a sonner toast.
- */
+function loadSeen(): Set<string> {
+  try {
+    const raw = sessionStorage.getItem(SEEN_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw);
+    return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistSeen(set: Set<string>) {
+  try {
+    sessionStorage.setItem(SEEN_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    /* noop */
+  }
+}
+
+function markSeenLocal(id: string) {
+  const s = loadSeen();
+  s.add(id);
+  persistSeen(s);
+}
+
 export function AchievementCelebrationHost() {
   const { data: pending } = useUncelebratedAchievement();
   const markSeen = useMarkAchievementCelebrated();
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const [shown, setShown] = useState<UncelebratedAchievement | null>(null);
-  const [seenIds] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!pending) return;
-    if (seenIds.has(pending.id)) return;
     if (shown) return;
+    if (loadSeen().has(pending.id)) return;
 
     const tier = tierFor(pending);
 
+    // Mark seen locally + clear cache immediately so a refetch can't resurrect it
+    markSeenLocal(pending.id);
+    qc.setQueryData(["uncelebrated-achievement", user?.id], null);
+
     if (tier === "small") {
-      // Fire & forget toast — mark seen immediately so it doesn't loop
-      seenIds.add(pending.id);
       toast.success(pending.achievement_name, {
         description: pending.description ?? "Achievement unlocked",
         duration: 5000,
@@ -58,16 +83,15 @@ export function AchievementCelebrationHost() {
       markSeen.mutate(pending.id);
     } else {
       setShown(pending);
-      seenIds.add(pending.id);
+      // Fire DB write right away — don't wait for dismiss
+      markSeen.mutate(pending.id);
     }
-  }, [pending, shown, seenIds, markSeen]);
+  }, [pending, shown, markSeen, qc, user?.id]);
 
   if (!shown) return null;
 
   const handleClose = () => {
-    const id = shown.id;
     setShown(null);
-    markSeen.mutate(id);
   };
 
   const tier = tierFor(shown);

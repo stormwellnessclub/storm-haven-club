@@ -19,8 +19,8 @@ export function usePendingClassMilestone() {
   return useQuery({
     queryKey: ["pending-class-milestone", user?.id],
     enabled: !!user?.id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<PendingClassMilestone | null> => {
       const { data, error } = await (supabase.rpc as any)("get_pending_class_milestone");
       if (error) {
