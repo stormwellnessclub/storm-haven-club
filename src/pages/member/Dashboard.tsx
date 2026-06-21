@@ -315,7 +315,7 @@ export default function MemberDashboard() {
               
               <div className="grid grid-cols-5 gap-2">
                 {[
-                  { to: "/schedule", icon: Dumbbell, label: "Book Class" },
+                  { to: "/member/book/class", icon: Dumbbell, label: "Book Class" },
                   { to: "/member/wellness", icon: Zap, label: "Book Amenity" },
                   { to: "/spa", icon: Flame, label: "Spa Aella" },
                   { to: "/member/cafe", icon: CreditCard, label: "Café Order" },

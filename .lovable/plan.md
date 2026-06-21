@@ -1,1 +1,3 @@
-Remove the "Book Anything" heading text from the quick-book card on `src/pages/member/Dashboard.tsx`. Keep the 5-tile row (Class, Pass, Guest, Wellness, Workout) and all routing untouched.
+Change the "Book Class" tile on `src/pages/member/Dashboard.tsx` to link to `/member/book/class` (the in-portal class booking page) instead of `/schedule` (the public marketing schedule page). This keeps the user inside the member portal layout with sidebar/bottom nav intact.
+
+Only that one `to` value changes. Other tiles (Wellness, Spa, Café, Passes) left as-is unless you want those rerouted too — let me know.
