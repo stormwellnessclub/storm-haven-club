@@ -1,13 +1,39 @@
-Plan:
+## Goal
 
-1. Update the waitlist promotion charge flow in `ClassRoster.tsx` so “Charge single drop-in” uses the existing admin saved-card function by `userId`, instead of relying only on `non_member_profiles.stripe_customer_id` from the browser.
+Two related fixes for the existing milestone/achievement system:
 
-2. Preserve the current safety rule: do not create the class booking unless the saved-card charge succeeds.
+1. **Member-side visibility** — milestones aren't rendering in the Member portal Dashboard (only the non-member Portal Dashboard has `ClassMilestonesCard`, and `useUserClassTotal` only counts the logged-in `user_id`, missing member-id bookings reliably).
+2. **Roster visibility** — admin `ClassRoster` shows no "first class" or total-class count, and the kiosk `KioskClassRoster` has the UI fields (`is_first_in_type`, `total_classes`, `milestone_hit`, `next_milestone`, `prior_total`) but nothing in the codebase populates them, so the badges never appear.
 
-3. Make the error message clearer if the non-member detail page shows card metadata but the payment provider has no usable attached card.
+## Changes
 
-4. Include charge metadata for class/session/waitlist context so the transaction is traceable.
+### 1. Member Dashboard milestone card
+- Add `<ClassMilestonesCard />` to `src/pages/member/Dashboard.tsx` (top of the main column, next to the existing achievement summary).
+- Pass through the member's `user_id` explicitly.
 
-Technical detail:
-- Replace the waitlist promotion `charge_saved_card` call with `admin_charge_user_saved_card`, passing `userId`, amount, description, `grossUpFee: true`, and metadata.
-- This edge action already looks across members, non-member profiles, profiles, and provider customer records by email, which should match what the non-member account page considers “card on file.”
+### 2. Shared roster-stats resolver
+- New `src/hooks/useRosterClassStats.ts` (or extend `useRosterIdentity`) that takes the resolved attendees + current `class_type_id` + `session_date` and returns, per attendee, all five fields the kiosk UI expects:
+  - `total_classes` (completed bookings prior to today, both `user_id` and `member_id` matched)
+  - `prior_total` (total_classes minus today's confirmed booking, used for "X away from" math)
+  - `is_first_in_type` (no completed booking of the same `class_type_id` before today)
+  - `milestone_hit` (today's class would tip them over a lifetime milestone: 10/25/50/100/250/500)
+  - `next_milestone` (smallest milestone above `prior_total`)
+- Source data: `class_bookings` filtered by `status in ('confirmed','completed')` and `session_date < today`, grouped per attendee. One batched query keyed on the set of `user_id`s and `member_id`s in the roster.
+
+### 3. Admin ClassRoster badges
+- In `src/pages/admin/ClassRoster.tsx`, call the new hook for the current session's resolved attendees and render compact inline badges next to each name:
+  - "1st [class type]" pill when `is_first_in_type`
+  - Trophy + total-classes count when `total_classes > 0`
+  - "🎉 Nth class today!" when `milestone_hit`
+  - Subtle "X away from N" hint when within 2 of a milestone
+- Same visual language as the existing `KioskClassRoster` chips so admin and front desk match.
+
+### 4. Wire the kiosk roster
+- Whatever component(s) currently render `KioskClassRoster` (front desk / kiosk classes page) should pass the new stats through. Today they pass attendees without the milestone fields, so the JSX guards (`typeof entry.total_classes === "number"`) short-circuit and nothing shows. After this change, the same resolver feeds both admin and kiosk.
+
+### 5. `ClassMilestonesCard` count fix
+- `useUserClassTotal` currently does two queries (direct `user_id` + `member_id`) but can double-count when a booking has both columns set. Switch to a single query using `.or('user_id.eq.{uid},member_id.eq.{member_id}')` with `count: 'exact'` to get an accurate lifetime total.
+
+## Out of scope
+- No changes to the `user_class_achievements` table or the achievement-celebration overlays.
+- No changes to charging/waitlist flows from the previous turn.
