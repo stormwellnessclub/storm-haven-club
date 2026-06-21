@@ -4,7 +4,8 @@ import { usePendingClassMilestone, useMarkClassMilestonesSeen } from "@/hooks/us
 import { useAuth } from "@/contexts/AuthContext";
 import { MilestoneUnlockOverlay } from "./MilestoneUnlockOverlay";
 
-const SEEN_STORAGE_KEY = "swc:milestone-celebrated:v1";
+// v2 — drops old per-user+milestone blocker that permanently hid future milestones.
+const SEEN_STORAGE_KEY = "swc:milestone-celebrated:v2";
 const memorySeen = new Set<string>();
 
 function loadSeen(): Set<string> {
@@ -31,16 +32,13 @@ function persistSeen(set: Set<string>) {
   }
 }
 
-function markSeenLocal(id: string, userId?: string | null, milestone?: number | null) {
+function markSeenLocal(id: string) {
+  // Only dedupe by row id within the same browser session. DB `celebrated_at`
+  // is the cross-session source of truth.
   const s = loadSeen();
-  const keys = [
-    `id:${id}`,
-    userId && milestone != null ? `user:${userId}:milestone:${milestone}` : null,
-  ].filter(Boolean) as string[];
-  keys.forEach((key) => {
-    memorySeen.add(key);
-    s.add(key);
-  });
+  const key = `id:${id}`;
+  memorySeen.add(key);
+  s.add(key);
   persistSeen(s);
 }
 
@@ -55,12 +53,9 @@ export function MilestoneCelebrationHost() {
     if (!pending?.milestone || !pending.id) return;
     if (shown != null) return;
     const seen = loadSeen();
-    if (
-      seen.has(`id:${pending.id}`) ||
-      seen.has(`user:${user?.id}:milestone:${pending.milestone}`)
-    ) return;
+    if (seen.has(`id:${pending.id}`)) return;
 
-    markSeenLocal(pending.id, user?.id, pending.milestone);
+    markSeenLocal(pending.id);
     qc.setQueryData(["pending-class-milestone", user?.id], null);
     setShown(pending.milestone);
     markSeen.mutate();

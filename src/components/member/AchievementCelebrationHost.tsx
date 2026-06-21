@@ -20,7 +20,8 @@ const SMALL_TYPES = new Set([
 ]);
 
 const FOUNDING_TYPE = "founding_member";
-const SEEN_STORAGE_KEY = "swc:achievement-celebrated:v1";
+// v2 — drops old per-user+type blocker that permanently hid future achievements.
+const SEEN_STORAGE_KEY = "swc:achievement-celebrated:v2";
 const memorySeen = new Set<string>();
 
 type Tier = "founding" | "big" | "small";
@@ -55,11 +56,11 @@ function persistSeen(set: Set<string>) {
   }
 }
 
-function seenKeys(a: UncelebratedAchievement, userId?: string | null) {
-  return [
-    `id:${a.id}`,
-    userId ? `user:${userId}:type:${a.achievement_type}` : null,
-  ].filter(Boolean) as string[];
+function seenKeys(a: UncelebratedAchievement, _userId?: string | null) {
+  // Only dedupe by row id within the same browser session. DB `celebrated_at`
+  // is the cross-session source of truth — never block by user+type, that
+  // would permanently hide any future achievement of the same type.
+  return [`id:${a.id}`];
 }
 
 function markSeenLocal(keys: string[]) {
