@@ -72,17 +72,23 @@ export default function CheckInHistory() {
     <MemberLayout title="Visit History">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div>
             <h2 className="heading-section">Visit History</h2>
             <p className="text-muted-foreground mt-1">
               Your check-ins and amenity usage
             </p>
           </div>
-          <Button onClick={handleLogGeneral}>
-            <Plus className="h-4 w-4 mr-2" />
-            Log Amenity
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => setShowWorkoutModal(true)}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate Workout
+            </Button>
+            <Button variant="outline" onClick={handleLogGeneral}>
+              <Plus className="h-4 w-4 mr-2" />
+              Log Amenity
+            </Button>
+          </div>
         </div>
 
         {/* Amenity Usage Summary */}
