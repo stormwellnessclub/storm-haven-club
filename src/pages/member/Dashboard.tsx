@@ -714,6 +714,9 @@ export default function MemberDashboard() {
 
           {/* Class Milestones */}
           <ClassMilestonesCard />
+          <ClassTypeBreakdownCard />
+
+
 
 
           {/* Workouts Widget */}

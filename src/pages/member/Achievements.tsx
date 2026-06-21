@@ -11,6 +11,8 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
+import { ClassTypeBreakdownCard } from "@/components/ClassTypeBreakdownCard";
+
 
 export default function Achievements() {
   const { data: allAchievements, isLoading: allLoading } = useAchievements();
@@ -68,6 +70,8 @@ export default function Achievements() {
         </div>
 
         <ClassMilestonesCard />
+        <ClassTypeBreakdownCard />
+
 
 
 
