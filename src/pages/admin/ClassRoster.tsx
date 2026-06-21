@@ -632,25 +632,35 @@ export default function ClassRoster() {
           : `Drop-in: ${className} on ${session?.session_date} (waitlist promotion)`;
 
         // Charge the saved card BEFORE creating the booking so the UI never claims
-        // the member was charged when they weren't.
+        // the member was charged when they weren't. Supports non-members with a card on file.
+        let chargeBody: any = null;
         if (memberId) {
-          let chargeData: any = null;
-          let chargeErr: any = null;
-          try {
-            const res = await supabase.functions.invoke("stripe-payment", {
-              body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
-            });
-            chargeData = res.data;
-            chargeErr = res.error;
-          } catch (e: any) {
-            chargeErr = e;
+          chargeBody = { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription };
+        } else if (userId) {
+          const { data: nm } = await supabase
+            .from("non_member_profiles")
+            .select("stripe_customer_id")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (nm?.stripe_customer_id) {
+            chargeBody = { action: "charge_saved_card", stripeCustomerId: nm.stripe_customer_id, amount: amountCents, description: chargeDescription };
           }
-          if (chargeErr || !chargeData?.success) {
-            const reason = chargeData?.error || chargeErr?.message || "Card declined";
-            throw new Error(`Card declined — $${(amountCents / 100).toFixed(2)} NOT collected: ${reason}`);
-          }
-        } else {
-          throw new Error("No member on file — use the manual add flow to record a drop-in to be collected at the desk.");
+        }
+        if (!chargeBody) {
+          throw new Error("No card on file for this person — add a card to their account, or use the manual walk-in flow to collect at the desk.");
+        }
+        let chargeData: any = null;
+        let chargeErr: any = null;
+        try {
+          const res = await supabase.functions.invoke("stripe-payment", { body: chargeBody });
+          chargeData = res.data;
+          chargeErr = res.error;
+        } catch (e: any) {
+          chargeErr = e;
+        }
+        if (chargeErr || !chargeData?.success) {
+          const reason = chargeData?.error || chargeErr?.message || "Card declined";
+          throw new Error(`Card declined — $${(amountCents / 100).toFixed(2)} NOT collected: ${reason}`);
         }
 
         await supabase.from("class_bookings").insert({
@@ -834,15 +844,26 @@ export default function ClassRoster() {
           ? `Donation: ${className} on ${session?.session_date}${fundraiserBeneficiary ? ` — ${fundraiserBeneficiary}` : ""}`
           : `Drop-in: ${className} on ${session?.session_date}`;
 
+        // Resolve a chargeable target: member's saved card, or non-member's saved card.
+        let chargeBody: any = null;
         if (memberId) {
-          // Charge the saved card FIRST. If it fails, do not create the booking
-          // so the UI never claims they were charged when they weren't.
+          chargeBody = { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription };
+        } else if (userId) {
+          const { data: nm } = await supabase
+            .from("non_member_profiles")
+            .select("stripe_customer_id")
+            .eq("user_id", userId)
+            .maybeSingle();
+          if (nm?.stripe_customer_id) {
+            chargeBody = { action: "charge_saved_card", stripeCustomerId: nm.stripe_customer_id, amount: amountCents, description: chargeDescription };
+          }
+        }
+        if (chargeBody) {
+          // Charge the saved card FIRST. If it fails, do not create the booking.
           let chargeData: any = null;
           let chargeErr: any = null;
           try {
-            const res = await supabase.functions.invoke("stripe-payment", {
-              body: { action: "charge_saved_card", memberId, amount: amountCents, description: chargeDescription },
-            });
+            const res = await supabase.functions.invoke("stripe-payment", { body: chargeBody });
             chargeData = res.data;
             chargeErr = res.error;
           } catch (e: any) {
@@ -862,7 +883,7 @@ export default function ClassRoster() {
           });
           chargedAmountCents = amountCents;
         } else {
-          // Non-member walk-in: record the booking with the price; collect at the desk.
+          // Walk-in with no card on file anywhere: record the booking; collect at the desk.
           await supabase.from("class_bookings").insert({
             session_id: sessionId!, user_id: userId, member_id: memberId,
             status: "confirmed",
