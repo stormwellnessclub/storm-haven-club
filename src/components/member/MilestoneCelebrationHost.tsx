@@ -4,7 +4,8 @@ import { usePendingClassMilestone, useMarkClassMilestonesSeen } from "@/hooks/us
 import { useAuth } from "@/contexts/AuthContext";
 import { MilestoneUnlockOverlay } from "./MilestoneUnlockOverlay";
 
-const SEEN_STORAGE_KEY = "swc:milestone-celebrated:v1";
+// v2 — drops old per-user+milestone blocker that permanently hid future milestones.
+const SEEN_STORAGE_KEY = "swc:milestone-celebrated:v2";
 const memorySeen = new Set<string>();
 
 function loadSeen(): Set<string> {

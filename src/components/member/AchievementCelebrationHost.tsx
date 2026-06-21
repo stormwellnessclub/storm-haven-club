@@ -20,7 +20,8 @@ const SMALL_TYPES = new Set([
 ]);
 
 const FOUNDING_TYPE = "founding_member";
-const SEEN_STORAGE_KEY = "swc:achievement-celebrated:v1";
+// v2 — drops old per-user+type blocker that permanently hid future achievements.
+const SEEN_STORAGE_KEY = "swc:achievement-celebrated:v2";
 const memorySeen = new Set<string>();
 
 type Tier = "founding" | "big" | "small";
