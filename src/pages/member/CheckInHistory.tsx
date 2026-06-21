@@ -8,8 +8,11 @@ import { useCheckInHistory } from "@/hooks/useCheckInHistory";
 import { useAmenityUsage, AMENITY_TYPES, AmenityUsageLog } from "@/hooks/useAmenityUsage";
 import { LogAmenityDialog } from "@/components/member/LogAmenityDialog";
 import { format } from "date-fns";
-import { Clock, Plus, Flame, Trash2 } from "lucide-react";
+import { Clock, Plus, Flame, Trash2, Sparkles } from "lucide-react";
 import { useDeleteAmenityUsage } from "@/hooks/useAmenityUsage";
+import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
+import { useGenerateAIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
+import { clearPersisted } from "@/hooks/usePersistedState";
 
 export default function CheckInHistory() {
   const [showAmenityDialog, setShowAmenityDialog] = useState(false);
