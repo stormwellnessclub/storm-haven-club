@@ -52,12 +52,9 @@ export function MilestoneCelebrationHost() {
     if (!pending?.milestone || !pending.id) return;
     if (shown != null) return;
     const seen = loadSeen();
-    if (
-      seen.has(`id:${pending.id}`) ||
-      seen.has(`user:${user?.id}:milestone:${pending.milestone}`)
-    ) return;
+    if (seen.has(`id:${pending.id}`)) return;
 
-    markSeenLocal(pending.id, user?.id, pending.milestone);
+    markSeenLocal(pending.id);
     qc.setQueryData(["pending-class-milestone", user?.id], null);
     setShown(pending.milestone);
     markSeen.mutate();
