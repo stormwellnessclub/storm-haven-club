@@ -1291,7 +1291,12 @@ export default function ClassRoster() {
                                       s.next_milestone != null ? s.next_milestone - s.prior_total : null;
                                     return (
                                       <>
-                                        {s.is_first_in_type && (
+                                        {s.is_first_visit && (
+                                          <Badge className="h-5 px-1.5 text-[10px] gap-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0">
+                                            <Sparkles className="h-2.5 w-2.5" /> First visit!
+                                          </Badge>
+                                        )}
+                                        {s.is_first_in_type && !s.is_first_visit && (
                                           <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
                                             <Sparkles className="h-2.5 w-2.5" /> First {s.class_type_name || "class"}
                                           </Badge>

@@ -16,6 +16,7 @@ interface RosterEntry {
   photo_url: string | null;
   class_type_name?: string | null;
   is_first_in_type?: boolean;
+  is_first_visit?: boolean;
   total_classes?: number;
   milestone_hit?: boolean;
   next_milestone?: number | null;
@@ -93,7 +94,12 @@ export function KioskClassRoster({ sessionId, onCheckIn }: KioskClassRosterProps
 
             <div className="flex-1 min-w-0 flex items-center gap-1.5 flex-wrap">
               <span className="text-sm font-medium truncate">{entry.name}</span>
-              {entry.is_first_in_type && (
+              {entry.is_first_visit && (
+                <Badge className="h-5 px-1.5 text-[10px] gap-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0">
+                  <Sparkles className="h-2.5 w-2.5" /> First visit!
+                </Badge>
+              )}
+              {entry.is_first_in_type && !entry.is_first_visit && (
                 <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
                   <Sparkles className="h-2.5 w-2.5" /> First {entry.class_type_name || "class"}
                 </Badge>
