@@ -17,6 +17,7 @@ import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { useHealthScore, useHealthScoreHistory } from "@/hooks/useHealthScore";
 import { useMemberPoints } from "@/hooks/useMemberPoints";
 import { useAchievements, useMemberAchievements, useCheckAchievements } from "@/hooks/useAchievements";
+import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
 import { useWorkoutLogs } from "@/hooks/useWorkoutLogs";
 import { useHabits, useHabitStreaks } from "@/hooks/useHabits";
 import { useHabitLogs, useCreateHabitLog } from "@/hooks/useHabitLogs";
@@ -710,6 +711,10 @@ export default function MemberDashboard() {
               )}
             </CardContent>
           </Card>
+
+          {/* Class Milestones */}
+          <ClassMilestonesCard />
+
 
           {/* Workouts Widget */}
           <Card variant="elevated" className="hover-lift-sm">

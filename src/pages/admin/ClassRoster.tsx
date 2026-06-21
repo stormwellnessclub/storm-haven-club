@@ -21,6 +21,8 @@ import { PersonSearch, type PersonResult } from "@/components/admin/roster/Perso
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
+import { useRosterClassStats } from "@/hooks/useRosterClassStats";
+import { Sparkles, Trophy } from "lucide-react";
 
 // Best-effort: resolve email/phone for a userId, then send confirmation email + SMS.
 // Non-fatal: errors are logged and swallowed so the booking flow isn't blocked.
@@ -230,6 +232,10 @@ export default function ClassRoster() {
     },
     enabled: !!sessionId && !!session,
   });
+
+  // Per-attendee class stats (first-in-type, total classes, milestones) — shared with kiosk
+  const { data: rosterStats } = useRosterClassStats(sessionId);
+
 
   // Fetch waitlist
   const { data: waitlist = [], isLoading: waitlistLoading } = useQuery({
@@ -1276,9 +1282,43 @@ export default function ClassRoster() {
                                 {initials}
                               </div>
                               <div>
-                                <span className="font-medium">{attendee.name}</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-medium">{attendee.name}</span>
+                                  {(() => {
+                                    const s = rosterStats?.get(attendee.bookingId);
+                                    if (!s) return null;
+                                    const awayFrom =
+                                      s.next_milestone != null ? s.next_milestone - s.prior_total : null;
+                                    return (
+                                      <>
+                                        {s.is_first_in_type && (
+                                          <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
+                                            <Sparkles className="h-2.5 w-2.5" /> First {s.class_type_name || "class"}
+                                          </Badge>
+                                        )}
+                                        {s.total_classes > 0 && (
+                                          <Badge variant="secondary" className="h-5 px-1.5 text-[10px] gap-0.5">
+                                            <Trophy className="h-2.5 w-2.5" /> {s.total_classes}
+                                          </Badge>
+                                        )}
+                                        {!s.milestone_hit && awayFrom != null && awayFrom > 0 && awayFrom <= 2 && (
+                                          <Badge variant="outline" className="h-5 px-1.5 text-[10px] gap-0.5 border-amber-400 text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300">
+                                            <Trophy className="h-2.5 w-2.5" />
+                                            {awayFrom === 1 ? `1 from ${s.next_milestone}!` : `${awayFrom} from ${s.next_milestone}`}
+                                          </Badge>
+                                        )}
+                                        {s.milestone_hit && (
+                                          <Badge className="h-5 px-1.5 text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                                            🎉 {s.total_classes}th class!
+                                          </Badge>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
                                 {attendee.email && <p className="text-xs text-muted-foreground">{attendee.email}</p>}
                               </div>
+
                             </div>
                           </TableCell>
                           <TableCell>
