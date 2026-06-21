@@ -16,10 +16,23 @@ import { clearPersisted } from "@/hooks/usePersistedState";
 
 export default function CheckInHistory() {
   const [showAmenityDialog, setShowAmenityDialog] = useState(false);
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [selectedCheckInId, setSelectedCheckInId] = useState<string | undefined>();
   const { data: checkIns, isLoading: checkInsLoading } = useCheckInHistory();
   const { data: amenityLogs, isLoading: amenityLoading } = useAmenityUsage();
   const deleteAmenity = useDeleteAmenityUsage();
+  const generateAIWorkout = useGenerateAIWorkout();
+
+  const handleGenerateAIWorkout = async (preferences: WorkoutPreferences) => {
+    try {
+      await generateAIWorkout.mutateAsync(preferences);
+      clearPersisted("workouts.generate.step.v1");
+      clearPersisted("workouts.generate.prefs.v1");
+      setShowWorkoutModal(false);
+    } catch {
+      // handled by hook
+    }
+  };
 
   const isLoading = checkInsLoading || amenityLoading;
 
