@@ -1,44 +1,43 @@
+# Member Portal Mockup v5 (preview only — no code changes)
 
-# Per-class-type progress rings for member achievements
+I'll generate two PNG mockups that match the uploaded references exactly, then wait for your approval before touching any app code.
 
-Keep the existing Class Milestones card and Achievements page exactly as they are today, and add a new visual section that shows progress toward the next "first {class type}" badge for each class category the member has touched (Pilates, Cycling, Yoga, Recovery, etc.).
+## Desktop reference (image 1) — what I'll reproduce
 
-## What the member will see
+- **Dark sidebar** (near-black) with gold STORM WELLNESS CLUB wordmark
+- Sidebar groups in gold uppercase labels: **MAIN** (Dashboard, Member Entry, Support, Café Order, Storm Shop) · **MEMBERSHIP & BILLING** (My Membership, My Credits, Payment Methods, Payment History, Buy Passes) · **BOOKINGS & VISITS** (My Bookings, Visit History, Kids Care, Wellness Booking) · **HEALTH & WELLNESS** (Health Score, Workouts, Habits, Goals, Achievements, Fitness Profile) · **ACCOUNT** (My Profile, Waivers, Freeze Request, Register Guest, Refer a Friend)
+- Dashboard active state: gold-tinted pill
+- Footer: Back to Website, Sign Out (red)
+- Cream/ivory body background
+- Serif headline "Welcome back, Sahar" + subline "Here's your wellness overview."
+- Top-right: black pill "🎧 Support" + circular bell button
+- **4 stat tiles row**: MEMBERSHIP (Diamond + Active + black diamond icon) · MONTHLY CREDITS (10 of 10 remaining + coin icon) · CLUB VISITS (8 this month + sparkline) · UPCOMING BILLING (Manage Billing › / Next billing date May 20, 2024)
+- **Benefits Frozen** banner (cream, gold lock + gold title + chevron)
+- **Credits Expiring Soon** banner (10 total credits expiring in 7 days, clock icon, chevron)
+- **Book Anything** card with 5 circular gold-tinted icon tiles: Book Class (dumbbell), Book Amenity (droplet), Spa Aella (lotus), Café Order (cup), Buy Passes (ticket)
+- **Up Next** card (calendar icon, SAT MAY 4 · 9:00 AM, Strength Sculpt with Jordan, Studio 1, View Schedule button, class photo on the right)
+- **Recent Workouts** card (trophy icon, 3 dated rows, "View all workouts" link)
+- **Achievements** card (trophy icon, "1 Unlocked", Arrival star tile, "View all achievements" link)
+- **Recover. Restore. Reset.** banner across the bottom with spa photo + Explore Amenities button + 4 amenity icons (Sauna, Cold Plunge, Red Light, More)
 
-A new "Class breakdown" card (placed under the existing Class Milestones card on both `/member` dashboard and `/member/achievements`):
+## Mobile reference (image 2) — what I'll reproduce
 
-- One small circular ring per class type the member has ever booked (Pilates, Cycling, Yoga, etc.)
-- Center of ring: total count attended for that type (e.g. `7`)
-- Ring fill: progress toward the next milestone for that type (1 → 5 → 10 → 25 → 50 → 100)
-- Label under ring: class type name + `next: N` hint (or a gold ✓ when already at/over the highest tier)
-- Sparkle accent on rings where they've earned a "first {type}" badge
-- Empty state: "Try a new class type to start a new ring" with a link to `/schedule`
+iPhone frame, 9:41 status bar, drawer open on left over a dimmed dashboard:
+- Cream drawer with STORM wordmark + X close button
+- Same 5 sidebar sections in same order, gold section labels
+- Back to Website + Sign Out (red) pinned at the bottom of the drawer
+- Behind the drawer (dimmed): "…ne back, Sahar / …wellness, all in one place." headline, a dark **Diamond Member** card with Credits/Visits/Upcoming Billing mini-stats inside it, Credits Expiring Soon pill, 4-tile Book Anything row (Book Class · Amenity · Spa Aella · Café), Up Next card with class photo
+- **Bottom tab bar** with 4 tabs: Book · Activity (with "3" badge) · Support · Account
 
-Visual tone matches the existing gold/amber milestone styling — outlined gold ring on muted track, gold gradient fill once a tier completes.
+## Deliverables
 
-## Technical details
+- `/mnt/documents/member-portal-v5-desktop.png` (1600×1000)
+- `/mnt/documents/member-portal-v5-mobile.png` (1080×1400, iPhone frame)
 
-1. New hook `src/hooks/useUserClassTypeBreakdown.ts`
-   - Input: optional `userId` (defaults to current auth user)
-   - Resolves linked `member_id` (same pattern as `useUserClassTotal`)
-   - Single query: `class_bookings` filtered by `status = 'completed'` and `.or('user_id.eq.X,member_id.eq.Y')`, selecting `class_sessions(class_types(id,name,category))`
-   - Aggregates in JS into `{ classTypeId, name, category, count }[]`, sorted by count desc
-   - Returns array via React Query, cache key `["user-class-type-breakdown", uid]`
-
-2. New component `src/components/ClassTypeBreakdownCard.tsx`
-   - Renders the card shell (matches `ClassMilestonesCard` styling)
-   - For each entry, computes `nextTier` from `[1,5,10,25,50,100]` and renders an SVG ring (stroke-dasharray progress) — no new deps
-   - Uses existing earned `first_in_type` achievement data from `useUserClassAchievements` to add the sparkle accent
-   - Handles loading skeleton and empty state
-
-3. Mount the new card in two places, directly under the existing `<ClassMilestonesCard />`:
-   - `src/pages/member/Dashboard.tsx`
-   - `src/pages/member/Achievements.tsx`
-
-4. No changes to the portal (non-member) dashboard, admin views, kiosk, or DB.
+Both built as static HTML rendered via headless Chromium so they match the references pixel-faithfully (cream bg, dark sidebar, Cormorant Garamond display + Karla body, gold accents).
 
 ## Out of scope
 
-- No changes to the existing Achievement points card, Achievements grid, or celebration overlays
-- No new tables, RPCs, or migrations
-- No styling changes to the existing Class Milestones card
+- No edits to `Dashboard.tsx`, `MemberSidebar.tsx`, `MemberBottomNav.tsx`, `MemberLayout.tsx`, or any other app file
+- No new routes, hooks, or components
+- Implementation only begins after you approve the v5 mockup
