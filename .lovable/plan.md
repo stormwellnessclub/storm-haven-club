@@ -1,13 +1,13 @@
-Fix two issues:
+Plan:
 
-A) Charging a non-member who has a card on file says "no card on file"
-- Root cause: `addToClassMutation` and `promoteMutation` (drop-in branch) in `src/pages/admin/ClassRoster.tsx` only call `stripe-payment` with `memberId`. Non-members have no `memberId`, so the flow either errors out ("No member on file") or falls through to "collect at desk" — even when they have a real saved card stored in `non_member_profiles.stripe_customer_id`.
-- Fix: When `memberId` is null, look up `non_member_profiles` by `user_id`. If `stripe_customer_id` is present, invoke `stripe-payment` with action `charge_saved_card` and `stripeCustomerId` (the edge function already supports this path). Only show "no card on file" if neither a member record nor a non-member `stripe_customer_id` exists. Apply the same fix to the "Promote from waitlist" drop-in branch.
+1. Update the waitlist promotion charge flow in `ClassRoster.tsx` so “Charge single drop-in” uses the existing admin saved-card function by `userId`, instead of relying only on `non_member_profiles.stripe_customer_id` from the browser.
 
-B) Wrongly issued pass cannot be deleted
-- Root cause: `class_waitlist.pass_id` has a foreign key to `class_passes(id)` with no `ON DELETE` rule, so any waitlist row that referenced that pass blocks the delete. Other admin pass-delete paths hit the same wall whenever a `class_waitlist` row touched the pass.
-- Fix (migration): alter `class_waitlist.pass_id` to `ON DELETE SET NULL`. Leave existing `kids_care_bookings` and `payment_reconciliations` foreign keys as-is (they already `SET NULL`). After the migration, admins (super_admin / admin / manager) will be able to delete passes from the existing Edit Class Pass dialog without orphan errors.
+2. Preserve the current safety rule: do not create the class booking unless the saved-card charge succeeds.
 
-Verification:
-- Reproduce: non-member with saved card on a waitlist, admin promotes them with drop-in pricing → card charges, booking created.
-- Reproduce: admin opens a bad pass on a non-member, clicks Delete → pass removes successfully and any referencing waitlist row's `pass_id` becomes null (waitlist record itself is preserved).
+3. Make the error message clearer if the non-member detail page shows card metadata but the payment provider has no usable attached card.
+
+4. Include charge metadata for class/session/waitlist context so the transaction is traceable.
+
+Technical detail:
+- Replace the waitlist promotion `charge_saved_card` call with `admin_charge_user_saved_card`, passing `userId`, amount, description, `grossUpFee: true`, and metadata.
+- This edge action already looks across members, non-member profiles, profiles, and provider customer records by email, which should match what the non-member account page considers “card on file.”
