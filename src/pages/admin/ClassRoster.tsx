@@ -21,6 +21,8 @@ import { PersonSearch, type PersonResult } from "@/components/admin/roster/Perso
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
+import { useRosterClassStats } from "@/hooks/useRosterClassStats";
+import { Sparkles, Trophy } from "lucide-react";
 
 // Best-effort: resolve email/phone for a userId, then send confirmation email + SMS.
 // Non-fatal: errors are logged and swallowed so the booking flow isn't blocked.
