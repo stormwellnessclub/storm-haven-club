@@ -1,43 +1,25 @@
-# Member Portal Mockup v5 (preview only — no code changes)
+# Mobile Mockup v6 — show the full drawer
 
-I'll generate two PNG mockups that match the uploaded references exactly, then wait for your approval before touching any app code.
+Regenerate `/mnt/documents/member-portal-v6-mobile.png` so the entire drawer fits on screen, including **HEALTH & WELLNESS** and **ACCOUNT** sections that were cut off in v5.
 
-## Desktop reference (image 1) — what I'll reproduce
+## Fix
 
-- **Dark sidebar** (near-black) with gold STORM WELLNESS CLUB wordmark
-- Sidebar groups in gold uppercase labels: **MAIN** (Dashboard, Member Entry, Support, Café Order, Storm Shop) · **MEMBERSHIP & BILLING** (My Membership, My Credits, Payment Methods, Payment History, Buy Passes) · **BOOKINGS & VISITS** (My Bookings, Visit History, Kids Care, Wellness Booking) · **HEALTH & WELLNESS** (Health Score, Workouts, Habits, Goals, Achievements, Fitness Profile) · **ACCOUNT** (My Profile, Waivers, Freeze Request, Register Guest, Refer a Friend)
-- Dashboard active state: gold-tinted pill
-- Footer: Back to Website, Sign Out (red)
-- Cream/ivory body background
-- Serif headline "Welcome back, Sahar" + subline "Here's your wellness overview."
-- Top-right: black pill "🎧 Support" + circular bell button
-- **4 stat tiles row**: MEMBERSHIP (Diamond + Active + black diamond icon) · MONTHLY CREDITS (10 of 10 remaining + coin icon) · CLUB VISITS (8 this month + sparkline) · UPCOMING BILLING (Manage Billing › / Next billing date May 20, 2024)
-- **Benefits Frozen** banner (cream, gold lock + gold title + chevron)
-- **Credits Expiring Soon** banner (10 total credits expiring in 7 days, clock icon, chevron)
-- **Book Anything** card with 5 circular gold-tinted icon tiles: Book Class (dumbbell), Book Amenity (droplet), Spa Aella (lotus), Café Order (cup), Buy Passes (ticket)
-- **Up Next** card (calendar icon, SAT MAY 4 · 9:00 AM, Strength Sculpt with Jordan, Studio 1, View Schedule button, class photo on the right)
-- **Recent Workouts** card (trophy icon, 3 dated rows, "View all workouts" link)
-- **Achievements** card (trophy icon, "1 Unlocked", Arrival star tile, "View all achievements" link)
-- **Recover. Restore. Reset.** banner across the bottom with spa photo + Explore Amenities button + 4 amenity icons (Sauna, Cold Plunge, Red Light, More)
+- Increase phone frame height from 880px → ~1500px (taller "iPhone Pro Max"-style frame) so all 5 sidebar groups + footer fit without scrolling
+- Tighten drawer vertical spacing (smaller gap between rows, slightly smaller section label margins) so the list reads denser
+- Pin **Back to Website / Sign Out** footer at the bottom of the drawer (unchanged behavior, just inside the taller frame)
+- Keep everything else identical to v5: cream drawer, gold STORM wordmark, X close button, gold section labels, Dashboard active pill, dimmed dashboard peeking behind on the right, bottom tab bar (Book · Activity³ · Support · Account)
 
-## Mobile reference (image 2) — what I'll reproduce
+## Sections that will be fully visible
 
-iPhone frame, 9:41 status bar, drawer open on left over a dimmed dashboard:
-- Cream drawer with STORM wordmark + X close button
-- Same 5 sidebar sections in same order, gold section labels
-- Back to Website + Sign Out (red) pinned at the bottom of the drawer
-- Behind the drawer (dimmed): "…ne back, Sahar / …wellness, all in one place." headline, a dark **Diamond Member** card with Credits/Visits/Upcoming Billing mini-stats inside it, Credits Expiring Soon pill, 4-tile Book Anything row (Book Class · Amenity · Spa Aella · Café), Up Next card with class photo
-- **Bottom tab bar** with 4 tabs: Book · Activity (with "3" badge) · Support · Account
-
-## Deliverables
-
-- `/mnt/documents/member-portal-v5-desktop.png` (1600×1000)
-- `/mnt/documents/member-portal-v5-mobile.png` (1080×1400, iPhone frame)
-
-Both built as static HTML rendered via headless Chromium so they match the references pixel-faithfully (cream bg, dark sidebar, Cormorant Garamond display + Karla body, gold accents).
+1. MAIN — Dashboard, Member Entry, Support, Café Order, Storm Shop
+2. MEMBERSHIP & BILLING — My Membership, My Credits, Payment Methods, Payment History, Buy Passes
+3. BOOKINGS & VISITS — My Bookings, Visit History, Kids Care, Wellness Booking
+4. **HEALTH & WELLNESS** — Health Score, Workouts, Habits, Goals, Achievements, Fitness Profile
+5. **ACCOUNT** — My Profile, Waivers, Freeze Request, Register Guest, Refer a Friend
+6. Footer — Back to Website, Sign Out
 
 ## Out of scope
 
-- No edits to `Dashboard.tsx`, `MemberSidebar.tsx`, `MemberBottomNav.tsx`, `MemberLayout.tsx`, or any other app file
-- No new routes, hooks, or components
-- Implementation only begins after you approve the v5 mockup
+- No app code changes
+- Desktop mockup stays as-is
+- Implementation only begins after you approve the redesign
