@@ -1,3 +1,15 @@
-Change the "Book Class" tile on `src/pages/member/Dashboard.tsx` to link to `/member/book/class` (the in-portal class booking page) instead of `/schedule` (the public marketing schedule page). This keeps the user inside the member portal layout with sidebar/bottom nav intact.
+## Goal
+Surface the AI Workout Generator inside the mobile **Activity** tab (`/member/check-in-history`) so members can generate a workout without leaving the activity view.
 
-Only that one `to` value changes. Other tiles (Wellness, Spa, Café, Passes) left as-is unless you want those rerouted too — let me know.
+## Changes
+**File: `src/pages/member/CheckInHistory.tsx`**
+1. Import `GenerateWorkoutModal` from `@/components/member/GenerateWorkoutModal` and `Sparkles` icon.
+2. Add local state `showWorkoutModal`.
+3. In the header action area (next to the existing "Log Amenity" button), add a primary "Generate Workout" button that opens the modal.
+4. Render `<GenerateWorkoutModal open={showWorkoutModal} onOpenChange={setShowWorkoutModal} />` at the bottom alongside the existing `LogAmenityDialog`.
+
+No routing changes, no business logic changes — purely surfacing the existing generator on the Activity page. The standalone Workouts page (`/member/workouts`) keeps its own generator unchanged.
+
+## Notes
+- Same modal already in use on the Workouts page, so behavior/state is consistent.
+- Button stacks below "Log Amenity" on small screens via existing flex layout.

@@ -8,15 +8,31 @@ import { useCheckInHistory } from "@/hooks/useCheckInHistory";
 import { useAmenityUsage, AMENITY_TYPES, AmenityUsageLog } from "@/hooks/useAmenityUsage";
 import { LogAmenityDialog } from "@/components/member/LogAmenityDialog";
 import { format } from "date-fns";
-import { Clock, Plus, Flame, Trash2 } from "lucide-react";
+import { Clock, Plus, Flame, Trash2, Sparkles } from "lucide-react";
 import { useDeleteAmenityUsage } from "@/hooks/useAmenityUsage";
+import { GenerateWorkoutModal } from "@/components/member/GenerateWorkoutModal";
+import { useGenerateAIWorkout, WorkoutPreferences } from "@/hooks/useAIWorkouts";
+import { clearPersisted } from "@/hooks/usePersistedState";
 
 export default function CheckInHistory() {
   const [showAmenityDialog, setShowAmenityDialog] = useState(false);
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [selectedCheckInId, setSelectedCheckInId] = useState<string | undefined>();
   const { data: checkIns, isLoading: checkInsLoading } = useCheckInHistory();
   const { data: amenityLogs, isLoading: amenityLoading } = useAmenityUsage();
   const deleteAmenity = useDeleteAmenityUsage();
+  const generateAIWorkout = useGenerateAIWorkout();
+
+  const handleGenerateAIWorkout = async (preferences: WorkoutPreferences) => {
+    try {
+      await generateAIWorkout.mutateAsync(preferences);
+      clearPersisted("workouts.generate.step.v1");
+      clearPersisted("workouts.generate.prefs.v1");
+      setShowWorkoutModal(false);
+    } catch {
+      // handled by hook
+    }
+  };
 
   const isLoading = checkInsLoading || amenityLoading;
 
@@ -56,17 +72,23 @@ export default function CheckInHistory() {
     <MemberLayout title="Visit History">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div>
             <h2 className="heading-section">Visit History</h2>
             <p className="text-muted-foreground mt-1">
               Your check-ins and amenity usage
             </p>
           </div>
-          <Button onClick={handleLogGeneral}>
-            <Plus className="h-4 w-4 mr-2" />
-            Log Amenity
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => setShowWorkoutModal(true)}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Generate Workout
+            </Button>
+            <Button variant="outline" onClick={handleLogGeneral}>
+              <Plus className="h-4 w-4 mr-2" />
+              Log Amenity
+            </Button>
+          </div>
         </div>
 
         {/* Amenity Usage Summary */}
@@ -254,6 +276,13 @@ export default function CheckInHistory() {
         open={showAmenityDialog}
         onOpenChange={setShowAmenityDialog}
         checkInId={selectedCheckInId}
+      />
+
+      <GenerateWorkoutModal
+        open={showWorkoutModal}
+        onOpenChange={setShowWorkoutModal}
+        onGenerate={handleGenerateAIWorkout}
+        isGenerating={generateAIWorkout.isPending}
       />
     </MemberLayout>
   );
