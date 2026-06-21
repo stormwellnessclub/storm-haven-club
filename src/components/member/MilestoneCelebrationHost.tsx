@@ -31,16 +31,13 @@ function persistSeen(set: Set<string>) {
   }
 }
 
-function markSeenLocal(id: string, userId?: string | null, milestone?: number | null) {
+function markSeenLocal(id: string) {
+  // Only dedupe by row id within the same browser session. DB `celebrated_at`
+  // is the cross-session source of truth.
   const s = loadSeen();
-  const keys = [
-    `id:${id}`,
-    userId && milestone != null ? `user:${userId}:milestone:${milestone}` : null,
-  ].filter(Boolean) as string[];
-  keys.forEach((key) => {
-    memorySeen.add(key);
-    s.add(key);
-  });
+  const key = `id:${id}`;
+  memorySeen.add(key);
+  s.add(key);
   persistSeen(s);
 }
 
