@@ -1,0 +1,2 @@
+ALTER TABLE public.class_waitlist DROP CONSTRAINT IF EXISTS class_waitlist_pass_id_fkey;
+ALTER TABLE public.class_waitlist ADD CONSTRAINT class_waitlist_pass_id_fkey FOREIGN KEY (pass_id) REFERENCES public.class_passes(id) ON DELETE SET NULL;
