@@ -308,40 +308,35 @@ export default function MemberDashboard() {
         {/* Engagement Nudge */}
         <EngagementNudge />
 
-        {/* === NEW: Quick Actions Row === */}
+        {/* === Book Anything — 5-tile launcher === */}
         <AnimatedSection animation="fade-up" delay={50}>
-          <StaggerContainer className="grid gap-3 grid-cols-3" staggerDelay={60}>
-            <Link to="/schedule" className="block">
-              <Card variant="interactive" className="hover-lift-sm h-full">
-                <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
-                  <div className="p-2.5 rounded-full bg-accent/10">
-                    <CalendarPlus className="h-5 w-5 text-accent" />
-                  </div>
-                  <span className="text-sm font-semibold">Book Class</span>
-                </CardContent>
-              </Card>
-            </Link>
-            <Link to="/member/wellness" className="block">
-              <Card variant="interactive" className="hover-lift-sm h-full">
-                <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
-                  <div className="p-2.5 rounded-full bg-accent/10">
-                    <Zap className="h-5 w-5 text-accent" />
-                  </div>
-                  <span className="text-sm font-semibold">Book Amenity</span>
-                </CardContent>
-              </Card>
-            </Link>
-            <Link to="/class-passes" className="block">
-              <Card variant="interactive" className="hover-lift-sm h-full">
-                <CardContent className="pt-5 pb-4 flex flex-col items-center text-center gap-2">
-                  <div className="p-2.5 rounded-full bg-accent/10">
-                    <Ticket className="h-5 w-5 text-accent" />
-                  </div>
-                  <span className="text-sm font-semibold">Buy Passes</span>
-                </CardContent>
-              </Card>
-            </Link>
-          </StaggerContainer>
+          <Card variant="elevated" className="border-[hsl(var(--gold))]/20">
+            <CardContent className="pt-6 pb-6">
+              <h3 className="font-serif text-xl mb-5">Book Anything</h3>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { to: "/schedule", icon: Dumbbell, label: "Book Class" },
+                  { to: "/member/wellness", icon: Zap, label: "Book Amenity" },
+                  { to: "/spa", icon: Flame, label: "Spa Aella" },
+                  { to: "/member/cafe", icon: CreditCard, label: "Café Order" },
+                  { to: "/class-passes", icon: Ticket, label: "Buy Passes" },
+                ].map((t) => (
+                  <Link
+                    key={t.to + t.label}
+                    to={t.to}
+                    className="flex flex-col items-center gap-2 text-center group"
+                  >
+                    <div className="h-14 w-14 rounded-full bg-[hsl(var(--gold))]/15 flex items-center justify-center text-[hsl(var(--accent))] group-hover:bg-[hsl(var(--gold))]/25 transition-colors">
+                      <t.icon className="h-6 w-6" />
+                    </div>
+                    <span className="text-[11px] sm:text-xs font-medium text-foreground/80 leading-tight">
+                      {t.label}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </AnimatedSection>
 
         <AnimatedSection animation="fade-up" delay={60}>
