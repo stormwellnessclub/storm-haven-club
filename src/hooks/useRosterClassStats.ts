@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface RosterClassStat {
   booking_id: string;
   is_first_in_type: boolean;
+  is_first_visit: boolean;
   total_classes: number;
   prior_total: number;
   milestone_hit: boolean;
@@ -29,6 +30,7 @@ export function useRosterClassStats(sessionId?: string | null) {
         map.set(r.booking_id, {
           booking_id: r.booking_id,
           is_first_in_type: !!r.is_first_in_type,
+          is_first_visit: !!r.is_first_visit,
           total_classes: Number(r.total_classes ?? 0),
           prior_total: Number(r.prior_total ?? 0),
           milestone_hit: !!r.milestone_hit,
