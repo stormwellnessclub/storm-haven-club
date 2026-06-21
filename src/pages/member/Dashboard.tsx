@@ -312,7 +312,7 @@ export default function MemberDashboard() {
         <AnimatedSection animation="fade-up" delay={50}>
           <Card variant="elevated" className="border-[hsl(var(--gold))]/20">
             <CardContent className="pt-6 pb-6">
-              <h3 className="font-serif text-xl mb-5">Book Anything</h3>
+              
               <div className="grid grid-cols-5 gap-2">
                 {[
                   { to: "/schedule", icon: Dumbbell, label: "Book Class" },
