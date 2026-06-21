@@ -1,20 +1,13 @@
-Fix the achievement/milestone celebration flow so old backlog does not replay, but newly earned items still celebrate exactly once.
+Fix two issues:
 
-Plan:
-1. Keep the database as the source of truth with `celebrated_at` for one-time display state.
-2. Remove the overly broad frontend suppression that can permanently hide valid future celebrations.
-   - For achievements, stop using `user + achievement_type` as a localStorage blocker.
-   - Only use the row `id` as a short-term duplicate guard during the same browser session.
-3. Change the query logic to only return genuinely new uncelebrated rows, not stale backlog.
-   - Add a small grace rule: show uncelebrated achievements/milestones that were earned recently or inserted while the portal is active.
-   - Continue marking old backlog as already celebrated so it does not appear every login.
-4. Fix class milestones so the backend does not silently consume a milestone before the UI gets a reliable chance to display it.
-   - `get_pending_class_milestone()` should read the pending milestone.
-   - `mark_class_milestones_seen()` should mark it after the host has mounted the overlay.
-5. Add a focused migration to repair current state:
-   - Keep already-consumed old backlog hidden.
-   - Ensure future newly inserted achievement/milestone rows have `celebrated_at = null` until shown.
-6. Verify with a read-only database check and a portal runtime check:
-   - No popup on plain portal open when nothing new exists.
-   - A newly created achievement/milestone appears once.
-   - Reopening or changing tabs does not replay it.
+A) Charging a non-member who has a card on file says "no card on file"
+- Root cause: `addToClassMutation` and `promoteMutation` (drop-in branch) in `src/pages/admin/ClassRoster.tsx` only call `stripe-payment` with `memberId`. Non-members have no `memberId`, so the flow either errors out ("No member on file") or falls through to "collect at desk" — even when they have a real saved card stored in `non_member_profiles.stripe_customer_id`.
+- Fix: When `memberId` is null, look up `non_member_profiles` by `user_id`. If `stripe_customer_id` is present, invoke `stripe-payment` with action `charge_saved_card` and `stripeCustomerId` (the edge function already supports this path). Only show "no card on file" if neither a member record nor a non-member `stripe_customer_id` exists. Apply the same fix to the "Promote from waitlist" drop-in branch.
+
+B) Wrongly issued pass cannot be deleted
+- Root cause: `class_waitlist.pass_id` has a foreign key to `class_passes(id)` with no `ON DELETE` rule, so any waitlist row that referenced that pass blocks the delete. Other admin pass-delete paths hit the same wall whenever a `class_waitlist` row touched the pass.
+- Fix (migration): alter `class_waitlist.pass_id` to `ON DELETE SET NULL`. Leave existing `kids_care_bookings` and `payment_reconciliations` foreign keys as-is (they already `SET NULL`). After the migration, admins (super_admin / admin / manager) will be able to delete passes from the existing Edit Class Pass dialog without orphan errors.
+
+Verification:
+- Reproduce: non-member with saved card on a waitlist, admin promotes them with drop-in pricing → card charges, booking created.
+- Reproduce: admin opens a bad pass on a non-member, clicks Delete → pass removes successfully and any referencing waitlist row's `pass_id` becomes null (waitlist record itself is preserved).
