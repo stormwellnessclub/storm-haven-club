@@ -711,6 +711,10 @@ export default function MemberDashboard() {
             </CardContent>
           </Card>
 
+          {/* Class Milestones */}
+          <ClassMilestonesCard />
+
+
           {/* Workouts Widget */}
           <Card variant="elevated" className="hover-lift-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">

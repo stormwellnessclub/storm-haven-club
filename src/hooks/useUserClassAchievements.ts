@@ -46,30 +46,22 @@ export function useUserClassTotal(userId?: string) {
     queryKey: ["user-class-total", uid],
     enabled: !!uid,
     queryFn: async (): Promise<number> => {
-      // Count direct bookings
-      const { count: directCount } = await supabase
-        .from("class_bookings")
-        .select("id", { count: "exact", head: true })
-        .eq("status", "completed")
-        .eq("user_id", uid!);
-
-      // Plus member bookings (if user is a member)
       const { data: member } = await supabase
         .from("members")
         .select("id")
         .eq("user_id", uid!)
         .maybeSingle();
 
-      let memberCount = 0;
-      if (member?.id) {
-        const { count } = await supabase
-          .from("class_bookings")
-          .select("id", { count: "exact", head: true })
-          .eq("status", "completed")
-          .eq("member_id", member.id);
-        memberCount = count || 0;
-      }
-      return (directCount || 0) + memberCount;
+      const orParts = [`user_id.eq.${uid}`];
+      if (member?.id) orParts.push(`member_id.eq.${member.id}`);
+
+      const { count } = await supabase
+        .from("class_bookings")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "completed")
+        .or(orParts.join(","));
+
+      return count || 0;
     },
   });
 }
