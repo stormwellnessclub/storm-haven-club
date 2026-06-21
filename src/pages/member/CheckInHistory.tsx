@@ -277,6 +277,13 @@ export default function CheckInHistory() {
         onOpenChange={setShowAmenityDialog}
         checkInId={selectedCheckInId}
       />
+
+      <GenerateWorkoutModal
+        open={showWorkoutModal}
+        onOpenChange={setShowWorkoutModal}
+        onGenerate={handleGenerateAIWorkout}
+        isGenerating={generateAIWorkout.isPending}
+      />
     </MemberLayout>
   );
 }
