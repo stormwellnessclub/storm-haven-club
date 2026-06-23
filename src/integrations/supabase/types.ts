@@ -6210,30 +6210,6 @@ export type Database = {
         }
         Relationships: []
       }
-      scheduled_functions_config: {
-        Row: {
-          anon_key: string | null
-          created_at: string | null
-          id: string
-          supabase_url: string
-          updated_at: string | null
-        }
-        Insert: {
-          anon_key?: string | null
-          created_at?: string | null
-          id?: string
-          supabase_url?: string
-          updated_at?: string | null
-        }
-        Update: {
-          anon_key?: string | null
-          created_at?: string | null
-          id?: string
-          supabase_url?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       sms_campaign_recipients: {
         Row: {
           campaign_id: string
