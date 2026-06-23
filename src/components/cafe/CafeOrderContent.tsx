@@ -534,271 +534,497 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
     }
   };
 
-  const stickyTopClass = variant === "public" ? "top-20" : "top-14 sm:top-16";
-  const summaryTopClass = variant === "public" ? "top-40" : "top-28 sm:top-32";
-  const sectionPad = variant === "public" ? "py-8" : "py-4";
+  // ──────────────────────────────────────────────────────────────
+  // Editorial Storm Café UI
+  // 4 intent tabs → sub-rail → items grid → sticky cart (desktop)
+  // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
+  // ──────────────────────────────────────────────────────────────
+  const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
+    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee and Lattes"] },
+    { id: "smoothies", label: "Smoothies & Juice", categoryNames: ["Smoothies", "Cold Pressed Juice"] },
+    {
+      id: "energy",
+      label: "Energy & Hydration",
+      categoryNames: ["Energy Drinks", "Protein Smoothie", "Amino Acid Slushie", "Refreshers", "Water"],
+    },
+    { id: "eat", label: "Eat", categoryNames: ["Cafe Bites"] },
+  ];
+
+  // Which intent groups actually have categories that exist + have items
+  const intentToCategories = INTENT_GROUPS.map((g) => ({
+    ...g,
+    categories: categories.filter(
+      (c) =>
+        g.categoryNames.some((n) => n.toLowerCase() === c.name.toLowerCase()) &&
+        sectionScopedItems.some((i) => i.category_id === c.id)
+    ),
+  })).filter((g) => g.categories.length > 0);
+
+  const [activeIntentId, setActiveIntentId] = useState<string | null>(null);
+  // Sync default intent once categories load
+  useEffect(() => {
+    if (!activeIntentId && intentToCategories.length > 0) {
+      setActiveIntentId(intentToCategories[0].id);
+    }
+  }, [activeIntentId, intentToCategories]);
+
+  const activeIntent =
+    intentToCategories.find((g) => g.id === activeIntentId) || intentToCategories[0];
+
+  // Auto-select first sub-category when intent changes
+  useEffect(() => {
+    if (!activeIntent) return;
+    const stillValid = activeIntent.categories.some((c) => c.id === selectedCategoryId);
+    if (!stillValid) {
+      setSelectedCategoryId(activeIntent.categories[0]?.id ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeIntent?.id]);
+
+  const visibleItems = selectedCategoryId
+    ? sectionScopedItems.filter((i) => i.category_id === selectedCategoryId)
+    : activeIntent
+    ? sectionScopedItems.filter((i) =>
+        activeIntent.categories.some((c) => c.id === i.category_id)
+      )
+    : sectionScopedItems;
+
+  const [mobileBagOpen, setMobileBagOpen] = useState(false);
+
+  const headerStickyTop = variant === "public" ? "top-16 md:top-20" : "top-0";
+
+  const renderCartLines = () =>
+    cart.map((item) => {
+      const unit = item.price + item.addons.reduce((s, a) => s + a.price, 0);
+      return (
+        <div key={item.key} className="flex items-start justify-between gap-3 py-3 border-b border-cafe-line/60 last:border-0">
+          <div className="flex-1 min-w-0">
+            <p className="font-cafe-serif text-sm uppercase tracking-wide text-cafe-burgundy leading-snug">
+              {item.quantity}× {item.name}
+            </p>
+            {item.addons.length > 0 && (
+              <p className="font-cafe-mono text-[9px] uppercase tracking-widest text-cafe-burgundy/60 mt-1">
+                {item.addons.map((a) => `+ ${a.name}`).join(" · ")}
+              </p>
+            )}
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => updateQuantity(item.key, -1)}
+                className="w-6 h-6 border border-cafe-line text-cafe-burgundy hover:bg-cafe-stone transition-colors flex items-center justify-center"
+                aria-label="Decrease"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => updateQuantity(item.key, 1)}
+                className="w-6 h-6 border border-cafe-line text-cafe-burgundy hover:bg-cafe-stone transition-colors flex items-center justify-center"
+                aria-label="Increase"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          <span className="font-cafe-serif italic text-sm text-cafe-burgundy shrink-0">
+            ${(unit * item.quantity).toFixed(2)}
+          </span>
+        </div>
+      );
+    });
+
+  const cartTotalsBlock = (
+    <div className="mt-6 pt-5 border-t border-cafe-line/70 space-y-2">
+      <div className="flex justify-between font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/70">
+        <span>Subtotal</span>
+        <span>${cartSubtotal.toFixed(2)}</span>
+      </div>
+      <div className="flex justify-between font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/70">
+        <span>MI Tax (6%)</span>
+        <span>${cartTax.toFixed(2)}</span>
+      </div>
+      <div className="flex justify-between font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/70">
+        <span>Processing Fee</span>
+        <span>${cartProcessingFee.toFixed(2)}</span>
+      </div>
+      <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-cafe-line/70">
+        <span className="font-cafe-mono text-[11px] tracking-widest uppercase text-cafe-burgundy">Total</span>
+        <span className="font-cafe-serif italic text-2xl text-cafe-burgundy">${cartTotal.toFixed(2)}</span>
+      </div>
+    </div>
+  );
+
+  const cartCheckoutButton = (
+    <button
+      onClick={handlePlaceOrder}
+      disabled={!user || cart.length === 0 || createOrder.isPending}
+      className="w-full mt-6 bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 disabled:cursor-not-allowed text-white font-cafe-mono text-[11px] tracking-[0.2em] uppercase py-4 transition-colors"
+    >
+      {createOrder.isPending ? "Processing…" : "Checkout"}
+    </button>
+  );
 
   return (
     <>
       {showHero && (
-        <section className="relative pt-32 pb-16 min-h-[50vh] flex items-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-charcoal to-charcoal/90" />
-          <div className="relative z-10 container mx-auto px-6">
-            <div className="max-w-3xl">
-              <p className="text-gold-light text-sm uppercase tracking-widest mb-4">The Storm Café</p>
-              <h1 className="heading-display text-primary-foreground mb-6">Nourish From Within</h1>
-              <p className="text-primary-foreground/80 text-lg leading-relaxed">
-                Fuel your wellness journey with our carefully curated menu of fresh juices,
-                smoothies, energy drinks, and healthy options.
-              </p>
+        <section className="bg-cafe-cream border-b border-cafe-line">
+          <div className="container mx-auto px-6 py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <h1 className="font-cafe-serif text-3xl md:text-[36px] leading-none tracking-tight text-cafe-terracotta uppercase">
+                Storm Café
+              </h1>
+              <div className="hidden md:block h-6 w-px bg-cafe-terracotta/30" />
+              <span className="font-cafe-mono text-[10px] tracking-[0.25em] uppercase text-cafe-terracotta/80">
+                Est. 2024 · Livonia MI
+              </span>
             </div>
+            <p className="font-cafe-serif italic text-cafe-burgundy/80 text-base md:text-lg max-w-md">
+              Pressed at dawn. Blended by hand. Served all day.
+            </p>
           </div>
         </section>
       )}
 
-      {/* Category Filters */}
-      <section className={`${sectionPad} bg-background border-b border-border sticky ${stickyTopClass} z-30`}>
-        <div className="container mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setSelectedCategoryId(null)}
-                className={`filter-badge ${!selectedCategoryId ? "filter-badge-active" : ""}`}
-              >
-                All
-              </button>
-              {categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategoryId(cat.id)}
-                  className={`filter-badge ${selectedCategoryId === cat.id ? "filter-badge-active" : ""}`}
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-            {cartCount > 0 && (
-              <div className="hidden md:flex items-center gap-2 text-sm">
-                <ShoppingBag className="w-4 h-4" />
-                <span>{cartCount} items</span>
-                <span className="text-gold font-semibold">${cartSubtotal.toFixed(2)}</span>
-              </div>
-            )}
-          </div>
+      {isLoading ? (
+        <div className="bg-cafe-cream py-32 flex justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-cafe-terracotta" />
         </div>
-      </section>
-
-      {/* Menu Grid */}
-      <section className={`${variant === "public" ? "py-16" : "py-8"} bg-background`}>
-        <div className="container mx-auto px-4 sm:px-6">
-          {isLoading ? (
-            <div className="flex justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      ) : intentToCategories.length === 0 ? (
+        <div className="bg-cafe-cream py-32 text-center text-cafe-burgundy/60 font-cafe-mono text-xs uppercase tracking-widest">
+          No items available right now.
+        </div>
+      ) : (
+        <div className="bg-cafe-cream text-cafe-burgundy">
+          {/* Intent tabs */}
+          <div className={`bg-cafe-cream/95 backdrop-blur-sm border-b border-cafe-line sticky ${headerStickyTop} z-30`}>
+            <div className="container mx-auto px-4">
+              <div className="flex overflow-x-auto no-scrollbar justify-start md:justify-center">
+                {intentToCategories.map((g) => {
+                  const active = g.id === activeIntent?.id;
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => setActiveIntentId(g.id)}
+                      className={`whitespace-nowrap px-5 md:px-8 py-4 font-cafe-mono text-[10px] md:text-[11px] tracking-[0.2em] uppercase transition-colors border-b-2 ${
+                        active
+                          ? "border-[hsl(var(--cafe-terracotta))] text-cafe-terracotta"
+                          : "border-transparent text-cafe-burgundy/50 hover:text-cafe-burgundy"
+                      }`}
+                    >
+                      {g.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ) : filteredItems.length === 0 ? (
-            <p className="text-center text-muted-foreground py-20">No items available right now.</p>
-          ) : (
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <div className="grid md:grid-cols-2 gap-4">
-                  {filteredItems.map((item) => {
-                    const isSoldOut = item.stock_quantity === 0;
-                    const name = getItemDisplayName(item);
-                    const parsed = parseItemDescription(item);
-                    const catName = categories.find((c) => c.id === item.category_id)?.name || "";
+          </div>
+
+          {/* Body: sub-rail · items · cart */}
+          <div className="container mx-auto px-0 md:px-4">
+            <div className="flex flex-col lg:flex-row gap-0 lg:gap-0">
+              {/* Sub-rail (desktop) */}
+              {activeIntent && activeIntent.categories.length > 1 && (
+                <aside className="hidden lg:block w-[220px] shrink-0 border-r border-cafe-line p-8">
+                  <p className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/40 mb-6">
+                    Category
+                  </p>
+                  <ul className="space-y-4">
+                    {activeIntent.categories.map((c) => {
+                      const active = c.id === selectedCategoryId;
+                      return (
+                        <li key={c.id}>
+                          <button
+                            onClick={() => setSelectedCategoryId(c.id)}
+                            className={`font-cafe-serif text-lg text-left transition-opacity ${
+                              active
+                                ? "text-cafe-terracotta italic border-l-2 border-cafe-terracotta pl-3"
+                                : "text-cafe-burgundy/60 hover:text-cafe-burgundy pl-3"
+                            }`}
+                          >
+                            {c.name}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </aside>
+              )}
+
+              {/* Sub-pills (mobile/tablet) */}
+              {activeIntent && activeIntent.categories.length > 1 && (
+                <div className="lg:hidden px-4 pt-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+                  {activeIntent.categories.map((c) => {
+                    const active = c.id === selectedCategoryId;
                     return (
-                      <div key={item.id} className={`card-luxury overflow-hidden group relative ${isSoldOut ? "opacity-60" : ""}`}>
-                        {isSoldOut && (
-                          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
-                            <Badge variant="destructive" className="text-sm px-4 py-1">Sold Out</Badge>
-                          </div>
-                        )}
-                        {item.image_url && (() => {
-                          const fit = getImageFit(catName);
-                          return (
-                            <div className={`relative aspect-[4/3] overflow-hidden ${fit === "contain" ? "bg-secondary/40" : ""}`}>
+                      <button
+                        key={c.id}
+                        onClick={() => setSelectedCategoryId(c.id)}
+                        className={`whitespace-nowrap px-4 py-1.5 font-cafe-mono text-[9px] tracking-widest uppercase rounded-full border transition-colors ${
+                          active
+                            ? "bg-[hsl(var(--cafe-terracotta))] text-white border-[hsl(var(--cafe-terracotta))]"
+                            : "border-cafe-line text-cafe-burgundy/60"
+                        }`}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Items grid */}
+              <main className="flex-1 p-4 md:p-8 lg:p-10">
+                {visibleItems.length === 0 ? (
+                  <p className="text-center py-20 font-cafe-mono text-xs uppercase tracking-widest text-cafe-burgundy/50">
+                    Nothing here yet.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 md:gap-x-10 gap-y-10 md:gap-y-14 pb-32 lg:pb-10">
+                    {visibleItems.map((item, idx) => {
+                      const isSoldOut = item.stock_quantity === 0;
+                      const name = getItemDisplayName(item);
+                      const parsed = parseItemDescription(item);
+                      const catName =
+                        categories.find((c) => c.id === item.category_id)?.name || "";
+                      const sizeMeta = parsed.size || item.size || "";
+                      const itemAddons = getAddonsForItem(item);
+                      const hasDetails =
+                        !!parsed.description ||
+                        !!parsed.benefits ||
+                        !!parsed.nutrition ||
+                        itemAddons.length > 0;
+                      const idx3 = String(idx + 1).padStart(3, "0");
+
+                      return (
+                        <article
+                          key={item.id}
+                          className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""}`}
+                        >
+                          {/* Image / Coming soon placeholder */}
+                          <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
+                            <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
+                              {idx3}
+                            </span>
+                            {item.image_url ? (
                               <img
                                 src={item.image_url}
                                 alt={name}
-                                className={`w-full h-full transition-transform duration-500 group-hover:scale-105 ${fit === "contain" ? "object-contain p-4" : "object-cover"}`}
                                 loading="lazy"
+                                className="w-full h-full object-cover"
                               />
-                              {fit === "cover" && (
-                                <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                              )}
-                            </div>
-                          );
-                        })()}
-                        <div className="p-5">
-                          {item.is_seasonal && (
-                            <div className="mb-2">
-                              <Badge className="bg-accent text-accent-foreground text-xs">
-                                {item.seasonal_label || "Limited Time"}
-                              </Badge>
-                            </div>
-                          )}
-                          <div className="flex justify-between items-start mb-1">
-                            <div>
-                              <h3 className="font-serif text-lg font-medium">{name}</h3>
-                              <p className="text-xs text-muted-foreground">{catName}</p>
-                            </div>
-                            <div className="text-right shrink-0 ml-3">
-                              <span className="text-gold font-semibold">${item.price.toFixed(2)}</span>
-                              {item.calories && (
-                                <p className="text-sm text-foreground/60">{item.calories} cal</p>
-                              )}
-                            </div>
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy/30 italic">
+                                  Coming soon
+                                </span>
+                              </div>
+                            )}
+                            {isSoldOut && (
+                              <div className="absolute inset-0 bg-cafe-cream/70 flex items-center justify-center">
+                                <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy">
+                                  Sold Out
+                                </span>
+                              </div>
+                            )}
+                            {item.is_seasonal && (
+                              <span className="absolute top-3 right-3 bg-[hsl(var(--cafe-terracotta))] text-white font-cafe-mono text-[8px] tracking-widest uppercase px-2 py-1">
+                                {item.seasonal_label || "Limited"}
+                              </span>
+                            )}
                           </div>
-                          {parsed.size && <p className="text-xs text-muted-foreground mb-1">{parsed.size}</p>}
-                          {parsed.proteinFlavor && (
-                            <p className="text-xs text-muted-foreground mb-1">Protein: {parsed.proteinFlavor}</p>
-                          )}
+
+                          {/* Name + price */}
+                          <div className="flex justify-between items-baseline gap-3 mb-1.5">
+                            <h3 className="font-cafe-serif text-lg md:text-xl uppercase tracking-tight text-cafe-burgundy leading-tight">
+                              {name}
+                            </h3>
+                            <span className="font-cafe-serif italic text-lg text-cafe-burgundy shrink-0">
+                              ${item.price.toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Meta */}
+                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-4">
+                            {[catName, sizeMeta].filter(Boolean).join(" / ")}
+                            {item.calories ? ` · ${item.calories} kcal` : ""}
+                          </p>
+
+                          {/* Inline description (short) */}
                           {parsed.description && (
-                            <p className="text-muted-foreground text-sm mb-3">{parsed.description}</p>
+                            <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-4 line-clamp-3">
+                              {parsed.description}
+                            </p>
                           )}
+
+                          {/* Nutrition / Benefits collapsible */}
                           {(parsed.benefits || parsed.nutrition) && (
-                            <Collapsible>
-                              <CollapsibleTrigger className="flex items-center gap-1 text-xs text-foreground/50 hover:text-foreground/70 transition-colors mb-2 group/trigger">
+                            <Collapsible className="mb-4">
+                              <CollapsibleTrigger className="flex items-center gap-1.5 font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta transition-colors group/trigger">
                                 <ChevronDown className="w-3 h-3 transition-transform group-data-[state=open]/trigger:rotate-180" />
-                                Nutritional Info
+                                Details · Nutrition
                               </CollapsibleTrigger>
-                              <CollapsibleContent className="space-y-2 mb-3">
+                              <CollapsibleContent className="mt-3 space-y-3">
                                 {parsed.benefits && (
                                   <div>
-                                    <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">Benefits</p>
-                                    <ul className="text-muted-foreground text-xs leading-relaxed space-y-0.5 pl-3">
-                                      {parsed.benefits.split(/[•·]/).filter(b => b.trim()).map((benefit, i) => (
-                                        <li key={i} className="list-disc">{benefit.trim()}</li>
-                                      ))}
+                                    <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1">
+                                      Benefits
+                                    </p>
+                                    <ul className="text-xs text-cafe-burgundy/70 leading-relaxed space-y-0.5 pl-3">
+                                      {parsed.benefits
+                                        .split(/[•·]/)
+                                        .filter((b) => b.trim())
+                                        .map((b, i) => (
+                                          <li key={i} className="list-disc">
+                                            {b.trim()}
+                                          </li>
+                                        ))}
                                     </ul>
                                   </div>
                                 )}
                                 {parsed.nutrition && (
                                   <div>
-                                    <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide mb-1">Nutritional Profile</p>
-                                    <ul className="text-muted-foreground text-xs leading-relaxed space-y-0.5 pl-3">
-                                      {parsed.nutrition.split(/[•·,]/).filter(n => n.trim()).map((nutrient, i) => (
-                                        <li key={i} className="list-disc">{nutrient.trim()}</li>
-                                      ))}
+                                    <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1">
+                                      Nutritional Profile
+                                    </p>
+                                    <ul className="text-xs text-cafe-burgundy/70 leading-relaxed space-y-0.5 pl-3">
+                                      {parsed.nutrition
+                                        .split(/[•·,]/)
+                                        .filter((n) => n.trim())
+                                        .map((n, i) => (
+                                          <li key={i} className="list-disc">
+                                            {n.trim()}
+                                          </li>
+                                        ))}
                                     </ul>
                                   </div>
                                 )}
                               </CollapsibleContent>
                             </Collapsible>
                           )}
-                          <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {item.dietary_tags?.map((d) => (
-                                <span key={d} className="text-xs px-2 py-0.5 bg-secondary text-secondary-foreground rounded-sm">
+
+                          {/* Dietary tags */}
+                          {item.dietary_tags && item.dietary_tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              {item.dietary_tags.map((d) => (
+                                <span
+                                  key={d}
+                                  className="font-cafe-mono text-[9px] tracking-widest uppercase border border-cafe-line px-2 py-0.5 text-cafe-burgundy/70"
+                                >
                                   {d}
                                 </span>
                               ))}
                             </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
+                          )}
+
+                          {/* Actions */}
+                          <div className="mt-auto flex items-center gap-5">
+                            <button
                               onClick={() => handleItemTap(item)}
                               disabled={isSoldOut}
+                              className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
                             >
-                              <Plus className="w-4 h-4" />
-                            </Button>
+                              {itemAddons.length > 0 ? "Customize" : "Add to Order"}
+                            </button>
+                            {hasDetails && itemAddons.length > 0 && (
+                              <button
+                                onClick={() => setAddonDialogItem(item)}
+                                className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta"
+                              >
+                                Details
+                              </button>
+                            )}
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </main>
 
-              {/* Order Summary */}
-              <div className="lg:col-span-1">
-                <div className={`card-luxury p-6 sticky ${summaryTopClass}`}>
-                  <h3 className="font-serif text-xl mb-4 flex items-center gap-2">
-                    <ShoppingBag className="w-5 h-5" />
-                    Your Order
-                  </h3>
+              {/* Sticky cart (desktop) */}
+              <aside className="hidden lg:block w-[320px] shrink-0 border-l border-cafe-line bg-cafe-stone-soft">
+                <div className={`sticky ${variant === "public" ? "top-32" : "top-12"} p-8`}>
+                  <div className="flex items-baseline justify-between mb-6 pb-4 border-b border-cafe-line/70">
+                    <h2 className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy">
+                      Your Bag
+                    </h2>
+                    <span className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
+                      ({cartCount})
+                    </span>
+                  </div>
                   {cart.length === 0 ? (
-                    <p className="text-muted-foreground text-sm text-center py-8">
-                      Your order is empty. Add items from the menu.
+                    <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/40 text-center py-12">
+                      Your bag is empty
                     </p>
                   ) : (
                     <>
-                      <div className="space-y-4 mb-6">
-                        {cart.map((item) => {
-                          const unit = item.price + item.addons.reduce((s, a) => s + a.price, 0);
-                          return (
-                            <div key={item.key} className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium">{item.name}</p>
-                                {item.addons.length > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    {item.addons.map((a) => `+ ${a.name}`).join(", ")}
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground">${unit.toFixed(2)} each</p>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  onClick={() => updateQuantity(item.key, -1)}
-                                  className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                <span className="w-6 text-center text-sm">{item.quantity}</span>
-                                <button
-                                  onClick={() => updateQuantity(item.key, 1)}
-                                  className="w-7 h-7 rounded-sm border border-border flex items-center justify-center hover:bg-secondary transition-colors"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="border-t border-border pt-4 mb-4 space-y-1">
-                        <div className="flex justify-between items-center text-sm text-muted-foreground">
-                          <span>Subtotal</span>
-                          <span>${cartSubtotal.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm text-muted-foreground">
-                          <span>MI Sales Tax (6%)</span>
-                          <span>${cartTax.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-sm text-muted-foreground">
-                          <span>Processing Fee</span>
-                          <span>${cartProcessingFee.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between items-center font-medium pt-1 border-t border-border">
-                          <span>Total</span>
-                          <span className="text-accent font-semibold text-xl">${cartTotal.toFixed(2)}</span>
-                        </div>
-                      </div>
-                      <Button
-                        className="w-full"
-                        size="lg"
-                        onClick={handlePlaceOrder}
-                        disabled={!user || createOrder.isPending}
-                      >
-                        {createOrder.isPending ? (
-                          <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</>
-                        ) : (
-                          "Place Order"
-                        )}
-                      </Button>
+                      <div className="max-h-[40vh] overflow-y-auto">{renderCartLines()}</div>
+                      {cartTotalsBlock}
+                      {cartCheckoutButton}
                       {!user && (
-                        <p className="text-xs text-muted-foreground text-center mt-2">
-                          <a href="/auth" className="text-accent hover:underline">Sign in</a> to place an order
+                        <p className="text-xs text-cafe-burgundy/60 text-center mt-3">
+                          <a href="/auth" className="text-cafe-terracotta underline underline-offset-4">
+                            Sign in
+                          </a>{" "}
+                          to place an order
                         </p>
                       )}
                     </>
                   )}
                 </div>
-              </div>
+              </aside>
             </div>
+          </div>
+
+          {/* Mobile sticky bag bar */}
+          {cartCount > 0 && (
+            <button
+              onClick={() => setMobileBagOpen(true)}
+              className="lg:hidden fixed bottom-4 left-4 right-4 z-40 bg-[hsl(var(--cafe-terracotta))] text-white shadow-lg flex items-center justify-between px-5 py-4"
+            >
+              <span className="font-cafe-mono text-[11px] tracking-[0.2em] uppercase">
+                {cartCount} {cartCount === 1 ? "item" : "items"} · ${cartSubtotal.toFixed(2)}
+              </span>
+              <span className="font-cafe-mono text-[11px] tracking-[0.2em] uppercase font-bold flex items-center gap-2">
+                <ShoppingBag className="w-3.5 h-3.5" /> View Bag
+              </span>
+            </button>
           )}
         </div>
-      </section>
+      )}
+
+      {/* Mobile bag dialog */}
+      <Dialog open={mobileBagOpen} onOpenChange={setMobileBagOpen}>
+        <DialogContent className="bg-cafe-cream border-cafe-line max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy">
+              Your Bag ({cartCount})
+            </DialogTitle>
+            <DialogDescription className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
+              Review your order
+            </DialogDescription>
+          </DialogHeader>
+          {cart.length === 0 ? (
+            <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/40 text-center py-10">
+              Your bag is empty
+            </p>
+          ) : (
+            <>
+              <div>{renderCartLines()}</div>
+              {cartTotalsBlock}
+              <button
+                onClick={() => {
+                  setMobileBagOpen(false);
+                  handlePlaceOrder();
+                }}
+                disabled={!user || createOrder.isPending}
+                className="w-full mt-6 bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[11px] tracking-[0.2em] uppercase py-4"
+              >
+                {createOrder.isPending ? "Processing…" : "Checkout"}
+              </button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>

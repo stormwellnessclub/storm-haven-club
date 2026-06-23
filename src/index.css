@@ -1,6 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700&display=swap');
 @import url("https://fonts.googleapis.com/css2?family=Montserrat&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400..900&family=Space+Mono:wght@400;700&display=swap');
 
 
 @tailwind base;
@@ -80,6 +81,15 @@
     --sidebar-accent-foreground: 38 30% 8%;
     --sidebar-border: 38 20% 68%;
     --sidebar-ring: 38 55% 85%;
+
+    /* Storm Café — editorial stone palette */
+    --cafe-cream: 40 22% 94%;        /* #F5F2ED page surface */
+    --cafe-stone: 36 17% 87%;        /* #E5E1D9 placeholder / rails */
+    --cafe-stone-soft: 38 22% 92%;   /* #EFEBE4 subtle panels */
+    --cafe-terracotta: 12 50% 51%;   /* #C25E44 accent */
+    --cafe-terracotta-deep: 12 50% 41%; /* #A34D38 hover */
+    --cafe-burgundy: 0 47% 19%;      /* #4A1D1D headlines */
+    --cafe-line: 35 18% 78%;         /* hairline */
   }
 
   .dark {
@@ -913,4 +923,8 @@
       --muted-foreground: 0 1% 70%;
     }
   }
+}
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

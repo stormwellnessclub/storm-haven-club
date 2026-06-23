@@ -50,7 +50,9 @@ export default {
   				'Liberation Mono',
   				'Courier New',
   				'monospace'
-  			]
+  			],
+  			'cafe-serif': ['Bodoni Moda', 'Cormorant Garamond', 'Georgia', 'serif'],
+  			'cafe-mono': ['Space Mono', 'ui-monospace', 'Menlo', 'monospace']
   		},
   		colors: {
   			border: 'hsl(var(--border))',
@@ -102,7 +104,14 @@ export default {
   			charcoal: 'hsl(var(--charcoal))',
   			cream: 'hsl(var(--cream))',
   			'cream-dark': 'hsl(var(--cream-dark))',
-  			'warm-gray': 'hsl(var(--warm-gray))'
+  			'warm-gray': 'hsl(var(--warm-gray))',
+  			'cafe-cream': 'hsl(var(--cafe-cream))',
+  			'cafe-stone': 'hsl(var(--cafe-stone))',
+  			'cafe-stone-soft': 'hsl(var(--cafe-stone-soft))',
+  			'cafe-terracotta': 'hsl(var(--cafe-terracotta))',
+  			'cafe-terracotta-deep': 'hsl(var(--cafe-terracotta-deep))',
+  			'cafe-burgundy': 'hsl(var(--cafe-burgundy))',
+  			'cafe-line': 'hsl(var(--cafe-line))'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
