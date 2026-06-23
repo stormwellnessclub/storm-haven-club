@@ -1,25 +1,27 @@
-# Publish the Storm Café Rebuild to Live
 
-## What's going on
+## Goal
+Stop truncating cafe item descriptions awkwardly on the card. Show a short teaser on the card, and let the user tap the item to open a detail view with the full description and nutrition info.
 
-- **Preview** (what I tested): new v1 calm editorial café design is live — confirmed via screenshot
-- **Live site** (`stormwellnessclub.com`, `storm-haven-club.lovable.app`): still serving the OLD café UI because frontend changes don't auto-deploy
+## Changes (frontend only, `src/components/cafe/CafeOrderContent.tsx`)
 
-Your member portal "looks unchanged" because you're viewing the published site, not the preview. The fix is to publish.
+1. **Card display**
+   - Replace the current multi-line clamped description with a single-line teaser (`line-clamp-1`, muted).
+   - Append a subtle "Tap for details" affordance (small chevron / "More" link) so users know it expands.
+   - Whole card becomes tappable to open the detail sheet (buttons inside — Add to Order / Customize — stop propagation so they still work independently).
 
-## Plan
+2. **Detail view (new)**
+   - Reuse the existing `Dialog` component (mobile = bottom sheet, desktop = centered modal — already built into our `DialogContent`).
+   - Contents: item image (if any), full name, price, full description (no clamp), nutrition facts, allergens/tags, and the same Add to Order / Customize actions at the bottom so the user can act without closing.
+   - Opens on card tap; close via existing dialog close.
 
-1. I publish the project for you (the rebuild + the previous café/index.css/tailwind changes all ship together)
-2. I do the publish preflight: site info on `/cafe` is already correct (SEO title, meta description, restaurant + breadcrumb + FAQ JSON-LD, OG via SEOHead). No metadata changes needed — pass `already_relevant`
-3. Deployment kicks off; live in ~1 minute
-4. After it lands, hard-refresh `/member/cafe` once on your phone/desktop to clear the old service worker bundle, then the new design will appear everywhere
+3. **State**
+   - Add `detailItem` state alongside the existing `addonDialogItem`.
+   - No data fetching changes — uses fields already on the menu item.
 
-## What does NOT change
+## Out of scope
+- No DB changes, no pricing/cart logic changes, no changes to the Smoothies/Functional Smoothie/Protein Smoothie tab grouping done previously.
 
-- Code (no edits needed — preview is already correct)
-- Visibility, custom domain, badge settings
-- Backend / DB / Stripe
-
-## Confirm
-
-Want me to publish now?
+## Technical notes
+- Single file edit: `src/components/cafe/CafeOrderContent.tsx`.
+- Use existing `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`.
+- Stop event propagation on the Add to Order / Customize buttons so card-tap doesn't conflict.
