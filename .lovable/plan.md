@@ -1,10 +1,25 @@
-## Fix
-The "Coffee Bar" tab in `CafeOrderContent.tsx` filters categories by exact name match against `"Coffee and Lattes"`. The previous turn renamed that category to `"Coffee & Lattes"` and added a new `"Matcha"` category, so the tab now matches nothing and hides everything.
+## Regenerate cafe photos with photorealistic quality
 
-Update line 619 to include both new category names:
+The 6 coffee/matcha images generated earlier used the `fast` tier (Flux), which produces stylized/cartoony output. I'll regenerate them using the **premium** tier (GPT-image / Gemini 3 Pro) with tightened photography-style prompts, then re-upload to CDN and re-point the menu items.
 
-```ts
-{ id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
-```
+### Images to redo
+1. Hot latte — `latte-hot.jpg`
+2. Iced latte — `latte-iced.jpg`
+3. Dalgona coffee — `dalgona.jpg`
+4. Honeycomb matcha — `matcha-honeycomb.jpg`
+5. Strawberry matcha — `matcha-strawberry.jpg`
+6. Classic matcha latte — `matcha-classic.jpg`
 
-No other changes. This restores the Coffee Bar tab with both Coffee & Lattes and Matcha showing as sub-pills.
+### Prompt style
+Each prompt will specify: "professional food photography, shot on 50mm, natural window light, shallow depth of field, marble or oak café surface, condensation/steam visible, no illustration, no 3D render, no cartoon — photorealistic only."
+
+### Steps
+1. Generate 6 images via `imagegen` with `model: "premium"` (premium GPT/Gemini handles realism + glassware/liquid much better than fast tier).
+2. Upload each via `lovable-assets create`, capture new CDN URLs.
+3. UPDATE `cafe_menu_items.image_url` for the 6 items with new URLs.
+4. Delete the old asset pointers.
+
+No code or schema changes — purely asset replacement.
+
+### Optional
+If you want, I can also redo the **functional smoothie** photos in the same pass. Let me know before I start, otherwise I'll only do the 6 coffee/matcha ones.
