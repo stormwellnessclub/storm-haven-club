@@ -669,30 +669,39 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           display_order: number | null
+          group_name: string
           id: string
           is_active: boolean | null
+          is_required: boolean
           name: string
           price: number
+          selection_type: string
         }
         Insert: {
           category_id?: string | null
           created_at?: string | null
           created_by?: string | null
           display_order?: number | null
+          group_name?: string
           id?: string
           is_active?: boolean | null
+          is_required?: boolean
           name: string
           price: number
+          selection_type?: string
         }
         Update: {
           category_id?: string | null
           created_at?: string | null
           created_by?: string | null
           display_order?: number | null
+          group_name?: string
           id?: string
           is_active?: boolean | null
+          is_required?: boolean
           name?: string
           price?: number
+          selection_type?: string
         }
         Relationships: [
           {
