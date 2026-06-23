@@ -44,6 +44,9 @@ export interface CafeMenuAddon {
   category_id: string | null;
   is_active: boolean;
   display_order: number;
+  group_name?: string | null;
+  selection_type?: "single" | "multi" | null;
+  is_required?: boolean | null;
 }
 
 // Active categories only (for POS and front-facing)
