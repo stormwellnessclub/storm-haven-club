@@ -1272,9 +1272,38 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                   </div>
                 )}
 
-                <div className="space-y-4 text-cafe-burgundy">
+                <div className="space-y-6 text-cafe-burgundy">
                   {d.description && (
                     <p className="text-sm leading-relaxed">{d.description}</p>
+                  )}
+
+                  {d.functionalBlend.length > 0 && (
+                    <div className="pt-1">
+                      <div className="flex items-center gap-3 mb-5">
+                        <span className="h-px flex-1 bg-cafe-line/70" />
+                        <span className="font-cafe-mono text-[9px] tracking-[0.3em] uppercase text-cafe-burgundy/70">
+                          Functional Blend
+                        </span>
+                        <span className="h-px flex-1 bg-cafe-line/70" />
+                      </div>
+                      <ul className="divide-y divide-cafe-line/60 border-y border-cafe-line/60">
+                        {d.functionalBlend.map((entry, i) => (
+                          <li key={i} className="py-3.5 first:pt-3 last:pb-3">
+                            <p className="font-cafe-serif text-[15px] tracking-wide uppercase text-cafe-burgundy leading-snug">
+                              {entry.ingredient}
+                            </p>
+                            {entry.benefit && (
+                              <p className="mt-1 text-[13px] leading-relaxed text-cafe-burgundy/75">
+                                {entry.benefit}
+                              </p>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-3 font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/45 text-center italic">
+                        Crafted to nourish · sip with intention
+                      </p>
+                    </div>
                   )}
 
                   {d.benefits && (
