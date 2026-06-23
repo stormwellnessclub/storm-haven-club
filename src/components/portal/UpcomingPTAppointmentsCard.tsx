@@ -40,9 +40,11 @@ export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: bool
     queryKey: ["upcoming-pt-instructors", instructorIds],
     enabled: instructorIds.length > 0,
     queryFn: async (): Promise<Record<string, string>> => {
-      const { data } = await supabase.from("instructors").select("id, first_name, last_name").in("id", instructorIds);
+      const { data } = await (supabase.rpc as any)("get_public_instructors");
       const m: Record<string, string> = {};
-      (data ?? []).forEach((i: any) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
+      (data ?? [])
+        .filter((i: any) => instructorIds.includes(i.id))
+        .forEach((i: any) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
       return m;
     },
   });
