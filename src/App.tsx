@@ -73,6 +73,7 @@ import SmsOptInProof from "./pages/SmsOptInProof";
 import FAQ from "./pages/FAQ";
 import GuestPass from "./pages/GuestPass";
 import NotFound from "./pages/NotFound";
+import RecoveryGuide from "./pages/RecoveryGuide";
 import MilestoneMockup from "./pages/mockup/MilestoneMockup";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
@@ -213,6 +214,7 @@ const App = () => (
               <Route path="/mothers-day-pack-redeem" element={<MothersDayPackRedeem />} />
               <Route path="/cafe" element={<Cafe />} />
               <Route path="/amenities" element={<Amenities />} />
+              <Route path="/recovery-guide" element={<RecoveryGuide />} />
               <Route path="/kids-care" element={<KidsCare />} />
               <Route path="/personal-training" element={<PersonalTrainingOverview />} />
               <Route path="/personal-training/one-on-one" element={<PTOneOnOne />} />
