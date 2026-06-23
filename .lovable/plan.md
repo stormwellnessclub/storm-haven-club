@@ -1,27 +1,24 @@
 
-## Goal
-Stop truncating cafe item descriptions awkwardly on the card. Show a short teaser on the card, and let the user tap the item to open a detail view with the full description and nutrition info.
+## Fix what you’re seeing
 
-## Changes (frontend only, `src/components/cafe/CafeOrderContent.tsx`)
+Preview does **not** have an “Update” button. It should auto-refresh after code changes are applied. If it doesn’t, I’ll flush the preview refresh after the edit so you can see it immediately.
 
-1. **Card display**
-   - Replace the current multi-line clamped description with a single-line teaser (`line-clamp-1`, muted).
-   - Append a subtle "Tap for details" affordance (small chevron / "More" link) so users know it expands.
-   - Whole card becomes tappable to open the detail sheet (buttons inside — Add to Order / Customize — stop propagation so they still work independently).
+## Menu tab change
 
-2. **Detail view (new)**
-   - Reuse the existing `Dialog` component (mobile = bottom sheet, desktop = centered modal — already built into our `DialogContent`).
-   - Contents: item image (if any), full name, price, full description (no clamp), nutrition facts, allergens/tags, and the same Add to Order / Customize actions at the bottom so the user can act without closing.
-   - Opens on card tap; close via existing dialog close.
+Update the cafe menu grouping so:
+- Remove the standalone **Cold Pressed Juice** tab.
+- Add **Cold Pressed Juice** into the existing **Energy & Hydration** tab.
+- Keep **Functional Smoothie** and **Protein Smoothie** under **Smoothies**.
 
-3. **State**
-   - Add `detailItem` state alongside the existing `addonDialogItem`.
-   - No data fetching changes — uses fields already on the menu item.
+## Description behavior already intended
 
-## Out of scope
-- No DB changes, no pricing/cart logic changes, no changes to the Smoothies/Functional Smoothie/Protein Smoothie tab grouping done previously.
+Keep the description behavior as:
+- Short teaser on each menu card.
+- Tap card / “View details” to open the full description/details panel.
+- Add to Order and Customize remain separate actions.
 
-## Technical notes
-- Single file edit: `src/components/cafe/CafeOrderContent.tsx`.
-- Use existing `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` from `@/components/ui/dialog`.
-- Stop event propagation on the Add to Order / Customize buttons so card-tap doesn't conflict.
+## Technical scope
+
+- Edit only `src/components/cafe/CafeOrderContent.tsx`.
+- Flush the preview refresh after the edit so the change appears in Preview without publishing.
+- No database changes.

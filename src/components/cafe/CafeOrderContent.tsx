@@ -548,15 +548,11 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
       categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
     },
     {
-      id: "juice",
-      label: "Cold Pressed Juice",
-      categoryNames: ["Cold Pressed Juice"],
-    },
-    {
       id: "energy",
       label: "Energy & Hydration",
-      categoryNames: ["Energy Drinks", "Amino Acid Slushie", "Refreshers", "Water"],
+      categoryNames: ["Cold Pressed Juice", "Energy Drinks", "Amino Acid Slushie", "Refreshers", "Water"],
     },
+
     { id: "eat", label: "Eat", categoryNames: ["Cafe Bites"] },
   ];
   const displayCategoryName = (name: string) => name;
