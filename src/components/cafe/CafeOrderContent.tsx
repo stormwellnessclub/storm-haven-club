@@ -539,13 +539,25 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   // 4 intent tabs → sub-rail → items grid → sticky cart (desktop)
   // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
   // ──────────────────────────────────────────────────────────────
+  // Display-name overrides — keep DB names stable, rename in UI
+  const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
+    "protein smoothie": "Functional Smoothie",
+    "protein smoothies": "Functional Smoothie",
+  };
+  const displayCategoryName = (name: string) =>
+    CATEGORY_DISPLAY_NAMES[name.toLowerCase()] || name;
+
   const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
     { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee and Lattes"] },
-    { id: "smoothies", label: "Smoothies & Juice", categoryNames: ["Smoothies", "Cold Pressed Juice"] },
+    {
+      id: "smoothies",
+      label: "Smoothies & Juice",
+      categoryNames: ["Smoothies", "Protein Smoothie", "Cold Pressed Juice"],
+    },
     {
       id: "energy",
       label: "Energy & Hydration",
-      categoryNames: ["Energy Drinks", "Protein Smoothie", "Amino Acid Slushie", "Refreshers", "Water"],
+      categoryNames: ["Energy Drinks", "Amino Acid Slushie", "Refreshers", "Water"],
     },
     { id: "eat", label: "Eat", categoryNames: ["Cafe Bites"] },
   ];
@@ -739,7 +751,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                                 : "text-cafe-burgundy/60 hover:text-cafe-burgundy pl-3"
                             }`}
                           >
-                            {c.name}
+                            {displayCategoryName(c.name)}
                           </button>
                         </li>
                       );
@@ -763,7 +775,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             : "border-cafe-line text-cafe-burgundy/60"
                         }`}
                       >
-                        {c.name}
+                        {displayCategoryName(c.name)}
                       </button>
                     );
                   })}
@@ -783,7 +795,9 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                       const name = getItemDisplayName(item);
                       const parsed = parseItemDescription(item);
                       const catName =
-                        categories.find((c) => c.id === item.category_id)?.name || "";
+                        displayCategoryName(
+                          categories.find((c) => c.id === item.category_id)?.name || ""
+                        );
                       const sizeMeta = parsed.size || item.size || "";
                       const itemAddons = getAddonsForItem(item);
                       const hasDetails =
@@ -923,14 +937,6 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             >
                               {itemAddons.length > 0 ? "Customize" : "Add to Order"}
                             </button>
-                            {hasDetails && itemAddons.length > 0 && (
-                              <button
-                                onClick={() => setAddonDialogItem(item)}
-                                className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta"
-                              >
-                                Details
-                              </button>
-                            )}
                           </div>
                         </article>
                       );
