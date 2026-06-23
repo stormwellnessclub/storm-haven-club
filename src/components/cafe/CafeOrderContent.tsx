@@ -539,20 +539,17 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   // 4 intent tabs → sub-rail → items grid → sticky cart (desktop)
   // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
   // ──────────────────────────────────────────────────────────────
-  // Display-name overrides — keep DB names stable, rename in UI
-  const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
-    "protein smoothie": "Functional Smoothie",
-    "protein smoothies": "Functional Smoothie",
-  };
-  const displayCategoryName = (name: string) =>
-    CATEGORY_DISPLAY_NAMES[name.toLowerCase()] || name;
-
   const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
     { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee and Lattes"] },
     {
       id: "smoothies",
-      label: "Smoothies & Juice",
-      categoryNames: ["Smoothies", "Protein Smoothie", "Cold Pressed Juice"],
+      label: "Smoothies",
+      categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
+    },
+    {
+      id: "juice",
+      label: "Cold Pressed Juice",
+      categoryNames: ["Cold Pressed Juice"],
     },
     {
       id: "energy",
@@ -561,6 +558,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
     },
     { id: "eat", label: "Eat", categoryNames: ["Cafe Bites"] },
   ];
+  const displayCategoryName = (name: string) => name;
 
   // Which intent groups actually have categories that exist + have items
   const intentToCategories = INTENT_GROUPS.map((g) => ({
@@ -688,9 +686,6 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                 Est. 2024 · Livonia MI
               </span>
             </div>
-            <p className="font-cafe-serif italic text-cafe-burgundy/80 text-base md:text-lg max-w-md">
-              Pressed at dawn. Blended by hand. Served all day.
-            </p>
           </div>
         </section>
       )}
