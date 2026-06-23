@@ -166,6 +166,37 @@ function parseItemDescription(item: DbMenuItem): ParsedDescription {
   };
 }
 
+// Derive short uppercase benefit pills for a menu item card.
+// Prefer admin-set dietary_tags; otherwise extract keywords from functional blend benefits.
+const BENEFIT_KEYWORDS = [
+  "hydration", "immunity", "energy", "recovery", "focus", "calm", "sleep",
+  "antioxidant", "anti-inflammatory", "gut health", "gut support", "digestion",
+  "protein", "collagen", "metabolism", "detox", "endurance", "strength",
+  "skin", "mood", "stamina", "performance",
+];
+function getBenefitTags(
+  item: { dietary_tags?: string[] | null },
+  parsed: { functionalBlend: { benefit: string }[] }
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const push = (s: string) => {
+    const key = s.trim().toUpperCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(key);
+  };
+  if (item.dietary_tags && item.dietary_tags.length > 0) {
+    item.dietary_tags.forEach(push);
+    return out;
+  }
+  const blob = parsed.functionalBlend.map((e) => e.benefit).join(" ").toLowerCase();
+  BENEFIT_KEYWORDS.forEach((kw) => {
+    if (blob.includes(kw)) push(kw === "gut support" ? "gut support" : kw);
+  });
+  return out;
+}
+
 interface SavedPaymentMethod {
   id: string;
   brand?: string;
@@ -932,6 +963,24 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             {[catName, sizeMeta].filter(Boolean).join(" / ")}
                             {item.calories ? ` · ${item.calories} kcal` : ""}
                           </p>
+
+                          {/* Benefit pills */}
+                          {(() => {
+                            const tags = getBenefitTags(item, parsed).slice(0, 3);
+                            if (tags.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {tags.map((t) => (
+                                  <span
+                                    key={t}
+                                    className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-terracotta border border-cafe-line rounded-full px-2.5 py-0.5"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
 
                           {/* Short teaser + tap to expand */}
                           {parsed.description && (
