@@ -199,6 +199,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [showSmsOptIn, setShowSmsOptIn] = useState(false);
   const [addonDialogItem, setAddonDialogItem] = useState<DbMenuItem | null>(null);
+  const [detailItem, setDetailItem] = useState<DbMenuItem | null>(null);
   // Resolved per-user mode (may upgrade variant="public" to member/nonmember)
   const [resolvedMode, setResolvedMode] = useState<"member" | "nonmember" | null>(
     variant === "member" ? "member" : variant === "nonmember" ? "nonmember" : null
