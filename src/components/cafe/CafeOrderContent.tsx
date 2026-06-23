@@ -931,12 +931,24 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                           {/* Actions */}
                           <div className="mt-auto flex items-center gap-5">
                             <button
-                              onClick={() => handleItemTap(item)}
+                              onClick={() => {
+                                if (isSoldOut) return;
+                                addItemToCart(item, []);
+                              }}
                               disabled={isSoldOut}
                               className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
                             >
-                              {itemAddons.length > 0 ? "Customize" : "Add to Order"}
+                              Add to Order
                             </button>
+                            {itemAddons.length > 0 && (
+                              <button
+                                onClick={() => setAddonDialogItem(item)}
+                                disabled={isSoldOut}
+                                className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
+                              >
+                                Customize
+                              </button>
+                            )}
                           </div>
                         </article>
                       );
