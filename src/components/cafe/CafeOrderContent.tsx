@@ -59,12 +59,54 @@ function getItemDisplayName(item: DbMenuItem): string {
   return base;
 }
 
+interface FunctionalIngredient {
+  ingredient: string;
+  benefit: string;
+}
+
 interface ParsedDescription {
   description: string;
   benefits: string;
   nutrition: string;
+  functionalBlend: FunctionalIngredient[];
   size: string;
   proteinFlavor: string;
+}
+
+function parseFunctionalBlend(block: string): FunctionalIngredient[] {
+  const text = block.trim();
+  if (!text) return [];
+
+  // Bullet format: "• Lion's Mane — Supports focus..."
+  const bulletLines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => /^[•·\-*]/.test(l));
+  if (bulletLines.length >= 2) {
+    const out: FunctionalIngredient[] = [];
+    for (const line of bulletLines) {
+      const stripped = line.replace(/^[•·\-*]\s*/, "");
+      const m = stripped.split(/\s+[—–-]\s+/);
+      if (m.length >= 2) {
+        out.push({ ingredient: m[0].trim(), benefit: m.slice(1).join(" — ").trim() });
+      } else {
+        out.push({ ingredient: stripped.trim(), benefit: "" });
+      }
+    }
+    return out.filter((e) => e.ingredient);
+  }
+
+  // Block format: ingredient line, then benefit line(s), separated by blank lines
+  const blocks = text.split(/\n\s*\n+/).map((b) => b.trim()).filter(Boolean);
+  const out: FunctionalIngredient[] = [];
+  for (const b of blocks) {
+    const lines = b.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    const ingredient = lines[0].replace(/[:\-—–]\s*$/, "");
+    const benefit = lines.slice(1).join(" ").trim();
+    if (ingredient) out.push({ ingredient, benefit });
+  }
+  return out;
 }
 
 function parseItemDescription(item: DbMenuItem): ParsedDescription {
@@ -72,23 +114,56 @@ function parseItemDescription(item: DbMenuItem): ParsedDescription {
   let description = "";
   let benefits = "";
   let nutrition = "";
-  const benefitsMatch = raw.match(/benefits\s*:/i);
-  const nutritionMatch = raw.match(/nutri(?:tion(?:al)?|ent)\s*(?:profile|info|facts)?\s*:/i);
+  let functionalBlock = "";
+  const benefitsMatch = raw.match(/(?:^|\n)\s*benefits\s*:?\s*(?:\n|$)/i);
+  const nutritionMatch = raw.match(/(?:^|\n)\s*nutri(?:tion(?:al)?|ent)\s*(?:profile|info|facts)?\s*:?\s*(?:\n|$)/i);
+  const functionalMatch = raw.match(/(?:^|\n)\s*functional\s*blend\s*:?\s*(?:\n|$)/i);
+
   const benefitsIdx = benefitsMatch ? raw.indexOf(benefitsMatch[0]) : -1;
   const nutritionIdx = nutritionMatch ? raw.indexOf(nutritionMatch[0]) : -1;
-  const firstSplit = Math.min(
-    ...[benefitsIdx, nutritionIdx].filter((i) => i >= 0).concat([raw.length])
-  );
+  const functionalIdx = functionalMatch ? raw.indexOf(functionalMatch[0]) : -1;
+
+  const allIdx = [benefitsIdx, nutritionIdx, functionalIdx].filter((i) => i >= 0);
+  const firstSplit = allIdx.length ? Math.min(...allIdx) : raw.length;
   description = raw.slice(0, firstSplit).trim();
+
+  // Strip a leading repeated item name from the intro paragraph
+  const firstLineBreak = description.indexOf("\n");
+  if (firstLineBreak > 0) {
+    const firstLine = description.slice(0, firstLineBreak).trim();
+    if (firstLine.toLowerCase() === (item.item_name || "").toLowerCase().trim()) {
+      description = description.slice(firstLineBreak + 1).trim();
+    }
+  }
+
+  const sectionEnd = (start: number, headerLen: number): number => {
+    const after = start + headerLen;
+    const candidates = [benefitsIdx, nutritionIdx, functionalIdx]
+      .filter((i) => i > start)
+      .concat([raw.length]);
+    return Math.min(...candidates);
+  };
+
+  if (functionalIdx >= 0) {
+    functionalBlock = raw.slice(functionalIdx + functionalMatch![0].length, sectionEnd(functionalIdx, functionalMatch![0].length)).trim();
+  }
   if (benefitsIdx >= 0) {
-    const end = nutritionIdx > benefitsIdx ? nutritionIdx : raw.length;
-    benefits = raw.slice(benefitsIdx + benefitsMatch![0].length, end).trim();
+    benefits = raw.slice(benefitsIdx + benefitsMatch![0].length, sectionEnd(benefitsIdx, benefitsMatch![0].length)).trim();
   }
   if (nutritionIdx >= 0) {
-    const end = benefitsIdx > nutritionIdx ? benefitsIdx : raw.length;
-    nutrition = raw.slice(nutritionIdx + nutritionMatch![0].length, end).trim();
+    nutrition = raw.slice(nutritionIdx + nutritionMatch![0].length, sectionEnd(nutritionIdx, nutritionMatch![0].length)).trim();
   }
-  return { description, benefits, nutrition, size: item.size || "", proteinFlavor: item.protein_flavor || "" };
+
+  const functionalBlend = parseFunctionalBlend(functionalBlock);
+
+  return {
+    description,
+    benefits,
+    nutrition,
+    functionalBlend,
+    size: item.size || "",
+    proteinFlavor: item.protein_flavor || "",
+  };
 }
 
 interface SavedPaymentMethod {
