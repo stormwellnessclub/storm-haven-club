@@ -309,7 +309,7 @@ const App = () => (
               <Route path="/admin/guests" element={<ProtectedAdminRoute><GuestManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe" element={<ProtectedAdminRoute><CafePOS /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe-menu" element={<ProtectedAdminRoute><CafeMenuManager /></ProtectedAdminRoute>} />
-              <Route path="/admin/cafe-style-preview" element={<ProtectedAdminRoute><CafeStylePreviewPage /></ProtectedAdminRoute>} />
+              
               <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />
               <Route path="/admin/classes" element={<ProtectedAdminRoute><AdminClasses /></ProtectedAdminRoute>} />
               <Route path="/admin/class-types" element={<ProtectedAdminRoute><ClassTypes /></ProtectedAdminRoute>} />
