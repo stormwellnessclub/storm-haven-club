@@ -1176,7 +1176,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
             const d = parseItemDescription(detailItem);
             const name = getItemDisplayName(detailItem);
             const itemAddons = getAddonsForItem(detailItem);
-            const isSoldOut = detailItem.stock_quantity === 0 && !detailItem.allow_preorder;
+            const isSoldOut = detailItem.stock_quantity === 0;
             return (
               <>
                 <DialogHeader>
