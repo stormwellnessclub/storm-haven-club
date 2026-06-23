@@ -1,0 +1,1 @@
+UPDATE public.cafe_menu_categories SET name = 'Functional Smoothie' WHERE name = 'Smoothies';
