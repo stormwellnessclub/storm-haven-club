@@ -8555,6 +8555,31 @@ export type Database = {
           therapist_name: string
         }[]
       }
+      get_public_instructors: {
+        Args: never
+        Returns: {
+          bio: string
+          first_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          photo_url: string
+          specialties: string[]
+        }[]
+      }
+      get_public_spa_therapists: {
+        Args: never
+        Returns: {
+          bio: string
+          first_name: string
+          full_name: string
+          id: string
+          is_active: boolean
+          last_name: string
+          photo_url: string
+          specialties: string[]
+        }[]
+      }
       get_scheduled_functions_config: {
         Args: never
         Returns: {
