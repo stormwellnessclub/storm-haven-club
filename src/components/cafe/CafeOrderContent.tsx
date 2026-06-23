@@ -796,11 +796,6 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         );
                       const sizeMeta = parsed.size || item.size || "";
                       const itemAddons = getAddonsForItem(item);
-                      const hasDetails =
-                        !!parsed.description ||
-                        !!parsed.benefits ||
-                        !!parsed.nutrition ||
-                        itemAddons.length > 0;
                       const idx3 = String(idx + 1).padStart(3, "0");
 
                       const hasDetails =
@@ -809,6 +804,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         !!parsed.nutrition ||
                         (item.dietary_tags && item.dietary_tags.length > 0) ||
                         !!item.calories;
+
 
                       return (
                         <article
