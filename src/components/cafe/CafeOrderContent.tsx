@@ -616,7 +616,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
   // ──────────────────────────────────────────────────────────────
   const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
-    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee and Lattes"] },
+    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
     {
       id: "smoothies",
       label: "Smoothies",
