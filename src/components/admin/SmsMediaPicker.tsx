@@ -54,8 +54,15 @@ export function SmsMediaPicker({ value, onChange }: Props) {
         toast.error(`Upload failed: ${error.message}`);
         continue;
       }
-      const { data } = supabase.storage.from("sms-media").getPublicUrl(path);
-      newUrls.push(data.publicUrl);
+      // Bucket is private; generate a signed URL Twilio can fetch (7-day TTL).
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("sms-media")
+        .createSignedUrl(path, 60 * 60 * 24 * 7);
+      if (signErr || !signed?.signedUrl) {
+        toast.error(`Could not sign URL: ${signErr?.message ?? "unknown error"}`);
+        continue;
+      }
+      newUrls.push(signed.signedUrl);
     }
 
     if (oversize) {
