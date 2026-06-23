@@ -1,66 +1,58 @@
-# Premium "Functional Blend" Section for Cafe Smoothies
-
 ## Goal
+Reorganize the Coffee Bar in the cafe menu and add proper customization (temperature, sweetness, milk) to coffee/latte/matcha drinks.
 
-Today the entire smoothie description (intro paragraph + "Functional Blend" + ingredient list) is dumped into one block of body text in the item details dialog. The user wants the **Functional Blend** pulled out and presented as a clean, motivating, premium list — so guests actually *feel* why the drink is worth ordering.
+## 1. Category restructure
+Current category "Coffee and Lattes" mixes coffee and matcha. Split into two:
 
-This is a **frontend-only, presentation-only** change in `src/components/cafe/CafeOrderContent.tsx`. No DB edits, no copy edits, no menu admin changes. Existing description text in the database already contains everything we need; we just parse and style it better.
+- **Coffee & Lattes** (rename existing `Coffee and Lattes`, keep id `ab6e378d…`)
+  - Latte ($9)
+  - Latte ($8)
+  - Dalgona Whipped Nescafe ($9)
+  - Dalgona ($6, currently inactive — leave as-is)
+- **Matcha** (new category, `has_addons: true`, placed right after Coffee & Lattes)
+  - Honey Comb Matcha ($9)
+  - Strawberry Matcha ($9)
+  - Matcha ($9)
 
-## What changes visually
+Done via a migration that inserts the new category and updates `category_id` for the three matcha items.
 
-In the item details dialog (when a guest taps a smoothie card), the body becomes three distinct zones instead of one paragraph:
+## 2. Photo refresh
+For each item in both categories, swap in a clean, premium, on-brand image (warm minimal, soft daylight, ceramic cups, matcha/coffee close-ups). Generated with the image tool, uploaded via lovable-assets, then `cafe_menu_items.image_url` updated. List of items getting new photos:
+- Latte (x2), Dalgona Whipped Nescafe, Honey Comb Matcha, Strawberry Matcha, Matcha.
 
-```text
-┌─────────────────────────────────────┐
-│  [hero image]                       │
-├─────────────────────────────────────┤
-│  Short intro paragraph              │ ← lead description only
-│                                     │
-│  ─── FUNCTIONAL BLEND ───           │ ← thin rule + uppercase label
-│                                     │
-│  TRIPLE COLLAGEN COMPLEX            │ ← serif/display, burgundy
-│  Supports skin, hair, nails,        │ ← body, muted burgundy
-│  joints, and connective tissue.     │
-│  ─────────────                      │ ← hairline divider
-│  VITAMIN C                          │
-│  Supports collagen synthesis,       │
-│  immune health, antioxidant…        │
-│  ─────────────                      │
-│  …                                  │
-│                                     │
-│  Dietary tag chips                  │
-└─────────────────────────────────────┘
-```
+## 3. Customization options (Coffee, Lattes, Matcha)
+Add three option groups to every item in Coffee & Lattes and Matcha:
 
-Styling stays inside the existing cafe design tokens (`cafe-burgundy`, `cafe-mono`, `cafe-line`, `cafe-stone`, `cafe-terracotta`) so it matches the rest of the menu — no new colors, no generic UI. Ingredient names use the existing serif/display weight; benefits use body type at a slightly muted burgundy. Hairline `cafe-line` dividers between ingredients give it the "internal, printed menu" feel.
+- **Temperature** — Iced / Hot (single-select, required, no price)
+- **Sweetness** — Unsweetened / Light / Regular / Extra (single-select, required, no price)
+- **Milk** — Whole / 2% / Almond / Oat (single-select, required, no price)
 
-The "Add to Order" CTA and add-on flow are untouched.
+### Schema change
+Extend `cafe_menu_addons` with:
+- `group_name text` (e.g. `Temperature`, `Sweetness`, `Milk`)
+- `selection_type text default 'multi'` — `single` for radio groups, `multi` for current checkbox add-ons
+- `is_required boolean default false`
 
-## Technical details
+Backfill existing add-ons with `group_name = 'Add-ons'`, `selection_type='multi'`. Seed the new option rows scoped to the Coffee & Lattes and Matcha categories (price 0, `selection_type='single'`, `is_required=true`).
 
-File: `src/components/cafe/CafeOrderContent.tsx` only.
+### UI change — `CafeAddonDialog.tsx`
+- Group addons by `group_name`.
+- Render `single` groups as a `RadioGroup` (required: default to first option, block confirm if missing).
+- Render `multi` groups as today's checkboxes.
+- Cart line items capture the selected option label per group (e.g. "Latte — Iced · Regular sweetness · Oat milk") so the cafe POS/order ticket shows the barista what to make. Order-item `name` string composed in `CafeOrderContent` when confirming.
 
-1. **Parser update — `parseItemDescription`** (around lines 62–92)
-   - Add a new section split for `Functional Blend\s*:?` (case-insensitive), alongside the existing `Benefits:` and `Nutrition:` splits.
-   - Strip a leading line that exactly matches the item name (DB entries repeat the name as line 1, e.g. `Coconut Cloud\nA nourishing blend…`) so the intro paragraph reads cleanly.
-   - Return a new field `functionalBlend: Array<{ ingredient: string; benefit: string }>`.
-   - Support both formats present in the DB:
-     - **Block format** (Coconut Cloud, Hailey Bieber): ingredient name on its own line, benefit on the next non-empty line, blank line between entries.
-     - **Bullet format** (Orange Creamsicle): `• Lion's Mane — Supports focus…` — split on the em-dash / en-dash / hyphen.
-   - Trim, drop empty entries, keep order.
+### Admin
+`CafeMenuManager` add-on editor gains `group_name` and `selection_type` fields so staff can add new option groups later. Not changing other admin behavior.
 
-2. **Detail dialog render** (around lines 1199–1228)
-   - Keep the intro `description` paragraph as-is at the top.
-   - Insert a new `Functional Blend` block before `Benefits` / `Nutritional Profile` when `functionalBlend.length > 0`:
-     - Label: existing `font-cafe-mono text-[9px] tracking-widest uppercase` treatment, centered with thin `cafe-line` rules on either side for editorial framing.
-     - Each entry: ingredient name in `font-serif` / display weight, uppercase tracking, `text-cafe-burgundy`; benefit underneath in `text-sm text-cafe-burgundy/75 leading-relaxed`.
-     - `divide-y divide-cafe-line/60` between entries for the hairline look.
-   - `Benefits` and `Nutritional Profile` sections render unchanged when present (legacy items still work).
+## 4. Out of scope
+- No pricing changes.
+- No changes to other categories (Smoothies, Juices, etc.) beyond display order shifting to fit the new Matcha category.
+- No changes to checkout, tax, or fee logic.
 
-3. **No changes** to: DB schema, menu admin, cart logic, add-on flow, pricing, images, routing, or other categories. Non-smoothie items that have no "Functional Blend" line render exactly as they do today.
-
-## Out of scope
-
-- Editing the actual description text in the database (we keep your existing copy).
-- Restyling the menu grid / card list — only the details dialog changes.
-- Any backend / RLS / Stripe work.
+## Files touched
+- `supabase/migrations/<new>.sql` — schema columns + Matcha category + reassign items + seed option groups
+- `src/hooks/useCafeMenu.ts` — extend `CafeMenuAddon` type
+- `src/components/cafe/CafeAddonDialog.tsx` — grouped radio/checkbox rendering + required validation + label composition
+- `src/components/cafe/CafeOrderContent.tsx` — pass composed option labels into order item name
+- `src/pages/admin/CafeMenuManager.tsx` — addon group/type fields
+- New `.asset.json` pointers under `src/assets/cafe/` for the refreshed photos
