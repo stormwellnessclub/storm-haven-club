@@ -81,6 +81,15 @@
     --sidebar-accent-foreground: 38 30% 8%;
     --sidebar-border: 38 20% 68%;
     --sidebar-ring: 38 55% 85%;
+
+    /* Storm Café — editorial stone palette */
+    --cafe-cream: 40 22% 94%;        /* #F5F2ED page surface */
+    --cafe-stone: 36 17% 87%;        /* #E5E1D9 placeholder / rails */
+    --cafe-stone-soft: 38 22% 92%;   /* #EFEBE4 subtle panels */
+    --cafe-terracotta: 12 50% 51%;   /* #C25E44 accent */
+    --cafe-terracotta-deep: 12 50% 41%; /* #A34D38 hover */
+    --cafe-burgundy: 0 47% 19%;      /* #4A1D1D headlines */
+    --cafe-line: 35 18% 78%;         /* hairline */
   }
 
   .dark {
