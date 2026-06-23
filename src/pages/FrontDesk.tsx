@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search, UserCheck, Clock, CheckCircle2, XCircle, User,
@@ -26,6 +26,7 @@ import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import { formatTime12h } from "@/lib/timeFormat";
 import { NoIndex } from "@/components/seo/NoIndex";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 // ─── Type badge config ───────────────────────────────────────────────
 type AnyType = KioskVisitorType | KioskAttendanceType;
@@ -535,7 +536,7 @@ function FrontDeskKiosk() {
         {/* Visitor info */}
         <div className="flex items-center gap-5">
           <Avatar className="h-20 w-20">
-            {selected.photo_url && <AvatarImage src={selected.photo_url} />}
+            <SignedMemberPhoto photoUrl={selected.photo_url} alt={selected.name} />
             <AvatarFallback className="text-xl">
               {selected.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)}
             </AvatarFallback>
@@ -629,7 +630,7 @@ function FrontDeskKiosk() {
                           className="flex items-center gap-4 p-4 bg-secondary/30 rounded-lg hover:bg-secondary/50 transition-colors text-left w-full"
                         >
                           <Avatar className="h-12 w-12 shrink-0">
-                            {r.photo_url && <AvatarImage src={r.photo_url} />}
+                            <SignedMemberPhoto photoUrl={r.photo_url} alt={r.name} />
                             <AvatarFallback>
                               <Icon className="h-6 w-6 text-muted-foreground" />
                             </AvatarFallback>
@@ -710,7 +711,7 @@ function FrontDeskKiosk() {
                         <TableRow key={entry.id}>
                           <TableCell>
                             <Avatar className="h-9 w-9">
-                              {entry.photo_url && <AvatarImage src={entry.photo_url} alt={entry.name} />}
+                              <SignedMemberPhoto photoUrl={entry.photo_url} alt={entry.name} />
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
                           </TableCell>

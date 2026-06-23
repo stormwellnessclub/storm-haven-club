@@ -4,7 +4,7 @@ import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -17,6 +17,7 @@ import { Maximize2, Camera, Sun, AlertCircle } from "lucide-react";
 import { EntryQRCode } from "@/components/member/EntryQRCode";
 import { useEntryToken } from "@/hooks/useEntryToken";
 import { AnimatedSection } from "@/components/AnimatedSection";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 export default function MemberEntry() {
   const { token, member, isLoading, error, refresh } = useEntryToken();
@@ -73,8 +74,8 @@ export default function MemberEntry() {
             {member && (
               <div className="flex items-center gap-4">
                 <Avatar className="h-16 w-16 border-2 border-accent/30">
-                  <AvatarImage 
-                    src={member.photo_url || undefined} 
+                  <SignedMemberPhoto
+                    photoUrl={member.photo_url}
                     alt={`${member.first_name} ${member.last_name}`}
                     className="object-cover"
                   />
@@ -146,8 +147,8 @@ export default function MemberEntry() {
             {member && (
               <div className="flex items-center gap-4">
                 <Avatar className="h-20 w-20 border-2 border-accent/30">
-                  <AvatarImage 
-                    src={member.photo_url || undefined} 
+                  <SignedMemberPhoto
+                    photoUrl={member.photo_url}
                     alt={`${member.first_name} ${member.last_name}`}
                     className="object-cover"
                   />

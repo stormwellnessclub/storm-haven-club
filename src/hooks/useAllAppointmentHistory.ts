@@ -51,12 +51,12 @@ export function useAllAppointmentHistory() {
     enabled: allIds.length > 0,
     queryFn: async (): Promise<Record<string, string>> => {
       const [{ data: instr }, { data: thera }] = await Promise.all([
-        supabase.from("instructors").select("id, first_name, last_name").in("id", allIds),
-        (supabase as any).from("spa_therapists").select("id, first_name, last_name").in("id", allIds),
+        (supabase.rpc as any)("get_public_instructors"),
+        (supabase.rpc as any)("get_public_spa_therapists"),
       ]);
       const m: Record<string, string> = {};
-      (instr ?? []).forEach((i: any) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
-      (thera ?? []).forEach((t: any) => { if (!m[t.id]) m[t.id] = `${t.first_name} ${t.last_name}`; });
+      (instr ?? []).filter((i: any) => allIds.includes(i.id)).forEach((i: any) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
+      (thera ?? []).filter((t: any) => allIds.includes(t.id)).forEach((t: any) => { if (!m[t.id]) m[t.id] = t.full_name || `${t.first_name} ${t.last_name}`; });
       return m;
     },
   });

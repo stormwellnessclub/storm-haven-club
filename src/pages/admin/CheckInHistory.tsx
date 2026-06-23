@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/table";
 import { CalendarIcon, Search, Users, Clock, TrendingUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -350,7 +351,7 @@ export default function AdminCheckInHistory() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={m?.photo_url || undefined} />
+                            <SignedMemberPhoto photoUrl={m?.photo_url} alt={`${m?.first_name || ""} ${m?.last_name || ""}`} />
                             <AvatarFallback className="text-xs">
                               {m?.first_name?.[0]}{m?.last_name?.[0]}
                             </AvatarFallback>

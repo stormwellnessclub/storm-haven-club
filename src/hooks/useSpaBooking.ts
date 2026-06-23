@@ -105,10 +105,8 @@ async function sendSpaNotifications(args: {
   // Provider name (optional).
   let provider = "Storm Wellness";
   if (a.staff_id) {
-    const { data: staff } = await (supabase.from as any)("spa_therapists")
-      .select("full_name")
-      .eq("id", a.staff_id)
-      .maybeSingle();
+    const { data: publicStaff } = await (supabase.rpc as any)("get_public_spa_therapists");
+    const staff = (publicStaff || []).find((t: any) => t.id === a.staff_id);
     if (staff?.full_name) provider = staff.full_name;
   }
 
