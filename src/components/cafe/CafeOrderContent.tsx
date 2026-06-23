@@ -933,6 +933,24 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             {item.calories ? ` · ${item.calories} kcal` : ""}
                           </p>
 
+                          {/* Benefit pills */}
+                          {(() => {
+                            const tags = getBenefitTags(item, parsed).slice(0, 3);
+                            if (tags.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {tags.map((t) => (
+                                  <span
+                                    key={t}
+                                    className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-terracotta border border-cafe-line rounded-full px-2.5 py-0.5"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
                           {/* Short teaser + tap to expand */}
                           {parsed.description && (
                             <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-2 line-clamp-2">
