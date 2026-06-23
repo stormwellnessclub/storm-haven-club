@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Loader2, Sparkles, Trophy, User } from "lucide-react";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
 import { toast } from "sonner";
 import { useState } from "react";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 interface RosterEntry {
   booking_id: string;
@@ -84,9 +85,7 @@ export function KioskClassRoster({ sessionId, onCheckIn }: KioskClassRosterProps
             className="flex items-center gap-3 px-3 py-2 rounded-md bg-muted/30"
           >
             <Avatar className="h-8 w-8">
-              {entry.photo_url ? (
-                <AvatarImage src={entry.photo_url} alt={entry.name} />
-              ) : null}
+              <SignedMemberPhoto photoUrl={entry.photo_url} alt={entry.name} />
               <AvatarFallback className="text-xs">
                 <User className="h-3.5 w-3.5" />
               </AvatarFallback>
