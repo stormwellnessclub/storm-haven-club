@@ -1168,6 +1168,114 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
           setAddonDialogItem(null);
         }}
       />
+
+      {/* Item detail dialog */}
+      <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
+        <DialogContent className="sm:max-w-xl bg-cafe-cream">
+          {detailItem && (() => {
+            const d = parseItemDescription(detailItem);
+            const name = getItemDisplayName(detailItem);
+            const itemAddons = getAddonsForItem(detailItem);
+            const isSoldOut = detailItem.stock_quantity === 0 && !detailItem.allow_preorder;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy text-left">
+                    {name}
+                  </DialogTitle>
+                  <DialogDescription className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 text-left">
+                    ${detailItem.price.toFixed(2)}
+                    {d.size ? ` · ${d.size}` : ""}
+                    {detailItem.calories ? ` · ${detailItem.calories} kcal` : ""}
+                  </DialogDescription>
+                </DialogHeader>
+
+                {detailItem.image_url && (
+                  <div className="aspect-[4/3] w-full overflow-hidden border border-cafe-line/60 bg-cafe-stone">
+                    <img
+                      src={detailItem.image_url}
+                      alt={name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-4 text-cafe-burgundy">
+                  {d.description && (
+                    <p className="text-sm leading-relaxed">{d.description}</p>
+                  )}
+
+                  {d.benefits && (
+                    <div>
+                      <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1.5">
+                        Benefits
+                      </p>
+                      <ul className="text-sm leading-relaxed space-y-1 pl-4">
+                        {d.benefits.split(/[•·]/).filter((b) => b.trim()).map((b, i) => (
+                          <li key={i} className="list-disc">{b.trim()}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {d.nutrition && (
+                    <div>
+                      <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1.5">
+                        Nutritional Profile
+                      </p>
+                      <ul className="text-sm leading-relaxed space-y-1 pl-4">
+                        {d.nutrition.split(/[•·,]/).filter((n) => n.trim()).map((n, i) => (
+                          <li key={i} className="list-disc">{n.trim()}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {detailItem.dietary_tags && detailItem.dietary_tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {detailItem.dietary_tags.map((t) => (
+                        <span
+                          key={t}
+                          className="font-cafe-mono text-[9px] tracking-widest uppercase border border-cafe-line px-2 py-0.5 text-cafe-burgundy/70"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-5 pt-2">
+                  <button
+                    onClick={() => {
+                      if (isSoldOut) return;
+                      addItemToCart(detailItem, []);
+                      setDetailItem(null);
+                    }}
+                    disabled={isSoldOut}
+                    className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
+                  >
+                    {isSoldOut ? "Sold Out" : "Add to Order"}
+                  </button>
+                  {itemAddons.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setAddonDialogItem(detailItem);
+                        setDetailItem(null);
+                      }}
+                      disabled={isSoldOut}
+                      className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
+                    >
+                      Customize
+                    </button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }
