@@ -199,6 +199,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [showSmsOptIn, setShowSmsOptIn] = useState(false);
   const [addonDialogItem, setAddonDialogItem] = useState<DbMenuItem | null>(null);
+  const [detailItem, setDetailItem] = useState<DbMenuItem | null>(null);
   // Resolved per-user mode (may upgrade variant="public" to member/nonmember)
   const [resolvedMode, setResolvedMode] = useState<"member" | "nonmember" | null>(
     variant === "member" ? "member" : variant === "nonmember" ? "nonmember" : null
@@ -795,17 +796,21 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         );
                       const sizeMeta = parsed.size || item.size || "";
                       const itemAddons = getAddonsForItem(item);
+                      const idx3 = String(idx + 1).padStart(3, "0");
+
                       const hasDetails =
                         !!parsed.description ||
                         !!parsed.benefits ||
                         !!parsed.nutrition ||
-                        itemAddons.length > 0;
-                      const idx3 = String(idx + 1).padStart(3, "0");
+                        (item.dietary_tags && item.dietary_tags.length > 0) ||
+                        !!item.calories;
+
 
                       return (
                         <article
                           key={item.id}
-                          className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""}`}
+                          onClick={() => hasDetails && setDetailItem(item)}
+                          className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""} ${hasDetails ? "cursor-pointer" : ""}`}
                         >
                           {/* Image / Coming soon placeholder */}
                           <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
@@ -851,82 +856,35 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                           </div>
 
                           {/* Meta */}
-                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-4">
+                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
                             {[catName, sizeMeta].filter(Boolean).join(" / ")}
                             {item.calories ? ` · ${item.calories} kcal` : ""}
                           </p>
 
-                          {/* Inline description (short) */}
+                          {/* Short teaser + tap to expand */}
                           {parsed.description && (
-                            <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-4 line-clamp-3">
+                            <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-2 line-clamp-2">
                               {parsed.description}
                             </p>
                           )}
-
-                          {/* Nutrition / Benefits collapsible */}
-                          {(parsed.benefits || parsed.nutrition) && (
-                            <Collapsible className="mb-4">
-                              <CollapsibleTrigger className="flex items-center gap-1.5 font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta transition-colors group/trigger">
-                                <ChevronDown className="w-3 h-3 transition-transform group-data-[state=open]/trigger:rotate-180" />
-                                Details · Nutrition
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="mt-3 space-y-3">
-                                {parsed.benefits && (
-                                  <div>
-                                    <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1">
-                                      Benefits
-                                    </p>
-                                    <ul className="text-xs text-cafe-burgundy/70 leading-relaxed space-y-0.5 pl-3">
-                                      {parsed.benefits
-                                        .split(/[•·]/)
-                                        .filter((b) => b.trim())
-                                        .map((b, i) => (
-                                          <li key={i} className="list-disc">
-                                            {b.trim()}
-                                          </li>
-                                        ))}
-                                    </ul>
-                                  </div>
-                                )}
-                                {parsed.nutrition && (
-                                  <div>
-                                    <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1">
-                                      Nutritional Profile
-                                    </p>
-                                    <ul className="text-xs text-cafe-burgundy/70 leading-relaxed space-y-0.5 pl-3">
-                                      {parsed.nutrition
-                                        .split(/[•·,]/)
-                                        .filter((n) => n.trim())
-                                        .map((n, i) => (
-                                          <li key={i} className="list-disc">
-                                            {n.trim()}
-                                          </li>
-                                        ))}
-                                    </ul>
-                                  </div>
-                                )}
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-
-                          {/* Dietary tags */}
-                          {item.dietary_tags && item.dietary_tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-4">
-                              {item.dietary_tags.map((d) => (
-                                <span
-                                  key={d}
-                                  className="font-cafe-mono text-[9px] tracking-widest uppercase border border-cafe-line px-2 py-0.5 text-cafe-burgundy/70"
-                                >
-                                  {d}
-                                </span>
-                              ))}
-                            </div>
+                          {hasDetails && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailItem(item);
+                              }}
+                              className="self-start font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta underline underline-offset-4 decoration-cafe-line mb-4"
+                            >
+                              View details
+                            </button>
                           )}
 
                           {/* Actions */}
-                          <div className="mt-auto flex items-center gap-5">
+                          <div className="mt-auto flex items-center gap-5 pt-2">
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (isSoldOut) return;
                                 addItemToCart(item, []);
                               }}
@@ -937,7 +895,10 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             </button>
                             {itemAddons.length > 0 && (
                               <button
-                                onClick={() => setAddonDialogItem(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddonDialogItem(item);
+                                }}
                                 disabled={isSoldOut}
                                 className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
                               >
@@ -948,6 +909,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         </article>
                       );
                     })}
+
                   </div>
                 )}
               </main>
@@ -1206,6 +1168,114 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
           setAddonDialogItem(null);
         }}
       />
+
+      {/* Item detail dialog */}
+      <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
+        <DialogContent className="sm:max-w-xl bg-cafe-cream">
+          {detailItem && (() => {
+            const d = parseItemDescription(detailItem);
+            const name = getItemDisplayName(detailItem);
+            const itemAddons = getAddonsForItem(detailItem);
+            const isSoldOut = detailItem.stock_quantity === 0;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy text-left">
+                    {name}
+                  </DialogTitle>
+                  <DialogDescription className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 text-left">
+                    ${detailItem.price.toFixed(2)}
+                    {d.size ? ` · ${d.size}` : ""}
+                    {detailItem.calories ? ` · ${detailItem.calories} kcal` : ""}
+                  </DialogDescription>
+                </DialogHeader>
+
+                {detailItem.image_url && (
+                  <div className="aspect-[4/3] w-full overflow-hidden border border-cafe-line/60 bg-cafe-stone">
+                    <img
+                      src={detailItem.image_url}
+                      alt={name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-4 text-cafe-burgundy">
+                  {d.description && (
+                    <p className="text-sm leading-relaxed">{d.description}</p>
+                  )}
+
+                  {d.benefits && (
+                    <div>
+                      <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1.5">
+                        Benefits
+                      </p>
+                      <ul className="text-sm leading-relaxed space-y-1 pl-4">
+                        {d.benefits.split(/[•·]/).filter((b) => b.trim()).map((b, i) => (
+                          <li key={i} className="list-disc">{b.trim()}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {d.nutrition && (
+                    <div>
+                      <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1.5">
+                        Nutritional Profile
+                      </p>
+                      <ul className="text-sm leading-relaxed space-y-1 pl-4">
+                        {d.nutrition.split(/[•·,]/).filter((n) => n.trim()).map((n, i) => (
+                          <li key={i} className="list-disc">{n.trim()}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {detailItem.dietary_tags && detailItem.dietary_tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {detailItem.dietary_tags.map((t) => (
+                        <span
+                          key={t}
+                          className="font-cafe-mono text-[9px] tracking-widest uppercase border border-cafe-line px-2 py-0.5 text-cafe-burgundy/70"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-5 pt-2">
+                  <button
+                    onClick={() => {
+                      if (isSoldOut) return;
+                      addItemToCart(detailItem, []);
+                      setDetailItem(null);
+                    }}
+                    disabled={isSoldOut}
+                    className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
+                  >
+                    {isSoldOut ? "Sold Out" : "Add to Order"}
+                  </button>
+                  {itemAddons.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setAddonDialogItem(detailItem);
+                        setDetailItem(null);
+                      }}
+                      disabled={isSoldOut}
+                      className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
+                    >
+                      Customize
+                    </button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </>
+
   );
 }
