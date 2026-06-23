@@ -873,6 +873,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         !!parsed.description ||
                         !!parsed.benefits ||
                         !!parsed.nutrition ||
+                        parsed.functionalBlend.length > 0 ||
                         (item.dietary_tags && item.dietary_tags.length > 0) ||
                         !!item.calories;
 
