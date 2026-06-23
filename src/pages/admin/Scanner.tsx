@@ -32,7 +32,7 @@ import {
   ImageOff,
   RotateCcw,
 } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useMemberScanner, useRecentScans, ScanResult, DeviceType } from "@/hooks/useMemberScanner";
 import { useScannerSettings, useUpdateScannerSettings } from "@/hooks/useScannerSettings";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
@@ -43,6 +43,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { EffectiveStatusBadge } from "@/components/admin/EffectiveStatusBadge";
 import { toast } from "sonner";
 import { Snowflake, RefreshCcw } from "lucide-react";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 export default function Scanner() {
   const [memberIdInput, setMemberIdInput] = useState("");
@@ -403,8 +404,8 @@ export default function Scanner() {
                         {/* Member Photo */}
                         {scanResult.member && (
                           <Avatar className="h-16 w-16 border-2 border-green-500/30">
-                            <AvatarImage 
-                              src={scanResult.member.photo_url || undefined} 
+                            <SignedMemberPhoto
+                              photoUrl={scanResult.member.photo_url}
                               alt={`${scanResult.member.first_name} ${scanResult.member.last_name}`}
                               className="object-cover"
                             />
@@ -459,8 +460,8 @@ export default function Scanner() {
                         {/* Member Photo */}
                         {scanResult.member && (
                           <Avatar className="h-16 w-16 border-2 border-destructive/30">
-                            <AvatarImage 
-                              src={scanResult.member.photo_url || undefined} 
+                            <SignedMemberPhoto
+                              photoUrl={scanResult.member.photo_url}
                               alt={`${scanResult.member.first_name} ${scanResult.member.last_name}`}
                               className="object-cover"
                             />
