@@ -50,7 +50,9 @@ export default {
   				'Liberation Mono',
   				'Courier New',
   				'monospace'
-  			]
+  			],
+  			'cafe-serif': ['Bodoni Moda', 'Cormorant Garamond', 'Georgia', 'serif'],
+  			'cafe-mono': ['Space Mono', 'ui-monospace', 'Menlo', 'monospace']
   		},
   		colors: {
   			border: 'hsl(var(--border))',
