@@ -1,39 +1,66 @@
-Lock down the three security warnings flagged on the project. None are critical (publish isn't blocked), but they're all worth fixing properly.
+# Premium "Functional Blend" Section for Cafe Smoothies
 
-## 1. `instructors` — hide `email` / `phone` from the API
+## Goal
 
-Today there's a SELECT policy for `authenticated`, but no column-level GRANTs constraining it. Staff already read contact info via the existing `get_instructors_with_contact()` SECURITY DEFINER RPC, so the table itself never needs to expose `email`/`phone`.
+Today the entire smoothie description (intro paragraph + "Functional Blend" + ingredient list) is dumped into one block of body text in the item details dialog. The user wants the **Functional Blend** pulled out and presented as a clean, motivating, premium list — so guests actually *feel* why the drink is worth ordering.
 
-Migration:
-- `REVOKE SELECT ON public.instructors FROM anon, authenticated;`
-- `GRANT SELECT (id, first_name, last_name, bio, photo_url, specialties, is_active, user_id, created_at, updated_at) ON public.instructors TO authenticated;`
-- Leave INSERT/UPDATE/DELETE to `service_role` (admin code paths already use RPCs / service role).
+This is a **frontend-only, presentation-only** change in `src/components/cafe/CafeOrderContent.tsx`. No DB edits, no copy edits, no menu admin changes. Existing description text in the database already contains everything we need; we just parse and style it better.
 
-Result: even if a future RLS policy is too permissive, PostgREST cannot return `email` or `phone` to anon/authenticated.
+## What changes visually
 
-## 2. `spa_therapists` — hide `email`, `phone`, `hourly_rate`
+In the item details dialog (when a guest taps a smoothie card), the body becomes three distinct zones instead of one paragraph:
 
-Same shape: anon and authenticated SELECT policies, no column GRANTs. `useAllAppointmentHistory` only reads `id, first_name, last_name`; admin writes go through `useSpaManagement` under admin role.
+```text
+┌─────────────────────────────────────┐
+│  [hero image]                       │
+├─────────────────────────────────────┤
+│  Short intro paragraph              │ ← lead description only
+│                                     │
+│  ─── FUNCTIONAL BLEND ───           │ ← thin rule + uppercase label
+│                                     │
+│  TRIPLE COLLAGEN COMPLEX            │ ← serif/display, burgundy
+│  Supports skin, hair, nails,        │ ← body, muted burgundy
+│  joints, and connective tissue.     │
+│  ─────────────                      │ ← hairline divider
+│  VITAMIN C                          │
+│  Supports collagen synthesis,       │
+│  immune health, antioxidant…        │
+│  ─────────────                      │
+│  …                                  │
+│                                     │
+│  Dietary tag chips                  │
+└─────────────────────────────────────┘
+```
 
-Migration:
-- `REVOKE SELECT ON public.spa_therapists FROM anon, authenticated;`
-- `GRANT SELECT (id, full_name, bio, photo_url, specialties, is_active, created_at, updated_at) ON public.spa_therapists TO anon, authenticated;`
-- Keep `email`, `phone`, `hourly_rate` reachable only via `service_role` / admin RPCs.
+Styling stays inside the existing cafe design tokens (`cafe-burgundy`, `cafe-mono`, `cafe-line`, `cafe-stone`, `cafe-terracotta`) so it matches the rest of the menu — no new colors, no generic UI. Ingredient names use the existing serif/display weight; benefits use body type at a slightly muted burgundy. Hairline `cafe-line` dividers between ingredients give it the "internal, printed menu" feel.
 
-If anywhere in admin code still does `select('*')` on `spa_therapists` from the client, switch it to an explicit column list or a SECURITY DEFINER RPC gated by `has_any_role('admin','super_admin','staff')`.
+The "Add to Order" CTA and add-on flow are untouched.
 
-## 3. `scheduled_functions_config` — stop storing the anon key in the DB
+## Technical details
 
-The row holds the project URL and anon key. The table is locked (`USING false`), but storing the anon key in a table at all is unnecessary risk. The anon key is already a public token shipped to browsers, so the real fix is to stop persisting it server-side.
+File: `src/components/cafe/CafeOrderContent.tsx` only.
 
-Migration:
-- `ALTER TABLE public.scheduled_functions_config DROP COLUMN anon_key;`
-- `ALTER TABLE public.scheduled_functions_config DROP COLUMN supabase_url;` (project ref is fixed; URL can be derived from `VITE_SUPABASE_URL` or inlined in the edge function).
-- Update any pg_cron job / edge function that reads from this table to use the built-in `SUPABASE_URL` / `SUPABASE_ANON_KEY` env vars in the edge function instead. I'll grep for usages before the migration and patch them in the same change set.
+1. **Parser update — `parseItemDescription`** (around lines 62–92)
+   - Add a new section split for `Functional Blend\s*:?` (case-insensitive), alongside the existing `Benefits:` and `Nutrition:` splits.
+   - Strip a leading line that exactly matches the item name (DB entries repeat the name as line 1, e.g. `Coconut Cloud\nA nourishing blend…`) so the intro paragraph reads cleanly.
+   - Return a new field `functionalBlend: Array<{ ingredient: string; benefit: string }>`.
+   - Support both formats present in the DB:
+     - **Block format** (Coconut Cloud, Hailey Bieber): ingredient name on its own line, benefit on the next non-empty line, blank line between entries.
+     - **Bullet format** (Orange Creamsicle): `• Lion's Mane — Supports focus…` — split on the em-dash / en-dash / hyphen.
+   - Trim, drop empty entries, keep order.
 
-After the migration, mark all three findings as fixed in the security memory with the rationale above (column GRANTs are the durable defense; anon key removed from DB).
+2. **Detail dialog render** (around lines 1199–1228)
+   - Keep the intro `description` paragraph as-is at the top.
+   - Insert a new `Functional Blend` block before `Benefits` / `Nutritional Profile` when `functionalBlend.length > 0`:
+     - Label: existing `font-cafe-mono text-[9px] tracking-widest uppercase` treatment, centered with thin `cafe-line` rules on either side for editorial framing.
+     - Each entry: ingredient name in `font-serif` / display weight, uppercase tracking, `text-cafe-burgundy`; benefit underneath in `text-sm text-cafe-burgundy/75 leading-relaxed`.
+     - `divide-y divide-cafe-line/60` between entries for the hairline look.
+   - `Benefits` and `Nutritional Profile` sections render unchanged when present (legacy items still work).
 
-## What I will NOT change
-- The existing `get_instructors_with_contact()` RPC and admin flows — they keep working.
-- Public-facing fields (name, bio, photo, specialties) stay readable so the website still renders therapist/instructor cards.
-- No business logic, no UI changes.
+3. **No changes** to: DB schema, menu admin, cart logic, add-on flow, pricing, images, routing, or other categories. Non-smoothie items that have no "Functional Blend" line render exactly as they do today.
+
+## Out of scope
+
+- Editing the actual description text in the database (we keep your existing copy).
+- Restyling the menu grid / card list — only the details dialog changes.
+- Any backend / RLS / Stripe work.
