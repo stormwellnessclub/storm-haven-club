@@ -5,6 +5,7 @@ import { Camera, Upload, X, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 interface MemberPhotoUploadProps {
   memberId: string;
@@ -85,17 +86,10 @@ export function MemberPhotoUpload({
         throw new Error("Failed to upload photo");
       }
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from("member-photos")
-        .getPublicUrl(filePath);
-
-      const photoUrl = `${urlData.publicUrl}?t=${Date.now()}`; // Cache bust
-
       // Update member record
       const { error: updateError } = await supabase
         .from("members")
-        .update({ photo_url: photoUrl })
+        .update({ photo_url: filePath })
         .eq("id", memberId);
 
       if (updateError) {
@@ -113,7 +107,7 @@ export function MemberPhotoUpload({
       queryClient.invalidateQueries({ queryKey: ["entry-token"] });
 
       if (onPhotoUpdated) {
-        onPhotoUpdated(photoUrl);
+        onPhotoUpdated(filePath);
       }
     } catch (error: any) {
       console.error("[Photo Upload] Error:", error);
@@ -135,17 +129,23 @@ export function MemberPhotoUpload({
     }
   };
 
-  const displayUrl = previewUrl || currentPhotoUrl;
-
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative">
         <Avatar className="h-32 w-32 border-4 border-accent/30">
-          <AvatarImage 
-            src={displayUrl || undefined} 
-            alt={`${firstName} ${lastName}`}
-            className="object-cover"
-          />
+          {previewUrl ? (
+            <AvatarImage
+              src={previewUrl}
+              alt={`${firstName} ${lastName}`}
+              className="object-cover"
+            />
+          ) : (
+            <SignedMemberPhoto
+              photoUrl={currentPhotoUrl}
+              alt={`${firstName} ${lastName}`}
+              className="object-cover"
+            />
+          )}
           <AvatarFallback className="text-2xl bg-muted">
             {initials || <Camera className="h-8 w-8 text-muted-foreground" />}
           </AvatarFallback>
