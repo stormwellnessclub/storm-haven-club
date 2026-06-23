@@ -803,10 +803,18 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         itemAddons.length > 0;
                       const idx3 = String(idx + 1).padStart(3, "0");
 
+                      const hasDetails =
+                        !!parsed.description ||
+                        !!parsed.benefits ||
+                        !!parsed.nutrition ||
+                        (item.dietary_tags && item.dietary_tags.length > 0) ||
+                        !!item.calories;
+
                       return (
                         <article
                           key={item.id}
-                          className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""}`}
+                          onClick={() => hasDetails && setDetailItem(item)}
+                          className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""} ${hasDetails ? "cursor-pointer" : ""}`}
                         >
                           {/* Image / Coming soon placeholder */}
                           <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
@@ -852,82 +860,35 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                           </div>
 
                           {/* Meta */}
-                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-4">
+                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
                             {[catName, sizeMeta].filter(Boolean).join(" / ")}
                             {item.calories ? ` · ${item.calories} kcal` : ""}
                           </p>
 
-                          {/* Inline description (short) */}
+                          {/* Short teaser + tap to expand */}
                           {parsed.description && (
-                            <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-4 line-clamp-3">
+                            <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-2 line-clamp-2">
                               {parsed.description}
                             </p>
                           )}
-
-                          {/* Nutrition / Benefits collapsible */}
-                          {(parsed.benefits || parsed.nutrition) && (
-                            <Collapsible className="mb-4">
-                              <CollapsibleTrigger className="flex items-center gap-1.5 font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta transition-colors group/trigger">
-                                <ChevronDown className="w-3 h-3 transition-transform group-data-[state=open]/trigger:rotate-180" />
-                                Details · Nutrition
-                              </CollapsibleTrigger>
-                              <CollapsibleContent className="mt-3 space-y-3">
-                                {parsed.benefits && (
-                                  <div>
-                                    <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1">
-                                      Benefits
-                                    </p>
-                                    <ul className="text-xs text-cafe-burgundy/70 leading-relaxed space-y-0.5 pl-3">
-                                      {parsed.benefits
-                                        .split(/[•·]/)
-                                        .filter((b) => b.trim())
-                                        .map((b, i) => (
-                                          <li key={i} className="list-disc">
-                                            {b.trim()}
-                                          </li>
-                                        ))}
-                                    </ul>
-                                  </div>
-                                )}
-                                {parsed.nutrition && (
-                                  <div>
-                                    <p className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-burgundy/70 mb-1">
-                                      Nutritional Profile
-                                    </p>
-                                    <ul className="text-xs text-cafe-burgundy/70 leading-relaxed space-y-0.5 pl-3">
-                                      {parsed.nutrition
-                                        .split(/[•·,]/)
-                                        .filter((n) => n.trim())
-                                        .map((n, i) => (
-                                          <li key={i} className="list-disc">
-                                            {n.trim()}
-                                          </li>
-                                        ))}
-                                    </ul>
-                                  </div>
-                                )}
-                              </CollapsibleContent>
-                            </Collapsible>
-                          )}
-
-                          {/* Dietary tags */}
-                          {item.dietary_tags && item.dietary_tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-4">
-                              {item.dietary_tags.map((d) => (
-                                <span
-                                  key={d}
-                                  className="font-cafe-mono text-[9px] tracking-widest uppercase border border-cafe-line px-2 py-0.5 text-cafe-burgundy/70"
-                                >
-                                  {d}
-                                </span>
-                              ))}
-                            </div>
+                          {hasDetails && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDetailItem(item);
+                              }}
+                              className="self-start font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta underline underline-offset-4 decoration-cafe-line mb-4"
+                            >
+                              View details
+                            </button>
                           )}
 
                           {/* Actions */}
-                          <div className="mt-auto flex items-center gap-5">
+                          <div className="mt-auto flex items-center gap-5 pt-2">
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 if (isSoldOut) return;
                                 addItemToCart(item, []);
                               }}
@@ -938,7 +899,10 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             </button>
                             {itemAddons.length > 0 && (
                               <button
-                                onClick={() => setAddonDialogItem(item)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setAddonDialogItem(item);
+                                }}
                                 disabled={isSoldOut}
                                 className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
                               >
@@ -949,6 +913,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         </article>
                       );
                     })}
+
                   </div>
                 )}
               </main>
