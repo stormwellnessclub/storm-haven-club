@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search,
@@ -39,6 +39,7 @@ import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
 import { useMemberArrears } from "@/hooks/useMemberArrears";
 import { formatSpaTime } from "@/lib/spaTime";
 import { clubMonthStart } from "@/lib/clubTime";
+import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
@@ -664,7 +665,7 @@ export default function CheckIn() {
                         >
                           <TableCell>
                             <Avatar className="h-8 w-8">
-                              {entry.photoUrl && <AvatarImage src={entry.photoUrl} alt={entry.name} />}
+                              <SignedMemberPhoto photoUrl={entry.photoUrl} alt={entry.name} />
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
                           </TableCell>
