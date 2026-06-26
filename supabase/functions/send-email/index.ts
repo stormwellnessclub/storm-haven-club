@@ -49,7 +49,7 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 }
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
   to: string;
   data: Record<string, any>;
 }
@@ -1408,6 +1408,63 @@ serve(async (req) => {
         break;
       }
 
+      case 'freeze_payment_request': {
+        subject = 'Action Required: Pay Your Freeze Fee — Storm Wellness Club';
+        const firstName = String(data.firstName ?? data.name ?? '').trim();
+        const startDate = data.startDate
+          ? new Date(data.startDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          : null;
+        const endDate = data.endDate
+          ? new Date(data.endDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+          : null;
+        const durationMonths = Number(data.durationMonths ?? 0);
+        const feeAmount = Number(data.freezeFeeTotal ?? 0);
+        const feeFormatted = `$${feeAmount.toFixed(2)}`;
+        const payUrl = `${BASE_URL}/member/freeze`;
+
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${firstName || 'there'},</h2>
+
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin: 0 0 18px 0; font-family: Georgia, serif;">
+                Good news — your membership freeze request has been approved. To activate the freeze, please pay the freeze fee below.
+              </p>
+
+              <div style="background: #F0DFC4; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 24px 0; font-family: Georgia, serif;">
+                <p style="margin: 0 0 8px 0; color: #1C170F; font-size: 15px;">
+                  <strong>Freeze Period:</strong> ${startDate || 'TBD'}${endDate ? ` &rarr; ${endDate}` : ''}
+                </p>
+                ${durationMonths ? `<p style="margin: 0 0 8px 0; color: #1C170F; font-size: 15px;"><strong>Duration:</strong> ${durationMonths} month${durationMonths === 1 ? '' : 's'}</p>` : ''}
+                <p style="margin: 0; color: #1C170F; font-size: 15px;">
+                  <strong>Freeze Fee:</strong> ${feeFormatted}
+                </p>
+              </div>
+
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin: 0 0 24px 0; font-family: Georgia, serif;">
+                Your freeze will not start until the fee is paid. Once paid, your monthly dues and annual fee billing will be paused for the duration above.
+              </p>
+
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${payUrl}" style="${emailStyles.button}">Pay ${feeFormatted} Now</a>
+              </div>
+
+              <p style="font-size: 14px; line-height: 1.6; color: #6C5D3E; margin: 0 0 8px 0; font-family: Georgia, serif;">
+                Or copy this link into your browser:<br />
+                <a href="${payUrl}" style="color: #1C170F;">${payUrl}</a>
+              </p>
+
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-style: italic; color: #6C5D3E; margin-bottom: 5px; font-family: Georgia, serif;">In good standing,</p>
+                <p style="font-weight: 600; color: #1C170F; margin: 0; font-family: Georgia, serif;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
 
       case 'member_activation_setup':
       case 'setup_instructions':

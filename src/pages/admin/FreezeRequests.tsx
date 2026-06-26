@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle, ExternalLink } from "lucide-react";
+import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle, ExternalLink, Mail } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
 import { Link } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -91,6 +91,7 @@ import {
   useRejectFreezeRequest,
   useActivateFreeze,
   useEndFreezeEarly,
+  useResendFreezePaymentEmail,
   type FreezeRequestWithMember,
 } from "@/hooks/useAdminFreezeRequests";
 import {
@@ -135,6 +136,7 @@ export default function FreezeRequests() {
   const rejectRequest = useRejectFreezeRequest();
   const activateFreeze = useActivateFreeze();
   const endFreezeEarly = useEndFreezeEarly();
+  const resendPaymentEmail = useResendFreezePaymentEmail();
 
   const filteredRequests = requests?.filter((req) => {
     if (!searchQuery) return true;
@@ -398,8 +400,17 @@ export default function FreezeRequests() {
                                   </Button>
                                 )}
                                 {request.status === 'approved' && !request.fee_paid && (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline">Awaiting Payment</Badge>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => resendPaymentEmail.mutate(request.id)}
+                                      disabled={resendPaymentEmail.isPending}
+                                    >
+                                      <Mail className="h-4 w-4 mr-1" />
+                                      {resendPaymentEmail.isPending && resendPaymentEmail.variables === request.id ? 'Sending...' : 'Resend payment email'}
+                                    </Button>
                                     {(isAdmin || isSuperAdmin) && (
                                       <Button
                                         size="sm"

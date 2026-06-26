@@ -48,10 +48,15 @@ export function useApproveFreezeRequest() {
     mutationFn: async ({ freezeId, startDate }: { freezeId: string; startDate: Date }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Get the freeze request to calculate end date
+      // Get the freeze request + member email so we can email them after approval
       const { data: freezeData, error: fetchError } = await supabase
         .from("member_freezes")
-        .select("duration_months, member_id")
+        .select(`
+          duration_months,
+          member_id,
+          freeze_fee_total,
+          members!inner(email, first_name)
+        `)
         .eq("id", freezeId)
         .single();
 
@@ -75,15 +80,99 @@ export function useApproveFreezeRequest() {
 
       if (updateError) throw updateError;
 
-      return { freezeId, memberId: freezeData.member_id };
+      // Send the freeze payment request email (best-effort — never block approval)
+      const member = (freezeData as any).members;
+      let emailDelivered = false;
+      let emailError: string | null = null;
+      if (member?.email) {
+        try {
+          const { error: emailErr } = await supabase.functions.invoke("send-email", {
+            body: {
+              type: "freeze_payment_request",
+              to: member.email,
+              data: {
+                firstName: member.first_name ?? "",
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0],
+                durationMonths: freezeData.duration_months,
+                freezeFeeTotal: freezeData.freeze_fee_total,
+              },
+            },
+          });
+          if (emailErr) {
+            emailError = emailErr.message;
+          } else {
+            emailDelivered = true;
+          }
+        } catch (err) {
+          emailError = err instanceof Error ? err.message : String(err);
+        }
+      } else {
+        emailError = "Member has no email on file";
+      }
+
+      return { freezeId, memberId: freezeData.member_id, emailDelivered, emailError };
     },
-    onSuccess: () => {
+    onSuccess: ({ emailDelivered, emailError }) => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
-      toast.success("Freeze request approved. Payment link will be sent to member.");
+      if (emailDelivered) {
+        toast.success("Freeze approved — payment email sent to member");
+      } else {
+        toast.warning(`Freeze approved — payment email NOT sent${emailError ? `: ${emailError}` : ""}. Use "Resend payment email" to retry.`);
+      }
     },
     onError: (error) => {
       console.error("Error approving freeze request:", error);
       toast.error("Failed to approve freeze request");
+    },
+  });
+}
+
+export function useResendFreezePaymentEmail() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (freezeId: string) => {
+      const { data: freezeData, error: fetchError } = await supabase
+        .from("member_freezes")
+        .select(`
+          duration_months,
+          freeze_fee_total,
+          actual_start_date,
+          actual_end_date,
+          requested_start_date,
+          requested_end_date,
+          members!inner(email, first_name)
+        `)
+        .eq("id", freezeId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      const member = (freezeData as any).members;
+      if (!member?.email) throw new Error("Member has no email on file");
+
+      const { error: emailErr } = await supabase.functions.invoke("send-email", {
+        body: {
+          type: "freeze_payment_request",
+          to: member.email,
+          data: {
+            firstName: member.first_name ?? "",
+            startDate: freezeData.actual_start_date ?? freezeData.requested_start_date,
+            endDate: freezeData.actual_end_date ?? freezeData.requested_end_date,
+            durationMonths: freezeData.duration_months,
+            freezeFeeTotal: freezeData.freeze_fee_total,
+          },
+        },
+      });
+      if (emailErr) throw new Error(emailErr.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
+      toast.success("Payment email sent to member");
+    },
+    onError: (error) => {
+      console.error("Error resending freeze payment email:", error);
+      toast.error(`Failed to send payment email: ${error instanceof Error ? error.message : String(error)}`);
     },
   });
 }
