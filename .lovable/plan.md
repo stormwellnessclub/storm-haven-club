@@ -1,23 +1,31 @@
-## Surface functional benefit tags on cafe menu cards
+## Fix freeze approval emails
 
-Right now smoothies and other items only show category/size/calories on the card — benefit info (Hydration, Immunity, Energy, Gut Support, Antioxidant, etc.) is hidden behind "View details". Add small uppercase pill badges directly under the meta line, matching the reference screenshot.
+**Problem:** Approving a freeze flips the DB row but never sends an email or payment link. Mariam got nothing. Same will happen for the next request.
 
-### Where
-`src/components/cafe/CafeOrderContent.tsx` — the item card (~lines 920–940), right after the category/size/kcal meta and before the description teaser.
+### Changes
 
-### Tag source (in priority order)
-1. **`item.dietary_tags`** (already exists on `cafe_menu_items`) — primary source. Admin-controlled, exact text.
-2. **Derived from `parsed.functionalBlend`** — fallback. For each functional blend entry, extract a 1–2 word benefit keyword from the benefit text (e.g. "supports hydration" → HYDRATION). Used only when `dietary_tags` is empty so existing data still surfaces tags automatically.
+1. **`supabase/functions/send-email/index.ts`** — Add `freeze_payment_request` email type. Branded Storm template with:
+   - Greeting using member first name
+   - Approved freeze dates + duration
+   - Freeze fee amount
+   - CTA button → `https://stormwellnessclub.com/member/freeze` (existing page already has `create_freeze_fee_checkout` wired)
+   - Log to `email_audit_log`
 
-Cap display at 3 pills per card; remaining count rolls into "View details".
+2. **`src/hooks/useAdminFreezeRequests.ts`** — In `useApproveFreezeRequest`:
+   - After the DB update, fetch member email/first name + freeze fee
+   - Invoke `send-email` with `freeze_payment_request`
+   - Best-effort: approval still succeeds even if email fails
+   - Toast reflects actual outcome ("approved — payment email sent" vs "approved — email failed to send: …"), matching the `useRejectFreezeRequest` pattern
 
-### Pill style (matches reference)
-- Small outlined pill, rounded-full, border `cafe-line`, uppercase `font-cafe-mono` text-[9px] tracking-widest, terracotta or burgundy text.
-- Rendered as a flex-wrap row with `gap-1.5`, `mb-3`, sits between meta line and description teaser.
+3. **`src/pages/admin/FreezeRequests.tsx`** — Add "Resend payment email" button on rows where `status = approved` AND `fee_paid = false`. Calls the same `send-email` invocation. Use it to immediately re-send to Mariam.
 
-### Scope
-- Display only. No schema changes, no admin UI changes in this pass (admin already edits `dietary_tags` via the menu manager).
-- Applies to the customer-facing `CafeOrderContent` (both `public` and `nonmember` variants). POS/admin views untouched.
+### Verification
 
-### Optional follow-up (not in this change)
-- Filter pills above the grid ("All / Functional / Protein / Refreshing / Immunity") like the reference screenshot — happy to add in a separate pass if you want.
+- Approve a pending freeze in admin → member receives branded email with working pay button → click button → existing `/member/freeze` checkout flow charges the fee.
+- Click "Resend payment email" on Mariam's row → she receives the same email.
+- Check `email_audit_log` for `freeze_payment_request` rows with `status = sent`.
+
+### Not touched
+
+- Freeze fee amount, Stripe checkout function, `/member/freeze` page (already working).
+- Rejection email flow (already works correctly).
