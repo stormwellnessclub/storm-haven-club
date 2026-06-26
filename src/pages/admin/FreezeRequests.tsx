@@ -91,6 +91,7 @@ import {
   useRejectFreezeRequest,
   useActivateFreeze,
   useEndFreezeEarly,
+  useResendFreezePaymentEmail,
   type FreezeRequestWithMember,
 } from "@/hooks/useAdminFreezeRequests";
 import {
