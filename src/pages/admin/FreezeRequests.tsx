@@ -400,8 +400,17 @@ export default function FreezeRequests() {
                                   </Button>
                                 )}
                                 {request.status === 'approved' && !request.fee_paid && (
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline">Awaiting Payment</Badge>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => resendPaymentEmail.mutate(request.id)}
+                                      disabled={resendPaymentEmail.isPending}
+                                    >
+                                      <Mail className="h-4 w-4 mr-1" />
+                                      {resendPaymentEmail.isPending && resendPaymentEmail.variables === request.id ? 'Sending...' : 'Resend payment email'}
+                                    </Button>
                                     {(isAdmin || isSuperAdmin) && (
                                       <Button
                                         size="sm"
