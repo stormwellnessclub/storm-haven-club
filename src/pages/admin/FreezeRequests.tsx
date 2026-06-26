@@ -136,6 +136,7 @@ export default function FreezeRequests() {
   const rejectRequest = useRejectFreezeRequest();
   const activateFreeze = useActivateFreeze();
   const endFreezeEarly = useEndFreezeEarly();
+  const resendPaymentEmail = useResendFreezePaymentEmail();
 
   const filteredRequests = requests?.filter((req) => {
     if (!searchQuery) return true;
