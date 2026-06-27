@@ -1371,34 +1371,53 @@ export default function ClassRoster() {
                             <span className="text-sm text-muted-foreground">{paymentLabel(attendee.paymentMethod)}</span>
                           </TableCell>
                           <TableCell>
-                            {attendee.isCheckedIn ? (
+                            {attendee.isNoShow ? (
+                              <Badge variant="outline" className="text-muted-foreground"><UserX className="h-3 w-3 mr-1" /> No Show</Badge>
+                            ) : attendee.isCheckedIn ? (
                               <Badge variant="default" className="bg-primary"><CheckCircle className="h-3 w-3 mr-1" /> Checked In</Badge>
                             ) : (
                               <Badge variant="secondary">Registered</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            {!attendee.isCheckedIn && (
+                            {!attendee.isCheckedIn && !attendee.isNoShow && (
                               <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
                                 <UserCheck className="h-4 w-4 mr-1" /> Check In
                               </Button>
                             )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (attendee.isCheckedIn) {
-                                  if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
-                                }
-                                removeMutation.mutate(attendee.bookingId);
-                              }}
-                              disabled={removeMutation.isPending}
-                              title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!attendee.isCheckedIn && !attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  if (!window.confirm(`Mark ${attendee.name} as no-show? Their class credit/pass will NOT be refunded.`)) return;
+                                  noShowMutation.mutate(attendee.bookingId);
+                                }}
+                                disabled={noShowMutation.isPending}
+                                title="Mark as no-show (credit/pass not refunded)"
+                              >
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  if (attendee.isCheckedIn) {
+                                    if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
+                                  }
+                                  removeMutation.mutate(attendee.bookingId);
+                                }}
+                                disabled={removeMutation.isPending}
+                                title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </TableCell>
+
                         </TableRow>
                       );
                     })}
