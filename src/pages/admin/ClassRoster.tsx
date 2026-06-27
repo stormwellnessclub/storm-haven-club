@@ -538,7 +538,7 @@ export default function ClassRoster() {
         console.error("Failed to prepare removal email:", err);
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Removed from class — credit/pass restored, member notified"); },
+    onSuccess: () => { invalidateAll(); toast.success("Attendee removed — credit/pass restored, member notified"); },
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
 
