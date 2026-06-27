@@ -194,6 +194,7 @@ export async function resolveRosterIdentities(
       phone: "",
       type: "walk_in",
       isCheckedIn,
+      isNoShow,
       checkedInAt: b.checked_in_at,
       paymentMethod: b.payment_method,
       walkInName: b.walk_in_name,
