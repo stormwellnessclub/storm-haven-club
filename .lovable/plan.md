@@ -1,44 +1,39 @@
-## Problem
+## Goal
 
-Two blockers in the class roster / class management flow:
-
-1. **Can't credit back checked-in people.** On the roster, once an attendee shows the green "Checked In" badge, the Remove / refund button disappears entirely (`src/pages/admin/ClassRoster.tsx` line 1353 — the whole action group is gated by `!attendee.isCheckedIn`). So there's no way to undo a check-in and return a credit/pass.
-
-2. **Can't cancel a class once it's started or finished.** On `src/pages/admin/Classes.tsx` line 420, the "Cancel" button only renders when `status === 'upcoming'`. In-progress and completed sessions hide it. The underlying RPC `admin_cancel_class_session` also only loops over bookings with `status = 'confirmed'` — checked-in bookings (`status = 'completed'`) are skipped, so even if we exposed the button, those members would not get their credit/pass restored.
+Add a **No Show** action on the class roster so admins can mark attendees who booked but didn't show up. Their credit/pass stays consumed (no refund), the booking flips to `no_show`, and they're never emailed.
 
 ## Changes
 
-### 1. Roster — refund + remove a checked-in attendee
-`src/pages/admin/ClassRoster.tsx`
+### 1. Booking status — `no_show`
+`class_bookings.status` already accepts text values (`confirmed`, `completed`, `cancelled`, `waitlist`). Add `no_show` to the allowed set if there's a check constraint; otherwise no schema change is needed. (Will verify in build mode and only run a migration if a constraint blocks it.)
 
-- Always show the destructive Trash button (no longer gated by `!isCheckedIn`).
-- For checked-in (completed) rows, the button opens a confirm dialog: "Undo check-in and refund this attendee? Their credit/pass will be returned." On confirm, run the existing `removeMutation` logic — it already restores credits (`member_credits.credits_remaining`) and passes (`class_passes.classes_remaining`) and flips the booking to `cancelled` regardless of whether it was `confirmed` or `completed`. No mutation logic changes needed; just remove the UI gate and add the confirm step for already-checked-in rows.
-- Toast: "Check-in undone — credit/pass restored."
+### 2. Per-row "No Show" button — `src/pages/admin/ClassRoster.tsx`
+- Show on every row where `status === 'confirmed'` AND `!isCheckedIn` (i.e. they booked but never checked in).
+- Sits next to the existing Check In / Remove actions, styled as a muted/secondary destructive variant with a `UserX` icon and tooltip "Mark as no-show (credit/pass not refunded)".
+- On click → confirm dialog: "Mark {name} as no-show? Their class credit/pass will NOT be refunded."
+- Mutation: `UPDATE class_bookings SET status = 'no_show', updated_at = now() WHERE id = ?`. No credit/pass restoration. No email.
+- Toast: "Marked as no-show — credit/pass kept."
+- Invalidates roster query so the row re-renders with a grey "No Show" badge (new badge variant added alongside the existing Confirmed / Checked In / Cancelled badges).
 
-### 2. Classes list — allow cancel at any time
-`src/pages/admin/Classes.tsx`
+### 3. Bulk "Mark remaining as No Show" — roster header
+- Button appears in the roster header next to existing actions, only when the class is `in-progress` or `completed` AND at least one `confirmed` non-checked-in attendee remains.
+- Confirm dialog: "Mark all {N} remaining attendees as no-show? Their credits/passes will NOT be refunded."
+- Single bulk update: `UPDATE class_bookings SET status = 'no_show' WHERE class_session_id = ? AND status = 'confirmed'`.
+- Toast: "{N} attendees marked as no-show."
 
-- Remove the `status === 'upcoming'` condition around the Cancel button. Show it for `upcoming`, `in-progress`, and `completed` sessions (still hidden when already cancelled).
-- When the session is `in-progress` or `completed`, the existing cancel dialog gets an extra warning line: "This class has already started/ended. Attendees who were checked in will also be refunded and notified."
+### 4. UI badges & filtering
+- Add a `no_show` badge (grey/outline, "No Show") in the roster row renderer alongside the existing Confirmed / Checked In / Cancelled badges.
+- No-show rows still appear in the roster (not hidden) so admins can see who missed.
+- `current_enrollment` counts: confirmed bookings only — no-show rows are no longer `confirmed`, so the seat naturally frees from the count. This matches expected behavior (the spot was used by them not showing).
 
-### 3. RPC — refund completed bookings too
-New migration updating `admin_cancel_class_session`:
-
-- Change the loop's `WHERE` from `status = 'confirmed'` to `status IN ('confirmed', 'completed')` so checked-in attendees also get credits/passes restored.
-- Keep everything else identical (notification filter in `Classes.tsx` already uses `cancellation_reason = 'Class cancelled by admin'`, which still matches).
-
-### 4. Email filter still correct
-`Classes.tsx` already fetches bookings where `cancellation_reason = 'Class cancelled by admin'` AND `status = 'cancelled'` to send the cancellation email — completed-then-cancelled bookings will now be in that set and will receive the email, which is the desired behaviour.
+### 5. Out of scope
+- No email to the no-show member.
+- No "no-show fee" beyond the already-consumed credit (no extra Stripe charge).
+- No automatic tagging / 3-strikes policy — can add later if you want.
+- Reports/analytics changes — separate request.
 
 ## Technical notes
 
-- No new tables, no new policies, no new email templates.
-- `removeMutation` already handles credit/pass restoration symmetrically — the only reason it wasn't reachable for checked-in rows was the UI gate.
-- The RPC change is a single `WHERE` edit; safe to run.
-- We don't auto-refund Stripe drop-in charges (current behaviour) — only credits and passes. Drop-in/cash refunds remain a manual Stripe refund, same as today.
-
-## Out of scope
-
-- Refunding Stripe drop-in charges automatically.
-- A bulk "refund everyone" button on the roster (use Cancel Class for that).
-- Changing how `current_enrollment` is computed.
+- Pure presentation + a thin mutation; no RPC needed.
+- Single migration only if a check constraint on `class_bookings.status` rejects `no_show` — will verify first in build mode and skip the migration otherwise.
+- Reuses existing toast, confirm dialog, and query-invalidation patterns already in `ClassRoster.tsx`.

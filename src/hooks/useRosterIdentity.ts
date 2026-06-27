@@ -9,6 +9,7 @@ export interface RosterAttendee {
   phone: string;
   type: "member" | "pass_holder" | "account" | "walk_in" | "hold";
   isCheckedIn: boolean;
+  isNoShow: boolean;
   checkedInAt: string | null;
   paymentMethod: string | null;
   walkInName: string | null;
@@ -48,7 +49,7 @@ export async function resolveRosterIdentities(
       "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
-    .in("status", ["confirmed", "completed"]);
+    .in("status", ["confirmed", "completed", "no_show"]);
 
   if (error) throw error;
   const bookings = (rawBookings || []) as unknown as RawBooking[];
@@ -83,6 +84,7 @@ export async function resolveRosterIdentities(
 
   return bookings.map((b): RosterAttendee => {
     const isCheckedIn = b.status === "completed" || !!b.checked_in_at;
+    const isNoShow = b.status === "no_show";
     const isAdminHold = !!b.is_admin_hold;
 
     // 0. Admin hold — placeholder seat
@@ -96,6 +98,7 @@ export async function resolveRosterIdentities(
         phone: b.walk_in_phone || "",
         type: "hold",
         isCheckedIn,
+        isNoShow,
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
@@ -114,6 +117,7 @@ export async function resolveRosterIdentities(
         phone: b.members.phone || "",
         type: "member",
         isCheckedIn,
+        isNoShow,
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
@@ -133,6 +137,7 @@ export async function resolveRosterIdentities(
         phone: nm.phone || "",
         type: "pass_holder",
         isCheckedIn,
+        isNoShow,
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
@@ -152,6 +157,7 @@ export async function resolveRosterIdentities(
         phone: p.phone || "",
         type: "account",
         isCheckedIn,
+        isNoShow,
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
@@ -170,6 +176,7 @@ export async function resolveRosterIdentities(
         phone: b.walk_in_phone || "",
         type: "walk_in",
         isCheckedIn,
+        isNoShow,
         checkedInAt: b.checked_in_at,
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
@@ -187,6 +194,7 @@ export async function resolveRosterIdentities(
       phone: "",
       type: "walk_in",
       isCheckedIn,
+      isNoShow,
       checkedInAt: b.checked_in_at,
       paymentMethod: b.payment_method,
       walkInName: b.walk_in_name,

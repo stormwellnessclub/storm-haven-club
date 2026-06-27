@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone, Pencil, Check, Lock, UserCog,
+  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone, Pencil, Check, Lock, UserCog, UserX,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -219,8 +219,8 @@ export default function ClassRoster() {
     queryFn: async () => {
       const attendees = await resolveRosterIdentities(sessionId!);
 
-      // Auto-heal enrollment counter
-      const confirmedCount = attendees.length;
+      // Auto-heal enrollment counter (exclude no-show rows so the seat is freed)
+      const confirmedCount = attendees.filter(a => !a.isNoShow).length;
       if (session && confirmedCount !== session.current_enrollment) {
         await supabase
           .from("class_sessions")
@@ -540,6 +540,34 @@ export default function ClassRoster() {
     },
     onSuccess: () => { invalidateAll(); toast.success("Attendee removed — credit/pass restored, member notified"); },
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
+  });
+
+  // Mark single attendee as no-show. Credit/pass stays consumed; no email sent.
+  const noShowMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase
+        .from("class_bookings")
+        .update({ status: "no_show", updated_at: new Date().toISOString() } as any)
+        .eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => { invalidateAll(); toast.success("Marked as no-show — credit/pass kept"); },
+    onError: (err: any) => toast.error(err?.message || "Failed to mark no-show"),
+  });
+
+  // Bulk: mark all remaining confirmed (not-checked-in) attendees as no-show.
+  const bulkNoShowMutation = useMutation({
+    mutationFn: async (bookingIds: string[]) => {
+      if (bookingIds.length === 0) return 0;
+      const { error } = await supabase
+        .from("class_bookings")
+        .update({ status: "no_show", updated_at: new Date().toISOString() } as any)
+        .in("id", bookingIds);
+      if (error) throw error;
+      return bookingIds.length;
+    },
+    onSuccess: (count) => { invalidateAll(); toast.success(`${count} attendee${count === 1 ? "" : "s"} marked as no-show`); },
+    onError: (err: any) => toast.error(err?.message || "Failed to mark no-shows"),
   });
 
   // Promote from waitlist (with payment method choice)
@@ -1194,10 +1222,31 @@ export default function ClassRoster() {
 
       {/* Roster / Waitlist */}
       <Tabs value={rosterTab} onValueChange={(v) => setRosterTab(v as "roster" | "waitlist")}>
-        <TabsList>
-          <TabsTrigger value="roster">Roster ({bookings.length})</TabsTrigger>
-          <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="roster">Roster ({bookings.length})</TabsTrigger>
+            <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
+          </TabsList>
+          {rosterTab === "roster" && (() => {
+            const remaining = bookings.filter(a => !a.isAdminHold && !a.isCheckedIn && !a.isNoShow);
+            if (remaining.length === 0) return null;
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={bulkNoShowMutation.isPending}
+                onClick={() => {
+                  if (!window.confirm(`Mark all ${remaining.length} remaining attendee${remaining.length === 1 ? "" : "s"} as no-show? Their credits/passes will NOT be refunded.`)) return;
+                  bulkNoShowMutation.mutate(remaining.map(a => a.bookingId));
+                }}
+              >
+                <UserX className="h-4 w-4 mr-1" /> Mark remaining as No Show ({remaining.length})
+              </Button>
+            );
+          })()}
+        </div>
+
+
 
         <TabsContent value="roster">
           <Card>
@@ -1343,34 +1392,53 @@ export default function ClassRoster() {
                             <span className="text-sm text-muted-foreground">{paymentLabel(attendee.paymentMethod)}</span>
                           </TableCell>
                           <TableCell>
-                            {attendee.isCheckedIn ? (
+                            {attendee.isNoShow ? (
+                              <Badge variant="outline" className="text-muted-foreground"><UserX className="h-3 w-3 mr-1" /> No Show</Badge>
+                            ) : attendee.isCheckedIn ? (
                               <Badge variant="default" className="bg-primary"><CheckCircle className="h-3 w-3 mr-1" /> Checked In</Badge>
                             ) : (
                               <Badge variant="secondary">Registered</Badge>
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            {!attendee.isCheckedIn && (
+                            {!attendee.isCheckedIn && !attendee.isNoShow && (
                               <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
                                 <UserCheck className="h-4 w-4 mr-1" /> Check In
                               </Button>
                             )}
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => {
-                                if (attendee.isCheckedIn) {
-                                  if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
-                                }
-                                removeMutation.mutate(attendee.bookingId);
-                              }}
-                              disabled={removeMutation.isPending}
-                              title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!attendee.isCheckedIn && !attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  if (!window.confirm(`Mark ${attendee.name} as no-show? Their class credit/pass will NOT be refunded.`)) return;
+                                  noShowMutation.mutate(attendee.bookingId);
+                                }}
+                                disabled={noShowMutation.isPending}
+                                title="Mark as no-show (credit/pass not refunded)"
+                              >
+                                <UserX className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  if (attendee.isCheckedIn) {
+                                    if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
+                                  }
+                                  removeMutation.mutate(attendee.bookingId);
+                                }}
+                                disabled={removeMutation.isPending}
+                                title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </TableCell>
+
                         </TableRow>
                       );
                     })}
