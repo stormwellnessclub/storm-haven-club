@@ -219,8 +219,8 @@ export default function ClassRoster() {
     queryFn: async () => {
       const attendees = await resolveRosterIdentities(sessionId!);
 
-      // Auto-heal enrollment counter
-      const confirmedCount = attendees.length;
+      // Auto-heal enrollment counter (exclude no-show rows so the seat is freed)
+      const confirmedCount = attendees.filter(a => !a.isNoShow).length;
       if (session && confirmedCount !== session.current_enrollment) {
         await supabase
           .from("class_sessions")
