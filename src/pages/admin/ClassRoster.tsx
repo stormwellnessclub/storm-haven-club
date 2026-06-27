@@ -542,6 +542,24 @@ export default function ClassRoster() {
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
 
+  // Undo a no-show: restore booking(s) back to confirmed. No credit/pass change.
+  const undoNoShowMutation = useMutation({
+    mutationFn: async (bookingIds: string[]) => {
+      if (bookingIds.length === 0) return 0;
+      const { error } = await supabase
+        .from("class_bookings")
+        .update({ status: "confirmed", updated_at: new Date().toISOString() } as any)
+        .in("id", bookingIds);
+      if (error) throw error;
+      return bookingIds.length;
+    },
+    onSuccess: (count) => {
+      invalidateAll();
+      toast.success(count === 1 ? "Restored — back to Registered" : `${count} attendees restored to Registered`);
+    },
+    onError: (err: any) => toast.error(err?.message || "Failed to undo no-show"),
+  });
+
   // Mark single attendee as no-show. Credit/pass stays consumed; no email sent.
   const noShowMutation = useMutation({
     mutationFn: async (bookingId: string) => {
@@ -550,25 +568,37 @@ export default function ClassRoster() {
         .update({ status: "no_show", updated_at: new Date().toISOString() } as any)
         .eq("id", bookingId);
       if (error) throw error;
+      return bookingId;
     },
-    onSuccess: () => { invalidateAll(); toast.success("Marked as no-show — credit/pass kept"); },
+    onSuccess: (bookingId) => {
+      invalidateAll();
+      toast.success("Marked as no-show — credit/pass kept", {
+        action: { label: "Undo", onClick: () => undoNoShowMutation.mutate([bookingId]) },
+      });
+    },
     onError: (err: any) => toast.error(err?.message || "Failed to mark no-show"),
   });
 
   // Bulk: mark all remaining confirmed (not-checked-in) attendees as no-show.
   const bulkNoShowMutation = useMutation({
     mutationFn: async (bookingIds: string[]) => {
-      if (bookingIds.length === 0) return 0;
+      if (bookingIds.length === 0) return { count: 0, ids: [] as string[] };
       const { error } = await supabase
         .from("class_bookings")
         .update({ status: "no_show", updated_at: new Date().toISOString() } as any)
         .in("id", bookingIds);
       if (error) throw error;
-      return bookingIds.length;
+      return { count: bookingIds.length, ids: bookingIds };
     },
-    onSuccess: (count) => { invalidateAll(); toast.success(`${count} attendee${count === 1 ? "" : "s"} marked as no-show`); },
+    onSuccess: ({ count, ids }) => {
+      invalidateAll();
+      toast.success(`${count} attendee${count === 1 ? "" : "s"} marked as no-show`, {
+        action: { label: "Undo", onClick: () => undoNoShowMutation.mutate(ids) },
+      });
+    },
     onError: (err: any) => toast.error(err?.message || "Failed to mark no-shows"),
   });
+
 
   // Promote from waitlist (with payment method choice)
   const promoteMutation = useMutation({
