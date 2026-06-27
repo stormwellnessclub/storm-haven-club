@@ -417,7 +417,7 @@ export default function Classes() {
                           >
                             <UserPlus className="h-4 w-4 mr-1" /> Add Person
                           </Button>
-                          {status === 'upcoming' && (
+                          {(status === 'upcoming' || status === 'in-progress' || status === 'completed') && (
                             <Button
                               size="sm"
                               variant="outline"
