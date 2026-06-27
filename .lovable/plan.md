@@ -1,31 +1,44 @@
-## Fix freeze approval emails
+## Problem
 
-**Problem:** Approving a freeze flips the DB row but never sends an email or payment link. Mariam got nothing. Same will happen for the next request.
+Two blockers in the class roster / class management flow:
 
-### Changes
+1. **Can't credit back checked-in people.** On the roster, once an attendee shows the green "Checked In" badge, the Remove / refund button disappears entirely (`src/pages/admin/ClassRoster.tsx` line 1353 — the whole action group is gated by `!attendee.isCheckedIn`). So there's no way to undo a check-in and return a credit/pass.
 
-1. **`supabase/functions/send-email/index.ts`** — Add `freeze_payment_request` email type. Branded Storm template with:
-   - Greeting using member first name
-   - Approved freeze dates + duration
-   - Freeze fee amount
-   - CTA button → `https://stormwellnessclub.com/member/freeze` (existing page already has `create_freeze_fee_checkout` wired)
-   - Log to `email_audit_log`
+2. **Can't cancel a class once it's started or finished.** On `src/pages/admin/Classes.tsx` line 420, the "Cancel" button only renders when `status === 'upcoming'`. In-progress and completed sessions hide it. The underlying RPC `admin_cancel_class_session` also only loops over bookings with `status = 'confirmed'` — checked-in bookings (`status = 'completed'`) are skipped, so even if we exposed the button, those members would not get their credit/pass restored.
 
-2. **`src/hooks/useAdminFreezeRequests.ts`** — In `useApproveFreezeRequest`:
-   - After the DB update, fetch member email/first name + freeze fee
-   - Invoke `send-email` with `freeze_payment_request`
-   - Best-effort: approval still succeeds even if email fails
-   - Toast reflects actual outcome ("approved — payment email sent" vs "approved — email failed to send: …"), matching the `useRejectFreezeRequest` pattern
+## Changes
 
-3. **`src/pages/admin/FreezeRequests.tsx`** — Add "Resend payment email" button on rows where `status = approved` AND `fee_paid = false`. Calls the same `send-email` invocation. Use it to immediately re-send to Mariam.
+### 1. Roster — refund + remove a checked-in attendee
+`src/pages/admin/ClassRoster.tsx`
 
-### Verification
+- Always show the destructive Trash button (no longer gated by `!isCheckedIn`).
+- For checked-in (completed) rows, the button opens a confirm dialog: "Undo check-in and refund this attendee? Their credit/pass will be returned." On confirm, run the existing `removeMutation` logic — it already restores credits (`member_credits.credits_remaining`) and passes (`class_passes.classes_remaining`) and flips the booking to `cancelled` regardless of whether it was `confirmed` or `completed`. No mutation logic changes needed; just remove the UI gate and add the confirm step for already-checked-in rows.
+- Toast: "Check-in undone — credit/pass restored."
 
-- Approve a pending freeze in admin → member receives branded email with working pay button → click button → existing `/member/freeze` checkout flow charges the fee.
-- Click "Resend payment email" on Mariam's row → she receives the same email.
-- Check `email_audit_log` for `freeze_payment_request` rows with `status = sent`.
+### 2. Classes list — allow cancel at any time
+`src/pages/admin/Classes.tsx`
 
-### Not touched
+- Remove the `status === 'upcoming'` condition around the Cancel button. Show it for `upcoming`, `in-progress`, and `completed` sessions (still hidden when already cancelled).
+- When the session is `in-progress` or `completed`, the existing cancel dialog gets an extra warning line: "This class has already started/ended. Attendees who were checked in will also be refunded and notified."
 
-- Freeze fee amount, Stripe checkout function, `/member/freeze` page (already working).
-- Rejection email flow (already works correctly).
+### 3. RPC — refund completed bookings too
+New migration updating `admin_cancel_class_session`:
+
+- Change the loop's `WHERE` from `status = 'confirmed'` to `status IN ('confirmed', 'completed')` so checked-in attendees also get credits/passes restored.
+- Keep everything else identical (notification filter in `Classes.tsx` already uses `cancellation_reason = 'Class cancelled by admin'`, which still matches).
+
+### 4. Email filter still correct
+`Classes.tsx` already fetches bookings where `cancellation_reason = 'Class cancelled by admin'` AND `status = 'cancelled'` to send the cancellation email — completed-then-cancelled bookings will now be in that set and will receive the email, which is the desired behaviour.
+
+## Technical notes
+
+- No new tables, no new policies, no new email templates.
+- `removeMutation` already handles credit/pass restoration symmetrically — the only reason it wasn't reachable for checked-in rows was the UI gate.
+- The RPC change is a single `WHERE` edit; safe to run.
+- We don't auto-refund Stripe drop-in charges (current behaviour) — only credits and passes. Drop-in/cash refunds remain a manual Stripe refund, same as today.
+
+## Out of scope
+
+- Refunding Stripe drop-in charges automatically.
+- A bulk "refund everyone" button on the roster (use Cancel Class for that).
+- Changing how `current_enrollment` is computed.

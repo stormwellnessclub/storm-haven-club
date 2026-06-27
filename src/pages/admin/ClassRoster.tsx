@@ -538,7 +538,7 @@ export default function ClassRoster() {
         console.error("Failed to prepare removal email:", err);
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Removed from class — credit/pass restored, member notified"); },
+    onSuccess: () => { invalidateAll(); toast.success("Attendee removed — credit/pass restored, member notified"); },
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
 
@@ -1351,15 +1351,25 @@ export default function ClassRoster() {
                           </TableCell>
                           <TableCell className="text-right space-x-2">
                             {!attendee.isCheckedIn && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
-                                  <UserCheck className="h-4 w-4 mr-1" /> Check In
-                                </Button>
-                                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => removeMutation.mutate(attendee.bookingId)} disabled={removeMutation.isPending}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
+                              <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
+                                <UserCheck className="h-4 w-4 mr-1" /> Check In
+                              </Button>
                             )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => {
+                                if (attendee.isCheckedIn) {
+                                  if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
+                                }
+                                removeMutation.mutate(attendee.bookingId);
+                              }}
+                              disabled={removeMutation.isPending}
+                              title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );

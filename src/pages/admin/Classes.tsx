@@ -417,7 +417,7 @@ export default function Classes() {
                           >
                             <UserPlus className="h-4 w-4 mr-1" /> Add Person
                           </Button>
-                          {status === 'upcoming' && (
+                          {(status === 'upcoming' || status === 'in-progress' || status === 'completed') && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -447,6 +447,11 @@ export default function Classes() {
             <AlertDialogTitle>Cancel Class</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to cancel {selectedSession?.class_types?.name} at {selectedSession && formatTime(selectedSession.start_time)}? Members who have booked will be notified.
+              {selectedSession && getSessionStatus(selectedSession) !== 'upcoming' && (
+                <span className="mt-2 block font-medium text-destructive">
+                  This class has already {getSessionStatus(selectedSession) === 'in-progress' ? 'started' : 'ended'}. Attendees who were checked in will also be refunded (credits/passes restored) and notified.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-4 py-4">
