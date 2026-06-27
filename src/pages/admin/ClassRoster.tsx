@@ -1467,6 +1467,17 @@ export default function ClassRoster() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
+                            {attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => undoNoShowMutation.mutate([attendee.bookingId])}
+                                disabled={undoNoShowMutation.isPending}
+                                title="Undo No Show — restore to Registered"
+                              >
+                                <RotateCcw className="h-4 w-4 mr-1" /> Undo No Show
+                              </Button>
+                            )}
                           </TableCell>
 
                         </TableRow>
