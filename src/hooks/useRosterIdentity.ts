@@ -49,7 +49,7 @@ export async function resolveRosterIdentities(
       "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
-    .in("status", ["confirmed", "completed"]);
+    .in("status", ["confirmed", "completed", "no_show"]);
 
   if (error) throw error;
   const bookings = (rawBookings || []) as unknown as RawBooking[];
@@ -84,6 +84,7 @@ export async function resolveRosterIdentities(
 
   return bookings.map((b): RosterAttendee => {
     const isCheckedIn = b.status === "completed" || !!b.checked_in_at;
+    const isNoShow = b.status === "no_show";
     const isAdminHold = !!b.is_admin_hold;
 
     // 0. Admin hold — placeholder seat
