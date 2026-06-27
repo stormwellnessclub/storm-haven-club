@@ -1,39 +1,40 @@
 ## Goal
 
-Add a **No Show** action on the class roster so admins can mark attendees who booked but didn't show up. Their credit/pass stays consumed (no refund), the booking flips to `no_show`, and they're never emailed.
+Let admins undo a No Show in two ways: an immediate toast "Undo" right after the action, and a persistent button on any No Show row in the roster.
 
-## Changes
+## Why this works
 
-### 1. Booking status — `no_show`
-`class_bookings.status` already accepts text values (`confirmed`, `completed`, `cancelled`, `waitlist`). Add `no_show` to the allowed set if there's a check constraint; otherwise no schema change is needed. (Will verify in build mode and only run a migration if a constraint blocks it.)
+Both per-row and bulk No Show only ever flip `confirmed → no_show` (the buttons are gated on `!isCheckedIn && !isNoShow`). So "undo" is unambiguous: set the booking(s) back to `confirmed`. No credit/pass changes needed — they were never refunded.
 
-### 2. Per-row "No Show" button — `src/pages/admin/ClassRoster.tsx`
-- Show on every row where `status === 'confirmed'` AND `!isCheckedIn` (i.e. they booked but never checked in).
-- Sits next to the existing Check In / Remove actions, styled as a muted/secondary destructive variant with a `UserX` icon and tooltip "Mark as no-show (credit/pass not refunded)".
-- On click → confirm dialog: "Mark {name} as no-show? Their class credit/pass will NOT be refunded."
-- Mutation: `UPDATE class_bookings SET status = 'no_show', updated_at = now() WHERE id = ?`. No credit/pass restoration. No email.
-- Toast: "Marked as no-show — credit/pass kept."
-- Invalidates roster query so the row re-renders with a grey "No Show" badge (new badge variant added alongside the existing Confirmed / Checked In / Cancelled badges).
+## Changes — `src/pages/admin/ClassRoster.tsx`
 
-### 3. Bulk "Mark remaining as No Show" — roster header
-- Button appears in the roster header next to existing actions, only when the class is `in-progress` or `completed` AND at least one `confirmed` non-checked-in attendee remains.
-- Confirm dialog: "Mark all {N} remaining attendees as no-show? Their credits/passes will NOT be refunded."
-- Single bulk update: `UPDATE class_bookings SET status = 'no_show' WHERE class_session_id = ? AND status = 'confirmed'`.
-- Toast: "{N} attendees marked as no-show."
+### 1. New `undoNoShowMutation`
+Accepts a single bookingId or an array. Runs:
+```
+UPDATE class_bookings SET status='confirmed', updated_at=now() WHERE id IN (...)
+```
+Invalidates roster on success. Toast: "Restored — back to Registered."
 
-### 4. UI badges & filtering
-- Add a `no_show` badge (grey/outline, "No Show") in the roster row renderer alongside the existing Confirmed / Checked In / Cancelled badges.
-- No-show rows still appear in the roster (not hidden) so admins can see who missed.
-- `current_enrollment` counts: confirmed bookings only — no-show rows are no longer `confirmed`, so the seat naturally frees from the count. This matches expected behavior (the spot was used by them not showing).
+### 2. Toast undo after marking
+Use sonner's `action` prop on the success toast:
+- Per-row: `toast.success("Marked as no-show — credit/pass kept", { action: { label: "Undo", onClick: () => undoNoShowMutation.mutate([bookingId]) } })`
+- Bulk: same pattern, passing the full array of just-marked IDs back.
 
-### 5. Out of scope
-- No email to the no-show member.
-- No "no-show fee" beyond the already-consumed credit (no extra Stripe charge).
-- No automatic tagging / 3-strikes policy — can add later if you want.
-- Reports/analytics changes — separate request.
+The toast button stays visible until the toast dismisses (~5s default), giving the admin a quick "oops" recovery without hunting for the row.
+
+### 3. Persistent "Undo No Show" button on No Show rows
+In the roster actions cell, when `attendee.isNoShow` is true, render a single ghost button:
+- Icon: `RotateCcw` (lucide), label tooltip "Undo No Show — restore to Registered".
+- Click → `undoNoShowMutation.mutate([attendee.bookingId])`.
+
+The existing Check In / No Show / Trash buttons remain hidden for no-show rows; only Undo shows. Once undone, the row re-renders with the normal Registered actions.
+
+## Out of scope
+
+- No undo for the Remove/Refund Trash button (that one already credits/refunds and emails — different flow, different plan if you want it).
+- No time limit on the persistent undo — admins can undo any No Show row anytime until the booking is otherwise resolved.
 
 ## Technical notes
 
-- Pure presentation + a thin mutation; no RPC needed.
-- Single migration only if a check constraint on `class_bookings.status` rejects `no_show` — will verify first in build mode and skip the migration otherwise.
-- Reuses existing toast, confirm dialog, and query-invalidation patterns already in `ClassRoster.tsx`.
+- Pure UI + one mutation; no schema or RPC changes.
+- Auto-heal `current_enrollment` already excludes no-show rows, so undoing will naturally bump the count back up on the next roster fetch.
