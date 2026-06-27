@@ -9,6 +9,7 @@ export interface RosterAttendee {
   phone: string;
   type: "member" | "pass_holder" | "account" | "walk_in" | "hold";
   isCheckedIn: boolean;
+  isNoShow: boolean;
   checkedInAt: string | null;
   paymentMethod: string | null;
   walkInName: string | null;
