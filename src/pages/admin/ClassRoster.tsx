@@ -1222,10 +1222,31 @@ export default function ClassRoster() {
 
       {/* Roster / Waitlist */}
       <Tabs value={rosterTab} onValueChange={(v) => setRosterTab(v as "roster" | "waitlist")}>
-        <TabsList>
-          <TabsTrigger value="roster">Roster ({bookings.length})</TabsTrigger>
-          <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="roster">Roster ({bookings.length})</TabsTrigger>
+            <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
+          </TabsList>
+          {rosterTab === "roster" && (() => {
+            const remaining = bookings.filter(a => !a.isAdminHold && !a.isCheckedIn && !a.isNoShow);
+            if (remaining.length === 0) return null;
+            return (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={bulkNoShowMutation.isPending}
+                onClick={() => {
+                  if (!window.confirm(`Mark all ${remaining.length} remaining attendee${remaining.length === 1 ? "" : "s"} as no-show? Their credits/passes will NOT be refunded.`)) return;
+                  bulkNoShowMutation.mutate(remaining.map(a => a.bookingId));
+                }}
+              >
+                <UserX className="h-4 w-4 mr-1" /> Mark remaining as No Show ({remaining.length})
+              </Button>
+            );
+          })()}
+        </div>
+
+
 
         <TabsContent value="roster">
           <Card>
