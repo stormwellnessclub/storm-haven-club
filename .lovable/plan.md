@@ -1,40 +1,39 @@
-## Goal
+# Fix check-in history: show full history, accurate totals
 
-Let admins undo a No Show in two ways: an immediate toast "Undo" right after the action, and a persistent button on any No Show row in the roster.
+## Problem
+Member check-in views cap at the 50 most recent rows, which is what makes the history look like it "resets every month" and stops at 50. Once a member has 50+ visits, older months drop off the list, and the "This Month" tile (which counts within that 50-row window) starts dropping earlier visits as new ones push older ones out.
 
-## Why this works
+Two spots cause this:
 
-Both per-row and bulk No Show only ever flip `confirmed → no_show` (the buttons are gated on `!isCheckedIn && !isNoShow`). So "undo" is unambiguous: set the booking(s) back to `confirmed`. No credit/pass changes needed — they were never refunded.
+1. `src/hooks/useCheckInHistory.ts` — `useCheckInHistory(memberId?, limit = 50)` and the underlying query uses `.limit(limit)`. Used by `src/pages/member/CheckInHistory.tsx`.
+2. `src/components/admin/MemberDetailSheet.tsx` → `MemberVisitHistory` — query uses `.limit(50)`, and both "Total Visits" and "This Month" derive from that capped array.
 
-## Changes — `src/pages/admin/ClassRoster.tsx`
+No data is actually deleted — the underlying `check_ins` rows are intact. This is a display-layer bug only.
 
-### 1. New `undoNoShowMutation`
-Accepts a single bookingId or an array. Runs:
-```
-UPDATE class_bookings SET status='confirmed', updated_at=now() WHERE id IN (...)
-```
-Invalidates roster on success. Toast: "Restored — back to Registered."
+## Changes
 
-### 2. Toast undo after marking
-Use sonner's `action` prop on the success toast:
-- Per-row: `toast.success("Marked as no-show — credit/pass kept", { action: { label: "Undo", onClick: () => undoNoShowMutation.mutate([bookingId]) } })`
-- Bulk: same pattern, passing the full array of just-marked IDs back.
+### 1. `src/hooks/useCheckInHistory.ts`
+- Default `limit` to `undefined` (return full history).
+- Page through results in 1000-row batches (same pattern already used in `src/pages/admin/CheckInHistory.tsx`) so we don't hit PostgREST's 1000-row implicit cap.
+- Keep the optional `limit` arg so any caller that wants a small recent list still can.
 
-The toast button stays visible until the toast dismisses (~5s default), giving the admin a quick "oops" recovery without hunting for the row.
+### 2. `src/pages/member/CheckInHistory.tsx`
+- No API change needed — it already calls `useCheckInHistory()` with no args. After the hook change it will show the complete history. The "Total Check-ins" stat (`checkIns?.length`) becomes the real lifetime total.
 
-### 3. Persistent "Undo No Show" button on No Show rows
-In the roster actions cell, when `attendee.isNoShow` is true, render a single ghost button:
-- Icon: `RotateCcw` (lucide), label tooltip "Undo No Show — restore to Registered".
-- Click → `undoNoShowMutation.mutate([attendee.bookingId])`.
-
-The existing Check In / No Show / Trash buttons remain hidden for no-show rows; only Undo shows. Once undone, the row re-renders with the normal Registered actions.
+### 3. `src/components/admin/MemberDetailSheet.tsx` → `MemberVisitHistory`
+- Replace the single `.limit(50)` query with:
+  - A `head: true, count: 'exact'` query filtered by `member_id` for the **Total Visits** tile (DB-side count, no row cap).
+  - A second `head: true, count: 'exact'` query filtered by `member_id` AND `checked_in_at >= startOfMonth(now)` for the **This Month** tile (correct regardless of total visit count).
+  - A paginated fetch (1000-row batches) of the full list for the scrollable timeline, ordered by `checked_in_at desc`. The list is already inside a `max-h-[400px] overflow-y-auto` container, so rendering the full history is fine.
+- Remove the client-side `thisMonth` `useMemo` that filtered the capped array.
 
 ## Out of scope
+- No schema changes, no migrations, no backfill — historical rows are already in `check_ins`.
+- Admin `/admin/check-in-history` page already paginates correctly; no change there.
+- Health Score / Dashboard counters use their own RPCs and are unaffected.
+- No change to write paths (kiosk/front-desk check-in remain as-is).
 
-- No undo for the Remove/Refund Trash button (that one already credits/refunds and emails — different flow, different plan if you want it).
-- No time limit on the persistent undo — admins can undo any No Show row anytime until the booking is otherwise resolved.
-
-## Technical notes
-
-- Pure UI + one mutation; no schema or RPC changes.
-- Auto-heal `current_enrollment` already excludes no-show rows, so undoing will naturally bump the count back up on the next roster fetch.
+## Verification
+- Open a member with >50 lifetime visits in `MemberDetailSheet` → Visits tab: Total Visits matches the DB count, This Month matches a manual count for the current calendar month, timeline scrolls through every visit.
+- `/member/check-in-history` for the same member shows every historical check-in, not just the latest 50.
+- Run `tsgo` to confirm types still compile.

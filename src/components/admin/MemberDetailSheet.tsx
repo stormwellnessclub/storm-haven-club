@@ -2100,28 +2100,52 @@ function MemberActivityTimeline({ memberId }: { memberId: string }) {
 
 // Member Visit History Component
 function MemberVisitHistory({ memberId }: { memberId: string }) {
-  const { data: checkIns, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["member-visit-history", memberId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Lifetime total (no row cap)
+      const { count: totalCount, error: totalErr } = await supabase
         .from("check_ins")
-        .select("*")
+        .select("id", { count: "exact", head: true })
+        .eq("member_id", memberId);
+      if (totalErr) throw totalErr;
+
+      // This calendar month
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const { count: monthCount, error: monthErr } = await supabase
+        .from("check_ins")
+        .select("id", { count: "exact", head: true })
         .eq("member_id", memberId)
-        .order("checked_in_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data || [];
+        .gte("checked_in_at", monthStart);
+      if (monthErr) throw monthErr;
+
+      // Full timeline, paginated past the 1000-row PostgREST cap
+      const rows: any[] = [];
+      const batchSize = 1000;
+      let offset = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data: batch, error } = await supabase
+          .from("check_ins")
+          .select("*")
+          .eq("member_id", memberId)
+          .order("checked_in_at", { ascending: false })
+          .range(offset, offset + batchSize - 1);
+        if (error) throw error;
+        const b = batch || [];
+        rows.push(...b);
+        if (b.length < batchSize) break;
+        offset += batchSize;
+      }
+
+      return { checkIns: rows, total: totalCount ?? rows.length, thisMonth: monthCount ?? 0 };
     },
   });
 
-  const thisMonth = useMemo(() => {
-    if (!checkIns) return 0;
-    const now = new Date();
-    return checkIns.filter((ci) => {
-      const d = new Date(ci.checked_in_at);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }).length;
-  }, [checkIns]);
+  const checkIns = data?.checkIns;
+  const thisMonth = data?.thisMonth ?? 0;
+  const total = data?.total ?? 0;
 
   if (isLoading) {
     return (
@@ -2136,7 +2160,7 @@ function MemberVisitHistory({ memberId }: { memberId: string }) {
       <div className="flex gap-4">
         <Card className="flex-1">
           <CardContent className="pt-4 text-center">
-            <p className="text-2xl font-bold">{checkIns?.length || 0}</p>
+            <p className="text-2xl font-bold">{total}</p>
             <p className="text-xs text-muted-foreground">Total Visits</p>
           </CardContent>
         </Card>
@@ -2147,6 +2171,7 @@ function MemberVisitHistory({ memberId }: { memberId: string }) {
           </CardContent>
         </Card>
       </div>
+
 
       {checkIns && checkIns.length > 0 ? (
         <div className="space-y-2 max-h-[400px] overflow-y-auto">
