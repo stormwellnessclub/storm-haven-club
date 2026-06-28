@@ -23,30 +23,48 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
     return { ok: true };
   }
 
-  // Validate user JWT.
-  if (token) {
-    try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-      const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-      const authClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      });
-      const { data, error } = await authClient.auth.getUser(token);
-      if (!error && data?.user) {
-        return { ok: true };
-      }
-    } catch (_e) {
-      // fallthrough
-    }
-  }
-
-  // No valid auth — only allow safe public types.
+  // Public email types are allowed without auth (e.g., application submission).
   if (PUBLIC_EMAIL_TYPES.has(type)) {
     return { ok: true };
   }
 
-  return { ok: false, status: 401, error: 'Unauthorized' };
+  // All other email types require a STAFF JWT. A plain authenticated member
+  // must not be able to send official templates (approvals, dunning, etc.)
+  // through this function — that would enable phishing via our domain.
+  if (!token) {
+    return { ok: false, status: 401, error: 'Unauthorized' };
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const authClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data, error } = await authClient.auth.getUser(token);
+    if (error || !data?.user) {
+      return { ok: false, status: 401, error: 'Unauthorized' };
+    }
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: roles } = await admin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', data.user.id);
+    const STAFF_ROLES = new Set([
+      'super_admin', 'admin', 'manager', 'front_desk',
+      'cafe_staff', 'childcare_staff', 'spa_staff', 'class_instructor',
+    ]);
+    const isStaff = (roles ?? []).some((r: any) => STAFF_ROLES.has(r.role));
+    if (!isStaff) {
+      return { ok: false, status: 403, error: 'Staff role required' };
+    }
+    return { ok: true };
+  } catch (_e) {
+    return { ok: false, status: 401, error: 'Unauthorized' };
+  }
 }
+
 
 interface EmailRequest {
   type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
