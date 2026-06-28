@@ -94,7 +94,7 @@ serve(async (req) => {
         {
           price_data: {
             currency: "usd",
-            unit_amount: body.amount_cents,
+            unit_amount: amountCents,
             product_data: {
               name: `Mother's Day Special — ${body.massage_choice} (${body.massage_duration} min)`,
               description:
