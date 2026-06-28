@@ -38,7 +38,20 @@ serve(async (req) => {
     if (![60, 90].includes(body.massage_duration))
       throw new Error("Invalid massage duration");
     if (!body.massage_choice?.trim()) throw new Error("Please choose a massage");
-    if (!body.amount_cents || body.amount_cents < 100) throw new Error("Invalid amount");
+
+    // Resolve price server-side from spa_services — NEVER trust client amount.
+    const { data: svc, error: svcErr } = await supabase
+      .from("spa_services")
+      .select("price")
+      .eq("name", body.massage_choice.trim())
+      .eq("duration_minutes", body.massage_duration)
+      .eq("category", "Massage")
+      .eq("is_active", true)
+      .maybeSingle();
+    if (svcErr || !svc) throw new Error("Invalid massage selection");
+    const amountCents = Math.round(Number(svc.price) * 100);
+    if (!amountCents || amountCents < 100) throw new Error("Invalid service price");
+
 
     // Optional auth
     let buyerUserId: string | null = null;
@@ -65,7 +78,7 @@ serve(async (req) => {
         gift_message: body.gift_message?.trim() || null,
         massage_choice: body.massage_choice.trim(),
         massage_duration: body.massage_duration,
-        amount_paid_cents: body.amount_cents,
+        amount_paid_cents: amountCents,
         status: "pending",
       })
       .select()
@@ -81,7 +94,7 @@ serve(async (req) => {
         {
           price_data: {
             currency: "usd",
-            unit_amount: body.amount_cents,
+            unit_amount: amountCents,
             product_data: {
               name: `Mother's Day Special — ${body.massage_choice} (${body.massage_duration} min)`,
               description:

@@ -54,12 +54,24 @@ serve(async (req) => {
     if (!GENDERS.has(body.buyer_gender)) throw new Error("Please select buyer gender");
     if (![60, 90].includes(body.massage_duration)) throw new Error("Invalid massage duration");
     if (missing(body.massage_choice)) throw new Error("Please choose a massage");
-    if (!body.amount_cents || body.amount_cents < 100) throw new Error("Invalid amount");
+
+    // Resolve price server-side from spa_services — NEVER trust client amount.
+    const { data: svc, error: svcErr } = await supabase
+      .from("spa_services")
+      .select("price")
+      .eq("name", body.massage_choice.trim())
+      .eq("duration_minutes", body.massage_duration)
+      .eq("category", "Massage")
+      .eq("is_active", true)
+      .maybeSingle();
+    if (svcErr || !svc) throw new Error("Invalid massage selection");
+    const baseCents = Math.round(Number(svc.price) * 100);
+    if (!baseCents || baseCents < 100) throw new Error("Invalid service price");
 
     // Gross-up the amount so the buyer covers the Stripe processing fee (2.9% + $0.30)
-    const baseCents = body.amount_cents;
     const totalCents = Math.ceil((baseCents + 30) / 0.971);
     const feeCents = totalCents - baseCents;
+
 
     if (body.is_gift) {
       if (missing(body.recipient_first_name) || missing(body.recipient_last_name))
