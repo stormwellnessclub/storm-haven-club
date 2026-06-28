@@ -1,47 +1,39 @@
-# Add: Cafe Sales by Month Report
+# Café Sales — Monthly PDFs (Taxed Sales, by Category)
 
-Adds a new report to the Reports Center → Financial category that breaks down café revenue by month, including order count, gross sales, estimated 6% MI sales tax, and net (pre-tax) sales.
+Generate one PDF per month starting **Feb 2026**, containing only completed café orders that had MI sales tax collected, broken down by item category.
 
-## What gets built
+## Data notes (verified)
 
-**New report card** in Reports Center sidebar:
-- Name: **Cafe Sales by Month**
-- Category: Financial
-- Icon: Coffee
-- Default date range: Last 12 Months
-- No filters
+- Feb 2026 → 0 orders, Mar 2026 → 0 orders. PDFs will still be generated for those months and clearly marked "No taxed sales recorded."
+- Apr 2026 → 5, May 2026 → 16, Jun 2026 → 21 — all taxed.
+- Category data comes from `order_items` JSONB (each line has `category`, `name`, `price`, `quantity`). Categories seen so far: `Coffee & Lattes`, `Cafe Bites`, plus `Tax` and `Fee` lines (excluded from category subtotals).
 
-**Report view** (new file `src/components/admin/reports/reports/CafeSalesByMonthReport.tsx`):
+## One PDF per month — contents
 
-1. **Summary tiles** (3 cards across top):
-   - Total Gross Sales
-   - Total Sales Tax (6% MI, back-calculated)
-   - Total Net Sales
+Each file: `Cafe_Sales_<Month>_<Year>.pdf` (e.g. `Cafe_Sales_April_2026.pdf`)
 
-2. **Monthly bar chart** — recharts bar chart showing gross sales per month over the selected date range.
+1. **Header** — "Storm Wellness Club — Café Sales Report", month/year prominent
+2. **Summary tiles** — Taxed Orders, Gross Sales (incl. tax), Sales Tax Collected (6% MI), Net Sales (pre-tax)
+3. **Category Breakdown table** — Category | Items Sold | Net Sales | Sales Tax | Gross
+4. **Order Detail table** — Date | Order # | Items | Net | Tax | Gross
+5. **Totals row** at bottom of each table
+6. Footer with generation date
 
-3. **Monthly breakdown table** with columns:
-   - Month (e.g., "Jun 2026")
-   - Orders
-   - Gross Sales
-   - Sales Tax (6%)
-   - Net Sales
-   - Totals row at bottom
+## Output
 
-Data source: `cafe_orders` rows where `status = 'completed'`, filtered by `created_at` within the selected date range, grouped by month in JS.
+Files written to `/mnt/documents/cafe-sales/`:
+- `Cafe_Sales_February_2026.pdf` (empty-state)
+- `Cafe_Sales_March_2026.pdf` (empty-state)
+- `Cafe_Sales_April_2026.pdf`
+- `Cafe_Sales_May_2026.pdf`
+- `Cafe_Sales_June_2026.pdf`
 
-## Files touched
+Each surfaced via `<presentation-artifact>` tags for direct download.
 
-- `src/lib/reportDefinitions.ts` — add one entry to `REPORTS` array (id `cafe-sales-by-month`, financial category).
-- `src/components/admin/reports/ReportPreview.tsx` — add a switch case routing the new id to the new component.
-- `src/components/admin/reports/reports/CafeSalesByMonthReport.tsx` — new file.
+## Build approach
 
-## Tax calculation note
+- Python script (reportlab) pulling data via `psql`, parsing `order_items` JSONB.
+- Sales tax taken directly from the `Tax` line items (authoritative, not back-calculated).
+- Visual QA pass on every page before delivering.
 
-`cafe_orders.total_amount` stores tax-inclusive totals. Tax is back-calculated as `total / 1.06 * 0.06` and labeled "Estimated 6% MI Sales Tax" in the UI, with a small helper note pointing users to the existing **Sales Tax Collected** report for authoritative Stripe-sourced figures.
-
-## Out of scope
-
-- No DB changes / migrations.
-- No changes to the existing **Café Sales Report** (daily) or **Sales Tax Collected** reports.
-- CSV export uses the existing Reports Center export button (already wired).
+No app/code changes — these are downloadable reports.
