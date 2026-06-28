@@ -78,7 +78,7 @@ serve(async (req) => {
         gift_message: body.gift_message?.trim() || null,
         massage_choice: body.massage_choice.trim(),
         massage_duration: body.massage_duration,
-        amount_paid_cents: body.amount_cents,
+        amount_paid_cents: amountCents,
         status: "pending",
       })
       .select()
