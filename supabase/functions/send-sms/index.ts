@@ -191,6 +191,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Restrict admin-custom (free-form messages) to admin/staff callers only.
+    if (body.templateKey === "admin-custom" && !callerIsAdmin) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized template" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Apply admin-published override (if any). Admin-custom always uses code path.
     let renderer = defaultRenderer;
     if (body.templateKey !== "admin-custom") {
