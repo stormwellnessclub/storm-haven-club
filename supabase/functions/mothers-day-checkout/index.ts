@@ -38,7 +38,20 @@ serve(async (req) => {
     if (![60, 90].includes(body.massage_duration))
       throw new Error("Invalid massage duration");
     if (!body.massage_choice?.trim()) throw new Error("Please choose a massage");
-    if (!body.amount_cents || body.amount_cents < 100) throw new Error("Invalid amount");
+
+    // Resolve price server-side from spa_services — NEVER trust client amount.
+    const { data: svc, error: svcErr } = await supabase
+      .from("spa_services")
+      .select("price")
+      .eq("name", body.massage_choice.trim())
+      .eq("duration_minutes", body.massage_duration)
+      .eq("category", "Massage")
+      .eq("is_active", true)
+      .maybeSingle();
+    if (svcErr || !svc) throw new Error("Invalid massage selection");
+    const amountCents = Math.round(Number(svc.price) * 100);
+    if (!amountCents || amountCents < 100) throw new Error("Invalid service price");
+
 
     // Optional auth
     let buyerUserId: string | null = null;
