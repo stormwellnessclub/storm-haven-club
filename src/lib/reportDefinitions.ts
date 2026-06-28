@@ -267,6 +267,15 @@ export const REPORTS: ReportDefinition[] = [
     filters: [],
     defaultDateRange: 'today',
   },
+  {
+    id: 'cafe-sales-by-month',
+    name: 'Cafe Sales by Month',
+    description: 'Monthly café gross sales, estimated 6% MI sales tax, and net sales',
+    category: 'financial',
+    icon: Coffee,
+    filters: [],
+    defaultDateRange: 'last12months',
+  },
   
   {
     id: 'member-status-distribution',

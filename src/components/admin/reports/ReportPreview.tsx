@@ -36,6 +36,7 @@ import { ClassEngagementReport } from "./reports/ClassEngagementReport";
 import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
 import { SalesTaxReport } from "./reports/SalesTaxReport";
 import { CafeSalesReport } from "./reports/CafeSalesReport";
+import { CafeSalesByMonthReport } from "./reports/CafeSalesByMonthReport";
 import { AutopayUpcomingChargesReport } from "./reports/AutopayUpcomingChargesReport";
 import { FailedPaymentsReport } from "./reports/FailedPaymentsReport";
 import { CollectedRevenueReport } from "./reports/CollectedRevenueReport";
@@ -154,6 +155,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'class-engagement': ClassEngagementReport,
     'sales-tax-collected': SalesTaxReport,
     'cafe-sales': CafeSalesReport,
+    'cafe-sales-by-month': CafeSalesByMonthReport,
   };
 
   const ReportComponent = reportComponents[reportId];

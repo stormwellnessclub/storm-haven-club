@@ -1,39 +1,47 @@
-# Fix check-in history: show full history, accurate totals
+# Add: Cafe Sales by Month Report
 
-## Problem
-Member check-in views cap at the 50 most recent rows, which is what makes the history look like it "resets every month" and stops at 50. Once a member has 50+ visits, older months drop off the list, and the "This Month" tile (which counts within that 50-row window) starts dropping earlier visits as new ones push older ones out.
+Adds a new report to the Reports Center → Financial category that breaks down café revenue by month, including order count, gross sales, estimated 6% MI sales tax, and net (pre-tax) sales.
 
-Two spots cause this:
+## What gets built
 
-1. `src/hooks/useCheckInHistory.ts` — `useCheckInHistory(memberId?, limit = 50)` and the underlying query uses `.limit(limit)`. Used by `src/pages/member/CheckInHistory.tsx`.
-2. `src/components/admin/MemberDetailSheet.tsx` → `MemberVisitHistory` — query uses `.limit(50)`, and both "Total Visits" and "This Month" derive from that capped array.
+**New report card** in Reports Center sidebar:
+- Name: **Cafe Sales by Month**
+- Category: Financial
+- Icon: Coffee
+- Default date range: Last 12 Months
+- No filters
 
-No data is actually deleted — the underlying `check_ins` rows are intact. This is a display-layer bug only.
+**Report view** (new file `src/components/admin/reports/reports/CafeSalesByMonthReport.tsx`):
 
-## Changes
+1. **Summary tiles** (3 cards across top):
+   - Total Gross Sales
+   - Total Sales Tax (6% MI, back-calculated)
+   - Total Net Sales
 
-### 1. `src/hooks/useCheckInHistory.ts`
-- Default `limit` to `undefined` (return full history).
-- Page through results in 1000-row batches (same pattern already used in `src/pages/admin/CheckInHistory.tsx`) so we don't hit PostgREST's 1000-row implicit cap.
-- Keep the optional `limit` arg so any caller that wants a small recent list still can.
+2. **Monthly bar chart** — recharts bar chart showing gross sales per month over the selected date range.
 
-### 2. `src/pages/member/CheckInHistory.tsx`
-- No API change needed — it already calls `useCheckInHistory()` with no args. After the hook change it will show the complete history. The "Total Check-ins" stat (`checkIns?.length`) becomes the real lifetime total.
+3. **Monthly breakdown table** with columns:
+   - Month (e.g., "Jun 2026")
+   - Orders
+   - Gross Sales
+   - Sales Tax (6%)
+   - Net Sales
+   - Totals row at bottom
 
-### 3. `src/components/admin/MemberDetailSheet.tsx` → `MemberVisitHistory`
-- Replace the single `.limit(50)` query with:
-  - A `head: true, count: 'exact'` query filtered by `member_id` for the **Total Visits** tile (DB-side count, no row cap).
-  - A second `head: true, count: 'exact'` query filtered by `member_id` AND `checked_in_at >= startOfMonth(now)` for the **This Month** tile (correct regardless of total visit count).
-  - A paginated fetch (1000-row batches) of the full list for the scrollable timeline, ordered by `checked_in_at desc`. The list is already inside a `max-h-[400px] overflow-y-auto` container, so rendering the full history is fine.
-- Remove the client-side `thisMonth` `useMemo` that filtered the capped array.
+Data source: `cafe_orders` rows where `status = 'completed'`, filtered by `created_at` within the selected date range, grouped by month in JS.
+
+## Files touched
+
+- `src/lib/reportDefinitions.ts` — add one entry to `REPORTS` array (id `cafe-sales-by-month`, financial category).
+- `src/components/admin/reports/ReportPreview.tsx` — add a switch case routing the new id to the new component.
+- `src/components/admin/reports/reports/CafeSalesByMonthReport.tsx` — new file.
+
+## Tax calculation note
+
+`cafe_orders.total_amount` stores tax-inclusive totals. Tax is back-calculated as `total / 1.06 * 0.06` and labeled "Estimated 6% MI Sales Tax" in the UI, with a small helper note pointing users to the existing **Sales Tax Collected** report for authoritative Stripe-sourced figures.
 
 ## Out of scope
-- No schema changes, no migrations, no backfill — historical rows are already in `check_ins`.
-- Admin `/admin/check-in-history` page already paginates correctly; no change there.
-- Health Score / Dashboard counters use their own RPCs and are unaffected.
-- No change to write paths (kiosk/front-desk check-in remain as-is).
 
-## Verification
-- Open a member with >50 lifetime visits in `MemberDetailSheet` → Visits tab: Total Visits matches the DB count, This Month matches a manual count for the current calendar month, timeline scrolls through every visit.
-- `/member/check-in-history` for the same member shows every historical check-in, not just the latest 50.
-- Run `tsgo` to confirm types still compile.
+- No DB changes / migrations.
+- No changes to the existing **Café Sales Report** (daily) or **Sales Tax Collected** reports.
+- CSV export uses the existing Reports Center export button (already wired).
