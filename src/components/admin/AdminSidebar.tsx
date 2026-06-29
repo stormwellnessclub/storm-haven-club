@@ -42,6 +42,7 @@ import {
   History,
   Heart,
   AlertCircle,
+  Leaf,
 } from "lucide-react";
 import {
   Sidebar,
