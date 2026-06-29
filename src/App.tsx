@@ -346,6 +346,7 @@ const App = () => (
               <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-hub" element={<ProtectedAdminRoute><StaffHub /></ProtectedAdminRoute>} />
               <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
+              <Route path="/admin/gut-reset" element={<ProtectedAdminRoute><GutResetAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day" element={<ProtectedAdminRoute><MothersDayAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
               <Route path="/admin/abandoned-class-pass-checkouts" element={<ProtectedAdminRoute><AbandonedClassPassCheckouts /></ProtectedAdminRoute>} />
