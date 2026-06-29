@@ -6,6 +6,7 @@ const footerLinks = {
     { label: "Fitness Classes", href: "/classes" },
     { label: "Spa & Wellness", href: "/spa" },
     { label: "Café", href: "/cafe" },
+    { label: "Gut Reset", href: "/gut-reset" },
     { label: "Kids Care", href: "/kids-care" },
   ],
   membership: [

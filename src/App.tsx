@@ -50,6 +50,9 @@ import SpaSaltRoom from "./pages/spa/SaltRoom";
 import SpaZerobody from "./pages/spa/Zerobody";
 import SpaCategoryHub from "./pages/spa/SpaCategoryHub";
 import SpaServicePage from "./pages/spa/SpaServicePage";
+import GutReset from "./pages/GutReset";
+import GutResetSuccess from "./pages/GutResetSuccess";
+import GutResetAdmin from "./pages/admin/GutResetAdmin";
 import MothersDay from "./pages/MothersDay";
 import MothersDayRedeem from "./pages/MothersDayRedeem";
 import MothersDayPackRedeem from "./pages/MothersDayPackRedeem";
@@ -212,6 +215,8 @@ const App = () => (
               <Route path="/mothers-day/success" element={<MothersDay />} />
               <Route path="/mothers-day/redeem" element={<MothersDayRedeem />} />
               <Route path="/mothers-day-pack-redeem" element={<MothersDayPackRedeem />} />
+              <Route path="/gut-reset" element={<GutReset />} />
+              <Route path="/gut-reset/success" element={<GutResetSuccess />} />
               <Route path="/cafe" element={<Cafe />} />
               <Route path="/amenities" element={<Amenities />} />
               <Route path="/recovery-guide" element={<RecoveryGuide />} />
@@ -341,6 +346,7 @@ const App = () => (
               <Route path="/admin/merch" element={<ProtectedAdminRoute><MerchManager /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-hub" element={<ProtectedAdminRoute><StaffHub /></ProtectedAdminRoute>} />
               <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
+              <Route path="/admin/gut-reset" element={<ProtectedAdminRoute><GutResetAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day" element={<ProtectedAdminRoute><MothersDayAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
               <Route path="/admin/abandoned-class-pass-checkouts" element={<ProtectedAdminRoute><AbandonedClassPassCheckouts /></ProtectedAdminRoute>} />

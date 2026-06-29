@@ -42,6 +42,7 @@ import {
   History,
   Heart,
   AlertCircle,
+  Leaf,
 } from "lucide-react";
 import {
   Sidebar,
@@ -129,6 +130,7 @@ const departments: DepartmentSection[] = [
       { title: "Mother's Day 💛", url: "/admin/mothers-day", icon: Heart, highlight: true },
       { title: "MD Class Packs 🎁", url: "/admin/mothers-day-class-packs", icon: Heart, highlight: true },
       { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
+      { title: "Gut Reset", url: "/admin/gut-reset", icon: Leaf },
     ],
   },
   {
