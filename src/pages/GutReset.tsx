@@ -223,7 +223,7 @@ export default function GutReset() {
       <SEOHead
         title="Gut Reset Cleanse Program | Storm Wellness Club"
         description="Reset your gut health with our organic 3-day ($265) or 5-day ($375) cleanse program — proprietary drinks, infused waters, curated salads, and invigorating shots."
-        canonical="/gut-reset"
+        path="/gut-reset"
       />
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
@@ -262,7 +262,7 @@ export default function GutReset() {
           <SectionHeading
             title="Upcoming Resets"
             subtitle="Reserve your spot in our next cleanse cohort"
-            centered
+            align="center"
           />
           {isLoading ? (
             <div className="flex justify-center py-12">
@@ -332,7 +332,7 @@ export default function GutReset() {
           <SectionHeading
             title="Discover the Power of Organic Purity"
             subtitle="Are you ready to embark on a transformative journey toward a healthier lifestyle? Our Gut Reset Cleanse is designed to reset your gut, aid weight loss, and combat inflammation — a holistic transformation from the inside out."
-            centered
+            align="center"
           />
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-12">
             {benefits.map((b) => (
@@ -352,7 +352,7 @@ export default function GutReset() {
           <SectionHeading
             title="What's Included in Your Reset"
             subtitle="A proprietary blend of drinks, curated salads, and invigorating shots — every component designed to work together."
-            centered
+            align="center"
           />
 
           {/* Drinks */}
@@ -407,7 +407,7 @@ export default function GutReset() {
       {/* Who can benefit */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-6 max-w-4xl text-center">
-          <SectionHeading title="Who Can Benefit" centered />
+          <SectionHeading title="Who Can Benefit" align="center" />
           <p className="text-lg text-muted-foreground leading-relaxed mt-6">
             Our Gut Reset is for anyone seeking to kickstart their wellness journey, improve digestion,
             boost energy levels, and enhance their overall sense of well-being. Whether you're looking to
@@ -420,7 +420,7 @@ export default function GutReset() {
       {/* FAQ */}
       <section className="py-20">
         <div className="container mx-auto px-6 max-w-3xl">
-          <SectionHeading title="Frequently Asked" centered />
+          <SectionHeading title="Frequently Asked" align="center" />
           <Accordion type="single" collapsible className="mt-8">
             {faqs.map((f, i) => (
               <AccordionItem key={i} value={`faq-${i}`}>

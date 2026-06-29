@@ -38,7 +38,8 @@ export default function GutResetSuccess() {
 
   return (
     <Layout>
-      <SEOHead title="Reservation Confirmed | Storm Wellness Club" canonical="/gut-reset/success" />
+      <SEOHead title="Reservation Confirmed | Storm Wellness Club" path="/gut-reset/success"
+        description="Your Gut Reset reservation is confirmed." />
       <section className="py-24">
         <div className="container mx-auto px-6 max-w-xl">
           <Card className="p-10 text-center">
