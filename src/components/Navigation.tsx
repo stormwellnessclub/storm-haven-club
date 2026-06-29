@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/classes", label: "Classes" },
   { href: "/personal-training", label: "Personal Training" },
   { href: "/spa", label: "Spa" },
+  { href: "/gut-reset", label: "Gut Reset" },
   { href: "/cafe", label: "Café" },
   { href: "/amenities", label: "Amenities" },
   { href: "/class-passes", label: "Class Passes" },
