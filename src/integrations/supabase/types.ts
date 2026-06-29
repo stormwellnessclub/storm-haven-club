@@ -2614,6 +2614,98 @@ export type Database = {
           },
         ]
       }
+      gut_reset_purchases: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          option: string
+          session_id: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          option: string
+          session_id: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          option?: string
+          session_id?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gut_reset_purchases_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "gut_reset_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gut_reset_sessions: {
+        Row: {
+          capacity: number | null
+          created_at: string
+          id: string
+          length_days: number
+          notes: string | null
+          spots_taken: number
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string
+          id?: string
+          length_days: number
+          notes?: string | null
+          spots_taken?: number
+          start_date: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string
+          id?: string
+          length_days?: number
+          notes?: string | null
+          spots_taken?: number
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       habit_logs: {
         Row: {
           count: number | null
