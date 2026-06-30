@@ -76,7 +76,7 @@ const benefits = [
 
 const faqs = [
   { q: "What's the difference between the 3-Day and 5-Day reset?", a: "The 3-Day reset is a quick recalibration — ideal if you're new to cleansing or want a focused boost. The 5-Day reset goes deeper, giving your gut more time to rebalance and your body more time to release built-up toxins." },
-  { q: "Do I have to pick everything up daily?", a: "Yes — for maximum freshness and potency, your drinks, salads, shots, and snacks are prepared fresh and picked up each day of the program." },
+  { q: "When do I pick up my Gut Reset?", a: "Pickup is typically Sunday evening for a Monday start. For larger orders, 5-Day participants pick up the first 3 days on Sunday and the remaining 2 days on Wednesday. Everything is prepared fresh for maximum potency." },
   { q: "Is everything organic?", a: "Yes. Every drink, salad, shot, and snack is crafted with organic, whole-food ingredients." },
   { q: "Will I be hungry?", a: "No. Each day is designed to keep you nourished, energized, and satisfied with curated salads, snacks, and powerful elixirs." },
   { q: "Can I do the reset if I'm not a member?", a: "Yes — the gut reset is open to everyone. Members and non-members pay the same price." },
