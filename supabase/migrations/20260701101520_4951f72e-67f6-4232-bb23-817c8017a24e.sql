@@ -1,0 +1,1 @@
+UPDATE public.cafe_menu_items SET image_url = 'https://cqzmrdzwgsujgbjqpoxh.supabase.co/storage/v1/object/public/cafe-menu-images/coconut-mango-sago-v2.jpg' WHERE id = '62da7cb6-ac05-466f-aa81-2e6e88e08c5f';
