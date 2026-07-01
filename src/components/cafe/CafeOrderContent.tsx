@@ -306,6 +306,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   const [showSmsOptIn, setShowSmsOptIn] = useState(false);
   const [addonDialogItem, setAddonDialogItem] = useState<DbMenuItem | null>(null);
   const [detailItem, setDetailItem] = useState<DbMenuItem | null>(null);
+  const [groupPickerItems, setGroupPickerItems] = useState<DbMenuItem[] | null>(null);
   // Resolved per-user mode (may upgrade variant="public" to member/nonmember)
   const [resolvedMode, setResolvedMode] = useState<"member" | "nonmember" | null>(
     variant === "member" ? "member" : variant === "nonmember" ? "nonmember" : null
@@ -887,150 +888,248 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 md:gap-x-10 gap-y-10 md:gap-y-14 pb-32 lg:pb-10">
-                    {visibleItems.map((item, idx) => {
-                      const isSoldOut = item.stock_quantity === 0;
-                      const name = getItemDisplayName(item);
-                      const parsed = parseItemDescription(item);
-                      const catName =
-                        displayCategoryName(
+                    {(() => {
+                      // Group by item_name within the visible items (skip empty/null names)
+                      const groups: { key: string; items: DbMenuItem[] }[] = [];
+                      const seen = new Map<string, number>();
+                      for (const it of visibleItems) {
+                        const key = (it.item_name || "").trim().toLowerCase();
+                        if (!key) {
+                          groups.push({ key: `__solo_${it.id}`, items: [it] });
+                          continue;
+                        }
+                        if (seen.has(key)) {
+                          groups[seen.get(key)!].items.push(it);
+                        } else {
+                          seen.set(key, groups.length);
+                          groups.push({ key, items: [it] });
+                        }
+                      }
+                      return groups.map((g, idx) => {
+                        const isGroup = g.items.length > 1;
+                        const primary = g.items[0];
+                        const item = primary;
+                        const isSoldOut = isGroup
+                          ? g.items.every((i) => i.stock_quantity === 0)
+                          : item.stock_quantity === 0;
+                        const parsed = parseItemDescription(item);
+                        const catName = displayCategoryName(
                           categories.find((c) => c.id === item.category_id)?.name || ""
                         );
-                      const sizeMeta = parsed.size || item.size || "";
-                      const itemAddons = getAddonsForItem(item);
-                      const idx3 = String(idx + 1).padStart(3, "0");
+                        const sizeMeta = parsed.size || item.size || "";
+                        const itemAddons = getAddonsForItem(item);
+                        const idx3 = String(idx + 1).padStart(3, "0");
 
-                      const hasDetails =
-                        !!parsed.description ||
-                        !!parsed.benefits ||
-                        !!parsed.nutrition ||
-                        parsed.functionalBlend.length > 0 ||
-                        (item.dietary_tags && item.dietary_tags.length > 0) ||
-                        !!item.calories;
+                        const hasDetails =
+                          !!parsed.description ||
+                          !!parsed.benefits ||
+                          !!parsed.nutrition ||
+                          parsed.functionalBlend.length > 0 ||
+                          (item.dietary_tags && item.dietary_tags.length > 0) ||
+                          !!item.calories;
 
-
-                      return (
-                        <article
-                          key={item.id}
-                          onClick={() => hasDetails && setDetailItem(item)}
-                          className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""} ${hasDetails ? "cursor-pointer" : ""}`}
-                        >
-                          {/* Image / Coming soon placeholder */}
-                          <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
-                            <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
-                              {idx3}
-                            </span>
-                            {item.image_url ? (
-                              <img
-                                src={item.image_url}
-                                alt={name}
-                                loading="lazy"
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy/30 italic">
-                                  Coming soon
+                        // Group card
+                        if (isGroup) {
+                          const name = item.item_name || "";
+                          const prices = g.items.map((i) => i.price);
+                          const minPrice = Math.min(...prices);
+                          const maxPrice = Math.max(...prices);
+                          const priceLabel =
+                            minPrice === maxPrice
+                              ? `$${minPrice.toFixed(2)}`
+                              : `From $${minPrice.toFixed(2)}`;
+                          const groupImage = g.items.find((i) => i.image_url)?.image_url || null;
+                          return (
+                            <article
+                              key={g.key}
+                              onClick={() => setGroupPickerItems(g.items)}
+                              className={`group flex flex-col cursor-pointer ${isSoldOut ? "opacity-50" : ""}`}
+                            >
+                              <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
+                                <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
+                                  {idx3}
+                                </span>
+                                {groupImage ? (
+                                  <img
+                                    src={groupImage}
+                                    alt={name}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy/30 italic">
+                                      Coming soon
+                                    </span>
+                                  </div>
+                                )}
+                                {isSoldOut && (
+                                  <div className="absolute inset-0 bg-cafe-cream/70 flex items-center justify-center">
+                                    <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy">
+                                      Sold Out
+                                    </span>
+                                  </div>
+                                )}
+                                <span className="absolute top-3 right-3 bg-cafe-burgundy/85 text-cafe-cream font-cafe-mono text-[8px] tracking-widest uppercase px-2 py-1">
+                                  {g.items.length} Flavors
                                 </span>
                               </div>
-                            )}
-                            {isSoldOut && (
-                              <div className="absolute inset-0 bg-cafe-cream/70 flex items-center justify-center">
-                                <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy">
-                                  Sold Out
+
+                              <div className="flex justify-between items-baseline gap-3 mb-1.5">
+                                <h3 className="font-cafe-serif text-lg md:text-xl uppercase tracking-tight text-cafe-burgundy leading-tight">
+                                  {name}
+                                </h3>
+                                <span className="font-cafe-serif italic text-lg text-cafe-burgundy shrink-0">
+                                  {priceLabel}
                                 </span>
                               </div>
-                            )}
-                            {item.is_seasonal && (
-                              <span className="absolute top-3 right-3 bg-[hsl(var(--cafe-terracotta))] text-white font-cafe-mono text-[8px] tracking-widest uppercase px-2 py-1">
-                                {item.seasonal_label || "Limited"}
+
+                              <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
+                                {[catName, sizeMeta].filter(Boolean).join(" / ")}
+                              </p>
+
+                              <div className="mt-auto flex items-center gap-5 pt-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setGroupPickerItems(g.items);
+                                  }}
+                                  disabled={isSoldOut}
+                                  className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
+                                >
+                                  Choose Flavor
+                                </button>
+                              </div>
+                            </article>
+                          );
+                        }
+
+                        const name = getItemDisplayName(item);
+                        return (
+                          <article
+                            key={item.id}
+                            onClick={() => hasDetails && setDetailItem(item)}
+                            className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""} ${hasDetails ? "cursor-pointer" : ""}`}
+                          >
+                            {/* Image / Coming soon placeholder */}
+                            <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
+                              <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
+                                {idx3}
                               </span>
-                            )}
-                          </div>
-
-                          {/* Name + price */}
-                          <div className="flex justify-between items-baseline gap-3 mb-1.5">
-                            <h3 className="font-cafe-serif text-lg md:text-xl uppercase tracking-tight text-cafe-burgundy leading-tight">
-                              {name}
-                            </h3>
-                            <span className="font-cafe-serif italic text-lg text-cafe-burgundy shrink-0">
-                              ${item.price.toFixed(2)}
-                            </span>
-                          </div>
-
-                          {/* Meta */}
-                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
-                            {[catName, sizeMeta].filter(Boolean).join(" / ")}
-                            {item.calories ? ` · ${item.calories} kcal` : ""}
-                          </p>
-
-                          {/* Benefit pills */}
-                          {(() => {
-                            const tags = getBenefitTags(item, parsed).slice(0, 3);
-                            if (tags.length === 0) return null;
-                            return (
-                              <div className="flex flex-wrap gap-1.5 mb-3">
-                                {tags.map((t) => (
-                                  <span
-                                    key={t}
-                                    className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-terracotta border border-cafe-line rounded-full px-2.5 py-0.5"
-                                  >
-                                    {t}
+                              {item.image_url ? (
+                                <img
+                                  src={item.image_url}
+                                  alt={name}
+                                  loading="lazy"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy/30 italic">
+                                    Coming soon
                                   </span>
-                                ))}
-                              </div>
-                            );
-                          })()}
+                                </div>
+                              )}
+                              {isSoldOut && (
+                                <div className="absolute inset-0 bg-cafe-cream/70 flex items-center justify-center">
+                                  <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy">
+                                    Sold Out
+                                  </span>
+                                </div>
+                              )}
+                              {item.is_seasonal && (
+                                <span className="absolute top-3 right-3 bg-[hsl(var(--cafe-terracotta))] text-white font-cafe-mono text-[8px] tracking-widest uppercase px-2 py-1">
+                                  {item.seasonal_label || "Limited"}
+                                </span>
+                              )}
+                            </div>
 
-                          {/* Short teaser + tap to expand */}
-                          {parsed.description && (
-                            <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-2 line-clamp-2">
-                              {parsed.description}
+                            {/* Name + price */}
+                            <div className="flex justify-between items-baseline gap-3 mb-1.5">
+                              <h3 className="font-cafe-serif text-lg md:text-xl uppercase tracking-tight text-cafe-burgundy leading-tight">
+                                {name}
+                              </h3>
+                              <span className="font-cafe-serif italic text-lg text-cafe-burgundy shrink-0">
+                                ${item.price.toFixed(2)}
+                              </span>
+                            </div>
+
+                            {/* Meta */}
+                            <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
+                              {[catName, sizeMeta].filter(Boolean).join(" / ")}
+                              {item.calories ? ` · ${item.calories} kcal` : ""}
                             </p>
-                          )}
-                          {hasDetails && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDetailItem(item);
-                              }}
-                              className="self-start font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta underline underline-offset-4 decoration-cafe-line mb-4"
-                            >
-                              View details
-                            </button>
-                          )}
 
-                          {/* Actions */}
-                          <div className="mt-auto flex items-center gap-5 pt-2">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (isSoldOut) return;
-                                addItemToCart(item, []);
-                              }}
-                              disabled={isSoldOut}
-                              className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
-                            >
-                              Add to Order
-                            </button>
-                            {itemAddons.length > 0 && (
+                            {/* Benefit pills */}
+                            {(() => {
+                              const tags = getBenefitTags(item, parsed).slice(0, 3);
+                              if (tags.length === 0) return null;
+                              return (
+                                <div className="flex flex-wrap gap-1.5 mb-3">
+                                  {tags.map((t) => (
+                                    <span
+                                      key={t}
+                                      className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-terracotta border border-cafe-line rounded-full px-2.5 py-0.5"
+                                    >
+                                      {t}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+
+                            {/* Short teaser + tap to expand */}
+                            {parsed.description && (
+                              <p className="text-sm text-cafe-burgundy/75 leading-relaxed mb-2 line-clamp-2">
+                                {parsed.description}
+                              </p>
+                            )}
+                            {hasDetails && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDetailItem(item);
+                                }}
+                                className="self-start font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 hover:text-cafe-terracotta underline underline-offset-4 decoration-cafe-line mb-4"
+                              >
+                                View details
+                              </button>
+                            )}
+
+                            {/* Actions */}
+                            <div className="mt-auto flex items-center gap-5 pt-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setAddonDialogItem(item);
+                                  if (isSoldOut) return;
+                                  addItemToCart(item, []);
                                 }}
                                 disabled={isSoldOut}
-                                className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
+                                className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
                               >
-                                Customize
+                                Add to Order
                               </button>
-                            )}
-                          </div>
-                        </article>
-                      );
-                    })}
+                              {itemAddons.length > 0 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAddonDialogItem(item);
+                                  }}
+                                  disabled={isSoldOut}
+                                  className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
+                                >
+                                  Customize
+                                </button>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      });
+                    })()}
 
                   </div>
+
                 )}
               </main>
 
@@ -1424,7 +1523,78 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Flavor picker dialog (grouped items) */}
+      <Dialog open={!!groupPickerItems} onOpenChange={(open) => !open && setGroupPickerItems(null)}>
+        <DialogContent className="bg-cafe-cream border-cafe-line max-w-lg max-h-[90vh] overflow-y-auto">
+          {groupPickerItems && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy">
+                  {groupPickerItems[0].item_name}
+                </DialogTitle>
+                <DialogDescription className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
+                  Choose a flavor
+                </DialogDescription>
+              </DialogHeader>
+              <ul className="divide-y divide-cafe-line/60 border-y border-cafe-line/60 mt-2">
+                {groupPickerItems.map((f) => {
+                  const soldOut = f.stock_quantity === 0;
+                  const fparsed = parseItemDescription(f);
+                  const fhasDetails =
+                    !!fparsed.description ||
+                    !!fparsed.benefits ||
+                    !!fparsed.nutrition ||
+                    fparsed.functionalBlend.length > 0 ||
+                    (f.dietary_tags && f.dietary_tags.length > 0) ||
+                    !!f.calories;
+                  return (
+                    <li key={f.id} className={`py-4 ${soldOut ? "opacity-50" : ""}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-cafe-serif text-[15px] uppercase tracking-wide text-cafe-burgundy leading-snug">
+                            {f.flavor || "Original"}
+                          </p>
+                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mt-1">
+                            ${f.price.toFixed(2)}
+                            {f.calories ? ` · ${f.calories} kcal` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {fhasDetails && (
+                            <button
+                              onClick={() => {
+                                setDetailItem(f);
+                                setGroupPickerItems(null);
+                              }}
+                              className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta"
+                            >
+                              Details
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (soldOut) return;
+                              addItemToCart(f, []);
+                              setGroupPickerItems(null);
+                            }}
+                            disabled={soldOut}
+                            className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-4 py-2 transition-colors"
+                          >
+                            {soldOut ? "Sold Out" : "Add"}
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
+
 
   );
 }
