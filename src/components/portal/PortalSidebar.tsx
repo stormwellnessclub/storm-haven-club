@@ -64,14 +64,25 @@ export function PortalSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-border">
-      <SidebarHeader className="p-4 border-b border-border">
+    <Sidebar
+      collapsible="icon"
+      className="border-r-0"
+      style={{
+        // Dark noir theme — matches MemberSidebar for readability
+        ["--sidebar-background" as any]: "38 25% 6%",
+        ["--sidebar-foreground" as any]: "48 16% 84%",
+        ["--sidebar-border" as any]: "38 25% 12%",
+        ["--sidebar-accent" as any]: "48 40% 55% / 0.15",
+        ["--sidebar-accent-foreground" as any]: "48 40% 82%",
+      }}
+    >
+      <SidebarHeader className="p-4 border-b border-[hsl(38_25%_12%)]">
         <div className="flex items-center gap-3">
           <img src={stormLogo} alt="Storm Wellness" className="h-8 w-8 object-contain" />
           {!isCollapsed && (
             <div>
-              <h2 className="font-semibold text-sm">Storm Wellness</h2>
-              <p className="text-xs text-muted-foreground">Class Portal</p>
+              <h2 className="font-semibold text-sm text-[hsl(48_40%_82%)]">Storm Wellness</h2>
+              <p className="text-xs text-[hsl(48_16%_60%)]">Class Portal</p>
             </div>
           )}
         </div>
