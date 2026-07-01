@@ -99,6 +99,7 @@ import GuestPasses from "./pages/admin/GuestPasses";
 import GuestManagement from "./pages/admin/GuestManagement";
 import CafePOS from "./pages/admin/CafePOS";
 import CafeMenuManager from "./pages/admin/CafeMenuManager";
+import CafeImageReview from "./pages/admin/CafeImageReview";
 
 import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
@@ -316,6 +317,7 @@ const App = () => (
               <Route path="/admin/guests" element={<ProtectedAdminRoute><GuestManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe" element={<ProtectedAdminRoute><CafePOS /></ProtectedAdminRoute>} />
               <Route path="/admin/cafe-menu" element={<ProtectedAdminRoute><CafeMenuManager /></ProtectedAdminRoute>} />
+              <Route path="/admin/cafe-image-review" element={<ProtectedAdminRoute><CafeImageReview /></ProtectedAdminRoute>} />
               
               <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />
               <Route path="/admin/classes" element={<ProtectedAdminRoute><AdminClasses /></ProtectedAdminRoute>} />
