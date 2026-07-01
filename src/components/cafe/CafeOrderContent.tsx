@@ -910,6 +910,34 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                 </aside>
               )}
 
+              {/* Cafe Bites sub-rail (desktop) */}
+              {isBitesIntent && availableBitesSubs.length > 1 && (
+                <aside className="hidden lg:block w-[220px] shrink-0 border-r border-cafe-line p-8">
+                  <p className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/40 mb-6">
+                    Category
+                  </p>
+                  <ul className="space-y-4">
+                    {availableBitesSubs.map((d) => {
+                      const active = d.id === bitesSubId;
+                      return (
+                        <li key={d.id}>
+                          <button
+                            onClick={() => setBitesSubId(d.id)}
+                            className={`font-cafe-serif text-lg text-left transition-opacity ${
+                              active
+                                ? "text-cafe-terracotta italic border-l-2 border-cafe-terracotta pl-3"
+                                : "text-cafe-burgundy/60 hover:text-cafe-burgundy pl-3"
+                            }`}
+                          >
+                            {d.label}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </aside>
+              )}
+
               {/* Sub-pills (mobile/tablet) */}
               {activeIntent && activeIntent.categories.length > 1 && (
                 <div className="lg:hidden px-4 pt-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
@@ -926,6 +954,28 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                         }`}
                       >
                         {displayCategoryName(c.name)}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Cafe Bites sub-pills (mobile/tablet) */}
+              {isBitesIntent && availableBitesSubs.length > 1 && (
+                <div className="lg:hidden px-4 pt-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+                  {availableBitesSubs.map((d) => {
+                    const active = d.id === bitesSubId;
+                    return (
+                      <button
+                        key={d.id}
+                        onClick={() => setBitesSubId(d.id)}
+                        className={`whitespace-nowrap px-4 py-1.5 font-cafe-mono text-[9px] tracking-widest uppercase rounded-full border transition-colors ${
+                          active
+                            ? "bg-[hsl(var(--cafe-terracotta))] text-white border-[hsl(var(--cafe-terracotta))]"
+                            : "border-cafe-line text-cafe-burgundy/60"
+                        }`}
+                      >
+                        {d.label}
                       </button>
                     );
                   })}
