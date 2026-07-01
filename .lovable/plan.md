@@ -1,28 +1,16 @@
-# Regenerate the 3 smoothie images as a matched set
+# Replace smoothie images with the uploaded photos
 
-Replace the current 3 Functional Smoothie images (Orange Creamsicle, Coconut Cloud, Hailey Bieber) with a fresh AI-generated set that shares one look, so they read as a cohesive menu row.
+Swap the 3 AI-generated smoothies I made with the real Storm Cafe product photos you just uploaded.
 
-## Visual direction (all 3 images identical except contents)
+## Mapping
+- **Image_1020.jpeg** (blue swirl w/ whip) → Coconut Cloud
+- **Image_1026.jpeg** (pink strawberry + cream) → Hailey Bieber
+- **Image_1021.jpeg** (orange creamy swirl) → Orange Creamsicle
 
-- **Vessel:** tall clear glass with a clean rim, no logo, no straw
-- **Angle:** straight-on, eye-level, subject centered
-- **Background:** soft off-white / warm cream, seamless — no props, no ingredients scattered around
-- **Lighting:** bright, diffused daylight from the left, soft natural shadow
-- **Framing:** square 1024x1024, subject fills ~75% of frame with even margin
-- **Style:** editorial food photography, crisp, minimal, premium wellness feel
+## Steps
+1. Copy the 3 uploads into `src/assets/cafe/` overwriting the current `smoothie-coconut-cloud.jpg`, `smoothie-hailey-bieber.jpg`, `smoothie-orange-creamsicle.jpg`.
+2. Upload each to the `cafe-menu-images` storage bucket under new filenames (so the CDN cache doesn't serve the old versions).
+3. Update `image_url` on the 3 `cafe_menu_items` rows to the new public URLs.
+4. Delete the 3 old (AI-generated) files from the bucket so nothing is orphaned.
 
-## Per-drink contents
-
-1. **Orange Creamsicle** — creamy pale orange smoothie, vanilla-cream swirl at top, small orange zest garnish
-2. **Coconut Cloud** — bright white smoothie, light foam on top, single toasted coconut flake garnish
-3. **Hailey Bieber Smoothie (Strawberry Glaze)** — pale pink strawberry smoothie, glossy strawberry-glaze drizzle down one inside wall of the glass, one fresh strawberry slice on the rim
-
-## Where they live
-
-Saved to `src/assets/cafe/` as `smoothie-orange-creamsicle.jpg`, `smoothie-coconut-cloud.jpg`, `smoothie-hailey-bieber.jpg`, then uploaded to the `cafe-menu-images` storage bucket. The 3 matching `cafe_menu_items` rows get `image_url` swapped to the new URLs; old images are deleted from storage so nothing is orphaned.
-
-Category reorder (smoothies first) is included in the same pass.
-
-## If you want to tweak
-
-Tell me before I build: different glass (mason jar, stemless), different background color, add a garnish rule, drop the strawberry drizzle, etc. Otherwise I'll build as described.
+No code or layout changes — image swap only.
