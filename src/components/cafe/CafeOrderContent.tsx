@@ -694,13 +694,65 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIntent?.id]);
 
-  const visibleItems = selectedCategoryId
+  const visibleItemsBase = selectedCategoryId
     ? sectionScopedItems.filter((i) => i.category_id === selectedCategoryId)
     : activeIntent
     ? sectionScopedItems.filter((i) =>
         activeIntent.categories.some((c) => c.id === i.category_id)
       )
     : sectionScopedItems;
+
+  // Cafe Bites sub-tabs: Toast · Chia Pudding · Plates · Acai Bowls · Seasonal
+  const isBitesIntent = activeIntent?.id === "eat";
+  const bitesSubDefs: { id: string; label: string; match: (i: DbMenuItem) => boolean }[] = [
+    { id: "toast", label: "Toast", match: (i) => /toast/i.test(i.item_name || "") },
+    {
+      id: "chia",
+      label: "Chia Pudding",
+      match: (i) => {
+        const n = (i.item_name || "").toLowerCase();
+        return n.includes("chia") || n.includes("sago") || n.includes("overnight oats");
+      },
+    },
+    {
+      id: "plates",
+      label: "Plates",
+      match: (i) => {
+        const n = (i.item_name || "").toLowerCase();
+        return n.includes("mezze") || n.includes("melt") || n.includes("baked");
+      },
+    },
+    {
+      id: "acai",
+      label: "Acai Bowls",
+      match: (i) => {
+        const n = (i.item_name || "").toLowerCase();
+        return n.includes("acai") || n.includes("bowl");
+      },
+    },
+    { id: "seasonal", label: "Seasonal", match: (i) => !!i.is_seasonal },
+  ];
+  const classifyBites = (i: DbMenuItem): string | null => {
+    for (const d of bitesSubDefs) if (d.match(i)) return d.id;
+    return null;
+  };
+  const availableBitesSubs = isBitesIntent
+    ? bitesSubDefs.filter((d) => visibleItemsBase.some((i) => classifyBites(i) === d.id))
+    : [];
+  const [bitesSubId, setBitesSubId] = useState<string | null>(null);
+  const availableBitesKey = availableBitesSubs.map((d) => d.id).join(",");
+  useEffect(() => {
+    if (!isBitesIntent) return;
+    if (!bitesSubId || !availableBitesSubs.some((d) => d.id === bitesSubId)) {
+      setBitesSubId(availableBitesSubs[0]?.id ?? null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBitesIntent, availableBitesKey]);
+
+  const visibleItems =
+    isBitesIntent && bitesSubId
+      ? visibleItemsBase.filter((i) => classifyBites(i) === bitesSubId)
+      : visibleItemsBase;
 
   const [mobileBagOpen, setMobileBagOpen] = useState(false);
 
