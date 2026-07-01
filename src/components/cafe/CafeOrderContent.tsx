@@ -647,19 +647,18 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
   // ──────────────────────────────────────────────────────────────
   const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
-    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
+    { id: "eat", label: "Cafe Bites", categoryNames: ["Cafe Bites"] },
     {
       id: "smoothies",
       label: "Smoothies",
       categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
     },
+    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
     {
       id: "energy",
       label: "Energy & Hydration",
       categoryNames: ["Cold Pressed Juice", "Energy Drinks", "Amino Acid Slushie", "Refreshers", "Water"],
     },
-
-    { id: "eat", label: "Eat", categoryNames: ["Cafe Bites"] },
   ];
   const displayCategoryName = (name: string) => name;
 
