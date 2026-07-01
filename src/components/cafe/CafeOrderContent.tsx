@@ -1036,7 +1036,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
               </main>
 
               {/* Sticky cart (desktop) */}
-              <aside className="hidden lg:block w-[320px] shrink-0 border-l border-cafe-line bg-cafe-stone-soft">
+              <aside className="hidden md:block w-[300px] lg:w-[320px] shrink-0 border-l border-cafe-line bg-cafe-stone-soft">
                 <div className={`sticky ${variant === "public" ? "top-32" : "top-12"} p-8`}>
                   <div className="flex items-baseline justify-between mb-6 pb-4 border-b border-cafe-line/70">
                     <h2 className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy">
