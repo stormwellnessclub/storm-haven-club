@@ -1074,7 +1074,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
           {cartCount > 0 && (
             <button
               onClick={() => setMobileBagOpen(true)}
-              className="lg:hidden fixed bottom-4 left-4 right-4 z-40 bg-[hsl(var(--cafe-terracotta))] text-white shadow-lg flex items-center justify-between px-5 py-4"
+              className="md:hidden fixed bottom-24 left-4 right-4 z-50 bg-[hsl(var(--cafe-terracotta))] text-white shadow-[0_12px_40px_rgba(0,0,0,0.35)] flex items-center justify-between px-5 py-4 safe-area-bottom animate-pulse"
             >
               <span className="font-cafe-mono text-[11px] tracking-[0.2em] uppercase">
                 {cartCount} {cartCount === 1 ? "item" : "items"} · ${cartSubtotal.toFixed(2)}
