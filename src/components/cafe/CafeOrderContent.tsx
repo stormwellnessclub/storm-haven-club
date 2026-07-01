@@ -1523,7 +1523,78 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
           })()}
         </DialogContent>
       </Dialog>
+
+      {/* Flavor picker dialog (grouped items) */}
+      <Dialog open={!!groupPickerItems} onOpenChange={(open) => !open && setGroupPickerItems(null)}>
+        <DialogContent className="bg-cafe-cream border-cafe-line max-w-lg max-h-[90vh] overflow-y-auto">
+          {groupPickerItems && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-cafe-serif text-2xl uppercase tracking-tight text-cafe-burgundy">
+                  {groupPickerItems[0].item_name}
+                </DialogTitle>
+                <DialogDescription className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
+                  Choose a flavor
+                </DialogDescription>
+              </DialogHeader>
+              <ul className="divide-y divide-cafe-line/60 border-y border-cafe-line/60 mt-2">
+                {groupPickerItems.map((f) => {
+                  const soldOut = f.stock_quantity === 0;
+                  const fparsed = parseItemDescription(f);
+                  const fhasDetails =
+                    !!fparsed.description ||
+                    !!fparsed.benefits ||
+                    !!fparsed.nutrition ||
+                    fparsed.functionalBlend.length > 0 ||
+                    (f.dietary_tags && f.dietary_tags.length > 0) ||
+                    !!f.calories;
+                  return (
+                    <li key={f.id} className={`py-4 ${soldOut ? "opacity-50" : ""}`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-cafe-serif text-[15px] uppercase tracking-wide text-cafe-burgundy leading-snug">
+                            {f.flavor || "Original"}
+                          </p>
+                          <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mt-1">
+                            ${f.price.toFixed(2)}
+                            {f.calories ? ` · ${f.calories} kcal` : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {fhasDetails && (
+                            <button
+                              onClick={() => {
+                                setDetailItem(f);
+                                setGroupPickerItems(null);
+                              }}
+                              className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta"
+                            >
+                              Details
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (soldOut) return;
+                              addItemToCart(f, []);
+                              setGroupPickerItems(null);
+                            }}
+                            disabled={soldOut}
+                            className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-4 py-2 transition-colors"
+                          >
+                            {soldOut ? "Sold Out" : "Add"}
+                          </button>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
+
 
   );
 }
