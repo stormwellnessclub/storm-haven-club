@@ -44,6 +44,7 @@ interface ClassSession {
   is_cancelled: boolean;
   room: string | null;
   is_fundraiser?: boolean;
+  is_invite_only?: boolean;
   fundraiser_beneficiary?: string | null;
   session_notes?: string | null;
   override_price_cents?: number | null;
