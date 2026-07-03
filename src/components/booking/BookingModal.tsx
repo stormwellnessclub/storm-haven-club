@@ -683,8 +683,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   bookClass.isPending ||
                   isFundraiserCheckingOut ||
                   (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
-                  (!!user && isFundraiser && !hasLiabilityWaiver)
+                  (!!user && isFundraiser && !hasLiabilityWaiver) ||
+                  (!!user && !hasPhone)
                 }
+
                 className="min-h-[44px]"
               >
                 {!user
