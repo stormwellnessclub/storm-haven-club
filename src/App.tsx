@@ -138,6 +138,7 @@ import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
 import SpaReview from "./pages/SpaReview";
 import FrontDeskKiosk from "./pages/FrontDesk";
+import FrontDeskLogin from "./pages/FrontDeskLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
 import KioskSpa from "./pages/kiosk/Spa";
@@ -248,6 +249,7 @@ const App = () => (
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
               <Route path="/front-desk" element={<FrontDeskKiosk />} />
+              <Route path="/front-desk-login" element={<FrontDeskLogin />} />
               <Route path="/kiosk" element={<KioskReception />} />
               <Route path="/kiosk/reception" element={<KioskReception />} />
               <Route path="/kiosk/cafe" element={<KioskCafe />} />
