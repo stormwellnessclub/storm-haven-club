@@ -21,6 +21,19 @@ import { NoIndex } from "@/components/seo/NoIndex";
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 const nameSchema = z.string().min(1, "This field is required").max(100, "Maximum 100 characters");
+const phoneSchema = z
+  .string()
+  .refine((v) => v.replace(/\D/g, "").length === 10, {
+    message: "Enter a valid 10-digit mobile number",
+  });
+
+function formatPhoneInput(raw: string) {
+  const d = raw.replace(/\D/g, "").slice(0, 10);
+  if (d.length < 4) return d;
+  if (d.length < 7) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 
 export default function Auth() {
   const initialMode = new URLSearchParams(window.location.search).get("mode") === "signup";
