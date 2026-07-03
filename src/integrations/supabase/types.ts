@@ -8866,6 +8866,10 @@ export type Database = {
         Args: { _achievement_id: string; _achievement_type: string }
         Returns: number
       }
+      move_class_booking: {
+        Args: { p_booking_id: string; p_target_session_id: string }
+        Returns: Json
+      }
       preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
       process_member_scan: {
         Args: {
