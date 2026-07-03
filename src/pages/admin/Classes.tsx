@@ -363,6 +363,9 @@ export default function Classes() {
                               <EyeOff className="h-3 w-3" /> Hidden
                             </Badge>
                           )}
+                          {(session as any).is_invite_only && (
+                            <Badge className="text-xs bg-purple-600 hover:bg-purple-700">Invite Only</Badge>
+                          )}
                           {isFull && <Badge variant="destructive" className="text-xs">Full</Badge>}
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">

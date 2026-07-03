@@ -71,6 +71,7 @@ interface ClassSchedule {
   room: string | null;
   max_capacity: number | null;
   is_active: boolean;
+  is_invite_only?: boolean;
   class_types?: ClassType;
   instructors?: Instructor | null;
 }
@@ -103,6 +104,7 @@ export default function ClassSchedules() {
   const [room, setRoom] = useState("");
   const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(true);
+  const [isInviteOnly, setIsInviteOnly] = useState(false);
 
   // Fetch schedules
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
@@ -176,6 +178,7 @@ export default function ClassSchedules() {
     setRoom("");
     setMaxCapacity(null);
     setIsActive(true);
+    setIsInviteOnly(false);
     setEditingSchedule(null);
   }
 
@@ -189,6 +192,7 @@ export default function ClassSchedules() {
     setRoom(schedule.room || "");
     setMaxCapacity(schedule.max_capacity);
     setIsActive(schedule.is_active);
+    setIsInviteOnly(!!schedule.is_invite_only);
     setDialogOpen(true);
   }
 
@@ -208,6 +212,7 @@ export default function ClassSchedules() {
         room: room.trim() || null,
         max_capacity: maxCapacity,
         is_active: isActive,
+        is_invite_only: isInviteOnly,
       };
 
       // Pre-save conflict check
@@ -222,13 +227,13 @@ export default function ClassSchedules() {
       if (editingSchedule) {
         const { error } = await supabase
           .from("class_schedules")
-          .update(scheduleData)
+          .update(scheduleData as any)
           .eq("id", editingSchedule.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("class_schedules")
-          .insert([scheduleData]);
+          .insert([scheduleData as any]);
         if (error) throw error;
       }
 
@@ -462,6 +467,19 @@ export default function ClassSchedules() {
                       id="active"
                       checked={isActive}
                       onCheckedChange={setIsActive}
+                    />
+                  </div>
+                  <div className="flex items-start justify-between gap-4 rounded-md border p-3 bg-muted/30">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="invite-only">Invite only</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Free for members. Only staff can add attendees — members can't self-book.
+                      </p>
+                    </div>
+                    <Switch
+                      id="invite-only"
+                      checked={isInviteOnly}
+                      onCheckedChange={setIsInviteOnly}
                     />
                   </div>
                   {/* Inline conflict warnings */}

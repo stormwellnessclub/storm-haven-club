@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { PersonSearch, type PersonResult } from "@/components/admin/roster/PersonSearch";
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
@@ -198,7 +199,7 @@ export default function ClassRoster() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_sessions")
-        .select("id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, is_fundraiser, override_price_cents, fundraiser_beneficiary, class_types!inner(name)")
+        .select("id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, is_hidden, is_invite_only, is_fundraiser, override_price_cents, fundraiser_beneficiary, class_types!inner(name)")
         .eq("id", sessionId!)
         .single();
       if (error) throw error;
@@ -1130,6 +1131,38 @@ export default function ClassRoster() {
             <p className="text-xs text-muted-foreground">Enrolled</p>
           </div>
           {session.is_cancelled && <Badge variant="destructive">Cancelled</Badge>}
+          {(session as any).is_invite_only && <Badge className="bg-purple-600 hover:bg-purple-700">Invite Only</Badge>}
+          {(session as any).is_hidden && <Badge variant="outline">Hidden</Badge>}
+        </div>
+      </div>
+
+      {/* Session flags */}
+      <div className="flex flex-wrap items-center gap-4 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          <Switch
+            id="invite-only-session"
+            checked={!!(session as any).is_invite_only}
+            onCheckedChange={async (v) => {
+              const { error } = await supabase.from("class_sessions").update({ is_invite_only: v } as any).eq("id", sessionId!);
+              if (error) return toast.error(error.message);
+              toast.success(v ? "Class is now invite only (free)" : "Invite only removed");
+              invalidateAll();
+            }}
+          />
+          <Label htmlFor="invite-only-session" className="cursor-pointer">Invite only <span className="text-muted-foreground font-normal">(free, staff-added)</span></Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="hidden-session"
+            checked={!!(session as any).is_hidden}
+            onCheckedChange={async (v) => {
+              const { error } = await supabase.from("class_sessions").update({ is_hidden: v } as any).eq("id", sessionId!);
+              if (error) return toast.error(error.message);
+              toast.success(v ? "Hidden from public schedule" : "Now visible on schedule");
+              invalidateAll();
+            }}
+          />
+          <Label htmlFor="hidden-session" className="cursor-pointer">Hide from public schedule</Label>
         </div>
       </div>
 

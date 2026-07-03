@@ -44,6 +44,7 @@ interface ClassSession {
   is_cancelled: boolean;
   room: string | null;
   is_fundraiser?: boolean;
+  is_invite_only?: boolean;
   fundraiser_beneficiary?: string | null;
   session_notes?: string | null;
   override_price_cents?: number | null;
@@ -196,7 +197,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
         .from("class_sessions")
         .select(`
           id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, room,
-          is_fundraiser, fundraiser_beneficiary, session_notes, override_price_cents,
+          is_fundraiser, fundraiser_beneficiary, session_notes, override_price_cents, is_invite_only,
           class_types!inner(id, name, category, description, duration_minutes, is_heated, image_url),
           instructors(id, first_name, last_name)
         `)
@@ -486,6 +487,11 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                 <div className="flex items-start justify-between gap-2">
                                   <h3 className="font-serif text-base font-medium truncate">{ct.name}</h3>
                                   <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                                    {session.is_invite_only && (
+                                      <Badge className="text-[10px] bg-purple-600 hover:bg-purple-600 text-white">
+                                        Invite Only
+                                      </Badge>
+                                    )}
                                     {session.is_fundraiser && (
                                       <Badge className="text-[10px] bg-rose-600 hover:bg-rose-600 text-white">
                                         <Heart className="w-2.5 h-2.5 mr-0.5" /> Fundraiser
@@ -558,6 +564,10 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                   {bookedSessionIds.has(session.id) ? (
                                     <Badge variant="outline" className="text-xs border-primary/50 text-primary">
                                       Booked
+                                    </Badge>
+                                  ) : session.is_invite_only ? (
+                                    <Badge variant="outline" className="text-xs border-purple-500/50 text-purple-700 dark:text-purple-300">
+                                      Invite only — see front desk
                                     </Badge>
                                   ) : waitlistStatus?.[session.id] ? (
                                     <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-700">
