@@ -618,11 +618,17 @@ export default function Auth() {
             </button>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-border text-center">
+          <div className="mt-6 pt-6 border-t border-border text-center space-y-2">
             <p className="text-muted-foreground text-xs">
               By creating an account, you agree to our Terms of Service and Privacy Policy.
               <br />
               <span className="text-accent">Waivers and membership agreements will be required for booking.</span>
+            </p>
+            <p className="text-muted-foreground text-xs pt-2">
+              Front desk staff?{" "}
+              <Link to="/front-desk-login" className="text-accent hover:underline">
+                Sign in here
+              </Link>
             </p>
           </div>
         </div>
