@@ -1660,6 +1660,7 @@ export type Database = {
           id: string
           instructor_id: string | null
           is_active: boolean
+          is_invite_only: boolean
           max_capacity: number | null
           room: string | null
           start_time: string
@@ -1673,6 +1674,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_active?: boolean
+          is_invite_only?: boolean
           max_capacity?: number | null
           room?: string | null
           start_time: string
@@ -1686,6 +1688,7 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           is_active?: boolean
+          is_invite_only?: boolean
           max_capacity?: number | null
           room?: string | null
           start_time?: string
@@ -1735,6 +1738,7 @@ export type Database = {
           is_cancelled: boolean
           is_fundraiser: boolean
           is_hidden: boolean
+          is_invite_only: boolean
           max_capacity: number
           override_price_cents: number | null
           room: string | null
@@ -1756,6 +1760,7 @@ export type Database = {
           is_cancelled?: boolean
           is_fundraiser?: boolean
           is_hidden?: boolean
+          is_invite_only?: boolean
           max_capacity: number
           override_price_cents?: number | null
           room?: string | null
@@ -1777,6 +1782,7 @@ export type Database = {
           is_cancelled?: boolean
           is_fundraiser?: boolean
           is_hidden?: boolean
+          is_invite_only?: boolean
           max_capacity?: number
           override_price_cents?: number | null
           room?: string | null
