@@ -633,8 +633,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                 joinWaitlist.isPending ||
                 hasNoPaymentOptions ||
                 !hasLiabilityWaiver ||
-                (paymentMethod === "pass" && !selectedPassId)
+                (paymentMethod === "pass" && !selectedPassId) ||
+                !hasPhone
               }
+
               className="min-h-[44px]"
             >
               {joinWaitlist.isPending ? (
