@@ -2,7 +2,7 @@
 // This file provides a single source of truth for category translations across the entire system
 
 // Database class_type categories
-export type DatabaseClassCategory = 'pilates_cycling' | 'other';
+export type DatabaseClassCategory = 'pilates_cycling' | 'other' | 'aerobics';
 
 // Pass categories stored in class_passes table
 export type PassCategory = 'reformer' | 'cycling' | 'aerobics' | 'pilates_cycling' | 'other';
@@ -15,24 +15,27 @@ export const CATEGORY_DISPLAY_NAMES: Record<string, string> = {
   'pilates_cycling': 'Class Pass',
   'reformer': 'Reformer Pilates',
   'cycling': 'Cycling',
-  'aerobics': 'Aerobics & Other',
-  'other': 'Other Classes',
+  'aerobics': 'Aerobics',
+  'other': 'Aerobics',
 };
 
 // Pass category -> Valid class categories (what classes can this pass be used for)
+// All class-credit types are interchangeable across pilates/cycling and aerobics.
 export const PASS_TO_CLASS_MAPPING: Record<string, string[]> = {
-  'reformer': ['pilates_cycling'],
-  'cycling': ['pilates_cycling'],
-  'pilates_cycling': ['pilates_cycling'],
-  'aerobics': ['other'],
-  'other': ['other'],
+  'reformer': ['pilates_cycling', 'other', 'aerobics'],
+  'cycling': ['pilates_cycling', 'other', 'aerobics'],
+  'pilates_cycling': ['pilates_cycling', 'other', 'aerobics'],
+  'aerobics': ['pilates_cycling', 'other', 'aerobics'],
+  'other': ['pilates_cycling', 'other', 'aerobics'],
 };
 
 // Class category -> Valid pass categories (what passes are accepted for this class)
 export const CLASS_TO_PASS_MAPPING: Record<string, string[]> = {
-  'pilates_cycling': ['reformer', 'cycling', 'pilates_cycling'],
-  'other': ['aerobics', 'other', 'pilates_cycling'],
+  'pilates_cycling': ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
+  'other': ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
+  'aerobics': ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
 };
+
 
 // Frontend purchase category -> Database pass category mapping
 export const PURCHASE_TO_DB_CATEGORY: Record<FrontendPurchaseCategory, PassCategory> = {

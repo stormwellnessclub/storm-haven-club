@@ -1,25 +1,57 @@
-## Consolidate chia items into one card with a flavor picker
+## Problem
 
-Merge the 6 chia pudding variants into a single menu tile. Clicking the tile opens a flavor picker showing each flavor (price, calories, image if any) with a per-flavor "View details" button (existing info/nutrition dialog) and an "Add to Order" button.
+Mat Sculpt is stored in `class_types.category = 'aerobics'`, but the frontend category mapping only knows about `pilates_cycling` and `other`. So:
 
-### Items being grouped (all Colostrum-based chia puddings)
-- Chia Pudding With Colostrum — Raspberry Strawberry Unicorn Cream
-- Colostrum & Saffron Chia — Pistachio Cream & Fig Jam
-- Colostrum & Saffron Chia — Lavender Apricot Preserve & Crème
-- Colostrum & Saffron Chia — PB&J
-- Colostrum & Saffron Chia — Blackcurrant Pomegranate Hibiscus
-- Colostrum Saffron Chia — Hazelnut Chocolate
+- The booking UI can't find any valid passes/credits for an aerobics class → shows "no credits available".
+- Existing pilates_cycling passes should be interchangeable with aerobics per your latest policy, but they're being filtered out.
+- The display label "Other Classes" / "Aerobics & Other" is confusing — you want it to read "Aerobics".
 
-**Not grouped** (separate products): Overnight Oats With Chia and Dates, Protein Yogurt With Chia Pudding.
+## Fix
 
-### Implementation
+All changes are frontend + one small data cleanup. No RPC changes (the booking RPC doesn't validate category — it already accepts any active class pass/credit).
 
-1. **DB normalization** — update the 6 rows so they share `item_name = "Colostrum Chia Pudding"`. Their unique flavor stays in `flavor`. No data lost.
+### 1. Unify categories in `src/lib/classCategories.ts`
 
-2. **Grouping logic in `CafeOrderContent.tsx`** — before rendering the items grid, group `visibleItems` by `item_name` within the same category. If a group has 2+ items, collapse it into one virtual "group card" (uses first item's image, name = shared item_name, price shown as `From $X` if flavors differ, otherwise flat price).
+Treat `pilates_cycling`, `other`, and `aerobics` as one interchangeable pool for the purposes of passes/credits.
 
-3. **Flavor picker dialog** — clicking a group card opens a new dialog listing each flavor as a row: flavor name, price, calories, "View details" (opens the existing `detailItem` dialog for that specific flavor), "Add to Order" button. Single-item "groups" render as normal cards (unchanged behavior).
+- Update `CATEGORY_DISPLAY_NAMES`:
+  - `'other'` → `'Aerobics'` (was "Other Classes")
+  - `'aerobics'` → `'Aerobics'` (was "Aerobics & Other")
+  - keep `'pilates_cycling'` → `'Class Pass'`
+- Update `CLASS_TO_PASS_MAPPING` — add the missing `'aerobics'` key and make everything cross-valid:
+  ```ts
+  'pilates_cycling': ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
+  'other':           ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
+  'aerobics':        ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
+  ```
+- Update `PASS_TO_CLASS_MAPPING` for symmetry (used by admin UIs that ask "what classes can this pass book"):
+  ```ts
+  'reformer':        ['pilates_cycling', 'other', 'aerobics'],
+  'cycling':         ['pilates_cycling', 'other', 'aerobics'],
+  'pilates_cycling': ['pilates_cycling', 'other', 'aerobics'],
+  'aerobics':        ['pilates_cycling', 'other', 'aerobics'],
+  'other':           ['pilates_cycling', 'other', 'aerobics'],
+  ```
+- `getPassDisplayCategory`: keep grouping under `'pilatesCycling'` since it's now one pool for booking purposes (or leave as-is; no behavior change needed for the two-tab purchase page).
 
-4. **Existing per-flavor detail dialog stays as-is** — each flavor's full description/benefits/nutrition remain accessible.
+### 2. Data cleanup
 
-No layout or styling changes beyond the new picker dialog (matched to existing cafe editorial style).
+Normalize `class_types.category` for consistency (Mat Sculpt is the only `aerobics` row today, but the admin category selector can create more):
+
+- Option A (recommended): leave `category='aerobics'` on Mat Sculpt — the mapping fix above handles it, and the label now reads "Aerobics".
+- No column/enum changes; `DatabaseClassCategory` in the TS type already needs `'aerobics'` added to the union so future TS reads don't complain:
+  ```ts
+  export type DatabaseClassCategory = 'pilates_cycling' | 'other' | 'aerobics';
+  ```
+
+### 3. Verify
+
+- Reload the schedule as a Diamond member holding only pilates_cycling passes → Mat Sculpt now shows "Use existing class pass" and the monthly class credit option.
+- Admin roster → "Add to class" for a Mat Sculpt session shows the member's pilates_cycling pass in the pass dropdown.
+- Class-pass purchase page tabs still render as "Class Pass" and "Aerobics" (no more "Other Classes" wording).
+
+## Files touched
+
+- `src/lib/classCategories.ts` — mapping + display names + type union.
+
+That's the whole change — no migration, no RPC edit, no UI component rewrites.
