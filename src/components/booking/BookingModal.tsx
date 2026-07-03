@@ -618,7 +618,14 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           >
             Save &amp; Close
           </Button>
+          {/* Phone required — gate the confirm/waitlist buttons */}
+          {user && !phoneLoading && !hasPhone && (
+            <div className="w-full">
+              <PhoneRequiredGate />
+            </div>
+          )}
           {/* Waitlist join button when class is full */}
+
           {user && isClassFull && !isOnWaitlist && (
             <Button
               onClick={handleJoinWaitlist}
