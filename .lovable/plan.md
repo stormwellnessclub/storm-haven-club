@@ -1,61 +1,39 @@
+## Goal
+1. Create tomorrow's 12:00 PM Signature Flow Pilates – All Levels session with instructor "Sub".
+2. Add per-attendee "Move to another session" action on the class roster that preserves the class credit.
+3. Confirm cancel-and-refund already works on the roster (it does).
 
-## Step 1 — Send the approved email to Lyan (now)
+## Details
 
-Add a small one-off `custom_message` case to the existing `send-email` edge function so we can send arbitrary admin messages without spinning up a new function. Then invoke it once with the approved copy below.
+### A. Data changes (via insert tool, not schema)
+- Create instructor row: `first_name = 'Sub'`, `last_name = ''`, `email = 'sub@stormwellnessclub.com'`, `is_active = true`. (Rename later in Admin → Instructors.)
+- Create `class_sessions` row:
+  - `class_type_id` = `Signature Flow Pilates – All Levels` (`8d29b6d1-1b37-4bca-aa7d-13aca36b8059`)
+  - `session_date` = `2026-07-04`, `start_time` = `12:00`, `end_time` = `12:50`
+  - `room` = `Reformer Studio`, `max_capacity` = `8`
+  - `instructor_id` = the Sub instructor's id
 
-**Send parameters:**
-- To: `lyan.mashrah@gmail.com`
-- From: `Storm Wellness Club <admin@stormwellnessclub.com>` (already the default sender)
-- Reply-To: `admin@stormwellnessclub.com`
-- Subject: `Your Saturday reformer class — quick change + we need your phone number`
+### B. New RPC (migration) — `move_class_booking(p_booking_id uuid, p_target_session_id uuid)`
+- `SECURITY DEFINER`, `set search_path = public`, admin-only via `has_any_role(auth.uid(), ARRAY['admin','super_admin','front_desk'])`.
+- Validates: target session exists, not cancelled, in the future, has capacity.
+- `UPDATE class_bookings SET session_id = target, updated_at = now() WHERE id = booking_id AND status = 'confirmed'` — same booking row, same credit/pass, no refund+rebook.
+- Recomputes `current_enrollment` on both source and target sessions from `class_bookings`.
+- Inserts `admin_action_log` row (`action_type = 'moved_class_booking'`, before/after JSON).
 
-**Body (exactly as approved):**
+### C. Roster UI — `src/pages/admin/ClassRoster.tsx`
+- Add a Move (arrow-right-left) icon button on each attendee row, next to the existing Remove/No-show/Undo actions.
+- Clicking opens `MoveBookingDialog` listing other **future, non-cancelled** sessions of the same class type with remaining capacity (soonest first). Includes a "Show all class types" toggle for flexibility.
+- On confirm: call `move_class_booking`, then best-effort `send-email` custom_message to the member ("Your class was moved to …") with Reply-To `admin@stormwellnessclub.com`.
+- Toast: "Moved to {date} {time} — credit kept, member notified".
 
-> Hi Lyan,
->
-> Welcome to Storm Wellness Club, and thank you for booking your first reformer class with us!
->
-> **Two quick things:**
->
-> **1. Tomorrow's 11:00 AM reformer class is being moved to 12:00 PM.**
-> Just reply to this email and let us know which you'd prefer:
->  • **Move me to the 12:00 PM class**, or
->  • **Credit the class back to my account** so I can book another time
->
-> **2. We don't have a phone number on file for you.**
-> We use it for class reminders, waitlist alerts, and any last-minute schedule changes (like this one). Please reply with your best mobile number so we can add it to your account.
->
-> Sorry for the shuffle, and we're excited to have you in the studio.
->
-> Warmly,
-> The Storm Wellness Club Team
-> admin@stormwellnessclub.com
-
-I'll log the send to `email_audit_log` (the function already does this) so we have a record.
-
-## Step 2 — Require phone number on ALL bookings (new + existing accounts)
-
-- New shared hook `usePhoneOnFile()` reads phone from `members` → `non_member_profiles` → `profiles`.
-- Add an inline "Add your mobile number to continue" gate to every booking surface before confirm:
-  - `BookingModal` (classes)
-  - `SpaBookingModal` (spa)
-  - `KidsCareBookingModal` (kids care)
-  - Wellness credit-booking dialog (Red Light / Cryo)
-- Save writes to `non_member_profiles.phone` + `profiles.phone` (and `members.phone` if applicable), then the booking flow continues automatically.
-- Add required Phone field to signup (`src/pages/Auth.tsx` + `AuthContext.signUp`), written to `profiles.phone` on account creation.
-- Existing `PortalPhoneGate` stays as a safety net.
-
-## Step 3 — Handle Lyan's reply
-
-- When she emails back: I'll write her number to `non_member_profiles.phone` + `profiles.phone`, and either move her booking to the 12:00 PM session or refund the credit per her choice.
+### D. Cancel & refund
+No changes — the existing `removeMutation` on the roster already cancels the booking, refunds the class credit or class pass, releases the waitlist hold, and emails the member.
 
 ## Files touched
+- Migration: `move_class_booking` RPC.
+- Data insert: Sub instructor + Saturday 12 PM session.
+- Edited: `src/pages/admin/ClassRoster.tsx` — add Move button and wire dialog.
+- New: `src/components/admin/roster/MoveBookingDialog.tsx`.
 
-- `supabase/functions/send-email/index.ts` (add `custom_message` case)
-- `src/hooks/usePhoneOnFile.ts` (new)
-- `src/components/booking/BookingModal.tsx`
-- `src/components/booking/SpaBookingModal.tsx`
-- `src/components/booking/KidsCareBookingModal.tsx`
-- Red Light / Cryo booking dialog
-- `src/pages/Auth.tsx`
-- `src/contexts/AuthContext.tsx`
+## Open question
+The existing roster already has Remove (refunds credit) and, for checked-in attendees, "Undo check-in and refund". Should I leave these as-is, or add a single unified "Cancel & refund credit" button on every attendee row regardless of status?
