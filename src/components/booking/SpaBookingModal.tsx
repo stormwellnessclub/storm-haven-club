@@ -1093,8 +1093,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               !selectedDate ||
               !selectedTime ||
               bookAppointment.isPending ||
-              (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
+              (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) ||
+              (!!user && !hasPhone)
             }
+
           >
             {bookAppointment.isPending ? (
               <>
