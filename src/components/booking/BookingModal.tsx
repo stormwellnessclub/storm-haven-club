@@ -69,6 +69,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { data: membership } = useUserMembership();
   const isPastDue = !!(membership as any)?.payment_past_due;
   const { profile: nonMemberProfile } = useNonMemberProfile();
+  const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
+
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
