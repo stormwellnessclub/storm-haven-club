@@ -7,6 +7,9 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
+import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
+import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
+
 import { useAllAgreements } from "@/hooks/useAllAgreements";
 import { useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
@@ -74,6 +77,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const { data: wellnessCredits, refetch: refetchCredits } = useWellnessCredits();
   const { profile, signWaiver, isSigningWaiver } = useUserProfile();
   const { profile: nonMemberProfile, signWaiver: signNonMemberWaiver, isSigningWaiver: isSigningNonMemberWaiver } = useNonMemberProfile();
+  const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
+
   const { data: agreements } = useAllAgreements();
   const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
@@ -1052,7 +1057,13 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           </>)}
         </div>
 
+        {user && !phoneLoading && !hasPhone && (
+          <div className="mt-2">
+            <PhoneRequiredGate reason="We use it for spa appointment reminders and last-minute schedule changes. Required to book." />
+          </div>
+        )}
         <div className="flex gap-2 justify-end">
+
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -1082,8 +1093,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               !selectedDate ||
               !selectedTime ||
               bookAppointment.isPending ||
-              (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0)
+              (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) ||
+              (!!user && !hasPhone)
             }
+
           >
             {bookAppointment.isPending ? (
               <>

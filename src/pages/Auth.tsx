@@ -21,6 +21,19 @@ import { NoIndex } from "@/components/seo/NoIndex";
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
 const nameSchema = z.string().min(1, "This field is required").max(100, "Maximum 100 characters");
+const phoneSchema = z
+  .string()
+  .refine((v) => v.replace(/\D/g, "").length === 10, {
+    message: "Enter a valid 10-digit mobile number",
+  });
+
+function formatPhoneInput(raw: string) {
+  const d = raw.replace(/\D/g, "").slice(0, 10);
+  if (d.length < 4) return d;
+  if (d.length < 7) return `(${d.slice(0, 3)}) ${d.slice(3)}`;
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
+}
+
 
 export default function Auth() {
   const initialMode = new URLSearchParams(window.location.search).get("mode") === "signup";
@@ -29,7 +42,9 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showWaiverStep, setShowWaiverStep] = useState(false);
@@ -187,7 +202,16 @@ export default function Auth() {
           newErrors.lastName = e.errors[0].message;
         }
       }
+
+      try {
+        phoneSchema.parse(phone);
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          newErrors.phone = e.errors[0].message;
+        }
+      }
     }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -283,10 +307,13 @@ export default function Auth() {
       }
 
       if (isSignUp) {
+        const normalizedPhone = `+1${phone.replace(/\D/g, "")}`;
         const { error } = await signUp(email, password, {
           first_name: firstName,
           last_name: lastName,
+          phone: normalizedPhone,
         });
+
 
         if (error) {
           toast({
@@ -526,6 +553,32 @@ export default function Auth() {
                 </div>
               </div>
             )}
+
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="phone">
+                  Mobile phone <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                  placeholder="(555) 555-5555"
+                  className={errors.phone ? "border-destructive" : ""}
+                />
+                {errors.phone ? (
+                  <p className="text-destructive text-xs">{errors.phone}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Required — we use it for class reminders and last-minute schedule changes.
+                  </p>
+                )}
+              </div>
+            )}
+
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>

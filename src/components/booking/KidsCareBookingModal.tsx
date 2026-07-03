@@ -5,6 +5,9 @@ import {
   clearKidsCareDraft,
 } from "@/lib/bookingDraft";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
+import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
+
 import { useNavigate } from "react-router-dom";
 import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -59,6 +62,8 @@ const MAX_DURATION_HOURS = 2;
 
 export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCareBookingModalProps) {
   const { user } = useAuth();
+  const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
+
   const navigate = useNavigate();
   const bookKidsCare = useBookKidsCare();
   const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
@@ -648,7 +653,13 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
           </div>
         )}
 
+        {user && !phoneLoading && !hasPhone && (
+          <div className="mt-2">
+            <PhoneRequiredGate reason="We use it for pickup coordination and last-minute schedule changes. Required to book kids care." />
+          </div>
+        )}
         <div className="flex gap-2 justify-end">
+
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -661,7 +672,9 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
                 !selectedDate ||
                 !selectedStartTime ||
                 !selectedEndTime ||
-                !selectedPassId
+                !selectedPassId ||
+                !hasPhone
+
               }
             >
               {bookKidsCare.isPending ? (

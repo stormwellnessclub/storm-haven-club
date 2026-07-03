@@ -1,4 +1,7 @@
 import { ClassSession } from "@/hooks/useClassSessions";
+import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
+import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
@@ -66,6 +69,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const { data: membership } = useUserMembership();
   const isPastDue = !!(membership as any)?.payment_past_due;
   const { profile: nonMemberProfile } = useNonMemberProfile();
+  const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
+
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null);
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
@@ -613,7 +618,14 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           >
             Save &amp; Close
           </Button>
+          {/* Phone required — gate the confirm/waitlist buttons */}
+          {user && !phoneLoading && !hasPhone && (
+            <div className="w-full">
+              <PhoneRequiredGate />
+            </div>
+          )}
           {/* Waitlist join button when class is full */}
+
           {user && isClassFull && !isOnWaitlist && (
             <Button
               onClick={handleJoinWaitlist}
@@ -621,8 +633,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                 joinWaitlist.isPending ||
                 hasNoPaymentOptions ||
                 !hasLiabilityWaiver ||
-                (paymentMethod === "pass" && !selectedPassId)
+                (paymentMethod === "pass" && !selectedPassId) ||
+                !hasPhone
               }
+
               className="min-h-[44px]"
             >
               {joinWaitlist.isPending ? (
@@ -669,8 +683,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                   bookClass.isPending ||
                   isFundraiserCheckingOut ||
                   (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
-                  (!!user && isFundraiser && !hasLiabilityWaiver)
+                  (!!user && isFundraiser && !hasLiabilityWaiver) ||
+                  (!!user && !hasPhone)
                 }
+
                 className="min-h-[44px]"
               >
                 {!user
