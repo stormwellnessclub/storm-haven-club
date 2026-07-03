@@ -672,7 +672,9 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
                 !selectedDate ||
                 !selectedStartTime ||
                 !selectedEndTime ||
-                !selectedPassId
+                !selectedPassId ||
+                !hasPhone
+
               }
             >
               {bookKidsCare.isPending ? (
