@@ -199,7 +199,7 @@ export default function ClassRoster() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_sessions")
-        .select("id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, is_fundraiser, override_price_cents, fundraiser_beneficiary, class_types!inner(name)")
+        .select("id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, is_hidden, is_invite_only, is_fundraiser, override_price_cents, fundraiser_beneficiary, class_types!inner(name)")
         .eq("id", sessionId!)
         .single();
       if (error) throw error;
