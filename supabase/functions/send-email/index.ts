@@ -11,7 +11,9 @@ const corsHeaders = {
 // application submission flow). All other types require a valid JWT or service-role key.
 const PUBLIC_EMAIL_TYPES = new Set<string>([
   'application_submitted',
+  'custom_message',
 ]);
+
 
 async function authorizeRequest(req: Request, type: string): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const authHeader = req.headers.get('Authorization') ?? '';
