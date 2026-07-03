@@ -71,6 +71,7 @@ interface ClassSchedule {
   room: string | null;
   max_capacity: number | null;
   is_active: boolean;
+  is_invite_only?: boolean;
   class_types?: ClassType;
   instructors?: Instructor | null;
 }
