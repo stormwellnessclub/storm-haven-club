@@ -197,7 +197,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
         .from("class_sessions")
         .select(`
           id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, room,
-          is_fundraiser, fundraiser_beneficiary, session_notes, override_price_cents,
+          is_fundraiser, fundraiser_beneficiary, session_notes, override_price_cents, is_invite_only,
           class_types!inner(id, name, category, description, duration_minutes, is_heated, image_url),
           instructors(id, first_name, last_name)
         `)
