@@ -554,6 +554,32 @@ export default function Auth() {
               </div>
             )}
 
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="phone">
+                  Mobile phone <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                  placeholder="(555) 555-5555"
+                  className={errors.phone ? "border-destructive" : ""}
+                />
+                {errors.phone ? (
+                  <p className="text-destructive text-xs">{errors.phone}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Required — we use it for class reminders and last-minute schedule changes.
+                  </p>
+                )}
+              </div>
+            )}
+
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
