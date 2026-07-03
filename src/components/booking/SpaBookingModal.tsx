@@ -7,6 +7,9 @@ import { useUserMembership } from "@/hooks/useUserMembership";
 import { useWellnessCredits } from "@/hooks/useWellnessCredits";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
+import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
+import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
+
 import { useAllAgreements } from "@/hooks/useAllAgreements";
 import { useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
