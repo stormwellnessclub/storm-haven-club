@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone, Pencil, Check, Lock, UserCog, UserX, RotateCcw,
+  Users, CheckCircle, Loader2, UserPlus, Trash2, UserCheck, X, Clock, ArrowUp, XCircle, ArrowLeft, Phone, Pencil, Check, Lock, UserCog, UserX, RotateCcw, ArrowRightLeft,
 } from "lucide-react";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { PersonSearch, type PersonResult } from "@/components/admin/roster/PersonSearch";
+import { MoveBookingDialog } from "@/components/admin/roster/MoveBookingDialog";
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
@@ -123,6 +124,10 @@ export default function ClassRoster() {
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState<number>(0);
 
+  // Move-booking dialog
+  const [moveTarget, setMoveTarget] = useState<{ bookingId: string; name: string; email: string | null } | null>(null);
+
+
   // Hold-slot dialog
   const [holdDialogOpen, setHoldDialogOpen] = useState(false);
   const [holdCount, setHoldCount] = useState<number>(1);
@@ -199,7 +204,7 @@ export default function ClassRoster() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_sessions")
-        .select("id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, is_hidden, is_invite_only, is_fundraiser, override_price_cents, fundraiser_beneficiary, class_types!inner(name)")
+        .select("id, class_type_id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, is_hidden, is_invite_only, is_fundraiser, override_price_cents, fundraiser_beneficiary, class_types!inner(name)")
         .eq("id", sessionId!)
         .single();
       if (error) throw error;
@@ -1487,6 +1492,16 @@ export default function ClassRoster() {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                onClick={() => setMoveTarget({ bookingId: attendee.bookingId, name: attendee.name, email: attendee.email || null })}
+                                title="Move to another session (credit stays)"
+                              >
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 className="text-destructive hover:text-destructive"
                                 onClick={() => {
                                   if (attendee.isCheckedIn) {
@@ -1749,6 +1764,22 @@ export default function ClassRoster() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {moveTarget && session && (
+        <MoveBookingDialog
+          open={!!moveTarget}
+          onOpenChange={(o) => { if (!o) setMoveTarget(null); }}
+          bookingId={moveTarget.bookingId}
+          attendeeName={moveTarget.name}
+          attendeeEmail={moveTarget.email}
+          currentSessionId={session.id}
+          currentClassTypeId={(session as any).class_type_id}
+          currentClassName={className}
+          currentDateLabel={format(sessionDate, "EEEE, MMMM d")}
+          currentTimeLabel={format(new Date(`2000-01-01T${session.start_time}`), "h:mm a")}
+          onMoved={() => { setMoveTarget(null); invalidateAll(); }}
+        />
+      )}
     </div>
   );
 }
