@@ -1492,6 +1492,16 @@ export default function ClassRoster() {
                               <Button
                                 size="sm"
                                 variant="ghost"
+                                onClick={() => setMoveTarget({ bookingId: attendee.bookingId, name: attendee.name, email: attendee.email || null })}
+                                title="Move to another session (credit stays)"
+                              >
+                                <ArrowRightLeft className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {!attendee.isNoShow && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
                                 className="text-destructive hover:text-destructive"
                                 onClick={() => {
                                   if (attendee.isCheckedIn) {
