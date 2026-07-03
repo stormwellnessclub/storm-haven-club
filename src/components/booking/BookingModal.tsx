@@ -1,4 +1,7 @@
 import { ClassSession } from "@/hooks/useClassSessions";
+import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
+import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useBookClass } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
