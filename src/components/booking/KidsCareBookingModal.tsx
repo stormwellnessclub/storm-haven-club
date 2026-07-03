@@ -653,7 +653,13 @@ export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCa
           </div>
         )}
 
+        {user && !phoneLoading && !hasPhone && (
+          <div className="mt-2">
+            <PhoneRequiredGate reason="We use it for pickup coordination and last-minute schedule changes. Required to book kids care." />
+          </div>
+        )}
         <div className="flex gap-2 justify-end">
+
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
