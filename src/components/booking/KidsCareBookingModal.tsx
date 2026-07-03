@@ -5,6 +5,9 @@ import {
   clearKidsCareDraft,
 } from "@/lib/bookingDraft";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
+import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
+
 import { useNavigate } from "react-router-dom";
 import { useBookKidsCare, useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { useUserProfile } from "@/hooks/useUserProfile";
