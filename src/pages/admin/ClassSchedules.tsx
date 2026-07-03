@@ -104,6 +104,7 @@ export default function ClassSchedules() {
   const [room, setRoom] = useState("");
   const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(true);
+  const [isInviteOnly, setIsInviteOnly] = useState(false);
 
   // Fetch schedules
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
