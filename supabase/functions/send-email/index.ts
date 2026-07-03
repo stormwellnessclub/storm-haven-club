@@ -2923,6 +2923,21 @@ serve(async (req) => {
         break;
       }
 
+      case 'custom_message': {
+        subject = String(data?.subject || 'A message from Storm Wellness Club');
+        const bodyHtml = String(data?.bodyHtml || '');
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              ${bodyHtml}
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       default:
 
         throw new Error(`Unknown email type: ${type}`);
@@ -2933,12 +2948,16 @@ serve(async (req) => {
       ? 'Storm Wellness Club <membership@stormwellnessclub.com>'
       : 'Storm Wellness Club <admin@stormwellnessclub.com>';
 
-    const emailResponse = await resend.emails.send({
+    const sendPayload: any = {
       from: senderAddress,
       to: [to],
       subject,
       html,
-    });
+    };
+    if (data?.replyTo) sendPayload.reply_to = String(data.replyTo);
+
+    const emailResponse = await resend.emails.send(sendPayload);
+
 
     console.log("Email sent successfully:", emailResponse);
 
