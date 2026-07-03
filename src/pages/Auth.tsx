@@ -202,7 +202,16 @@ export default function Auth() {
           newErrors.lastName = e.errors[0].message;
         }
       }
+
+      try {
+        phoneSchema.parse(phone);
+      } catch (e) {
+        if (e instanceof z.ZodError) {
+          newErrors.phone = e.errors[0].message;
+        }
+      }
     }
+
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
