@@ -63,6 +63,7 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
           room,
           is_cancelled,
           is_fundraiser,
+          is_invite_only,
           fundraiser_beneficiary,
           session_notes,
           override_price_cents,
