@@ -1,55 +1,58 @@
-## Goal
+# Front Desk-Only Login
 
-Add "Invite-Only" classes for new teachers: free for members, admin-managed roster, with a per-session toggle to hide from or show on the public schedule.
+Give the front desk its own sign-in page and its own account type. Those accounts can only see the kiosk. If they try to open any admin page, they're silently sent back to `/kiosk/reception`. Admins/managers continue to use the normal `/auth` in a separate window.
 
-## How it works
+**Nothing existing changes until you explicitly create a front-desk-only account.** The current PIN-based `/kiosk/*` and `/front-desk` flows keep working exactly as they do today.
 
-Each session gets two independent switches in the admin UI:
+## How front-desk-only accounts are identified
 
-- **Invite-only** — booking bypasses credit/pass deduction (free for members). Only staff can add attendees; members cannot self-book. Non-members are blocked.
-- **Hidden from schedule** — controls whether the session appears on the public `/schedule` and member/portal browsers. Reuses the existing `is_hidden` column.
+An account is "front-desk-only" when its **only** staff role is `front_desk` (no `admin`, `manager`, `super_admin`, `spa_staff`, etc.). No schema change — just create a Supabase user account and assign it the `front_desk` role only.
 
-The two toggles are independent, so you can:
+## 1. New sign-in page: `/front-desk-login`
 
-| Invite-only | Hidden | Result                                                     |
-| ----------- | ------ | ---------------------------------------------------------- |
-| ✅          | ✅     | Silent test class. Only staff-added members see it.        |
-| ✅          | ❌     | Publicly visible but marked "Invite Only" — no self-book.  |
-| ❌          | ✅     | Regular class, unlisted (existing behavior).               |
-| ❌          | ❌     | Normal public class.                                       |
+- Storm-branded, minimal (email + password, small link to `/reset-password`, no signup).
+- On success:
+  - Only `front_desk` role → set `sessionStorage.kioskUnlocked = "true"` (skips PIN) and redirect to `/kiosk/reception`.
+  - Has any higher role → inline error: "This login is for front desk accounts only. Admins sign in at /auth." then sign back out.
+  - No staff roles → "Not authorized."
+- Public route.
 
-## Changes
+## 2. Lock front-desk-only accounts out of `/admin/*`
 
-### Database (one migration)
+Update `ProtectedAdminRoute`: if the signed-in user's roles are exactly `['front_desk']`, silently `<Navigate to="/kiosk/reception" replace />` — no error screen, no admin flash. All other staff behave exactly as today.
 
-1. Add `is_invite_only boolean not null default false` to `class_sessions`.
-2. Add same column to `class_schedules` so recurring "trial teacher" schedules propagate the flag to generated sessions.
-3. Update `process-session-generation` logic / session insert to copy the flag from schedule → session.
-4. Update `create_atomic_class_booking` RPC:
-   - If `is_invite_only = true` and caller is a member with active benefits → skip credit/pass consumption, mark booking `payment_method = 'invite'`, still enforce capacity + not-frozen + not-blocked.
-   - If caller is not staff and session is invite-only + hidden → reject (cannot self-book invisible class).
-5. Update the admin "add attendee to roster" RPC to allow adding to invite-only sessions without touching credits.
+Also hide the "Admin" button in the `KioskShell` header for these accounts.
 
-### Admin UI
+## 3. Kiosk PIN gate stays for walk-up devices
 
-- **Session edit dialog** (`AdminClasses` / today's sessions + `ClassSchedules` recurring editor): add two switches — "Invite only (free for members)" and "Hide from public schedule".
-- **Roster view**: show an "Invite Only" badge; the existing "Add attendee" flow works as-is once the RPC allows it. Members added here consume no credits.
+The shared PIN (`0201`) on `/kiosk/*` and `/front-desk` continues to work for tablets not signed into a user account. Signed-in front-desk accounts just bypass it because the new login sets `kioskUnlocked`.
 
-### Member/public UI
+## 4. Small entry-point tweaks
 
-- `ScheduleBrowser` / `useClassSessions`: keep the existing `is_hidden` filter. For visible invite-only sessions, render an "Invite Only" pill and disable the Book button with a tooltip ("This class is invite only — contact the front desk").
-- No changes to purchase/credits flow — invite bookings never touch balances.
+- Tiny "Front desk sign in" link at the bottom of `/auth` pointing to `/front-desk-login`.
+- Kiosk "Lock" button routes signed-in front-desk users to `/front-desk-login` on sign-out.
 
-## Files touched
+## Verification (I'll do this before saying it's done)
 
-- Migration: `class_sessions`, `class_schedules`, `create_atomic_class_booking`, admin add-attendee RPC.
-- `supabase/functions/process-session-generation/*` — propagate `is_invite_only`.
-- `src/hooks/useClassSessions.ts` — select new column.
-- `src/components/booking/ScheduleBrowser.tsx` + booking button — invite-only badge & disabled self-book.
-- Admin session/schedule editors — two new switches.
-- Roster component — "Invite Only" badge.
+Using a test front-desk account you create, I'll drive Playwright to:
+- Sign in at `/front-desk-login` → lands on `/kiosk/reception`.
+- Navigate to `/admin` → silently bounces back to `/kiosk/reception`.
+- Try signing in as an admin account on the same page → rejected with the correct error.
+- Screenshot each step.
 
 ## Out of scope
 
-- Named invite lists / email invites. You add attendees manually from the roster.
-- Non-member invite pricing (invite-only = members only, free).
+- No new tables, no new role.
+- No changes to existing admin/manager/other staff permissions.
+- No device binding — one shared account or one-per-person, your call.
+
+## Technical notes
+
+- New: `src/pages/FrontDeskLogin.tsx` + route in `src/App.tsx`.
+- Edit: `src/components/admin/ProtectedAdminRoute.tsx` (add front-desk-only redirect after roles resolve).
+- Edit: `src/components/kiosk/KioskShell.tsx` (hide Admin link + Lock redirect for these accounts).
+- Uses existing `useUserRoles` and `AuthContext.signIn`. No backend work.
+
+## After it's built
+
+Create a Supabase user (e.g. `frontdesk@stormwellnessclub.com`), then in `/admin/staff-roles` assign **only** the `front_desk` role. Hand them the `/front-desk-login` URL and their password.
