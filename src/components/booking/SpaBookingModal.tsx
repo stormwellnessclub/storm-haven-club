@@ -77,6 +77,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const { data: wellnessCredits, refetch: refetchCredits } = useWellnessCredits();
   const { profile, signWaiver, isSigningWaiver } = useUserProfile();
   const { profile: nonMemberProfile, signWaiver: signNonMemberWaiver, isSigningWaiver: isSigningNonMemberWaiver } = useNonMemberProfile();
+  const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
+
   const { data: agreements } = useAllAgreements();
   const { data: availability } = useSpaServiceAvailability();
   const bookAppointment = useSpaBookAppointment();
