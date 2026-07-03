@@ -55,19 +55,14 @@ export function usePhoneOnFile() {
       const normalized = `+1${digits}`;
 
       // Write to all three so downstream lookups agree.
-      const writes: Promise<any>[] = [];
-      writes.push(
-        supabase.from("profiles").update({ phone: normalized }).eq("user_id", user.id)
-      );
-      writes.push(
-        supabase.from("non_member_profiles").update({ phone: normalized }).eq("user_id", user.id)
-      );
-      writes.push(
-        supabase.from("members").update({ phone: normalized }).eq("user_id", user.id)
-      );
-      await Promise.all(writes);
+      await Promise.all([
+        supabase.from("profiles").update({ phone: normalized }).eq("user_id", user.id).then(() => null),
+        supabase.from("non_member_profiles").update({ phone: normalized }).eq("user_id", user.id).then(() => null),
+        supabase.from("members").update({ phone: normalized }).eq("user_id", user.id).then(() => null),
+      ]);
       return normalized;
     },
+
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["phone-on-file", user?.id] });
       qc.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
