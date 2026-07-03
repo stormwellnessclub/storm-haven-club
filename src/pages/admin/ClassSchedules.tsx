@@ -227,13 +227,13 @@ export default function ClassSchedules() {
       if (editingSchedule) {
         const { error } = await supabase
           .from("class_schedules")
-          .update(scheduleData)
+          .update(scheduleData as any)
           .eq("id", editingSchedule.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from("class_schedules")
-          .insert([scheduleData]);
+          .insert([scheduleData as any]);
         if (error) throw error;
       }
 
