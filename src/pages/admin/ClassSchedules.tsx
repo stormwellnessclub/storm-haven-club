@@ -469,6 +469,19 @@ export default function ClassSchedules() {
                       onCheckedChange={setIsActive}
                     />
                   </div>
+                  <div className="flex items-start justify-between gap-4 rounded-md border p-3 bg-muted/30">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="invite-only">Invite only</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Free for members. Only staff can add attendees — members can't self-book.
+                      </p>
+                    </div>
+                    <Switch
+                      id="invite-only"
+                      checked={isInviteOnly}
+                      onCheckedChange={setIsInviteOnly}
+                    />
+                  </div>
                   {/* Inline conflict warnings */}
                   {formWarnings.length > 0 && (
                     <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 space-y-1">
