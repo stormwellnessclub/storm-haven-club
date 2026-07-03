@@ -178,6 +178,7 @@ export default function ClassSchedules() {
     setRoom("");
     setMaxCapacity(null);
     setIsActive(true);
+    setIsInviteOnly(false);
     setEditingSchedule(null);
   }
 
