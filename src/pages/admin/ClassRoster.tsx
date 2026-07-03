@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { PersonSearch, type PersonResult } from "@/components/admin/roster/PersonSearch";
+import { MoveBookingDialog } from "@/components/admin/roster/MoveBookingDialog";
 import { PaymentMethodSelector, type PaymentOption } from "@/components/admin/roster/PaymentMethodSelector";
 import { SellClassPackage } from "@/components/admin/SellClassPackage";
 import { resolveRosterIdentities, type RosterAttendee } from "@/hooks/useRosterIdentity";
