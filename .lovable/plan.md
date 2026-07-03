@@ -1,57 +1,55 @@
-## Problem
+## Goal
 
-Mat Sculpt is stored in `class_types.category = 'aerobics'`, but the frontend category mapping only knows about `pilates_cycling` and `other`. So:
+Add "Invite-Only" classes for new teachers: free for members, admin-managed roster, with a per-session toggle to hide from or show on the public schedule.
 
-- The booking UI can't find any valid passes/credits for an aerobics class → shows "no credits available".
-- Existing pilates_cycling passes should be interchangeable with aerobics per your latest policy, but they're being filtered out.
-- The display label "Other Classes" / "Aerobics & Other" is confusing — you want it to read "Aerobics".
+## How it works
 
-## Fix
+Each session gets two independent switches in the admin UI:
 
-All changes are frontend + one small data cleanup. No RPC changes (the booking RPC doesn't validate category — it already accepts any active class pass/credit).
+- **Invite-only** — booking bypasses credit/pass deduction (free for members). Only staff can add attendees; members cannot self-book. Non-members are blocked.
+- **Hidden from schedule** — controls whether the session appears on the public `/schedule` and member/portal browsers. Reuses the existing `is_hidden` column.
 
-### 1. Unify categories in `src/lib/classCategories.ts`
+The two toggles are independent, so you can:
 
-Treat `pilates_cycling`, `other`, and `aerobics` as one interchangeable pool for the purposes of passes/credits.
+| Invite-only | Hidden | Result                                                     |
+| ----------- | ------ | ---------------------------------------------------------- |
+| ✅          | ✅     | Silent test class. Only staff-added members see it.        |
+| ✅          | ❌     | Publicly visible but marked "Invite Only" — no self-book.  |
+| ❌          | ✅     | Regular class, unlisted (existing behavior).               |
+| ❌          | ❌     | Normal public class.                                       |
 
-- Update `CATEGORY_DISPLAY_NAMES`:
-  - `'other'` → `'Aerobics'` (was "Other Classes")
-  - `'aerobics'` → `'Aerobics'` (was "Aerobics & Other")
-  - keep `'pilates_cycling'` → `'Class Pass'`
-- Update `CLASS_TO_PASS_MAPPING` — add the missing `'aerobics'` key and make everything cross-valid:
-  ```ts
-  'pilates_cycling': ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
-  'other':           ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
-  'aerobics':        ['reformer', 'cycling', 'pilates_cycling', 'aerobics', 'other'],
-  ```
-- Update `PASS_TO_CLASS_MAPPING` for symmetry (used by admin UIs that ask "what classes can this pass book"):
-  ```ts
-  'reformer':        ['pilates_cycling', 'other', 'aerobics'],
-  'cycling':         ['pilates_cycling', 'other', 'aerobics'],
-  'pilates_cycling': ['pilates_cycling', 'other', 'aerobics'],
-  'aerobics':        ['pilates_cycling', 'other', 'aerobics'],
-  'other':           ['pilates_cycling', 'other', 'aerobics'],
-  ```
-- `getPassDisplayCategory`: keep grouping under `'pilatesCycling'` since it's now one pool for booking purposes (or leave as-is; no behavior change needed for the two-tab purchase page).
+## Changes
 
-### 2. Data cleanup
+### Database (one migration)
 
-Normalize `class_types.category` for consistency (Mat Sculpt is the only `aerobics` row today, but the admin category selector can create more):
+1. Add `is_invite_only boolean not null default false` to `class_sessions`.
+2. Add same column to `class_schedules` so recurring "trial teacher" schedules propagate the flag to generated sessions.
+3. Update `process-session-generation` logic / session insert to copy the flag from schedule → session.
+4. Update `create_atomic_class_booking` RPC:
+   - If `is_invite_only = true` and caller is a member with active benefits → skip credit/pass consumption, mark booking `payment_method = 'invite'`, still enforce capacity + not-frozen + not-blocked.
+   - If caller is not staff and session is invite-only + hidden → reject (cannot self-book invisible class).
+5. Update the admin "add attendee to roster" RPC to allow adding to invite-only sessions without touching credits.
 
-- Option A (recommended): leave `category='aerobics'` on Mat Sculpt — the mapping fix above handles it, and the label now reads "Aerobics".
-- No column/enum changes; `DatabaseClassCategory` in the TS type already needs `'aerobics'` added to the union so future TS reads don't complain:
-  ```ts
-  export type DatabaseClassCategory = 'pilates_cycling' | 'other' | 'aerobics';
-  ```
+### Admin UI
 
-### 3. Verify
+- **Session edit dialog** (`AdminClasses` / today's sessions + `ClassSchedules` recurring editor): add two switches — "Invite only (free for members)" and "Hide from public schedule".
+- **Roster view**: show an "Invite Only" badge; the existing "Add attendee" flow works as-is once the RPC allows it. Members added here consume no credits.
 
-- Reload the schedule as a Diamond member holding only pilates_cycling passes → Mat Sculpt now shows "Use existing class pass" and the monthly class credit option.
-- Admin roster → "Add to class" for a Mat Sculpt session shows the member's pilates_cycling pass in the pass dropdown.
-- Class-pass purchase page tabs still render as "Class Pass" and "Aerobics" (no more "Other Classes" wording).
+### Member/public UI
+
+- `ScheduleBrowser` / `useClassSessions`: keep the existing `is_hidden` filter. For visible invite-only sessions, render an "Invite Only" pill and disable the Book button with a tooltip ("This class is invite only — contact the front desk").
+- No changes to purchase/credits flow — invite bookings never touch balances.
 
 ## Files touched
 
-- `src/lib/classCategories.ts` — mapping + display names + type union.
+- Migration: `class_sessions`, `class_schedules`, `create_atomic_class_booking`, admin add-attendee RPC.
+- `supabase/functions/process-session-generation/*` — propagate `is_invite_only`.
+- `src/hooks/useClassSessions.ts` — select new column.
+- `src/components/booking/ScheduleBrowser.tsx` + booking button — invite-only badge & disabled self-book.
+- Admin session/schedule editors — two new switches.
+- Roster component — "Invite Only" badge.
 
-That's the whole change — no migration, no RPC edit, no UI component rewrites.
+## Out of scope
+
+- Named invite lists / email invites. You add attendees manually from the roster.
+- Non-member invite pricing (invite-only = members only, free).
