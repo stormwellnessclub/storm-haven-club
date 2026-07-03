@@ -307,10 +307,13 @@ export default function Auth() {
       }
 
       if (isSignUp) {
+        const normalizedPhone = `+1${phone.replace(/\D/g, "")}`;
         const { error } = await signUp(email, password, {
           first_name: firstName,
           last_name: lastName,
+          phone: normalizedPhone,
         });
+
 
         if (error) {
           toast({
