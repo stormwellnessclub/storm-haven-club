@@ -565,6 +565,10 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                     <Badge variant="outline" className="text-xs border-primary/50 text-primary">
                                       Booked
                                     </Badge>
+                                  ) : session.is_invite_only ? (
+                                    <Badge variant="outline" className="text-xs border-purple-500/50 text-purple-700 dark:text-purple-300">
+                                      Invite only — see front desk
+                                    </Badge>
                                   ) : waitlistStatus?.[session.id] ? (
                                     <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-700">
                                       Waitlist #{waitlistStatus[session.id].position}
