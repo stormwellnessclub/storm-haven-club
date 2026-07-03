@@ -62,6 +62,8 @@ const MAX_DURATION_HOURS = 2;
 
 export function KidsCareBookingModal({ open, onOpenChange, defaultDate }: KidsCareBookingModalProps) {
   const { user } = useAuth();
+  const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
+
   const navigate = useNavigate();
   const bookKidsCare = useBookKidsCare();
   const { data: availablePasses, isLoading: passesLoading } = useKidsCarePasses();
