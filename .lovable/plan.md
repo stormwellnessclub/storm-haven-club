@@ -1,58 +1,61 @@
-# Front Desk-Only Login
 
-Give the front desk its own sign-in page and its own account type. Those accounts can only see the kiosk. If they try to open any admin page, they're silently sent back to `/kiosk/reception`. Admins/managers continue to use the normal `/auth` in a separate window.
+## Step 1 — Send the approved email to Lyan (now)
 
-**Nothing existing changes until you explicitly create a front-desk-only account.** The current PIN-based `/kiosk/*` and `/front-desk` flows keep working exactly as they do today.
+Add a small one-off `custom_message` case to the existing `send-email` edge function so we can send arbitrary admin messages without spinning up a new function. Then invoke it once with the approved copy below.
 
-## How front-desk-only accounts are identified
+**Send parameters:**
+- To: `lyan.mashrah@gmail.com`
+- From: `Storm Wellness Club <admin@stormwellnessclub.com>` (already the default sender)
+- Reply-To: `admin@stormwellnessclub.com`
+- Subject: `Your Saturday reformer class — quick change + we need your phone number`
 
-An account is "front-desk-only" when its **only** staff role is `front_desk` (no `admin`, `manager`, `super_admin`, `spa_staff`, etc.). No schema change — just create a Supabase user account and assign it the `front_desk` role only.
+**Body (exactly as approved):**
 
-## 1. New sign-in page: `/front-desk-login`
+> Hi Lyan,
+>
+> Welcome to Storm Wellness Club, and thank you for booking your first reformer class with us!
+>
+> **Two quick things:**
+>
+> **1. Tomorrow's 11:00 AM reformer class is being moved to 12:00 PM.**
+> Just reply to this email and let us know which you'd prefer:
+>  • **Move me to the 12:00 PM class**, or
+>  • **Credit the class back to my account** so I can book another time
+>
+> **2. We don't have a phone number on file for you.**
+> We use it for class reminders, waitlist alerts, and any last-minute schedule changes (like this one). Please reply with your best mobile number so we can add it to your account.
+>
+> Sorry for the shuffle, and we're excited to have you in the studio.
+>
+> Warmly,
+> The Storm Wellness Club Team
+> admin@stormwellnessclub.com
 
-- Storm-branded, minimal (email + password, small link to `/reset-password`, no signup).
-- On success:
-  - Only `front_desk` role → set `sessionStorage.kioskUnlocked = "true"` (skips PIN) and redirect to `/kiosk/reception`.
-  - Has any higher role → inline error: "This login is for front desk accounts only. Admins sign in at /auth." then sign back out.
-  - No staff roles → "Not authorized."
-- Public route.
+I'll log the send to `email_audit_log` (the function already does this) so we have a record.
 
-## 2. Lock front-desk-only accounts out of `/admin/*`
+## Step 2 — Require phone number on ALL bookings (new + existing accounts)
 
-Update `ProtectedAdminRoute`: if the signed-in user's roles are exactly `['front_desk']`, silently `<Navigate to="/kiosk/reception" replace />` — no error screen, no admin flash. All other staff behave exactly as today.
+- New shared hook `usePhoneOnFile()` reads phone from `members` → `non_member_profiles` → `profiles`.
+- Add an inline "Add your mobile number to continue" gate to every booking surface before confirm:
+  - `BookingModal` (classes)
+  - `SpaBookingModal` (spa)
+  - `KidsCareBookingModal` (kids care)
+  - Wellness credit-booking dialog (Red Light / Cryo)
+- Save writes to `non_member_profiles.phone` + `profiles.phone` (and `members.phone` if applicable), then the booking flow continues automatically.
+- Add required Phone field to signup (`src/pages/Auth.tsx` + `AuthContext.signUp`), written to `profiles.phone` on account creation.
+- Existing `PortalPhoneGate` stays as a safety net.
 
-Also hide the "Admin" button in the `KioskShell` header for these accounts.
+## Step 3 — Handle Lyan's reply
 
-## 3. Kiosk PIN gate stays for walk-up devices
+- When she emails back: I'll write her number to `non_member_profiles.phone` + `profiles.phone`, and either move her booking to the 12:00 PM session or refund the credit per her choice.
 
-The shared PIN (`0201`) on `/kiosk/*` and `/front-desk` continues to work for tablets not signed into a user account. Signed-in front-desk accounts just bypass it because the new login sets `kioskUnlocked`.
+## Files touched
 
-## 4. Small entry-point tweaks
-
-- Tiny "Front desk sign in" link at the bottom of `/auth` pointing to `/front-desk-login`.
-- Kiosk "Lock" button routes signed-in front-desk users to `/front-desk-login` on sign-out.
-
-## Verification (I'll do this before saying it's done)
-
-Using a test front-desk account you create, I'll drive Playwright to:
-- Sign in at `/front-desk-login` → lands on `/kiosk/reception`.
-- Navigate to `/admin` → silently bounces back to `/kiosk/reception`.
-- Try signing in as an admin account on the same page → rejected with the correct error.
-- Screenshot each step.
-
-## Out of scope
-
-- No new tables, no new role.
-- No changes to existing admin/manager/other staff permissions.
-- No device binding — one shared account or one-per-person, your call.
-
-## Technical notes
-
-- New: `src/pages/FrontDeskLogin.tsx` + route in `src/App.tsx`.
-- Edit: `src/components/admin/ProtectedAdminRoute.tsx` (add front-desk-only redirect after roles resolve).
-- Edit: `src/components/kiosk/KioskShell.tsx` (hide Admin link + Lock redirect for these accounts).
-- Uses existing `useUserRoles` and `AuthContext.signIn`. No backend work.
-
-## After it's built
-
-Create a Supabase user (e.g. `frontdesk@stormwellnessclub.com`), then in `/admin/staff-roles` assign **only** the `front_desk` role. Hand them the `/front-desk-login` URL and their password.
+- `supabase/functions/send-email/index.ts` (add `custom_message` case)
+- `src/hooks/usePhoneOnFile.ts` (new)
+- `src/components/booking/BookingModal.tsx`
+- `src/components/booking/SpaBookingModal.tsx`
+- `src/components/booking/KidsCareBookingModal.tsx`
+- Red Light / Cryo booking dialog
+- `src/pages/Auth.tsx`
+- `src/contexts/AuthContext.tsx`
