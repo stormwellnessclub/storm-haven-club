@@ -75,6 +75,17 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   }
 
   const currentPath = location.pathname;
+
+  // Front-desk-only accounts are locked to /kiosk. They should never see any
+  // /admin page, even briefly. Silent redirect — no error UI.
+  if (
+    rolesResolved &&
+    roles.length === 1 &&
+    roles[0] === "front_desk"
+  ) {
+    return <Navigate to="/kiosk/reception" replace />;
+  }
+
   const canAccess = canAccessPage(roles, currentPath);
 
   if (!canAccess) {

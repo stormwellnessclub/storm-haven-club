@@ -1,10 +1,13 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
 import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUserRoles } from "@/hooks/useUserRoles";
+import { supabase } from "@/integrations/supabase/client";
 import {
   UserCheck, Coffee, Sparkles, GraduationCap, Lock, Home,
 } from "lucide-react";
