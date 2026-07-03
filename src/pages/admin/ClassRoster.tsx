@@ -124,6 +124,10 @@ export default function ClassRoster() {
   const [editingCapacity, setEditingCapacity] = useState(false);
   const [capacityValue, setCapacityValue] = useState<number>(0);
 
+  // Move-booking dialog
+  const [moveTarget, setMoveTarget] = useState<{ bookingId: string; name: string; email: string | null } | null>(null);
+
+
   // Hold-slot dialog
   const [holdDialogOpen, setHoldDialogOpen] = useState(false);
   const [holdCount, setHoldCount] = useState<number>(1);
