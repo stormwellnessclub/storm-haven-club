@@ -192,6 +192,7 @@ export default function ClassSchedules() {
     setRoom(schedule.room || "");
     setMaxCapacity(schedule.max_capacity);
     setIsActive(schedule.is_active);
+    setIsInviteOnly(!!schedule.is_invite_only);
     setDialogOpen(true);
   }
 
