@@ -212,6 +212,7 @@ export default function ClassSchedules() {
         room: room.trim() || null,
         max_capacity: maxCapacity,
         is_active: isActive,
+        is_invite_only: isInviteOnly,
       };
 
       // Pre-save conflict check
