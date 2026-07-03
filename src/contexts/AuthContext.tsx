@@ -112,13 +112,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (
-    email: string, 
-    password: string, 
-    metadata?: { first_name?: string; last_name?: string }
+    email: string,
+    password: string,
+    metadata?: { first_name?: string; last_name?: string; phone?: string }
   ) => {
     const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -126,8 +126,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: metadata,
       },
     });
+
+    // Best-effort: persist phone directly to profiles so it's available
+    // immediately, independent of any DB trigger timing.
+    if (!error && metadata?.phone && data?.user?.id) {
+      try {
+        await supabase
+          .from("profiles")
+          .update({ phone: metadata.phone })
+          .eq("user_id", data.user.id);
+      } catch (e) {
+        console.warn("[AuthContext] Failed to persist signup phone:", e);
+      }
+    }
     return { error };
   };
+
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
