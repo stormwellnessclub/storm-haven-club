@@ -1764,6 +1764,22 @@ export default function ClassRoster() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {moveTarget && session && (
+        <MoveBookingDialog
+          open={!!moveTarget}
+          onOpenChange={(o) => { if (!o) setMoveTarget(null); }}
+          bookingId={moveTarget.bookingId}
+          attendeeName={moveTarget.name}
+          attendeeEmail={moveTarget.email}
+          currentSessionId={session.id}
+          currentClassTypeId={(session as any).class_type_id}
+          currentClassName={className}
+          currentDateLabel={format(sessionDate, "EEEE, MMMM d")}
+          currentTimeLabel={format(new Date(`2000-01-01T${session.start_time}`), "h:mm a")}
+          onMoved={() => { setMoveTarget(null); invalidateAll(); }}
+        />
+      )}
     </div>
   );
 }
