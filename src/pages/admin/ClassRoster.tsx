@@ -1131,6 +1131,38 @@ export default function ClassRoster() {
             <p className="text-xs text-muted-foreground">Enrolled</p>
           </div>
           {session.is_cancelled && <Badge variant="destructive">Cancelled</Badge>}
+          {(session as any).is_invite_only && <Badge className="bg-purple-600 hover:bg-purple-700">Invite Only</Badge>}
+          {(session as any).is_hidden && <Badge variant="outline">Hidden</Badge>}
+        </div>
+      </div>
+
+      {/* Session flags */}
+      <div className="flex flex-wrap items-center gap-4 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+        <div className="flex items-center gap-2">
+          <Switch
+            id="invite-only-session"
+            checked={!!(session as any).is_invite_only}
+            onCheckedChange={async (v) => {
+              const { error } = await supabase.from("class_sessions").update({ is_invite_only: v } as any).eq("id", sessionId!);
+              if (error) return toast.error(error.message);
+              toast.success(v ? "Class is now invite only (free)" : "Invite only removed");
+              invalidateAll();
+            }}
+          />
+          <Label htmlFor="invite-only-session" className="cursor-pointer">Invite only <span className="text-muted-foreground font-normal">(free, staff-added)</span></Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Switch
+            id="hidden-session"
+            checked={!!(session as any).is_hidden}
+            onCheckedChange={async (v) => {
+              const { error } = await supabase.from("class_sessions").update({ is_hidden: v } as any).eq("id", sessionId!);
+              if (error) return toast.error(error.message);
+              toast.success(v ? "Hidden from public schedule" : "Now visible on schedule");
+              invalidateAll();
+            }}
+          />
+          <Label htmlFor="hidden-session" className="cursor-pointer">Hide from public schedule</Label>
         </div>
       </div>
 
