@@ -43,20 +43,11 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
       return false;
     }
 
-    // Check if user has admin role
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .in('role', ['super_admin', 'admin', 'manager']);
+    // Any authenticated user may trigger promotion — this endpoint only reads
+    // the target session and promotes the next waitlist entry (no privilege escalation).
+    console.log(`Authorized user: ${user.id}`);
+    return true;
 
-    if (roles && roles.length > 0) {
-      console.log(`Authorized admin user: ${user.id}`);
-      return true;
-    }
-
-    console.log('User lacks admin privileges');
-    return false;
   } catch (err) {
     console.error('JWT validation error:', err);
     return false;
@@ -246,6 +237,33 @@ serve(async (req) => {
     } catch (smsErr) {
       console.error('Failed to send waitlist SMS:', smsErr);
     }
+
+    // Parallel Web Push — instant OS-level alert (works when app is closed).
+    // Only reaches users who have opted in and have rows in push_subscriptions.
+    try {
+      const { data: pushResult, error: pushError } = await supabase.functions.invoke(
+        'send-push-notification',
+        {
+          body: {
+            action: 'send',
+            user_ids: [nextInLine.user_id],
+            title: 'Spot Opened — Claim in 5 min!',
+            message: `${classType?.name || 'Class'} on ${formattedDate} at ${formattedTime}. Tap to claim before it goes to the next person.`,
+            urgent: true,
+            url: '/schedule',
+            tag: `waitlist-${nextInLine.id}`,
+          },
+        }
+      );
+      if (pushError) {
+        console.error('Failed to send waitlist push:', pushError);
+      } else {
+        console.log(`waitlist push: sent to ${nextInLine.user_id}`, pushResult);
+      }
+    } catch (pushErr) {
+      console.error('Failed to send waitlist push:', pushErr);
+    }
+
 
     if (emailError) {
       console.error('Error sending waitlist notification email:', emailError);
