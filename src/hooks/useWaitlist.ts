@@ -87,9 +87,85 @@ export function useJoinWaitlist() {
         description: `You're #${data.position} on the waitlist. We've held ${heldLabel} — it'll be refunded if you leave or the spot doesn't open.`,
       });
 
-      // Fire confirmation email + SMS (best-effort).
-      if (!user) return;
+      // Nudge the member to turn on push alerts so they don't miss the 5-min claim window.
+      // Only prompt if push is supported, permission not already granted, and not in an iframe/preview.
       try {
+        const supportsPush =
+          typeof window !== "undefined" &&
+          "serviceWorker" in navigator &&
+          "PushManager" in window &&
+          "Notification" in window &&
+          window.self === window.top;
+        if (supportsPush && Notification.permission !== "granted") {
+          const ua = navigator.userAgent;
+          const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+          const isStandalone =
+            (window.matchMedia?.("(display-mode: standalone)").matches) ||
+            (navigator as any).standalone === true;
+
+          if (isIOS && !isStandalone) {
+            // iOS Safari can't do web push in a normal tab — must be installed to home screen.
+            toast.message("Get instant alerts on iPhone", {
+              description:
+                "You have 5 minutes to claim a spot when it opens. On iPhone: tap Share → Add to Home Screen, then open the app from your home screen to enable push alerts.",
+              duration: 12000,
+            });
+          } else {
+            toast.message("Turn on push alerts", {
+              description:
+                "You only have 5 minutes to claim your spot when it opens. Push alerts reach you instantly, even when the app is closed.",
+              duration: 12000,
+              action: {
+                label: "Enable",
+                onClick: async () => {
+                  try {
+                    const perm = await Notification.requestPermission();
+                    if (perm !== "granted") {
+                      toast.error("Notifications blocked. Enable them in your browser settings.");
+                      return;
+                    }
+                    // Fetch VAPID key and subscribe
+                    const { data: vapidData, error: vapidErr } =
+                      await supabase.functions.invoke("send-push-notification", {
+                        body: { action: "get-vapid-public-key" },
+                      });
+                    if (vapidErr || !vapidData?.publicKey) throw vapidErr || new Error("No VAPID key");
+                    await navigator.serviceWorker.register("/sw-push.js", { scope: "/" });
+                    const reg = await navigator.serviceWorker.ready;
+                    const padding = "=".repeat((4 - vapidData.publicKey.length % 4) % 4);
+                    const base64 = (vapidData.publicKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+                    const raw = window.atob(base64);
+                    const key = new Uint8Array(raw.length);
+                    for (let i = 0; i < raw.length; ++i) key[i] = raw.charCodeAt(i);
+                    const sub = await reg.pushManager.subscribe({
+                      userVisibleOnly: true,
+                      applicationServerKey: key,
+                    });
+                    const j = sub.toJSON();
+                    await (supabase.from("push_subscriptions" as any) as any).upsert(
+                      {
+                        user_id: user.id,
+                        endpoint: j.endpoint,
+                        p256dh: j.keys?.p256dh || "",
+                        auth_key: j.keys?.auth || "",
+                        updated_at: new Date().toISOString(),
+                      },
+                      { onConflict: "user_id,endpoint" }
+                    );
+                    toast.success("Push alerts enabled — you'll get an instant alert if your spot opens.");
+                  } catch (e) {
+                    console.error("Waitlist push enable failed:", e);
+                    toast.error("Couldn't enable push alerts. Please try again.");
+                  }
+                },
+              },
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("waitlist push prompt failed (non-fatal):", e);
+      }
+
         // Lookup session + contact in parallel.
         const [{ data: session }, { data: prof }, { data: nonMember }] = await Promise.all([
           (supabase.from as any)("class_sessions")
