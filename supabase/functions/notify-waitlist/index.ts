@@ -238,6 +238,33 @@ serve(async (req) => {
       console.error('Failed to send waitlist SMS:', smsErr);
     }
 
+    // Parallel Web Push — instant OS-level alert (works when app is closed).
+    // Only reaches users who have opted in and have rows in push_subscriptions.
+    try {
+      const { data: pushResult, error: pushError } = await supabase.functions.invoke(
+        'send-push-notification',
+        {
+          body: {
+            action: 'send',
+            user_ids: [nextInLine.user_id],
+            title: 'Spot Opened — Claim in 5 min!',
+            message: `${classType?.name || 'Class'} on ${formattedDate} at ${formattedTime}. Tap to claim before it goes to the next person.`,
+            urgent: true,
+            url: '/schedule',
+            tag: `waitlist-${nextInLine.id}`,
+          },
+        }
+      );
+      if (pushError) {
+        console.error('Failed to send waitlist push:', pushError);
+      } else {
+        console.log(`waitlist push: sent to ${nextInLine.user_id}`, pushResult);
+      }
+    } catch (pushErr) {
+      console.error('Failed to send waitlist push:', pushErr);
+    }
+
+
     if (emailError) {
       console.error('Error sending waitlist notification email:', emailError);
     } else {
