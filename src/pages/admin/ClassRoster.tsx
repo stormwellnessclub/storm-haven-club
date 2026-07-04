@@ -279,11 +279,33 @@ export default function ClassRoster() {
   // Update capacity mutation
   const updateCapacityMutation = useMutation({
     mutationFn: async (newCapacity: number) => {
+      const oldCapacity = session?.max_capacity ?? 0;
+      const currentEnrollment = session?.current_enrollment ?? bookings.length;
       const { error } = await supabase
         .from("class_sessions")
         .update({ max_capacity: newCapacity })
         .eq("id", sessionId!);
       if (error) throw error;
+
+      // If capacity increased and there's headroom, promote waitlist entries
+      // (one edge-function call per newly opened seat; each call promotes one waiter).
+      const newSeats = Math.max(0, newCapacity - Math.max(oldCapacity, currentEnrollment));
+      if (newSeats > 0) {
+        for (let i = 0; i < newSeats; i++) {
+          try {
+            const { error: notifyErr } = await supabase.functions.invoke("notify-waitlist", {
+              body: { session_id: sessionId! },
+            });
+            if (notifyErr) {
+              console.warn("notify-waitlist failed:", notifyErr);
+              break;
+            }
+          } catch (e) {
+            console.warn("notify-waitlist threw:", e);
+            break;
+          }
+        }
+      }
     },
     onSuccess: () => {
       toast.success("Capacity updated");
