@@ -166,7 +166,11 @@ export function useJoinWaitlist() {
         console.warn("waitlist push prompt failed (non-fatal):", e);
       }
 
+      // Fire confirmation email + SMS (best-effort).
+      if (!user) return;
+      try {
         // Lookup session + contact in parallel.
+
         const [{ data: session }, { data: prof }, { data: nonMember }] = await Promise.all([
           (supabase.from as any)("class_sessions")
             .select("id, scheduled_date, scheduled_time, class_types(name)")
