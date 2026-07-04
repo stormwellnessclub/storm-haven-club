@@ -90,6 +90,7 @@ export function useJoinWaitlist() {
       // Nudge the member to turn on push alerts so they don't miss the 5-min claim window.
       // Only prompt if push is supported, permission not already granted, and not in an iframe/preview.
       try {
+        if (!user) throw new Error("no user");
         const supportsPush =
           typeof window !== "undefined" &&
           "serviceWorker" in navigator &&
