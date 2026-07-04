@@ -43,20 +43,11 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
       return false;
     }
 
-    // Check if user has admin role
-    const { data: roles } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .in('role', ['super_admin', 'admin', 'manager']);
+    // Any authenticated user may trigger promotion — this endpoint only reads
+    // the target session and promotes the next waitlist entry (no privilege escalation).
+    console.log(`Authorized user: ${user.id}`);
+    return true;
 
-    if (roles && roles.length > 0) {
-      console.log(`Authorized admin user: ${user.id}`);
-      return true;
-    }
-
-    console.log('User lacks admin privileges');
-    return false;
   } catch (err) {
     console.error('JWT validation error:', err);
     return false;
