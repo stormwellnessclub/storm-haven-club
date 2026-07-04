@@ -1,39 +1,81 @@
-## Goal
-1. Create tomorrow's 12:00 PM Signature Flow Pilates – All Levels session with instructor "Sub".
-2. Add per-attendee "Move to another session" action on the class roster that preserves the class credit.
-3. Confirm cancel-and-refund already works on the roster (it does).
+## How the push notification would work
 
-## Details
+When a waitlist spot opens and `notify-waitlist` promotes the next member, in addition to the existing email we'd fire a **Web Push notification** via the already-built `send-push-notification` edge function.
 
-### A. Data changes (via insert tool, not schema)
-- Create instructor row: `first_name = 'Sub'`, `last_name = ''`, `email = 'sub@stormwellnessclub.com'`, `is_active = true`. (Rename later in Admin → Instructors.)
-- Create `class_sessions` row:
-  - `class_type_id` = `Signature Flow Pilates – All Levels` (`8d29b6d1-1b37-4bca-aa7d-13aca36b8059`)
-  - `session_date` = `2026-07-04`, `start_time` = `12:00`, `end_time` = `12:50`
-  - `room` = `Reformer Studio`, `max_capacity` = `8`
-  - `instructor_id` = the Sub instructor's id
+### What the member sees
+- A native OS notification banner (iOS lock screen, Android notification shade, macOS Notification Center, Windows Action Center) — appears even if the app/browser is closed.
+- **Title:** "Spot Opened — Claim in 5 min!"
+- **Body:** "Reformer Pilates on Thu, Jul 9 at 6:00 PM. Tap to claim before it goes to the next person."
+- **Tap action:** opens the app directly to `/schedule` so they can book in one tap.
+- **Tag:** `waitlist-<id>` so a second push for the same spot replaces (doesn't stack) the first.
 
-### B. New RPC (migration) — `move_class_booking(p_booking_id uuid, p_target_session_id uuid)`
-- `SECURITY DEFINER`, `set search_path = public`, admin-only via `has_any_role(auth.uid(), ARRAY['admin','super_admin','front_desk'])`.
-- Validates: target session exists, not cancelled, in the future, has capacity.
-- `UPDATE class_bookings SET session_id = target, updated_at = now() WHERE id = booking_id AND status = 'confirmed'` — same booking row, same credit/pass, no refund+rebook.
-- Recomputes `current_enrollment` on both source and target sessions from `class_bookings`.
-- Inserts `admin_action_log` row (`action_type = 'moved_class_booking'`, before/after JSON).
+### How it will sound / feel
+Web Push sound and vibration are controlled by the OS, not the app — we can only signal *urgency*:
+- We set `urgent: true`, which our existing `/sw-push.js` already translates to:
+  - `requireInteraction: true` → banner stays on screen until the user dismisses/taps (doesn't auto-hide after 5 seconds).
+  - `vibrate: [300, 100, 300, 100, 300]` → strong triple buzz on Android.
+  - Prepends 🚨 to the body for scannability.
+- **Sound:** the device plays its default notification tone (whatever the user has set). On iOS installed PWAs, this is the standard notification chime; on Android it's the user's chosen notification sound; on desktop it's the OS default alert.
+- We **cannot** ship a custom sound file — Web Push doesn't support custom audio on iOS at all, and Chrome/Firefox no longer honor the `sound` property.
+- If the user has their phone on silent, the banner + vibration still fire (subject to their Focus/DND settings).
 
-### C. Roster UI — `src/pages/admin/ClassRoster.tsx`
-- Add a Move (arrow-right-left) icon button on each attendee row, next to the existing Remove/No-show/Undo actions.
-- Clicking opens `MoveBookingDialog` listing other **future, non-cancelled** sessions of the same class type with remaining capacity (soonest first). Includes a "Show all class types" toggle for flexibility.
-- On confirm: call `move_class_booking`, then best-effort `send-email` custom_message to the member ("Your class was moved to …") with Reply-To `admin@stormwellnessclub.com`.
-- Toast: "Moved to {date} {time} — credit kept, member notified".
+### Platform caveats (important to communicate)
+| Platform | Works? | Notes |
+|---|---|---|
+| Android Chrome / any Android browser | ✅ Yes | Full push, sound, vibrate, works in background |
+| Desktop Chrome/Edge/Firefox | ✅ Yes | Works even when browser is closed (Chrome only) |
+| **iOS Safari** | ✅ but only if member first taps "Share → Add to Home Screen" and opens the PWA once. Push in a regular Safari tab does not work — that's an Apple limitation, not ours. |
+| macOS Safari | ✅ Yes | Works out of the box |
+| Lovable preview iframe | ❌ No | Push only works on the published site (`stormwellnessclub.com`) |
 
-### D. Cancel & refund
-No changes — the existing `removeMutation` on the roster already cancels the booking, refunds the class credit or class pass, releases the waitlist hold, and emails the member.
+## Changes to ship
 
-## Files touched
-- Migration: `move_class_booking` RPC.
-- Data insert: Sub instructor + Saturday 12 PM session.
-- Edited: `src/pages/admin/ClassRoster.tsx` — add Move button and wire dialog.
-- New: `src/components/admin/roster/MoveBookingDialog.tsx`.
+### 1. `supabase/functions/notify-waitlist/index.ts`
+After the row is flipped to `notified`, add a third parallel `supabase.functions.invoke("send-push-notification", ...)` call with:
+```
+action: "send",
+user_ids: [nextInLine.user_id],
+title: "Spot Opened — Claim in 5 min!",
+message: `${className} on ${formattedDate} at ${formattedTime}. Tap to claim.`,
+urgent: true,
+url: "/schedule",
+tag: `waitlist-${nextInLine.id}`
+```
+Wrapped in try/catch — a push failure must never block email/SMS.
 
-## Open question
-The existing roster already has Remove (refunds credit) and, for checked-in attendees, "Undo check-in and refund". Should I leave these as-is, or add a single unified "Cancel & refund credit" button on every attendee row regardless of status?
+### 2. Prompt members to enable push when they join the waitlist
+In `useJoinWaitlist` (`src/hooks/useWaitlist.ts`), after a successful join, if push is supported and the user is **not** already subscribed, follow up the success toast with a second toast:
+> "Turn on push alerts so you don't miss your spot — you have only 5 minutes to claim."
+> [Enable] button → calls `subscribe()` from `usePushNotifications`.
+Without this step, most members will never opt in and the push code path silently no-ops.
+
+### 3. iOS help copy (small, one-time)
+Under the "Enable" toast/button on iOS Safari (detected via user agent), show inline hint: *"On iPhone: tap Share → Add to Home Screen first, then open the app from your home screen to enable alerts."* Keeps expectations honest.
+
+## How we'll verify it actually works
+
+### Automated / instrumented
+1. **Deploy** `notify-waitlist` and confirm in edge function logs that the `send-push-notification` invoke runs and returns 200 for a real test member.
+2. **Row check:** `email_audit_log` should get a `waitlist_notification` entry AND `send-push-notification` should log a "Sent push to N devices" line for the same `user_id`.
+3. **Query `push_subscriptions`** for the test user — confirm a row exists before testing (if not, subscribe first).
+
+### End-to-end (manual, on the published site)
+1. On phone A (test member), open **published** `stormwellnessclub.com`, sign in, enable push when prompted, and join the waitlist for a full class.
+2. On phone B / admin, cancel the booking of an enrolled member so a spot frees.
+3. Within seconds, phone A should:
+   - Buzz/chime with the OS's default notification sound.
+   - Show the "Spot Opened — Claim in 5 min!" banner.
+   - Tapping opens `/schedule`.
+4. Repeat with the app **fully closed** on phone A to confirm background delivery.
+5. Repeat on iOS installed to home screen to validate that path.
+
+### Ongoing observability
+- Add a `console.log("waitlist push: sent to <userId> devices=<n>")` line so we can grep edge function logs after any incident.
+- If a push fails with 410/404 from the push service (subscription expired), `send-push-notification` already prunes that row from `push_subscriptions` — no manual cleanup needed.
+
+## Out of scope
+- Custom notification sound (not supported by Web Push on any major browser today).
+- Fixing SMS delivery — separate track.
+- Native mobile app via Capacitor.
+- Extending the 5-minute claim window.
+- The `notify-waitlist` auth fix (member-JWT rejection) discussed earlier — this plan assumes it lands in the same build so notifications actually fire in the first place.
