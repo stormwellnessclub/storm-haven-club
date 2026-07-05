@@ -13,8 +13,17 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+
+    const authHeader = req.headers.get('Authorization') ?? ''
+    if (authHeader !== `Bearer ${supabaseServiceKey}` && authHeader !== `Bearer ${anonKey}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
 
     let weeksAhead = 4
     let startDate = new Date().toISOString().split('T')[0]

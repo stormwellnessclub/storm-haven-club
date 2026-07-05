@@ -315,11 +315,33 @@ serve(async (req) => {
     }
 
     // Handle unauthenticated action: list_application_payment_methods
-    // This allows applicants to fetch their card details after saving without needing auth
+    // This allows applicants to fetch their card details after saving without needing auth.
+    // SECURITY: The stripeCustomerId must be bound to a real membership_applications row
+    // (created by our own create_application_setup flow) — this prevents card metadata
+    // enumeration by callers who guess arbitrary Stripe customer IDs.
     if (action === 'list_application_payment_methods') {
       const { stripeCustomerId: appCustomerId } = body;
 
       if (!appCustomerId) {
+        return new Response(
+          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // Verify the customer ID is tied to an application we know about.
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      const { data: appRow } = await supabaseAdmin
+        .from('membership_applications')
+        .select('id')
+        .eq('stripe_customer_id', appCustomerId)
+        .maybeSingle();
+
+      if (!appRow) {
+        logStep("list_application_payment_methods rejected: customer not tied to any application", { stripeCustomerId: appCustomerId });
         return new Response(
           JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -375,6 +397,7 @@ serve(async (req) => {
         );
       }
     }
+
 
     // All other actions require authentication
     const authHeader = req.headers.get('authorization');
