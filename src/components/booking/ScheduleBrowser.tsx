@@ -415,6 +415,15 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       <section className={embedded ? "py-6 bg-background" : "py-12 bg-background"}>
         <div className={embedded ? "" : "container mx-auto px-6"}>
           <ResumeBookingBanner kind="class" onResume={handleResumeBooking} />
+          {atHorizon && !selectedDate && (
+            <div className="mb-6 flex items-start gap-3 rounded-md border border-accent/30 bg-accent/5 p-4 text-sm">
+              <Info className="h-4 w-4 mt-0.5 text-accent shrink-0" />
+              <p className="text-muted-foreground leading-relaxed">
+                You've reached the end of the current schedule. New classes are released in{" "}
+                <span className="font-medium text-foreground">4-week increments</span> — check back soon for the next block of dates to view and book.
+              </p>
+            </div>
+          )}
           {error ? (
             <div className="text-center py-16">
               <p className="text-destructive">Failed to load schedule. Please try again later.</p>
