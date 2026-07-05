@@ -10,6 +10,9 @@ export interface RosterAttendee {
   type: "member" | "pass_holder" | "account" | "walk_in" | "hold";
   isCheckedIn: boolean;
   isNoShow: boolean;
+  isCancelled: boolean;
+  cancelType: "early" | "late" | null;
+  cancelledAt: string | null;
   checkedInAt: string | null;
   paymentMethod: string | null;
   walkInName: string | null;
@@ -22,11 +25,16 @@ interface RawBooking {
   member_id: string | null;
   status: string;
   checked_in_at: string | null;
+  cancelled_at: string | null;
   walk_in_name: string | null;
   walk_in_email: string | null;
   walk_in_phone: string | null;
   payment_method: string | null;
   is_admin_hold: boolean | null;
+  class_sessions: {
+    session_date: string | null;
+    start_time: string | null;
+  } | null;
   members: {
     id: string;
     first_name: string;
@@ -34,6 +42,20 @@ interface RawBooking {
     phone: string | null;
     photo_url: string | null;
   } | null;
+}
+
+function computeCancelType(
+  cancelledAt: string | null,
+  sessionDate: string | null,
+  startTime: string | null,
+): "early" | "late" | null {
+  if (!cancelledAt) return null;
+  if (!sessionDate || !startTime) return "early";
+  const start = new Date(`${sessionDate}T${startTime}`).getTime();
+  const cancelled = new Date(cancelledAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(cancelled)) return "early";
+  const hoursBefore = (start - cancelled) / (1000 * 60 * 60);
+  return hoursBefore < 24 ? "late" : "early";
 }
 
 /**
