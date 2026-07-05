@@ -68,10 +68,10 @@ export async function resolveRosterIdentities(
   const { data: rawBookings, error } = await supabase
     .from("class_bookings")
     .select(
-      "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, members (id, first_name, last_name, phone, photo_url)"
+      "id, user_id, member_id, status, checked_in_at, cancelled_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, class_sessions (session_date, start_time), members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
-    .in("status", ["confirmed", "completed", "no_show"]);
+    .in("status", ["confirmed", "completed", "no_show", "cancelled"]);
 
   if (error) throw error;
   const bookings = (rawBookings || []) as unknown as RawBooking[];
@@ -105,9 +105,20 @@ export async function resolveRosterIdentities(
   );
 
   return bookings.map((b): RosterAttendee => {
-    const isCheckedIn = b.status === "completed" || !!b.checked_in_at;
+    const isCancelled = b.status === "cancelled";
+    const isCheckedIn = !isCancelled && (b.status === "completed" || !!b.checked_in_at);
     const isNoShow = b.status === "no_show";
     const isAdminHold = !!b.is_admin_hold;
+    const cancelType = isCancelled
+      ? computeCancelType(b.cancelled_at, b.class_sessions?.session_date ?? null, b.class_sessions?.start_time ?? null)
+      : null;
+    const extras = {
+      isCancelled,
+      cancelType,
+      cancelledAt: b.cancelled_at,
+    };
+
+
 
     // 0. Admin hold — placeholder seat
     if (isAdminHold) {
