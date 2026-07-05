@@ -26,14 +26,43 @@ type ReconResult = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  let authorized = !!token && (token === serviceKey || (anonKey && token === anonKey));
+  if (!authorized && token) {
+    // Allow authenticated admin users
+    try {
+      const supaAuth = createClient(Deno.env.get("SUPABASE_URL") ?? "", anonKey || serviceKey);
+      const { data: userData } = await supaAuth.auth.getUser(token);
+      const u = userData?.user;
+      if (u) {
+        const supaAdmin = createClient(Deno.env.get("SUPABASE_URL") ?? "", serviceKey);
+        const { data: roles } = await supaAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", u.id)
+          .in("role", ["admin", "super_admin", "manager"]);
+        authorized = !!(roles && roles.length);
+      }
+    } catch (_) { /* ignore */ }
+  }
+  if (!authorized) {
+    return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
     apiVersion: "2025-08-27.basil",
   });
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    serviceKey,
     { auth: { persistSession: false } }
   );
+
 
   let body: any = {};
   try { body = await req.json(); } catch (_) { body = {}; }
