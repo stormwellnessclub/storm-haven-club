@@ -11,6 +11,7 @@ export interface KioskSearchResult {
   subtitle: string;
   photo_url?: string | null;
   status?: string;
+  sub_type?: string | null;
   // IDs for check-in actions
   member_uuid?: string;
   member_id_text?: string;
