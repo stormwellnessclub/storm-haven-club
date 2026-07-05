@@ -10,6 +10,9 @@ export interface RosterAttendee {
   type: "member" | "pass_holder" | "account" | "walk_in" | "hold";
   isCheckedIn: boolean;
   isNoShow: boolean;
+  isCancelled: boolean;
+  cancelType: "early" | "late" | null;
+  cancelledAt: string | null;
   checkedInAt: string | null;
   paymentMethod: string | null;
   walkInName: string | null;
@@ -22,11 +25,16 @@ interface RawBooking {
   member_id: string | null;
   status: string;
   checked_in_at: string | null;
+  cancelled_at: string | null;
   walk_in_name: string | null;
   walk_in_email: string | null;
   walk_in_phone: string | null;
   payment_method: string | null;
   is_admin_hold: boolean | null;
+  class_sessions: {
+    session_date: string | null;
+    start_time: string | null;
+  } | null;
   members: {
     id: string;
     first_name: string;
@@ -34,6 +42,20 @@ interface RawBooking {
     phone: string | null;
     photo_url: string | null;
   } | null;
+}
+
+function computeCancelType(
+  cancelledAt: string | null,
+  sessionDate: string | null,
+  startTime: string | null,
+): "early" | "late" | null {
+  if (!cancelledAt) return null;
+  if (!sessionDate || !startTime) return "early";
+  const start = new Date(`${sessionDate}T${startTime}`).getTime();
+  const cancelled = new Date(cancelledAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(cancelled)) return "early";
+  const hoursBefore = (start - cancelled) / (1000 * 60 * 60);
+  return hoursBefore < 24 ? "late" : "early";
 }
 
 /**
@@ -46,10 +68,10 @@ export async function resolveRosterIdentities(
   const { data: rawBookings, error } = await supabase
     .from("class_bookings")
     .select(
-      "id, user_id, member_id, status, checked_in_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, members (id, first_name, last_name, phone, photo_url)"
+      "id, user_id, member_id, status, checked_in_at, cancelled_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, class_sessions (session_date, start_time), members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
-    .in("status", ["confirmed", "completed", "no_show"]);
+    .in("status", ["confirmed", "completed", "no_show", "cancelled"]);
 
   if (error) throw error;
   const bookings = (rawBookings || []) as unknown as RawBooking[];
@@ -83,9 +105,20 @@ export async function resolveRosterIdentities(
   );
 
   return bookings.map((b): RosterAttendee => {
-    const isCheckedIn = b.status === "completed" || !!b.checked_in_at;
+    const isCancelled = b.status === "cancelled";
+    const isCheckedIn = !isCancelled && (b.status === "completed" || !!b.checked_in_at);
     const isNoShow = b.status === "no_show";
     const isAdminHold = !!b.is_admin_hold;
+    const cancelType = isCancelled
+      ? computeCancelType(b.cancelled_at, b.class_sessions?.session_date ?? null, b.class_sessions?.start_time ?? null)
+      : null;
+    const extras = {
+      isCancelled,
+      cancelType,
+      cancelledAt: b.cancelled_at,
+    };
+
+
 
     // 0. Admin hold — placeholder seat
     if (isAdminHold) {
@@ -103,6 +136,7 @@ export async function resolveRosterIdentities(
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
         isAdminHold: true,
+        ...extras,
       };
     }
 
@@ -122,6 +156,7 @@ export async function resolveRosterIdentities(
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
         isAdminHold: false,
+        ...extras,
       };
     }
 
@@ -142,6 +177,7 @@ export async function resolveRosterIdentities(
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
         isAdminHold: false,
+        ...extras,
       };
     }
 
@@ -162,6 +198,7 @@ export async function resolveRosterIdentities(
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
         isAdminHold: false,
+        ...extras,
       };
     }
 
@@ -181,6 +218,7 @@ export async function resolveRosterIdentities(
         paymentMethod: b.payment_method,
         walkInName: b.walk_in_name,
         isAdminHold: false,
+        ...extras,
       };
     }
 
@@ -199,6 +237,7 @@ export async function resolveRosterIdentities(
       paymentMethod: b.payment_method,
       walkInName: b.walk_in_name,
       isAdminHold: false,
+      ...extras,
     };
   });
 }

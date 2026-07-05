@@ -226,7 +226,7 @@ export default function ClassRoster() {
       const attendees = await resolveRosterIdentities(sessionId!);
 
       // Auto-heal enrollment counter (exclude no-show rows so the seat is freed)
-      const confirmedCount = attendees.filter(a => !a.isNoShow).length;
+      const confirmedCount = attendees.filter(a => !a.isNoShow && !a.isCancelled).length;
       if (session && confirmedCount !== session.current_enrollment) {
         await supabase
           .from("class_sessions")
@@ -1318,7 +1318,7 @@ export default function ClassRoster() {
             <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
           </TabsList>
           {rosterTab === "roster" && (() => {
-            const remaining = bookings.filter(a => !a.isAdminHold && !a.isCheckedIn && !a.isNoShow);
+            const remaining = bookings.filter(a => !a.isAdminHold && !a.isCheckedIn && !a.isNoShow && !a.isCancelled);
             if (remaining.length === 0) return null;
             return (
               <Button
@@ -1364,7 +1364,12 @@ export default function ClassRoster() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[...bookings].sort((a, b) => Number(b.isAdminHold) - Number(a.isAdminHold)).map((attendee) => {
+                    {[...bookings].sort((a, b) => {
+                      // Admin holds first, cancelled last
+                      if (a.isAdminHold !== b.isAdminHold) return Number(b.isAdminHold) - Number(a.isAdminHold);
+                      if (a.isCancelled !== b.isCancelled) return Number(a.isCancelled) - Number(b.isCancelled);
+                      return 0;
+                    }).map((attendee) => {
                       const initials = attendee.name.split(" ").map(n => n[0] || "").join("").slice(0, 2) || "?";
                       const typeLabel = attendee.type === "member" ? "Member" : attendee.type === "pass_holder" ? "Pass Holder" : attendee.type === "walk_in" ? "Walk-In" : "Account";
                       if (attendee.isAdminHold) {
@@ -1414,7 +1419,7 @@ export default function ClassRoster() {
                         );
                       }
                       return (
-                        <TableRow key={attendee.bookingId}>
+                        <TableRow key={attendee.bookingId} className={attendee.isCancelled ? "opacity-60 bg-muted/30" : undefined}>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
@@ -1482,7 +1487,25 @@ export default function ClassRoster() {
                             <span className="text-sm text-muted-foreground">{paymentLabel(attendee.paymentMethod)}</span>
                           </TableCell>
                           <TableCell>
-                            {attendee.isNoShow ? (
+                            {attendee.isCancelled ? (
+                              attendee.cancelType === "late" ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-destructive/50 text-destructive"
+                                  title={attendee.cancelledAt ? `Cancelled ${new Date(attendee.cancelledAt).toLocaleString()}` : undefined}
+                                >
+                                  Late Cancel
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-muted-foreground"
+                                  title={attendee.cancelledAt ? `Cancelled ${new Date(attendee.cancelledAt).toLocaleString()}` : undefined}
+                                >
+                                  Early Cancel
+                                </Badge>
+                              )
+                            ) : attendee.isNoShow ? (
                               <Badge variant="outline" className="text-muted-foreground"><UserX className="h-3 w-3 mr-1" /> No Show</Badge>
                             ) : attendee.isCheckedIn ? (
                               <Badge variant="default" className="bg-primary"><CheckCircle className="h-3 w-3 mr-1" /> Checked In</Badge>
@@ -1491,12 +1514,12 @@ export default function ClassRoster() {
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            {!attendee.isCheckedIn && !attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isCheckedIn && !attendee.isNoShow && (
                               <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
                                 <UserCheck className="h-4 w-4 mr-1" /> Check In
                               </Button>
                             )}
-                            {!attendee.isCheckedIn && !attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isCheckedIn && !attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1510,7 +1533,7 @@ export default function ClassRoster() {
                                 <UserX className="h-4 w-4" />
                               </Button>
                             )}
-                            {!attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1520,7 +1543,7 @@ export default function ClassRoster() {
                                 <ArrowRightLeft className="h-4 w-4" />
                               </Button>
                             )}
-                            {!attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1537,7 +1560,7 @@ export default function ClassRoster() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
-                            {attendee.isNoShow && (
+                            {!attendee.isCancelled && attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1547,6 +1570,9 @@ export default function ClassRoster() {
                               >
                                 <RotateCcw className="h-4 w-4 mr-1" /> Undo No Show
                               </Button>
+                            )}
+                            {attendee.isCancelled && (
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
 
