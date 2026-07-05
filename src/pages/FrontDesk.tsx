@@ -720,7 +720,14 @@ function FrontDeskKiosk() {
                               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                             </Avatar>
                           </TableCell>
-                          <TableCell className="font-medium">{entry.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span>{entry.name}</span>
+                              {entry.sub_type && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal">{entry.sub_type}</Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell><TypeBadge type={entry.type} /></TableCell>
                           <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                             {format(new Date(entry.time), "h:mm a")}
