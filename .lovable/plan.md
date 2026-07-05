@@ -1,24 +1,31 @@
-## Goal
-Cap the public/member/portal class schedule (and booking) view at **4 weeks out from today**. When someone tries to page past that horizon, show a friendly message explaining sessions are released in 4-week increments.
+# Fix: Freed spots not returned when member self-cancels
 
-## Where
-Single file: `src/components/booking/ScheduleBrowser.tsx` (used by `/schedule`, `/portal/book/class`, `/member/book/class`).
+## The bug
+When a member early-cancels a class booking through the portal/member app, `class_bookings.status` is set to `cancelled` and the credit/pass is refunded, but `class_sessions.current_enrollment` is **not** decremented. Admin removals already recompute enrollment correctly — only the member self-cancel RPC misses this step.
 
-## Changes
+Result: the schedule keeps showing the cancelled member's seat as taken (e.g. "4 spots left of 5" instead of "5 spots left").
 
-1. **Cap forward navigation**
-   - Compute `maxWeekStart = startOfWeek(addWeeks(today, 3))` — this makes the 4th week (weeks 0–3) the furthest browsable week.
-   - Disable the "next week" button when `weekStart >= maxWeekStart`.
-   - Same cap applied to the date picker (block dates past `addWeeks(today, 4) - 1 day`).
+## Fix
+Update the `cancel_class_booking` RPC (defined in `supabase/migrations/20260323100153_...sql`) via a new migration so it also recomputes the session's enrollment count after cancelling.
 
-2. **Horizon message**
-   - When user is on the last allowed week (`weekStart === maxWeekStart`), render an info banner under the week nav:
-     > "You've reached the end of the current schedule. New classes are released in 4-week increments — check back soon for the next block of dates."
-   - Style: muted card / `Alert` with `Info` icon, matches existing schedule styling.
+Add — right after the `UPDATE class_bookings SET status = 'cancelled' ...` block — a recompute step that mirrors the admin-side logic in `ClassRoster.tsx`:
 
-3. **No backend / no session-generation changes.** The reconciler already generates 4 weeks ahead, so this just tightens what the UI exposes.
+```sql
+UPDATE public.class_sessions cs
+SET current_enrollment = (
+  SELECT COUNT(*)
+  FROM public.class_bookings b
+  WHERE b.session_id = cs.id
+    AND b.status IN ('confirmed', 'completed')
+),
+    updated_at = now()
+WHERE cs.id = _session.id;
+```
+
+No other RPC signature, return value, or UI change is needed — the schedule page and booking modal already read `current_enrollment` on the next refetch (60s poll + focus refresh), and waitlist notification already runs after cancel.
 
 ## Out of scope
-- Admin schedule views (they keep full range).
-- Session generation cadence.
-- Copy variants — one message, one location.
+- Admin removals (already correct)
+- Waitlist backfill flow (unchanged)
+- Late-cancellation forfeit rules (unchanged)
+- Any UI copy changes
