@@ -10,6 +10,7 @@ export interface KioskAttendanceEntry {
   time: string;
   subtitle: string;
   photo_url?: string | null;
+  sub_type?: string | null;
 }
 
 export interface KioskAttendanceStats {
@@ -39,6 +40,7 @@ export function useKioskAttendance() {
         time: e.time,
         subtitle: e.subtitle,
         photo_url: e.photo_url || null,
+        sub_type: e.sub_type || null,
       }));
 
       // Sort by time descending
