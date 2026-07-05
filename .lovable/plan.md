@@ -1,47 +1,69 @@
+## Problem
+
+On the kiosk check-in screens, non-member class attendees and guest attendees fall through to a generic "Walk-in"/"Unknown" label because the resolver only joins the `members` table. Their real name (already in `non_member_profiles`, `profiles`, or `walk_in_*` / `guest_passes` fields) is lost, and there's no badge telling the front desk what kind of visitor they are.
+
 ## Goal
 
-When a member cancels a class, don't drop them from the roster. Keep their row visible (greyed out) with a badge:
+On every kiosk surface (Reception "Today's Attendance", Reception search, Classes kiosk, Spa kiosk), each visitor row shows:
 
-- **Early Cancel** — cancelled 24+ hours before class start (no charge, credit refunded)
-- **Late Cancel** — cancelled within 24 hours of class start (credit/pass forfeited — charge window)
+- **Real name**, resolved through the full fallback chain
+- **Type badge** next to the name, specific to how they entered:
+  - `Member` — from `members` (no badge change; existing)
+  - `Guest Pass` — class booking backed by a guest pass, or a `guest_passes` row
+  - `Class Pass` — non-member with a `class_passes` pass_id or purchased single class
+  - `Non-Member` — user_id resolves via `non_member_profiles` / `profiles`, no pass context
+  - `Walk-In` — only `walk_in_*` fields, no user_id (front-desk-added stranger)
+  - `Spa Guest` — spa appointment with user_id but no members row
+
+No badge change to the "Member" chip that already renders.
 
 ## Scope
 
-Admin/kiosk class roster only. No change to member portal, no change to cancellation charge logic, no change to emails/SMS/push.
+Kiosk pages only (per user answer). No admin/CheckInHistory or Class Roster changes in this pass — those already show richer type info.
 
 ## Changes
 
-### 1. `src/hooks/useRosterIdentity.ts`
-- Extend the `class_bookings` select to include `status`, `cancelled_at`, and `class_sessions(session_date, start_time)`.
-- Widen the status filter from `["confirmed","completed","no_show"]` to also include `"cancelled"`.
-- Add fields to `RosterAttendee`:
-  - `isCancelled: boolean`
-  - `cancelType: "early" | "late" | null` — computed from `cancelled_at` vs `session_date + start_time` (< 24h before start = `late`, else `early`). Null when not cancelled.
-  - `cancelledAt: string | null`
-- Same treatment for `resolveAttendeePreviewsForSessions` is NOT needed (day-view preview should stay showing active attendees only) — leave it filtered to `confirmed`/`completed`.
+### 1. New helper: `src/lib/checkInIdentity.ts`
+Pure functions used by both attendance and search hooks:
 
-### 2. `src/pages/admin/ClassRoster.tsx`
-- Attendee count / capacity chip: exclude `isCancelled` from the confirmed count (currently `attendees.filter(a => !a.isNoShow).length`). Change to `!a.isNoShow && !a.isCancelled`.
-- Sort cancelled rows to the bottom of the list (below active + no-show), after the existing admin-hold sort.
-- Render for cancelled rows:
-  - Row wrapper gets `opacity-60` and muted background (e.g. `bg-muted/30`).
-  - Show name, contact, and type as usual (greyed).
-  - Status column shows a badge: `Early Cancel` (secondary/outline) or `Late Cancel` (destructive outline) with a small timestamp tooltip (`Cancelled {relative time}`).
-  - Hide action buttons (check-in, no-show, move, remove, undo no-show) — cancelled is terminal on the roster.
+- `resolveClassBookingIdentity(row, nmMap, profMap)` → `{ name, badge: 'Member'|'Class Pass'|'Guest Pass'|'Non-Member'|'Walk-In', navigateTo? }`
+  - If `row.member` → Member.
+  - Else if `row.user_id` and present in `nmMap` → Non-Member (or `Class Pass` when `row.pass_id` is set).
+  - Else if `row.user_id` and present in `profMap` → Non-Member.
+  - Else if `row.walk_in_name` and `row.payment_method === 'guest_pass'` → Guest Pass.
+  - Else if `row.walk_in_name` → Walk-In.
+  - Else → Unknown.
+- `resolveSpaIdentity(row, nmMap, profMap)` → same shape, badge domain `'Member'|'Spa Guest'|'Non-Member'|'Unknown'`.
 
-### 3. Any place that consumes `RosterAttendee` and counts seats
-- Search for `.isNoShow` usages in the roster/kiosk components and make sure new `isCancelled` rows aren't double-counted toward capacity or "remaining" tallies. Likely touched files: `ClassRoster.tsx` (already listed), and any kiosk class page that reuses `resolveRosterIdentities`.
+### 2. `src/hooks/useUnifiedAttendance.ts`
+- Extend the class_bookings SELECT to include `user_id, pass_id, payment_method, walk_in_email, walk_in_phone` (currently only `walk_in_name`).
+- Extend the spa_appointments SELECT to include `user_id`.
+- After the primary Promise.allSettled, collect the missing `user_id`s from class + spa results and issue two parallel lookups: `non_member_profiles` (user_id, first_name, last_name) and `profiles` (user_id, first_name, last_name). Wrap in try/catch so failure downgrades gracefully to the current fallback.
+- Add optional `badge?: string` to `AttendanceEntry`.
+- Replace the two inline `cb.member ? ... : cb.walk_in_name || "Walk-in"` blocks with `resolveClassBookingIdentity` / `resolveSpaIdentity`, and set `entry.badge` from the result.
+- Guest_passes loop already sets `name = g.guest_name`; add `badge: 'Guest Pass'`.
+
+### 3. `src/hooks/useUnifiedCheckInSearch.ts`
+Same treatment as #2: extend selects, add profile lookups (only when class or spa results contain unresolved user_ids), add `badge` to `UnifiedSearchResult`, and use the same helper. The current name-substring filter (`memberName.toLowerCase().includes(q)`) keeps working — it filters on the resolved name.
+
+### 4. Kiosk UI badges
+Render a small `Badge` next to the visitor name on the three kiosk pages. Same style everywhere so it reads consistently.
+
+- **`src/pages/kiosk/Reception.tsx`** — attendance list rows + search-result rows. Show `entry.badge` (skip when badge is `Member` since that's obvious from context) using shadcn `Badge variant="secondary"` for pass/non-member, `variant="outline"` for walk-in/guest.
+- **`src/pages/kiosk/Classes.tsx`** — the class attendee list already uses `resolveRosterIdentities` (which returns `type`). Map `type` → the same wording (`pass_holder` → "Class Pass" or "Non-Member" based on presence of a pass, `walk_in` → "Walk-In", `account` → "Non-Member"). Add badge next to the name.
+- **`src/pages/kiosk/Spa.tsx`** — mirror the pattern for spa appointment rows.
 
 ## Out of scope
 
-- No DB migration — `status = 'cancelled'` and `cancelled_at` already exist.
-- No change to `cancel_class_booking` RPC or refund policy.
-- No change to the member-facing cancel confirmation flow.
-- No change to waitlist promotion behavior on cancel.
+- Admin `CheckInHistory` (already shows type info; user said kiosk only).
+- Class Roster (already redesigned in prior change).
+- Renaming the underlying booking `type` enum or DB columns.
+- Any change to how bookings are created or how guest passes attach to class bookings.
 
 ## Verification
 
-1. Book a class as a test member, cancel it >24h before start → roster shows the row greyed out with **Early Cancel** badge; capacity count drops by 1.
-2. Book a class starting in <24h, cancel it → roster shows row greyed with **Late Cancel** badge.
-3. Confirm cancelled rows have no action buttons and are sorted to the bottom.
-4. Confirm confirmed-attendee count and "remaining" (for bulk no-show) exclude cancelled rows.
+1. Book a class as a non-member (class pass) → check them in from the class kiosk → Reception "Today's Attendance" shows their real name with a "Class Pass" badge (not "Walk-in").
+2. Add a walk-in via the front desk (walk_in_name only) → shows their name with "Walk-In" badge.
+3. Use a guest pass to enter → shows the guest's name with a "Guest Pass" badge.
+4. Book a spa service as a non-member → check them in on the spa kiosk → Reception shows the name with "Spa Guest" or "Non-Member" badge.
+5. Search on the Reception kiosk for any of the above by name → they surface with the same badge.
