@@ -237,6 +237,7 @@ export async function resolveRosterIdentities(
       paymentMethod: b.payment_method,
       walkInName: b.walk_in_name,
       isAdminHold: false,
+      ...extras,
     };
   });
 }
