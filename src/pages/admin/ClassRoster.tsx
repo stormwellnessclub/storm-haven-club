@@ -1318,7 +1318,7 @@ export default function ClassRoster() {
             <TabsTrigger value="waitlist">Waitlist ({waitlist.length})</TabsTrigger>
           </TabsList>
           {rosterTab === "roster" && (() => {
-            const remaining = bookings.filter(a => !a.isAdminHold && !a.isCheckedIn && !a.isNoShow);
+            const remaining = bookings.filter(a => !a.isAdminHold && !a.isCheckedIn && !a.isNoShow && !a.isCancelled);
             if (remaining.length === 0) return null;
             return (
               <Button
