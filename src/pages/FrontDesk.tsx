@@ -636,7 +636,12 @@ function FrontDeskKiosk() {
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-lg truncate">{r.name}</p>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-lg truncate">{r.name}</p>
+                              {r.sub_type && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal">{r.sub_type}</Badge>
+                              )}
+                            </div>
                             <p className="text-sm text-muted-foreground truncate">{r.subtitle}</p>
                           </div>
                           <TypeBadge type={r.type} />
