@@ -5,7 +5,10 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, EyeOff } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, EyeOff, UserCog } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,6 +147,35 @@ export default function Classes() {
       return resolveAttendeePreviewsForSessions(sessionIds);
     },
     enabled: sessionIds.length > 0,
+  });
+
+  // Active instructors for the substitute picker
+  const { data: allInstructors = [] } = useQuery({
+    queryKey: ["admin-instructors-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("instructors")
+        .select("id, first_name, last_name, is_active")
+        .eq("is_active", true)
+        .order("first_name");
+      if (error) throw error;
+      return data as { id: string; first_name: string; last_name: string }[];
+    },
+  });
+
+  const updateInstructorMutation = useMutation({
+    mutationFn: async ({ sessionId, instructorId }: { sessionId: string; instructorId: string | null }) => {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ instructor_id: instructorId })
+        .eq("id", sessionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-day"] });
+      toast.success("Instructor updated");
+    },
+    onError: () => toast.error("Failed to update instructor"),
   });
 
   const cancelSessionMutation = useMutation({
@@ -373,8 +405,40 @@ export default function Classes() {
                             <Clock className="h-3.5 w-3.5" />
                             {formatTime(session.start_time)} – {formatTime(session.end_time)}
                           </span>
-                          {session.instructors && (
-                            <span>{session.instructors.first_name} {session.instructors.last_name}</span>
+                          {session.is_cancelled ? (
+                            session.instructors && (
+                              <span>{session.instructors.first_name} {session.instructors.last_name}</span>
+                            )
+                          ) : (
+                            <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
+                              <UserCog className="h-3.5 w-3.5" />
+                              <Select
+                                value={session.instructor_id ?? "none"}
+                                onValueChange={(val) =>
+                                  updateInstructorMutation.mutate({
+                                    sessionId: session.id,
+                                    instructorId: val === "none" ? null : val,
+                                  })
+                                }
+                                disabled={updateInstructorMutation.isPending}
+                              >
+                                <SelectTrigger className="h-7 w-auto min-w-[9rem] px-2 py-0 text-sm border-dashed">
+                                  <SelectValue placeholder="Assign instructor">
+                                    {session.instructors
+                                      ? `${session.instructors.first_name} ${session.instructors.last_name}`
+                                      : "Assign instructor"}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No instructor</SelectItem>
+                                  {allInstructors.map((i) => (
+                                    <SelectItem key={i.id} value={i.id}>
+                                      {i.first_name} {i.last_name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           )}
                           <span className="flex items-center gap-1 font-medium">
                             <Users className="h-3.5 w-3.5" />
