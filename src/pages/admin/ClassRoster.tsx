@@ -1419,7 +1419,7 @@ export default function ClassRoster() {
                         );
                       }
                       return (
-                        <TableRow key={attendee.bookingId}>
+                        <TableRow key={attendee.bookingId} className={attendee.isCancelled ? "opacity-60 bg-muted/30" : undefined}>
                           <TableCell>
                             <div className="flex items-center gap-3">
                               <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
