@@ -5,7 +5,10 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, EyeOff } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, EyeOff, UserCog } from "lucide-react";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { AdminSessionsCalendar } from "@/components/admin/AdminSessionsCalendar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
