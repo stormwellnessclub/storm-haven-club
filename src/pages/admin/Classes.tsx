@@ -149,6 +149,35 @@ export default function Classes() {
     enabled: sessionIds.length > 0,
   });
 
+  // Active instructors for the substitute picker
+  const { data: allInstructors = [] } = useQuery({
+    queryKey: ["admin-instructors-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("instructors")
+        .select("id, first_name, last_name, is_active")
+        .eq("is_active", true)
+        .order("first_name");
+      if (error) throw error;
+      return data as { id: string; first_name: string; last_name: string }[];
+    },
+  });
+
+  const updateInstructorMutation = useMutation({
+    mutationFn: async ({ sessionId, instructorId }: { sessionId: string; instructorId: string | null }) => {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ instructor_id: instructorId })
+        .eq("id", sessionId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-day"] });
+      toast.success("Instructor updated");
+    },
+    onError: () => toast.error("Failed to update instructor"),
+  });
+
   const cancelSessionMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSession) return;
