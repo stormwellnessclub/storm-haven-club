@@ -1364,7 +1364,12 @@ export default function ClassRoster() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[...bookings].sort((a, b) => Number(b.isAdminHold) - Number(a.isAdminHold)).map((attendee) => {
+                    {[...bookings].sort((a, b) => {
+                      // Admin holds first, cancelled last
+                      if (a.isAdminHold !== b.isAdminHold) return Number(b.isAdminHold) - Number(a.isAdminHold);
+                      if (a.isCancelled !== b.isCancelled) return Number(a.isCancelled) - Number(b.isCancelled);
+                      return 0;
+                    }).map((attendee) => {
                       const initials = attendee.name.split(" ").map(n => n[0] || "").join("").slice(0, 2) || "?";
                       const typeLabel = attendee.type === "member" ? "Member" : attendee.type === "pass_holder" ? "Pass Holder" : attendee.type === "walk_in" ? "Walk-In" : "Account";
                       if (attendee.isAdminHold) {
