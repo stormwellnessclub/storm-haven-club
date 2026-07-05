@@ -370,7 +370,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                   <span className="text-sm font-medium min-w-[140px] sm:min-w-[180px] text-center">
                     {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d")}
                   </span>
-                  <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => addWeeks(w, 1))}>
+                  <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => addWeeks(w, 1))} disabled={!canGoNext}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </>
