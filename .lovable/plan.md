@@ -1,42 +1,47 @@
-## What's happening
+## Goal
 
-You didn't get a notification because raising `max_capacity` on a session doesn't currently trigger anything. The `notify-waitlist` edge function only runs when:
+When a member cancels a class, don't drop them from the roster. Keep their row visible (greyed out) with a badge:
 
-1. A member cancels a booking (`useBooking.ts`), or
-2. A previously-notified waitlist entry expires (`process-expired-waitlist`).
+- **Early Cancel** — cancelled 24+ hours before class start (no charge, credit refunded)
+- **Late Cancel** — cancelled within 24 hours of class start (credit/pass forfeited — charge window)
 
-Editing capacity in the admin UI just updates the row in `class_sessions` — nothing checks whether that new headroom should promote the next person on the waitlist. So your test raised capacity, but no one was ever flipped to `notified`, so no email/SMS/push fired.
+## Scope
 
-## Fix
+Admin/kiosk class roster only. No change to member portal, no change to cancellation charge logic, no change to emails/SMS/push.
 
-After a successful capacity update in the admin session editor, if the new capacity is greater than the old one **and** `current_enrollment < max_capacity`, invoke `notify-waitlist` once per new open seat (loop N times where N = new spots available, capped by waitlist length).
+## Changes
 
-### Files to change
+### 1. `src/hooks/useRosterIdentity.ts`
+- Extend the `class_bookings` select to include `status`, `cancelled_at`, and `class_sessions(session_date, start_time)`.
+- Widen the status filter from `["confirmed","completed","no_show"]` to also include `"cancelled"`.
+- Add fields to `RosterAttendee`:
+  - `isCancelled: boolean`
+  - `cancelType: "early" | "late" | null` — computed from `cancelled_at` vs `session_date + start_time` (< 24h before start = `late`, else `early`). Null when not cancelled.
+  - `cancelledAt: string | null`
+- Same treatment for `resolveAttendeePreviewsForSessions` is NOT needed (day-view preview should stay showing active attendees only) — leave it filtered to `confirmed`/`completed`.
 
-1. **`src/components/admin/AdminSessionsCalendar.tsx`** (and any other place capacity is edited — will grep during build to catch all edit paths, likely also `WeeklyCalendarView.tsx` / `ClassRoster.tsx`)
-   - After the update mutation succeeds, compare old vs new capacity.
-   - If capacity increased and open seats exist, call `supabase.functions.invoke('notify-waitlist', { body: { session_id } })` in a loop for each newly opened seat. `notify-waitlist` is idempotent-ish: it promotes exactly one person per call and no-ops if no seats or no waiters.
+### 2. `src/pages/admin/ClassRoster.tsx`
+- Attendee count / capacity chip: exclude `isCancelled` from the confirmed count (currently `attendees.filter(a => !a.isNoShow).length`). Change to `!a.isNoShow && !a.isCancelled`.
+- Sort cancelled rows to the bottom of the list (below active + no-show), after the existing admin-hold sort.
+- Render for cancelled rows:
+  - Row wrapper gets `opacity-60` and muted background (e.g. `bg-muted/30`).
+  - Show name, contact, and type as usual (greyed).
+  - Status column shows a badge: `Early Cancel` (secondary/outline) or `Late Cancel` (destructive outline) with a small timestamp tooltip (`Cancelled {relative time}`).
+  - Hide action buttons (check-in, no-show, move, remove, undo no-show) — cancelled is terminal on the roster.
 
-2. **No change to `notify-waitlist/index.ts`** — it already does the right thing (checks capacity, picks the next waiter, sends email + SMS + push).
+### 3. Any place that consumes `RosterAttendee` and counts seats
+- Search for `.isNoShow` usages in the roster/kiosk components and make sure new `isCancelled` rows aren't double-counted toward capacity or "remaining" tallies. Likely touched files: `ClassRoster.tsx` (already listed), and any kiosk class page that reuses `resolveRosterIdentities`.
 
-### Verification
+## Out of scope
 
-1. Set a class capacity below current enrollment count so it's "full," add a test user to the waitlist.
-2. Bump capacity up by 1 in admin.
-3. Expect: waitlist row flips to `notified`, email fires, push fires (on the published site with push enabled).
-4. Check `notify-waitlist` edge function logs — should see "Notifying user X (position Y)".
+- No DB migration — `status = 'cancelled'` and `cancelled_at` already exist.
+- No change to `cancel_class_booking` RPC or refund policy.
+- No change to the member-facing cancel confirmation flow.
+- No change to waitlist promotion behavior on cancel.
 
-### Note on your test
+## Verification
 
-If push still doesn't arrive after this fix, the most likely reasons (in order):
-- You tested in the **Lovable preview iframe** — push service workers don't register there; only the published site (`stormwellnessclub.com`) works.
-- You never accepted the "Enable" toast after joining the waitlist, so there's no row in `push_subscriptions` for your user.
-- On iOS Safari, the site must be installed to Home Screen first.
-
-Email should always arrive regardless — if it doesn't after this fix, we'll look at `email_send_log` next.
-
-### Out of scope
-
-- SMS delivery fixes
-- Push infrastructure changes
-- The 5-minute claim window
+1. Book a class as a test member, cancel it >24h before start → roster shows the row greyed out with **Early Cancel** badge; capacity count drops by 1.
+2. Book a class starting in <24h, cancel it → roster shows row greyed with **Late Cancel** badge.
+3. Confirm cancelled rows have no action buttons and are sorted to the bottom.
+4. Confirm confirmed-attendee count and "remaining" (for bulk no-show) exclude cancelled rows.
