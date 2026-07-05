@@ -9,7 +9,7 @@ import {
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake, Heart,
-  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin,
+  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin, Info,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
