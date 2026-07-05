@@ -1,26 +1,24 @@
 ## Goal
-Remove Duha A. as the assigned instructor from every class she's currently attached to so the instructor field renders blank. You'll re-assign them manually afterward.
+Cap the public/member/portal class schedule (and booking) view at **4 weeks out from today**. When someone tries to page past that horizon, show a friendly message explaining sessions are released in 4-week increments.
 
-## Scope
-Instructor record found: **Duha A.** (`id: 284f1cc6-...`). Currently attached to:
-- 27 recurring class schedules
-- 478 total generated sessions (200 today/future, 278 past)
+## Where
+Single file: `src/components/booking/ScheduleBrowser.tsx` (used by `/schedule`, `/portal/book/class`, `/member/book/class`).
 
 ## Changes
-Single data update — no schema or code changes:
 
-1. `class_schedules.instructor_id` → `NULL` where `instructor_id = Duha's id` (27 rows).
-2. `class_sessions.instructor_id` → `NULL` where `instructor_id = Duha's id` **AND** `session_date >= CURRENT_DATE` (200 rows).
+1. **Cap forward navigation**
+   - Compute `maxWeekStart = startOfWeek(addWeeks(today, 3))` — this makes the 4th week (weeks 0–3) the furthest browsable week.
+   - Disable the "next week" button when `weekStart >= maxWeekStart`.
+   - Same cap applied to the date picker (block dates past `addWeeks(today, 4) - 1 day`).
 
-Past sessions (278 rows) are left alone so historical rosters/check-in history keep the correct attribution.
+2. **Horizon message**
+   - When user is on the last allowed week (`weekStart === maxWeekStart`), render an info banner under the week nav:
+     > "You've reached the end of the current schedule. New classes are released in 4-week increments — check back soon for the next block of dates."
+   - Style: muted card / `Alert` with `Info` icon, matches existing schedule styling.
 
-Duha's `instructors` row itself is left intact (still active) so you can re-assign her from the existing instructor picker.
-
-## What you'll see
-- Schedule + upcoming sessions render with no instructor name (existing UI already handles null → blank/"TBD" depending on surface).
-- Past check-in history and rosters still show Duha where she actually taught.
+3. **No backend / no session-generation changes.** The reconciler already generates 4 weeks ahead, so this just tightens what the UI exposes.
 
 ## Out of scope
-- Not deleting the instructor record.
-- Not touching past sessions.
-- No UI or code changes.
+- Admin schedule views (they keep full range).
+- Session generation cadence.
+- Copy variants — one message, one location.

@@ -9,7 +9,7 @@ import {
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake, Heart,
-  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin,
+  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin, Info,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -246,6 +246,10 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   }, [filteredSessions, weekDays]);
 
   const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
+  const maxWeekStart = useMemo(() => startOfWeek(addWeeks(today, 3), { weekStartsOn: 0 }), [today]);
+  const maxSelectableDate = useMemo(() => addDays(addWeeks(startOfWeek(today, { weekStartsOn: 0 }), 4), -1), [today]);
+  const canGoNext = isBefore(weekStart, maxWeekStart);
+  const atHorizon = !canGoNext;
 
   const visibleWeekDays = useMemo(() => {
     if (selectedDate) {
@@ -366,7 +370,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                   <span className="text-sm font-medium min-w-[140px] sm:min-w-[180px] text-center">
                     {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d")}
                   </span>
-                  <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => addWeeks(w, 1))}>
+                  <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => addWeeks(w, 1))} disabled={!canGoNext}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </>
@@ -396,7 +400,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                     mode="single"
                     selected={selectedDate || undefined}
                     onSelect={handleDateSelect}
-                    disabled={(date) => isBefore(startOfDay(date), today)}
+                    disabled={(date) => isBefore(startOfDay(date), today) || isBefore(maxSelectableDate, startOfDay(date))}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -411,6 +415,15 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       <section className={embedded ? "py-6 bg-background" : "py-12 bg-background"}>
         <div className={embedded ? "" : "container mx-auto px-6"}>
           <ResumeBookingBanner kind="class" onResume={handleResumeBooking} />
+          {atHorizon && !selectedDate && (
+            <div className="mb-6 flex items-start gap-3 rounded-md border border-accent/30 bg-accent/5 p-4 text-sm">
+              <Info className="h-4 w-4 mt-0.5 text-accent shrink-0" />
+              <p className="text-muted-foreground leading-relaxed">
+                You've reached the end of the current schedule. New classes are released in{" "}
+                <span className="font-medium text-foreground">4-week increments</span> — check back soon for the next block of dates to view and book.
+              </p>
+            </div>
+          )}
           {error ? (
             <div className="text-center py-16">
               <p className="text-destructive">Failed to load schedule. Please try again later.</p>
