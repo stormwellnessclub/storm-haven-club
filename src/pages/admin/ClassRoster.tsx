@@ -226,7 +226,7 @@ export default function ClassRoster() {
       const attendees = await resolveRosterIdentities(sessionId!);
 
       // Auto-heal enrollment counter (exclude no-show rows so the seat is freed)
-      const confirmedCount = attendees.filter(a => !a.isNoShow).length;
+      const confirmedCount = attendees.filter(a => !a.isNoShow && !a.isCancelled).length;
       if (session && confirmedCount !== session.current_enrollment) {
         await supabase
           .from("class_sessions")
