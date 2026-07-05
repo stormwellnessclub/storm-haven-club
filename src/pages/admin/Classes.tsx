@@ -405,8 +405,40 @@ export default function Classes() {
                             <Clock className="h-3.5 w-3.5" />
                             {formatTime(session.start_time)} – {formatTime(session.end_time)}
                           </span>
-                          {session.instructors && (
-                            <span>{session.instructors.first_name} {session.instructors.last_name}</span>
+                          {session.is_cancelled ? (
+                            session.instructors && (
+                              <span>{session.instructors.first_name} {session.instructors.last_name}</span>
+                            )
+                          ) : (
+                            <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
+                              <UserCog className="h-3.5 w-3.5" />
+                              <Select
+                                value={session.instructor_id ?? "none"}
+                                onValueChange={(val) =>
+                                  updateInstructorMutation.mutate({
+                                    sessionId: session.id,
+                                    instructorId: val === "none" ? null : val,
+                                  })
+                                }
+                                disabled={updateInstructorMutation.isPending}
+                              >
+                                <SelectTrigger className="h-7 w-auto min-w-[9rem] px-2 py-0 text-sm border-dashed">
+                                  <SelectValue placeholder="Assign instructor">
+                                    {session.instructors
+                                      ? `${session.instructors.first_name} ${session.instructors.last_name}`
+                                      : "Assign instructor"}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">No instructor</SelectItem>
+                                  {allInstructors.map((i) => (
+                                    <SelectItem key={i.id} value={i.id}>
+                                      {i.first_name} {i.last_name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
                           )}
                           <span className="flex items-center gap-1 font-medium">
                             <Users className="h-3.5 w-3.5" />
