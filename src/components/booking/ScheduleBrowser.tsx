@@ -400,7 +400,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                     mode="single"
                     selected={selectedDate || undefined}
                     onSelect={handleDateSelect}
-                    disabled={(date) => isBefore(startOfDay(date), today)}
+                    disabled={(date) => isBefore(startOfDay(date), today) || isBefore(maxSelectableDate, startOfDay(date))}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
