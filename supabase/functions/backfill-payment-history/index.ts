@@ -66,6 +66,7 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     if (!stripeKey || !supabaseUrl || !serviceKey) {
       return new Response(
         JSON.stringify({ ok: false, error: "Missing required environment variables" }),
@@ -73,8 +74,34 @@ serve(async (req) => {
       );
     }
 
+    // Authorize: service role, anon (cron), or authenticated admin user.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+    let authorized = token === serviceKey || (anonKey && token === anonKey);
+    if (!authorized && token) {
+      const supaAuth = createClient(supabaseUrl, anonKey ?? serviceKey);
+      const { data: userData } = await supaAuth.auth.getUser(token);
+      const u = userData?.user;
+      if (u) {
+        const supaAdmin = createClient(supabaseUrl, serviceKey);
+        const { data: roles } = await supaAdmin
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", u.id)
+          .in("role", ["admin", "super_admin"]);
+        authorized = !!(roles && roles.length);
+      }
+    }
+    if (!authorized) {
+      return new Response(
+        JSON.stringify({ ok: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
+      );
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const supabase = createClient(supabaseUrl, serviceKey);
+
 
     const body: BackfillBody = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const now = Math.floor(Date.now() / 1000);
