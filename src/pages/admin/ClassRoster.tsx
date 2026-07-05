@@ -1487,7 +1487,25 @@ export default function ClassRoster() {
                             <span className="text-sm text-muted-foreground">{paymentLabel(attendee.paymentMethod)}</span>
                           </TableCell>
                           <TableCell>
-                            {attendee.isNoShow ? (
+                            {attendee.isCancelled ? (
+                              attendee.cancelType === "late" ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-destructive/50 text-destructive"
+                                  title={attendee.cancelledAt ? `Cancelled ${new Date(attendee.cancelledAt).toLocaleString()}` : undefined}
+                                >
+                                  Late Cancel
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="outline"
+                                  className="text-muted-foreground"
+                                  title={attendee.cancelledAt ? `Cancelled ${new Date(attendee.cancelledAt).toLocaleString()}` : undefined}
+                                >
+                                  Early Cancel
+                                </Badge>
+                              )
+                            ) : attendee.isNoShow ? (
                               <Badge variant="outline" className="text-muted-foreground"><UserX className="h-3 w-3 mr-1" /> No Show</Badge>
                             ) : attendee.isCheckedIn ? (
                               <Badge variant="default" className="bg-primary"><CheckCircle className="h-3 w-3 mr-1" /> Checked In</Badge>
@@ -1496,12 +1514,12 @@ export default function ClassRoster() {
                             )}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
-                            {!attendee.isCheckedIn && !attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isCheckedIn && !attendee.isNoShow && (
                               <Button size="sm" variant="outline" onClick={() => checkInMutation.mutate(attendee.bookingId)} disabled={checkInMutation.isPending}>
                                 <UserCheck className="h-4 w-4 mr-1" /> Check In
                               </Button>
                             )}
-                            {!attendee.isCheckedIn && !attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isCheckedIn && !attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1515,7 +1533,7 @@ export default function ClassRoster() {
                                 <UserX className="h-4 w-4" />
                               </Button>
                             )}
-                            {!attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1525,7 +1543,7 @@ export default function ClassRoster() {
                                 <ArrowRightLeft className="h-4 w-4" />
                               </Button>
                             )}
-                            {!attendee.isNoShow && (
+                            {!attendee.isCancelled && !attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -1542,7 +1560,7 @@ export default function ClassRoster() {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
-                            {attendee.isNoShow && (
+                            {!attendee.isCancelled && attendee.isNoShow && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1552,6 +1570,9 @@ export default function ClassRoster() {
                               >
                                 <RotateCcw className="h-4 w-4 mr-1" /> Undo No Show
                               </Button>
+                            )}
+                            {attendee.isCancelled && (
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
 
