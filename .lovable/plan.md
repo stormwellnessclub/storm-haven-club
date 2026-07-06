@@ -1,31 +1,25 @@
-# Fix: Freed spots not returned when member self-cancels
+## Problem
 
-## The bug
-When a member early-cancels a class booking through the portal/member app, `class_bookings.status` is set to `cancelled` and the credit/pass is refunded, but `class_sessions.current_enrollment` is **not** decremented. Admin removals already recompute enrollment correctly — only the member self-cancel RPC misses this step.
+The Portal sidebar (`src/components/portal/PortalSidebar.tsx`) is unreadable — light background with near-white text.
 
-Result: the schedule keeps showing the cancelled member's seat as taken (e.g. "4 spots left of 5" instead of "5 spots left").
+Cause: PortalSidebar overrides the sidebar CSS tokens inline with a dark palette (`--sidebar-background: 38 25% 6%`, `--sidebar-foreground: 48 16% 84%`), and also hardcodes near-white text on the header (`text-[hsl(48_40%_82%)]`). Those inline overrides aren't landing consistently on every inner element that paints the background (e.g. the outer wrapper `.group.peer` and mobile Sheet path still read the global light tokens), so the visible surface stays light while the text is being pushed to near-white.
+
+MemberSidebar has no inline overrides — it just uses the app's global `--sidebar-*` tokens from `src/index.css` (light cream bg with dark text in light mode) and reads cleanly.
 
 ## Fix
-Update the `cancel_class_booking` RPC (defined in `supabase/migrations/20260323100153_...sql`) via a new migration so it also recomputes the session's enrollment count after cancelling.
 
-Add — right after the `UPDATE class_bookings SET status = 'cancelled' ...` block — a recompute step that mirrors the admin-side logic in `ClassRoster.tsx`:
+Bring PortalSidebar in line with MemberSidebar so it uses the working global sidebar tokens.
 
-```sql
-UPDATE public.class_sessions cs
-SET current_enrollment = (
-  SELECT COUNT(*)
-  FROM public.class_bookings b
-  WHERE b.session_id = cs.id
-    AND b.status IN ('confirmed', 'completed')
-),
-    updated_at = now()
-WHERE cs.id = _session.id;
-```
+1. In `src/components/portal/PortalSidebar.tsx`:
+   - Remove the inline `style={{ ... }}` block on `<Sidebar>` that overrides `--sidebar-background`, `--sidebar-foreground`, `--sidebar-border`, `--sidebar-accent`, `--sidebar-accent-foreground`.
+   - Replace hardcoded header colors `text-[hsl(48_40%_82%)]` and `text-[hsl(48_16%_60%)]` with semantic tokens `text-sidebar-foreground` and `text-sidebar-foreground/70`.
+   - Replace hardcoded border `border-[hsl(38_25%_12%)]` with `border-sidebar-border`.
+   - Leave menu items, footer, and nav structure unchanged.
 
-No other RPC signature, return value, or UI change is needed — the schedule page and booking modal already read `current_enrollment` on the next refetch (60s poll + focus refresh), and waitlist notification already runs after cancel.
+No other files touched. No functional/behavior changes — presentation only.
 
 ## Out of scope
-- Admin removals (already correct)
-- Waitlist backfill flow (unchanged)
-- Late-cancellation forfeit rules (unchanged)
-- Any UI copy changes
+
+- Redesigning the sidebar palette.
+- Any changes to MemberSidebar, AdminSidebar, or global `--sidebar-*` tokens in `index.css`.
+- Mobile bottom nav, header, or main content styling.
