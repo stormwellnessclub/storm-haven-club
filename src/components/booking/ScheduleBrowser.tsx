@@ -517,7 +517,9 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
 
 
                     {daySessions.length === 0 ? (
-                      <p className="text-muted-foreground text-sm pl-8">No classes scheduled</p>
+                      <div className="rounded-lg border border-dashed border-border bg-muted/30 py-8 px-4 text-center text-sm text-muted-foreground">
+                        No classes scheduled
+                      </div>
                     ) : (
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {daySessions.map((session) => {
