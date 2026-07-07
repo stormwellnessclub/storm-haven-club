@@ -68,6 +68,8 @@ export function PaymentMethodSelector({
   onDropInRateChange,
   isFundraiser = false,
   fundraiserAmountCents = 4000,
+  heldPassId = null,
+  heldCreditId = null,
 }: PaymentMethodSelectorProps) {
   // Fetch active class passes for the user
   const { data: passes = [] } = useQuery({
