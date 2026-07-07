@@ -45,6 +45,13 @@ interface PaymentMethodSelectorProps {
   onDropInRateChange: (rate: "member" | "nonmember") => void;
   isFundraiser?: boolean;
   fundraiserAmountCents?: number;
+  /**
+   * Held pass on a waitlist entry — surfaced in the pass list even if the
+   * underlying row is currently `exhausted`/0 remaining (because the seat is
+   * held). Promote flow refunds the hold before decrementing, so it's safe.
+   */
+  heldPassId?: string | null;
+  heldCreditId?: string | null;
 }
 
 export function PaymentMethodSelector({
@@ -61,10 +68,12 @@ export function PaymentMethodSelector({
   onDropInRateChange,
   isFundraiser = false,
   fundraiserAmountCents = 4000,
+  heldPassId = null,
+  heldCreditId = null,
 }: PaymentMethodSelectorProps) {
   // Fetch active class passes for the user
   const { data: passes = [] } = useQuery({
-    queryKey: ["roster-passes", userId],
+    queryKey: ["roster-passes", userId, heldPassId],
     queryFn: async () => {
       if (!userId) return [];
       const { data, error } = await supabase
@@ -76,14 +85,29 @@ export function PaymentMethodSelector({
         .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: true });
       if (error) throw error;
-      return data as ActivePass[];
+      const list = (data as ActivePass[]) || [];
+
+      // If there's a held pass on the waitlist entry, ensure it appears even
+      // though it's currently 0-remaining/exhausted.
+      if (heldPassId && !list.some(p => p.id === heldPassId)) {
+        const { data: held } = await supabase
+          .from("class_passes")
+          .select("id, pass_type, category, classes_remaining, expires_at")
+          .eq("id", heldPassId)
+          .maybeSingle();
+        if (held) {
+          // Treat the held seat as 1 remaining for display purposes.
+          list.unshift({ ...(held as ActivePass), classes_remaining: Math.max(1, held.classes_remaining) });
+        }
+      }
+      return list;
     },
     enabled: !!userId,
   });
 
   // Fetch active member credits
   const { data: credits = [] } = useQuery({
-    queryKey: ["roster-credits", memberId],
+    queryKey: ["roster-credits", memberId, heldCreditId],
     queryFn: async () => {
       if (!memberId) return [];
       const { data, error } = await supabase
@@ -95,7 +119,19 @@ export function PaymentMethodSelector({
         .gt("expires_at", new Date().toISOString())
         .order("expires_at", { ascending: true });
       if (error) throw error;
-      return data as ActiveCredit[];
+      const list = (data as ActiveCredit[]) || [];
+
+      if (heldCreditId && !list.some(c => c.id === heldCreditId)) {
+        const { data: held } = await supabase
+          .from("member_credits")
+          .select("id, credit_type, credits_remaining, expires_at")
+          .eq("id", heldCreditId)
+          .maybeSingle();
+        if (held) {
+          list.unshift({ ...(held as ActiveCredit), credits_remaining: Math.max(1, held.credits_remaining) });
+        }
+      }
+      return list;
     },
     enabled: !!memberId,
   });

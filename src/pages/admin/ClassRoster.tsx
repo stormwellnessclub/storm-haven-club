@@ -141,7 +141,7 @@ export default function ClassRoster() {
   const [convertEmail, setConvertEmail] = useState("");
 
   // Promote-from-waitlist dialog state
-  const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string } | null>(null);
+  const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string; heldPassId: string | null; heldCreditId: string | null } | null>(null);
   const [promoteMethod, setPromoteMethod] = useState<PaymentOption | null>(null);
   const [promotePassId, setPromotePassId] = useState<string | null>(null);
   const [promoteCreditId, setPromoteCreditId] = useState<string | null>(null);
@@ -1626,7 +1626,9 @@ export default function ClassRoster() {
                           </TableCell>
                           <TableCell>
                             {entry.status === "notified"
-                              ? <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1" />Notified</Badge>
+                              ? (entry.claim_expires_at && new Date(entry.claim_expires_at) < new Date() && !entry.hold_refunded
+                                  ? <Badge variant="destructive" className="text-xs">Claim expired — refund pending</Badge>
+                                  : <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1" />Notified</Badge>)
                               : <Badge variant="secondary" className="text-xs">Waiting</Badge>}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
@@ -1643,12 +1645,14 @@ export default function ClassRoster() {
                                 .eq("user_id", entry.user_id)
                                 .eq("status", "active")
                                 .maybeSingle();
-                              setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name });
-                              // Default to whatever was held on the waitlist row
                               const heldMethod = !entry.hold_refunded ? entry.payment_method : null;
+                              const heldPassId = heldMethod === "pass" ? entry.pass_id : null;
+                              const heldCreditId = heldMethod === "credits" ? entry.member_credit_id : null;
+                              setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name, heldPassId, heldCreditId });
+                              // Default to whatever was held on the waitlist row
                               setPromoteMethod((heldMethod as PaymentOption) || null);
-                              setPromotePassId(heldMethod === "pass" ? entry.pass_id : null);
-                              setPromoteCreditId(heldMethod === "credits" ? entry.member_credit_id : null);
+                              setPromotePassId(heldPassId);
+                              setPromoteCreditId(heldCreditId);
                               setPromoteDropInRate(member ? "member" : "nonmember");
                             }} disabled={promoteMutation.isPending}>
                               <ArrowUp className="h-4 w-4 mr-1" /> Promote
@@ -1705,6 +1709,8 @@ export default function ClassRoster() {
               onDropInRateChange={setPromoteDropInRate}
               isFundraiser={isFundraiserSession}
               fundraiserAmountCents={fundraiserAmountCents}
+              heldPassId={promoteEntry.heldPassId}
+              heldCreditId={promoteEntry.heldCreditId}
             />
           )}
           <DialogFooter>
