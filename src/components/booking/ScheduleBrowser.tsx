@@ -289,7 +289,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       try {
         const d = startOfDay(parseISO(draft.sessionDate));
         setSelectedDate(d);
-        setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+        setWeekStart(startOfWeek(d, { weekStartsOn: 1 }));
       } catch {
         /* ignore */
       }
