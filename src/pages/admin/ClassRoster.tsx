@@ -141,7 +141,7 @@ export default function ClassRoster() {
   const [convertEmail, setConvertEmail] = useState("");
 
   // Promote-from-waitlist dialog state
-  const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string } | null>(null);
+  const [promoteEntry, setPromoteEntry] = useState<{ id: string; user_id: string; memberId: string | null; name: string; heldPassId: string | null; heldCreditId: string | null } | null>(null);
   const [promoteMethod, setPromoteMethod] = useState<PaymentOption | null>(null);
   const [promotePassId, setPromotePassId] = useState<string | null>(null);
   const [promoteCreditId, setPromoteCreditId] = useState<string | null>(null);
