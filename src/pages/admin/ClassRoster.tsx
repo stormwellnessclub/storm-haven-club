@@ -1643,12 +1643,14 @@ export default function ClassRoster() {
                                 .eq("user_id", entry.user_id)
                                 .eq("status", "active")
                                 .maybeSingle();
-                              setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name });
-                              // Default to whatever was held on the waitlist row
                               const heldMethod = !entry.hold_refunded ? entry.payment_method : null;
+                              const heldPassId = heldMethod === "pass" ? entry.pass_id : null;
+                              const heldCreditId = heldMethod === "credits" ? entry.member_credit_id : null;
+                              setPromoteEntry({ id: entry.id, user_id: entry.user_id, memberId: member?.id || null, name, heldPassId, heldCreditId });
+                              // Default to whatever was held on the waitlist row
                               setPromoteMethod((heldMethod as PaymentOption) || null);
-                              setPromotePassId(heldMethod === "pass" ? entry.pass_id : null);
-                              setPromoteCreditId(heldMethod === "credits" ? entry.member_credit_id : null);
+                              setPromotePassId(heldPassId);
+                              setPromoteCreditId(heldCreditId);
                               setPromoteDropInRate(member ? "member" : "nonmember");
                             }} disabled={promoteMutation.isPending}>
                               <ArrowUp className="h-4 w-4 mr-1" /> Promote
