@@ -56,12 +56,15 @@ export default function PortalBookings() {
     enabled: !!user,
   });
 
-  const now = new Date().toISOString();
   const upcoming = bookings.filter(
-    (b) => b.status === "confirmed" && b.class_sessions?.session_date >= now.slice(0, 10)
+    (b) =>
+      b.status === "confirmed" &&
+      !hasSessionEnded(b.class_sessions?.session_date, b.class_sessions?.end_time)
   );
   const past = bookings.filter(
-    (b) => b.status !== "confirmed" || b.class_sessions?.session_date < now.slice(0, 10)
+    (b) =>
+      b.status !== "confirmed" ||
+      hasSessionEnded(b.class_sessions?.session_date, b.class_sessions?.end_time)
   );
 
   // Map booking id -> review
