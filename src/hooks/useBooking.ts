@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addWeeks, parseISO, parse } from "date-fns";
+import { hasSessionEnded } from "@/lib/clubTime";
 
 export interface Booking {
   id: string;
