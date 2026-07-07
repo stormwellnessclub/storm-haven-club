@@ -85,7 +85,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   const { user } = useAuth();
   const navigate = useNavigate();
   const today = startOfDay(new Date());
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 1 }));
   const todayRef = React.useRef<HTMLDivElement>(null);
   const [roomFilter, setRoomFilter] = useState<RoomFilter>("all");
   const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
@@ -245,9 +245,9 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
     return map;
   }, [filteredSessions, weekDays]);
 
-  const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
-  const maxWeekStart = useMemo(() => startOfWeek(addWeeks(today, 3), { weekStartsOn: 0 }), [today]);
-  const maxSelectableDate = useMemo(() => addDays(addWeeks(startOfWeek(today, { weekStartsOn: 0 }), 4), -1), [today]);
+  const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 1 }));
+  const maxWeekStart = useMemo(() => startOfWeek(addWeeks(today, 3), { weekStartsOn: 1 }), [today]);
+  const maxSelectableDate = useMemo(() => addDays(addWeeks(startOfWeek(today, { weekStartsOn: 1 }), 4), -1), [today]);
   const canGoNext = isBefore(weekStart, maxWeekStart);
   const atHorizon = !canGoNext;
 
@@ -262,7 +262,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
     if (date) {
       const d = startOfDay(date);
       setSelectedDate(d);
-      setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+      setWeekStart(startOfWeek(d, { weekStartsOn: 1 }));
       setCalendarOpen(false);
     }
   };
@@ -289,7 +289,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       try {
         const d = startOfDay(parseISO(draft.sessionDate));
         setSelectedDate(d);
-        setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+        setWeekStart(startOfWeek(d, { weekStartsOn: 1 }));
       } catch {
         /* ignore */
       }
@@ -383,7 +383,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                 onClick={() => {
                   const t = startOfDay(new Date());
                   setSelectedDate(t);
-                  setWeekStart(startOfWeek(t, { weekStartsOn: 0 }));
+                  setWeekStart(startOfWeek(t, { weekStartsOn: 1 }));
                 }}
               >
                 Today
@@ -398,6 +398,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
+                    weekStartsOn={1}
                     selected={selectedDate || undefined}
                     onSelect={handleDateSelect}
                     disabled={(date) => isBefore(startOfDay(date), today) || isBefore(maxSelectableDate, startOfDay(date))}
@@ -439,26 +440,86 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
             </div>
           ) : (
             <div className="space-y-8">
+              {/* Compact week strip — clickable day navigator */}
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2 rounded-xl border border-border bg-card/50 p-1.5 sm:p-2">
+                {weekDays.map((day) => {
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const count = (sessionsByDate[dateStr] || []).length;
+                  const isPast = isBefore(day, today) && !isToday(day);
+                  const isSelected = selectedDate && format(selectedDate, "yyyy-MM-dd") === dateStr;
+                  const isTodayDay = isToday(day);
+                  return (
+                    <button
+                      key={dateStr}
+                      onClick={() => {
+                        if (isPast) return;
+                        setSelectedDate(startOfDay(day));
+                      }}
+                      disabled={isPast}
+                      className={[
+                        "flex flex-col items-center justify-center rounded-lg py-2 px-1 text-center transition-all",
+                        "border",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          : isTodayDay
+                          ? "bg-accent/10 border-accent/40 text-foreground hover:bg-accent/15"
+                          : isPast
+                          ? "bg-transparent border-transparent text-muted-foreground/40 cursor-not-allowed"
+                          : "bg-transparent border-transparent text-foreground hover:bg-muted",
+                      ].join(" ")}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wider opacity-80">
+                        {format(day, "EEE")}
+                      </span>
+                      <span className="text-lg sm:text-xl font-serif leading-none mt-0.5">
+                        {format(day, "d")}
+                      </span>
+                      <span
+                        className={[
+                          "text-[10px] mt-1 leading-none",
+                          isSelected ? "text-primary-foreground/80" : count === 0 ? "text-muted-foreground/50" : "text-muted-foreground",
+                        ].join(" ")}
+                      >
+                        {count === 0 ? "—" : `${count} ${count === 1 ? "class" : "classes"}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {visibleWeekDays.map((day) => {
                 const dateStr = format(day, "yyyy-MM-dd");
                 const daySessions = sessionsByDate[dateStr] || [];
 
                 return (
                   <div key={dateStr} ref={isToday(day) ? todayRef : undefined}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <CalendarDays className="h-5 w-5 text-muted-foreground" />
-                      <h2 className="font-serif text-xl">
-                        {format(day, "EEEE, MMMM d")}
+                    <div className="flex items-baseline justify-between gap-3 mb-4 pb-2 border-b border-border">
+                      <div className="flex items-center gap-3">
+                        <CalendarDays className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <h2 className="font-serif text-xl sm:text-2xl">
+                          {format(day, "EEEE")}
+                          <span className="text-muted-foreground font-sans text-base font-normal ml-2">
+                            {format(day, "MMMM d")}
+                          </span>
+                        </h2>
                         {isToday(day) && (
-                          <Badge variant="outline" className="ml-2 text-xs border-accent text-accent">
+                          <Badge variant="outline" className="text-xs border-accent text-accent">
                             Today
                           </Badge>
                         )}
-                      </h2>
+                      </div>
+                      {daySessions.length > 0 && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {daySessions.length} {daySessions.length === 1 ? "class" : "classes"}
+                        </span>
+                      )}
                     </div>
 
+
                     {daySessions.length === 0 ? (
-                      <p className="text-muted-foreground text-sm pl-8">No classes scheduled</p>
+                      <div className="rounded-lg border border-dashed border-border bg-muted/30 py-8 px-4 text-center text-sm text-muted-foreground">
+                        No classes scheduled
+                      </div>
                     ) : (
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         {daySessions.map((session) => {
@@ -543,20 +604,38 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                   </div>
                                 )}
 
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
                                     {formatTime(session.start_time)} – {formatTime(session.end_time)}
                                   </span>
-                                  <span className="flex items-center gap-1">
-                                    <Users className="w-3 h-3" />
-                                    {isFull ? (
-                                      <span className="text-destructive font-medium">Full{waitlistCounts?.[session.id] ? ` · ${waitlistCounts[session.id]} waitlisted` : ""}</span>
-                                    ) : (
-                                      `${spotsLeft} spots`
-                                    )}
-                                  </span>
+                                  {(() => {
+                                    const wlc = waitlistCounts?.[session.id] ?? 0;
+                                    if (isFull) {
+                                      return (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[11px] font-medium">
+                                          <Users className="w-3 h-3" />
+                                          Full{wlc > 0 ? ` · +${wlc} waitlisted` : ""}
+                                        </span>
+                                      );
+                                    }
+                                    const almostFull = spotsLeft <= 3;
+                                    return (
+                                      <span
+                                        className={[
+                                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                                          almostFull
+                                            ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                                            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                                        ].join(" ")}
+                                      >
+                                        <Users className="w-3 h-3" />
+                                        {almostFull ? `Only ${spotsLeft} left` : `${spotsLeft} spots open`}
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
+
 
                                 {instructor && (
                                   <p className="text-xs text-muted-foreground mt-1">

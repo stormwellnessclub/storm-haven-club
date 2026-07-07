@@ -1,35 +1,59 @@
-## Fix waitlist hold refunds + promote-from-waitlist flow
 
-### Problem
-1. `process-expired-waitlist` cron is rejecting itself with 401 ("Invalid JWT token: missing sub claim"), so unclaimed waitlist holds never trigger `refund_waitlist_hold`. Members' passes stay stuck in a held/exhausted state (e.g. Eman Altairi).
-2. Admin "Promote from waitlist" checks `class_passes` for `status = 'active'` only, so a held pass is invisible — the UI then forces the admin to pick a new payment method or "buy a pass".
+## Goal
 
-### Changes
+Make `/schedule` (and the embedded portal Book Class view) feel refined and easy to scan. Frontend/presentation only — no booking logic, RPC, or data-model changes.
 
-**1. Fix cron auth on `supabase/functions/process-expired-waitlist/index.ts`**
-- The pg_cron job posts with the anon key in the `Authorization` header, but the current validator only accepts service-role, anon-exact-match, or a full user JWT. The anon-key branch works only if the header is byte-exact; pg_net occasionally sends it with different casing/whitespace, and the JWT branch then rejects it.
-- Normalize the header, compare the bearer token (not the full header string) to both `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_ANON_KEY`, and only fall through to `auth.getUser()` when the token actually looks like a user JWT (has `sub`).
-- Keep CORS + response shape identical.
+## Scope
 
-**2. Backfill stuck holds**
-- One-off migration/SQL: for every `class_waitlist` row where `status = 'notified'` and `claim_expires_at < now()`, call `refund_waitlist_hold(id)` and set `status = 'expired'`. This restores Eman's and any other stuck member's pass immediately.
+Files touched:
+- `src/components/booking/ScheduleBrowser.tsx` (week nav + day sections)
+- `src/components/booking/ClassCalendar.tsx` (7-day grid used elsewhere)
+- `src/components/booking/ClassCard.tsx` (single-class card)
 
-**3. Promote-from-waitlist reuses the held pass**
-- In `src/pages/admin/ClassRoster.tsx` (promote action) and `PaymentMethodSelector.tsx`:
-  - When the selected attendee is a waitlist entry with an existing hold (`class_waitlist.hold_pass_id` / `hold_credit_id`), default the payment method to that held pass/credit and skip the picker.
-  - Show a single line: "Using held pass — [category] 10-pack, N remaining after booking."
-  - Add an "Override payment method" link that reveals the current selector for the rare case an admin wants to switch.
-  - The promote RPC already consumes the hold; no backend change needed beyond ensuring the UI doesn't try to re-charge.
+Untouched: booking flow, waitlist logic, hooks, RPCs, admin calendar.
 
-**4. Waitlist visibility (small)**
-- In the admin waitlist panel, badge rows where `status = 'notified'` and `claim_expires_at < now()` as "Claim expired — refund pending" so stuck entries are obvious until the cron sweeps them.
+## Changes
 
-### Out of scope
-- Member-side cancellation refund logic (already correct).
-- Schema changes to `class_waitlist` / `class_passes`.
-- Schedule/UI redesign discussed earlier.
+### 1. Week starts on Monday
+- Replace every `startOfWeek(..., { weekStartsOn: 0 })` with `weekStartsOn: 1` in `ScheduleBrowser.tsx` and `ClassCalendar.tsx`.
+- Update the Calendar popover so Monday is the first column.
+- Keep "Today" behavior — jumps to today's date regardless of weekday.
 
-### Verification
-- Curl `process-expired-waitlist` with anon bearer → expect 200 and processed count.
-- Confirm Eman's `class_passes` row returns to `status = 'active'` with credit restored.
-- Promote a waitlisted member in a test class → booking succeeds without a payment prompt.
+### 2. Cleaner week header strip (ScheduleBrowser)
+- Above the day sections, add a compact 7-column weekday strip: `Mon 8` … `Sun 14`, today highlighted with the accent color, past days dimmed, days with 0 sessions shown as muted. Clicking a day scrolls to (or filters to) that day.
+- Week range label switches to `Mon, Dec 8 – Sun, Dec 14` for clarity.
+
+### 3. Refined day sections
+- Day header: large weekday name + date on one line, thin divider, count pill (`4 classes`). Sticky within its section on desktop.
+- Empty state gets a soft muted card ("No classes scheduled") instead of raw text.
+- Increase vertical rhythm; consistent 24px gap between day blocks.
+
+### 4. ClassCard readability pass
+- Restructure to a two-column layout: left = time block (large `7:00` with small `AM` and duration below), right = class name, instructor, room, category chip.
+- Availability becomes a dedicated pill at the top-right:
+  - `Open · 6 left` (neutral)
+  - `Almost full · 2 left` (amber)
+  - `Full` + `+3 waitlisted` sub-label (destructive tint)
+- Heated / Fundraiser badges move next to the class name at smaller size; single accent color per card, not stacked destructive reds.
+- Rating row: only shown when count > 0, right-aligned under the name.
+- CTA button height/label unchanged (still "Book Class" / "Join Waitlist" / "Booked").
+- Hover: subtle border-accent lift, no heavy shadow.
+
+### 5. ClassCalendar (7-day grid)
+- Mirror the Monday-first change.
+- Day column header adopts the same styling as the new week strip (weekday, date, today highlight).
+
+### 6. Typography and tokens
+- All colors via existing semantic tokens (`--primary`, `--accent`, `--muted-foreground`, `--destructive`). No hardcoded hex.
+- Availability amber uses existing `orange-500` token replaced with a semantic `--warning` fallback already used elsewhere (`text-orange-500` → keep if no token exists, but colocate via a small `availabilityTone()` helper in the card).
+
+## Out of scope
+- Changing which classes appear, filtering logic, waitlist behavior, booking modal, admin calendar.
+- Adding new fields or hooks.
+- Any DB, edge function, or RLS change.
+
+## Verification
+- Load `/schedule` signed out and signed in: week strip renders Mon–Sun, current day highlighted, availability pills reflect `max_capacity - current_enrollment`.
+- Portal `/portal/book`: embedded view uses same refined cards, sticky filters still work.
+- Toggle room/heat filters, jump weeks, pick a date — no regressions.
+- Mobile (375px): cards stack cleanly, week strip scrolls horizontally without overflow bleed.

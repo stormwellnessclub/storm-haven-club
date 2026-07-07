@@ -71,18 +71,19 @@ export function ClassCalendar({
         return (
           <div key={dateStr} className="space-y-3">
             <div
-              className={`text-center p-2 rounded-lg ${
+              className={`text-center p-2 rounded-lg border ${
                 todayHighlight
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted"
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-muted/50 border-border"
               }`}
             >
-              <div className="text-xs font-medium uppercase">
+              <div className="text-[10px] font-medium uppercase tracking-wider opacity-80">
                 {format(date, "EEE")}
               </div>
-              <div className="text-lg font-bold">{format(date, "d")}</div>
-              <div className="text-xs">{format(date, "MMM")}</div>
+              <div className="text-xl font-serif leading-tight mt-0.5">{format(date, "d")}</div>
+              <div className="text-[10px] opacity-70">{format(date, "MMM")}</div>
             </div>
+
 
             <div className="space-y-2">
               {daySessions.length === 0 ? (

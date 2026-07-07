@@ -48,8 +48,8 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
     queryFn: async (): Promise<ClassSession[]> => {
       const today = new Date();
       const targetWeek = addWeeks(today, weekOffset);
-      const weekStart = startOfWeek(targetWeek, { weekStartsOn: 0 });
-      const weekEnd = endOfWeek(targetWeek, { weekStartsOn: 0 });
+      const weekStart = startOfWeek(targetWeek, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(targetWeek, { weekStartsOn: 1 });
 
       let query = supabase
         .from("class_sessions")
