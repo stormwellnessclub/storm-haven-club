@@ -95,22 +95,26 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
               <span>{session.room}</span>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+          <div>
             <span
-              className={
+              className={[
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
                 isFull
-                  ? "text-destructive"
+                  ? "bg-destructive/10 text-destructive"
                   : isLowSpots
-                  ? "text-orange-500"
-                  : ""
-              }
+                  ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                  : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+              ].join(" ")}
             >
+              <Users className="h-3 w-3" />
               {isFull
-                ? `Full${waitlistCount > 0 ? ` · ${waitlistCount} waitlisted` : ""}`
-                : `${spotsRemaining} spot${spotsRemaining !== 1 ? "s" : ""} left`}
+                ? `Full${waitlistCount > 0 ? ` · +${waitlistCount} waitlisted` : ""}`
+                : isLowSpots
+                ? `Only ${spotsRemaining} left`
+                : `${spotsRemaining} spots open`}
             </span>
           </div>
+
         </div>
 
         {session.is_fundraiser && (
