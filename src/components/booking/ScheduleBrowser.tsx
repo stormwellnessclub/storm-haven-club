@@ -85,7 +85,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   const { user } = useAuth();
   const navigate = useNavigate();
   const today = startOfDay(new Date());
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 1 }));
   const todayRef = React.useRef<HTMLDivElement>(null);
   const [roomFilter, setRoomFilter] = useState<RoomFilter>("all");
   const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
