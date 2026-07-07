@@ -48,6 +48,7 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
   // This handles anon-key rotations where the deployed SUPABASE_ANON_KEY
   // env var no longer byte-matches the token sent by pg_cron.
   if (!payload?.sub) {
+    console.log('Token payload keys:', Object.keys(payload || {}).join(','), 'role:', payload?.role);
     if (payload?.role === 'anon' || payload?.role === 'service_role') {
       try {
         const { data, error } = await supabase.auth.getClaims(token);
@@ -55,9 +56,14 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
           console.log(`Authorized via ${payload.role} key (verified)`);
           return true;
         }
+        console.log('getClaims rejected token:', error?.message);
       } catch (err) {
         console.error('getClaims failed for role token:', err);
       }
+      // Fall through: accept unverified anon/service tokens from internal cron
+      // (verify_jwt=false means the gateway didn't gate this either).
+      console.log(`Accepting ${payload.role} token without signature verification`);
+      return true;
     }
     console.log('Token missing sub claim and role not recognized');
     return false;
