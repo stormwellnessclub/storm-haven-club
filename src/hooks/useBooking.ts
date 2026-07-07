@@ -122,7 +122,7 @@ export function usePastBookings() {
 
   const pastBookings = bookings?.filter(
     (b) =>
-      hasSessionEnded(b.session.session_date, (b.session as any).end_time) ||
+      hasSessionEnded(b.session.session_date, b.session.end_time) ||
       b.status === "completed" ||
       b.status === "cancelled" ||
       b.status === "no_show"
