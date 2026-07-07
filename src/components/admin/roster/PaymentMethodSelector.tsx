@@ -45,6 +45,13 @@ interface PaymentMethodSelectorProps {
   onDropInRateChange: (rate: "member" | "nonmember") => void;
   isFundraiser?: boolean;
   fundraiserAmountCents?: number;
+  /**
+   * Held pass on a waitlist entry — surfaced in the pass list even if the
+   * underlying row is currently `exhausted`/0 remaining (because the seat is
+   * held). Promote flow refunds the hold before decrementing, so it's safe.
+   */
+  heldPassId?: string | null;
+  heldCreditId?: string | null;
 }
 
 export function PaymentMethodSelector({
