@@ -604,20 +604,38 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                   </div>
                                 )}
 
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
                                   <span className="flex items-center gap-1">
                                     <Clock className="w-3 h-3" />
                                     {formatTime(session.start_time)} – {formatTime(session.end_time)}
                                   </span>
-                                  <span className="flex items-center gap-1">
-                                    <Users className="w-3 h-3" />
-                                    {isFull ? (
-                                      <span className="text-destructive font-medium">Full{waitlistCounts?.[session.id] ? ` · ${waitlistCounts[session.id]} waitlisted` : ""}</span>
-                                    ) : (
-                                      `${spotsLeft} spots`
-                                    )}
-                                  </span>
+                                  {(() => {
+                                    const wlc = waitlistCounts?.[session.id] ?? 0;
+                                    if (isFull) {
+                                      return (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[11px] font-medium">
+                                          <Users className="w-3 h-3" />
+                                          Full{wlc > 0 ? ` · +${wlc} waitlisted` : ""}
+                                        </span>
+                                      );
+                                    }
+                                    const almostFull = spotsLeft <= 3;
+                                    return (
+                                      <span
+                                        className={[
+                                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                                          almostFull
+                                            ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                                            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                                        ].join(" ")}
+                                      >
+                                        <Users className="w-3 h-3" />
+                                        {almostFull ? `Only ${spotsLeft} left` : `${spotsLeft} spots open`}
+                                      </span>
+                                    );
+                                  })()}
                                 </div>
+
 
                                 {instructor && (
                                   <p className="text-xs text-muted-foreground mt-1">
