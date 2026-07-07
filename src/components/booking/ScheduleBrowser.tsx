@@ -262,7 +262,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
     if (date) {
       const d = startOfDay(date);
       setSelectedDate(d);
-      setWeekStart(startOfWeek(d, { weekStartsOn: 0 }));
+      setWeekStart(startOfWeek(d, { weekStartsOn: 1 }));
       setCalendarOpen(false);
     }
   };
