@@ -273,7 +273,7 @@ export function useActivateFreeze() {
       // Get the freeze request and member data
       const { data: freezeData, error: fetchError } = await supabase
         .from("member_freezes")
-        .select("member_id")
+        .select("member_id, actual_end_date")
         .eq("id", freezeId)
         .single();
 
@@ -312,13 +312,22 @@ export function useActivateFreeze() {
 
       if (memberError) throw memberError;
 
-      // Pause membership subscription if it exists
+      // Pause membership dues subscription if it exists.
+      // Annual/initiation fee subscription is intentionally NOT paused during a freeze —
+      // it continues billing on its normal yearly cadence.
       if (memberData?.stripe_subscription_id) {
         try {
+          // Tell Stripe when to resume so the dashboard shows a resume date.
+          // Our process-freeze-expirations cron remains the authoritative trigger.
+          const resumesAt = freezeData.actual_end_date
+            ? new Date(`${freezeData.actual_end_date}T23:59:59Z`).toISOString()
+            : undefined;
+
           const { error: pauseError } = await supabase.functions.invoke("stripe-payment", {
             body: {
               action: "pause_subscription",
               subscriptionId: memberData.stripe_subscription_id,
+              resumesAt,
             },
           });
 
@@ -327,24 +336,6 @@ export function useActivateFreeze() {
           }
         } catch (pauseErr) {
           console.error("Error pausing membership subscription:", pauseErr);
-        }
-      }
-
-      // Pause annual fee subscription if it exists
-      if (memberData?.annual_fee_subscription_id) {
-        try {
-          const { error: pauseError } = await supabase.functions.invoke("stripe-payment", {
-            body: {
-              action: "pause_subscription",
-              subscriptionId: memberData.annual_fee_subscription_id,
-            },
-          });
-
-          if (pauseError) {
-            console.error("Failed to pause annual fee subscription:", pauseError);
-          }
-        } catch (pauseErr) {
-          console.error("Error pausing annual fee subscription:", pauseErr);
         }
       }
     },

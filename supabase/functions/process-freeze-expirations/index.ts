@@ -150,55 +150,8 @@ serve(async (req) => {
           }
         }
 
-        // Resume annual fee subscription and realign billing anchor
-        if (memberData?.annual_fee_subscription_id) {
-          try {
-            const { error: resumeError } = await supabase.functions.invoke('stripe-payment', {
-              body: {
-                action: 'resume_subscription',
-                subscriptionId: memberData.annual_fee_subscription_id,
-              },
-            });
-
-            if (resumeError) {
-              logStep("Failed to resume annual fee subscription", { 
-                memberId: freeze.member_id, 
-                error: resumeError 
-              });
-            } else {
-              logStep("Annual fee subscription resumed", { 
-                memberId: freeze.member_id, 
-                subscriptionId: memberData.annual_fee_subscription_id 
-              });
-
-              // Realign billing cycle to the freeze end date
-              const anchorDate = new Date(freeze.actual_end_date + 'T23:59:59Z');
-              const { error: anchorError } = await supabase.functions.invoke('stripe-payment', {
-                body: {
-                  action: 'update_billing_anchor',
-                  subscriptionId: memberData.annual_fee_subscription_id,
-                  newAnchorDate: anchorDate.toISOString(),
-                },
-              });
-              if (anchorError) {
-                logStep("Failed to realign annual fee billing anchor", {
-                  memberId: freeze.member_id,
-                  error: anchorError,
-                });
-              } else {
-                logStep("Annual fee billing anchor realigned", {
-                  memberId: freeze.member_id,
-                  newAnchorDate: anchorDate.toISOString(),
-                });
-              }
-            }
-          } catch (resumeErr) {
-            logStep("Error resuming annual fee subscription", { 
-              memberId: freeze.member_id, 
-              error: resumeErr 
-            });
-          }
-        }
+        // Annual/initiation fee subscription is intentionally NOT paused during a freeze,
+        // so nothing to resume here. It continues billing on its normal yearly cadence.
 
         logStep(`Processed freeze expiration`, { freezeId: freeze.id, memberId: freeze.member_id });
         processedCount++;
