@@ -2513,13 +2513,21 @@ serve(async (req) => {
       }
 
       case 'pause_subscription': {
-        const { subscriptionId } = body;
+        const { subscriptionId, resumesAt } = body;
         if (!subscriptionId) throw new Error("Missing subscriptionId");
 
+        const pauseCollection: Record<string, any> = {
+          behavior: 'keep_as_draft',
+        };
+        if (resumesAt) {
+          const resumesAtUnix = Math.floor(new Date(resumesAt).getTime() / 1000);
+          if (Number.isFinite(resumesAtUnix) && resumesAtUnix > Math.floor(Date.now() / 1000)) {
+            pauseCollection.resumes_at = resumesAtUnix;
+          }
+        }
+
         const subscription = await stripe.subscriptions.update(subscriptionId, {
-          pause_collection: {
-            behavior: 'keep_as_draft',
-          },
+          pause_collection: pauseCollection as any,
         });
 
         return new Response(
