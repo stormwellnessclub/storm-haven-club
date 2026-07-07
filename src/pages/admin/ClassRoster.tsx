@@ -1707,6 +1707,8 @@ export default function ClassRoster() {
               onDropInRateChange={setPromoteDropInRate}
               isFundraiser={isFundraiserSession}
               fundraiserAmountCents={fundraiserAmountCents}
+              heldPassId={promoteEntry.heldPassId}
+              heldCreditId={promoteEntry.heldCreditId}
             />
           )}
           <DialogFooter>
