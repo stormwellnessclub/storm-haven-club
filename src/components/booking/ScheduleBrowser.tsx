@@ -383,7 +383,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                 onClick={() => {
                   const t = startOfDay(new Date());
                   setSelectedDate(t);
-                  setWeekStart(startOfWeek(t, { weekStartsOn: 0 }));
+                  setWeekStart(startOfWeek(t, { weekStartsOn: 1 }));
                 }}
               >
                 Today
