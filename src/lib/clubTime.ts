@@ -85,3 +85,29 @@ export function clubTodayEnd(): string {
 export function clubMonthStart(): string {
   return chicagoMidnightUtcIso(clubMonthStartDateStr());
 }
+
+/**
+ * Returns true if a class session with the given date + end_time has already
+ * ended in club (America/Chicago) time. Used so members can review classes the
+ * same day they attend, right after the session finishes.
+ *
+ * `session_date` is YYYY-MM-DD. `end_time` is HH:MM or HH:MM:SS (Chicago wall
+ * clock). If either is missing, returns false.
+ */
+export function hasSessionEnded(
+  session_date?: string | null,
+  end_time?: string | null,
+): boolean {
+  if (!session_date) return false;
+  const today = clubTodayDateStr();
+  if (session_date < today) return true;
+  if (session_date > today) return false;
+  if (!end_time) return false;
+  // Same day: compare wall-clock time in Chicago.
+  const nowHHMMSS = new Date().toLocaleTimeString("en-GB", {
+    timeZone: CLUB_TZ,
+    hour12: false,
+  }); // HH:MM:SS
+  const end = end_time.length === 5 ? `${end_time}:00` : end_time;
+  return nowHHMMSS >= end;
+}
