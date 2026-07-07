@@ -398,6 +398,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                 <PopoverContent className="w-auto p-0" align="end">
                   <Calendar
                     mode="single"
+                    weekStartsOn={1}
                     selected={selectedDate || undefined}
                     onSelect={handleDateSelect}
                     disabled={(date) => isBefore(startOfDay(date), today) || isBefore(maxSelectableDate, startOfDay(date))}
