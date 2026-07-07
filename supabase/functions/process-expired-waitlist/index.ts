@@ -29,23 +29,42 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
     return true;
   }
 
-  // Only try user JWT validation if the token looks like a signed user JWT
-  // (three dot-separated segments with a `sub` claim). This avoids the noisy
-  // "missing sub claim" rejection for anon/service tokens that don't match above.
+  // Decode the JWT payload (no signature check) to inspect its role/sub.
+  let payload: any = null;
   try {
     const parts = token.split('.');
     if (parts.length !== 3) {
-      console.log('Token is not a user JWT');
+      console.log('Token is not a JWT');
       return false;
     }
-    // Decode payload without verifying — just to check for `sub`.
-    const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
-    const payload = JSON.parse(payloadJson);
-    if (!payload?.sub) {
-      console.log('Token missing sub claim');
-      return false;
-    }
+    payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+  } catch (err) {
+    console.error('JWT decode error:', err);
+    return false;
+  }
 
+  // Anon/service-role keys don't carry a `sub` — accept when the token was
+  // signed by Supabase (verified via getClaims) and carries a known role.
+  // This handles anon-key rotations where the deployed SUPABASE_ANON_KEY
+  // env var no longer byte-matches the token sent by pg_cron.
+  if (!payload?.sub) {
+    if (payload?.role === 'anon' || payload?.role === 'service_role') {
+      try {
+        const { data, error } = await supabase.auth.getClaims(token);
+        if (!error && data?.claims) {
+          console.log(`Authorized via ${payload.role} key (verified)`);
+          return true;
+        }
+      } catch (err) {
+        console.error('getClaims failed for role token:', err);
+      }
+    }
+    console.log('Token missing sub claim and role not recognized');
+    return false;
+  }
+
+  // User JWT path — validate + check admin role.
+  try {
     const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) {
       console.log('Invalid JWT token:', error?.message);
