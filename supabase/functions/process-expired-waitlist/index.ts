@@ -8,38 +8,50 @@ const corsHeaders = {
 
 // Validate authorization - accepts service role key, anon key (cron), or admin JWT
 async function validateRequest(req: Request, supabase: any): Promise<boolean> {
-  const authHeader = req.headers.get('Authorization');
-  
-  if (!authHeader) {
+  const rawHeader = req.headers.get('Authorization') || req.headers.get('authorization');
+  if (!rawHeader) {
     console.log('No authorization header present');
     return false;
   }
+  // Normalize: strip whitespace and any "Bearer" prefix (case-insensitive)
+  const token = rawHeader.trim().replace(/^Bearer\s+/i, '').trim();
+  if (!token) return false;
 
-  // Check for service role key (internal function calls)
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (authHeader === `Bearer ${serviceRoleKey}`) {
+  if (serviceRoleKey && token === serviceRoleKey) {
     console.log('Authorized via service role key');
     return true;
   }
 
-  // Check for anon key (cron job calls via pg_net)
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (authHeader === `Bearer ${anonKey}`) {
+  if (anonKey && token === anonKey) {
     console.log('Authorized via anon key (cron job)');
     return true;
   }
 
-  // Validate JWT token for admin users
+  // Only try user JWT validation if the token looks like a signed user JWT
+  // (three dot-separated segments with a `sub` claim). This avoids the noisy
+  // "missing sub claim" rejection for anon/service tokens that don't match above.
   try {
-    const token = authHeader.replace('Bearer ', '');
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.log('Token is not a user JWT');
+      return false;
+    }
+    // Decode payload without verifying — just to check for `sub`.
+    const payloadJson = atob(parts[1].replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson);
+    if (!payload?.sub) {
+      console.log('Token missing sub claim');
+      return false;
+    }
+
     const { data: { user }, error } = await supabase.auth.getUser(token);
-    
     if (error || !user) {
       console.log('Invalid JWT token:', error?.message);
       return false;
     }
 
-    // Check if user has admin role
     const { data: roles } = await supabase
       .from('user_roles')
       .select('role')
@@ -50,7 +62,6 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
       console.log(`Authorized admin user: ${user.id}`);
       return true;
     }
-
     console.log('User lacks admin privileges');
     return false;
   } catch (err) {
