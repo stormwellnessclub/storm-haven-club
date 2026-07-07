@@ -1626,7 +1626,9 @@ export default function ClassRoster() {
                           </TableCell>
                           <TableCell>
                             {entry.status === "notified"
-                              ? <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1" />Notified</Badge>
+                              ? (entry.claim_expires_at && new Date(entry.claim_expires_at) < new Date() && !entry.hold_refunded
+                                  ? <Badge variant="destructive" className="text-xs">Claim expired — refund pending</Badge>
+                                  : <Badge variant="outline" className="text-xs"><Clock className="h-3 w-3 mr-1" />Notified</Badge>)
                               : <Badge variant="secondary" className="text-xs">Waiting</Badge>}
                           </TableCell>
                           <TableCell className="text-right space-x-2">
