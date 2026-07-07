@@ -245,9 +245,9 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
     return map;
   }, [filteredSessions, weekDays]);
 
-  const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 0 }));
-  const maxWeekStart = useMemo(() => startOfWeek(addWeeks(today, 3), { weekStartsOn: 0 }), [today]);
-  const maxSelectableDate = useMemo(() => addDays(addWeeks(startOfWeek(today, { weekStartsOn: 0 }), 4), -1), [today]);
+  const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 1 }));
+  const maxWeekStart = useMemo(() => startOfWeek(addWeeks(today, 3), { weekStartsOn: 1 }), [today]);
+  const maxSelectableDate = useMemo(() => addDays(addWeeks(startOfWeek(today, { weekStartsOn: 1 }), 4), -1), [today]);
   const canGoNext = isBefore(weekStart, maxWeekStart);
   const atHorizon = !canGoNext;
 
