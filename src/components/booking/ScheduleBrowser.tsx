@@ -440,23 +440,81 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
             </div>
           ) : (
             <div className="space-y-8">
+              {/* Compact week strip — clickable day navigator */}
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-2 rounded-xl border border-border bg-card/50 p-1.5 sm:p-2">
+                {weekDays.map((day) => {
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const count = (sessionsByDate[dateStr] || []).length;
+                  const isPast = isBefore(day, today) && !isToday(day);
+                  const isSelected = selectedDate && format(selectedDate, "yyyy-MM-dd") === dateStr;
+                  const isTodayDay = isToday(day);
+                  return (
+                    <button
+                      key={dateStr}
+                      onClick={() => {
+                        if (isPast) return;
+                        setSelectedDate(startOfDay(day));
+                      }}
+                      disabled={isPast}
+                      className={[
+                        "flex flex-col items-center justify-center rounded-lg py-2 px-1 text-center transition-all",
+                        "border",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                          : isTodayDay
+                          ? "bg-accent/10 border-accent/40 text-foreground hover:bg-accent/15"
+                          : isPast
+                          ? "bg-transparent border-transparent text-muted-foreground/40 cursor-not-allowed"
+                          : "bg-transparent border-transparent text-foreground hover:bg-muted",
+                      ].join(" ")}
+                    >
+                      <span className="text-[10px] font-medium uppercase tracking-wider opacity-80">
+                        {format(day, "EEE")}
+                      </span>
+                      <span className="text-lg sm:text-xl font-serif leading-none mt-0.5">
+                        {format(day, "d")}
+                      </span>
+                      <span
+                        className={[
+                          "text-[10px] mt-1 leading-none",
+                          isSelected ? "text-primary-foreground/80" : count === 0 ? "text-muted-foreground/50" : "text-muted-foreground",
+                        ].join(" ")}
+                      >
+                        {count === 0 ? "—" : `${count} ${count === 1 ? "class" : "classes"}`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
               {visibleWeekDays.map((day) => {
                 const dateStr = format(day, "yyyy-MM-dd");
                 const daySessions = sessionsByDate[dateStr] || [];
 
                 return (
                   <div key={dateStr} ref={isToday(day) ? todayRef : undefined}>
-                    <div className="flex items-center gap-3 mb-4">
-                      <CalendarDays className="h-5 w-5 text-muted-foreground" />
-                      <h2 className="font-serif text-xl">
-                        {format(day, "EEEE, MMMM d")}
+                    <div className="flex items-baseline justify-between gap-3 mb-4 pb-2 border-b border-border">
+                      <div className="flex items-center gap-3">
+                        <CalendarDays className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <h2 className="font-serif text-xl sm:text-2xl">
+                          {format(day, "EEEE")}
+                          <span className="text-muted-foreground font-sans text-base font-normal ml-2">
+                            {format(day, "MMMM d")}
+                          </span>
+                        </h2>
                         {isToday(day) && (
-                          <Badge variant="outline" className="ml-2 text-xs border-accent text-accent">
+                          <Badge variant="outline" className="text-xs border-accent text-accent">
                             Today
                           </Badge>
                         )}
-                      </h2>
+                      </div>
+                      {daySessions.length > 0 && (
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {daySessions.length} {daySessions.length === 1 ? "class" : "classes"}
+                        </span>
+                      )}
                     </div>
+
 
                     {daySessions.length === 0 ? (
                       <p className="text-muted-foreground text-sm pl-8">No classes scheduled</p>
