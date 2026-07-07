@@ -273,7 +273,7 @@ export function useActivateFreeze() {
       // Get the freeze request and member data
       const { data: freezeData, error: fetchError } = await supabase
         .from("member_freezes")
-        .select("member_id")
+        .select("member_id, actual_end_date")
         .eq("id", freezeId)
         .single();
 
