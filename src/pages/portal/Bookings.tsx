@@ -12,6 +12,7 @@ import { format, parseISO, differenceInHours } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, AlertTriangle, User, Star } from "lucide-react";
 import { formatTime12h } from "@/lib/timeFormat";
+import { hasSessionEnded } from "@/lib/clubTime";
 import { useCancelBooking } from "@/hooks/useBooking";
 import { CANCELLATION_POLICY_TEXT } from "@/components/booking/CancellationPolicyText";
 import { useMyReviews } from "@/hooks/useClassReviews";
@@ -56,12 +57,15 @@ export default function PortalBookings() {
     enabled: !!user,
   });
 
-  const now = new Date().toISOString();
   const upcoming = bookings.filter(
-    (b) => b.status === "confirmed" && b.class_sessions?.session_date >= now.slice(0, 10)
+    (b) =>
+      b.status === "confirmed" &&
+      !hasSessionEnded(b.class_sessions?.session_date, b.class_sessions?.end_time)
   );
   const past = bookings.filter(
-    (b) => b.status !== "confirmed" || b.class_sessions?.session_date < now.slice(0, 10)
+    (b) =>
+      b.status !== "confirmed" ||
+      hasSessionEnded(b.class_sessions?.session_date, b.class_sessions?.end_time)
   );
 
   // Map booking id -> review

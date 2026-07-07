@@ -193,11 +193,18 @@ export function useSubmitReview() {
       queryClient.invalidateQueries({ queryKey: ["class-reviews"] });
     },
     onError: (err: any) => {
-      if (err.message?.includes("duplicate")) {
+      if (err?.message?.includes("duplicate")) {
         toast.error("You've already reviewed this class");
-      } else {
-        toast.error("Failed to submit review");
+        return;
       }
+      const detail =
+        err?.message ||
+        err?.details ||
+        err?.hint ||
+        (typeof err === "string" ? err : "");
+      toast.error(
+        detail ? `Failed to submit review: ${detail}` : "Failed to submit review"
+      );
     },
   });
 }

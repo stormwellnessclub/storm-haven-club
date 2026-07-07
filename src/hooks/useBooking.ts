@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addWeeks, parseISO, parse } from "date-fns";
+import { hasSessionEnded } from "@/lib/clubTime";
 
 export interface Booking {
   id: string;
@@ -109,7 +110,8 @@ export function useUpcomingBookings() {
     (b) =>
       b.status === "confirmed" &&
       b.session.session_date >= today &&
-      !b.session.is_cancelled
+      !b.session.is_cancelled &&
+      !hasSessionEnded(b.session.session_date, b.session.end_time)
   );
 
   return { data: upcomingBookings, ...rest };
@@ -117,11 +119,10 @@ export function useUpcomingBookings() {
 
 export function usePastBookings() {
   const { data: bookings, ...rest } = useMyBookings();
-  const today = format(new Date(), "yyyy-MM-dd");
 
   const pastBookings = bookings?.filter(
     (b) =>
-      b.session.session_date < today ||
+      hasSessionEnded(b.session.session_date, b.session.end_time) ||
       b.status === "completed" ||
       b.status === "cancelled" ||
       b.status === "no_show"
