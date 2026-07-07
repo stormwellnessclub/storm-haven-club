@@ -111,7 +111,7 @@ export function useUpcomingBookings() {
       b.status === "confirmed" &&
       b.session.session_date >= today &&
       !b.session.is_cancelled &&
-      !hasSessionEnded(b.session.session_date, (b.session as any).end_time)
+      !hasSessionEnded(b.session.session_date, b.session.end_time)
   );
 
   return { data: upcomingBookings, ...rest };
