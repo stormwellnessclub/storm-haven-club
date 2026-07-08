@@ -1161,10 +1161,13 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             </div>
 
                             {/* Meta */}
-                            <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
-                              {[catName, sizeMeta].filter(Boolean).join(" / ")}
-                              {item.calories ? ` · ${item.calories} kcal` : ""}
-                            </p>
+                            <div className="flex items-baseline justify-between gap-3 mb-3">
+                              <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
+                                {[catName, sizeMeta].filter(Boolean).join(" / ")}
+                                {item.calories ? ` · ${item.calories} kcal` : ""}
+                              </p>
+                              <CafeRatingBadge itemId={item.id} />
+                            </div>
 
                             {/* Benefit pills */}
                             {(() => {
