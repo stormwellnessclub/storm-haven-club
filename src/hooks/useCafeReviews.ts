@@ -65,7 +65,7 @@ export function useCafeItemReviews(menuItemId: string | null) {
         .order("created_at", { ascending: false })
         .limit(100);
       if (error) throw error;
-      return (data as CafeReview[]) || [];
+      return (data as unknown as CafeReview[]) || [];
     },
     enabled: !!menuItemId,
     staleTime: 30_000,
