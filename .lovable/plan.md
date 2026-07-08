@@ -1,49 +1,36 @@
-## Why replies aren't reaching you
+## Status
 
-I traced the whole path. Here's what's actually happening:
+Code side is done and deployed (`send-email` sets `reply_to: reply+<conversation_id>@reply.stormwellnessclub.com`, `receive-email` verifies Svix + routes to conversations). What's missing is the mail plumbing outside the app. I verified today:
 
-1. Staff replies are sent from `admin@stormwellnessclub.com` (in `send-email` edge function), with **no `Reply-To` header**. So when a member hits Reply in their email client, the reply goes to `admin@stormwellnessclub.com`.
-2. The MX records for `stormwellnessclub.com` currently point at **`mx10/20/30.antispam.mailspamprotection.com`** — a cPanel-style spam-filtered mailbox host, not Google Workspace, not Resend.
-3. That means every reply is being dumped into a cPanel/webmail inbox behind a third-party spam filter. If nobody is logging into that mailbox (or the spam filter is eating messages), the replies simply vanish. Kristina Khanji's reply making it through is consistent with that — one message got past the filter, the rest didn't.
-4. The app **already has a receive-email edge function** (`supabase/functions/receive-email/index.ts`) that parses Resend Inbound webhooks and drops the message straight into `email_conversations` / `email_messages` so it shows up in `/admin/emails` next to the original thread. **It has never been called** — 0 out of 584 member messages in the DB were ingested through it. All 584 member "messages" came from the in-app portal Support chat, not from email replies.
+- `reply.stormwellnessclub.com` — no MX record exists
+- `stormwellnessclub.com` MX — still `mailspamprotection.com` (where Kristina's reply went)
+- `receive-email` endpoint — returns 500 (webhook signing secret not set)
+- `email_messages` — 0 rows ever ingested from an email reply
 
-So this is not a bug in send-email or receive-email — the webhook is fine. The problem is that email replies never reach it, because MX points somewhere else and nobody's watching that mailbox.
+So replies keep going to the cPanel mailbox and never reach the app. Nothing else in the code is broken.
 
-## The fix (recommended)
+## What needs to happen (external, not code)
 
-Use a dedicated reply subdomain so we can send replies through the existing Resend setup and receive replies through Resend Inbound, without touching the existing `stormwellnessclub.com` MX (which some other tooling may still depend on).
-
-### Steps
-
-1. **Add a `reply.stormwellnessclub.com` subdomain in Resend and verify it for Inbound.** In Resend: create the domain, add its Inbound MX record at the DNS host (`10 inbound-smtp.resend.com` or whatever Resend prescribes), verify DKIM/SPF for that subdomain. (This is a DNS action you do at your registrar — I'll tell you exactly which records to add once we start; nothing to configure in code for this step.)
-
-2. **Set up the Resend Inbound webhook to point at the existing `receive-email` edge function** at:
+1. **In Resend → Domains → Add Domain:** add `reply.stormwellnessclub.com` and enable Inbound on it. Resend will give you a set of DNS records (MX for inbound, plus DKIM/SPF for that subdomain).
+2. **At your DNS host** (wherever `stormwellnessclub.com` is managed): add the records exactly as Resend lists them. This does NOT change the root `stormwellnessclub.com` MX — the existing cPanel mailbox stays untouched. Only `reply.stormwellnessclub.com` gets the new MX.
+3. **In Resend → Webhooks:** create an Inbound webhook pointing to
    `https://cqzmrdzwgsujgbjqpoxh.functions.supabase.co/receive-email`
-   Resend will give a signing secret when you create the webhook.
+   subscribed to the `email.received` event. Copy the signing secret Resend shows you.
+4. **Save that signing secret** — I'll open the secure form for `RESEND_WEBHOOK_SECRET` as soon as you have the value. The function already reads that env var; the moment it's set, verified webhooks will start ingesting.
+5. **Verify** — reply to any staff email from a member address; a new row should appear in `email_messages` and thread into `/admin/emails` under the original conversation.
 
-3. **Save that signing secret as `RESEND_WEBHOOK_SECRET`.** The receive-email function already reads this env var and refuses to process unsigned payloads — right now it's likely missing, which would also explain silent failures if Resend ever did POST to it.
+## Retroactive
 
-4. **Edit `send-email` (`supabase/functions/send-email/index.ts` line ~2953)** to set `reply_to: 'support@reply.stormwellnessclub.com'` on the send payload for `staff_reply` (and other conversational types like concierge/support). From address stays `admin@stormwellnessclub.com` so the branding is unchanged.
+Kristina's actual email reply is sitting in the cPanel mailbox at `mailspamprotection.com` (or whatever webmail your host uses for `admin@stormwellnessclub.com`). It can't be pulled into the app from code — someone has to log into that mailbox once and forward or paste the message into the conversation. Same for any other replies stuck there from the past few weeks.
 
-5. **Update the `receive-email` conversation-matching logic** (`supabase/functions/receive-email/index.ts`). Today it matches replies to an existing conversation by cleaning `Re:` off the subject and doing a string-equality lookup — that's fragile (members change subjects, forwards, etc.). Change to: also embed the `conversation_id` in a reply address like `reply+<conversation_id>@reply.stormwellnessclub.com` when we generate the staff reply's `reply_to`, and parse it out in receive-email. Fall back to subject match, then to "new conversation by email".
+## What I will do next turn (once you confirm)
 
-6. **Tell members in the `staff_reply` template it's OK to reply.** The current template says "reach out through your member portal" — I'll change that copy to "You can reply directly to this email or use the member portal."
+- Nothing until step 1–3 are done on your side. There's nothing to build.
+- When you have the signing secret from step 3, tell me and I'll open the secure form to save `RESEND_WEBHOOK_SECRET`.
+- After that I'll re-probe the endpoint and confirm ingestion works end-to-end.
 
-7. **Retroactive:** for the members whose replies are stuck in the cPanel mailbox, we can't recover them from code — you'd need to log into that mailbox (webmail via mailspamprotection.com / your host's cPanel) once to sweep whatever's there. I'll flag this in the response but I won't touch mail hosting.
+## Not doing
 
-### Files touched
-
-- `supabase/functions/send-email/index.ts` — add `reply_to` for `staff_reply`; tweak template copy.
-- `supabase/functions/receive-email/index.ts` — parse `reply+<uuid>@…` addressing, fallback matching.
-- No DB migration. No schema change.
-- No changes to Lovable email domain settings (project has none — Resend is used directly).
-
-### What I need from you before/while I build
-
-- Confirm you want the reply subdomain approach (vs. changing the root MX to Resend, which would kill the existing cPanel mailbox).
-- Once the code is in, you (or I with your help) will need to add the Resend domain + MX + webhook in the Resend dashboard and paste the signing secret when I request it via the secure secret form.
-
-### Out of scope for this plan (mention only)
-
-- The freeze/pause/annual-fee fixes from earlier are already merged into code — separate from this.
-- Fixing the underlying `admin@stormwellnessclub.com` cPanel mailbox is a hosting task, not code.
+- Not changing the root `stormwellnessclub.com` MX (would break the existing cPanel mailbox and anything else that depends on it).
+- Not editing `send-email` or `receive-email` again — they're already correct.
+- Not writing any DB migration.
