@@ -1627,6 +1627,8 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                     </button>
                   )}
                 </div>
+
+                <CafeItemReviews menuItemId={detailItem.id} itemName={name} />
               </>
             );
           })()}
