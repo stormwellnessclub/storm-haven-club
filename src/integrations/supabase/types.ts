@@ -946,6 +946,72 @@ export type Database = {
           },
         ]
       }
+      cafe_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          is_verified_purchase: boolean
+          menu_item_id: string
+          moderation_status: string
+          order_id: string | null
+          photo_path: string | null
+          rating: number
+          reviewer_display_name: string
+          reviewer_email: string | null
+          reviewer_user_id: string | null
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_verified_purchase?: boolean
+          menu_item_id: string
+          moderation_status?: string
+          order_id?: string | null
+          photo_path?: string | null
+          rating: number
+          reviewer_display_name: string
+          reviewer_email?: string | null
+          reviewer_user_id?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_verified_purchase?: boolean
+          menu_item_id?: string
+          moderation_status?: string
+          order_id?: string | null
+          photo_path?: string | null
+          rating?: number
+          reviewer_display_name?: string
+          reviewer_email?: string | null
+          reviewer_user_id?: string | null
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_reviews_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cafe_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cafe_vouchers: {
         Row: {
           code: string
@@ -8109,6 +8175,66 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cafe_item_rating_summary: {
+        Row: {
+          avg_rating: number | null
+          menu_item_id: string | null
+          review_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_reviews_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cafe_reviews_public: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          id: string | null
+          is_verified_purchase: boolean | null
+          menu_item_id: string | null
+          photo_path: string | null
+          rating: number | null
+          reviewer_display_name: string | null
+          tags: string[] | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_verified_purchase?: boolean | null
+          menu_item_id?: string | null
+          photo_path?: string | null
+          rating?: number | null
+          reviewer_display_name?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_verified_purchase?: boolean | null
+          menu_item_id?: string | null
+          photo_path?: string | null
+          rating?: number | null
+          reviewer_display_name?: string | null
+          tags?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cafe_reviews_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "cafe_menu_items"
             referencedColumns: ["id"]
           },
         ]
