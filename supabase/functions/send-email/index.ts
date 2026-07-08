@@ -1059,6 +1059,14 @@ serve(async (req) => {
 
       case 'staff_reply':
         subject = data.subject || 'Re: Your Message - Storm Wellness Club';
+        // Route member replies to Resend Inbound on reply.stormwellnessclub.com.
+        // If we have a conversationId, use plus-addressing so we can thread the reply
+        // deterministically in receive-email.
+        if (data?.conversationId && typeof data.conversationId === 'string') {
+          data.replyTo = `reply+${data.conversationId}@reply.stormwellnessclub.com`;
+        } else if (!data?.replyTo) {
+          data.replyTo = 'reply@reply.stormwellnessclub.com';
+        }
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
@@ -1074,11 +1082,11 @@ serve(async (req) => {
               </div>
               
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                If you have any further questions or concerns, please don't hesitate to reach out to us through your member portal.
+                If you have any further questions, you can simply reply to this email and we'll see it — or use your member portal.
               </p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${BASE_URL}/member/support" style="${emailStyles.button}">Contact Support</a>
+                <a href="${BASE_URL}/member/support" style="${emailStyles.button}">Open Member Portal</a>
               </div>
               
               <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
