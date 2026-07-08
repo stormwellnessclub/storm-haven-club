@@ -36,6 +36,9 @@ import {
 } from "@/components/ui/select";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { CafeRatingBadge } from "@/components/cafe/CafeRatingBadge";
+import { CafeItemReviews } from "@/components/cafe/CafeItemReviews";
+import { CafeReviewPrompt } from "@/components/cafe/CafeReviewPrompt";
 
 interface CartAddon {
   id: string;
@@ -984,6 +987,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
 
               {/* Items grid */}
               <main className="flex-1 p-4 md:p-8 lg:p-10">
+                <CafeReviewPrompt />
                 {visibleItems.length === 0 ? (
                   <p className="text-center py-20 font-cafe-mono text-xs uppercase tracking-widest text-cafe-burgundy/50">
                     Nothing here yet.
@@ -1157,10 +1161,13 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                             </div>
 
                             {/* Meta */}
-                            <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60 mb-3">
-                              {[catName, sizeMeta].filter(Boolean).join(" / ")}
-                              {item.calories ? ` · ${item.calories} kcal` : ""}
-                            </p>
+                            <div className="flex items-baseline justify-between gap-3 mb-3">
+                              <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
+                                {[catName, sizeMeta].filter(Boolean).join(" / ")}
+                                {item.calories ? ` · ${item.calories} kcal` : ""}
+                              </p>
+                              <CafeRatingBadge itemId={item.id} />
+                            </div>
 
                             {/* Benefit pills */}
                             {(() => {
@@ -1492,7 +1499,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
 
       {/* Item detail dialog */}
       <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
-        <DialogContent className="sm:max-w-xl bg-cafe-cream">
+        <DialogContent className="sm:max-w-xl bg-cafe-cream max-h-[90vh] overflow-y-auto">
           {detailItem && (() => {
             const d = parseItemDescription(detailItem);
             const name = getItemDisplayName(detailItem);
@@ -1620,6 +1627,8 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                     </button>
                   )}
                 </div>
+
+                <CafeItemReviews menuItemId={detailItem.id} itemName={name} />
               </>
             );
           })()}
