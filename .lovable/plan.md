@@ -1,45 +1,49 @@
-## Three bugs, one fix
+## Why replies aren't reaching you
 
-### Bug 1 — "Pay $X Now" freeze-fee link does nothing
+I traced the whole path. Here's what's actually happening:
 
-`src/pages/member/FreezeRequest.tsx:176` opens the Stripe Checkout URL with `window.open(data.url, '_blank')` *after* an `await`. Every other checkout in the app (`Membership.tsx`, `ClassPasses.tsx`, `GuestPass.tsx`, `PaymentDueNotice.tsx`, `BuyPassesDrawer.tsx`, etc.) uses `window.location.href = data.url`. Browsers block `window.open` when it isn't in a direct user-gesture handler, especially on mobile and Safari — so members tap "Pay $X Now" and nothing opens.
+1. Staff replies are sent from `admin@stormwellnessclub.com` (in `send-email` edge function), with **no `Reply-To` header**. So when a member hits Reply in their email client, the reply goes to `admin@stormwellnessclub.com`.
+2. The MX records for `stormwellnessclub.com` currently point at **`mx10/20/30.antispam.mailspamprotection.com`** — a cPanel-style spam-filtered mailbox host, not Google Workspace, not Resend.
+3. That means every reply is being dumped into a cPanel/webmail inbox behind a third-party spam filter. If nobody is logging into that mailbox (or the spam filter is eating messages), the replies simply vanish. Kristina Khanji's reply making it through is consistent with that — one message got past the filter, the rest didn't.
+4. The app **already has a receive-email edge function** (`supabase/functions/receive-email/index.ts`) that parses Resend Inbound webhooks and drops the message straight into `email_conversations` / `email_messages` so it shows up in `/admin/emails` next to the original thread. **It has never been called** — 0 out of 584 member messages in the DB were ingested through it. All 584 member "messages" came from the in-app portal Support chat, not from email replies.
 
-**Fix:** switch to `window.location.href = data.url` to match every other checkout. Same-tab redirect, no popup blocker.
+So this is not a bug in send-email or receive-email — the webhook is fine. The problem is that email replies never reach it, because MX points somewhere else and nobody's watching that mailbox.
 
-### Bug 2 — Annual/initiation fee gets paused during freeze
+## The fix (recommended)
 
-Freeze activation (`src/hooks/useAdminFreezeRequests.ts` lines 333–349) pauses both `stripe_subscription_id` (dues) and `annual_fee_subscription_id`. And `supabase/functions/process-freeze-expirations/index.ts` lines 153–201 resumes+realigns the annual-fee sub on freeze expiration. Per your call, the annual fee should keep billing on its normal yearly cadence during a freeze — only monthly dues pause.
+Use a dedicated reply subdomain so we can send replies through the existing Resend setup and receive replies through Resend Inbound, without touching the existing `stormwellnessclub.com` MX (which some other tooling may still depend on).
 
-**Fix:**
-- Remove the annual-fee pause block from `useAdminFreezeRequests.ts` `activateFreeze`.
-- Remove the annual-fee resume + billing-anchor realign block from `process-freeze-expirations/index.ts`.
-- Leave the dues-sub pause/resume logic alone (that's the correct behavior).
+### Steps
 
-### Bug 3 — Stripe shows "collection paused" with no resume date
+1. **Add a `reply.stormwellnessclub.com` subdomain in Resend and verify it for Inbound.** In Resend: create the domain, add its Inbound MX record at the DNS host (`10 inbound-smtp.resend.com` or whatever Resend prescribes), verify DKIM/SPF for that subdomain. (This is a DNS action you do at your registrar — I'll tell you exactly which records to add once we start; nothing to configure in code for this step.)
 
-The `pause_subscription` action in `supabase/functions/stripe-payment/index.ts:2515` only sets `pause_collection: { behavior: 'keep_as_draft' }`. Stripe has no `resumes_at`, so the dashboard reads "paused" indefinitely. Our own `process-freeze-expirations` cron does the actual resume on the freeze end date, but Stripe never surfaces that.
+2. **Set up the Resend Inbound webhook to point at the existing `receive-email` edge function** at:
+   `https://cqzmrdzwgsujgbjqpoxh.functions.supabase.co/receive-email`
+   Resend will give a signing secret when you create the webhook.
 
-**Fix:**
-- Extend the `pause_subscription` action to accept an optional `resumesAt` (ISO string). When provided, pass it through as `pause_collection: { behavior: 'keep_as_draft', resumes_at: <unix seconds> }`.
-- In `useAdminFreezeRequests.ts` `activateFreeze`, pass `resumesAt` set to the freeze's `actual_end_date` at 23:59:59 America/Chicago (matches the existing anchor-realign timestamp on resume).
-- Keep the `process-freeze-expirations` cron as-is — it's the authoritative trigger; `resumes_at` is only for display so admins/members can see the date in Stripe.
+3. **Save that signing secret as `RESEND_WEBHOOK_SECRET`.** The receive-email function already reads this env var and refuses to process unsigned payloads — right now it's likely missing, which would also explain silent failures if Resend ever did POST to it.
 
-### Retroactive fix for Mariam Benno
+4. **Edit `send-email` (`supabase/functions/send-email/index.ts` line ~2953)** to set `reply_to: 'support@reply.stormwellnessclub.com'` on the send payload for `staff_reply` (and other conversational types like concierge/support). From address stays `admin@stormwellnessclub.com` so the branding is unchanged.
 
-Freeze `actual_end_date = 2026-08-19`. Two live Stripe updates via the Stripe API:
-- Un-pause the annual-fee sub `sub_1TD5gzLyZrsSqLhsTZZb2lY4` (`pause_collection: null`). Stripe will resume the normal yearly cadence — next renewal is already set to July 2026 on the sub, no anchor change needed.
-- On dues sub `sub_1TD5hDLyZrsSqLhs7Liw4Ma9`, keep the pause but set `pause_collection.resumes_at` to `2026-08-19 23:59:59 America/Chicago` so Stripe displays the resume date.
+5. **Update the `receive-email` conversation-matching logic** (`supabase/functions/receive-email/index.ts`). Today it matches replies to an existing conversation by cleaning `Re:` off the subject and doing a string-equality lookup — that's fragile (members change subjects, forwards, etc.). Change to: also embed the `conversation_id` in a reply address like `reply+<conversation_id>@reply.stormwellnessclub.com` when we generate the staff reply's `reply_to`, and parse it out in receive-email. Fall back to subject match, then to "new conversation by email".
 
-## Also worth flagging (not touched unless you say so)
+6. **Tell members in the `staff_reply` template it's OK to reply.** The current template says "reach out through your member portal" — I'll change that copy to "You can reply directly to this email or use the member portal."
 
-When a member *pays* the freeze fee, the Stripe webhook (`stripe-webhook/index.ts:1307`) flips the freeze to `active` and the member to `frozen`, but **never calls `pause_subscription` on the dues sub**. Only the admin "waive fee & activate" path pauses. Any member who paid the freeze fee is still being billed monthly dues during their freeze. Happy to fix in a follow-up — flag if you want it in this ticket.
+7. **Retroactive:** for the members whose replies are stuck in the cPanel mailbox, we can't recover them from code — you'd need to log into that mailbox (webmail via mailspamprotection.com / your host's cPanel) once to sweep whatever's there. I'll flag this in the response but I won't touch mail hosting.
 
-## Files touched
+### Files touched
 
-- `src/pages/member/FreezeRequest.tsx` — same-tab redirect for freeze checkout
-- `src/hooks/useAdminFreezeRequests.ts` — stop pausing annual fee; pass `resumesAt` for the dues pause
-- `supabase/functions/stripe-payment/index.ts` — `pause_subscription` accepts optional `resumesAt`
-- `supabase/functions/process-freeze-expirations/index.ts` — stop touching the annual-fee sub
-- One-off Stripe updates to Mariam Benno's two subs (via the Stripe API tools; no DB migration)
+- `supabase/functions/send-email/index.ts` — add `reply_to` for `staff_reply`; tweak template copy.
+- `supabase/functions/receive-email/index.ts` — parse `reply+<uuid>@…` addressing, fallback matching.
+- No DB migration. No schema change.
+- No changes to Lovable email domain settings (project has none — Resend is used directly).
 
-No DB schema changes. No config.toml changes.
+### What I need from you before/while I build
+
+- Confirm you want the reply subdomain approach (vs. changing the root MX to Resend, which would kill the existing cPanel mailbox).
+- Once the code is in, you (or I with your help) will need to add the Resend domain + MX + webhook in the Resend dashboard and paste the signing secret when I request it via the secure secret form.
+
+### Out of scope for this plan (mention only)
+
+- The freeze/pause/annual-fee fixes from earlier are already merged into code — separate from this.
+- Fixing the underlying `admin@stormwellnessclub.com` cPanel mailbox is a hosting task, not code.

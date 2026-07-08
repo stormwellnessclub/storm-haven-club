@@ -184,10 +184,41 @@ serve(async (req) => {
     const isReply = /^(re|fw|fwd):\s*/i.test(subject);
     const cleanSubject = subject.replace(/^(re|fw|fwd):\s*/gi, '').trim() || 'General Inquiry';
 
-    let conversationId: string;
+    // Parse conversation_id from plus-addressed recipient (reply+<uuid>@reply.stormwellnessclub.com)
+    let plusAddressedConversationId: string | null = null;
+    const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    const recipients = Array.isArray(emailData.to) ? emailData.to : [];
+    for (const rcpt of recipients) {
+      const rcptStr = typeof rcpt === 'string' ? rcpt : String(rcpt || '');
+      const plusMatch = rcptStr.toLowerCase().match(/reply\+([0-9a-f-]+)@/i);
+      if (plusMatch && uuidRe.test(plusMatch[1])) {
+        plusAddressedConversationId = plusMatch[1];
+        break;
+      }
+    }
 
-    if (isReply && userId) {
-      // Try to find existing conversation with matching subject
+    let conversationId: string | undefined;
+
+    // 1. Try plus-addressed conversation match first (most reliable)
+    if (plusAddressedConversationId) {
+      const { data: pconv } = await supabase
+        .from('email_conversations')
+        .select('id, user_id')
+        .eq('id', plusAddressedConversationId)
+        .maybeSingle();
+
+      if (pconv) {
+        conversationId = pconv.id;
+        console.log(`Matched conversation via plus-addressing: ${conversationId}`);
+        await supabase
+          .from('email_conversations')
+          .update({ status: 'open', last_message_at: new Date().toISOString() })
+          .eq('id', conversationId);
+      }
+    }
+
+    // 2. Fallback: subject-based matching for replies from known users
+    if (!conversationId && isReply && userId) {
       const { data: existingConversation } = await supabase
         .from('email_conversations')
         .select('id')
@@ -195,13 +226,11 @@ serve(async (req) => {
         .eq('subject', cleanSubject)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (existingConversation) {
         conversationId = existingConversation.id;
-        console.log(`Found existing conversation: ${conversationId}`);
-
-        // Update conversation status and last_message_at
+        console.log(`Found existing conversation by subject: ${conversationId}`);
         await supabase
           .from('email_conversations')
           .update({
@@ -209,27 +238,11 @@ serve(async (req) => {
             last_message_at: new Date().toISOString(),
           })
           .eq('id', conversationId);
-      } else {
-        // Create new conversation
-        const { data: newConversation, error: convError } = await supabase
-          .from('email_conversations')
-          .insert({
-            user_id: userId,
-            subject: cleanSubject,
-            status: 'open',
-          })
-          .select('id')
-          .single();
-
-        if (convError) {
-          console.error("Error creating conversation:", convError);
-          throw convError;
-        }
-        conversationId = newConversation.id;
-        console.log(`Created new conversation: ${conversationId}`);
       }
-    } else if (userId) {
-      // New conversation from known user
+    }
+
+    // 3. Create a new conversation for known users when no match found
+    if (!conversationId && userId) {
       const { data: newConversation, error: convError } = await supabase
         .from('email_conversations')
         .insert({
@@ -246,15 +259,16 @@ serve(async (req) => {
       }
       conversationId = newConversation.id;
       console.log(`Created new conversation for known user: ${conversationId}`);
-    } else {
-      // Unknown sender - log but don't create conversation
-      console.log(`Email from unknown sender: ${cleanEmail}`);
-      
+    }
+
+    // 4. Unknown sender AND no plus-addressed match — log and drop
+    if (!conversationId) {
+      console.log(`Email from unknown sender with no conversation match: ${cleanEmail}`);
       return new Response(
-        JSON.stringify({ 
-          success: true, 
+        JSON.stringify({
+          success: true,
           message: 'Email received from unknown sender',
-          sender: cleanEmail 
+          sender: cleanEmail,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );

@@ -181,6 +181,7 @@ export default function EmailManagement() {
                 name: conversation.profile.first_name || "Member",
                 message: message,
                 subject: conversation.subject,
+                conversationId: conversationId,
               },
             },
           });
