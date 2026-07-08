@@ -36,6 +36,9 @@ import {
 } from "@/components/ui/select";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { CafeRatingBadge } from "@/components/cafe/CafeRatingBadge";
+import { CafeItemReviews } from "@/components/cafe/CafeItemReviews";
+import { CafeReviewPrompt } from "@/components/cafe/CafeReviewPrompt";
 
 interface CartAddon {
   id: string;
