@@ -43,7 +43,7 @@ export function useCafeRatingSummaries() {
         .select("*");
       if (error) throw error;
       const map: Record<string, CafeItemRatingSummary> = {};
-      (data as CafeItemRatingSummary[] | null)?.forEach((r) => {
+      (data as unknown as CafeItemRatingSummary[] | null)?.forEach((r) => {
         map[r.menu_item_id] = r;
       });
       return map;
