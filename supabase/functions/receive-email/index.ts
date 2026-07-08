@@ -184,9 +184,42 @@ serve(async (req) => {
     const isReply = /^(re|fw|fwd):\s*/i.test(subject);
     const cleanSubject = subject.replace(/^(re|fw|fwd):\s*/gi, '').trim() || 'General Inquiry';
 
+    // Parse conversation_id from plus-addressed recipient (reply+<uuid>@reply.stormwellnessclub.com)
+    let plusAddressedConversationId: string | null = null;
+    const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+    const recipients = Array.isArray(emailData.to) ? emailData.to : [];
+    for (const rcpt of recipients) {
+      const rcptStr = typeof rcpt === 'string' ? rcpt : String(rcpt || '');
+      const plusMatch = rcptStr.toLowerCase().match(/reply\+([0-9a-f-]+)@/i);
+      if (plusMatch && uuidRe.test(plusMatch[1])) {
+        plusAddressedConversationId = plusMatch[1];
+        break;
+      }
+    }
+
     let conversationId: string;
 
-    if (isReply && userId) {
+    // 1. Try plus-addressed conversation match first (most reliable)
+    if (plusAddressedConversationId) {
+      const { data: pconv } = await supabase
+        .from('email_conversations')
+        .select('id, user_id')
+        .eq('id', plusAddressedConversationId)
+        .maybeSingle();
+
+      if (pconv) {
+        conversationId = pconv.id;
+        console.log(`Matched conversation via plus-addressing: ${conversationId}`);
+        await supabase
+          .from('email_conversations')
+          .update({ status: 'open', last_message_at: new Date().toISOString() })
+          .eq('id', conversationId);
+      } else {
+        plusAddressedConversationId = null; // fall through to other matching
+      }
+    }
+
+    if (!plusAddressedConversationId && isReply && userId) {
       // Try to find existing conversation with matching subject
       const { data: existingConversation } = await supabase
         .from('email_conversations')
@@ -195,11 +228,11 @@ serve(async (req) => {
         .eq('subject', cleanSubject)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (existingConversation) {
         conversationId = existingConversation.id;
-        console.log(`Found existing conversation: ${conversationId}`);
+        console.log(`Found existing conversation by subject: ${conversationId}`);
 
         // Update conversation status and last_message_at
         await supabase
@@ -228,7 +261,7 @@ serve(async (req) => {
         conversationId = newConversation.id;
         console.log(`Created new conversation: ${conversationId}`);
       }
-    } else if (userId) {
+    } else if (!plusAddressedConversationId && userId) {
       // New conversation from known user
       const { data: newConversation, error: convError } = await supabase
         .from('email_conversations')
