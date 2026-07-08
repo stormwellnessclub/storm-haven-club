@@ -987,6 +987,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
 
               {/* Items grid */}
               <main className="flex-1 p-4 md:p-8 lg:p-10">
+                <CafeReviewPrompt />
                 {visibleItems.length === 0 ? (
                   <p className="text-center py-20 font-cafe-mono text-xs uppercase tracking-widest text-cafe-burgundy/50">
                     Nothing here yet.
