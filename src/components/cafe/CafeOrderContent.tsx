@@ -1499,7 +1499,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
 
       {/* Item detail dialog */}
       <Dialog open={!!detailItem} onOpenChange={(open) => !open && setDetailItem(null)}>
-        <DialogContent className="sm:max-w-xl bg-cafe-cream">
+        <DialogContent className="sm:max-w-xl bg-cafe-cream max-h-[90vh] overflow-y-auto">
           {detailItem && (() => {
             const d = parseItemDescription(detailItem);
             const name = getItemDisplayName(detailItem);
