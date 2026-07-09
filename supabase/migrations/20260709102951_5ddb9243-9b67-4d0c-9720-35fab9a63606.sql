@@ -1,0 +1,1 @@
+GRANT INSERT, UPDATE, DELETE ON public.instructors TO authenticated;
