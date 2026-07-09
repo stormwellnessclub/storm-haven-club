@@ -505,33 +505,85 @@ function FrontDeskKiosk() {
       );
     }
 
-    const isActive = selected.type !== "member" || selected.status === "active";
-    const statusLabel = selected.type === "member" && !isActive
+    // Billing block: past-due, unpaid dues, or broken subscription
+    const blockReason = selected.type === "member" ? selected.billing_block_reason : null;
+    const isBillingBlocked = !!blockReason;
+
+    const statusOk = selected.type !== "member" || selected.status === "active";
+    const isActive = statusOk && !isBillingBlocked;
+    const statusLabel = selected.type === "member" && !statusOk
       ? `Status: ${selected.status?.replace(/_/g, " ") || "inactive"}`
       : "";
+
+    // Human-readable block reason
+    const blockReasonMap: Record<string, { title: string; detail: string }> = {
+      payment_past_due: {
+        title: "PAYMENT PAST DUE",
+        detail: "This member's payment is past due. They cannot check in until payment is updated.",
+      },
+      unpaid_dues: {
+        title: "UNPAID DUES",
+        detail: "This member has an outstanding balance. Direct them to update payment before check-in.",
+      },
+      subscription_past_due: {
+        title: "SUBSCRIPTION PAST DUE",
+        detail: "Recurring payment failed. Direct member to update their payment method.",
+      },
+      subscription_unpaid: {
+        title: "SUBSCRIPTION UNPAID",
+        detail: "Membership subscription is unpaid. Direct member to front desk manager.",
+      },
+      subscription_canceled: {
+        title: "SUBSCRIPTION CANCELED",
+        detail: "This member's subscription has been canceled. Direct them to front desk manager.",
+      },
+      subscription_incomplete_expired: {
+        title: "SUBSCRIPTION INCOMPLETE",
+        detail: "Initial payment failed. Direct member to front desk manager.",
+      },
+    };
+    const blockInfo = blockReason ? blockReasonMap[blockReason] : null;
 
     const Icon = typeBadgeConfig[selected.type]?.icon || User;
     const typeLabel = typeBadgeConfig[selected.type]?.label || "Visitor";
 
     return (
       <div className="space-y-5">
-        {/* Status banner */}
-        <div className={`p-5 rounded-lg border ${isActive
-          ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
-          : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
-        }`}>
-          <div className="flex items-center gap-4">
-            {isActive ? (
-              <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
-            ) : (
-              <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
-            )}
-            <div className="flex-1">
-              <p className="font-semibold text-xl">{isActive ? "Ready to Check In" : "Cannot Check In"}</p>
-              {statusLabel && <p className="text-sm text-muted-foreground">{statusLabel}</p>}
+        {/* Big red BILLING BLOCK banner — takes priority over status banner */}
+        {isBillingBlocked && blockInfo && (
+          <div className="p-6 rounded-lg border-4 border-red-600 bg-red-600 text-white shadow-lg animate-pulse-slow">
+            <div className="flex items-start gap-4">
+              <Ban className="h-12 w-12 flex-shrink-0" strokeWidth={2.5} />
+              <div className="flex-1">
+                <p className="text-2xl font-black tracking-wide leading-tight">
+                  ⛔ CANNOT CHECK IN
+                </p>
+                <p className="text-lg font-bold mt-1">{blockInfo.title}</p>
+                <p className="text-sm mt-2 text-red-50">{blockInfo.detail}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Status banner (only when not billing-blocked) */}
+        {!isBillingBlocked && (
+          <div className={`p-5 rounded-lg border ${isActive
+            ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+            : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+          }`}>
+            <div className="flex items-center gap-4">
+              {isActive ? (
+                <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+              ) : (
+                <XCircle className="h-10 w-10 text-red-600 dark:text-red-400" />
+              )}
+              <div className="flex-1">
+                <p className="font-semibold text-xl">{isActive ? "Ready to Check In" : "Cannot Check In"}</p>
+                {statusLabel && <p className="text-sm text-muted-foreground">{statusLabel}</p>}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Visitor info */}
         <div className="flex items-center gap-5">
@@ -548,8 +600,8 @@ function FrontDeskKiosk() {
           </div>
         </div>
 
-        {/* Denial banner */}
-        {!isActive && (
+        {/* Status-based denial banner (non-billing) */}
+        {!isBillingBlocked && !statusOk && (
           <div className="p-5 bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-800 rounded-lg">
             <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-semibold">
               <Ban className="h-5 w-5" /> Cannot Check In
@@ -560,7 +612,7 @@ function FrontDeskKiosk() {
           </div>
         )}
 
-        {/* Check-in button */}
+        {/* Check-in button — hidden entirely when blocked */}
         {isActive && (
           <Button className="w-full h-14 text-lg" onClick={handleCheckIn} disabled={isCheckingIn}>
             {isCheckingIn ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <UserCheck className="h-5 w-5 mr-2" />}
@@ -570,6 +622,7 @@ function FrontDeskKiosk() {
       </div>
     );
   };
+
 
   return (
     <div className="min-h-screen bg-background">
