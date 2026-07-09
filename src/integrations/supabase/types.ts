@@ -9122,6 +9122,10 @@ export type Database = {
         }
         Returns: string
       }
+      submit_class_review_for_booking: {
+        Args: { _booking_id: string; _rating: number; _review_text?: string }
+        Returns: string
+      }
       submit_public_spa_review: {
         Args: {
           _display_name: string
