@@ -310,7 +310,7 @@ export function PersonalizedLetterModal({
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
                   placeholder="Letter content..."
-                  className="min-h-[400px] text-base leading-relaxed"
+                  className="min-h-[600px] w-full text-base leading-relaxed whitespace-pre-wrap break-words resize-y"
                 />
                 <p className="text-xs text-muted-foreground">
                   Edit as needed. The letter will be wrapped in Storm branding and styling when sent.
