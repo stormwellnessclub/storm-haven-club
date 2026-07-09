@@ -171,10 +171,8 @@ export function useSubmitReview() {
       reviewText?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
-      const { data, error } = await supabase.rpc("submit_class_review", {
+      const { data, error } = await (supabase.rpc as any)("submit_class_review_for_booking", {
         _booking_id: bookingId,
-        _class_type_id: classTypeId,
-        _session_id: sessionId,
         _rating: rating,
         _review_text: reviewText || "",
       });
