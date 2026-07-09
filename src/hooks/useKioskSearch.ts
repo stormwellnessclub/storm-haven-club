@@ -12,6 +12,11 @@ export interface KioskSearchResult {
   photo_url?: string | null;
   status?: string;
   sub_type?: string | null;
+  // Billing block info (members only)
+  subscription_status?: string | null;
+  payment_past_due?: boolean;
+  has_unpaid_arrears?: boolean;
+  billing_block_reason?: string | null;
   // IDs for check-in actions
   member_uuid?: string;
   member_id_text?: string;
@@ -44,6 +49,10 @@ export function useKioskSearch() {
         photo_url: r.photo_url || null,
         status: r.status || null,
         sub_type: r.sub_type || null,
+        subscription_status: r.subscription_status || null,
+        payment_past_due: r.payment_past_due === true,
+        has_unpaid_arrears: r.has_unpaid_arrears === true,
+        billing_block_reason: r.billing_block_reason || null,
         member_uuid: r.member_uuid || null,
         member_id_text: r.member_id_text || null,
         guest_pass_id: r.guest_pass_id || null,

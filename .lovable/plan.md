@@ -1,29 +1,50 @@
-## Why the update is failing
+## Problem
 
-The `instructors` table has RLS policies that allow super_admin / admin / manager to do everything, BUT it has **zero table-level GRANTs** for `authenticated`. SELECT was intentionally revoked (contact info is hidden — staff read through the `get_instructors_with_contact` RPC), and INSERT/UPDATE/DELETE were never granted back to `authenticated` either. PostgREST needs both the grant *and* an RLS pass, so every insert/update from the admin dialog is rejected before RLS even runs.
+On the Front Desk / kiosk Reception screen, a member with a past-due subscription currently:
 
-## Fix
+- Still shows the **green "Ready to Check In"** banner in the detail panel
+- Only after staff clicks **Check In** does a small orange toast appear: *"Cannot check in: subscription status past due"*
 
-Migration that grants only the write privileges to `authenticated` (SELECT stays revoked so contact fields remain protected):
+Front desk needs a **loud red block** the moment they select the visitor, so they don't waste time and the member sees they can't be checked in.
 
-```sql
-GRANT INSERT, UPDATE, DELETE ON public.instructors TO authenticated;
-```
+Root cause: `kiosk_search_visitors` returns `status = "active"` (the members table `status` column) and doesn't surface `subscription_status` or `payment_past_due`. The detail panel decides "active/inactive" from `status` alone, so past-due passes through as green.
 
-RLS still restricts these operations to super_admin / admin / manager via the existing "Staff can manage instructors" policy — no policy changes needed. After this, editing/adding placeholder instructors from `/admin/instructors` will work.
+## Plan
 
-## Will instructors get an email when added?
+### 1. Backend — return billing block info from search
+Update the `kiosk_search_visitors` RPC to also return, for each member row:
+- `subscription_status`
+- `payment_past_due` (bool)
+- `has_unpaid_arrears` (bool — any `billing_arrears` row where `amount_due_cents > amount_paid_cents` and `status in ('unpaid','partial')`)
+- `billing_block_reason` (text — one of `payment_past_due`, `subscription_past_due`, `subscription_unpaid`, `subscription_canceled`, `subscription_incomplete`, `unpaid_dues`, or `null`)
 
-**No.** I checked:
+This uses the same logic as `evaluate_member_check_in_eligibility` so the UI matches what the check-in RPC would decide.
 
-- No database trigger on `public.instructors` (only the `updated_at` timestamp trigger).
-- No edge function sends anything to instructor addresses on insert/update.
-- No email template targets instructors — the instructor "schedule email" system you're referencing is not wired up. Adding them here just stores their profile; nothing goes to their inbox.
+### 2. Frontend — show red alert before check-in
+`src/hooks/useKioskSearch.ts`: add the new fields to `KioskSearchResult`.
 
-The only places their name/email is used today are:
-- Class reminder emails to **members** (their name is shown as "Instructor: X").
-- Roster/day-view for staff.
+`src/pages/FrontDesk.tsx`:
+- Treat `billing_block_reason` as a hard block (`canCheckIn = false`) in addition to the existing status check.
+- Replace the current status banner with a **large red alert card** when blocked:
+  - Big `Ban` icon, red-600 background, white text
+  - Headline: **"CANNOT CHECK IN"**
+  - Reason line (human-readable): "Payment past due — direct member to front desk manager to update payment method."
+  - Show member name/photo below still
+  - Hide the Check In button entirely (currently it still renders green for past-due until you click it)
+- Also render this same red block for the two other kiosk surfaces that use the same detail pattern.
 
-So it's safe to add all your instructors now. When you're ready to turn on instructor-facing schedule emails, that'll be a separate build we can review together first.
+### 3. Frontend — reception kiosk (`/kiosk/reception`)
+It reuses `FrontDesk.tsx` inside `KioskShell`, so it inherits the fix automatically. No separate change.
 
-Approve and I'll ship the grant.
+### 4. Post-click safety net
+Even with the pre-check, the `checkInMember` toast is upgraded to a persistent red alert box in the detail panel (not just a toast), so if a denial ever slips through it's obvious.
+
+## Files touched
+
+- **DB migration** — replace `kiosk_search_visitors` RPC with new return columns
+- `src/hooks/useKioskSearch.ts` — extend `KioskSearchResult` type
+- `src/pages/FrontDesk.tsx` — new `BillingBlockAlert` render, updated `isActive` / `canCheckIn` logic, hide button when blocked
+
+## Out of scope
+- Other admin pages (already have their own red badges via `EffectiveStatusBadge`)
+- Changing what the underlying check-in RPC does — it already correctly denies
