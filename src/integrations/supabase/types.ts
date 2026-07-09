@@ -2740,6 +2740,13 @@ export type Database = {
             referencedRelation: "gut_reset_sessions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "gut_reset_purchases_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "gut_reset_sessions_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       gut_reset_sessions: {
@@ -8238,6 +8245,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gut_reset_sessions_public: {
+        Row: {
+          capacity: number | null
+          created_at: string | null
+          id: string | null
+          length_days: number | null
+          spots_taken: number | null
+          start_date: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string | null
+          id?: string | null
+          length_days?: number | null
+          spots_taken?: number | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string | null
+          id?: string | null
+          length_days?: number | null
+          spots_taken?: number | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       instructor_public_profiles: {
         Row: {
