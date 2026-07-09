@@ -16,6 +16,7 @@ import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { Calendar, Clock, MapPin, User, X, AlertTriangle, Star } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
+import { hasSessionEnded } from "@/lib/clubTime";
 import { CANCELLATION_POLICY_TEXT } from "@/components/booking/CancellationPolicyText";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -25,6 +26,18 @@ import {
 import { useAllAppointmentHistory } from "@/hooks/useAllAppointmentHistory";
 import { SpaAppointmentRow } from "@/components/portal/SpaAppointmentRow";
 import { PTAppointmentRow } from "@/components/portal/PTAppointmentRow";
+
+const REVIEWABLE_STATUSES = new Set(["confirmed", "completed", "no_show"]);
+
+function canReviewClassBooking(booking: any): boolean {
+  const session = booking?.session;
+  return (
+    REVIEWABLE_STATUSES.has(booking?.status) &&
+    !session?.is_cancelled &&
+    !!session?.class_type?.id &&
+    hasSessionEnded(session?.session_date, session?.end_time)
+  );
+}
 
 export default function MemberBookings() {
   const navigate = useNavigate();
@@ -43,8 +56,7 @@ export default function MemberBookings() {
   // Past bookings the user attended but hasn't reviewed yet
   const unreviewedPast = (pastBookings || []).filter(
     (b: any) =>
-      b?.status !== "cancelled" &&
-      b?.session?.class_type?.id &&
+      canReviewClassBooking(b) &&
       !reviewByBooking[b.id]
   );
 
@@ -180,6 +192,7 @@ function BookingCard({ booking, isUpcoming, reviewByBooking, onReview }: Booking
   const instructor = session?.instructor;
   const cancelBooking = useCancelBooking();
   const existingReview = reviewByBooking[booking.id];
+  const canReview = canReviewClassBooking(booking);
 
   const isLateCancel = (() => {
     if (!session?.session_date || !session?.start_time) return false;
@@ -254,7 +267,7 @@ function BookingCard({ booking, isUpcoming, reviewByBooking, onReview }: Booking
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            {!isUpcoming && booking.status !== "cancelled" && (
+            {!isUpcoming && (canReview || existingReview) && (
               <Button
                 variant="outline" size="sm"
                 onClick={() => onReview({

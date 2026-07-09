@@ -189,6 +189,12 @@ export function useSubmitReview() {
       queryClient.invalidateQueries({ queryKey: ["class-reviews"] });
     },
     onError: (err: any) => {
+      console.error("Class review submit failed", {
+        code: err?.code,
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+      });
       if (err?.message?.includes("duplicate")) {
         toast.error("You've already reviewed this class");
         return;
