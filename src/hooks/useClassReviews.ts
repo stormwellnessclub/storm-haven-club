@@ -171,20 +171,16 @@ export function useSubmitReview() {
       reviewText?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
-      const { data, error } = await supabase
-        .from("class_reviews")
-        .insert({
-          user_id: user.id,
-          booking_id: bookingId,
-          class_type_id: classTypeId,
-          session_id: sessionId,
-          rating,
-          review_text: reviewText || null,
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("submit_class_review", {
+        _booking_id: bookingId,
+        _class_type_id: classTypeId,
+        _session_id: sessionId,
+        _rating: rating,
+        _review_text: reviewText || "",
+      });
       if (error) throw error;
       return data;
+
     },
     onSuccess: () => {
       toast.success("Review submitted!");
