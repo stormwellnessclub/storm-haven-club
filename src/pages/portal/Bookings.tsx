@@ -29,6 +29,18 @@ import { useAllAppointmentHistory } from "@/hooks/useAllAppointmentHistory";
 import { SpaAppointmentRow } from "@/components/portal/SpaAppointmentRow";
 import { PTAppointmentRow } from "@/components/portal/PTAppointmentRow";
 
+const REVIEWABLE_STATUSES = new Set(["confirmed", "completed", "no_show"]);
+
+function canReviewClassBooking(booking: any): boolean {
+  const session = booking?.class_sessions;
+  return (
+    REVIEWABLE_STATUSES.has(booking?.status) &&
+    !session?.is_cancelled &&
+    !!session?.class_types?.id &&
+    hasSessionEnded(session?.session_date, session?.end_time)
+  );
+}
+
 export default function PortalBookings() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -117,7 +129,7 @@ export default function PortalBookings() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {showReview && booking.status !== "cancelled" && (
+            {showReview && (canReviewClassBooking(booking) || existingReview) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -180,8 +192,7 @@ export default function PortalBookings() {
   // Past bookings the non-member attended but hasn't reviewed yet
   const unreviewedPast = past.filter(
     (b: any) =>
-      b?.status !== "cancelled" &&
-      b?.class_sessions?.class_types?.id &&
+      canReviewClassBooking(b) &&
       !reviewByBooking[b.id]
   );
 
