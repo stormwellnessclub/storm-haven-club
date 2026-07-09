@@ -1,36 +1,36 @@
-## Status
+## Fix: class review submission fails RLS
 
-Code side is done and deployed (`send-email` sets `reply_to: reply+<conversation_id>@reply.stormwellnessclub.com`, `receive-email` verifies Svix + routes to conversations). What's missing is the mail plumbing outside the app. I verified today:
+### Root cause
 
-- `reply.stormwellnessclub.com` — no MX record exists
-- `stormwellnessclub.com` MX — still `mailspamprotection.com` (where Kristina's reply went)
-- `receive-email` endpoint — returns 500 (webhook signing secret not set)
-- `email_messages` — 0 rows ever ingested from an email reply
+The `class_reviews` INSERT policy requires all of:
+- `user_id = auth.uid()`
+- booking exists, belongs to the user, status is `confirmed` or `completed`
+- session's `session_date + end_time` (America/Chicago) is `<= now()`
 
-So replies keep going to the cPanel mailbox and never reach the app. Nothing else in the code is broken.
+The member portal's "past bookings" list uses a looser client-side notion of "past" than the policy's strict end-time-in-Chicago check, and bookings with status `no_show` are excluded entirely. Result: the Leave Review button appears, but the INSERT is rejected with `new row violates row-level security policy for table "class_reviews"` and the user sees the generic "failed to submit review" toast.
 
-## What needs to happen (external, not code)
+### Fix
 
-1. **In Resend → Domains → Add Domain:** add `reply.stormwellnessclub.com` and enable Inbound on it. Resend will give you a set of DNS records (MX for inbound, plus DKIM/SPF for that subdomain).
-2. **At your DNS host** (wherever `stormwellnessclub.com` is managed): add the records exactly as Resend lists them. This does NOT change the root `stormwellnessclub.com` MX — the existing cPanel mailbox stays untouched. Only `reply.stormwellnessclub.com` gets the new MX.
-3. **In Resend → Webhooks:** create an Inbound webhook pointing to
-   `https://cqzmrdzwgsujgbjqpoxh.functions.supabase.co/receive-email`
-   subscribed to the `email.received` event. Copy the signing secret Resend shows you.
-4. **Save that signing secret** — I'll open the secure form for `RESEND_WEBHOOK_SECRET` as soon as you have the value. The function already reads that env var; the moment it's set, verified webhooks will start ingesting.
-5. **Verify** — reply to any staff email from a member address; a new row should appear in `email_messages` and thread into `/admin/emails` under the original conversation.
+1. **Add a `SECURITY DEFINER` RPC `submit_class_review(booking_id, class_type_id, session_id, rating, review_text)`** that:
+   - Requires `auth.uid()` (rejects anon).
+   - Loads the booking + session; verifies the booking belongs to the caller.
+   - Accepts booking statuses `confirmed`, `completed`, and `no_show` (member showed up or was expected; they can still rate the class).
+   - Verifies the session end time (America/Chicago) is in the past — raises a friendly error if the class hasn't ended yet.
+   - Enforces "one review per booking" via existing unique constraint / explicit check.
+   - Inserts into `class_reviews` and returns the new row id.
+   - `SET search_path = public`.
 
-## Retroactive
+2. **Update `useSubmitReview` in `src/hooks/useClassReviews.ts`** to call the RPC instead of a direct `insert`, and surface the RPC error message via toast so members see *why* it failed (e.g. "Class hasn't ended yet") instead of the generic message.
 
-Kristina's actual email reply is sitting in the cPanel mailbox at `mailspamprotection.com` (or whatever webmail your host uses for `admin@stormwellnessclub.com`). It can't be pulled into the app from code — someone has to log into that mailbox once and forward or paste the message into the conversation. Same for any other replies stuck there from the past few weeks.
+3. **Tighten the client gate** in `src/pages/member/Bookings.tsx` and `src/pages/portal/Bookings.tsx`: only show the review CTA when the session end time (Chicago) is in the past, matching the RPC's rule. Prevents the button from appearing prematurely.
 
-## What I will do next turn (once you confirm)
+4. **Keep the RLS INSERT policy in place** as a defense-in-depth backstop, but widen it slightly to also allow `no_show` so the policy no longer contradicts the RPC's intent. The RPC remains the primary write path.
 
-- Nothing until step 1–3 are done on your side. There's nothing to build.
-- When you have the signing secret from step 3, tell me and I'll open the secure form to save `RESEND_WEBHOOK_SECRET`.
-- After that I'll re-probe the endpoint and confirm ingestion works end-to-end.
+No changes to reads, to the ratings aggregation, or to `ReviewDialog` UI.
 
-## Not doing
+### Technical details
 
-- Not changing the root `stormwellnessclub.com` MX (would break the existing cPanel mailbox and anything else that depends on it).
-- Not editing `send-email` or `receive-email` again — they're already correct.
-- Not writing any DB migration.
+- Migration adds the RPC and alters the INSERT policy's status filter to `ARRAY['confirmed','completed','no_show']::booking_status[]`.
+- RPC grants: `GRANT EXECUTE ... TO authenticated`.
+- Client change is limited to `useSubmitReview` and the two Bookings pages' filter for `unreviewedPast` / review-button visibility.
+- No schema columns change; `useMyReviews`, `useClassTypeReviews`, admin visibility toggling untouched.

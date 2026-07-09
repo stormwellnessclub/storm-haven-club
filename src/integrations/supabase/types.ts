@@ -9072,6 +9072,16 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_class_review: {
+        Args: {
+          _booking_id: string
+          _class_type_id: string
+          _rating: number
+          _review_text: string
+          _session_id: string
+        }
+        Returns: string
+      }
       submit_public_spa_review: {
         Args: {
           _display_name: string
