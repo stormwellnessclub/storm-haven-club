@@ -12,6 +12,11 @@ export interface KioskSearchResult {
   photo_url?: string | null;
   status?: string;
   sub_type?: string | null;
+  // Billing block info (members only)
+  subscription_status?: string | null;
+  payment_past_due?: boolean;
+  has_unpaid_arrears?: boolean;
+  billing_block_reason?: string | null;
   // IDs for check-in actions
   member_uuid?: string;
   member_id_text?: string;
