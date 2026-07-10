@@ -24,6 +24,18 @@ export default function FrontDeskLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Front desk mode is PIN-only. If a stale/expired Supabase JWT is sitting on
+  // this device (e.g. from an old admin login on the same tab), it will
+  // eventually raise "session expired" errors that block re-entry. Wipe it on
+  // mount so the front desk tab is always a clean, PIN-gated device.
+  useEffect(() => {
+    try {
+      clearAuthStorage();
+      supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    } catch { /* ignore */ }
+  }, []);
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedPin = pin.trim();
