@@ -174,7 +174,7 @@ export default function MothersDayPackRedeem() {
                     </p>
                     <Button
                       onClick={async () => {
-                        await supabase.auth.signOut();
+                        await supabase.auth.signOut({ scope: "local" });
                         navigate(`/auth?redirect=${encodeURIComponent(`/mothers-day-pack-redeem?email=${emailParam}`)}&prefill_email=${encodeURIComponent(emailParam)}`);
                       }}
                       style={{ background: GOLD }}

@@ -122,7 +122,7 @@ export default function UpdatePassword() {
         });
         
         // Sign out and redirect to login
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         navigate("/auth");
       }
     } catch (err) {

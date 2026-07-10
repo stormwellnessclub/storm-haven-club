@@ -661,7 +661,7 @@ export default function Auth() {
               type="button"
               onClick={async () => {
                 clearAuthStorage();
-                await supabase.auth.signOut();
+                await supabase.auth.signOut({ scope: "local" });
                 window.location.reload();
               }}
               className="text-muted-foreground text-xs hover:text-foreground transition-colors inline-flex items-center gap-1"

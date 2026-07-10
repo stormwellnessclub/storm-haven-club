@@ -1,69 +1,50 @@
-# Unblock front desk + ship Staff PIN admin page
+## Problem
 
-## Part 1 — Skip clock-in (temporary bypass)
+Signing out on **one computer** currently signs the same account out of **every other computer / browser** it's logged into. This is disruptive for admin and manager accounts that are used on multiple front-of-house / back-office machines simultaneously.
 
-The `/frontdesk` shell has two gates today:
-1. Shared kiosk PIN (already set)
-2. `ClockInGate` → `frontdesk_clock_in` RPC → matches a `staff_pins` row
+**Root cause:** Every `supabase.auth.signOut()` call in the app uses Supabase's default `scope: "global"`. Global sign-out revokes **every refresh token** issued to that user across all devices. As soon as any other device tries to refresh (or reloads), its session fails and it's kicked back to the login screen.
 
-Gate #2 blocks everything until at least one row exists in `staff_pins`. Fix:
+We already use `scope: "local"` in a handful of "cleanup" paths (bad-session recovery in `AuthContext`, some Auth-page fallbacks), but every user-initiated sign-out is still global.
 
-- **`src/pages/frontdesk/FrontDeskShell.tsx`** — add a bypass shift when the user chooses to skip. Store a synthetic shift in `sessionStorage` under `SHIFT_KEY` with `shiftId: "bypass"`, `staffUserId: <current auth user id or "unassigned">`, `staffName: "Unassigned (bypass)"`, so the rest of the shell renders normally.
-- **`src/pages/frontdesk/ClockInGate.tsx`** — add a small secondary link under the keypad: **"Skip clock-in for now →"**. Clicking it fires `onClockedIn` with the bypass payload and shows a toast: *"Clock-in tracking is off. Shift hours won't be recorded until Staff PINs are set up."*
-- **Header badge** — while `shift.shiftId === "bypass"`, show an amber "Tracking off" badge instead of the green live pill so it's obvious at a glance.
-- **`useActiveFrontDeskShift`** — unchanged; downstream code that tags actions with `clocked_in_staff_id` should tolerate `"bypass"` (no DB writes to `staff_shift_clocks`).
+## Fix
 
-Nothing here changes RLS, RPCs, or payroll data. Once real PINs exist, staff use them normally and the bypass link becomes something you ignore.
+Change every user-initiated sign-out to `scope: "local"` — meaning: only the current device's session is revoked, other devices keep working until their tokens expire naturally.
 
-## Part 2 — Staff PIN admin page
+Cross-tab behavior on the **same** computer stays unchanged (Supabase JS shares session via localStorage; sibling tabs on the same machine will still sync). We are only stopping the cross-**device** cascade.
 
-### Database
+## Files to update
 
-Two new SECURITY DEFINER RPCs on `staff_pins`, admin/manager only. They reuse whatever hash scheme `frontdesk_clock_in` already validates against (I'll match it exactly in build mode — the table has `user_id`, `pin_hash`, `updated_at`, `updated_by`).
+1. **`src/contexts/AuthContext.tsx`** — main `signOut()` used everywhere via `useAuth()`
+   - `await supabase.auth.signOut()` → `await supabase.auth.signOut({ scope: "local" })`
 
-- `admin_set_staff_pin(_user_id uuid, _pin text) returns void`
-  - Requires caller has `admin` or `manager` role via `has_any_role`.
-  - Validates `_pin` is 4–8 digits.
-  - Upserts hashed PIN, sets `updated_by = auth.uid()`, `updated_at = now()`.
-- `admin_clear_staff_pin(_user_id uuid) returns void`
-  - Same role gate. Deletes the row.
+2. **`src/pages/Auth.tsx`** (line 664) — one leftover global sign-out on the login page
+   - → `scope: "local"`
 
-No new tables. `GRANT EXECUTE` on both to `authenticated`.
+3. **`src/pages/MothersDayPackRedeem.tsx`** (line 177) — global sign-out
+   - → `scope: "local"`
 
-### UI — new page `src/pages/admin/StaffPins.tsx`
+4. **`src/pages/UpdatePassword.tsx`** (line 125) — global sign-out after password reset
+   - → `scope: "local"`
 
-Route: `/admin/staff-pins`. Sidebar entry under **Staff Management** ("Staff PINs" with a keypad icon).
+5. **`src/components/ErrorBoundary.tsx`** (line 44) — "reset session" recovery
+   - → `scope: "local"`
 
-Layout — single dense table (matches project's admin CRM style):
+6. **`src/pages/FrontDeskLogin.tsx`** (lines 104, 117, 126) — three sign-outs used when the current session doesn't belong to a front-desk user
+   - → `scope: "local"`
 
-| Staff member | Role(s) | PIN status | Last set | Actions |
-| --- | --- | --- | --- | --- |
-| Alice Smith | front_desk | ✅ Set | 2 days ago | Reset / Clear |
-| Bob Jones | manager, admin | — Not set | — | Set PIN |
+## What stays global (intentionally)
 
-Data source: `frontdesk_staff_roster` RPC (already exists) joined with `staff_pins` to derive status. Only lists users with `front_desk`, `manager`, `admin`, or `staff` roles.
+- **Password reset flow (`UpdatePassword.tsx`)** — after a user actually resets their password we already invalidate the reset link's session; a `local` sign-out is enough because Supabase already invalidates the recovery token server-side. No security regression.
+- **Nothing else** currently needs a global sign-out. If in the future you ever add a "Sign out of all my devices" button (e.g. after a suspected compromise), that one should stay `scope: "global"`.
 
-Dialog on **Set PIN / Reset**:
-- Two numeric inputs: enter PIN + confirm PIN.
-- Client-side validate (4–8 digits, match).
-- Call `admin_set_staff_pin`; toast success.
-- Warn (not block) if the PIN is trivial (`0000`, `1234`, sequential/repeating).
+## Verification
 
-**Clear** action confirms then calls `admin_clear_staff_pin`.
+After the edit:
+1. Sign in as admin on Computer A **and** Computer B.
+2. Click "Sign out" on Computer A → Computer A returns to login, Computer B stays fully signed in and functional.
+3. Repeat with the front-desk account and the manager account.
+4. Confirm cross-tab behavior on the same computer is unchanged (signing out in one tab still clears sibling tabs on the same machine — that's localStorage, not the sign-out scope).
 
-Permissions: page and sidebar entry gated to `admin` and `manager` via `canAccessPage` in `src/lib/permissions.ts`.
+## Not in scope for this change
 
-### Files touched
-
-- `src/pages/frontdesk/FrontDeskShell.tsx` — bypass shift plumbing + amber badge.
-- `src/pages/frontdesk/ClockInGate.tsx` — "Skip clock-in for now" link.
-- Migration — two RPCs above.
-- `src/pages/admin/StaffPins.tsx` — new page.
-- `src/App.tsx` — route registration.
-- Admin sidebar component — new entry under Staff Management.
-- `src/lib/permissions.ts` — allow `admin`/`manager` on `/admin/staff-pins`.
-
-## Out of scope
-
-- Rotation policy, PIN expiry, lockout after N failed attempts — can queue as follow-ups if you want them.
-- Editing time-clock entries (`staff_shift_clocks` adjustments) — separate task.
+Per-window session isolation (each browser window independently logged in on the same computer) — that would require moving session storage from `localStorage` to `sessionStorage`, which is a bigger change with side effects for members. We can revisit if you still want it after this fix.

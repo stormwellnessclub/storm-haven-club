@@ -101,7 +101,7 @@ export default function FrontDeskLogin() {
       try {
         roles = await fetchRolesForUser(uid);
       } catch {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         setError("Couldn't verify your access. Please try again.");
         setLoading(false);
         return;
@@ -114,7 +114,7 @@ export default function FrontDeskLogin() {
       );
 
       if (hasHigherRole) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         setError(
           "This login is for front desk accounts only. Admins sign in at /auth."
         );
@@ -123,7 +123,7 @@ export default function FrontDeskLogin() {
       }
 
       if (!isFrontDeskOnly) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         setError("Not authorized. This account has no front desk access.");
         setLoading(false);
         return;

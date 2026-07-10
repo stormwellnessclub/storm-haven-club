@@ -152,7 +152,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Local scope: only revoke the session on THIS device.
+    // A global sign-out would kick the same user out on every other
+    // computer/browser they're logged in on.
+    await supabase.auth.signOut({ scope: "local" });
   };
 
   const resetPassword = async (email: string) => {
