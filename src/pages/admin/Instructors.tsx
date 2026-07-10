@@ -65,6 +65,36 @@ export default function Instructors() {
   const [bio, setBio] = useState("");
   const [specialties, setSpecialties] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Instructor | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("instructors")
+      .delete()
+      .eq("id", deleteTarget.id);
+    if (error) {
+      // Likely FK constraint from existing schedules/sessions — fall back to deactivate
+      const { error: updErr } = await supabase
+        .from("instructors")
+        .update({ is_active: false })
+        .eq("id", deleteTarget.id);
+      if (updErr) {
+        toast.error("Failed to delete instructor");
+        console.error(updErr);
+      } else {
+        toast.message("Instructor has past sessions — deactivated instead of deleted.");
+        fetchInstructors();
+      }
+    } else {
+      toast.success("Instructor deleted");
+      fetchInstructors();
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+  }
 
   useEffect(() => {
     fetchInstructors();
