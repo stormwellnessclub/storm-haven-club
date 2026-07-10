@@ -276,6 +276,20 @@ const App = () => (
               <Route path="/frontdesk/guest-passes" element={<FrontDeskGuestPassesPage />} />
               <Route path="/frontdesk/spa" element={<FrontDeskSpaPage />} />
               <Route path="/frontdesk/cafe" element={<FrontDeskCafePage />} />
+
+              {/* Instructor Portal */}
+              <Route path="/instructor" element={<ProtectedInstructorRoute><InstructorToday /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/schedule" element={<ProtectedInstructorRoute><InstructorSchedule /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/rosters" element={<ProtectedInstructorRoute><InstructorRosters /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/availability" element={<ProtectedInstructorRoute><InstructorAvailability /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/time-off" element={<ProtectedInstructorRoute><InstructorTimeOff /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/subs" element={<ProtectedInstructorRoute><InstructorSubs /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/notes" element={<ProtectedInstructorRoute><InstructorNotes /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/pay" element={<ProtectedInstructorRoute><InstructorPay /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/messages" element={<ProtectedInstructorRoute><InstructorMessages /></ProtectedInstructorRoute>} />
+              <Route path="/instructor/documents" element={<ProtectedInstructorRoute><InstructorDocuments /></ProtectedInstructorRoute>} />
+
+
               
               
               {/* Member Portal Routes - Protected */}
