@@ -10,10 +10,13 @@ import { NoIndex } from "@/components/seo/NoIndex";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import {
   UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
+  Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu,
 } from "lucide-react";
 import { format, formatDistanceStrict } from "date-fns";
 import { ClockInGate, FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
+import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
+import { cn } from "@/lib/utils";
 
 const SHIFT_KEY = "frontdeskActiveShift";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -26,10 +29,15 @@ interface ShiftState {
 }
 
 const TABS = [
-  { key: "reception", label: "Reception",  to: "/frontdesk",          icon: UserCheck },
-  { key: "pos",       label: "POS",        to: "/frontdesk/pos",      icon: ShoppingBag },
-  { key: "schedule",  label: "Schedule",   to: "/frontdesk/schedule", icon: GraduationCap },
-  { key: "shift",     label: "My Shift",   to: "/frontdesk/shift",    icon: ClipboardList },
+  { key: "reception",   label: "Reception",    to: "/frontdesk",              icon: UserCheck },
+  { key: "members",     label: "Members",      to: "/frontdesk/members",      icon: Users },
+  { key: "non-members", label: "Non-Members",  to: "/frontdesk/non-members",  icon: UserSearch },
+  { key: "guest",       label: "Guest Passes", to: "/frontdesk/guest-passes", icon: Ticket },
+  { key: "spa",         label: "Spa",          to: "/frontdesk/spa",          icon: Sparkles },
+  { key: "schedule",    label: "Schedule",     to: "/frontdesk/schedule",     icon: GraduationCap },
+  { key: "pos",         label: "POS",          to: "/frontdesk/pos",          icon: ShoppingBag },
+  { key: "cafe",        label: "Cafe Orders",  to: "/frontdesk/cafe",         icon: UtensilsCrossed },
+  { key: "shift",       label: "My Shift",     to: "/frontdesk/shift",        icon: ClipboardList },
 ] as const;
 
 /**
