@@ -7474,6 +7474,48 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_pin_attempts: {
+        Row: {
+          attempted_at: string
+          device_label: string
+          id: string
+          success: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          device_label: string
+          id?: string
+          success?: boolean
+        }
+        Update: {
+          attempted_at?: string
+          device_label?: string
+          id?: string
+          success?: boolean
+        }
+        Relationships: []
+      }
+      staff_pins: {
+        Row: {
+          pin_hash: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          pin_hash: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          pin_hash?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       staff_placeholders: {
         Row: {
           archived: boolean
@@ -7512,6 +7554,51 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           roles?: Database["public"]["Enums"]["app_role"][]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_shift_clocks: {
+        Row: {
+          admin_adjusted: boolean
+          auto_closed: boolean
+          clock_in_at: string
+          clock_in_ip: string | null
+          clock_out_at: string | null
+          clock_out_ip: string | null
+          created_at: string
+          device_label: string | null
+          id: string
+          notes: string | null
+          staff_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          admin_adjusted?: boolean
+          auto_closed?: boolean
+          clock_in_at?: string
+          clock_in_ip?: string | null
+          clock_out_at?: string | null
+          clock_out_ip?: string | null
+          created_at?: string
+          device_label?: string | null
+          id?: string
+          notes?: string | null
+          staff_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          admin_adjusted?: boolean
+          auto_closed?: boolean
+          clock_in_at?: string
+          clock_in_ip?: string | null
+          clock_out_at?: string | null
+          clock_out_ip?: string | null
+          created_at?: string
+          device_label?: string | null
+          id?: string
+          notes?: string | null
+          staff_user_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -8446,6 +8533,7 @@ export type Database = {
       }
     }
     Functions: {
+      _staff_pin_hash: { Args: { _pin: string }; Returns: string }
       adjust_cafe_credit: {
         Args: { _amount_cents: number; _member_id: string; _reason: string }
         Returns: string
@@ -8479,6 +8567,10 @@ export type Database = {
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
+      }
+      admin_set_staff_pin: {
+        Args: { _pin: string; _staff_user_id: string }
+        Returns: undefined
       }
       award_class_milestones: {
         Args: { p_booking_id: string }
@@ -8646,6 +8738,47 @@ export type Database = {
           _start_time: string
         }
         Returns: string
+      }
+      frontdesk_auto_close_stale_shifts: { Args: never; Returns: number }
+      frontdesk_clock_in: {
+        Args: { _device_label?: string; _pin: string }
+        Returns: {
+          clock_in_at: string
+          shift_id: string
+          staff_name: string
+          staff_user_id: string
+        }[]
+      }
+      frontdesk_clock_out: {
+        Args: { _device_label?: string; _pin: string }
+        Returns: {
+          clock_in_at: string
+          clock_out_at: string
+          minutes_worked: number
+          shift_id: string
+          staff_name: string
+          staff_user_id: string
+        }[]
+      }
+      frontdesk_open_shifts: {
+        Args: never
+        Returns: {
+          clock_in_at: string
+          device_label: string
+          shift_id: string
+          staff_name: string
+          staff_user_id: string
+        }[]
+      }
+      frontdesk_staff_roster: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          has_pin: boolean
+          pin_updated_at: string
+          user_id: string
+        }[]
       }
       generate_class_sessions: {
         Args: { _start_date?: string; _weeks_ahead?: number }
