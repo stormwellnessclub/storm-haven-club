@@ -128,14 +128,20 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
     );
   }
 
-  // ── Gate 2: personal PIN clock-in
+  // ── Gate 2: personal PIN clock-in (auto-bypassed until Staff PINs are set up)
+  useEffect(() => {
+    if (deviceUnlocked && !shift) {
+      handleClockedIn({
+        shiftId: FRONTDESK_BYPASS_SHIFT_ID,
+        staffUserId: "unassigned",
+        staffName: "Unassigned (bypass)",
+        clockInAt: new Date().toISOString(),
+      });
+    }
+  }, [deviceUnlocked, shift, handleClockedIn]);
+
   if (!shift) {
-    return (
-      <>
-        <NoIndex />
-        <ClockInGate onClockedIn={handleClockedIn} />
-      </>
-    );
+    return <NoIndex />;
   }
 
   return (
