@@ -122,7 +122,7 @@ export function getDefaultAdminPage(userRoles: AppRole[]): string {
     return '/admin';
   }
   if (userRoles.includes('front_desk')) {
-    return '/admin/check-in';
+    return '/frontdesk';
   }
   if (userRoles.includes('spa_staff')) {
     return '/admin/appointments';
