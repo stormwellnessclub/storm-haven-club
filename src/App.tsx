@@ -138,6 +138,10 @@ import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
 import SpaReview from "./pages/SpaReview";
 import FrontDeskKiosk from "./pages/FrontDesk";
+import FrontDeskReception from "./pages/frontdesk/Reception";
+import FrontDeskPOSPage from "./pages/frontdesk/POS";
+import FrontDeskSchedule from "./pages/frontdesk/Schedule";
+import FrontDeskShiftPage from "./pages/frontdesk/Shift";
 import FrontDeskLogin from "./pages/FrontDeskLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -255,6 +259,12 @@ const App = () => (
               <Route path="/kiosk/cafe" element={<KioskCafe />} />
               <Route path="/kiosk/spa" element={<KioskSpa />} />
               <Route path="/kiosk/classes" element={<KioskClasses />} />
+
+              {/* Front Desk staff dashboard — walled off from /admin */}
+              <Route path="/frontdesk" element={<FrontDeskReception />} />
+              <Route path="/frontdesk/pos" element={<FrontDeskPOSPage />} />
+              <Route path="/frontdesk/schedule" element={<FrontDeskSchedule />} />
+              <Route path="/frontdesk/shift" element={<FrontDeskShiftPage />} />
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
