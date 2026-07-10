@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle, UserCheck, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAuthStorage } from "@/lib/authStorage";
 import logo from "@/assets/storm-logo.png";
 import { NoIndex } from "@/components/seo/NoIndex";
+
 
 /**
  * Dedicated front-desk unlock screen.
@@ -21,6 +23,18 @@ export default function FrontDeskLogin() {
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Front desk mode is PIN-only. If a stale/expired Supabase JWT is sitting on
+  // this device (e.g. from an old admin login on the same tab), it will
+  // eventually raise "session expired" errors that block re-entry. Wipe it on
+  // mount so the front desk tab is always a clean, PIN-gated device.
+  useEffect(() => {
+    try {
+      clearAuthStorage();
+      supabase.auth.signOut({ scope: "local" }).catch(() => {});
+    } catch { /* ignore */ }
+  }, []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
