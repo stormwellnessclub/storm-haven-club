@@ -12,7 +12,7 @@ import {
   UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
 } from "lucide-react";
 import { format, formatDistanceStrict } from "date-fns";
-import { ClockInGate } from "./ClockInGate";
+import { ClockInGate, FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
 
 const SHIFT_KEY = "frontdeskActiveShift";
