@@ -106,11 +106,57 @@ export function useUnifiedCheckInSearch() {
         });
       });
 
-      // Class bookings - filter by name match since we can't do OR on joined fields
-      (classRes.data || []).forEach((cb: any) => {
-        const memberName = cb.member
-          ? `${cb.member.first_name} ${cb.member.last_name}`
-          : cb.walk_in_name || "Unknown";
+      // Resolve non-member identities for class + spa rows lacking a linked member.
+      const allClass: any[] = classRes.data || [];
+      const allSpa: any[] = spaRes.data || [];
+      const missingUserIds = Array.from(
+        new Set(
+          [...allClass, ...allSpa]
+            .filter((r: any) => !r.member && r.user_id)
+            .map((r: any) => r.user_id as string)
+        )
+      );
+
+      let nmMap = new Map<string, any>();
+      let profMap = new Map<string, any>();
+      if (missingUserIds.length > 0) {
+        const [nmRes2, profRes2] = await Promise.all([
+          supabase
+            .from("non_member_profiles")
+            .select("user_id, first_name, last_name, email")
+            .in("user_id", missingUserIds),
+          supabase
+            .from("profiles")
+            .select("user_id, first_name, last_name, email")
+            .in("user_id", missingUserIds),
+        ]);
+        nmMap = new Map((nmRes2.data || []).map((p: any) => [p.user_id, p]));
+        profMap = new Map((profRes2.data || []).map((p: any) => [p.user_id, p]));
+      }
+
+      const resolveName = (row: any): { name: string; kindLabel: string | null } => {
+        if (row.member) return { name: `${row.member.first_name} ${row.member.last_name}`, kindLabel: null };
+        if (row.user_id && nmMap.has(row.user_id)) {
+          const nm = nmMap.get(row.user_id);
+          return {
+            name: [nm.first_name, nm.last_name].filter(Boolean).join(" ") || nm.email || "Non-Member",
+            kindLabel: "Non-Member",
+          };
+        }
+        if (row.user_id && profMap.has(row.user_id)) {
+          const p = profMap.get(row.user_id);
+          return {
+            name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "Guest",
+            kindLabel: "Guest",
+          };
+        }
+        if (row.walk_in_name) return { name: row.walk_in_name, kindLabel: "Walk-In" };
+        return { name: "Walk-In", kindLabel: "Walk-In" };
+      };
+
+      // Class bookings - filter by resolved name
+      allClass.forEach((cb: any) => {
+        const { name: memberName, kindLabel } = resolveName(cb);
         const className = cb.session?.class_type?.name || "Class";
 
         if (!memberName.toLowerCase().includes(q.toLowerCase())) return;
@@ -122,16 +168,14 @@ export function useUnifiedCheckInSearch() {
           id: key,
           type: "class_booking",
           name: memberName,
-          subtitle: `${className} • ${cb.session?.start_time?.slice(0, 5) || ""}`,
+          subtitle: `${kindLabel ? kindLabel + " • " : ""}${className} • ${cb.session?.start_time?.slice(0, 5) || ""}`,
           data: { ...cb, className, memberName },
         });
       });
 
-      // Spa appointments - filter by name match
-      (spaRes.data || []).forEach((sa: any) => {
-        const memberName = sa.member
-          ? `${sa.member.first_name} ${sa.member.last_name}`
-          : "Unknown";
+      // Spa appointments - filter by resolved name
+      allSpa.forEach((sa: any) => {
+        const { name: memberName, kindLabel } = resolveName(sa);
         if (!memberName.toLowerCase().includes(q.toLowerCase())) return;
 
         const key = `spa-${sa.id}`;
@@ -141,7 +185,7 @@ export function useUnifiedCheckInSearch() {
           id: key,
           type: "spa_appointment",
           name: memberName,
-          subtitle: `${sa.service_name || "Spa"} • ${sa.appointment_time?.slice(0, 5) || ""}`,
+          subtitle: `${kindLabel ? kindLabel + " • " : ""}${sa.service_name || "Spa"} • ${sa.appointment_time?.slice(0, 5) || ""}`,
           data: { ...sa, memberName },
         });
       });
