@@ -142,6 +142,10 @@ export function SessionMonitor() {
   // Cross-tab session sync
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
+      // Suppress in front desk mode — that tab is PIN-only and shouldn't react
+      // to auth storage churn from admin tabs on the same device.
+      if (isFrontDeskTab()) return;
+
       // Check for auth-related storage changes from other tabs
       if (e.key?.includes("auth-token") || e.key?.includes("supabase")) {
         // Another tab changed auth state - re-validate
@@ -158,6 +162,7 @@ export function SessionMonitor() {
         });
       }
     };
+
 
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
