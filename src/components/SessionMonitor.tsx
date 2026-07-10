@@ -38,10 +38,21 @@ export function SessionMonitor() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Front desk mode is PIN-only and intentionally has no Supabase auth session.
+  // Any stale JWT sitting in localStorage on that device would otherwise cause
+  // this monitor to raise "Your session expired" toasts that block re-sign-in.
+  const isFrontDeskTab = () => {
+    if (typeof window === "undefined") return false;
+    const path = window.location.pathname;
+    if (path.startsWith("/frontdesk") || path.startsWith("/front-desk")) return true;
+    try { return sessionStorage.getItem("kioskUnlocked") === "true"; } catch { return false; }
+  };
+
   // Periodic session health check (every 5 minutes)
   useEffect(() => {
     const checkSessionHealth = async () => {
       if (!authReady) return;
+      if (isFrontDeskTab()) return;
 
       // Skip checks while on the auth page — login is in progress.
       if (window.location.pathname === '/auth' || window.location.pathname === '/update-password') {
@@ -51,6 +62,7 @@ export function SessionMonitor() {
       // Extended grace window: do not validate within 60s of any auth transition.
       // This prevents background validators from killing a fresh login.
       if (Date.now() - lastAuthTransitionAt.current < 60000) return;
+
 
       // Prevent concurrent checks
       if (isCheckingSession.current) return;
