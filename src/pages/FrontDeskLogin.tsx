@@ -1,12 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle, UserCheck, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { clearAuthStorage } from "@/lib/authStorage";
 import logo from "@/assets/storm-logo.png";
 import { NoIndex } from "@/components/seo/NoIndex";
+
 
 /**
  * Dedicated front-desk unlock screen.
