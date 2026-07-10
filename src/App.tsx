@@ -148,6 +148,19 @@ import FrontDeskNonMembersPage from "./pages/frontdesk/NonMembers";
 import FrontDeskGuestPassesPage from "./pages/frontdesk/GuestPassesPage";
 import FrontDeskSpaPage from "./pages/frontdesk/Spa";
 import FrontDeskCafePage from "./pages/frontdesk/Cafe";
+import { ProtectedInstructorRoute } from "./components/instructor/ProtectedInstructorRoute";
+import InstructorToday from "./pages/instructor/Today";
+import {
+  InstructorSchedule,
+  InstructorRosters,
+  InstructorAvailability,
+  InstructorTimeOff,
+  InstructorSubs,
+  InstructorNotes,
+  InstructorPay,
+  InstructorMessages,
+  InstructorDocuments,
+} from "./pages/instructor/Stubs";
 import FrontDeskLogin from "./pages/FrontDeskLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
