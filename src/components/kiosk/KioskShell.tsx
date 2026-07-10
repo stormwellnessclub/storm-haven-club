@@ -1,13 +1,10 @@
 import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
 import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
-import { useAuth } from "@/contexts/AuthContext";
-import { useUserRoles } from "@/hooks/useUserRoles";
-import { supabase } from "@/integrations/supabase/client";
 import {
   UserCheck, Coffee, Sparkles, GraduationCap, Lock, Home,
 } from "lucide-react";
@@ -40,16 +37,6 @@ export function KioskShell({ label, mode, children }: KioskShellProps) {
   const [unlocked, setUnlocked] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { roles, resolved: rolesResolved } = useUserRoles();
-
-  // A front-desk-only account has ONLY the `front_desk` role. These users
-  // sign in via /front-desk-login and are locked to /kiosk/* — hide the
-  // Admin shortcut and route them back to /front-desk-login on Lock.
-  const isFrontDeskOnly =
-    !!user && rolesResolved && roles.length === 1 && roles[0] === "front_desk";
-
   useEffect(() => {
     if (sessionStorage.getItem("kioskUnlocked") === "true") setUnlocked(true);
   }, []);
@@ -65,11 +52,6 @@ export function KioskShell({ label, mode, children }: KioskShellProps) {
 
   const handleLock = async () => {
     sessionStorage.removeItem("kioskUnlocked");
-    if (isFrontDeskOnly) {
-      try { await supabase.auth.signOut(); } catch { /* ignore */ }
-      navigate("/front-desk-login", { replace: true });
-      return;
-    }
     setUnlocked(false);
   };
 
@@ -113,14 +95,12 @@ export function KioskShell({ label, mode, children }: KioskShellProps) {
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 {format(now, "EEE, MMM d • h:mm a")}
               </span>
-              {!isFrontDeskOnly && (
-                <Link to="/admin" className="hidden md:inline">
-                  <Button type="button" size="sm" variant="ghost" className="gap-1.5 h-8 px-2.5">
-                    <Home className="h-3.5 w-3.5" />
-                    <span className="text-xs">Admin</span>
-                  </Button>
-                </Link>
-              )}
+              <Link to="/admin" className="hidden md:inline">
+                <Button type="button" size="sm" variant="ghost" className="gap-1.5 h-8 px-2.5">
+                  <Home className="h-3.5 w-3.5" />
+                  <span className="text-xs">Admin</span>
+                </Button>
+              </Link>
               <Button
                 type="button"
                 size="sm"
