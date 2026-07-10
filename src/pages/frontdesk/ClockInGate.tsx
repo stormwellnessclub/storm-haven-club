@@ -7,6 +7,8 @@ import { Loader2, Delete, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import stormLogo from "@/assets/storm-logo-gold.png";
 
+export const FRONTDESK_BYPASS_SHIFT_ID = "bypass";
+
 interface ClockInGateProps {
   onClockedIn: (payload: {
     shiftId: string;
