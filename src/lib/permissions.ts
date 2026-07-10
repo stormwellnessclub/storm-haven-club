@@ -129,7 +129,7 @@ export function getDefaultAdminPage(userRoles: AppRole[]): string {
     return '/admin/appointments';
   }
   if (userRoles.includes('class_instructor')) {
-    return '/admin/classes';
+    return '/instructor';
   }
   if (userRoles.includes('cafe_staff')) {
     return '/admin/cafe';

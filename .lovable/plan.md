@@ -1,82 +1,86 @@
-# Front Desk Portal — Login Fix + Missing Tools
 
-Two problems to solve:
+# Instructor Portal — Plan
 
-1. **Desktop can't log in as `frontdesk@stormwellnessclub.com`** (iPad works).
-2. **The `/frontdesk` shell is too thin** — no spa, no member lookup with credit/note actions, no non-member search, no guest passes, no visible cafe order alert.
+Personal login for each instructor. Editorial minimalist dashboard (cream/charcoal/gold, Instrument Serif + Inter). Pay model is **Mixed — configured per instructor** (per-class flat rate OR hourly OR both). Ships in three phases; each phase is deployable on its own.
 
 ---
 
-## 1. Desktop login fix
+## Phase 1 — Foundation (auth, shell, Today view)
 
-The auth logs show the front-desk email hitting `invalid_credentials` on that machine while other accounts log in fine from the same IP. That's the browser sending the wrong password — almost always saved-password autofill from before we set it.
+**Backend**
+- Add `instructor` role to `app_role` enum. Extend `has_any_role` allowlist patterns as needed.
+- Extend `instructors` table:
+  - `user_id uuid` (FK → `auth.users`, links portal account)
+  - `pay_type` enum: `per_class | hourly | mixed`
+  - `default_per_class_rate numeric`, `hourly_rate numeric`
+  - `portal_enabled boolean`, `invited_at`, `last_login_at`
+- Trigger on `auth.users` insert: if email matches `instructors.email`, link `user_id` + assign `instructor` role.
+- Admin-only RPC `admin_invite_instructor(instructor_id)` that sends the standard Supabase invite email using existing auth-email-hook.
 
-**Action:** Reset the front desk password to a fresh value you choose, then on the desktop:
+**Frontend**
+- Route `/instructor/*` guarded by `instructor` role. Existing role redirector sends instructors here on login.
+- `InstructorShell` — sidebar (Today, Schedule, Rosters, Availability, Time Off, Subs & Swaps, Class Notes, Hours & Pay, Messages, Documents) + top-right actions (Request Sub, Clock In). Cream background, charcoal sidebar-active, gold accent, Instrument Serif greeting.
+- **Today** page: greeting header, "Up Next" dark hero card (next `class_sessions` row with matching `instructor_id`), remaining classes list, weekly hours + estimated pay tile, "Needs Attention" list (unsigned docs, expiring certs, pending sub requests), Club Announcements block, 7-day dot strip.
 
-- Delete any saved password for `stormwellnessclub.com` in the browser's password manager
-- Type the new password by hand (no paste, no autofill)
-- If it still fails, do a hard reload (Cmd/Ctrl+Shift+R) to clear any stale bundle
+## Phase 2 — Teaching workflow
 
-Tell me the new password (or say "generate one") and I'll set it on the account.
+**Rosters & Class Notes** (reuses existing `ClassRoster` data)
+- `/instructor/schedule` — month/week view scoped to `instructor_id = me`.
+- Roster drawer: attendee list with member/non-member/guest identity badges (already built), mark no-show, add per-attendee note.
+- New table `instructor_class_notes` (session_id, instructor_id, note, is_admin_visible). RLS: instructor CRUD own, admin read all.
 
----
+**Availability & Time Off**
+- New tables:
+  - `instructor_availability` (instructor_id, day_of_week 0-6, start_time, end_time, effective_from, effective_to)
+  - `instructor_time_off` (instructor_id, start_date, end_date, reason, status: pending/approved/denied, admin_note)
+- Admin dashboard shows conflicts before scheduling a session.
 
-## 2. New Front Desk portal layout
+**Subs & Swaps**
+- New table `instructor_sub_requests` (session_id, requester_id, reason, status: open/claimed/approved/denied, claimed_by, admin_decision_by, decided_at).
+- Instructor requests sub → visible to eligible instructors on their portal → they "offer to cover" → admin approves → session `instructor_id` reassigned; both parties notified via existing email hook.
 
-Move from a top-tab-only layout to a **left sidebar with more tabs**, keeping the shell strictly isolated from `/admin` (no admin links, no financial data).
+## Phase 3 — Time, pay, docs, messaging
 
-### New sidebar tabs
+**Hours & pay (Mixed model)**
+- New tables:
+  - `instructor_clock_events` (instructor_id, session_id nullable, clock_in_at, clock_out_at, source: `session_auto | kiosk_pin | manual_admin`)
+  - `instructor_pay_periods` (start_date, end_date, status: open/closed/paid)
+  - `instructor_pay_lines` (instructor_id, pay_period_id, session_id nullable, kind: `per_class | hourly | adjustment`, hours numeric, rate numeric, amount numeric, note)
+- Compute logic (server function): for each closed session in the period, look at that instructor's `pay_type` — `per_class` → add per-class line at their rate; `hourly` → add hours line from paired clock events; `mixed` → whichever is configured on that class type.
+- Instructor sees: current period hours + estimate on Today; full history + downloadable statement PDFs on `/instructor/pay`.
+- Kiosk PIN clock-in reuses existing `staff_pins` / `staff_shift_clocks` infrastructure (already built for front desk) — instructor entries are tagged `role='instructor'` so front-desk timesheet and instructor timesheet stay separate.
 
-| Tab | Purpose |
-|---|---|
-| Reception | (existing) Kiosk check-in |
-| Members | Look up any member → view credits, deduct class credit, add note, quick POS charge |
-| Non-Members | Look up non-member accounts → same actions (charge, note) |
-| Guest Passes | See today's guest passes, mark used, sell a new one |
-| Spa | Today/upcoming spa appointments; "Book Appointment" button to create one |
-| Schedule | (existing) Class schedule |
-| POS | (existing) Cart-style charge |
-| My Shift | (existing) Timesheet |
+**Documents & certifications**
+- New table `instructor_documents` (instructor_id, kind: `w9 | 1099 | cert | waiver | other`, file_path, expires_at, uploaded_by, verified_by).
+- Storage bucket `instructor-documents` with RLS (owner + admin).
+- Expiration reminder cron (30/14/7/1 day) surfaces on Today and sends email.
 
-### Cafe order alert banner
+**Messaging & announcements**
+- Reuse existing `staff_messages` / `staff_channels` for admin ↔ instructor DMs.
+- New `instructor_announcements` (title, body, published_at, expires_at) — admin composes, all instructors see on Today.
 
-Add a **persistent red banner at the very top** of the shell (above the header) that shows unfulfilled cafe orders in real time — e.g. "🔔 2 new cafe orders — tap to view". Clicking opens a slide-over listing pending orders with a "Mark ready" button. This runs alongside the existing `AdminCafeChime` sound so both audio and visual cues are present.
+## Admin backend — Instructor Management
 
-### What each new tab shows
-
-**Members tab**
-- Search by name / email / phone
-- Result card: photo, tier, credits (class/PT/spa), subscription status, on-file card
-- Actions: **Deduct class credit** (reason dropdown), **Add note**, **Charge** (opens POS with member pre-selected), **View class bookings**
-
-**Non-Members tab**
-- Same search UI, scoped to `non_member_profiles`
-- Same actions (deduct credit, note, charge)
-
-**Guest Passes tab**
-- List of guest passes with status filter (pending / used today / expired)
-- Row action: **Mark used**, **Resend link**, **Sell new guest pass** button
-
-**Spa tab**
-- Today + upcoming spa appointments (therapist, service, time, member/guest)
-- **Book Appointment** button → uses the existing spa booking flow, scoped to non-financial actions
-
-### Access boundaries (unchanged)
-
-Front desk role stays blocked from: revenue dashboards, subscription editing, refunds, staff financials, application review, marketing tools. Every new action here uses existing RPCs (`deduct_class_credit`, `add_member_note`, `manual_charge`, `sell_guest_pass`, `book_spa_appointment`) so RLS enforcement is unchanged.
-
----
+New `/admin/instructors` section (extends the existing Instructors table):
+- **Roster** — list with portal status (invited / active / disabled), last login, upcoming class count, unresolved sub requests.
+- **Profile editor** — pay type + rates, class-type authorizations, bio, headshot, portal enabled toggle, "Send portal invite" button.
+- **Schedule & availability** — merged view of taught sessions + declared availability + approved time off. Conflict badges when scheduling.
+- **Sub requests queue** — approve/deny with one click; reassigns session.
+- **Timesheets** — per-instructor hours worked, per-pay-period, export CSV/PDF; edit clock events (audited in `admin_action_log`).
+- **Payroll run** — close a pay period, freeze the ledger, mark paid, download combined statement.
+- **Documents** — verify uploads, request missing docs, see expiring certs.
+- **Announcements composer** — publish to all instructors.
 
 ## Technical notes
 
-- New pages under `src/pages/frontdesk/`: `Members.tsx`, `NonMembers.tsx`, `GuestPasses.tsx`, `Spa.tsx`.
-- New route registrations in `src/App.tsx` for `/frontdesk/members`, `/frontdesk/non-members`, `/frontdesk/guest-passes`, `/frontdesk/spa`.
-- Refactor `FrontDeskShell.tsx` from top-only nav to a two-pane layout: fixed left sidebar (collapsible on tablet) + main content. Header keeps clock, shift badge, End Shift, Lock.
-- New `CafeOrderBanner.tsx` mounted inside the shell that subscribes to `cafe_orders` where status is `paid` / `in_progress` and shows a dismissible banner (dismissal is per-order, not global) with count + slide-over list.
-- Reuse existing admin components where they contain no admin-only data:
-  - `MemberSearch` → wrap for front desk (hide financial fields)
-  - `SpaAppointmentsList` / `BookSpaDialog` → same
-  - `GuestPassList` → same
-- No new tables, no schema changes. All actions call existing RPCs.
+- All new `public` tables get GRANTs for `authenticated` + `service_role`, RLS enabled, policies gated by `auth.uid()` matching `instructor.user_id` OR `has_any_role(...admin variants...)`.
+- No new external services: reuses Lovable auth-email-hook for invites/reminders, existing storage patterns, existing staff PIN clock infrastructure.
+- Timezone: all hours-worked math in `America/Chicago` per the project rule.
+- Design tokens: extends existing cream/charcoal/gold — no new palette. Instrument Serif already loaded on marketing pages; added to portal via existing `@fontsource` install pattern.
 
-Confirm the plan (and the password reset) and I'll implement.
+## Delivery order
+
+1. Phase 1 (auth + shell + Today) — instructors can log in and see their day. **Ship first.**
+2. Phase 2 (schedule, rosters, availability, time-off, subs) — the teaching workflow.
+3. Phase 3 (hours & pay, docs, messaging) — the operational back office.
+4. Admin `/admin/instructors` section is built alongside each phase so admin has full oversight from day one of every capability.

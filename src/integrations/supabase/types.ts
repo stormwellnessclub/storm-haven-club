@@ -2947,13 +2947,19 @@ export type Database = {
         Row: {
           bio: string | null
           created_at: string
+          default_per_class_rate: number
           email: string
           first_name: string
+          hourly_rate: number
           id: string
+          invited_at: string | null
           is_active: boolean
+          last_login_at: string | null
           last_name: string
+          pay_type: Database["public"]["Enums"]["instructor_pay_type"]
           phone: string | null
           photo_url: string | null
+          portal_enabled: boolean
           specialties: string[] | null
           updated_at: string
           user_id: string | null
@@ -2961,13 +2967,19 @@ export type Database = {
         Insert: {
           bio?: string | null
           created_at?: string
+          default_per_class_rate?: number
           email: string
           first_name: string
+          hourly_rate?: number
           id?: string
+          invited_at?: string | null
           is_active?: boolean
+          last_login_at?: string | null
           last_name: string
+          pay_type?: Database["public"]["Enums"]["instructor_pay_type"]
           phone?: string | null
           photo_url?: string | null
+          portal_enabled?: boolean
           specialties?: string[] | null
           updated_at?: string
           user_id?: string | null
@@ -2975,13 +2987,19 @@ export type Database = {
         Update: {
           bio?: string | null
           created_at?: string
+          default_per_class_rate?: number
           email?: string
           first_name?: string
+          hourly_rate?: number
           id?: string
+          invited_at?: string | null
           is_active?: boolean
+          last_login_at?: string | null
           last_name?: string
+          pay_type?: Database["public"]["Enums"]["instructor_pay_type"]
           phone?: string | null
           photo_url?: string | null
+          portal_enabled?: boolean
           specialties?: string[] | null
           updated_at?: string
           user_id?: string | null
@@ -8572,6 +8590,10 @@ export type Database = {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
       }
+      admin_mark_instructor_invited: {
+        Args: { _instructor_id: string }
+        Returns: undefined
+      }
       admin_set_staff_pin: {
         Args: { _pin: string; _staff_user_id: string }
         Returns: undefined
@@ -8896,13 +8918,19 @@ export type Database = {
         Returns: {
           bio: string | null
           created_at: string
+          default_per_class_rate: number
           email: string
           first_name: string
+          hourly_rate: number
           id: string
+          invited_at: string | null
           is_active: boolean
+          last_login_at: string | null
           last_name: string
+          pay_type: Database["public"]["Enums"]["instructor_pay_type"]
           phone: string | null
           photo_url: string | null
+          portal_enabled: boolean
           specialties: string[] | null
           updated_at: string
           user_id: string | null
@@ -9364,6 +9392,7 @@ export type Database = {
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
       credit_type: "class" | "red_light" | "dry_cryo" | "guest_pass"
       enrollment_status: "active" | "completed" | "cancelled" | "paused"
+      instructor_pay_type: "per_class" | "hourly" | "mixed"
       marketing_source:
         | "import"
         | "guest_pass"
@@ -9577,6 +9606,7 @@ export const Constants = {
       conversation_status: ["open", "in_progress", "resolved", "closed"],
       credit_type: ["class", "red_light", "dry_cryo", "guest_pass"],
       enrollment_status: ["active", "completed", "cancelled", "paused"],
+      instructor_pay_type: ["per_class", "hourly", "mixed"],
       marketing_source: [
         "import",
         "guest_pass",
