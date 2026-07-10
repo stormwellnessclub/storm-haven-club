@@ -21,6 +21,7 @@ import {
   Baby,
   Dumbbell,
   Shield,
+  KeyRound,
   ShieldX,
   UserCog,
   UserPlus,
@@ -178,6 +179,7 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin'],
     items: [
       { title: "Staff Management", url: "/admin/staff-roles", icon: Shield },
+      { title: "Staff PINs", url: "/admin/staff-pins", icon: KeyRound },
       { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX },
       { title: "Equipment", url: "/admin/equipment", icon: Dumbbell },
       { title: "Marketing", url: "/admin/marketing", icon: Megaphone },

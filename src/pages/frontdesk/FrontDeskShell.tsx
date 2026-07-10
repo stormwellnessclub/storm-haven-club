@@ -12,7 +12,7 @@ import {
   UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
 } from "lucide-react";
 import { format, formatDistanceStrict } from "date-fns";
-import { ClockInGate } from "./ClockInGate";
+import { ClockInGate, FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
 
 const SHIFT_KEY = "frontdeskActiveShift";
@@ -75,6 +75,7 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
     events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     const id = setInterval(() => {
       if (!shift) return;
+      if (shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID) return;
       if (Date.now() - lastActivity.current > IDLE_TIMEOUT_MS) {
         setClockOutOpen(true);
       }
@@ -171,17 +172,36 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
             </nav>
 
             <div className="ml-auto flex items-center gap-2">
-              <Badge variant="secondary" className="gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="font-medium">{shift.staffName}</span>
-                <span className="text-muted-foreground">· {shiftDuration}</span>
-              </Badge>
+              {shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID ? (
+                <Badge
+                  variant="outline"
+                  className="gap-1.5 border-amber-500 bg-amber-50 text-amber-900"
+                  title="No Staff PIN was used — shift hours aren't being recorded."
+                >
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="font-medium">Tracking off</span>
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="font-medium">{shift.staffName}</span>
+                  <span className="text-muted-foreground">· {shiftDuration}</span>
+                </Badge>
+              )}
               <Button
                 type="button"
                 size="sm"
                 variant="destructive"
                 className="gap-1.5 h-8 px-2.5"
-                onClick={() => setClockOutOpen(true)}
+                onClick={() => {
+                  if (shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID) {
+                    // No shift row to close — just clear local state
+                    sessionStorage.removeItem(SHIFT_KEY);
+                    setShift(null);
+                  } else {
+                    setClockOutOpen(true);
+                  }
+                }}
               >
                 <LogOut className="h-3.5 w-3.5" />
                 <span className="text-xs">End Shift</span>

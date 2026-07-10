@@ -8550,6 +8550,10 @@ export type Database = {
         Args: { p_booking_id: string; p_cancellation_reason?: string }
         Returns: Json
       }
+      admin_clear_staff_pin: {
+        Args: { _staff_user_id: string }
+        Returns: undefined
+      }
       admin_create_kids_care_booking: {
         Args: {
           p_booking_date: string

@@ -105,6 +105,7 @@ import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
 import StaffRoles from "./pages/admin/StaffRoles";
 import StaffDetail from "./pages/admin/StaffDetail";
+import StaffPins from "./pages/admin/StaffPins";
 import ClassTypes from "./pages/admin/ClassTypes";
 import ClassTypeDetail from "./pages/admin/ClassTypeDetail";
 import Instructors from "./pages/admin/Instructors";
@@ -339,6 +340,7 @@ const App = () => (
               <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />
+              <Route path="/admin/staff-pins" element={<ProtectedAdminRoute><StaffPins /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-schedule" element={<ProtectedAdminRoute><StaffSchedule /></ProtectedAdminRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />

@@ -72,6 +72,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/email-templates/card-declined': ['super_admin', 'admin'],
   '/admin/staff-roles': ['super_admin', 'admin'],
   '/admin/staff-roles/:userId': ['super_admin', 'admin'],
+  '/admin/staff-pins': ['super_admin', 'admin', 'manager'],
   '/admin/blocked': ['super_admin', 'admin', 'manager'],
   '/admin/revenue-analytics': ['super_admin'],
   '/admin/reports': ['super_admin'],
