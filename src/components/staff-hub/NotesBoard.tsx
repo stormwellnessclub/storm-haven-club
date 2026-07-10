@@ -8,6 +8,7 @@ import { Pin, Plus, Globe, Users, User } from "lucide-react";
 import { CreateNoteDialog } from "./CreateNoteDialog";
 import { format } from "date-fns";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface StaffNote {
   id: string;
