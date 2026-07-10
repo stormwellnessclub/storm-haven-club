@@ -104,7 +104,11 @@ export function NotesBoard() {
             const isOwner = note.created_by === user?.id;
 
             return (
-              <Card key={note.id} className={`border ${note.is_pinned ? "border-accent shadow-sm" : "border-border"}`}>
+              <Card
+                key={note.id}
+                className={`border cursor-pointer transition hover:ring-2 hover:ring-accent/40 ${note.is_pinned ? "border-accent shadow-sm" : "border-border"}`}
+                onClick={() => setSelectedNote(note)}
+              >
                 <CardHeader className="pb-2 flex flex-row items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-sm font-medium flex items-center gap-1.5">
@@ -124,10 +128,10 @@ export function NotesBoard() {
                     <div className="flex gap-1">
                       {(isSuperAdmin || isOwner) && (
                         <>
-                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-1.5" onClick={() => togglePin(note.id, note.is_pinned)}>
+                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-1.5" onClick={(e) => { e.stopPropagation(); togglePin(note.id, note.is_pinned); }}>
                             {note.is_pinned ? "Unpin" : "Pin"}
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-1.5 text-destructive" onClick={() => deleteNote(note.id)}>
+                          <Button variant="ghost" size="sm" className="h-6 text-[11px] px-1.5 text-destructive" onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}>
                             Delete
                           </Button>
                         </>
