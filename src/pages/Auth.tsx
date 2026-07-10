@@ -678,9 +678,9 @@ export default function Auth() {
               <span className="text-accent">Waivers and membership agreements will be required for booking.</span>
             </p>
             <p className="text-muted-foreground text-xs pt-2">
-              Front desk staff?{" "}
+              Front desk mode?{" "}
               <Link to="/front-desk-login" className="text-accent hover:underline">
-                Sign in here
+                Unlock here
               </Link>
             </p>
           </div>
