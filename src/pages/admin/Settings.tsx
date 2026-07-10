@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor } from "lucide-react";
+import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor, KeyRound } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,6 +14,32 @@ export default function Settings() {
   const [kioskPin, setKioskPin] = useState("");
   const [isSavingPin, setIsSavingPin] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<"loading" | "connected" | "disconnected">("loading");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Password updated successfully");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update password");
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
 
   useEffect(() => {
     supabase.functions.invoke("stripe-config").then(({ data, error }) => {
