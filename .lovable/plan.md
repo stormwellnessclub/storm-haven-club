@@ -1,50 +1,82 @@
-## Problem
+# Front Desk Portal — Login Fix + Missing Tools
 
-Signing out on **one computer** currently signs the same account out of **every other computer / browser** it's logged into. This is disruptive for admin and manager accounts that are used on multiple front-of-house / back-office machines simultaneously.
+Two problems to solve:
 
-**Root cause:** Every `supabase.auth.signOut()` call in the app uses Supabase's default `scope: "global"`. Global sign-out revokes **every refresh token** issued to that user across all devices. As soon as any other device tries to refresh (or reloads), its session fails and it's kicked back to the login screen.
+1. **Desktop can't log in as `frontdesk@stormwellnessclub.com`** (iPad works).
+2. **The `/frontdesk` shell is too thin** — no spa, no member lookup with credit/note actions, no non-member search, no guest passes, no visible cafe order alert.
 
-We already use `scope: "local"` in a handful of "cleanup" paths (bad-session recovery in `AuthContext`, some Auth-page fallbacks), but every user-initiated sign-out is still global.
+---
 
-## Fix
+## 1. Desktop login fix
 
-Change every user-initiated sign-out to `scope: "local"` — meaning: only the current device's session is revoked, other devices keep working until their tokens expire naturally.
+The auth logs show the front-desk email hitting `invalid_credentials` on that machine while other accounts log in fine from the same IP. That's the browser sending the wrong password — almost always saved-password autofill from before we set it.
 
-Cross-tab behavior on the **same** computer stays unchanged (Supabase JS shares session via localStorage; sibling tabs on the same machine will still sync). We are only stopping the cross-**device** cascade.
+**Action:** Reset the front desk password to a fresh value you choose, then on the desktop:
 
-## Files to update
+- Delete any saved password for `stormwellnessclub.com` in the browser's password manager
+- Type the new password by hand (no paste, no autofill)
+- If it still fails, do a hard reload (Cmd/Ctrl+Shift+R) to clear any stale bundle
 
-1. **`src/contexts/AuthContext.tsx`** — main `signOut()` used everywhere via `useAuth()`
-   - `await supabase.auth.signOut()` → `await supabase.auth.signOut({ scope: "local" })`
+Tell me the new password (or say "generate one") and I'll set it on the account.
 
-2. **`src/pages/Auth.tsx`** (line 664) — one leftover global sign-out on the login page
-   - → `scope: "local"`
+---
 
-3. **`src/pages/MothersDayPackRedeem.tsx`** (line 177) — global sign-out
-   - → `scope: "local"`
+## 2. New Front Desk portal layout
 
-4. **`src/pages/UpdatePassword.tsx`** (line 125) — global sign-out after password reset
-   - → `scope: "local"`
+Move from a top-tab-only layout to a **left sidebar with more tabs**, keeping the shell strictly isolated from `/admin` (no admin links, no financial data).
 
-5. **`src/components/ErrorBoundary.tsx`** (line 44) — "reset session" recovery
-   - → `scope: "local"`
+### New sidebar tabs
 
-6. **`src/pages/FrontDeskLogin.tsx`** (lines 104, 117, 126) — three sign-outs used when the current session doesn't belong to a front-desk user
-   - → `scope: "local"`
+| Tab | Purpose |
+|---|---|
+| Reception | (existing) Kiosk check-in |
+| Members | Look up any member → view credits, deduct class credit, add note, quick POS charge |
+| Non-Members | Look up non-member accounts → same actions (charge, note) |
+| Guest Passes | See today's guest passes, mark used, sell a new one |
+| Spa | Today/upcoming spa appointments; "Book Appointment" button to create one |
+| Schedule | (existing) Class schedule |
+| POS | (existing) Cart-style charge |
+| My Shift | (existing) Timesheet |
 
-## What stays global (intentionally)
+### Cafe order alert banner
 
-- **Password reset flow (`UpdatePassword.tsx`)** — after a user actually resets their password we already invalidate the reset link's session; a `local` sign-out is enough because Supabase already invalidates the recovery token server-side. No security regression.
-- **Nothing else** currently needs a global sign-out. If in the future you ever add a "Sign out of all my devices" button (e.g. after a suspected compromise), that one should stay `scope: "global"`.
+Add a **persistent red banner at the very top** of the shell (above the header) that shows unfulfilled cafe orders in real time — e.g. "🔔 2 new cafe orders — tap to view". Clicking opens a slide-over listing pending orders with a "Mark ready" button. This runs alongside the existing `AdminCafeChime` sound so both audio and visual cues are present.
 
-## Verification
+### What each new tab shows
 
-After the edit:
-1. Sign in as admin on Computer A **and** Computer B.
-2. Click "Sign out" on Computer A → Computer A returns to login, Computer B stays fully signed in and functional.
-3. Repeat with the front-desk account and the manager account.
-4. Confirm cross-tab behavior on the same computer is unchanged (signing out in one tab still clears sibling tabs on the same machine — that's localStorage, not the sign-out scope).
+**Members tab**
+- Search by name / email / phone
+- Result card: photo, tier, credits (class/PT/spa), subscription status, on-file card
+- Actions: **Deduct class credit** (reason dropdown), **Add note**, **Charge** (opens POS with member pre-selected), **View class bookings**
 
-## Not in scope for this change
+**Non-Members tab**
+- Same search UI, scoped to `non_member_profiles`
+- Same actions (deduct credit, note, charge)
 
-Per-window session isolation (each browser window independently logged in on the same computer) — that would require moving session storage from `localStorage` to `sessionStorage`, which is a bigger change with side effects for members. We can revisit if you still want it after this fix.
+**Guest Passes tab**
+- List of guest passes with status filter (pending / used today / expired)
+- Row action: **Mark used**, **Resend link**, **Sell new guest pass** button
+
+**Spa tab**
+- Today + upcoming spa appointments (therapist, service, time, member/guest)
+- **Book Appointment** button → uses the existing spa booking flow, scoped to non-financial actions
+
+### Access boundaries (unchanged)
+
+Front desk role stays blocked from: revenue dashboards, subscription editing, refunds, staff financials, application review, marketing tools. Every new action here uses existing RPCs (`deduct_class_credit`, `add_member_note`, `manual_charge`, `sell_guest_pass`, `book_spa_appointment`) so RLS enforcement is unchanged.
+
+---
+
+## Technical notes
+
+- New pages under `src/pages/frontdesk/`: `Members.tsx`, `NonMembers.tsx`, `GuestPasses.tsx`, `Spa.tsx`.
+- New route registrations in `src/App.tsx` for `/frontdesk/members`, `/frontdesk/non-members`, `/frontdesk/guest-passes`, `/frontdesk/spa`.
+- Refactor `FrontDeskShell.tsx` from top-only nav to a two-pane layout: fixed left sidebar (collapsible on tablet) + main content. Header keeps clock, shift badge, End Shift, Lock.
+- New `CafeOrderBanner.tsx` mounted inside the shell that subscribes to `cafe_orders` where status is `paid` / `in_progress` and shows a dismissible banner (dismissal is per-order, not global) with count + slide-over list.
+- Reuse existing admin components where they contain no admin-only data:
+  - `MemberSearch` → wrap for front desk (hide financial fields)
+  - `SpaAppointmentsList` / `BookSpaDialog` → same
+  - `GuestPassList` → same
+- No new tables, no schema changes. All actions call existing RPCs.
+
+Confirm the plan (and the password reset) and I'll implement.
