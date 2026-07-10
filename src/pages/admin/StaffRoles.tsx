@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Search, UserPlus, Mail, Loader2, Archive } from "lucide-react";
+import { Shield, Search, UserPlus, Mail, Loader2, Archive, Pencil } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -196,6 +196,7 @@ export default function StaffRoles() {
                       <TableHead>Roles</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date Added</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -206,7 +207,15 @@ export default function StaffRoles() {
                         onClick={() => navigate(`/admin/staff-roles/${staff.userId}`)}
                       >
                         <TableCell className="font-medium">
-                          {staff.firstName} {staff.lastName}
+                          <button
+                            className="text-left hover:underline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/staff-roles/${staff.userId}`);
+                            }}
+                          >
+                            {staff.firstName} {staff.lastName}
+                          </button>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{staff.email}</TableCell>
                         <TableCell>
@@ -226,6 +235,19 @@ export default function StaffRoles() {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
                           {staff.createdAt ? format(new Date(staff.createdAt), 'MMM d, yyyy') : '—'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/staff-roles/${staff.userId}`);
+                            }}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

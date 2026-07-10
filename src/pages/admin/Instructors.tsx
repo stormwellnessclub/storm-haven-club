@@ -25,7 +25,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, User } from "lucide-react";
+import { Plus, Pencil, User, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -55,6 +65,36 @@ export default function Instructors() {
   const [bio, setBio] = useState("");
   const [specialties, setSpecialties] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Instructor | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await supabase
+      .from("instructors")
+      .delete()
+      .eq("id", deleteTarget.id);
+    if (error) {
+      // Likely FK constraint from existing schedules/sessions — fall back to deactivate
+      const { error: updErr } = await supabase
+        .from("instructors")
+        .update({ is_active: false })
+        .eq("id", deleteTarget.id);
+      if (updErr) {
+        toast.error("Failed to delete instructor");
+        console.error(updErr);
+      } else {
+        toast.message("Instructor has past sessions — deactivated instead of deleted.");
+        fetchInstructors();
+      }
+    } else {
+      toast.success("Instructor deleted");
+      fetchInstructors();
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+  }
 
   useEffect(() => {
     fetchInstructors();
@@ -320,13 +360,22 @@ export default function Instructors() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(instructor)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openEditDialog(instructor)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeleteTarget(instructor)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -335,6 +384,23 @@ export default function Instructors() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete instructor?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget ? `${deleteTarget.first_name} ${deleteTarget.last_name} will be permanently removed. If they have past classes on file, they will be deactivated instead.` : ""}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} disabled={deleting}>
+                {deleting ? "Deleting..." : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
