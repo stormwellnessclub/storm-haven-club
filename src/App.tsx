@@ -271,6 +271,12 @@ const App = () => (
               <Route path="/frontdesk/pos" element={<FrontDeskPOSPage />} />
               <Route path="/frontdesk/schedule" element={<FrontDeskSchedule />} />
               <Route path="/frontdesk/shift" element={<FrontDeskShiftPage />} />
+              <Route path="/frontdesk/members" element={<FrontDeskMembersPage />} />
+              <Route path="/frontdesk/non-members" element={<FrontDeskNonMembersPage />} />
+              <Route path="/frontdesk/guest-passes" element={<FrontDeskGuestPassesPage />} />
+              <Route path="/frontdesk/spa" element={<FrontDeskSpaPage />} />
+              <Route path="/frontdesk/cafe" element={<FrontDeskCafePage />} />
+              
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
