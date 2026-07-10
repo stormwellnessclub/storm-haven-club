@@ -85,7 +85,7 @@ export function useUnifiedAttendance() {
       supabase
         .from("class_bookings")
         .select(`
-          id, checked_in_at, walk_in_name,
+          id, checked_in_at, walk_in_name, walk_in_email, user_id,
           session:class_sessions(class_type:class_types(name)),
           member:members(first_name, last_name, id)
         `)
@@ -96,7 +96,7 @@ export function useUnifiedAttendance() {
       // Spa appointments checked in today
       (supabase.from as any)("spa_appointments")
         .select(`
-          id, checked_in_at, service_name,
+          id, checked_in_at, service_name, user_id,
           member:members(first_name, last_name, id)
         `)
         .not("checked_in_at", "is", null)
