@@ -75,6 +75,7 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
     events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     const id = setInterval(() => {
       if (!shift) return;
+      if (shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID) return;
       if (Date.now() - lastActivity.current > IDLE_TIMEOUT_MS) {
         setClockOutOpen(true);
       }
