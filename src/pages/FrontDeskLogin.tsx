@@ -101,7 +101,7 @@ export default function FrontDeskLogin() {
       try {
         roles = await fetchRolesForUser(uid);
       } catch {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         setError("Couldn't verify your access. Please try again.");
         setLoading(false);
         return;
