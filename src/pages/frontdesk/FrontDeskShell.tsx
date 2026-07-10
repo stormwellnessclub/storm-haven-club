@@ -10,10 +10,13 @@ import { NoIndex } from "@/components/seo/NoIndex";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import {
   UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
+  Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu,
 } from "lucide-react";
 import { format, formatDistanceStrict } from "date-fns";
 import { ClockInGate, FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
+import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
+import { cn } from "@/lib/utils";
 
 const SHIFT_KEY = "frontdeskActiveShift";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -26,10 +29,15 @@ interface ShiftState {
 }
 
 const TABS = [
-  { key: "reception", label: "Reception",  to: "/frontdesk",          icon: UserCheck },
-  { key: "pos",       label: "POS",        to: "/frontdesk/pos",      icon: ShoppingBag },
-  { key: "schedule",  label: "Schedule",   to: "/frontdesk/schedule", icon: GraduationCap },
-  { key: "shift",     label: "My Shift",   to: "/frontdesk/shift",    icon: ClipboardList },
+  { key: "reception",   label: "Reception",    to: "/frontdesk",              icon: UserCheck },
+  { key: "members",     label: "Members",      to: "/frontdesk/members",      icon: Users },
+  { key: "non-members", label: "Non-Members",  to: "/frontdesk/non-members",  icon: UserSearch },
+  { key: "guest",       label: "Guest Passes", to: "/frontdesk/guest-passes", icon: Ticket },
+  { key: "spa",         label: "Spa",          to: "/frontdesk/spa",          icon: Sparkles },
+  { key: "schedule",    label: "Schedule",     to: "/frontdesk/schedule",     icon: GraduationCap },
+  { key: "pos",         label: "POS",          to: "/frontdesk/pos",          icon: ShoppingBag },
+  { key: "cafe",        label: "Cafe Orders",  to: "/frontdesk/cafe",         icon: UtensilsCrossed },
+  { key: "shift",       label: "My Shift",     to: "/frontdesk/shift",        icon: ClipboardList },
 ] as const;
 
 /**
@@ -138,7 +146,10 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
       <AdminCafeChime />
 
       <div className="min-h-screen flex flex-col bg-background">
-        {/* Header — NO link to /admin ever */}
+        {/* Persistent cafe order banner — visible cue for the front desk */}
+        <CafeOrderBanner />
+
+        {/* Top header — clock + shift badge + End Shift / Lock */}
         <header className="border-b bg-card sticky top-0 z-30">
           <div className="px-4 py-2 flex items-center gap-3 flex-wrap">
             <img src={stormLogo} alt="Storm" className="h-8 w-8 object-contain shrink-0" />
@@ -148,28 +159,6 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
                 {format(now, "EEE, MMM d • h:mm a")}
               </span>
             </div>
-
-            <nav className="ml-4 flex items-center gap-1 overflow-x-auto">
-              {TABS.map(({ key, label, to, icon: Icon }) => {
-                const active =
-                  to === "/frontdesk"
-                    ? location.pathname === "/frontdesk"
-                    : location.pathname.startsWith(to);
-                return (
-                  <Link key={key} to={to}>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={active ? "default" : "ghost"}
-                      className="gap-1.5 h-8 px-2.5"
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span className="text-xs font-medium">{label}</span>
-                    </Button>
-                  </Link>
-                );
-              })}
-            </nav>
 
             <div className="ml-auto flex items-center gap-2">
               {shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID ? (
@@ -195,7 +184,6 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
                 className="gap-1.5 h-8 px-2.5"
                 onClick={() => {
                   if (shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID) {
-                    // No shift row to close — just clear local state
                     sessionStorage.removeItem(SHIFT_KEY);
                     setShift(null);
                   } else {
@@ -221,7 +209,64 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="flex-1 min-h-0">{children}</main>
+        {/* Two-pane: left sidebar + main content */}
+        <div className="flex-1 min-h-0 flex">
+          <aside className="w-48 shrink-0 border-r bg-card hidden md:flex md:flex-col overflow-y-auto">
+            <nav className="p-2 flex flex-col gap-1">
+              {TABS.map(({ key, label, to, icon: Icon }) => {
+                const active =
+                  to === "/frontdesk"
+                    ? location.pathname === "/frontdesk"
+                    : location.pathname.startsWith(to);
+                return (
+                  <Link key={key} to={to}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "ghost"}
+                      className={cn(
+                        "w-full justify-start gap-2 h-9 px-3",
+                        active && "shadow-sm",
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="text-sm font-medium truncate">{label}</span>
+                    </Button>
+                  </Link>
+                );
+              })}
+            </nav>
+          </aside>
+
+          {/* Mobile horizontal tab strip (below md) */}
+          <div className="md:hidden fixed top-[48px] left-0 right-0 z-20 bg-card border-b overflow-x-auto">
+            <nav className="flex gap-1 px-2 py-1.5 min-w-max">
+              {TABS.map(({ key, label, to, icon: Icon }) => {
+                const active =
+                  to === "/frontdesk"
+                    ? location.pathname === "/frontdesk"
+                    : location.pathname.startsWith(to);
+                return (
+                  <Link key={key} to={to}>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "ghost"}
+                      className="gap-1.5 h-8 px-2.5 shrink-0"
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span className="text-xs font-medium">{label}</span>
+                    </Button>
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+
+          <main className="flex-1 min-w-0 min-h-0 md:pt-0 pt-11">
+            {children}
+          </main>
+        </div>
       </div>
 
       <ClockOutPrompt

@@ -143,6 +143,11 @@ import FrontDeskReception from "./pages/frontdesk/Reception";
 import FrontDeskPOSPage from "./pages/frontdesk/POS";
 import FrontDeskSchedule from "./pages/frontdesk/Schedule";
 import FrontDeskShiftPage from "./pages/frontdesk/Shift";
+import FrontDeskMembersPage from "./pages/frontdesk/Members";
+import FrontDeskNonMembersPage from "./pages/frontdesk/NonMembers";
+import FrontDeskGuestPassesPage from "./pages/frontdesk/GuestPassesPage";
+import FrontDeskSpaPage from "./pages/frontdesk/Spa";
+import FrontDeskCafePage from "./pages/frontdesk/Cafe";
 import FrontDeskLogin from "./pages/FrontDeskLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -266,6 +271,12 @@ const App = () => (
               <Route path="/frontdesk/pos" element={<FrontDeskPOSPage />} />
               <Route path="/frontdesk/schedule" element={<FrontDeskSchedule />} />
               <Route path="/frontdesk/shift" element={<FrontDeskShiftPage />} />
+              <Route path="/frontdesk/members" element={<FrontDeskMembersPage />} />
+              <Route path="/frontdesk/non-members" element={<FrontDeskNonMembersPage />} />
+              <Route path="/frontdesk/guest-passes" element={<FrontDeskGuestPassesPage />} />
+              <Route path="/frontdesk/spa" element={<FrontDeskSpaPage />} />
+              <Route path="/frontdesk/cafe" element={<FrontDeskCafePage />} />
+              
               
               {/* Member Portal Routes - Protected */}
               <Route path="/member" element={<ProtectedMemberRoute><MemberDashboard /></ProtectedMemberRoute>} />
