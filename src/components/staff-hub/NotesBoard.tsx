@@ -146,6 +146,45 @@ export function NotesBoard() {
       )}
 
       <CreateNoteDialog open={showCreate} onOpenChange={setShowCreate} onCreated={fetchNotes} />
+
+      <Dialog open={!!selectedNote} onOpenChange={(open) => !open && setSelectedNote(null)}>
+        <DialogContent className="max-w-2xl">
+          {selectedNote && (() => {
+            const VisIcon = VISIBILITY_ICONS[selectedNote.visibility] || Globe;
+            const isOwner = selectedNote.created_by === user?.id;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 pr-6">
+                    {selectedNote.is_pinned && <Pin className="h-4 w-4 text-accent shrink-0" />}
+                    <span className="flex-1">{selectedNote.title}</span>
+                    <Badge variant="outline" className="text-[10px] gap-1 shrink-0">
+                      <VisIcon className="h-3 w-3" />
+                      {selectedNote.visibility === "all_staff" ? "All" : selectedNote.visibility === "specific_roles" ? "Roles" : "Users"}
+                    </Badge>
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="text-xs text-muted-foreground">
+                  {profiles[selectedNote.created_by] || "Staff"} · {format(new Date(selectedNote.created_at), "MMM d, yyyy 'at' h:mm a")}
+                </div>
+                <div className="mt-2 max-h-[60vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+                  {selectedNote.content}
+                </div>
+                {(isSuperAdmin || isOwner) && (
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <Button variant="outline" size="sm" onClick={async () => { await togglePin(selectedNote.id, selectedNote.is_pinned); setSelectedNote({ ...selectedNote, is_pinned: !selectedNote.is_pinned }); }}>
+                      {selectedNote.is_pinned ? "Unpin" : "Pin"}
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={async () => { await deleteNote(selectedNote.id); setSelectedNote(null); }}>
+                      Delete
+                    </Button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
