@@ -34,6 +34,7 @@ export function NotesBoard() {
   const [notes, setNotes] = useState<StaffNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<StaffNote | null>(null);
   const [profiles, setProfiles] = useState<Record<string, string>>({});
 
   const fetchNotes = async () => {
