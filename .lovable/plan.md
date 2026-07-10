@@ -1,24 +1,23 @@
-## Issue
+## Goal
+Fix the front desk login so `frontdesk@stormwellnessclub.com` can sign in at `/front-desk-login` and land in the separate Front Desk dashboard.
 
-Sign-in fails because the auth account `frontdesk@stormwellnessclub.com` does not exist in the database yet — the signup at `/auth` didn't go through (no row in `auth.users`, and the 04:34 log shows `invalid_credentials`).
+## Plan
+1. **Verify the backend auth account**
+   - Check whether `frontdesk@stormwellnessclub.com` exists.
+   - Confirm the account is email-confirmed and not disabled.
 
-## Fix
+2. **Repair the password/sign-in state**
+   - If the account is missing or malformed, recreate/repair it through an approved backend migration.
+   - Reset the password to the intended temporary password.
+   - Ensure the email is confirmed so the login page does not require an email confirmation step.
 
-I'll create the account server-side so you don't have to wrestle with the signup form, then lock it to the front desk role.
+3. **Verify role access**
+   - Confirm the user has exactly one staff role: `front_desk`.
+   - Remove/avoid any admin, manager, or other staff roles that would cause `/front-desk-login` to reject the account.
 
-### Steps
+4. **Check the login route behavior**
+   - Confirm `/front-desk-login` signs the account in, verifies the role, unlocks the kiosk gate for that session, and redirects to `/kiosk/reception` or the intended front desk dashboard route.
 
-1. **Create the auth user** via a one-off migration using `auth.admin`-equivalent SQL:
-   - Email: `frontdesk@stormwellnessclub.com`
-   - Password: `Frontdesk18340`
-   - `email_confirmed_at` set immediately (no confirmation email needed)
-2. **Assign role**: insert a single row into `public.user_roles` with `role = 'front_desk'` for that user. No other roles.
-3. **Verify**:
-   - Confirm the row exists in `auth.users` with `email_confirmed_at` populated.
-   - Confirm exactly one `user_roles` row: `front_desk`.
-4. **Hand-off instructions**: log in at `https://stormwellnessclub.com/front-desk-login` with the credentials above → lands on `/frontdesk` (Reception), still gated by the shared kiosk PIN + personal clock-in PIN.
-
-### Not changing
-
-- No frontend files touched.
-- No changes to `/auth`, `/front-desk-login`, or the `/frontdesk` shell — those are already working from the prior phase.
+## Not changing
+- No admin permissions will be added to this account.
+- No changes to public/member login unless the front desk flow requires a small bug fix.
