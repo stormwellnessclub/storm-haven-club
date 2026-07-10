@@ -169,6 +169,26 @@ export function ClockInGate({ onClockedIn }: ClockInGateProps) {
             Every check-in, sale, and charge is tagged to the clocked-in staffer.
             After 30 minutes of inactivity you'll be asked to clock in again.
           </p>
+          <div className="pt-2 border-t">
+            <button
+              type="button"
+              className="w-full text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+              onClick={() => {
+                onClockedIn({
+                  shiftId: FRONTDESK_BYPASS_SHIFT_ID,
+                  staffUserId: "unassigned",
+                  staffName: "Unassigned (bypass)",
+                  clockInAt: new Date().toISOString(),
+                });
+                toast.warning("Clock-in tracking is off", {
+                  description:
+                    "Shift hours won't be recorded until Staff PINs are set up in Admin → Staff PINs.",
+                });
+              }}
+            >
+              Skip clock-in for now →
+            </button>
+          </div>
         </CardContent>
       </Card>
     </div>
