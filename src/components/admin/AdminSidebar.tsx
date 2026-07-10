@@ -176,11 +176,11 @@ const departments: DepartmentSection[] = [
   },
   {
     label: 'Administration',
-    roles: ['super_admin', 'admin', 'manager'],
+    roles: ['super_admin', 'admin'],
     items: [
-      { title: "Staff Management", url: "/admin/staff-roles", icon: Shield, roles: ['super_admin', 'admin'] },
+      { title: "Staff Management", url: "/admin/staff-roles", icon: Shield },
       { title: "Staff PINs", url: "/admin/staff-pins", icon: KeyRound },
-      { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX, roles: ['super_admin', 'admin'] },
+      { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX },
       { title: "Equipment", url: "/admin/equipment", icon: Dumbbell },
       { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
       { title: "Email Templates", url: "/admin/email-templates", icon: MessageSquare },
