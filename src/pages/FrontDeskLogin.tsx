@@ -123,7 +123,7 @@ export default function FrontDeskLogin() {
       }
 
       if (!isFrontDeskOnly) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         setError("Not authorized. This account has no front desk access.");
         setLoading(false);
         return;
