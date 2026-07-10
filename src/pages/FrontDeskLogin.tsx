@@ -114,7 +114,7 @@ export default function FrontDeskLogin() {
       );
 
       if (hasHigherRole) {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
         setError(
           "This login is for front desk accounts only. Admins sign in at /auth."
         );
