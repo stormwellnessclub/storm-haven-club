@@ -41,7 +41,7 @@ export class ErrorBoundary extends Component<Props, State> {
       clearAuthStorage();
       // Dynamic import to avoid circular dependencies
       const { supabase } = await import("@/integrations/supabase/client");
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: "local" });
     } catch {
       // Ignore errors during cleanup
     }
