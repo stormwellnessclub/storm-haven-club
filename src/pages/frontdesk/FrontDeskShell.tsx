@@ -13,7 +13,7 @@ import {
   Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu,
 } from "lucide-react";
 import { format, formatDistanceStrict } from "date-fns";
-import { ClockInGate, FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
+import { FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
 import { cn } from "@/lib/utils";
@@ -43,9 +43,12 @@ const TABS = [
 /**
  * /frontdesk shell — dedicated experience for front-desk staff.
  *
- * Gates, in order:
- *  1. Shared kiosk PIN (device gate) — reuses `kioskUnlocked` sessionStorage.
- *  2. Personal PIN clock-in (shift gate) — writes to `staff_shift_clocks`.
+ * Gate:
+ *  1. Shared kiosk PIN (device gate) — reuses tab-local `kioskUnlocked` sessionStorage.
+ *
+ * Front desk mode is intentionally NOT tied to the browser auth session. That
+ * lets an admin open /admin in another tab without inheriting front-desk auth,
+ * and lets admin logout leave this front desk tab open.
  *
  * NEVER links into /admin. That's the whole point of this shell.
  */
@@ -109,6 +112,20 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
     setDeviceUnlocked(false);
   };
 
+  // Personal staff clock-in is disabled until staff PINs are ready. Auto-create
+  // a tab-local bypass shift after the device PIN so the old clock-in box never
+  // blocks front desk mode.
+  useEffect(() => {
+    if (deviceUnlocked && !shift) {
+      handleClockedIn({
+        shiftId: FRONTDESK_BYPASS_SHIFT_ID,
+        staffUserId: "unassigned",
+        staffName: "Unassigned (bypass)",
+        clockInAt: new Date().toISOString(),
+      });
+    }
+  }, [deviceUnlocked, shift, handleClockedIn]);
+
   const shiftDuration = useMemo(() => {
     if (!shift) return "";
     try {
@@ -127,18 +144,6 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
       </>
     );
   }
-
-  // ── Gate 2: personal PIN clock-in (auto-bypassed until Staff PINs are set up)
-  useEffect(() => {
-    if (deviceUnlocked && !shift) {
-      handleClockedIn({
-        shiftId: FRONTDESK_BYPASS_SHIFT_ID,
-        staffUserId: "unassigned",
-        staffName: "Unassigned (bypass)",
-        clockInAt: new Date().toISOString(),
-      });
-    }
-  }, [deviceUnlocked, shift, handleClockedIn]);
 
   if (!shift) {
     return <NoIndex />;

@@ -1,38 +1,25 @@
-## Problem
+Fix the front desk/admin session conflict by removing the real account login from front desk mode and making it a device/PIN-only workspace.
 
-`/frontdesk/members` and `/frontdesk/guest-passes` currently just render the full `AdminMembers` / `AdminGuestPasses` pages inside the front-desk shell. That exposes cohort counts (total members, cancelled, past due), billing filters, revenue tallies, and discount/bulk-sale controls that front desk should not see. They should only be able to look someone up and open the profile / mark passes used.
+Plan:
+1. **Remove front desk account auto-login behavior**
+   - Stop `/front-desk-login` from signing into the shared browser auth session.
+   - Stop it from automatically redirecting when any existing user is already signed in.
+   - Keep it as a front-desk unlock screen that uses the kiosk PIN only, then opens `/frontdesk`.
 
-## Plan
+2. **Make front desk mode independent per tab**
+   - Continue using `sessionStorage` for front desk unlock state, since it is tab-specific.
+   - Do not use the global auth session for front desk access, so opening admin in another tab will not inherit the front desk account.
+   - Logging out of admin will no longer close or sign out the front desk tab.
 
-### 1. New slim `/frontdesk/members` page (`src/pages/frontdesk/Members.tsx`)
+3. **Prevent front desk lock from signing out admin**
+   - Update kiosk/front desk lock buttons so they only clear the local front desk/kiosk unlock flag.
+   - Remove the forced auth sign-out tied to front-desk-only accounts.
 
-Rewrite it as a lookup-only view — stop reusing `AdminMembers`:
-- Header: "Member Lookup" + single search input (name / email / member ID / phone).
-- No stat cards, no status/tier/card/subscription/waiver/founding filters, no cohort counts.
-- Show results only after the user types (≥ 2 chars). Empty state: "Search for a member by name, email, or member ID."
-- Each result row: photo, name, member ID, tier badge, and — only when relevant — a compact red "Cannot check in" chip if billing-blocked (past due / frozen / cancelled). No dollar amounts.
-- Clicking a row opens the existing `MemberDetailSheet` (same drawer admin uses, so charge / add note / adjust credits / view profile all still work — those actions are already gated by role internally).
-- Query pattern: on-demand `supabase.from('members').select(...).or(ilike name/email/member_id).limit(25)` instead of loading every member.
+4. **Keep admin protected normally**
+   - Admin routes will still require a real admin login.
+   - Front desk routes remain restricted by the kiosk/device PIN and their limited front desk UI, not the admin session.
 
-### 2. New slim `/frontdesk/guest-passes` page (`src/pages/frontdesk/GuestPassesPage.tsx`)
-
-Rewrite as an operational-only view:
-- Two sections: **Today's Passes** (list, with "Mark used" button) and **Sell a Guest Pass** (single-quantity form, fixed $25 price, guest name + email + phone + date).
-- No revenue totals, no upcoming/expired/exhausted stat cards, no quantity picker, no discount toggle, no admin bulk sale.
-- Reuse the existing `guest-passes` sell endpoint but hard-code `quantity: 1` and no discount.
-- Keep the "Mark used" action on today's active passes.
-
-### 3. Keep admin pages untouched
-
-`/admin/members` and `/admin/guest-passes` stay exactly as they are for admin / super_admin. Only the `/frontdesk/*` wrappers change.
-
-### 4. Sidebar labels
-
-In `FrontDeskShell`, rename "Members" → "Member Lookup" and "Guest Passes" → "Guest Passes" (already fine) so the intent reads clearly.
-
-## Technical Notes
-
-- `MemberDetailSheet` is already the shared drawer — it's the same one `AdminMembers` opens, so no functionality is lost, just the surrounding cohort view.
-- Search uses PostgREST `.or()` with `ilike` patterns; RLS on `members` already permits `front_desk` to read (via `has_any_role`) so no policy change is needed.
-- Guest pass sell flow reuses the existing `create-guest-pass-checkout` (or equivalent) edge function currently used by `AdminGuestPasses` — just called with fixed args from the slim form.
-- No DB migration, no RLS change, no admin regressions.
+5. **Verify the workflow**
+   - Open/unlock front desk in one tab.
+   - Open `/admin` in another tab and confirm it asks for admin login instead of auto-entering as front desk.
+   - Confirm admin logout does not lock or close the front desk tab.
