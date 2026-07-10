@@ -179,6 +179,50 @@ export default function Settings() {
           </CardContent>
         </Card>
 
+        {/* Change Password */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Change Password
+            </CardTitle>
+            <CardDescription>
+              Update the password for your admin account
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 max-w-sm">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <Button
+              disabled={isSavingPassword || !newPassword || !confirmPassword}
+              onClick={handleChangePassword}
+            >
+              {isSavingPassword ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Update Password
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Security */}
         <Card>
           <CardHeader>
