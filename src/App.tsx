@@ -105,6 +105,7 @@ import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
 import StaffRoles from "./pages/admin/StaffRoles";
 import StaffDetail from "./pages/admin/StaffDetail";
+import StaffPins from "./pages/admin/StaffPins";
 import ClassTypes from "./pages/admin/ClassTypes";
 import ClassTypeDetail from "./pages/admin/ClassTypeDetail";
 import Instructors from "./pages/admin/Instructors";
