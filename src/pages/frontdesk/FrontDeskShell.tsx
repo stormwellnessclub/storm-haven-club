@@ -30,7 +30,7 @@ interface ShiftState {
 
 const TABS = [
   { key: "reception",   label: "Reception",    to: "/frontdesk",              icon: UserCheck },
-  { key: "members",     label: "Members",      to: "/frontdesk/members",      icon: Users },
+  { key: "members",     label: "Member Lookup", to: "/frontdesk/members",     icon: Users },
   { key: "non-members", label: "Non-Members",  to: "/frontdesk/non-members",  icon: UserSearch },
   { key: "guest",       label: "Guest Passes", to: "/frontdesk/guest-passes", icon: Ticket },
   { key: "spa",         label: "Spa",          to: "/frontdesk/spa",          icon: Sparkles },
