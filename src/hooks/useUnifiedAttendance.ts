@@ -184,36 +184,83 @@ export function useUnifiedAttendance() {
       });
     });
 
-    // Classes
+    // Resolve non-member identities for class + spa check-ins that lack a linked member.
     const classCheckins = cacheRef.current.classCheckins;
+    const spaCheckins = cacheRef.current.spaCheckins;
+    const missingUserIds = Array.from(
+      new Set(
+        [...classCheckins, ...spaCheckins]
+          .filter((r: any) => !r.member && r.user_id)
+          .map((r: any) => r.user_id as string)
+      )
+    );
+
+    let nmMap = new Map<string, any>();
+    let profMap = new Map<string, any>();
+    if (missingUserIds.length > 0) {
+      const [nmRes, profRes] = await Promise.all([
+        supabase
+          .from("non_member_profiles")
+          .select("user_id, first_name, last_name, email")
+          .in("user_id", missingUserIds),
+        supabase
+          .from("profiles")
+          .select("user_id, first_name, last_name, email")
+          .in("user_id", missingUserIds),
+      ]);
+      nmMap = new Map((nmRes.data || []).map((p: any) => [p.user_id, p]));
+      profMap = new Map((profRes.data || []).map((p: any) => [p.user_id, p]));
+    }
+
+    const resolveIdentity = (row: any, contextLabel: string): { name: string; subtitle: string; navigateTo?: string } => {
+      if (row.member) {
+        return {
+          name: `${row.member.first_name} ${row.member.last_name}`,
+          subtitle: contextLabel,
+          navigateTo: row.member.id ? `/admin/members/${row.member.id}` : undefined,
+        };
+      }
+      if (row.user_id && nmMap.has(row.user_id)) {
+        const nm = nmMap.get(row.user_id);
+        const name = [nm.first_name, nm.last_name].filter(Boolean).join(" ") || nm.email || "Non-Member";
+        return { name, subtitle: `Non-Member • ${contextLabel}` };
+      }
+      if (row.user_id && profMap.has(row.user_id)) {
+        const p = profMap.get(row.user_id);
+        const name = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "Guest";
+        return { name, subtitle: `Guest • ${contextLabel}` };
+      }
+      if (row.walk_in_name) {
+        return { name: row.walk_in_name, subtitle: `Walk-In • ${contextLabel}` };
+      }
+      return { name: "Walk-In", subtitle: `Walk-In • ${contextLabel}` };
+    };
+
+    // Classes
     classCheckins.forEach((cb: any) => {
-      const name = cb.member
-        ? `${cb.member.first_name} ${cb.member.last_name}`
-        : cb.walk_in_name || "Walk-in";
       const className = cb.session?.class_type?.name || "Class";
+      const ident = resolveIdentity(cb, className);
       all.push({
         id: `class-${cb.id}`,
         type: "class",
-        name,
+        name: ident.name,
         time: cb.checked_in_at,
-        subtitle: className,
-        navigateTo: cb.member?.id ? `/admin/members/${cb.member.id}` : undefined,
+        subtitle: ident.subtitle,
+        navigateTo: ident.navigateTo,
       });
     });
 
     // Spa
-    const spaCheckins = cacheRef.current.spaCheckins;
     spaCheckins.forEach((sa: any) => {
-      const name = sa.member
-        ? `${sa.member.first_name} ${sa.member.last_name}`
-        : "Unknown";
+      const svc = sa.service_name || "Spa Service";
+      const ident = resolveIdentity(sa, svc);
       all.push({
         id: `spa-${sa.id}`,
         type: "spa",
-        name,
+        name: ident.name,
         time: sa.checked_in_at,
-        subtitle: sa.service_name || "Spa Service",
-        navigateTo: sa.member?.id ? `/admin/members/${sa.member.id}` : undefined,
+        subtitle: ident.subtitle,
+        navigateTo: ident.navigateTo,
       });
     });
 
