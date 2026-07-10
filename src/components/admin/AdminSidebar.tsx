@@ -21,6 +21,7 @@ import {
   Baby,
   Dumbbell,
   Shield,
+  KeyRound,
   ShieldX,
   UserCog,
   UserPlus,
