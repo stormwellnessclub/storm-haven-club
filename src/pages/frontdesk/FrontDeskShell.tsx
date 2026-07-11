@@ -17,6 +17,7 @@ import { format, formatDistanceStrict } from "date-fns";
 import { FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
+import { SupportAlertBanner } from "@/components/frontdesk/SupportAlertBanner";
 import { cn } from "@/lib/utils";
 
 const SHIFT_KEY = "frontdeskActiveShift";
