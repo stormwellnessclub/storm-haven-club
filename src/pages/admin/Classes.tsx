@@ -103,6 +103,8 @@ function formatTime(time: string) {
 export default function Classes() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isFrontDesk = useBareAdminLayout() || location.pathname.startsWith("/frontdesk");
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
