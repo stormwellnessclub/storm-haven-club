@@ -723,9 +723,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
-          className="w-full sm:max-w-3xl lg:max-w-4xl overflow-y-auto"
+          className="w-screen max-w-none sm:max-w-[95vw] lg:max-w-[1200px] xl:max-w-[1400px] overflow-y-auto"
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <SheetHeader>
             <div className="flex items-center justify-between">
