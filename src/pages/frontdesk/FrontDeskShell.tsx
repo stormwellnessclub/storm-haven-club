@@ -10,8 +10,9 @@ import { NoIndex } from "@/components/seo/NoIndex";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import {
   UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
-  Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu,
+  Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu, MessageCircle,
 } from "lucide-react";
+import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { format, formatDistanceStrict } from "date-fns";
 import { FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
