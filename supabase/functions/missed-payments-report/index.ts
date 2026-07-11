@@ -43,6 +43,9 @@ async function customersByEmail(email: string): Promise<string[]> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
+  const auth = await requireStaff(req);
+  if (!auth.ok) return auth.response;
+
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
   const { data: members } = await sb
     .from("members")
