@@ -5,6 +5,7 @@
 // we only send a touchpoint when no prior row exists for the *current* pm_id + exp.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireStaff } from "../_shared/requireStaff.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 
 const corsHeaders = {
