@@ -19,7 +19,7 @@ import { MessageCircle, Lock } from "lucide-react";
  */
 export default function FrontDeskMessagesPage() {
   const { user, loading } = useAuth();
-  const { roles, isLoading: rolesLoading } = useUserRoles();
+  const { roles, loading: rolesLoading } = useUserRoles();
   const location = useLocation();
 
   const authorized =
