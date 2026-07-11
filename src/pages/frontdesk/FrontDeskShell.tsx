@@ -56,6 +56,8 @@ const TABS = [
  */
 export function FrontDeskShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { data: supportNotif } = useAdminSupportNotifications();
+  const messagesBadge = (supportNotif?.openCount || 0) + (supportNotif?.unreadCount || 0);
   const [deviceUnlocked, setDeviceUnlocked] = useState(false);
   const [shift, setShift] = useState<ShiftState | null>(null);
   const [now, setNow] = useState(() => new Date());
