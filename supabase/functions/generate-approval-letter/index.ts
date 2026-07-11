@@ -22,6 +22,9 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  const authCheck = await requireStaff(req);
+  if (!authCheck.ok) return authCheck.response;
+
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
