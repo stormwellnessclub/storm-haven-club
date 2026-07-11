@@ -1,6 +1,7 @@
 // For each active member, find PAID DUES INVOICES across ALL Stripe customers with their email.
 // "Dues" = subscription invoice whose line amount matches a known monthly/annual dues amount.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireStaff } from "../_shared/requireStaff.ts";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" };
 const STRIPE_KEY = Deno.env.get("STRIPE_SECRET_KEY")!;
