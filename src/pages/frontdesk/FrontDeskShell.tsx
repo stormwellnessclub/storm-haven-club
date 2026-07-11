@@ -164,6 +164,7 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex flex-col bg-background">
         {/* Persistent cafe order banner — visible cue for the front desk */}
         <CafeOrderBanner />
+        <SupportAlertBanner />
 
         {/* Top header — clock + shift badge + End Shift / Lock */}
         <header className="border-b bg-card sticky top-0 z-30">
