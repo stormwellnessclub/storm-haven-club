@@ -4781,6 +4781,89 @@ export type Database = {
         }
         Relationships: []
       }
+      monthly_credit_grants: {
+        Row: {
+          amount: number
+          created_at: string
+          credit_type: Database["public"]["Enums"]["credit_type"]
+          cycle_end: string
+          cycle_start: string
+          expires_at: string
+          id: string
+          member_credit_id: string | null
+          member_id: string
+          metadata: Json
+          source: string
+          stripe_invoice_id: string
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          credit_type: Database["public"]["Enums"]["credit_type"]
+          cycle_end: string
+          cycle_start: string
+          expires_at: string
+          id?: string
+          member_credit_id?: string | null
+          member_id: string
+          metadata?: Json
+          source?: string
+          stripe_invoice_id: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          credit_type?: Database["public"]["Enums"]["credit_type"]
+          cycle_end?: string
+          cycle_start?: string
+          expires_at?: string
+          id?: string
+          member_credit_id?: string | null
+          member_id?: string
+          metadata?: Json
+          source?: string
+          stripe_invoice_id?: string
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "monthly_credit_grants_member_credit_id_fkey"
+            columns: ["member_credit_id"]
+            isOneToOne: false
+            referencedRelation: "member_credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_credit_grants_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_credit_grants_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "monthly_credit_grants_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mothers_day_voucher_emails: {
         Row: {
           created_at: string
@@ -9114,6 +9197,22 @@ export type Database = {
           _reason: string
         }
         Returns: string
+      }
+      grant_monthly_membership_credit: {
+        Args: {
+          p_amount: number
+          p_credit_type: Database["public"]["Enums"]["credit_type"]
+          p_cycle_end: string
+          p_cycle_start: string
+          p_expires_at: string
+          p_member_id: string
+          p_metadata?: Json
+          p_source?: string
+          p_stripe_invoice_id: string
+          p_stripe_subscription_id: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       has_any_role: {
         Args: {
