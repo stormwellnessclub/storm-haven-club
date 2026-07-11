@@ -2746,12 +2746,6 @@ serve(async (req) => {
                       usedLiveCycle,
                     });
                   }
-                    logStep("Credits already exist or tier has no credits", { 
-                      memberId: memberData.id,
-                      tier: tierName,
-                      cycleStart: cycleStartStr
-                    });
-                  }
                 }
               } catch (creditRenewalError) {
                 logError(creditRenewalError, "CREDIT_RENEWAL");
