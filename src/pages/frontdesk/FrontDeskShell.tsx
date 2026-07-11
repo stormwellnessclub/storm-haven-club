@@ -17,6 +17,7 @@ import { format, formatDistanceStrict } from "date-fns";
 import { FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
+import { SupportAlertBanner } from "@/components/frontdesk/SupportAlertBanner";
 import { cn } from "@/lib/utils";
 
 const SHIFT_KEY = "frontdeskActiveShift";
@@ -163,6 +164,7 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
       <div className="min-h-screen flex flex-col bg-background">
         {/* Persistent cafe order banner — visible cue for the front desk */}
         <CafeOrderBanner />
+        <SupportAlertBanner />
 
         {/* Top header — clock + shift badge + End Shift / Lock */}
         <header className="border-b bg-card sticky top-0 z-30">
