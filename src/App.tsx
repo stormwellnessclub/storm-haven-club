@@ -149,6 +149,7 @@ import FrontDeskGuestPassesPage from "./pages/frontdesk/GuestPassesPage";
 import FrontDeskSpaPage from "./pages/frontdesk/Spa";
 import FrontDeskCafePage from "./pages/frontdesk/Cafe";
 import FrontDeskClassRosterPage from "./pages/frontdesk/ClassRoster";
+import FrontDeskMessagesPage from "./pages/frontdesk/Messages";
 import { ProtectedInstructorRoute } from "./components/instructor/ProtectedInstructorRoute";
 import InstructorToday from "./pages/instructor/Today";
 import {
