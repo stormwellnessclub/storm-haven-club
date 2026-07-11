@@ -1,39 +1,47 @@
-## The bug
+I’ll fix the late-payment credit issue at the root, not just date formatting.
 
-In `supabase/functions/stripe-webhook/index.ts` (the `invoice.payment_succeeded` handler for monthly dues, roughly lines 2618–2702), monthly credits are created using the **invoice's** `period_start` / `period_end`.
+Plan:
 
-When a payment lands **late**, that invoice still describes the original billing window — e.g. an invoice covering "Jul 1 – Jul 31" that is only paid on Aug 5. The webhook then inserts credits with `expires_at = Jul 31`, so they land in the database already expired. To the member the credits look like they were never added.
+1. **Make credit issuance idempotent by invoice**
+   - Add a small backend ledger for monthly credit grants keyed by `stripe_invoice_id + credit_type`.
+   - This prevents duplicate credits if Stripe retries the same webhook, while still allowing a late paid invoice to grant credits once.
 
-There's also no cross-check against the member's actual current cycle from Stripe, so the collision guard (`.eq('cycle_start', cycleStartStr)`) uses the wrong cycle_start when the invoice period is stale.
+2. **Replace fragile insert-only webhook logic**
+   - Update `stripe-webhook` so `invoice.payment_succeeded` does not just `.insert()` credits and silently log conflicts.
+   - It will call one atomic database function that:
+     - verifies the invoice has not already granted that credit type,
+     - finds or creates the correct current usable cycle row,
+     - adds the monthly allocation to `credits_total` and `credits_remaining` when appropriate,
+     - extends `cycle_end/expires_at` so paid-late credits are usable,
+     - records the grant against the invoice.
 
-## The fix
+3. **Handle late payments correctly**
+   - If the paid invoice period is already stale, credits will be granted into the current usable cycle instead of an expired cycle.
+   - If an existing current row exists, the system will top it up instead of failing on the unique constraint.
+   - Silver remains unchanged because Silver has no monthly credits.
 
-Edit the credit-renewal block inside `invoice.payment_succeeded` in `supabase/functions/stripe-webhook/index.ts` so credits always align with the member's **live** cycle:
+4. **Backfill affected active members**
+   - Run a targeted backend repair for active Gold/Platinum/Diamond members with successful dues payments but missing/stale monthly credits.
+   - Exclude cancelled members and respect frozen/benefit-blocked rules where applicable.
 
-1. Retrieve the subscription: `stripe.subscriptions.retrieve(invoice.subscription)`.
-2. Compute `cycleStart` / `cycleEnd` from `subscription.current_period_start` / `subscription.current_period_end` (fall back to the item-level values Stripe uses on newer API versions, then to the invoice period as a last resort).
-3. If the resulting `cycleEnd` is still in the past (edge case: subscription hasn't ticked yet), roll the cycle forward: `cycleStart = today`, `cycleEnd = today + 30 days`. Never issue credits with `expires_at < now()`.
-4. Keep the existing "credits already exist for this cycle" guard, but query it against the corrected `cycle_start` so re-runs stay idempotent.
-5. Add a `logStep("Late payment detected — using live subscription cycle", …)` when the invoice period was in the past, so this is visible in edge logs.
+5. **Verify**
+   - Query the affected members after the migration to confirm each expected credit type exists and is usable.
+   - Deploy the updated webhook function.
 
-No other code paths change: annual-fee invoices, Kids Care renewals, dunning recovery, `billing_arrears` upsert, and the tier-downgrade branch all keep their current behavior.
+Technical details:
 
-## Backfill for members already affected
+```text
+Current failure mode:
+Stripe invoice.payment_succeeded
+  -> webhook computes cycle_start
+  -> checks existing member_credits by cycle_start
+  -> batch inserts rows
+  -> unique conflicts / expired cycles are only logged
+  -> member may remain without usable credits
 
-After the webhook fix ships, one-off reconcile for members whose last successful dues payment happened after their invoice's `period_end`:
-
-- Query `payment_attempts` (status `succeeded`, `charge_type = membership_dues`) joined against `member_credits` to find members with no unexpired credits despite a recent paid dues invoice.
-- For each match, insert current-cycle credits using the same tier map used in the webhook (`TIER_CREDITS`), with `cycle_end` set from their live Stripe `current_period_end`.
-
-I'll surface the list for review before granting anything so nothing gets double-credited.
-
-## Verification
-
-- Check `stripe-webhook` edge function logs for the new "late payment detected" line after the next past-due recovery.
-- Spot-check one affected member in `member_credits`: `expires_at` should be in the future and `credits_remaining` should reflect their tier.
-- Confirm the member sees the credits in the portal (Wellness / Class booking screens).
-
-## Scope guardrails
-
-- Only touches the monthly dues credit branch. Annual fee, Kids Care, tier downgrades, dunning, blocked-person refunds, and arrears logic are untouched.
-- No schema changes and no changes to `process-monthly-credits` cron.
+New behavior:
+Stripe invoice.payment_succeeded
+  -> grant_monthly_membership_credits(invoice_id, member_id, cycle, tier)
+  -> atomic invoice ledger + member_credits create/update
+  -> no duplicates, no stale expiration, no silent skipped credits
+```
