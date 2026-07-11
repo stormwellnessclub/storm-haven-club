@@ -1116,7 +1116,7 @@ export default function ClassRoster() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate("/admin/classes")}>
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate(backTarget)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Classes
           </Button>
           <h1 className="text-2xl font-bold">{className}</h1>
