@@ -246,6 +246,11 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="text-sm font-medium truncate">{label}</span>
+                      {key === "messages" && messagesBadge > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">
+                          {messagesBadge}
+                        </Badge>
+                      )}
                     </Button>
                   </Link>
                 );
