@@ -102,6 +102,8 @@ async function sendClassConfirmationNotifications(args: {
 
 export default function ClassRoster() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
+  const backTarget = location.pathname.startsWith("/frontdesk") ? "/frontdesk/schedule" : "/admin/classes";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
