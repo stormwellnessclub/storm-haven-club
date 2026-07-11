@@ -2729,13 +2729,23 @@ serve(async (req) => {
                     if (creditError) {
                       logError(creditError, "CREDIT_RENEWAL");
                     } else {
-                      logStep("Monthly credits renewed", { 
-                        memberId: memberData.id, 
+                      logStep("Monthly credits renewed", {
+                        memberId: memberData.id,
                         credits: creditsToCreate.length,
-                        tier: tierName
+                        tier: tierName,
+                        cycleStart: cycleStartStr,
+                        cycleEnd: cycleEndStr,
+                        usedLiveCycle,
                       });
                     }
                   } else {
+                    logStep("Credits already exist or tier has no credits", {
+                      memberId: memberData.id,
+                      tier: tierName,
+                      cycleStart: cycleStartStr,
+                      usedLiveCycle,
+                    });
+                  }
                     logStep("Credits already exist or tier has no credits", { 
                       memberId: memberData.id,
                       tier: tierName,
