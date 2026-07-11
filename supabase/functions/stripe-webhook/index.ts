@@ -2615,7 +2615,11 @@ serve(async (req) => {
                 }
               }
 
-              // Create new monthly credits for successful subscription renewal
+              // Create monthly credits for successful subscription renewal.
+              // This goes through an atomic DB function so a late-paid invoice can
+              // add usable credits to the current cycle without failing on the
+              // member_credits unique constraint, while Stripe webhook retries stay
+              // idempotent per invoice + credit type.
               try {
                 // Get member tier to determine credit amounts
                 const { data: memberInfo } = await supabase
@@ -2684,68 +2688,66 @@ serve(async (req) => {
                   const cycleStartStr = cycleStart.toISOString().split('T')[0];
                   const cycleEndStr = cycleEnd.toISOString().split('T')[0];
 
-                  // Check if credits already exist for this cycle
-                  const { data: existingCredits } = await supabase
-                    .from('member_credits')
-                    .select('credit_type')
-                    .eq('user_id', memberInfo.user_id)
-                    .eq('cycle_start', cycleStartStr);
-
-                  const existingTypes = new Set(existingCredits?.map((c: { credit_type: string }) => c.credit_type) || []);
-
-                  const creditsToCreate: Array<{
-                    user_id: string;
-                    member_id: string;
-                    credit_type: string;
-                    credits_total: number;
-                    credits_remaining: number;
-                    cycle_start: string;
-                    cycle_end: string;
-                    expires_at: string;
-                  }> = [];
                   const creditTypes = ['class', 'red_light', 'dry_cryo'] as const;
+                  const grantResults: Array<{ creditType: string; result: unknown }> = [];
+                  let grantedCount = 0;
+                  let alreadyProcessedCount = 0;
 
                   for (const creditType of creditTypes) {
                     const amount = tierCredits[creditType];
-                    if (amount > 0 && !existingTypes.has(creditType)) {
-                      creditsToCreate.push({
-                        user_id: memberInfo.user_id,
-                        member_id: memberData.id,
-                        credit_type: creditType,
-                        credits_total: amount,
-                        credits_remaining: amount,
-                        cycle_start: cycleStartStr,
-                        cycle_end: cycleEndStr,
-                        expires_at: expiresAt.toISOString(),
-                      });
+                    if (amount <= 0) continue;
+
+                    const { data: grantResult, error: grantError } = await supabase.rpc('grant_monthly_membership_credit', {
+                      p_member_id: memberData.id,
+                      p_user_id: memberInfo.user_id,
+                      p_stripe_invoice_id: invoice.id,
+                      p_stripe_subscription_id: invoice.subscription as string,
+                      p_credit_type: creditType,
+                      p_amount: amount,
+                      p_cycle_start: cycleStartStr,
+                      p_cycle_end: cycleEndStr,
+                      p_expires_at: expiresAt.toISOString(),
+                      p_source: 'stripe_webhook',
+                      p_metadata: {
+                        tier: tierName,
+                        invoice_period_start: invoice.period_start,
+                        invoice_period_end: invoice.period_end,
+                        billing_reason: invoice.billing_reason,
+                        used_live_cycle: usedLiveCycle,
+                        stripe_event_id: event.id,
+                      },
+                    });
+
+                    if (grantError) {
+                      logError(grantError, `CREDIT_RENEWAL_${creditType}`);
+                      continue;
                     }
+
+                    const alreadyProcessed = Boolean((grantResult as { already_processed?: boolean } | null)?.already_processed);
+                    if (alreadyProcessed) alreadyProcessedCount += 1;
+                    else grantedCount += 1;
+                    grantResults.push({ creditType, result: grantResult });
                   }
 
-                  if (creditsToCreate.length > 0) {
-                    const { error: creditError } = await supabase
-                      .from('member_credits')
-                      .insert(creditsToCreate);
-
-                    if (creditError) {
-                      logError(creditError, "CREDIT_RENEWAL");
-                    } else {
-                      logStep("Monthly credits renewed", {
-                        memberId: memberData.id,
-                        credits: creditsToCreate.length,
-                        tier: tierName,
-                        cycleStart: cycleStartStr,
-                        cycleEnd: cycleEndStr,
-                        usedLiveCycle,
-                      });
-                    }
+                  if (grantedCount > 0 || alreadyProcessedCount > 0) {
+                    logStep("Monthly credits grant processed", {
+                      memberId: memberData.id,
+                      grantedCount,
+                      alreadyProcessedCount,
+                      tier: tierName,
+                      cycleStart: cycleStartStr,
+                      cycleEnd: cycleEndStr,
+                      usedLiveCycle,
+                      grantResults,
+                    });
                   } else {
-                    logStep("Credits already exist or tier has no credits", {
+                    logStep("Monthly credits skipped because tier has no credits", {
                       memberId: memberData.id,
                       tier: tierName,
                       cycleStart: cycleStartStr,
                       usedLiveCycle,
                     });
-                  }
+                    }
                 }
               } catch (creditRenewalError) {
                 logError(creditRenewalError, "CREDIT_RENEWAL");
