@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireStaff } from "../_shared/requireStaff.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +12,11 @@ const CORS_HEADERS = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
+
+  const authCheck = await requireStaff(req);
+  if (!authCheck.ok) return authCheck.response;
+
+
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");

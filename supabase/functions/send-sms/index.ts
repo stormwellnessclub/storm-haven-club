@@ -148,8 +148,10 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
-    // Trusted server callers: service role or anon key (cron/internal function-to-function).
-    const isServerCaller = token === SERVICE_ROLE || token === anonKey;
+    // Trusted server callers: ONLY the service role key. The anon/publishable
+    // key ships in the client bundle and cannot prove server origin, so it
+    // must not grant admin trust or consent bypass.
+    const isServerCaller = token === SERVICE_ROLE;
 
     let callerUserId: string | null = null;
     let callerIsAdmin = isServerCaller; // server callers can bypassConsent

@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireStaff } from "../_shared/requireStaff.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -346,6 +347,10 @@ Deno.serve(async (req) => {
 
     // Action: send — send push notification to specific users
     if (action === "send") {
+      // Require a staff JWT (or service-role key) — never a bare anon key.
+      const auth = await requireStaff(req);
+      if (!auth.ok) return auth.response;
+
       const { user_ids, title, message, urgent, url, tag } = body;
 
       if (!user_ids || !Array.isArray(user_ids) || user_ids.length === 0) {
