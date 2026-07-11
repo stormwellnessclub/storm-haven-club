@@ -1,67 +1,39 @@
+## The bug
 
-# Aggressively fix all 281 warn-level security findings
+In `supabase/functions/stripe-webhook/index.ts` (the `invoice.payment_succeeded` handler for monthly dues, roughly lines 2618–2702), monthly credits are created using the **invoice's** `period_start` / `period_end`.
 
-All findings are Supabase linter `warn` — no criticals. Fix in 4 staged DB migrations so each stage can be verified before the next lands. After each migration I re-run the scanner and mark cleared findings fixed.
+When a payment lands **late**, that invoice still describes the original billing window — e.g. an invoice covering "Jul 1 – Jul 31" that is only paid on Aug 5. The webhook then inserts credits with `expires_at = Jul 31`, so they land in the database already expired. To the member the credits look like they were never added.
 
-## Stage 1 — `function_search_path_mutable` (safest, ~majority of findings)
+There's also no cross-check against the member's actual current cycle from Stripe, so the collision guard (`.eq('cycle_start', cycleStartStr)`) uses the wrong cycle_start when the invoice period is stale.
 
-Add `SET search_path = public` (or `public, pg_temp` for SECURITY DEFINER) to every `public.*` function missing it. Pure hardening — no behavior change.
+## The fix
 
-- Query `pg_proc` to enumerate every public function whose `proconfig` lacks `search_path`.
-- Emit `ALTER FUNCTION public.<name>(<args>) SET search_path = public` for each.
-- No app code touched.
+Edit the credit-renewal block inside `invoice.payment_succeeded` in `supabase/functions/stripe-webhook/index.ts` so credits always align with the member's **live** cycle:
 
-## Stage 2 — Public storage bucket listing (3 findings)
+1. Retrieve the subscription: `stripe.subscriptions.retrieve(invoice.subscription)`.
+2. Compute `cycleStart` / `cycleEnd` from `subscription.current_period_start` / `subscription.current_period_end` (fall back to the item-level values Stripe uses on newer API versions, then to the invoice period as a last resort).
+3. If the resulting `cycleEnd` is still in the past (edge case: subscription hasn't ticked yet), roll the cycle forward: `cycleStart = today`, `cycleEnd = today + 30 days`. Never issue credits with `expires_at < now()`.
+4. Keep the existing "credits already exist for this cycle" guard, but query it against the corrected `cycle_start` so re-runs stay idempotent.
+5. Add a `logStep("Late payment detected — using live subscription cycle", …)` when the invoice period was in the past, so this is visible in edge logs.
 
-For each public bucket flagged (likely `member-photos`, `equipment-images`, `cafe-menu`-style — I'll confirm from `storage.buckets`):
+No other code paths change: annual-fee invoices, Kids Care renewals, dunning recovery, `billing_arrears` upsert, and the tier-downgrade branch all keep their current behavior.
 
-- Keep bucket public for direct URL reads.
-- Replace broad `storage.objects` SELECT policy with one that allows anon `SELECT` **only when a specific object name is requested** by removing the list-all policy and relying on direct URL access, OR narrow the SELECT policy `USING` clause to `false` for anon while keeping objects reachable via signed/public URLs.
-- Verification: `curl` a known object URL still works after migration.
+## Backfill for members already affected
 
-## Stage 3 — `rls_policy_always_true` on writes (3 findings)
+After the webhook fix ships, one-off reconcile for members whose last successful dues payment happened after their invoice's `period_end`:
 
-Enumerate policies where `cmd IN ('INSERT','UPDATE','DELETE','ALL')` and `qual = 'true'` or `with_check = 'true'`. For each:
-- If the table is admin/service-only → replace `true` with `has_any_role(auth.uid(), ARRAY['super_admin','admin','manager'])`.
-- If it's an ownership table → replace with `auth.uid() = user_id`.
-- I'll list each policy in the migration description before running so you can veto any that should stay open.
+- Query `payment_attempts` (status `succeeded`, `charge_type = membership_dues`) joined against `member_credits` to find members with no unexpired credits despite a recent paid dues invoice.
+- For each match, insert current-cycle credits using the same tier map used in the webhook (`TIER_CREDITS`), with `cycle_end` set from their live Stripe `current_period_end`.
 
-## Stage 4 — SECURITY DEFINER EXECUTE lockdown (largest, highest risk)
+I'll surface the list for review before granting anything so nothing gets double-credited.
 
-Two lint IDs: anon-executable and authenticated-executable SECURITY DEFINER functions.
+## Verification
 
-Approach: **default-deny, allow-list the intentionally public ones.**
+- Check `stripe-webhook` edge function logs for the new "late payment detected" line after the next past-due recovery.
+- Spot-check one affected member in `member_credits`: `expires_at` should be in the future and `credits_remaining` should reflect their tier.
+- Confirm the member sees the credits in the portal (Wellness / Class booking screens).
 
-1. Enumerate all `public.*` SECURITY DEFINER functions.
-2. Build an allow-list of functions that MUST stay callable by anon/authenticated because the app depends on them:
-   - `has_role`, `has_any_role`, `current_user_email_lower`
-   - `process_member_scan`, `kiosk_search_visitors`, `kiosk_check_in_*`
-   - `submit_class_review_for_booking`, review submission RPCs
-   - Booking/credit atomic RPCs called from member portal (`book_class_*`, `cancel_class_booking`, `redeem_*`, `apply_*`)
-   - `handle_new_user` / trigger-only functions (leave untouched — triggers don't need EXECUTE grants)
-   - Any function referenced by non-staff client code (I'll grep `supabase.rpc(` across `src/`)
-3. For every other SECURITY DEFINER function:
-   - `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated;`
-   - `GRANT EXECUTE ... TO service_role;` (and staff role via `has_any_role` check inside function, if needed).
-4. Print the full revoke/keep table in the migration description before running.
+## Scope guardrails
 
-Risk: revoking EXECUTE on a function the client actually calls will break that feature. Mitigation: I audit `supabase.rpc(...)` and known trigger uses first, and stage this migration last so earlier fixes aren't blocked.
-
-## Verification loop
-
-After each stage: re-run `security--run_security_scan`, confirm the target category count drops to 0 (or a known allow-listed remainder for Stage 4), then `manage_security_finding` → `mark_as_fixed` for each cleared internal_id. If any app flow breaks, roll back with a compensating migration.
-
-## What I will NOT touch
-
-- `supabase/config.toml`, `auth`, `storage`, `realtime`, `supabase_functions`, `vault` schemas.
-- Auto-generated `src/integrations/supabase/*`.
-- Any function whose behavior is exercised only by staff and already gated at RLS level — hardening only, no logic changes.
-
-## Rough size
-
-- Stage 1: ~1 migration, dozens of `ALTER FUNCTION` lines.
-- Stage 2: 1 migration, 3 policy edits.
-- Stage 3: 1 migration, 3 policy edits.
-- Stage 4: 1 migration, potentially ~60–100 `REVOKE/GRANT` lines plus an allow-list comment block.
-
-Approve to switch to build mode and I'll start with Stage 1.
+- Only touches the monthly dues credit branch. Annual fee, Kids Care, tier downgrades, dunning, blocked-person refunds, and arrears logic are untouched.
+- No schema changes and no changes to `process-monthly-credits` cron.
