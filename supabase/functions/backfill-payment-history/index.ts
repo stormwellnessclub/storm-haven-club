@@ -63,6 +63,9 @@ function classifyInvoice(inv: Stripe.Invoice): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
 
+  const authCheck = await requireStaff(req);
+  if (!authCheck.ok) return authCheck.response;
+
   try {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
