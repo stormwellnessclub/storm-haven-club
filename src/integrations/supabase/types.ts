@@ -8420,6 +8420,30 @@ export type Database = {
         }
         Relationships: []
       }
+      kids_care_hour_slots_public: {
+        Row: {
+          close_time: string | null
+          id: string | null
+          label: string | null
+          open_time: string | null
+          slot_date: string | null
+        }
+        Insert: {
+          close_time?: string | null
+          id?: string | null
+          label?: string | null
+          open_time?: string | null
+          slot_date?: string | null
+        }
+        Update: {
+          close_time?: string | null
+          id?: string | null
+          label?: string | null
+          open_time?: string | null
+          slot_date?: string | null
+        }
+        Relationships: []
+      }
       member_check_in_view: {
         Row: {
           email: string | null
