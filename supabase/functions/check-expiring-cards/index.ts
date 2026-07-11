@@ -90,6 +90,9 @@ async function sendTwilioSms(to: string, body: string): Promise<{ ok: boolean; e
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const authCheck = await requireStaff(req);
+  if (!authCheck.ok) return authCheck.response;
+
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
   const stripe = new Stripe(STRIPE_KEY, { apiVersion: "2025-08-27.basil" as any });
   const today = todayChicago();
