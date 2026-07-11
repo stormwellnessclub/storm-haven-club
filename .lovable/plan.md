@@ -1,25 +1,67 @@
-## Add Support / Concierge inbox to Front Desk
 
-Front Desk staff will access member support and concierge messages from inside the `/frontdesk` shell, using their own Supabase login (with `front_desk` role). RLS already allows `front_desk` to read/write `email_conversations` and `email_messages`.
+# Aggressively fix all 281 warn-level security findings
 
-### 1. Sidebar entry
-- Add a new tab in `src/pages/frontdesk/FrontDeskShell.tsx` TABS array:
-  - key: `messages`, label: `Messages`, to: `/frontdesk/messages`, icon: `MessageCircle`
-- Show a small red count badge on the tab using `useAdminSupportNotifications` (open + unread).
+All findings are Supabase linter `warn` — no criticals. Fix in 4 staged DB migrations so each stage can be verified before the next lands. After each migration I re-run the scanner and mark cleared findings fixed.
 
-### 2. Route + page
-- New file `src/pages/frontdesk/Messages.tsx` that renders the same admin email inbox UI inside the front desk shell. Reuse the existing admin messages component from `/admin/emails` (extract the inner component if it's currently coupled to the admin layout), wrapped in `BareAdminLayoutProvider` so no admin chrome renders.
-- Register the route in the app router next to the other `/frontdesk/*` routes.
+## Stage 1 — `function_search_path_mutable` (safest, ~majority of findings)
 
-### 3. Auth gate
-- Front Desk shell today is PIN-only. For this tab only, require a Supabase session with the `front_desk` (or higher) role. If the user is not signed in, show an inline "Sign in to view Messages" panel that calls the existing auth flow and returns to `/frontdesk/messages`. Other Front Desk tabs remain PIN-only.
-- No RLS changes needed — `front_desk` already has SELECT on `email_conversations` / `email_messages`, and staff SELECT/manage policies cover replies for admin/manager.
-  - Note: current `Staff can manage all messages/conversations` policies only include `super_admin`/`admin`/`manager`. To let Front Desk **reply**, add `front_desk` to the INSERT policy on `email_messages` (staff-side sends) and to the UPDATE policy on `email_conversations` (status changes like open → resolved). Read-only would work without this.
+Add `SET search_path = public` (or `public, pg_temp` for SECURITY DEFINER) to every `public.*` function missing it. Pure hardening — no behavior change.
 
-### 4. Top-bar alert (small)
-- Reuse `SupportAlertCard` styling into a compact header pill on the FD shell that links to `/frontdesk/messages` when there are open/unread tickets. Sits next to the existing Cafe order banner logic.
+- Query `pg_proc` to enumerate every public function whose `proconfig` lacks `search_path`.
+- Emit `ALTER FUNCTION public.<name>(<args>) SET search_path = public` for each.
+- No app code touched.
 
-### Technical notes
-- No new tables. Reuse `useEmailConversations`, `useEmailMessages`, `useAdminSupportNotifications`.
-- Category filter: show both `support` and `class_support` (and any concierge category if present) with tabs mirroring the member portal Support page.
-- Single migration only if you approve extending staff INSERT/UPDATE policies to `front_desk` so replies work.
+## Stage 2 — Public storage bucket listing (3 findings)
+
+For each public bucket flagged (likely `member-photos`, `equipment-images`, `cafe-menu`-style — I'll confirm from `storage.buckets`):
+
+- Keep bucket public for direct URL reads.
+- Replace broad `storage.objects` SELECT policy with one that allows anon `SELECT` **only when a specific object name is requested** by removing the list-all policy and relying on direct URL access, OR narrow the SELECT policy `USING` clause to `false` for anon while keeping objects reachable via signed/public URLs.
+- Verification: `curl` a known object URL still works after migration.
+
+## Stage 3 — `rls_policy_always_true` on writes (3 findings)
+
+Enumerate policies where `cmd IN ('INSERT','UPDATE','DELETE','ALL')` and `qual = 'true'` or `with_check = 'true'`. For each:
+- If the table is admin/service-only → replace `true` with `has_any_role(auth.uid(), ARRAY['super_admin','admin','manager'])`.
+- If it's an ownership table → replace with `auth.uid() = user_id`.
+- I'll list each policy in the migration description before running so you can veto any that should stay open.
+
+## Stage 4 — SECURITY DEFINER EXECUTE lockdown (largest, highest risk)
+
+Two lint IDs: anon-executable and authenticated-executable SECURITY DEFINER functions.
+
+Approach: **default-deny, allow-list the intentionally public ones.**
+
+1. Enumerate all `public.*` SECURITY DEFINER functions.
+2. Build an allow-list of functions that MUST stay callable by anon/authenticated because the app depends on them:
+   - `has_role`, `has_any_role`, `current_user_email_lower`
+   - `process_member_scan`, `kiosk_search_visitors`, `kiosk_check_in_*`
+   - `submit_class_review_for_booking`, review submission RPCs
+   - Booking/credit atomic RPCs called from member portal (`book_class_*`, `cancel_class_booking`, `redeem_*`, `apply_*`)
+   - `handle_new_user` / trigger-only functions (leave untouched — triggers don't need EXECUTE grants)
+   - Any function referenced by non-staff client code (I'll grep `supabase.rpc(` across `src/`)
+3. For every other SECURITY DEFINER function:
+   - `REVOKE EXECUTE ... FROM PUBLIC, anon, authenticated;`
+   - `GRANT EXECUTE ... TO service_role;` (and staff role via `has_any_role` check inside function, if needed).
+4. Print the full revoke/keep table in the migration description before running.
+
+Risk: revoking EXECUTE on a function the client actually calls will break that feature. Mitigation: I audit `supabase.rpc(...)` and known trigger uses first, and stage this migration last so earlier fixes aren't blocked.
+
+## Verification loop
+
+After each stage: re-run `security--run_security_scan`, confirm the target category count drops to 0 (or a known allow-listed remainder for Stage 4), then `manage_security_finding` → `mark_as_fixed` for each cleared internal_id. If any app flow breaks, roll back with a compensating migration.
+
+## What I will NOT touch
+
+- `supabase/config.toml`, `auth`, `storage`, `realtime`, `supabase_functions`, `vault` schemas.
+- Auto-generated `src/integrations/supabase/*`.
+- Any function whose behavior is exercised only by staff and already gated at RLS level — hardening only, no logic changes.
+
+## Rough size
+
+- Stage 1: ~1 migration, dozens of `ALTER FUNCTION` lines.
+- Stage 2: 1 migration, 3 policy edits.
+- Stage 3: 1 migration, 3 policy edits.
+- Stage 4: 1 migration, potentially ~60–100 `REVOKE/GRANT` lines plus an allow-list comment block.
+
+Approve to switch to build mode and I'll start with Stage 1.
