@@ -2628,9 +2628,55 @@ serve(async (req) => {
                   const tierName = getTierName(memberInfo.membership_type || 'silver');
                   const tierCredits = TIER_CREDITS[tierName] || TIER_CREDITS.silver;
 
-                  // Calculate cycle dates based on invoice period
-                  const cycleStart = new Date(invoice.period_start * 1000);
-                  const cycleEnd = new Date(invoice.period_end * 1000);
+                  // Determine the member's LIVE billing cycle from Stripe so late
+                  // payments don't produce credits that are already expired.
+                  // Invoice period_start/period_end reflect the invoice's window,
+                  // which for a past-due invoice paid late is already in the past.
+                  let cycleStartUnix: number | null = invoice.period_start ?? null;
+                  let cycleEndUnix: number | null = invoice.period_end ?? null;
+                  let usedLiveCycle = false;
+
+                  try {
+                    const liveSub = await stripe.subscriptions.retrieve(invoice.subscription as string);
+                    const liveStart = (liveSub as unknown as { current_period_start?: number }).current_period_start
+                      ?? liveSub.items?.data?.[0]?.current_period_start
+                      ?? null;
+                    const liveEnd = (liveSub as unknown as { current_period_end?: number }).current_period_end
+                      ?? liveSub.items?.data?.[0]?.current_period_end
+                      ?? null;
+
+                    // If the invoice period ended in the past, this was a late payment.
+                    // Use the live subscription cycle instead so credits are usable.
+                    const invoiceEndMs = (invoice.period_end || 0) * 1000;
+                    const isLatePayment = invoiceEndMs > 0 && invoiceEndMs < Date.now();
+                    if (isLatePayment && liveStart && liveEnd) {
+                      cycleStartUnix = liveStart;
+                      cycleEndUnix = liveEnd;
+                      usedLiveCycle = true;
+                      logStep("Late payment detected — using live subscription cycle", {
+                        memberId: memberData.id,
+                        invoicePeriodEnd: new Date(invoiceEndMs).toISOString(),
+                        liveCycleStart: new Date(liveStart * 1000).toISOString(),
+                        liveCycleEnd: new Date(liveEnd * 1000).toISOString(),
+                      });
+                    }
+                  } catch (subFetchErr) {
+                    logError(subFetchErr, "CREDIT_RENEWAL_LIVE_CYCLE_LOOKUP");
+                  }
+
+                  let cycleStart = cycleStartUnix ? new Date(cycleStartUnix * 1000) : new Date();
+                  let cycleEnd = cycleEndUnix ? new Date(cycleEndUnix * 1000) : new Date();
+
+                  // Absolute safety net: never issue credits with expires_at in the past.
+                  if (cycleEnd.getTime() <= Date.now()) {
+                    cycleStart = new Date();
+                    cycleEnd = new Date();
+                    cycleEnd.setDate(cycleEnd.getDate() + 30);
+                    logStep("Cycle end still in past after live lookup — rolling forward 30 days", {
+                      memberId: memberData.id,
+                    });
+                  }
+
                   cycleEnd.setDate(cycleEnd.getDate() - 1); // End day before next billing
                   const expiresAt = new Date(cycleEnd);
                   expiresAt.setHours(23, 59, 59, 999);
