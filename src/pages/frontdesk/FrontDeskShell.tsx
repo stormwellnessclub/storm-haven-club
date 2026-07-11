@@ -10,8 +10,9 @@ import { NoIndex } from "@/components/seo/NoIndex";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import {
   UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
-  Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu,
+  Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu, MessageCircle,
 } from "lucide-react";
+import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { format, formatDistanceStrict } from "date-fns";
 import { FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
 import { ClockOutPrompt } from "./ClockOutPrompt";
@@ -37,6 +38,7 @@ const TABS = [
   { key: "schedule",    label: "Schedule",     to: "/frontdesk/schedule",     icon: GraduationCap },
   { key: "pos",         label: "POS",          to: "/frontdesk/pos",          icon: ShoppingBag },
   { key: "cafe",        label: "Cafe Orders",  to: "/frontdesk/cafe",         icon: UtensilsCrossed },
+  { key: "messages",    label: "Messages",     to: "/frontdesk/messages",     icon: MessageCircle },
   { key: "shift",       label: "My Shift",     to: "/frontdesk/shift",        icon: ClipboardList },
 ] as const;
 
@@ -54,6 +56,8 @@ const TABS = [
  */
 export function FrontDeskShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const { data: supportNotif } = useAdminSupportNotifications();
+  const messagesBadge = (supportNotif?.openCount || 0) + (supportNotif?.unreadCount || 0);
   const [deviceUnlocked, setDeviceUnlocked] = useState(false);
   const [shift, setShift] = useState<ShiftState | null>(null);
   const [now, setNow] = useState(() => new Date());
@@ -242,6 +246,11 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
                     >
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="text-sm font-medium truncate">{label}</span>
+                      {key === "messages" && messagesBadge > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1.5 text-[10px]">
+                          {messagesBadge}
+                        </Badge>
+                      )}
                     </Button>
                   </Link>
                 );
@@ -267,6 +276,11 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
                     >
                       <Icon className="h-3.5 w-3.5" />
                       <span className="text-xs font-medium">{label}</span>
+                      {key === "messages" && messagesBadge > 0 && (
+                        <Badge variant="destructive" className="h-4 min-w-4 px-1 text-[9px]">
+                          {messagesBadge}
+                        </Badge>
+                      )}
                     </Button>
                   </Link>
                 );
