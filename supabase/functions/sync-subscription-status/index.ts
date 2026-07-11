@@ -34,6 +34,9 @@ serve(async (req) => {
     return new Response(null, { headers: CORS_HEADERS, status: 204 });
   }
 
+  const authCheck = await requireStaff(req);
+  if (!authCheck.ok) return authCheck.response;
+
   try {
     const stripeSecretKey = Deno.env.get('STRIPE_SECRET_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
