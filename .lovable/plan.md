@@ -1,28 +1,22 @@
-# Jenna Bloom — Card Update Failing
+## Goal
+Make the Member Lookup detail view render at full usable width and stop it from closing unexpectedly while the front desk is managing credits.
 
-## Diagnosis (from `card_setup_attempts`)
+## Changes
 
-Jenna (jennaalameedi@gmail.com, `cus_UOJUUnlDbQ0kcl`) made two attempts tonight, both **declined by her issuing bank**, not by our system:
+### 1. `src/components/admin/MemberDetailSheet.tsx`
+- Change `SheetContent` className from `w-full sm:max-w-3xl lg:max-w-4xl overflow-y-auto` to a responsive full-width sheet that scales with viewport instead of capping at breakpoints:
+  - `w-screen max-w-none sm:max-w-[95vw] lg:max-w-[1200px] xl:max-w-[1400px] overflow-y-auto`
+  - This guarantees ~95% viewport width at every size (fixes the 948px viewport where `lg:` never engages and the sheet was stuck at 768px), while capping at 1400px on ultra-wide.
+- Add `onEscapeKeyDown={(e) => e.preventDefault()}` to `SheetContent` alongside the existing `onPointerDownOutside` / `onInteractOutside` handlers so accidental Escape presses (or bubbled key events from inner dialogs) don't dismiss the sheet mid-edit.
+- Keep the close (X) button as the only intentional dismissal path.
 
-| Time (UTC) | Result | Reason |
-|---|---|---|
-| 22:10:42 | Declined | `transaction_not_allowed` — "Your card does not support this type of purchase" |
-| 22:11:08 | Declined | `generic_decline` — "Your card has been declined" |
+### 2. `src/pages/frontdesk/Members.tsx`
+- No layout changes needed — the sheet width fix flows through automatically.
 
-`transaction_not_allowed` on a SetupIntent (a $0 card verification) almost always means her bank is blocking **card-on-file / recurring authorizations**. That's a bank-side control we can't override.
+## Out of scope
+- No changes to admin routing, permissions, or credit RPCs.
+- No changes to any other consumer of `MemberDetailSheet` beyond the width/dismissal behavior (all consumers benefit equally).
 
-## What to tell her
-
-She needs to do one of:
-1. **Call the number on the back of her card** and ask them to allow "card-on-file / recurring merchant authorizations" for Storm Wellness Club, then retry.
-2. **Try a different card** (a different Visa/MC, or a debit card).
-3. **Use Apple Pay / Google Pay** in the modal — sometimes clears the block.
-
-## Proposed action
-
-No code changes — the flow is working; the bank is refusing. I'll:
-
-1. Draft an outreach email to Jenna explaining the two decline reasons in plain language and the three options above, plus a direct reply-to for support.
-2. On your approval, deploy a one-shot `send-jenna-card-decline-outreach` edge function (same pattern used for Amal) that sends via Resend and logs to `email_audit_log`.
-
-If you'd rather I skip the email and just DM her the message text to send yourself, say the word.
+## Technical notes
+- Tailwind's `sm:max-w-3xl` (768px) was the effective cap on the current 948px front-desk viewport because `lg:` needs ≥1024px. Switching to viewport-relative `max-w-[95vw]` removes that dead zone.
+- Radix `Sheet` (Dialog) closes on: outside click, pointer-down-outside, Escape, or explicit close. We already block the first two; adding Escape prevention covers the last remaining accidental-exit path.
