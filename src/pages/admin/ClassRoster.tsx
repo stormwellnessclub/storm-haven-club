@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -102,6 +102,8 @@ async function sendClassConfirmationNotifications(args: {
 
 export default function ClassRoster() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const location = useLocation();
+  const backTarget = location.pathname.startsWith("/frontdesk") ? "/frontdesk/schedule" : "/admin/classes";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -1101,7 +1103,7 @@ export default function ClassRoster() {
   if (!session) {
     return (
       <div className="p-6 space-y-4">
-        <Button variant="ghost" onClick={() => navigate("/admin/classes")}>
+        <Button variant="ghost" onClick={() => navigate(backTarget)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Classes
         </Button>
         <p className="text-muted-foreground">Session not found.</p>
@@ -1114,7 +1116,7 @@ export default function ClassRoster() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate("/admin/classes")}>
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={() => navigate(backTarget)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back to Classes
           </Button>
           <h1 className="text-2xl font-bold">{className}</h1>

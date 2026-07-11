@@ -722,7 +722,11 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="sm:max-w-lg overflow-y-auto">
+        <SheetContent
+          className="w-full sm:max-w-3xl lg:max-w-4xl overflow-y-auto"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <SheetHeader>
             <div className="flex items-center justify-between">
               <SheetTitle className="flex items-center gap-2">

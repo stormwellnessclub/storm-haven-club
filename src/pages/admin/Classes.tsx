@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { useBareAdminLayout } from "@/components/admin/BareAdminLayoutContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +103,8 @@ function formatTime(time: string) {
 export default function Classes() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isFrontDesk = useBareAdminLayout() || location.pathname.startsWith("/frontdesk");
   const [selectedSession, setSelectedSession] = useState<ClassSession | null>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
@@ -287,7 +290,7 @@ export default function Classes() {
   });
 
   const openRoster = (sessionId: string) => {
-    navigate(`/admin/class-roster/${sessionId}`);
+    navigate(`${isFrontDesk ? "/frontdesk" : "/admin"}/class-roster/${sessionId}`);
   };
 
   return (
