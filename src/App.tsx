@@ -290,6 +290,7 @@ const App = () => (
               <Route path="/frontdesk/guest-passes" element={<FrontDeskGuestPassesPage />} />
               <Route path="/frontdesk/spa" element={<FrontDeskSpaPage />} />
               <Route path="/frontdesk/cafe" element={<FrontDeskCafePage />} />
+              <Route path="/frontdesk/class-roster/:sessionId" element={<FrontDeskClassRosterPage />} />
 
               {/* Instructor Portal */}
               <Route path="/instructor" element={<ProtectedInstructorRoute><InstructorToday /></ProtectedInstructorRoute>} />
