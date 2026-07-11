@@ -38,6 +38,7 @@ const TABS = [
   { key: "schedule",    label: "Schedule",     to: "/frontdesk/schedule",     icon: GraduationCap },
   { key: "pos",         label: "POS",          to: "/frontdesk/pos",          icon: ShoppingBag },
   { key: "cafe",        label: "Cafe Orders",  to: "/frontdesk/cafe",         icon: UtensilsCrossed },
+  { key: "messages",    label: "Messages",     to: "/frontdesk/messages",     icon: MessageCircle },
   { key: "shift",       label: "My Shift",     to: "/frontdesk/shift",        icon: ClipboardList },
 ] as const;
 
