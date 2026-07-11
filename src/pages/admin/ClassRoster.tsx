@@ -1103,7 +1103,7 @@ export default function ClassRoster() {
   if (!session) {
     return (
       <div className="p-6 space-y-4">
-        <Button variant="ghost" onClick={() => navigate("/admin/classes")}>
+        <Button variant="ghost" onClick={() => navigate(backTarget)}>
           <ArrowLeft className="h-4 w-4 mr-2" /> Back to Classes
         </Button>
         <p className="text-muted-foreground">Session not found.</p>
