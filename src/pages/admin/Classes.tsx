@@ -290,7 +290,7 @@ export default function Classes() {
   });
 
   const openRoster = (sessionId: string) => {
-    navigate(`/admin/class-roster/${sessionId}`);
+    navigate(`${isFrontDesk ? "/frontdesk" : "/admin"}/class-roster/${sessionId}`);
   };
 
   return (
