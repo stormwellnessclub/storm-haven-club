@@ -1,60 +1,40 @@
-
-# Full Compliance Audit — Storm Wellness Club Membership Agreement
-
 ## Goal
-Audit `public/agreements/membership-agreement.pdf` against BOTH governing Michigan statutes and deliver a single combined compliance report. No file edits, no contract v2, no member response — report only.
+Prepare a compliant v2 of the Membership Agreement but keep it **inactive/draft** so it does NOT replace the currently-signed contract. Other site edits you publish later will not activate it.
 
-## Statutes in scope
+## How the agreements system works today
+- Table: `public.agreements` (rows keyed by `agreement_type`, `is_active`, `version`, `effective_date`, `pdf_url`).
+- `useAgreements("membership_agreement")` and `useAllAgreements` filter on `is_active = true`. Anything with `is_active = false` is invisible to signup, waiver, and portal flows.
+- PDFs are resolved through `src/lib/pdfAssets.ts` — only filenames listed in the `pdfMap` are servable. A new file must be added there to be viewable in-app, but adding it there alone does NOT make members sign it.
 
-### 1. Michigan Prepayment for Health Studio Services Act (MCL 445.1811 et seq.)
-Primary health-club statute. Sets contract disclosure + cancellation-right minimums.
+## Plan — "save, don't ship"
 
-| # | Requirement | Statute |
-|---|---|---|
-| 1 | 3-day right to cancel (conspicuous, bold/caps, with instructions & address) | MCL 445.1815 |
-| 2 | Death cancellation — pro-rata refund | MCL 445.1816 |
-| 3 | Disability cancellation — physician certification, pro-rata refund | MCL 445.1816 |
-| 4 | Relocation cancellation (>25 miles from comparable club) | MCL 445.1816 |
-| 5 | Club closure / material relocation cancellation | MCL 445.1816 |
-| 6 | Term cap ≤ 36 months | MCL 445.1814 |
-| 7 | Prepayment / financial-security disclosure (bond/escrow if collecting >3 months prepaid) | MCL 445.1813 |
-| 8 | Plain-English contract, signed copy delivered to buyer | MCL 445.1813 |
-| 9 | Total contract price disclosed on the face of the contract | MCL 445.1813 |
-| 10 | No waiver of statutory rights | MCL 445.1817 |
+1. **Generate v2 PDF as a draft file only**
+   - Write a new file: `src/assets/agreements/membership-agreement-v2-draft.pdf` (and mirror to `public/agreements/` for direct link preview).
+   - Content: current agreement + all fixes from the audit (3-day right to cancel, HCSA statutory cancellation events, total-price disclosure, MCPA-safe severability/no-waiver, explicit early-termination + acceleration clause, auto-renewal conspicuous notice).
+   - Filename ends in `-v2-draft.pdf` so it is obvious in storage this is not live.
 
-### 2. Michigan Consumer Protection Act (MCL 445.901 et seq.)
-General deceptive/unfair-practices overlay. Applies on top of the health-studio act.
+2. **Register it in `pdfAssets.ts` but do NOT insert a live DB row**
+   - Add the draft filename to `pdfMap` so you (admin) can open/preview it from a link.
+   - Do **not** call `useCreateAgreement`, do **not** insert into `public.agreements`, do **not** flip `is_active`. Current signed v1 stays the only active membership agreement.
 
-| # | Requirement | Statute |
-|---|---|---|
-| A | No material misrepresentation about goods/services, price, or terms | MCL 445.903(1)(a)–(c),(e),(g) |
-| B | No failure to reveal a material fact whose omission tends to mislead | MCL 445.903(1)(s) |
-| C | No ambiguity about material terms (auto-renewal, cancellation mechanics, fees) | MCL 445.903(1)(bb),(cc) |
-| D | No unconscionable terms (one-sided waivers, hidden acceleration, unilateral change) | MCL 445.903(1)(hh),(z) |
-| E | Auto-renewal must be clearly and conspicuously disclosed + easy cancel path | MCL 445.903(1)(y),(bb) |
-| F | Refund/cancellation policy must match what was represented pre-sale (website, application, emails) | MCL 445.903(1)(n),(s) |
-| G | No collection of unauthorized/undisclosed charges (annual fee, arrears, late fees) | MCL 445.903(1)(u),(bb) |
+3. **Admin-only preview link**
+   - Add a single "Preview draft v2 (not live)" link on `src/pages/admin/SignatureCertificates.tsx` (or Settings) that opens the draft PDF in a new tab. Visible to admins only. No member-facing surface changes.
 
-Cross-check target: `src/pages/Apply.tsx` "one-year commitment" checkbox + public website copy — must be consistent with the signed PDF or MCPA §(F) fires.
+4. **Publish safety**
+   - Because no DB row is created and no active-agreement query is touched, publishing unrelated frontend changes will not activate v2. Applicants and members continue to see and sign v1 exactly as today.
 
-## Method
+5. **Activation later (separate future step, not in this plan)**
+   - When you approve v2, we will: insert a new `agreements` row (`agreement_type='membership_agreement'`, `version='2.0'`, `effective_date=<date>`, `is_active=true`) and set the old row `is_active=false` in the same migration. Only then does v2 become the signed contract for new members. Existing signed v1 contracts remain historically valid.
 
-1. Parse `public/agreements/membership-agreement.pdf` via `document--parse_document` for full verbatim text.
-2. For each of the 17 items above:
-   - Search parsed text for the required language
-   - Record status: **Present verbatim / Present but weak / Missing**
-   - Quote exact contract language (or note absence)
-3. Cross-check `src/pages/Apply.tsx` acknowledgment copy + any public-facing membership pricing/refund copy vs. the signed PDF for MCPA consistency (items F, B, C).
-4. Flag internal contract clauses that actively conflict with either statute (e.g., blanket "non-refundable" that swallows the 3-day right; forced arbitration or jury-trial waiver that also purports to waive HCSA rights).
-
-## Deliverable (single chat report)
-
-- **Combined compliance table** — 17 rows (10 Health Studio Act + 7 MCPA), each with pass/weak/fail + verbatim quote or "MISSING".
-- **Ranked risk list** — which gaps make the contract voidable or expose you to MCPA damages/attorney fees, vs. cosmetic.
-- **Section-by-section fix list** — exact language to add and where (e.g., new Section 4a "3-Day Right to Cancel," Section 4b "Statutory Cancellation Events," Section 9 revision for total-price disclosure, new Section 20 MCPA-safe severability + no-waiver).
-- **Enforceability assessment** — plain-English answer to: given what's in and not in this PDF (plus the Apply.tsx acknowledgment record), is the 1-year term enforceable against a member walking mid-term?
+## Technical details
+- No migration in this plan.
+- No changes to `useAgreements`, `useAllAgreements`, `WaiverSigningStep`, or Apply flow.
+- Files touched:
+  - New: `src/assets/agreements/membership-agreement-v2-draft.pdf`, `public/agreements/membership-agreement-v2-draft.pdf`
+  - Edit: `src/lib/pdfAssets.ts` (add one mapping)
+  - Edit: one admin page to add the preview link (choose SignatureCertificates or Settings)
 
 ## Out of scope
-- Drafting the member response (user handles)
-- Rewriting the PDF / generating v2
-- Any code, DB, RLS, or email changes
+- Activating v2, migrating members, sending re-sign requests, drafting Mariam's response.
+
+Confirm and I'll proceed. Want the admin preview link on **Settings** or **Signature Certificates**?
