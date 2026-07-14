@@ -165,6 +165,7 @@ import {
   InstructorDocuments,
 } from "./pages/instructor/Stubs";
 import FrontDeskLogin from "./pages/FrontDeskLogin";
+import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
 import KioskSpa from "./pages/kiosk/Spa";
@@ -296,6 +297,7 @@ const App = () => (
               <Route path="/frontdesk/messages" element={<FrontDeskMessagesPage />} />
 
               {/* Instructor Portal */}
+              <Route path="/instructor-login" element={<InstructorLogin />} />
               <Route path="/instructor" element={<ProtectedInstructorRoute><InstructorToday /></ProtectedInstructorRoute>} />
               <Route path="/instructor/schedule" element={<ProtectedInstructorRoute><InstructorSchedule /></ProtectedInstructorRoute>} />
               <Route path="/instructor/rosters" element={<ProtectedInstructorRoute><InstructorRosters /></ProtectedInstructorRoute>} />

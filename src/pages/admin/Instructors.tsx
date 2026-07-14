@@ -25,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Pencil, User, Trash2 } from "lucide-react";
+import { Plus, Pencil, User, Trash2, KeyRound, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +53,7 @@ interface Instructor {
 
 export default function Instructors() {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [portalStatus, setPortalStatus] = useState<Record<string, { has_auth_account: boolean; has_portal_role: boolean }>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
@@ -112,8 +113,36 @@ export default function Instructors() {
       console.error(error);
     } else {
       setInstructors(data || []);
+      // Load portal status in parallel
+      const { data: statusRows } = await (supabase as any).rpc("get_instructor_portal_status");
+      if (statusRows) {
+        const map: Record<string, any> = {};
+        for (const r of statusRows as any[]) map[r.instructor_id] = r;
+        setPortalStatus(map);
+      }
     }
     setLoading(false);
+  }
+
+  async function handleGrantPortal(inst: Instructor) {
+    const { data, error } = await (supabase as any).rpc("admin_grant_instructor_portal", { _instructor_id: inst.id });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (data?.ok) {
+      toast.success(`Portal access granted to ${inst.first_name} ${inst.last_name}`);
+      fetchInstructors();
+    } else if (data?.reason === "no_auth_account") {
+      // Send password reset which acts as an invite for first-time setup
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(inst.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetErr) toast.error(`No account yet — invite failed: ${resetErr.message}`);
+      else toast.success(`Invite email sent to ${inst.email}. They'll set a password, then get portal access automatically.`);
+    } else {
+      toast.error(data?.reason || "Failed to grant portal access");
+    }
   }
 
   function resetForm() {
@@ -319,6 +348,7 @@ export default function Instructors() {
                     <TableHead>Phone</TableHead>
                     <TableHead>Specialties</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Portal</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -358,6 +388,30 @@ export default function Instructors() {
                         <Badge variant={instructor.is_active ? "default" : "secondary"}>
                           {instructor.is_active ? "Active" : "Inactive"}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const s = portalStatus[instructor.id];
+                          if (s?.has_portal_role) {
+                            return (
+                              <Badge variant="outline" className="gap-1 text-green-700 border-green-600/40">
+                                <CheckCircle2 className="h-3 w-3" /> Access granted
+                              </Badge>
+                            );
+                          }
+                          if (s?.has_auth_account) {
+                            return (
+                              <Button size="sm" variant="outline" onClick={() => handleGrantPortal(instructor)}>
+                                <KeyRound className="h-3 w-3 mr-1" /> Grant access
+                              </Button>
+                            );
+                          }
+                          return (
+                            <Button size="sm" variant="outline" onClick={() => handleGrantPortal(instructor)}>
+                              <AlertCircle className="h-3 w-3 mr-1" /> Send invite
+                            </Button>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">

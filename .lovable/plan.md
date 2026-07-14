@@ -1,70 +1,50 @@
+## Where the portal lives today
 
-## Sound Bath vote — preview, cutoff fix, "Either works" option, and prominent description toggle
+The Instructor Portal was built and is live at these routes (all gated by `ProtectedInstructorRoute`, which requires the `class_instructor`, `admin`, or `super_admin` role):
 
-Five small changes. No schema changes.
+- `/instructor` — Today
+- `/instructor/schedule`, `/rosters`, `/availability`, `/time-off`, `/subs`, `/notes`, `/pay`, `/messages`, `/documents`
 
-### 1. Add a third option: "Either works for me"
+Problems right now:
+1. **No admin sidebar link** — admins have no way to preview or open the portal.
+2. **No teacher entry point** — `/instructor` isn't linked anywhere and instructors don't know it exists.
+3. **No role wiring** — creating a row in the `instructors` table does NOT grant `class_instructor` in `user_roles`, so even if a teacher logs in, `ProtectedInstructorRoute` blocks them with "Instructor access required."
+4. **No onboarding email** — instructors aren't told they have a portal or how to log in.
 
-`src/lib/eventVote.ts` — append to `options`:
+## Plan
 
-```ts
-{ key: "either", label: "Either works for me", time: "No preference" }
-```
+### 1. Admin access
+- Add an **"Instructor Portal"** entry to `AdminSidebar.tsx` (under Staff / Classes) that opens `/instructor` in a new tab. Visible to `super_admin`, `admin`, `manager`. This lets you preview exactly what teachers see.
+- On the existing `/admin/instructors` page, add a per-row **"Open portal as…"** link (super_admin only) and a **"Grant portal access"** action that:
+  - Looks up the instructor's `auth.users` row by email
+  - Inserts `class_instructor` into `user_roles` if missing
+  - Shows a status badge on the row: *Portal access: granted / pending (no auth account) / not linked*
 
-Flows through automatically:
-- `EventVoteCard` renders a third button under Friday/Saturday
-- `event_vote_tallies` view aggregates the third bucket
-- Admin tracking page shows a third bar + row
+### 2. Teacher access
+- Add a public **`/instructor-login`** landing route (simple branded page with email+password sign-in, "Forgot password", and copy: "Storm instructor portal — sign in with the email the studio has on file"). Redirects to `/instructor` on success.
+- Auto-link on sign-in: a Postgres trigger on `auth.users` (insert/update) that, if the new user's email matches an `instructors.email` (case-insensitive), inserts `class_instructor` into `user_roles` and stamps `instructors.auth_user_id`.
+- Backfill: run once for existing instructors with matching auth accounts.
 
-Visual tweak in `EventVoteCard.tsx`: "either" uses a neutral icon (`Sparkles` or `CalendarCheck`) and no time chip.
+### 3. Onboarding
+- New edge function `send-instructor-welcome` that:
+  - Creates the auth user via admin API (or sends a magic-link invite) using the instructor's email
+  - Sends a branded email: welcome, portal URL (`https://stormwellnessclub.com/instructor-login`), what they can do there (schedule, rosters, sub requests, availability, pay, messages, documents), and a "Set your password" link.
+- Trigger button on the admin Instructors page: **"Send portal invite"** per row, plus **"Send to all active"** in the header.
 
-### 2. Make "Read full description" prominent
+### 4. Discoverability
+- Add "Instructor login" link to the public site footer (small, subtle) so teachers can find it without needing the URL emailed each time.
 
-In `src/components/events/EventVoteCard.tsx`, replace the plain `<details><summary>` link with a full-width outlined button-style toggle:
+## Technical notes
 
-- Bordered, rounded, padded row spanning the card width
-- Icon + label: **"Read full event description"** with a chevron on the right that rotates when open
-- Bold text, `text-primary`, subtle background tint on hover
-- Still uses `<details>` under the hood (no new state) so it stays keyboard/screen-reader accessible
+- `class_instructor` already exists as an `app_role` enum value (used by `AdminSidebar` roles list and `ProtectedInstructorRoute`), so no enum migration needed.
+- Auto-link trigger mirrors the existing member auth-linking pattern (`mem://auth/member-linking`).
+- Welcome email uses the existing `send-transactional-email` flow with a new template `instructor-welcome` in `_shared/transactional-email-templates/`.
+- No changes to portal pages themselves — they're already built.
 
-Result: impossible to miss compared to the current tiny inline link.
+## Deliverables checklist
 
-### 3. Move voting cutoff to July 15, 2026
-
-`src/lib/eventVote.ts` — change `closesAt` to `2026-07-15T23:59:59-05:00`. Portal card helper text and admin header update automatically. Add a "Voting closes Wednesday, July 15" line under the CTAs in the email.
-
-### 4. Add the third option + closing date to the email
-
-`send-sound-bath-vote-blast/index.ts` HTML:
-- Third CTA button under Saturday: **"Either works for me"** → `…?vote=sound-bath-jul-2026&choice=either`, styled as outline/secondary so Fri/Sat stay primary
-- New line under the CTAs: *Voting closes Wednesday, July 15.*
-
-### 5. Preview button on the admin tracking page
-
-a. **Edge function** — extract `buildHtml(firstName)` and add a preview branch:
-   - Still requires admin auth (`requireStaff`)
-   - When body contains `{ preview: true }`, returns raw HTML (sample `firstName = "Jane"`) with `Content-Type: text/html`
-   - Skips Resend + dedupe
-
-b. **Admin UI** — new `src/components/admin/PreviewVoteEmailButton.tsx`, mounted next to `SendVoteBlastButton` on `/admin/event-votes/sound-bath-jul-2026`:
-   - Calls the function with `{ preview: true }` via `supabase.functions.invoke`
-   - Opens a `Dialog` (~700px wide, 80vh tall) with `<iframe srcDoc={html}>`
-   - Links inside the preview open the real deep-link route in a new tab so you can verify scroll-to-option behavior for all three choices
-
-### 6. Files touched
-
-Edited:
-- `src/lib/eventVote.ts` — add "either" option, move cutoff to Jul 15
-- `src/components/events/EventVoteCard.tsx` — bold description toggle, "either" option icon/style
-- `supabase/functions/send-sound-bath-vote-blast/index.ts` — third CTA, closing-date line, preview branch
-- `src/pages/admin/EventVoteTracking.tsx` — mount preview button
-
-Created:
-- `src/components/admin/PreviewVoteEmailButton.tsx`
-
-### 7. Verification pass
-
-1. Open the preview modal, confirm all three CTAs render and the closing date reads July 15.
-2. Click each CTA — confirm `/member?vote=…&choice=friday_jul_24|saturday_jul_25|either` scrolls the correct option into view.
-3. Confirm the "Read full event description" toggle is clearly visible and expands/collapses.
-4. Confirm the tracking page shows three bars once test votes exist.
+- [ ] AdminSidebar link + admin "Grant access" / "Send invite" actions on `/admin/instructors`
+- [ ] `/instructor-login` page + footer link
+- [ ] Auth trigger + backfill migration linking `instructors` ↔ `user_roles`
+- [ ] `instructor-welcome` email template + `send-instructor-welcome` edge function
+- [ ] Quick QA: sign in as a test instructor, confirm portal loads
