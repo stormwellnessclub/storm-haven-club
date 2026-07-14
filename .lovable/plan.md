@@ -1,100 +1,70 @@
 
-## Sound Bath Event — Member Vote
+## Sound Bath vote — preview, cutoff fix, "Either works" option, and prominent description toggle
 
-A time-boxed poll surfaced in the Member Portal and Non-Member Portal, with a one-time email blast to active members, live vote meter, and full admin tracking.
+Five small changes. No schema changes.
 
-### 1. Database
+### 1. Add a third option: "Either works for me"
 
-New table `event_votes` (single-purpose, keyed by event slug so we can reuse the pattern later):
+`src/lib/eventVote.ts` — append to `options`:
 
-```
-event_votes
-  id uuid pk
-  event_slug text        -- 'sound-bath-jul-2026'
-  user_id uuid           -- auth.uid, unique per event_slug
-  option_key text        -- 'friday_jul_24' | 'saturday_jul_25'
-  voter_type text        -- 'member' | 'non_member' (audit only)
-  created_at timestamptz
-  updated_at timestamptz
-  UNIQUE (event_slug, user_id)
+```ts
+{ key: "either", label: "Either works for me", time: "No preference" }
 ```
 
-- GRANT SELECT, INSERT, UPDATE on `event_votes` to `authenticated`; GRANT ALL to `service_role`. No anon.
-- RLS:
-  - SELECT: users see their own vote; admins see all.
-  - INSERT/UPDATE: users can only insert/update rows where `user_id = auth.uid()`.
-- Public tally view `event_vote_tallies` (`security_invoker`, GRANT SELECT to authenticated) that returns `event_slug, option_key, vote_count, total_votes, percentage` — no user_ids exposed.
-- Votes are **changeable** until the vote closes (unique constraint + upsert). This is the most common member-vote pattern and keeps the tally honest.
+Flows through automatically:
+- `EventVoteCard` renders a third button under Friday/Saturday
+- `event_vote_tallies` view aggregates the third bucket
+- Admin tracking page shows a third bar + row
 
-### 2. Vote config (hardcoded constant, no admin UI needed for a one-off)
+Visual tweak in `EventVoteCard.tsx`: "either" uses a neutral icon (`Sparkles` or `CalendarCheck`) and no time chip.
 
-`src/lib/eventVote.ts`:
-- `EVENT_SLUG = "sound-bath-jul-2026"`
-- Title, description, pricing, options (Friday Jul 24 7PM / Saturday Jul 25 7PM), `closesAt` (e.g. Jul 20 2026 23:59 America/Chicago).
+### 2. Make "Read full description" prominent
 
-### 3. UI — Portal + Non-Member Portal
+In `src/components/events/EventVoteCard.tsx`, replace the plain `<details><summary>` link with a full-width outlined button-style toggle:
 
-New component `src/components/events/EventVoteCard.tsx`:
-- Header: "Member Vote — Sound Bath, Nervous System Reset & Guided Meditation".
-- Full event description (breathwork → meditation → sound bath), pricing ($30 members / $40 non-members), what to bring.
-- Two large option buttons (Fri / Sat), showing:
-  - Live percentage bar (from `event_vote_tallies`)
-  - Vote count
-  - Check mark on the option the user picked
-- "Change your vote until Jul 20" helper text.
-- Hidden after `closesAt` with a "Voting closed — results coming soon" state.
+- Bordered, rounded, padded row spanning the card width
+- Icon + label: **"Read full event description"** with a chevron on the right that rotates when open
+- Bold text, `text-primary`, subtle background tint on hover
+- Still uses `<details>` under the hood (no new state) so it stays keyboard/screen-reader accessible
 
-Mounted on:
-- `src/pages/member/*` dashboard (top of Member portal home)
-- `src/pages/portal/Dashboard.tsx` (non-member portal home) — same component, `voterType="non_member"`.
+Result: impossible to miss compared to the current tiny inline link.
 
-### 4. Email blast (active members only, one-time)
+### 3. Move voting cutoff to July 15, 2026
 
-- New app-email template `supabase/functions/_shared/transactional-email-templates/sound-bath-vote.tsx` with the exact copy from the request, brand styling, and two CTA buttons deep-linking to the vote card:
-  - `https://stormwellnessclub.com/member?vote=sound-bath-jul-2026&choice=friday_jul_24`
-  - `…&choice=saturday_jul_25`
-  When the portal loads with `?vote=…&choice=…`, it pre-selects the option (user still confirms with one click — no drive-by votes from forwarded emails).
-- One-off admin-triggered edge function `send-sound-bath-vote-blast`:
-  - Admin-only (JWT + `has_any_role('admin','super_admin')`).
-  - Selects active members with valid email.
-  - Enqueues one send per member via `send-transactional-email` with idempotency key `sound-bath-vote-{memberId}` so re-running is safe.
-  - Logs to `email_audit_log`.
-- Trigger button lives in Admin → Settings → "Send Sound Bath vote email" with a confirmation dialog showing recipient count.
+`src/lib/eventVote.ts` — change `closesAt` to `2026-07-15T23:59:59-05:00`. Portal card helper text and admin header update automatically. Add a "Voting closes Wednesday, July 15" line under the CTAs in the email.
 
-### 5. Admin tracking page
+### 4. Add the third option + closing date to the email
 
-`/admin/event-votes/sound-bath-jul-2026` (linked from Admin sidebar → Marketing):
-- Live totals: Friday count / Saturday count / total voters / % split.
-- Bar chart of the two options.
-- Breakdown: members vs non-members counts.
-- Sortable table of individual votes (name, email, tier, choice, voted_at) with CSV export.
-- "Email blast" panel: recipients queued, sent, bounced (from `email_audit_log` / `suppressed_emails`).
+`send-sound-bath-vote-blast/index.ts` HTML:
+- Third CTA button under Saturday: **"Either works for me"** → `…?vote=sound-bath-jul-2026&choice=either`, styled as outline/secondary so Fri/Sat stay primary
+- New line under the CTAs: *Voting closes Wednesday, July 15.*
+
+### 5. Preview button on the admin tracking page
+
+a. **Edge function** — extract `buildHtml(firstName)` and add a preview branch:
+   - Still requires admin auth (`requireStaff`)
+   - When body contains `{ preview: true }`, returns raw HTML (sample `firstName = "Jane"`) with `Content-Type: text/html`
+   - Skips Resend + dedupe
+
+b. **Admin UI** — new `src/components/admin/PreviewVoteEmailButton.tsx`, mounted next to `SendVoteBlastButton` on `/admin/event-votes/sound-bath-jul-2026`:
+   - Calls the function with `{ preview: true }` via `supabase.functions.invoke`
+   - Opens a `Dialog` (~700px wide, 80vh tall) with `<iframe srcDoc={html}>`
+   - Links inside the preview open the real deep-link route in a new tab so you can verify scroll-to-option behavior for all three choices
 
 ### 6. Files touched
 
-Created:
-- `supabase/migrations/*` — table, view, RLS, grants.
-- `src/lib/eventVote.ts`
-- `src/hooks/useEventVote.ts` (fetch tally + my vote, submit/upsert mutation)
-- `src/components/events/EventVoteCard.tsx`
-- `src/pages/admin/EventVoteTracking.tsx`
-- `supabase/functions/_shared/transactional-email-templates/sound-bath-vote.tsx`
-- `supabase/functions/send-sound-bath-vote-blast/index.ts`
-
 Edited:
-- `src/pages/portal/Dashboard.tsx` — mount EventVoteCard.
-- `src/pages/member/*` home — mount EventVoteCard.
-- `src/App.tsx` — admin route.
-- Admin sidebar — link.
-- Admin Settings — "Send vote email" button.
-- Template registry.
+- `src/lib/eventVote.ts` — add "either" option, move cutoff to Jul 15
+- `src/components/events/EventVoteCard.tsx` — bold description toggle, "either" option icon/style
+- `supabase/functions/send-sound-bath-vote-blast/index.ts` — third CTA, closing-date line, preview branch
+- `src/pages/admin/EventVoteTracking.tsx` — mount preview button
 
-### 7. Preview first
+Created:
+- `src/components/admin/PreviewVoteEmailButton.tsx`
 
-Before touching prod: I'll render a full HTML preview of both the portal vote card and the email in this chat (screenshot via Playwright against a local preview route) so you can approve copy, colors, and layout before I flip the email switch or send the blast.
+### 7. Verification pass
 
-### Technical notes
-- RLS uses `auth.uid()` directly; no new security-definer helpers needed.
-- The tally view uses `security_invoker=on` and only exposes aggregates — safe for both portals.
-- Email blast reuses the existing queued `send-transactional-email` pipeline (no marketing/newsletter path), so unsubscribe footer and suppression list are honored automatically.
-- No Stripe/purchase logic in this feature — ticket sales handled separately once the date is chosen.
+1. Open the preview modal, confirm all three CTAs render and the closing date reads July 15.
+2. Click each CTA — confirm `/member?vote=…&choice=friday_jul_24|saturday_jul_25|either` scrolls the correct option into view.
+3. Confirm the "Read full event description" toggle is clearly visible and expands/collapses.
+4. Confirm the tracking page shows three bars once test votes exist.

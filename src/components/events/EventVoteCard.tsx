@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Check, Calendar, Clock } from "lucide-react";
+import { Sparkles, Check, Calendar, Clock, ChevronDown, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { SOUND_BATH_VOTE, isVoteOpen } from "@/lib/eventVote";
 import {
@@ -67,11 +67,15 @@ export function EventVoteCard({ voterType }: Props) {
           {SOUND_BATH_VOTE.description.slice(0, 2).map((p, i) => (
             <p key={i}>{p}</p>
           ))}
-          <details className="mt-2">
-            <summary className="cursor-pointer text-primary text-xs font-medium hover:underline">
-              Read full description
+          <details className="mt-3 group">
+            <summary className="flex items-center justify-between gap-2 cursor-pointer list-none rounded-lg border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary transition-colors px-4 py-3 font-semibold text-primary text-sm">
+              <span className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Read full event description
+              </span>
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
             </summary>
-            <div className="mt-2 space-y-2">
+            <div className="mt-3 space-y-2 px-1">
               {SOUND_BATH_VOTE.description.slice(2).map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
@@ -111,12 +115,12 @@ export function EventVoteCard({ voterType }: Props) {
                         isMine ? "bg-primary text-primary-foreground" : "bg-muted"
                       }`}
                     >
-                      {isMine ? <Check className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
+                      {isMine ? <Check className="h-4 w-4" /> : opt.key === "either" ? <Sparkles className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0">
                       <div className="font-semibold text-sm sm:text-base">{opt.label}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {opt.time}
+                        {opt.key === "either" ? null : <Clock className="h-3 w-3" />} {opt.time}
                       </div>
                     </div>
                   </div>

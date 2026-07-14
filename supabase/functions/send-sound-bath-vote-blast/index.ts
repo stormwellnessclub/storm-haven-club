@@ -15,6 +15,7 @@ const TEMPLATE_KEY = "sound_bath_vote_jul_2026";
 const BASE_URL = "https://stormwellnessclub.com";
 const FRIDAY_URL = `${BASE_URL}/member?vote=sound-bath-jul-2026&choice=friday_jul_24`;
 const SATURDAY_URL = `${BASE_URL}/member?vote=sound-bath-jul-2026&choice=saturday_jul_25`;
+const EITHER_URL = `${BASE_URL}/member?vote=sound-bath-jul-2026&choice=either`;
 
 function buildHtml(firstName: string | null): string {
   const greeting = firstName ? `Hi ${firstName},` : "Hello,";
@@ -36,6 +37,9 @@ function buildHtml(firstName: string | null): string {
           <a href="${FRIDAY_URL}" style="display:inline-block;background:#1C170F;color:#DEDACE;padding:14px 28px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:260px;">Friday, July 24 · 7:00 PM</a>
           <div style="height:12px;"></div>
           <a href="${SATURDAY_URL}" style="display:inline-block;background:#a17e3a;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:260px;">Saturday, July 25 · 7:00 PM</a>
+          <div style="height:12px;"></div>
+          <a href="${EITHER_URL}" style="display:inline-block;background:#ffffff;color:#1C170F;padding:13px 28px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:260px;border:2px solid #1C170F;">Either works for me</a>
+          <p style="margin:18px 0 0;font-size:12px;color:#88766B;font-style:italic;">Voting closes Wednesday, July 15.</p>
         </div>
 
         <hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0;" />
@@ -66,6 +70,17 @@ serve(async (req) => {
 
   const gate = await requireStaff(req, ["admin", "super_admin"]);
   if (!gate.ok) return gate.response;
+
+  // Preview branch: return HTML without sending
+  let body: any = {};
+  try { body = await req.json(); } catch { /* no body */ }
+  if (body?.preview) {
+    return new Response(buildHtml("Jane"), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",

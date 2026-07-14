@@ -12,6 +12,7 @@ import { useEventVoteTallies } from "@/hooks/useEventVote";
 import { format } from "date-fns";
 import { Download, Users } from "lucide-react";
 import { SendVoteBlastButton } from "@/components/admin/SendVoteBlastButton";
+import { PreviewVoteEmailButton } from "@/components/admin/PreviewVoteEmailButton";
 
 export default function EventVoteTracking() {
   const slug = SOUND_BATH_VOTE.slug;
@@ -74,7 +75,8 @@ export default function EventVoteTracking() {
               Voting closes {format(new Date(SOUND_BATH_VOTE.closesAt), "EEEE, MMM d yyyy")}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <PreviewVoteEmailButton />
             <SendVoteBlastButton />
             <Button variant="outline" size="sm" onClick={exportCsv}>
               <Download className="h-4 w-4 mr-2" /> Export CSV
