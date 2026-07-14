@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Sparkles, Check, Calendar, Clock } from "lucide-react";
+import { Sparkles, Check, Calendar, Clock, ChevronDown, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { SOUND_BATH_VOTE, isVoteOpen } from "@/lib/eventVote";
 import {
