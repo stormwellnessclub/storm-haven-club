@@ -29,6 +29,7 @@ const pdfMap: Record<string, string> = {
   'kids-care-service-set-up.pdf': kidsCareServiceSetUp,
   'kids-minor-parent-consent-form.pdf': kidsMinorParentConsent,
   'membership-agreement-backup.pdf': membershipAgreementBackup,
+  'membership-agreement-v2-draft.pdf': membershipAgreementV2Draft,
   'other-private-event-form.pdf': otherPrivateEventForm,
 };
 
