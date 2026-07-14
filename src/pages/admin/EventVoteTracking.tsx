@@ -27,14 +27,64 @@ export default function EventVoteTracking() {
         .eq("event_slug", slug)
         .order("updated_at", { ascending: false });
       if (error) throw error;
+
       const ids = Array.from(new Set((data ?? []).map((v: any) => v.user_id)));
       if (ids.length === 0) return [];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, first_name, last_name, email")
-        .in("id", ids);
-      const map = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
-      return (data ?? []).map((v: any) => ({ ...v, profile: map.get(v.user_id) }));
+
+      // Look up identity across profiles + non_member_profiles in parallel
+      const [{ data: profiles }, { data: nonMembers }] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email, phone")
+          .in("id", ids),
+        supabase
+          .from("non_member_profiles")
+          .select("user_id, first_name, last_name, email, phone")
+          .in("user_id", ids),
+      ]);
+
+      const profileMap = new Map<string, any>((profiles ?? []).map((p: any) => [p.id, p]));
+      const nmMap = new Map<string, any>((nonMembers ?? []).map((n: any) => [n.user_id, n]));
+
+      // Collect emails to enrich member voters with member tier / canonical name
+      const emails = Array.from(
+        new Set(
+          ids
+            .map((id) => {
+              const p = profileMap.get(id);
+              const n = nmMap.get(id);
+              return (p?.email ?? n?.email ?? "").toLowerCase();
+            })
+            .filter(Boolean),
+        ),
+      );
+
+      let memberMap = new Map<string, any>();
+      if (emails.length > 0) {
+        const { data: members } = await supabase
+          .from("members")
+          .select("first_name, last_name, email, membership_tier")
+          .in("email", emails);
+        memberMap = new Map<string, any>(
+          (members ?? []).map((m: any) => [String(m.email).toLowerCase(), m]),
+        );
+      }
+
+      return (data ?? []).map((v: any) => {
+        const p = profileMap.get(v.user_id);
+        const n = nmMap.get(v.user_id);
+        const email = (p?.email ?? n?.email ?? "").toLowerCase();
+        const m = email ? memberMap.get(email) : null;
+        const first = m?.first_name ?? p?.first_name ?? n?.first_name ?? "";
+        const last = m?.last_name ?? p?.last_name ?? n?.last_name ?? "";
+        return {
+          ...v,
+          name: `${first} ${last}`.trim(),
+          email: p?.email ?? n?.email ?? "",
+          phone: p?.phone ?? n?.phone ?? "",
+          member_tier: m?.membership_tier ?? null,
+        };
+      });
     },
     refetchInterval: 20000,
   });
@@ -47,11 +97,13 @@ export default function EventVoteTracking() {
   }, [tallies, votes]);
 
   const exportCsv = () => {
-    const header = ["Name", "Email", "Voter Type", "Choice", "Voted At"];
+    const header = ["Name", "Email", "Phone", "Voter Type", "Tier", "Choice", "Voted At"];
     const rows = votes.map((v: any) => [
-      `${v.profile?.first_name ?? ""} ${v.profile?.last_name ?? ""}`.trim(),
-      v.profile?.email ?? "",
+      v.name || "",
+      v.email || "",
+      v.phone || "",
       v.voter_type,
+      v.member_tier || "",
       SOUND_BATH_VOTE.options.find((o) => o.key === v.option_key)?.label ?? v.option_key,
       new Date(v.updated_at).toISOString(),
     ]);
