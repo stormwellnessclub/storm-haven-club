@@ -120,6 +120,7 @@ import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
 import ClassRoster from "./pages/admin/ClassRoster";
 import Marketing from "./pages/admin/Marketing";
 import EventVoteTracking from "./pages/admin/EventVoteTracking";
+import EventsHub from "./pages/admin/EventsHub";
 import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
 import People from "./pages/admin/People";
