@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor, KeyRound } from "lucide-react";
+import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor, KeyRound, FileText } from "lucide-react";
+import { resolvePdfUrl } from "@/lib/pdfAssets";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -222,6 +223,43 @@ export default function Settings() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Draft Legal Documents — admin-only preview, NOT live */}
+        <Card className="border-amber-300 bg-amber-50/40">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-amber-700" />
+              Draft Legal Documents
+            </CardTitle>
+            <CardDescription>
+              Internal review only. These drafts are <strong>not active</strong> and are not shown to members or applicants.
+              The currently signed contract remains unchanged until a draft is formally activated.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-4 rounded-md border border-amber-200 bg-white p-3">
+              <div className="min-w-0">
+                <div className="text-sm font-medium">Membership Agreement — v2.0 (Draft)</div>
+                <div className="text-xs text-muted-foreground">
+                  Adds HCSA 3-day cancellation notice, statutory cancellation events, total-price disclosure,
+                  explicit early-termination clause, and MCPA-safe severability/no-waiver language.
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(resolvePdfUrl("membership-agreement-v2-draft.pdf"), "_blank", "noopener,noreferrer")}
+              >
+                Preview draft
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              To activate a draft as the binding contract for new members, request it explicitly — activation requires
+              a database change and is intentionally not a one-click action.
+            </p>
+          </CardContent>
+        </Card>
+
 
         {/* Security */}
         <Card>

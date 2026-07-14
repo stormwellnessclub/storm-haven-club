@@ -13,6 +13,7 @@ import singleClassPass2 from "@/assets/agreements/single-class-pass-agreement-2.
 import kidsCareServiceSetUp from "@/assets/agreements/kids-care-service-set-up.pdf";
 import kidsMinorParentConsent from "@/assets/agreements/kids-minor-parent-consent-form.pdf";
 import membershipAgreementBackup from "@/assets/agreements/membership-agreement-backup.pdf";
+import membershipAgreementV2Draft from "@/assets/agreements/membership-agreement-v2-draft.pdf";
 import otherPrivateEventForm from "@/assets/agreements/other-private-event-form.pdf";
 
 const pdfMap: Record<string, string> = {
@@ -28,6 +29,7 @@ const pdfMap: Record<string, string> = {
   'kids-care-service-set-up.pdf': kidsCareServiceSetUp,
   'kids-minor-parent-consent-form.pdf': kidsMinorParentConsent,
   'membership-agreement-backup.pdf': membershipAgreementBackup,
+  'membership-agreement-v2-draft.pdf': membershipAgreementV2Draft,
   'other-private-event-form.pdf': otherPrivateEventForm,
 };
 
