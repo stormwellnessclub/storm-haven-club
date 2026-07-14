@@ -6,7 +6,7 @@ export const SOUND_BATH_VOTE = {
   title: "Sound Bath, Nervous System Reset & Guided Meditation",
   subtitle: "Help us pick the evening — members vote",
   // Voting closes end of day Jul 20, 2026 (America/Chicago).
-  closesAt: "2026-07-20T23:59:59-05:00",
+  closesAt: "2026-07-15T23:59:59-05:00",
   pricing: {
     member: 30,
     nonMember: 40,
