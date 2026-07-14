@@ -23,6 +23,7 @@ import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
+import { EventVoteCard } from "@/components/events/EventVoteCard";
 
 
 export default function PortalDashboard() {
