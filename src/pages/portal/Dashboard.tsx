@@ -148,6 +148,9 @@ export default function PortalDashboard() {
           <p className="text-muted-foreground mt-1">Manage your classes, passes, and bookings.</p>
         </div>
 
+        {/* Member Vote — Sound Bath */}
+        <EventVoteCard voterType="non_member" />
+
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
         <MyCafeCreditCard />
