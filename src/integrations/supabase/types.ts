@@ -8733,6 +8733,20 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_get_instructor_context: {
+        Args: { _instructor_id: string }
+        Returns: {
+          default_per_class_rate: number
+          email: string
+          first_name: string
+          hourly_rate: number
+          id: string
+          is_active: boolean
+          last_name: string
+          pay_type: string
+          photo_url: string
+        }[]
+      }
       admin_grant_instructor_portal: {
         Args: { _instructor_id: string }
         Returns: Json
