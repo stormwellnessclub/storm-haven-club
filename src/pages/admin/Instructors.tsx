@@ -113,8 +113,36 @@ export default function Instructors() {
       console.error(error);
     } else {
       setInstructors(data || []);
+      // Load portal status in parallel
+      const { data: statusRows } = await (supabase as any).rpc("get_instructor_portal_status");
+      if (statusRows) {
+        const map: Record<string, any> = {};
+        for (const r of statusRows as any[]) map[r.instructor_id] = r;
+        setPortalStatus(map);
+      }
     }
     setLoading(false);
+  }
+
+  async function handleGrantPortal(inst: Instructor) {
+    const { data, error } = await (supabase as any).rpc("admin_grant_instructor_portal", { _instructor_id: inst.id });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (data?.ok) {
+      toast.success(`Portal access granted to ${inst.first_name} ${inst.last_name}`);
+      fetchInstructors();
+    } else if (data?.reason === "no_auth_account") {
+      // Send password reset which acts as an invite for first-time setup
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(inst.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (resetErr) toast.error(`No account yet — invite failed: ${resetErr.message}`);
+      else toast.success(`Invite email sent to ${inst.email}. They'll set a password, then get portal access automatically.`);
+    } else {
+      toast.error(data?.reason || "Failed to grant portal access");
+    }
   }
 
   function resetForm() {
