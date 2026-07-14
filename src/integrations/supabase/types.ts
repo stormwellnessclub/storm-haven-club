@@ -8733,6 +8733,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_grant_instructor_portal: {
+        Args: { _instructor_id: string }
+        Returns: Json
+      }
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
@@ -9059,6 +9063,15 @@ export type Database = {
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
+      }
+      get_instructor_portal_status: {
+        Args: never
+        Returns: {
+          has_auth_account: boolean
+          has_portal_role: boolean
+          instructor_id: string
+          linked_user_id: string
+        }[]
       }
       get_instructors_with_contact: {
         Args: never
