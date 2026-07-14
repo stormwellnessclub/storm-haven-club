@@ -12,6 +12,7 @@ import { useEventVoteTallies } from "@/hooks/useEventVote";
 import { format } from "date-fns";
 import { Download, Users } from "lucide-react";
 import { SendVoteBlastButton } from "@/components/admin/SendVoteBlastButton";
+import { PreviewVoteEmailButton } from "@/components/admin/PreviewVoteEmailButton";
 
 export default function EventVoteTracking() {
   const slug = SOUND_BATH_VOTE.slug;
