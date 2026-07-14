@@ -37,6 +37,9 @@ function buildHtml(firstName: string | null): string {
           <a href="${FRIDAY_URL}" style="display:inline-block;background:#1C170F;color:#DEDACE;padding:14px 28px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:260px;">Friday, July 24 · 7:00 PM</a>
           <div style="height:12px;"></div>
           <a href="${SATURDAY_URL}" style="display:inline-block;background:#a17e3a;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:260px;">Saturday, July 25 · 7:00 PM</a>
+          <div style="height:12px;"></div>
+          <a href="${EITHER_URL}" style="display:inline-block;background:#ffffff;color:#1C170F;padding:13px 28px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:260px;border:2px solid #1C170F;">Either works for me</a>
+          <p style="margin:18px 0 0;font-size:12px;color:#88766B;font-style:italic;">Voting closes Wednesday, July 15.</p>
         </div>
 
         <hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0;" />
