@@ -1267,7 +1267,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 }}
               />
 
-              {member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
+              {!isFrontDesk && member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
                 <Button 
                   variant="destructive" 
                   className="w-full mt-4"
@@ -1277,7 +1277,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 </Button>
               )}
 
-              {isSuperAdmin() && (
+              {!isFrontDesk && isSuperAdmin() && (
                 <Button 
                   variant="destructive" 
                   className="w-full mt-2"
@@ -1287,6 +1287,14 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   Delete Member Permanently
                 </Button>
               )}
+            </TabsContent>
+
+            <TabsContent value="credits" className="space-y-4 mt-4">
+              <MemberCreditsPanel
+                memberId={member.id}
+                userId={member.user_id}
+                memberName={`${member.first_name} ${member.last_name}`}
+              />
             </TabsContent>
 
             <TabsContent value="cafe-credit" className="space-y-4 mt-4">
