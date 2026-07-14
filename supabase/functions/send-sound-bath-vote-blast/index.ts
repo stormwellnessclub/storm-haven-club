@@ -15,6 +15,7 @@ const TEMPLATE_KEY = "sound_bath_vote_jul_2026";
 const BASE_URL = "https://stormwellnessclub.com";
 const FRIDAY_URL = `${BASE_URL}/member?vote=sound-bath-jul-2026&choice=friday_jul_24`;
 const SATURDAY_URL = `${BASE_URL}/member?vote=sound-bath-jul-2026&choice=saturday_jul_25`;
+const EITHER_URL = `${BASE_URL}/member?vote=sound-bath-jul-2026&choice=either`;
 
 function buildHtml(firstName: string | null): string {
   const greeting = firstName ? `Hi ${firstName},` : "Hello,";
