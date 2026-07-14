@@ -154,6 +154,7 @@ export default function FrontDeskMembersPage() {
           member={selected}
           open={open}
           onOpenChange={setOpen}
+          viewerMode="frontdesk"
         />
       </div>
     </FrontDeskShell>

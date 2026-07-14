@@ -11,6 +11,7 @@ import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "./AdminActionButton";
 import { ChangeBillingDateDialog } from "./ChangeBillingDateDialog";
 import { AddProcessingFeesButton } from "./AddProcessingFeesButton";
 import { CafeCreditPanel } from "./cafe/CafeCreditPanel";
+import { MemberCreditsPanel } from "./MemberCreditsPanel";
 import {
   Sheet,
   SheetContent,
@@ -99,6 +100,11 @@ interface MemberDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRequestSuperActivate?: (member: Member) => void;
+  /**
+   * "frontdesk" hides destructive admin actions (delete, suspend) while still
+   * exposing credit adjustments and on-behalf bookings.
+   */
+  viewerMode?: "admin" | "frontdesk";
 }
 
 const getStatusColor = (status: string) => {
@@ -307,7 +313,8 @@ function PaymentMethodsSection({
   );
 }
 
-export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate }: MemberDetailSheetProps) {
+export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate, viewerMode = "admin" }: MemberDetailSheetProps) {
+  const isFrontDesk = viewerMode === "frontdesk";
   const queryClient = useQueryClient();
   const { isSuperAdmin, loading: rolesLoading } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
@@ -769,9 +776,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="mt-6">
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto">
+            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-10 h-auto">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="membership">Membership</TabsTrigger>
+              <TabsTrigger value="credits">Credits</TabsTrigger>
               <TabsTrigger value="cafe-credit" className="gap-1">
                 <Coffee className="h-3.5 w-3.5" /> Cafe Credit
               </TabsTrigger>
@@ -1260,7 +1268,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 }}
               />
 
-              {member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
+              {!isFrontDesk && member.status !== "suspended" && member.status !== "cancelled" && member.status === "active" && (
                 <Button 
                   variant="destructive" 
                   className="w-full mt-4"
@@ -1270,7 +1278,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 </Button>
               )}
 
-              {isSuperAdmin() && (
+              {!isFrontDesk && isSuperAdmin() && (
                 <Button 
                   variant="destructive" 
                   className="w-full mt-2"
@@ -1280,6 +1288,14 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   Delete Member Permanently
                 </Button>
               )}
+            </TabsContent>
+
+            <TabsContent value="credits" className="space-y-4 mt-4">
+              <MemberCreditsPanel
+                memberId={member.id}
+                userId={member.user_id}
+                memberName={`${member.first_name} ${member.last_name}`}
+              />
             </TabsContent>
 
             <TabsContent value="cafe-credit" className="space-y-4 mt-4">
