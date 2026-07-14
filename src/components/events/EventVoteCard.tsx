@@ -115,12 +115,12 @@ export function EventVoteCard({ voterType }: Props) {
                         isMine ? "bg-primary text-primary-foreground" : "bg-muted"
                       }`}
                     >
-                      {isMine ? <Check className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
+                      {isMine ? <Check className="h-4 w-4" /> : opt.key === "either" ? <Sparkles className="h-4 w-4" /> : <Calendar className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0">
                       <div className="font-semibold text-sm sm:text-base">{opt.label}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock className="h-3 w-3" /> {opt.time}
+                        {opt.key === "either" ? null : <Clock className="h-3 w-3" />} {opt.time}
                       </div>
                     </div>
                   </div>
