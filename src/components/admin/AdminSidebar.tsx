@@ -44,6 +44,7 @@ import {
   Heart,
   AlertCircle,
   Leaf,
+  GraduationCap,
 } from "lucide-react";
 import {
   Sidebar,
