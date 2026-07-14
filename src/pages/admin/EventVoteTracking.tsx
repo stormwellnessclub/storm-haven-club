@@ -207,6 +207,7 @@ export default function EventVoteTracking() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Choice</TableHead>
                       <TableHead>Voted</TableHead>
@@ -216,9 +217,17 @@ export default function EventVoteTracking() {
                     {votes.map((v: any) => (
                       <TableRow key={v.id}>
                         <TableCell>
-                          {`${v.profile?.first_name ?? ""} ${v.profile?.last_name ?? ""}`.trim() || "—"}
+                          <div className="flex items-center gap-2">
+                            <span>{v.name || "—"}</span>
+                            {v.member_tier && (
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {v.member_tier}
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs">{v.profile?.email ?? "—"}</TableCell>
+                        <TableCell className="text-xs">{v.email || "—"}</TableCell>
+                        <TableCell className="text-xs">{v.phone || "—"}</TableCell>
                         <TableCell>
                           <Badge variant={v.voter_type === "member" ? "default" : "secondary"}>
                             {v.voter_type === "member" ? "Member" : "Non-Member"}
