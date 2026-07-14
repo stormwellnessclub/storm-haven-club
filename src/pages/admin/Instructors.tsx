@@ -389,6 +389,30 @@ export default function Instructors() {
                           {instructor.is_active ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const s = portalStatus[instructor.id];
+                          if (s?.has_portal_role) {
+                            return (
+                              <Badge variant="outline" className="gap-1 text-green-700 border-green-600/40">
+                                <CheckCircle2 className="h-3 w-3" /> Access granted
+                              </Badge>
+                            );
+                          }
+                          if (s?.has_auth_account) {
+                            return (
+                              <Button size="sm" variant="outline" onClick={() => handleGrantPortal(instructor)}>
+                                <KeyRound className="h-3 w-3 mr-1" /> Grant access
+                              </Button>
+                            );
+                          }
+                          return (
+                            <Button size="sm" variant="outline" onClick={() => handleGrantPortal(instructor)}>
+                              <AlertCircle className="h-3 w-3 mr-1" /> Send invite
+                            </Button>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button
