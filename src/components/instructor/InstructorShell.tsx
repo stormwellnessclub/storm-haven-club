@@ -1,10 +1,11 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useInstructorContext } from "@/hooks/useInstructorContext";
+import { InstructorModeSwitcher } from "@/components/instructor/InstructorModeSwitcher";
 import {
   CalendarDays,
   ClipboardList,
@@ -18,6 +19,7 @@ import {
   FileText,
   LayoutDashboard,
   LogOut,
+  Eye,
 } from "lucide-react";
 
 const NAV = [
@@ -33,30 +35,15 @@ const NAV = [
   { key: "documents",     label: "Documents",      to: "/instructor/documents",    icon: FileText },
 ] as const;
 
-interface Me {
-  first_name: string;
-  last_name: string;
-  photo_url: string | null;
-}
-
 export function InstructorShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [me, setMe] = useState<Me | null>(null);
+  const { instructor, isAdmin, isImpersonating, clearViewAs } = useInstructorContext();
 
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("instructors")
-      .select("first_name,last_name,photo_url")
-      .eq("user_id", user.id)
-      .maybeSingle()
-      .then(({ data }) => data && setMe(data));
-  }, [user]);
-
-  const displayName = me ? `${me.first_name} ${me.last_name}` : "Instructor";
-  const initials = me ? `${me.first_name[0] ?? ""}${me.last_name[0] ?? ""}`.toUpperCase() : "";
+  const displayName = instructor ? `${instructor.first_name} ${instructor.last_name}` : "Instructor";
+  const initials = instructor
+    ? `${instructor.first_name[0] ?? ""}${instructor.last_name[0] ?? ""}`.toUpperCase()
+    : "";
 
   const handleSignOut = async () => {
     await supabase.auth.signOut({ scope: "local" });
@@ -104,8 +91,8 @@ export function InstructorShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="mt-auto flex items-center gap-3 border-t border-[#E5E2DD] pt-6">
-          {me?.photo_url ? (
-            <img src={me.photo_url} alt={displayName} className="h-8 w-8 rounded-full object-cover" />
+          {instructor?.photo_url ? (
+            <img src={instructor.photo_url} alt={displayName} className="h-8 w-8 rounded-full object-cover" />
           ) : (
             <div className="h-8 w-8 rounded-full bg-[#C5A059]/20 flex items-center justify-center text-xs font-medium text-[#C5A059]">
               {initials}
@@ -113,7 +100,9 @@ export function InstructorShell({ children }: { children: ReactNode }) {
           )}
           <div className="flex flex-col leading-tight flex-1 min-w-0">
             <span className="text-xs font-medium truncate">{displayName}</span>
-            <span className="text-[10px] text-gray-500 uppercase tracking-widest">Instructor</span>
+            <span className="text-[10px] text-gray-500 uppercase tracking-widest">
+              {isAdmin ? "Admin · Instructor" : "Instructor"}
+            </span>
           </div>
           <Button
             variant="ghost"
@@ -154,6 +143,28 @@ export function InstructorShell({ children }: { children: ReactNode }) {
       </div>
 
       <main className="flex-1 min-w-0 pt-14 md:pt-0 overflow-y-auto">
+        {isAdmin && (
+          <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-[#E5E2DD] bg-white/80 px-4 py-2 backdrop-blur md:px-8">
+            <div className="text-[10px] uppercase tracking-widest text-gray-500">
+              {isImpersonating ? "Admin · view-as" : "Admin · your instructor view"}
+            </div>
+            <InstructorModeSwitcher />
+          </div>
+        )}
+        {isImpersonating && instructor && (
+          <div className="flex items-center justify-between gap-3 border-b border-[#C5A059]/30 bg-[#C5A059]/10 px-4 py-2 text-xs text-[#1A1A1A] md:px-8">
+            <div className="flex items-center gap-2">
+              <Eye className="h-3.5 w-3.5 text-[#C5A059]" />
+              <span>
+                Viewing as <strong>{instructor.first_name} {instructor.last_name}</strong>. Actions taken here will
+                affect this instructor's data.
+              </span>
+            </div>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={clearViewAs}>
+              Exit view-as
+            </Button>
+          </div>
+        )}
         {children}
       </main>
     </div>
