@@ -67,11 +67,15 @@ export function EventVoteCard({ voterType }: Props) {
           {SOUND_BATH_VOTE.description.slice(0, 2).map((p, i) => (
             <p key={i}>{p}</p>
           ))}
-          <details className="mt-2">
-            <summary className="cursor-pointer text-primary text-xs font-medium hover:underline">
-              Read full description
+          <details className="mt-3 group">
+            <summary className="flex items-center justify-between gap-2 cursor-pointer list-none rounded-lg border-2 border-primary/40 bg-primary/5 hover:bg-primary/10 hover:border-primary transition-colors px-4 py-3 font-semibold text-primary text-sm">
+              <span className="flex items-center gap-2">
+                <BookOpen className="h-4 w-4" />
+                Read full event description
+              </span>
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180" />
             </summary>
-            <div className="mt-2 space-y-2">
+            <div className="mt-3 space-y-2 px-1">
               {SOUND_BATH_VOTE.description.slice(2).map((p, i) => (
                 <p key={i}>{p}</p>
               ))}
