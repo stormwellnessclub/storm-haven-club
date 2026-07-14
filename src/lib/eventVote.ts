@@ -22,6 +22,11 @@ export const SOUND_BATH_VOTE = {
       label: "Saturday, July 25",
       time: "7:00 PM",
     },
+    {
+      key: "either",
+      label: "Either works for me",
+      time: "No preference",
+    },
   ] as const,
   description: [
     "Join us for a 90-minute nervous system reset led by Crystal Bell, a classically trained musician and yoga instructor. This restorative experience combines the healing frequencies of sound with the deep relaxation of guided meditation.",
