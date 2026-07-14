@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useInstructorContext } from "@/hooks/useInstructorContext";
 import { InstructorShell } from "@/components/instructor/InstructorShell";
 import { Button } from "@/components/ui/button";
 import { format, addDays, startOfDay, isAfter, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
+
 
 interface Instructor {
   id: string;
@@ -37,32 +38,25 @@ function fmtTime(t: string) {
 }
 
 export default function InstructorToday() {
-  const { user } = useAuth();
-  const [instructor, setInstructor] = useState<Instructor | null>(null);
+  const { instructor, isAdmin, loading: ctxLoading } = useInstructorContext();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (ctxLoading) return;
+    if (!instructor) {
+      setSessions([]);
+      setLoading(false);
+      return;
+    }
     (async () => {
-      const { data: inst } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, pay_type, default_per_class_rate, hourly_rate")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!inst) {
-        setLoading(false);
-        return;
-      }
-      setInstructor(inst as Instructor);
-
+      setLoading(true);
       const today = format(new Date(), "yyyy-MM-dd");
       const in7 = format(addDays(new Date(), 7), "yyyy-MM-dd");
       const { data: sess } = await supabase
         .from("class_sessions")
         .select("id, session_date, start_time, end_time, room, current_enrollment, max_capacity, class_type:class_types(name)")
-        .eq("instructor_id", inst.id)
+        .eq("instructor_id", instructor.id)
         .gte("session_date", today)
         .lte("session_date", in7)
         .order("session_date", { ascending: true })
@@ -71,7 +65,8 @@ export default function InstructorToday() {
       setSessions((sess as unknown as Session[]) ?? []);
       setLoading(false);
     })();
-  }, [user]);
+  }, [instructor, ctxLoading]);
+
 
   const now = new Date();
   const todayStr = format(now, "yyyy-MM-dd");
@@ -128,12 +123,15 @@ export default function InstructorToday() {
             Almost there
           </h2>
           <p className="text-sm text-gray-600">
-            Your instructor profile hasn't been linked to this account yet. Ask the studio admin to invite you from the Instructors backend.
+            {isAdmin
+              ? "Your admin account isn't linked to an instructor record yet. Use the Instructor mode switcher at the top to view any instructor's schedule, or link yourself in Admin → Classes → Instructors."
+              : "Your instructor profile hasn't been linked to this account yet. Ask the studio admin to invite you from the Instructors backend."}
           </p>
         </div>
       </InstructorShell>
     );
   }
+
 
   return (
     <InstructorShell>

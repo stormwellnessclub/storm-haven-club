@@ -1,50 +1,51 @@
-## Where the portal lives today
+# Admin access to Instructor Portal
 
-The Instructor Portal was built and is live at these routes (all gated by `ProtectedInstructorRoute`, which requires the `class_instructor`, `admin`, or `super_admin` role):
+Goal: You (super admin, `storm@stormwellnessclub.com`) can enter `/instructor` and use it like any instructor — plus flip a switch to see & manage any other instructor's schedule/roster/pay. Regular instructors are unaffected.
 
-- `/instructor` — Today
-- `/instructor/schedule`, `/rosters`, `/availability`, `/time-off`, `/subs`, `/notes`, `/pay`, `/messages`, `/documents`
+## 1. Link your admin account to an instructor record
 
-Problems right now:
-1. **No admin sidebar link** — admins have no way to preview or open the portal.
-2. **No teacher entry point** — `/instructor` isn't linked anywhere and instructors don't know it exists.
-3. **No role wiring** — creating a row in the `instructors` table does NOT grant `class_instructor` in `user_roles`, so even if a teacher logs in, `ProtectedInstructorRoute` blocks them with "Instructor access required."
-4. **No onboarding email** — instructors aren't told they have a portal or how to log in.
+- Locate the instructor row where email is `storm@stormwellnessclub.com` (create one named "Storm Admin" if missing, `pay_type = per_class`, rates 0, `active = true`).
+- Set its `user_id` to your admin auth user id so `/instructor` finds it.
+- This is a data-only change — your admin role, permissions, and access to every other admin surface stay exactly as they are. Linking an instructor row does not touch `user_roles`.
 
-## Plan
+## 2. Mode switcher in the Instructor Portal header
 
-### 1. Admin access
-- Add an **"Instructor Portal"** entry to `AdminSidebar.tsx` (under Staff / Classes) that opens `/instructor` in a new tab. Visible to `super_admin`, `admin`, `manager`. This lets you preview exactly what teachers see.
-- On the existing `/admin/instructors` page, add a per-row **"Open portal as…"** link (super_admin only) and a **"Grant portal access"** action that:
-  - Looks up the instructor's `auth.users` row by email
-  - Inserts `class_instructor` into `user_roles` if missing
-  - Shows a status badge on the row: *Portal access: granted / pending (no auth account) / not linked*
+Only visible when the current user has `admin` or `super_admin` role. Rendered in `InstructorShell.tsx` top bar:
 
-### 2. Teacher access
-- Add a public **`/instructor-login`** landing route (simple branded page with email+password sign-in, "Forgot password", and copy: "Storm instructor portal — sign in with the email the studio has on file"). Redirects to `/instructor` on success.
-- Auto-link on sign-in: a Postgres trigger on `auth.users` (insert/update) that, if the new user's email matches an `instructors.email` (case-insensitive), inserts `class_instructor` into `user_roles` and stamps `instructors.auth_user_id`.
-- Backfill: run once for existing instructors with matching auth accounts.
+```text
+[ Instructor mode ▼ ]   ← default: your own instructor view
+    • My instructor view (Storm Admin)
+    • View as: Duha A.
+    • View as: [each active instructor]
+    • ──
+    • Admin mode  → jumps to /admin/instructors
+```
 
-### 3. Onboarding
-- New edge function `send-instructor-welcome` that:
-  - Creates the auth user via admin API (or sends a magic-link invite) using the instructor's email
-  - Sends a branded email: welcome, portal URL (`https://stormwellnessclub.com/instructor-login`), what they can do there (schedule, rosters, sub requests, availability, pay, messages, documents), and a "Set your password" link.
-- Trigger button on the admin Instructors page: **"Send portal invite"** per row, plus **"Send to all active"** in the header.
+- Selecting "View as: X" stores `viewAsInstructorId` in `sessionStorage` and reloads the portal pages against that instructor id.
+- A slim gold banner appears while impersonating: `Viewing as Duha A. — Exit view-as`.
+- Non-admin instructors never see the switcher or banner (guarded by `has_role` check via `useAuth` + a small `useIsAdmin` hook).
 
-### 4. Discoverability
-- Add "Instructor login" link to the public site footer (small, subtle) so teachers can find it without needing the URL emailed each time.
+## 3. Data fetching changes
 
-## Technical notes
+Update the instructor portal pages (`Today.tsx`, and the other `src/pages/instructor/*` pages that scope by `instructor_id`) so:
 
-- `class_instructor` already exists as an `app_role` enum value (used by `AdminSidebar` roles list and `ProtectedInstructorRoute`), so no enum migration needed.
-- Auto-link trigger mirrors the existing member auth-linking pattern (`mem://auth/member-linking`).
-- Welcome email uses the existing `send-transactional-email` flow with a new template `instructor-welcome` in `_shared/transactional-email-templates/`.
-- No changes to portal pages themselves — they're already built.
+- If `viewAsInstructorId` is set AND caller is admin → use that id.
+- Otherwise → look up instructor by `user_id = auth.uid()` (current behavior).
 
-## Deliverables checklist
+Admin-only RPC `admin_get_instructor_context(_instructor_id uuid)` returns the target instructor row and is called instead of the direct `instructors` select when impersonating. RLS on `class_sessions`, rosters, pay tables already allows admins to read all rows, so no policy changes needed.
 
-- [ ] AdminSidebar link + admin "Grant access" / "Send invite" actions on `/admin/instructors`
-- [ ] `/instructor-login` page + footer link
-- [ ] Auth trigger + backfill migration linking `instructors` ↔ `user_roles`
-- [ ] `instructor-welcome` email template + `send-instructor-welcome` edge function
-- [ ] Quick QA: sign in as a test instructor, confirm portal loads
+## 4. "Almost there" empty state
+
+Since your admin account will be linked to the Storm Admin instructor row, you'll never hit the "hasn't been linked" screen. Keep the screen for real instructors who truly aren't linked yet, but add a subtle admin-only escape hatch: if the viewer is admin and no instructor row is linked, show a button "Enter as admin (view any instructor)" that opens the switcher directly instead of blocking.
+
+## Files touched
+
+- DB (migration + insert): ensure instructor row for `storm@stormwellnessclub.com`, link `user_id`; add `admin_get_instructor_context` RPC.
+- `src/components/instructor/InstructorShell.tsx`: mode switcher, impersonation banner, admin gate.
+- `src/hooks/useInstructorContext.ts` (new): resolves effective instructor id (self vs. view-as) and exposes `isAdmin`, `isImpersonating`.
+- `src/pages/instructor/Today.tsx` (and siblings): consume `useInstructorContext` instead of doing their own lookup.
+- No changes to regular-instructor UX, no changes to admin sidebar, no changes to `user_roles`.
+
+## Out of scope
+
+- No new admin-only editing surfaces inside the instructor portal (edits still happen in `/admin/instructors` and `/admin/classes`). Ask if you want inline edit next.
