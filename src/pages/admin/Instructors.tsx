@@ -348,6 +348,7 @@ export default function Instructors() {
                     <TableHead>Phone</TableHead>
                     <TableHead>Specialties</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Portal</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
