@@ -120,7 +120,7 @@ const departments: DepartmentSection[] = [
       { title: "Today's Classes", url: "/admin/classes", icon: Calendar },
       { title: "Class Management", url: "/admin/class-types", icon: Dumbbell },
       { title: "Instructors", url: "/admin/instructors", icon: UserCog },
-      { title: "Instructor Portal", url: "/instructor", icon: GraduationCap, external: true },
+      { title: "Instructor Portal", url: "/instructor", icon: GraduationCap },
       { title: "Class Pass Abandoned", url: "/admin/abandoned-class-pass-checkouts", icon: ShoppingCart },
     ],
   },
