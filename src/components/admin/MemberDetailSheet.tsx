@@ -99,6 +99,11 @@ interface MemberDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRequestSuperActivate?: (member: Member) => void;
+  /**
+   * "frontdesk" hides destructive admin actions (delete, suspend) while still
+   * exposing credit adjustments and on-behalf bookings.
+   */
+  viewerMode?: "admin" | "frontdesk";
 }
 
 const getStatusColor = (status: string) => {
