@@ -165,6 +165,7 @@ import {
   InstructorDocuments,
 } from "./pages/instructor/Stubs";
 import FrontDeskLogin from "./pages/FrontDeskLogin";
+import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
 import KioskSpa from "./pages/kiosk/Spa";
