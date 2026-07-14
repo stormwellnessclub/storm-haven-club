@@ -123,12 +123,15 @@ export default function InstructorToday() {
             Almost there
           </h2>
           <p className="text-sm text-gray-600">
-            Your instructor profile hasn't been linked to this account yet. Ask the studio admin to invite you from the Instructors backend.
+            {isAdmin
+              ? "Your admin account isn't linked to an instructor record yet. Use the Instructor mode switcher at the top to view any instructor's schedule, or link yourself in Admin → Classes → Instructors."
+              : "Your instructor profile hasn't been linked to this account yet. Ask the studio admin to invite you from the Instructors backend."}
           </p>
         </div>
       </InstructorShell>
     );
   }
+
 
   return (
     <InstructorShell>
