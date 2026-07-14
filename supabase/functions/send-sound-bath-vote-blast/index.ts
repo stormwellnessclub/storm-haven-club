@@ -125,10 +125,13 @@ serve(async (req) => {
       const status = (resp as any)?.error ? "failed" : "sent";
       await supabase.from("email_audit_log").insert({
         recipient_email: email,
+        recipient_name: [m.first_name, m.last_name].filter(Boolean).join(" ") || null,
         email_type: TEMPLATE_KEY,
+        trigger_source: "admin_blast",
+        triggered_by: gate.userId === "service_role" ? null : gate.userId,
+        member_id: m.id,
         subject: "Member Vote: Sound Bath & Nervous System Reset",
         status,
-        provider_message_id: (resp as any)?.data?.id ?? null,
         error_message: (resp as any)?.error?.message ?? null,
       });
       if (status === "sent") {
