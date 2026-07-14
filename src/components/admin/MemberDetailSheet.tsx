@@ -775,9 +775,10 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           </SheetHeader>
 
           <Tabs defaultValue="profile" className="mt-6">
-            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto">
+            <TabsList className="grid w-full grid-cols-3 lg:grid-cols-10 h-auto">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="membership">Membership</TabsTrigger>
+              <TabsTrigger value="credits">Credits</TabsTrigger>
               <TabsTrigger value="cafe-credit" className="gap-1">
                 <Coffee className="h-3.5 w-3.5" /> Cafe Credit
               </TabsTrigger>
