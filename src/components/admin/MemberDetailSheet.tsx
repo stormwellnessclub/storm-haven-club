@@ -11,6 +11,7 @@ import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "./AdminActionButton";
 import { ChangeBillingDateDialog } from "./ChangeBillingDateDialog";
 import { AddProcessingFeesButton } from "./AddProcessingFeesButton";
 import { CafeCreditPanel } from "./cafe/CafeCreditPanel";
+import { MemberCreditsPanel } from "./MemberCreditsPanel";
 import {
   Sheet,
   SheetContent,
