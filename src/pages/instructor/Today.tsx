@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useInstructorContext } from "@/hooks/useInstructorContext";
 import { InstructorShell } from "@/components/instructor/InstructorShell";
 import { Button } from "@/components/ui/button";
 import { format, addDays, startOfDay, isAfter, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
+
 
 interface Instructor {
   id: string;
