@@ -53,6 +53,7 @@ interface Instructor {
 
 export default function Instructors() {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [portalStatus, setPortalStatus] = useState<Record<string, { has_auth_account: boolean; has_portal_role: boolean }>>({});
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
