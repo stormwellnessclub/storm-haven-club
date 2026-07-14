@@ -71,6 +71,17 @@ serve(async (req) => {
   const gate = await requireStaff(req, ["admin", "super_admin"]);
   if (!gate.ok) return gate.response;
 
+  // Preview branch: return HTML without sending
+  let body: any = {};
+  try { body = await req.json(); } catch { /* no body */ }
+  if (body?.preview) {
+    return new Response(buildHtml("Jane"), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
+
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
