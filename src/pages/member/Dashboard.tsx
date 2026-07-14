@@ -30,6 +30,7 @@ import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection"
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppointmentsCard";
 import { UpcomingSpaAppointmentsCard } from "@/components/portal/UpcomingSpaAppointmentsCard";
+import { EventVoteCard } from "@/components/events/EventVoteCard";
 
 import {
   CreditCard,
@@ -169,6 +170,9 @@ export default function MemberDashboard() {
   return (
     <MemberLayout title="Dashboard">
       <div className="space-y-8">
+        {/* Member Vote — Sound Bath */}
+        <EventVoteCard voterType="member" />
+
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
 

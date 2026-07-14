@@ -23,6 +23,7 @@ import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
+import { EventVoteCard } from "@/components/events/EventVoteCard";
 
 
 export default function PortalDashboard() {
@@ -146,6 +147,9 @@ export default function PortalDashboard() {
           <h2 className="heading-section">Welcome back, {firstName}</h2>
           <p className="text-muted-foreground mt-1">Manage your classes, passes, and bookings.</p>
         </div>
+
+        {/* Member Vote — Sound Bath */}
+        <EventVoteCard voterType="non_member" />
 
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />

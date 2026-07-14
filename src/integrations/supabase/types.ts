@@ -2386,6 +2386,36 @@ export type Database = {
         }
         Relationships: []
       }
+      event_votes: {
+        Row: {
+          created_at: string
+          event_slug: string
+          id: string
+          option_key: string
+          updated_at: string
+          user_id: string
+          voter_type: string
+        }
+        Insert: {
+          created_at?: string
+          event_slug: string
+          id?: string
+          option_key: string
+          updated_at?: string
+          user_id: string
+          voter_type?: string
+        }
+        Update: {
+          created_at?: string
+          event_slug?: string
+          id?: string
+          option_key?: string
+          updated_at?: string
+          user_id?: string
+          voter_type?: string
+        }
+        Relationships: []
+      }
       goal_milestones: {
         Row: {
           achieved_at: string | null
@@ -8433,6 +8463,16 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      event_vote_tallies: {
+        Row: {
+          event_slug: string | null
+          option_key: string | null
+          percentage: number | null
+          total_votes: number | null
+          vote_count: number | null
+        }
+        Relationships: []
       }
       gut_reset_sessions_public: {
         Row: {
