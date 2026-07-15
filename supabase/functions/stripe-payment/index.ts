@@ -990,18 +990,60 @@ serve(async (req) => {
       }
 
       case 'create_freeze_fee_checkout': {
-        const { freezeId, freezeFeeAmount, successUrl, cancelUrl } = body;
+        const { freezeId, successUrl, cancelUrl } = body;
 
-        if (!freezeId || !freezeFeeAmount || !successUrl || !cancelUrl) {
-          throw new Error("Missing required fields for freeze fee checkout");
+        if (!freezeId || !successUrl || !cancelUrl) {
+          return new Response(
+            JSON.stringify({ error: "Missing required fields for freeze fee checkout" }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+
+        // Validate the freeze belongs to the caller and is in the right state.
+        const { data: freezeRow, error: freezeErr } = await supabase
+          .from('member_freezes')
+          .select('id, user_id, status, fee_paid, freeze_fee_total')
+          .eq('id', freezeId)
+          .maybeSingle();
+
+        if (freezeErr || !freezeRow) {
+          logStep("Freeze not found", { freezeId, error: freezeErr?.message });
+          return new Response(
+            JSON.stringify({ error: "Freeze request not found." }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+          );
+        }
+        if (freezeRow.user_id !== user.id) {
+          return new Response(
+            JSON.stringify({ error: "You are not authorized to pay for this freeze." }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+          );
+        }
+        if (freezeRow.status !== 'approved') {
+          return new Response(
+            JSON.stringify({ error: `This freeze request is not ready for payment (status: ${freezeRow.status}).` }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+        if (freezeRow.fee_paid) {
+          return new Response(
+            JSON.stringify({ error: "This freeze fee has already been paid." }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
         }
 
         const customerId = await getOrCreateCustomer();
 
-        // Calculate processing fee for freeze
-        const freezeAmountCents = freezeFeeAmount * 100;
+        // Trust DB amount, never the client-provided value.
+        const freezeAmountCents = Math.round(Number(freezeRow.freeze_fee_total) * 100);
+        if (!Number.isFinite(freezeAmountCents) || freezeAmountCents <= 0) {
+          return new Response(
+            JSON.stringify({ error: "Invalid freeze fee amount on record." }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
         const freezeFeeCents = calculateProcessingFee(freezeAmountCents);
-        
+
         const freezeLineItems: any[] = [
           {
             price_data: {
@@ -1028,6 +1070,9 @@ serve(async (req) => {
           });
         }
 
+        const safeSuccess = successUrl || 'https://stormwellnessclub.com/member/freeze?payment=success';
+        const safeCancel = cancelUrl || 'https://stormwellnessclub.com/member/freeze?payment=cancelled';
+
         // Create one-time payment for freeze fee
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
@@ -1036,8 +1081,8 @@ serve(async (req) => {
           payment_intent_data: {
             setup_future_usage: 'off_session',
           },
-          success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: cancelUrl,
+          success_url: `${safeSuccess}${safeSuccess.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: safeCancel,
           metadata: {
             type: 'freeze_fee',
             user_id: user.id,
@@ -1052,6 +1097,7 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
       }
+
 
       case 'pay_annual_fee': {
         const { memberId, successUrl, cancelUrl } = body;
