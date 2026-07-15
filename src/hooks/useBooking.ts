@@ -510,7 +510,8 @@ export function useCancelBooking() {
 
         if (currentUser?.email && cancelResult.session_date) {
           const firstName = (currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '').split(' ')[0] || 'there';
-          const fmtDate = format(parseISO(cancelResult.session_date), "EEEE, MMMM d, yyyy");
+          const [_cy, _cm, _cd] = cancelResult.session_date.split("-").map(Number);
+          const fmtDate = format(new Date(_cy, _cm - 1, _cd), "EEEE, MMMM d, yyyy");
           const fmtTime = format(parse(cancelResult.start_time || "00:00:00", "HH:mm:ss", new Date()), "h:mm a");
           await supabase.functions.invoke("send-email", {
             body: {
