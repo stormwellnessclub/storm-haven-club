@@ -312,6 +312,8 @@ export default function FreezeRequest() {
                       )}
                       Pay ${approvedRequest.freeze_fee_total} Now
                     </Button>
+                    <p className="text-xs text-muted-foreground">Opens Stripe in a new tab. Return here after paying.</p>
+
                   </AlertDescription>
                 </Alert>
               )}
