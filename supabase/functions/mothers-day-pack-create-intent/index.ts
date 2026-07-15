@@ -11,7 +11,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Sale ends Sunday May 11 2026 at 23:59:59 America/Chicago (CDT = UTC-5).
+// Sale ends Sunday May 11 2026 at 23:59:59 America/Detroit (CDT = UTC-5).
 // 2026-05-12T00:00:00 CDT == 2026-05-12T05:00:00Z
 const SALE_END_UTC = Date.parse("2026-05-12T05:00:00Z");
 

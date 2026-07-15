@@ -799,7 +799,7 @@ export default function ClassRoster() {
       // Best-effort confirmation email + SMS — never blocks the promotion.
       const dateLabel = session?.session_date
         ? new Date(session.session_date + "T00:00:00").toLocaleDateString("en-US", {
-            weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago",
+            weekday: "short", month: "short", day: "numeric", timeZone: "America/Detroit",
           })
         : "";
       const timeLabel = session?.start_time
@@ -1022,7 +1022,7 @@ export default function ClassRoster() {
       if (userId) {
         const dateLabel = session?.session_date
           ? new Date(session.session_date + "T00:00:00").toLocaleDateString("en-US", {
-              weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago",
+              weekday: "short", month: "short", day: "numeric", timeZone: "America/Detroit",
             })
           : "";
         const timeLabel = session?.start_time

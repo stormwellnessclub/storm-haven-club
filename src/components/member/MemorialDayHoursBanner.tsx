@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Calendar } from "lucide-react";
 
 const STORAGE_KEY = "memorial-day-2026-dismissed";
-// Hide after end of Monday May 25, 2026 in America/Chicago (CDT = UTC-5)
+// Hide after end of Monday May 25, 2026 in America/Detroit (CDT = UTC-5)
 const HIDE_AFTER = new Date("2026-05-26T05:00:00Z");
 
 export function MemorialDayHoursBanner() {

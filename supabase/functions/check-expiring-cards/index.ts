@@ -20,7 +20,7 @@ const TWILIO_ACCOUNT_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
 const TWILIO_AUTH_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
 const TWILIO_FROM_NUMBER = Deno.env.get("TWILIO_FROM_NUMBER");
 
-// Touchpoint windows (days until expiration end-of-month, in America/Chicago)
+// Touchpoint windows (days until expiration end-of-month, in America/Detroit)
 const TOUCHPOINTS: Array<{ days: number; email: boolean; sms: boolean }> = [
   { days: 60, email: true, sms: false },
   { days: 30, email: true, sms: true },
@@ -29,7 +29,7 @@ const TOUCHPOINTS: Array<{ days: number; email: boolean; sms: boolean }> = [
 
 function todayChicago(): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
+    timeZone: "America/Detroit",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

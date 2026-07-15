@@ -57,7 +57,7 @@ export function useUnifiedAttendance() {
   const fetchAll = useCallback(async () => {
     if (!authReady || !user) return;
 
-    // America/Chicago day boundaries — same for every device
+    // America/Detroit day boundaries — same for every device
     const todayIso = clubTodayStart();
     const tomorrowIso = clubTodayEnd();
     const todayStr = clubTodayDateStr();

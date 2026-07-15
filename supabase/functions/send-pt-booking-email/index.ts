@@ -12,7 +12,7 @@ const corsHeaders = {
 
 const FROM = "Storm Wellness Club <hello@notify.stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
-const TZ = "America/Chicago";
+const TZ = "America/Detroit";
 
 const FORMAT_LABEL: Record<string, string> = {
   one_on_one: "1:1 Personal Training",

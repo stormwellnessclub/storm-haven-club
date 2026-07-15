@@ -60,7 +60,7 @@ export default function Dashboard() {
     day: 'numeric' 
   });
 
-  // Use America/Chicago day boundaries so every device sees the same counts
+  // Use America/Detroit day boundaries so every device sees the same counts
   const todayStartISO = clubTodayStart();
   const todayEndISO = clubTodayEnd();
   const today = clubTodayDateStr(); // YYYY-MM-DD in club tz
