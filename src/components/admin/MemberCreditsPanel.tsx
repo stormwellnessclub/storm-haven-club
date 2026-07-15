@@ -226,6 +226,74 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Recent credit activity</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Every add/remove is logged with the staff member who made the change.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {isHistoryLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No credit activity yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(showAllHistory ? history : history.slice(0, 8)).map((h: any) => {
+                const isAdd = h.adjustment_type === "add";
+                const label = CREDIT_TYPE_LABELS[h.credit_type as CreditType] || h.credit_type;
+                const created = new Date(h.created_at);
+                return (
+                  <div
+                    key={h.id}
+                    className="flex items-start justify-between gap-3 p-2.5 border rounded-md text-sm"
+                  >
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      <Badge
+                        variant="outline"
+                        className={
+                          isAdd
+                            ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300 shrink-0"
+                            : "border-red-300 text-red-700 bg-red-50 dark:bg-red-900/30 dark:text-red-300 shrink-0"
+                        }
+                      >
+                        {isAdd ? "+" : "−"}{h.amount}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {h.previous_balance} → {h.new_balance}
+                          {h.reason ? ` · ${h.reason}` : ""}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {h.staff_name} · <span title={format(created, "PPpp")}>{formatDistanceToNow(created, { addSuffix: true })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {history.length > 8 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setShowAllHistory((v) => !v)}
+                >
+                  {showAllHistory ? "Show less" : `Show all (${history.length})`}
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
       {/* Adjust dialog */}
       <Dialog open={!!adjustTarget} onOpenChange={(o) => !o && setAdjustTarget(null)}>
         <DialogContent>
