@@ -38,7 +38,7 @@ function fmtUtc(iso: string | null): string {
 function fmtCt(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-US", {
-    timeZone: "America/Chicago",
+    timeZone: "America/Detroit",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -46,7 +46,7 @@ function fmtCt(iso: string | null): string {
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  }) + " America/Chicago";
+  }) + " America/Detroit";
 }
 
 Deno.serve(async (req) => {

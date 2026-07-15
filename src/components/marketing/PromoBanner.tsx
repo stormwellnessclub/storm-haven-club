@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { X, Gift } from "lucide-react";
 
 const STORAGE_KEY = "class-pass-promo-banner-dismissed";
-const MOTHERS_DAY_END = new Date("2026-05-13T05:00:00Z"); // end of May 12 in America/Chicago
+const MOTHERS_DAY_END = new Date("2026-05-13T05:00:00Z"); // end of May 12 in America/Detroit
 
 export function PromoBanner({ className = "" }: { className?: string }) {
   const [visible, setVisible] = useState(false);

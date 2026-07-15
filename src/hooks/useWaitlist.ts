@@ -205,7 +205,7 @@ export function useJoinWaitlist() {
               weekday: "short",
               month: "short",
               day: "numeric",
-              timeZone: "America/Chicago",
+              timeZone: "America/Detroit",
             })
           : "";
         const timeStr = rawTime

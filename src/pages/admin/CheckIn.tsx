@@ -96,7 +96,7 @@ export default function CheckIn() {
     setMemberScanResult(null);
 
     if (result.type === "member") {
-      // Count check-ins this month (America/Chicago month boundary)
+      // Count check-ins this month (America/Detroit month boundary)
       const { count } = await supabase
         .from("check_ins")
         .select("*", { count: "exact", head: true })

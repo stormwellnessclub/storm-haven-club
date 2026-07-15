@@ -37,10 +37,10 @@ function annualFeeAmount(gender: "women" | "men"): number {
   return gender === "men" ? 175 : 300;
 }
 
-// Today in America/Chicago, as a YYYY-MM-DD string
+// Today in America/Detroit, as a YYYY-MM-DD string
 function todayChicago(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
+    timeZone: "America/Detroit",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

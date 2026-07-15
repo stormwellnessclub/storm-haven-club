@@ -1,13 +1,13 @@
 /**
  * Club time helpers.
  *
- * The club operates in America/Chicago. All "today" / "this month" boundaries
+ * The club operates in America/Detroit. All "today" / "this month" boundaries
  * used for counting check-ins, attendance, etc. MUST be calculated against
  * Chicago time so that every device — regardless of its local timezone —
  * sees the same numbers.
  */
 
-const CLUB_TZ = "America/Chicago";
+const CLUB_TZ = "America/Detroit";
 
 /**
  * Returns the YYYY-MM-DD date string for "today" in club time.
@@ -88,7 +88,7 @@ export function clubMonthStart(): string {
 
 /**
  * Returns true if a class session with the given date + end_time has already
- * ended in club (America/Chicago) time. Used so members can review classes the
+ * ended in club (America/Detroit) time. Used so members can review classes the
  * same day they attend, right after the session finishes.
  *
  * `session_date` is YYYY-MM-DD. `end_time` is HH:MM or HH:MM:SS (Chicago wall

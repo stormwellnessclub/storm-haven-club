@@ -1,7 +1,7 @@
 // Spa appointment reminders — sends 24-hour and 2-hour reminders (email + SMS).
 // Idempotent via reminder_24h_sent_at / reminder_2h_sent_at columns.
 //
-// Triggered by pg_cron (every 5–15 min). Operates in America/Chicago timezone.
+// Triggered by pg_cron (every 5–15 min). Operates in America/Detroit timezone.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -17,7 +17,7 @@ type Window = "24h" | "2h";
 function chicagoNow(): Date {
   // Get current time as if it were Chicago local. We compute by formatting and reparsing.
   const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
+    timeZone: "America/Detroit",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -40,12 +40,12 @@ function formatChicago(d: Date) {
       weekday: "short",
       month: "short",
       day: "numeric",
-      timeZone: "America/Chicago",
+      timeZone: "America/Detroit",
     }),
     time: d.toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
-      timeZone: "America/Chicago",
+      timeZone: "America/Detroit",
     }),
   };
 }
@@ -64,8 +64,8 @@ async function processWindow(admin: any, window: Window) {
   const hi = new Date(target.getTime() + bufferMin * 60 * 1000);
 
   // Format date in Chicago for the SQL filter (appointment_date is a date column).
-  const loDate = lo.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
-  const hiDate = hi.toLocaleDateString("en-CA", { timeZone: "America/Chicago" });
+  const loDate = lo.toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
+  const hiDate = hi.toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
 
   const sentCol = window === "24h" ? "reminder_24h_sent_at" : "reminder_2h_sent_at";
 
@@ -97,7 +97,7 @@ async function processWindow(admin: any, window: Window) {
       // We approximate by computing the minute-diff between target (Chicago wall clock now+offset)
       // and apptLocal using string comparisons.
       const apptKey = `${a.appointment_date} ${a.appointment_time.slice(0, 5)}`;
-      const targetKey = `${target.toLocaleDateString("en-CA", { timeZone: "America/Chicago" })} ${target.toLocaleTimeString("en-GB", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" })}`;
+      const targetKey = `${target.toLocaleDateString("en-CA", { timeZone: "America/Detroit" })} ${target.toLocaleTimeString("en-GB", { timeZone: "America/Detroit", hour: "2-digit", minute: "2-digit" })}`;
       const apptMin =
         new Date(`2000-01-01T${a.appointment_time}`).getHours() * 60 +
         new Date(`2000-01-01T${a.appointment_time}`).getMinutes();
@@ -148,7 +148,7 @@ async function processWindow(admin: any, window: Window) {
         weekday: "short",
         month: "short",
         day: "numeric",
-        timeZone: "America/Chicago",
+        timeZone: "America/Detroit",
       });
       const timeLabel = new Date(`2000-01-01T${a.appointment_time}`).toLocaleTimeString("en-US", {
         hour: "numeric",

@@ -27,7 +27,7 @@ interface Session {
   class_type: { name: string } | null;
 }
 
-const CLUB_TZ = "America/Chicago";
+const CLUB_TZ = "America/Detroit";
 
 function fmtTime(t: string) {
   // 09:00:00 → 9:00 AM
