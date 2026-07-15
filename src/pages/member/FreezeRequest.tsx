@@ -114,19 +114,24 @@ export default function FreezeRequest() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { data: freezes, isLoading: freezesLoading } = useMemberFreezes();
   const { data: eligibility, isLoading: eligibilityLoading } = useFreezeEligibility();
+  const { data: pastDue, isLoading: pastDueLoading } = useFreezePastDueStatus();
   const createFreeze = useCreateFreezeRequest();
   const cancelFreeze = useCancelFreezeRequest();
 
-  const isLoading = membershipLoading || freezesLoading || eligibilityLoading;
+  const isLoading = membershipLoading || freezesLoading || eligibilityLoading || pastDueLoading;
   const durationMonths = parseInt(duration) as 1 | 2;
   const freezeFee = durationMonths * 30;
   const endDate = startDate ? addMonths(startDate, durationMonths) : null;
+  const isPastDueBlocked = !!pastDue?.blocked;
+  const outstandingDollars = ((pastDue?.outstanding_cents ?? 0) / 100).toFixed(2);
 
   const canSubmit = 
     eligibility?.canFreeze && 
+    !isPastDueBlocked &&
     startDate && 
     durationMonths <= (eligibility?.monthsRemaining || 0) &&
     membership?.id;
+
 
   const handleSubmit = () => {
     if (!membership?.id || !startDate) return;
