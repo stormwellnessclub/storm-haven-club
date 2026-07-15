@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, formatDistanceToNow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,8 +58,42 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
     },
   });
 
+  const { data: history = [], isLoading: isHistoryLoading } = useQuery({
+    queryKey: ["member-credit-history", memberId],
+    queryFn: async () => {
+      const { data: adjustments, error } = await supabase
+        .from("credit_adjustments")
+        .select("id, credit_type, adjustment_type, amount, previous_balance, new_balance, reason, adjusted_by, created_at")
+        .eq("member_id", memberId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const staffIds = [...new Set((adjustments || []).map((a) => a.adjusted_by).filter(Boolean))] as string[];
+      let staffMap: Record<string, string> = {};
+      if (staffIds.length) {
+        const { data: staff } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", staffIds);
+        staffMap = Object.fromEntries(
+          (staff || []).map((s: any) => [
+            s.id,
+            [s.first_name, s.last_name].filter(Boolean).join(" ").trim() || s.email || "Staff",
+          ])
+        );
+      }
+      return (adjustments || []).map((a: any) => ({
+        ...a,
+        staff_name: a.adjusted_by ? staffMap[a.adjusted_by] || "Staff" : "System",
+      }));
+    },
+  });
+
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["member-credits-panel", memberId] });
+    queryClient.invalidateQueries({ queryKey: ["member-credit-history", memberId] });
     queryClient.invalidateQueries({ queryKey: ["admin-members-with-credits"] });
     queryClient.invalidateQueries({ queryKey: ["admin-members"] });
     queryClient.invalidateQueries({ queryKey: ["user-credits"] });
@@ -191,6 +225,74 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Recent credit activity</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Every add/remove is logged with the staff member who made the change.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {isHistoryLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : history.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No credit activity yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(showAllHistory ? history : history.slice(0, 8)).map((h: any) => {
+                const isAdd = h.adjustment_type === "add";
+                const label = CREDIT_TYPE_LABELS[h.credit_type as CreditType] || h.credit_type;
+                const created = new Date(h.created_at);
+                return (
+                  <div
+                    key={h.id}
+                    className="flex items-start justify-between gap-3 p-2.5 border rounded-md text-sm"
+                  >
+                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                      <Badge
+                        variant="outline"
+                        className={
+                          isAdd
+                            ? "border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300 shrink-0"
+                            : "border-red-300 text-red-700 bg-red-50 dark:bg-red-900/30 dark:text-red-300 shrink-0"
+                        }
+                      >
+                        {isAdd ? "+" : "−"}{h.amount}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {h.previous_balance} → {h.new_balance}
+                          {h.reason ? ` · ${h.reason}` : ""}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {h.staff_name} · <span title={format(created, "PPpp")}>{formatDistanceToNow(created, { addSuffix: true })}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {history.length > 8 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => setShowAllHistory((v) => !v)}
+                >
+                  {showAllHistory ? "Show less" : `Show all (${history.length})`}
+                </Button>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       {/* Adjust dialog */}
       <Dialog open={!!adjustTarget} onOpenChange={(o) => !o && setAdjustTarget(null)}>

@@ -1,27 +1,23 @@
-# Fix: Sound Bath admin page shows blank voter names/emails
+# Add credit history to the member Credits panel
 
-## Problem
+Front desk already reaches the Credits tab through `MemberDetailSheet` (viewerMode="frontdesk"), which renders `MemberCreditsPanel`. That panel today only shows current balances — no historical log. Add a "Recent activity" section that reads from `credit_adjustments` so front desk (and admins) can see who used/added credits and when.
 
-`/admin/event-votes` renders the "Individual votes" table with every row showing `—` for Name and Email. Four votes exist in `event_votes`, but `EventVoteTracking.tsx` only joins `profiles` by `user_id` — and none of the current voters have a `profiles` row. Their identity actually lives in `non_member_profiles` (and, for `voter_type = 'member'`, `members` by email). CSV export has the same gap.
+## Changes
 
-## Fix
+**`src/components/admin/MemberCreditsPanel.tsx`**
+- Add a second `useQuery` (`["member-credit-history", memberId]`) that selects the last 50 rows from `credit_adjustments` for this `member_id`, ordered by `created_at desc`. Join staff name via a lightweight `profiles` lookup on the returned `adjusted_by` ids (batch fetch, same pattern used in `src/pages/admin/MemberCredits.tsx`).
+- Invalidate this query alongside the existing `invalidate()` after an adjustment so the log updates immediately.
+- Render a new Card ("Recent credit activity") below the balances Card:
+  - Empty state: "No credit activity yet."
+  - Each row: +/- amount pill (green for add, red for remove), credit type label (using `CREDIT_TYPE_LABELS`), previous → new balance, reason, staff name, relative timestamp (`formatDistanceToNow`) with exact time on hover via `title`.
+  - Collapsible: show first 8 rows, "Show all (N)" toggle to expand.
 
-Update `src/pages/admin/EventVoteTracking.tsx` so the voter query resolves identity from multiple sources in priority order:
+## Access / RLS
 
-1. Fetch votes from `event_votes` (unchanged).
-2. Look up each `user_id` in parallel across:
-   - `profiles` (id, first_name, last_name, email)
-   - `non_member_profiles` (user_id, first_name, last_name, email, phone)
-   - `auth.users` → not queryable client-side, so use email/name from the two tables above.
-   - `members` matched by lowercased email from either source (first_name, last_name, membership_tier) to enrich member voters with their member name/tier.
-3. Merge into each vote row: `name`, `email`, `phone`, plus an optional `member_tier` badge when found.
-4. Update the table to render the merged name/email, keep the Member/Non-Member type badge, and add a small tier chip next to member names when available.
-5. Update `exportCsv` to use the same merged fields (Name, Email, Phone, Type, Tier, Choice, Voted At).
+`credit_adjustments` already has policies that allow staff roles (front desk / admin / super_admin) to SELECT. No RLS or GRANT changes needed — verify by reading a sample row from `credit_adjustments` during implementation; if the front-desk role is missing, add a matching `has_any_role(...)` SELECT policy in a migration.
 
-Also update the `EventsHub.tsx` "unique voters" stat wording to just "voters" (count is already correct) — no data change needed.
+## Out of scope
 
-No schema changes, no RLS changes. Query-only fix in one file.
-
-## Files
-
-- `src/pages/admin/EventVoteTracking.tsx` — replace the votes `useQuery` to merge `profiles` + `non_member_profiles` + `members`; update table cells and CSV export.
+- No changes to admin `/admin/member-credits` page (already has full history).
+- No changes to Cafe Credit ledger (already visible via `CafeCreditPanel`).
+- No changes to write paths — logging on adjust/book-on-behalf already exists.
