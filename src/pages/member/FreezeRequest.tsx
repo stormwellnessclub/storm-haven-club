@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CalendarIcon, Snowflake, AlertCircle, CheckCircle2, Clock, X, DollarSign, ExternalLink, CreditCard, PauseCircle } from "lucide-react";
 import { format, addMonths, isBefore, startOfTomorrow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useMemberFreezes, useFreezeEligibility, useCreateFreezeRequest, useCancelFreezeRequest } from "@/hooks/useMemberFreezes";
+import { useMemberFreezes, useFreezeEligibility, useCreateFreezeRequest, useCancelFreezeRequest, useFreezePastDueStatus } from "@/hooks/useMemberFreezes";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
