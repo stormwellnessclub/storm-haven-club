@@ -1,44 +1,48 @@
-# Switch club timezone to America/Detroit (Eastern)
+## Goal
+1. Ensure the freeze-fee "Pay Now" link actually completes payment reliably.
+2. Block members with past-due balances from submitting a freeze request until they clear arrears.
 
-## Context
+## Changes
 
-You've clarified the club operates on Michigan Eastern time, not Central. Right now the codebase treats `America/Chicago` as the authoritative timezone in many places (see `src/lib/clubTime.ts`, `send-class-reminders`, `send-spa-reminders`, and numerous RPCs/edge functions). This is also the root cause of the "class shows the day before" bug in booking confirmations — a Wednesday 12:00 AM–4:00 AM ET class formatted in Chicago rolls back to Tuesday.
+### 1. Block freeze requests when past-due (client + server)
 
-## Scope of this plan
+**Server (migration)** – new SECURITY DEFINER RPC `check_freeze_block_status()`:
+- Reads `members` row for the current user.
+- Sums outstanding `billing_arrears` for the member (any row where `status` in open states and `outstanding_cents > 0`, dues + other types).
+- Also treats `members.subscription_status = 'past_due'` as blocking.
+- Returns `{ blocked: bool, outstanding_cents: int, reason: text }`.
 
-Two coordinated changes:
+**Server (migration)** – trigger `enforce_no_freeze_when_past_due` on `member_freezes` BEFORE INSERT:
+- Calls the check above using `NEW.user_id`. If blocked, `RAISE EXCEPTION 'PAST_DUE_BLOCK: settle outstanding balance first'`. This closes the loophole even if the client is bypassed.
 
-### 1. Fix the booking confirmation off-by-one (immediate bug)
+**Client** – `src/hooks/useMemberFreezes.ts`:
+- Add `useFreezePastDueStatus()` that calls the new RPC.
+- In `useFreezeEligibility`, fold `blocked`/`outstanding_cents` into the return object so `canFreeze` is false when blocked.
+- In `useCreateFreezeRequest.onError`, detect `PAST_DUE_BLOCK` and surface a clear toast.
 
-In `src/hooks/useBooking.ts`, format `session_date` as a local calendar date (parse `YYYY-MM-DD` into a local Date using `new Date(y, m-1, d)`) instead of `parseISO`, so it never shifts across a timezone boundary. Apply the same fix to any other confirmation/cancellation trigger that formats `session_date` (send-email templates, send-sms callers).
+**Client** – `src/pages/member/FreezeRequest.tsx`:
+- If `blocked`, render a red destructive Alert at the top: "You have $X.XX past due. Please settle your balance before requesting a freeze." with a "Pay Balance Now" button that invokes the existing `charge-member-arrears`/member arrears payment path (whichever the portal already uses; use `supabase.functions.invoke('stripe-payment', { action: 'create_arrears_checkout' })` if present, otherwise the existing member-facing arrears link).
+- Hide the freeze request form while blocked (keep eligibility card visible).
 
-### 2. Migrate club timezone constant to `America/Detroit`
+### 2. Fix freeze-fee payment link
 
-Frontend:
-- `src/lib/clubTime.ts` — change `CLUB_TZ` to `America/Detroit`. All helpers (`clubTodayDateStr`, `clubTodayStart`, `hasSessionEnded`, etc.) automatically follow.
-- Grep for hardcoded `"America/Chicago"` in `src/` and replace with the `CLUB_TZ` constant or `America/Detroit`. Known hits include schedule/booking components, spa time utils, PT format, and various admin pages.
+Root-cause pattern seen in reports: `window.location.href` navigation was blocked/lost when returning from Stripe, and no error surfaced when the edge function failed silently.
 
-Edge functions (Deno):
-- `send-class-reminders`, `send-spa-reminders`, and any other function referencing `America/Chicago` — swap to `America/Detroit`.
-- Reminder windows continue to work because they use offsets from `now`; only the date-label formatting changes.
+**`src/pages/member/FreezeRequest.tsx` `handlePayFreezeFee`:**
+- Open the checkout URL in a new tab (`window.open(data.url, '_blank', 'noopener')`), matching the rest of the app's Stripe checkout pattern. Keep a fallback redirect if the popup is blocked.
+- Show a clear error toast when the edge function returns an error, including any message from the response body.
+- After opening, start a polling refetch of `member-freezes` every 5s for 2 minutes so the UI updates when payment completes without requiring a manual refresh.
 
-Database:
-- Search migrations/RPCs for `'America/Chicago'` (e.g. session generation, credit expiry at 23:59:59, cron helpers). Add a migration that updates each function/default to `'America/Detroit'`. Leave stored timestamps alone — only the interpretation constant changes.
+**`supabase/functions/stripe-payment/index.ts` `create_freeze_fee_checkout`:**
+- Validate that the freeze belongs to the caller (`select member_freezes where id = freezeId and user_id = auth user`) and that it is in `approved` status and `fee_paid = false`. Return a 400 with a descriptive message otherwise.
+- Recalculate `freezeFeeAmount` server-side from `freeze_fee_total` on the DB row (do not trust the client amount).
+- Include `success_url`/`cancel_url` sanity fallback to `stormwellnessclub.com/member/freeze`.
+- Return `{ error: message }` with proper status on failure so the client toast is meaningful.
 
-Memory:
-- Update `mem://index.md` Core rule and `mem://features/classes/timezone-policy` to say `America/Detroit`.
+### 3. Small UX polish
+- On the approved-request alert, show "Opens Stripe in a new tab" helper text next to the pay button.
+- Disable the pay button while a checkout session is being created (already there) and re-enable on error.
 
 ## Out of scope
-
-- No changes to historical data. Existing `session_date` + `start_time` rows are Chicago wall-clock; after the switch they'll be read as Eastern wall-clock. If you want past sessions "shifted" rather than "reinterpreted," that's a separate data migration — please confirm before I do it.
-- No UI redesign; only the tz constant and the date-parse fix.
-
-## Verification
-
-- Book a class dated Wednesday from a device set to Pacific time — confirmation email/SMS must say Wednesday.
-- Kiosk "today's classes" at 11pm ET must still show today's date (not tomorrow's).
-- Credit expiration timestamps for a member on a fresh cycle should land at 23:59:59 ET on the correct calendar date.
-
-## Question before I execute
-
-Do you want me to (a) reinterpret existing sessions as Eastern (simpler, means already-scheduled classes stay at the same wall-clock number like "7:00 PM" but that number is now ET), or (b) shift stored times by −1 hour so a session previously stored as 7:00 PM Central becomes 8:00 PM Eastern? Almost every club I've seen wants (a); confirm before I write the migration.
+- Changing the fee amount, freeze policy, or admin approval flow.
+- Any change to non-freeze billing.
