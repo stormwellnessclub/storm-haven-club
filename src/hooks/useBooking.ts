@@ -388,7 +388,9 @@ export function useBookClass() {
             ? sessionDetails.instructor[0]
             : sessionDetails.instructor;
 
-          const formattedDate = format(parseISO(sessionDetails.session_date), "EEEE, MMMM d, yyyy");
+          // Parse YYYY-MM-DD as a local calendar date so it never rolls back a day across timezones
+          const [_sy, _sm, _sd] = sessionDetails.session_date.split("-").map(Number);
+          const formattedDate = format(new Date(_sy, _sm - 1, _sd), "EEEE, MMMM d, yyyy");
           const formattedTime = format(parse(sessionDetails.start_time, "HH:mm:ss", new Date()), "h:mm a");
           const instructorName = instructor ? `${instructor.first_name} ${instructor.last_name}` : "TBA";
 
