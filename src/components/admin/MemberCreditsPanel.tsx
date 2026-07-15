@@ -58,8 +58,42 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
     },
   });
 
+  const { data: history = [], isLoading: isHistoryLoading } = useQuery({
+    queryKey: ["member-credit-history", memberId],
+    queryFn: async () => {
+      const { data: adjustments, error } = await supabase
+        .from("credit_adjustments")
+        .select("id, credit_type, adjustment_type, amount, previous_balance, new_balance, reason, adjusted_by, created_at")
+        .eq("member_id", memberId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const staffIds = [...new Set((adjustments || []).map((a) => a.adjusted_by).filter(Boolean))] as string[];
+      let staffMap: Record<string, string> = {};
+      if (staffIds.length) {
+        const { data: staff } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", staffIds);
+        staffMap = Object.fromEntries(
+          (staff || []).map((s: any) => [
+            s.id,
+            [s.first_name, s.last_name].filter(Boolean).join(" ").trim() || s.email || "Staff",
+          ])
+        );
+      }
+      return (adjustments || []).map((a: any) => ({
+        ...a,
+        staff_name: a.adjusted_by ? staffMap[a.adjusted_by] || "Staff" : "System",
+      }));
+    },
+  });
+
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["member-credits-panel", memberId] });
+    queryClient.invalidateQueries({ queryKey: ["member-credit-history", memberId] });
     queryClient.invalidateQueries({ queryKey: ["admin-members-with-credits"] });
     queryClient.invalidateQueries({ queryKey: ["admin-members"] });
     queryClient.invalidateQueries({ queryKey: ["user-credits"] });
