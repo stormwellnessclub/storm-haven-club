@@ -346,7 +346,7 @@ export default function FreezeRequest() {
               </Card>
 
               {/* Request Form */}
-              {eligibility?.canFreeze && !activeFreeze && !pendingRequest && !approvedRequest && (
+              {eligibility?.canFreeze && !activeFreeze && !pendingRequest && !approvedRequest && !isPastDueBlocked && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Request a Freeze</CardTitle>
