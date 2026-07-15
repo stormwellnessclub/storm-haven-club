@@ -220,6 +220,27 @@ export default function FreezeRequest() {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Left Column - Request Form or Status */}
             <div className="space-y-6">
+              {/* Past-due block */}
+              {isPastDueBlocked && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Outstanding Balance — Freeze Unavailable</AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    {pastDue?.reason === 'past_due_subscription' && (pastDue?.outstanding_cents ?? 0) === 0 ? (
+                      <p>Your membership subscription is currently <strong>past due</strong>. Please settle your balance before requesting a freeze.</p>
+                    ) : (
+                      <p>
+                        You have an outstanding balance of <strong>${outstandingDollars}</strong>.
+                        Please settle this balance before requesting a freeze.
+                      </p>
+                    )}
+                    <p className="text-sm">
+                      Contact the front desk or visit <a href="/member/billing" className="underline font-medium">Billing</a> to resolve your balance.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Active Freeze Alert */}
               {activeFreeze && (
                 <Alert className="border-purple-500/20 bg-purple-500/10">
@@ -232,6 +253,8 @@ export default function FreezeRequest() {
                   </AlertDescription>
                 </Alert>
               )}
+
+
 
               {/* Billing Status During Freeze */}
               {activeFreeze && membership?.stripe_subscription_id && (
