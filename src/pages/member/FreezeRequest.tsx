@@ -176,19 +176,27 @@ export default function FreezeRequest() {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       if (data?.url) {
-        window.location.href = data.url;
+        // Open Stripe Checkout in a new tab; fall back to same-window redirect if popups are blocked.
+        const win = window.open(data.url, '_blank', 'noopener,noreferrer');
+        if (!win) {
+          window.location.href = data.url;
+        } else {
+          toast.success('Opening secure Stripe checkout in a new tab…');
+        }
       } else {
-        throw new Error('No checkout URL received');
+        throw new Error('No checkout URL received from Stripe.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating freeze fee checkout:', error);
-      toast.error('Failed to start payment. Please try again.');
+      toast.error(error?.message || 'Failed to start payment. Please try again.');
     } finally {
       setIsPaymentLoading(false);
     }
   };
+
 
   const pendingRequest = freezes?.find(f => f.status === 'pending');
   const approvedRequest = freezes?.find(f => f.status === 'approved');
