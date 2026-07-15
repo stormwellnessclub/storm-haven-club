@@ -151,10 +151,16 @@ export function useCreateFreezeRequest() {
       queryClient.invalidateQueries({ queryKey: ["freeze-eligibility"] });
       toast.success("Freeze request submitted! You'll be notified once reviewed.");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error creating freeze request:", error);
-      toast.error("Failed to submit freeze request");
+      const msg = String(error?.message || "");
+      if (msg.includes("PAST_DUE_BLOCK")) {
+        toast.error(msg.replace(/^.*PAST_DUE_BLOCK:\s*/, ""));
+      } else {
+        toast.error("Failed to submit freeze request");
+      }
     },
+
   });
 }
 
