@@ -13,7 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CalendarIcon, Snowflake, AlertCircle, CheckCircle2, Clock, X, DollarSign, ExternalLink, CreditCard, PauseCircle } from "lucide-react";
 import { format, addMonths, isBefore, startOfTomorrow } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useMemberFreezes, useFreezeEligibility, useCreateFreezeRequest, useCancelFreezeRequest } from "@/hooks/useMemberFreezes";
+import { useMemberFreezes, useFreezeEligibility, useCreateFreezeRequest, useCancelFreezeRequest, useFreezePastDueStatus } from "@/hooks/useMemberFreezes";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,19 +114,24 @@ export default function FreezeRequest() {
   const { data: membership, isLoading: membershipLoading } = useUserMembership();
   const { data: freezes, isLoading: freezesLoading } = useMemberFreezes();
   const { data: eligibility, isLoading: eligibilityLoading } = useFreezeEligibility();
+  const { data: pastDue, isLoading: pastDueLoading } = useFreezePastDueStatus();
   const createFreeze = useCreateFreezeRequest();
   const cancelFreeze = useCancelFreezeRequest();
 
-  const isLoading = membershipLoading || freezesLoading || eligibilityLoading;
+  const isLoading = membershipLoading || freezesLoading || eligibilityLoading || pastDueLoading;
   const durationMonths = parseInt(duration) as 1 | 2;
   const freezeFee = durationMonths * 30;
   const endDate = startDate ? addMonths(startDate, durationMonths) : null;
+  const isPastDueBlocked = !!pastDue?.blocked;
+  const outstandingDollars = ((pastDue?.outstanding_cents ?? 0) / 100).toFixed(2);
 
   const canSubmit = 
     eligibility?.canFreeze && 
+    !isPastDueBlocked &&
     startDate && 
     durationMonths <= (eligibility?.monthsRemaining || 0) &&
     membership?.id;
+
 
   const handleSubmit = () => {
     if (!membership?.id || !startDate) return;
@@ -171,19 +176,27 @@ export default function FreezeRequest() {
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       if (data?.url) {
-        window.location.href = data.url;
+        // Open Stripe Checkout in a new tab; fall back to same-window redirect if popups are blocked.
+        const win = window.open(data.url, '_blank', 'noopener,noreferrer');
+        if (!win) {
+          window.location.href = data.url;
+        } else {
+          toast.success('Opening secure Stripe checkout in a new tab…');
+        }
       } else {
-        throw new Error('No checkout URL received');
+        throw new Error('No checkout URL received from Stripe.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating freeze fee checkout:', error);
-      toast.error('Failed to start payment. Please try again.');
+      toast.error(error?.message || 'Failed to start payment. Please try again.');
     } finally {
       setIsPaymentLoading(false);
     }
   };
+
 
   const pendingRequest = freezes?.find(f => f.status === 'pending');
   const approvedRequest = freezes?.find(f => f.status === 'approved');
@@ -207,6 +220,27 @@ export default function FreezeRequest() {
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Left Column - Request Form or Status */}
             <div className="space-y-6">
+              {/* Past-due block */}
+              {isPastDueBlocked && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Outstanding Balance — Freeze Unavailable</AlertTitle>
+                  <AlertDescription className="space-y-2">
+                    {pastDue?.reason === 'past_due_subscription' && (pastDue?.outstanding_cents ?? 0) === 0 ? (
+                      <p>Your membership subscription is currently <strong>past due</strong>. Please settle your balance before requesting a freeze.</p>
+                    ) : (
+                      <p>
+                        You have an outstanding balance of <strong>${outstandingDollars}</strong>.
+                        Please settle this balance before requesting a freeze.
+                      </p>
+                    )}
+                    <p className="text-sm">
+                      Contact the front desk or visit <a href="/member/billing" className="underline font-medium">Billing</a> to resolve your balance.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Active Freeze Alert */}
               {activeFreeze && (
                 <Alert className="border-purple-500/20 bg-purple-500/10">
@@ -219,6 +253,8 @@ export default function FreezeRequest() {
                   </AlertDescription>
                 </Alert>
               )}
+
+
 
               {/* Billing Status During Freeze */}
               {activeFreeze && membership?.stripe_subscription_id && (
@@ -276,6 +312,8 @@ export default function FreezeRequest() {
                       )}
                       Pay ${approvedRequest.freeze_fee_total} Now
                     </Button>
+                    <p className="text-xs text-muted-foreground">Opens Stripe in a new tab. Return here after paying.</p>
+
                   </AlertDescription>
                 </Alert>
               )}
@@ -310,7 +348,7 @@ export default function FreezeRequest() {
               </Card>
 
               {/* Request Form */}
-              {eligibility?.canFreeze && !activeFreeze && !pendingRequest && !approvedRequest && (
+              {eligibility?.canFreeze && !activeFreeze && !pendingRequest && !approvedRequest && !isPastDueBlocked && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Request a Freeze</CardTitle>

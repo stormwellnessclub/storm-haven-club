@@ -46,6 +46,25 @@ export function useMemberFreezes() {
   });
 }
 
+export function useFreezePastDueStatus() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["freeze-past-due-status", user?.id],
+    queryFn: async () => {
+      if (!user) return { blocked: false, outstanding_cents: 0, reason: null as string | null };
+      const { data, error } = await supabase.rpc("check_freeze_block_status");
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return {
+        blocked: !!row?.blocked,
+        outstanding_cents: Number(row?.outstanding_cents ?? 0),
+        reason: (row?.reason ?? null) as string | null,
+      };
+    },
+    enabled: !!user,
+  });
+}
+
 export function useFreezeEligibility() {
   const { user } = useAuth();
   const currentYear = new Date().getFullYear();
@@ -86,6 +105,7 @@ export function useFreezeEligibility() {
     enabled: !!user,
   });
 }
+
 
 interface CreateFreezeRequest {
   memberId: string;
@@ -131,10 +151,16 @@ export function useCreateFreezeRequest() {
       queryClient.invalidateQueries({ queryKey: ["freeze-eligibility"] });
       toast.success("Freeze request submitted! You'll be notified once reviewed.");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Error creating freeze request:", error);
-      toast.error("Failed to submit freeze request");
+      const msg = String(error?.message || "");
+      if (msg.includes("PAST_DUE_BLOCK")) {
+        toast.error(msg.replace(/^.*PAST_DUE_BLOCK:\s*/, ""));
+      } else {
+        toast.error("Failed to submit freeze request");
+      }
     },
+
   });
 }
 

@@ -8872,6 +8872,14 @@ export type Database = {
         Args: { p_check_in_window_minutes?: number; p_member_id: string }
         Returns: boolean
       }
+      check_freeze_block_status: {
+        Args: never
+        Returns: {
+          blocked: boolean
+          outstanding_cents: number
+          reason: string
+        }[]
+      }
       check_goal_milestones: { Args: { _goal_id: string }; Returns: undefined }
       check_spa_appointment_conflict: {
         Args: {
