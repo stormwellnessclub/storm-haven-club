@@ -2236,6 +2236,8 @@ serve(async (req) => {
         if (!paymentMethodId) {
           throw new Error("Payment method ID required");
         }
+        await assertOwnerOrStaff(memberId);
+
 
         logStep("Setting default payment method", { paymentMethodId, userId: user.id, memberId });
 
