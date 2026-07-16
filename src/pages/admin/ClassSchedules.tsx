@@ -72,9 +72,14 @@ interface ClassSchedule {
   max_capacity: number | null;
   is_active: boolean;
   is_invite_only?: boolean;
+  is_one_time?: boolean;
+  effective_from?: string | null;
+  effective_until?: string | null;
   class_types?: ClassType;
   instructors?: Instructor | null;
 }
+
+type ScheduleMode = "ongoing" | "duration" | "one_time";
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sunday" },
