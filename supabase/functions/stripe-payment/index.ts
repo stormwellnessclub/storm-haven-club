@@ -1725,6 +1725,7 @@ serve(async (req) => {
       // NEW: 3DS-aware charging for admin card charges
       case 'charge_saved_card_with_3ds': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount: taxAmount3ds, subtotal: bodySubtotal3ds, payment_type: paymentType3ds } = body;
+        await assertStaff();
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -1733,6 +1734,7 @@ serve(async (req) => {
         if (!memberId && !directCustomerId) {
           throw new Error("Either memberId or stripeCustomerId is required");
         }
+
 
         if (amount < 50) {
           throw new Error("Minimum charge amount is $0.50");
