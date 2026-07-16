@@ -321,9 +321,11 @@ export default function ClassSchedules() {
     },
     onError: (error: Error) => {
       console.error('Schedule error:', error);
+      setFormError(error.message || "Failed to save schedule");
       toast.error(error.message || "Failed to save schedule");
     },
   });
+
 
   // Generate + reconcile sessions mutation
   const generateSessionsMutation = useMutation({
