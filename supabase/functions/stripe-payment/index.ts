@@ -6067,7 +6067,9 @@ serve(async (req) => {
 
       case 'sync_member_subscription_status': {
         const { memberId } = body;
+        await assertOwnerOrStaff(memberId);
         if (!memberId) throw new Error("Missing memberId");
+
 
         logStep("Sync member subscription status", { memberId });
 
