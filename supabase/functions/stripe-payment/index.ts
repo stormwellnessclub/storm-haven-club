@@ -5992,7 +5992,9 @@ serve(async (req) => {
 
       case 'retry_subscription_invoice': {
         const { memberId } = body;
+        await assertStaff();
         if (!memberId) throw new Error("Missing memberId");
+
 
         logStep("Retry subscription invoice", { memberId });
 
