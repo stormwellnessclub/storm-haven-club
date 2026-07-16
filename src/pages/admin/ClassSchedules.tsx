@@ -665,9 +665,10 @@ export default function ClassSchedules() {
                     Cancel
                   </Button>
                   <Button 
-                    onClick={() => scheduleMutation.mutate()}
+                    onClick={() => { setFormError(null); scheduleMutation.mutate(); }}
                     disabled={scheduleMutation.isPending}
                   >
+
                     {scheduleMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     {editingSchedule ? "Update" : "Create"}
                   </Button>
