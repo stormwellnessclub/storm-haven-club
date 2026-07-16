@@ -465,20 +465,85 @@ export default function ClassSchedules() {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="day">Day of Week</Label>
-                    <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAYS_OF_WEEK.map((d) => (
-                          <SelectItem key={d.value} value={d.value.toString()}>
-                            {d.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Schedule type</Label>
+                    <div className="grid grid-cols-3 gap-1 rounded-md border p-1 bg-muted/30">
+                      {([
+                        { v: "ongoing", label: "Recurring" },
+                        { v: "duration", label: "For a period" },
+                        { v: "one_time", label: "One-time" },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() => setScheduleMode(opt.v)}
+                          className={`text-xs px-2 py-1.5 rounded-sm font-medium transition-colors ${
+                            scheduleMode === opt.v
+                              ? "bg-background shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {scheduleMode === "ongoing" && "Repeats every week on the chosen day until deactivated."}
+                      {scheduleMode === "duration" && "Repeats every week on the chosen day between the start and end dates."}
+                      {scheduleMode === "one_time" && "A single session on a specific date. Does not repeat."}
+                    </p>
                   </div>
+
+                  {scheduleMode === "one_time" ? (
+                    <div className="grid gap-2">
+                      <Label htmlFor="oneTimeDate">Date</Label>
+                      <Input
+                        id="oneTimeDate"
+                        type="date"
+                        value={oneTimeDate}
+                        onChange={(e) => setOneTimeDate(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="day">Day of Week</Label>
+                        <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DAYS_OF_WEEK.map((d) => (
+                              <SelectItem key={d.value} value={d.value.toString()}>
+                                {d.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {scheduleMode === "duration" && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="effFrom">Start Date</Label>
+                            <Input
+                              id="effFrom"
+                              type="date"
+                              value={effectiveFrom}
+                              onChange={(e) => setEffectiveFrom(e.target.value)}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="effUntil">End Date</Label>
+                            <Input
+                              id="effUntil"
+                              type="date"
+                              value={effectiveUntil}
+                              onChange={(e) => setEffectiveUntil(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="startTime">Start Time</Label>
