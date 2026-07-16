@@ -274,9 +274,15 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
                     {formatTime12h(schedule.start_time)}–{formatTime12h(schedule.end_time)}
                     {schedule.room ? ` · ${schedule.room}` : ""}
                   </p>
+                  {scheduleBadge(schedule) && (
+                    <p className="text-[9px] leading-tight truncate mt-0.5 font-semibold uppercase tracking-wide opacity-90">
+                      {scheduleBadge(schedule)}
+                    </p>
+                  )}
                 </div>
               );
             })}
+
           </div>
         ))}
       </div>
