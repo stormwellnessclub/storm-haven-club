@@ -138,6 +138,19 @@ export default function ClassSchedules() {
     },
   });
 
+  // Auto-switch to table view once if any dated / one-time schedule exists,
+  // since the weekly calendar can't fully represent windowed schedules.
+  useEffect(() => {
+    if (viewModeAutoSet || schedules.length === 0) return;
+    const hasDated = schedules.some(
+      (s) => s.is_one_time || s.effective_from || s.effective_until
+    );
+    if (hasDated) setViewMode("table");
+    setViewModeAutoSet(true);
+  }, [schedules, viewModeAutoSet]);
+
+
+
   // Fetch class types
   const { data: classTypes = [] } = useQuery({
     queryKey: ['class-types-active'],
