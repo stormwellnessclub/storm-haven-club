@@ -1,5 +1,6 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireStaff } from "../_shared/requireStaff.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const auth = await requireStaff(req);
+  if (!auth.ok) return auth.response;
 
   try {
     const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
@@ -28,6 +32,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
 
     const stripe = new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' });
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
