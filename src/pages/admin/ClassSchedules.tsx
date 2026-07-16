@@ -72,9 +72,14 @@ interface ClassSchedule {
   max_capacity: number | null;
   is_active: boolean;
   is_invite_only?: boolean;
+  is_one_time?: boolean;
+  effective_from?: string | null;
+  effective_until?: string | null;
   class_types?: ClassType;
   instructors?: Instructor | null;
 }
+
+type ScheduleMode = "ongoing" | "duration" | "one_time";
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sunday" },
@@ -105,6 +110,10 @@ export default function ClassSchedules() {
   const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [isInviteOnly, setIsInviteOnly] = useState(false);
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("ongoing");
+  const [effectiveFrom, setEffectiveFrom] = useState<string>("");
+  const [effectiveUntil, setEffectiveUntil] = useState<string>("");
+  const [oneTimeDate, setOneTimeDate] = useState<string>("");
 
   // Fetch schedules
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
@@ -179,6 +188,10 @@ export default function ClassSchedules() {
     setMaxCapacity(null);
     setIsActive(true);
     setIsInviteOnly(false);
+    setScheduleMode("ongoing");
+    setEffectiveFrom("");
+    setEffectiveUntil("");
+    setOneTimeDate("");
     setEditingSchedule(null);
   }
 
@@ -193,6 +206,22 @@ export default function ClassSchedules() {
     setMaxCapacity(schedule.max_capacity);
     setIsActive(schedule.is_active);
     setIsInviteOnly(!!schedule.is_invite_only);
+    if (schedule.is_one_time) {
+      setScheduleMode("one_time");
+      setOneTimeDate(schedule.effective_from || "");
+      setEffectiveFrom("");
+      setEffectiveUntil("");
+    } else if (schedule.effective_from || schedule.effective_until) {
+      setScheduleMode("duration");
+      setEffectiveFrom(schedule.effective_from || "");
+      setEffectiveUntil(schedule.effective_until || "");
+      setOneTimeDate("");
+    } else {
+      setScheduleMode("ongoing");
+      setEffectiveFrom("");
+      setEffectiveUntil("");
+      setOneTimeDate("");
+    }
     setDialogOpen(true);
   }
 
@@ -203,25 +232,55 @@ export default function ClassSchedules() {
         throw new Error("Class type is required");
       }
 
+      // Resolve effective window + day_of_week based on mode
+      let resolvedDayOfWeek = dayOfWeek;
+      let resolvedFrom: string | null = null;
+      let resolvedUntil: string | null = null;
+      const isOneTime = scheduleMode === "one_time";
+
+      if (scheduleMode === "one_time") {
+        if (!oneTimeDate) throw new Error("Please pick a date for the one-time class");
+        // Derive day_of_week from the picked date (local)
+        const [y, m, d] = oneTimeDate.split("-").map(Number);
+        resolvedDayOfWeek = new Date(y, m - 1, d).getDay();
+        resolvedFrom = oneTimeDate;
+        resolvedUntil = oneTimeDate;
+      } else if (scheduleMode === "duration") {
+        if (!effectiveFrom || !effectiveUntil) {
+          throw new Error("Please pick both a start and end date");
+        }
+        if (effectiveUntil < effectiveFrom) {
+          throw new Error("End date must be on or after the start date");
+        }
+        resolvedFrom = effectiveFrom;
+        resolvedUntil = effectiveUntil;
+      }
+
       const scheduleData = {
         class_type_id: classTypeId,
         instructor_id: instructorId || null,
-        day_of_week: dayOfWeek,
+        day_of_week: resolvedDayOfWeek,
         start_time: startTime,
         end_time: endTime,
         room: room.trim() || null,
         max_capacity: maxCapacity,
         is_active: isActive,
         is_invite_only: isInviteOnly,
+        is_one_time: isOneTime,
+        effective_from: resolvedFrom,
+        effective_until: resolvedUntil,
       };
 
-      // Pre-save conflict check
-      const warnings = checkNewScheduleConflicts(
-        { ...scheduleData, id: editingSchedule?.id },
-        schedules
-      );
-      if (warnings.length > 0) {
-        throw new Error(warnings.join(". "));
+      // Pre-save conflict check (only for ongoing recurring rules to avoid
+      // spurious warnings on dated / one-time entries).
+      if (scheduleMode === "ongoing") {
+        const warnings = checkNewScheduleConflicts(
+          { ...scheduleData, id: editingSchedule?.id },
+          schedules
+        );
+        if (warnings.length > 0) {
+          throw new Error(warnings.join(". "));
+        }
       }
 
       if (editingSchedule) {
@@ -367,7 +426,7 @@ export default function ClassSchedules() {
                 <DialogHeader>
                   <DialogTitle>{editingSchedule ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
                   <DialogDescription>
-                    {editingSchedule ? "Update the schedule details." : "Create a new recurring class schedule."}
+                    {editingSchedule ? "Update the schedule details." : "Add a recurring, time-limited, or one-time class."}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -406,20 +465,85 @@ export default function ClassSchedules() {
                     </Select>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="day">Day of Week</Label>
-                    <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DAYS_OF_WEEK.map((d) => (
-                          <SelectItem key={d.value} value={d.value.toString()}>
-                            {d.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label>Schedule type</Label>
+                    <div className="grid grid-cols-3 gap-1 rounded-md border p-1 bg-muted/30">
+                      {([
+                        { v: "ongoing", label: "Recurring" },
+                        { v: "duration", label: "For a period" },
+                        { v: "one_time", label: "One-time" },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.v}
+                          type="button"
+                          onClick={() => setScheduleMode(opt.v)}
+                          className={`text-xs px-2 py-1.5 rounded-sm font-medium transition-colors ${
+                            scheduleMode === opt.v
+                              ? "bg-background shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {scheduleMode === "ongoing" && "Repeats every week on the chosen day until deactivated."}
+                      {scheduleMode === "duration" && "Repeats every week on the chosen day between the start and end dates."}
+                      {scheduleMode === "one_time" && "A single session on a specific date. Does not repeat."}
+                    </p>
                   </div>
+
+                  {scheduleMode === "one_time" ? (
+                    <div className="grid gap-2">
+                      <Label htmlFor="oneTimeDate">Date</Label>
+                      <Input
+                        id="oneTimeDate"
+                        type="date"
+                        value={oneTimeDate}
+                        onChange={(e) => setOneTimeDate(e.target.value)}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-2">
+                        <Label htmlFor="day">Day of Week</Label>
+                        <Select value={dayOfWeek.toString()} onValueChange={(v) => setDayOfWeek(parseInt(v))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DAYS_OF_WEEK.map((d) => (
+                              <SelectItem key={d.value} value={d.value.toString()}>
+                                {d.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {scheduleMode === "duration" && (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="effFrom">Start Date</Label>
+                            <Input
+                              id="effFrom"
+                              type="date"
+                              value={effectiveFrom}
+                              onChange={(e) => setEffectiveFrom(e.target.value)}
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="effUntil">End Date</Label>
+                            <Input
+                              id="effUntil"
+                              type="date"
+                              value={effectiveUntil}
+                              onChange={(e) => setEffectiveUntil(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="startTime">Start Time</Label>
@@ -698,9 +822,24 @@ export default function ClassSchedules() {
                       </TableCell>
                       <TableCell>{schedule.room || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant={schedule.is_active ? "default" : "secondary"}>
-                          {schedule.is_active ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge variant={schedule.is_active ? "default" : "secondary"}>
+                            {schedule.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                          {schedule.is_one_time ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              One-time{schedule.effective_from ? ` · ${format(new Date(schedule.effective_from + "T00:00:00"), "MMM d, yyyy")}` : ""}
+                            </Badge>
+                          ) : schedule.effective_until ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              Thru {format(new Date(schedule.effective_until + "T00:00:00"), "MMM d")}
+                            </Badge>
+                          ) : schedule.effective_from ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              From {format(new Date(schedule.effective_from + "T00:00:00"), "MMM d")}
+                            </Badge>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button

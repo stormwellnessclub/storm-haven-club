@@ -1722,11 +1722,14 @@ export type Database = {
           class_type_id: string
           created_at: string
           day_of_week: number
+          effective_from: string | null
+          effective_until: string | null
           end_time: string
           id: string
           instructor_id: string | null
           is_active: boolean
           is_invite_only: boolean
+          is_one_time: boolean
           max_capacity: number | null
           room: string | null
           start_time: string
@@ -1736,11 +1739,14 @@ export type Database = {
           class_type_id: string
           created_at?: string
           day_of_week: number
+          effective_from?: string | null
+          effective_until?: string | null
           end_time: string
           id?: string
           instructor_id?: string | null
           is_active?: boolean
           is_invite_only?: boolean
+          is_one_time?: boolean
           max_capacity?: number | null
           room?: string | null
           start_time: string
@@ -1750,11 +1756,14 @@ export type Database = {
           class_type_id?: string
           created_at?: string
           day_of_week?: number
+          effective_from?: string | null
+          effective_until?: string | null
           end_time?: string
           id?: string
           instructor_id?: string | null
           is_active?: boolean
           is_invite_only?: boolean
+          is_one_time?: boolean
           max_capacity?: number | null
           room?: string | null
           start_time?: string
