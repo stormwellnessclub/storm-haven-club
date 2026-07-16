@@ -1,48 +1,60 @@
-## Goal
-1. Ensure the freeze-fee "Pay Now" link actually completes payment reliably.
-2. Block members with past-due balances from submitting a freeze request until they clear arrears.
+# Flexible Class Scheduling: Recurring, Duration, One-Time
 
-## Changes
+Extend the Admin → Class Schedules page so each entry can be created in one of three modes instead of only "recurring weekly forever."
 
-### 1. Block freeze requests when past-due (client + server)
+## Modes
 
-**Server (migration)** – new SECURITY DEFINER RPC `check_freeze_block_status()`:
-- Reads `members` row for the current user.
-- Sums outstanding `billing_arrears` for the member (any row where `status` in open states and `outstanding_cents > 0`, dues + other types).
-- Also treats `members.subscription_status = 'past_due'` as blocking.
-- Returns `{ blocked: bool, outstanding_cents: int, reason: text }`.
+1. **Recurring (ongoing)** — current behavior. Every week on that day/time until deactivated.
+2. **Recurring for a duration** — same as above, but bounded by a start date and end date. Auto-stops generating after end date.
+3. **One-time only** — a single session on a specific date. Not added to the weekly recurring loop.
 
-**Server (migration)** – trigger `enforce_no_freeze_when_past_due` on `member_freezes` BEFORE INSERT:
-- Calls the check above using `NEW.user_id`. If blocked, `RAISE EXCEPTION 'PAST_DUE_BLOCK: settle outstanding balance first'`. This closes the loophole even if the client is bypassed.
+## UX (Admin → Class Schedules dialog)
 
-**Client** – `src/hooks/useMemberFreezes.ts`:
-- Add `useFreezePastDueStatus()` that calls the new RPC.
-- In `useFreezeEligibility`, fold `blocked`/`outstanding_cents` into the return object so `canFreeze` is false when blocked.
-- In `useCreateFreezeRequest.onError`, detect `PAST_DUE_BLOCK` and surface a clear toast.
+Add a "Schedule type" segmented control at the top of the new/edit dialog:
 
-**Client** – `src/pages/member/FreezeRequest.tsx`:
-- If `blocked`, render a red destructive Alert at the top: "You have $X.XX past due. Please settle your balance before requesting a freeze." with a "Pay Balance Now" button that invokes the existing `charge-member-arrears`/member arrears payment path (whichever the portal already uses; use `supabase.functions.invoke('stripe-payment', { action: 'create_arrears_checkout' })` if present, otherwise the existing member-facing arrears link).
-- Hide the freeze request form while blocked (keep eligibility card visible).
+```text
+( ● Recurring ongoing ) ( ○ Recurring for a period ) ( ○ One-time )
+```
 
-### 2. Fix freeze-fee payment link
+- **Recurring ongoing**: shows Day of week + times (current form).
+- **Recurring for a period**: adds Start date + End date pickers below Day of week. Day of week required.
+- **One-time**: replaces Day of week with a single Date picker. Auto-derives day_of_week from the chosen date. Skips conflict-check across future weeks.
 
-Root-cause pattern seen in reports: `window.location.href` navigation was blocked/lost when returning from Stripe, and no error surfaced when the edge function failed silently.
+List view: badges next to each schedule — "Ongoing", "Thru MMM D", or "One-time MMM D, YYYY". One-time schedules that have already run are collapsed under a "Past one-time classes" section.
 
-**`src/pages/member/FreezeRequest.tsx` `handlePayFreezeFee`:**
-- Open the checkout URL in a new tab (`window.open(data.url, '_blank', 'noopener')`), matching the rest of the app's Stripe checkout pattern. Keep a fallback redirect if the popup is blocked.
-- Show a clear error toast when the edge function returns an error, including any message from the response body.
-- After opening, start a polling refetch of `member-freezes` every 5s for 2 minutes so the UI updates when payment completes without requiring a manual refresh.
+## Data model (schema migration)
 
-**`supabase/functions/stripe-payment/index.ts` `create_freeze_fee_checkout`:**
-- Validate that the freeze belongs to the caller (`select member_freezes where id = freezeId and user_id = auth user`) and that it is in `approved` status and `fee_paid = false`. Return a 400 with a descriptive message otherwise.
-- Recalculate `freezeFeeAmount` server-side from `freeze_fee_total` on the DB row (do not trust the client amount).
-- Include `success_url`/`cancel_url` sanity fallback to `stormwellnessclub.com/member/freeze`.
-- Return `{ error: message }` with proper status on failure so the client toast is meaningful.
+Add three nullable columns to `public.class_schedules`:
 
-### 3. Small UX polish
-- On the approved-request alert, show "Opens Stripe in a new tab" helper text next to the pay button.
-- Disable the pay button while a checkout session is being created (already there) and re-enable on error.
+- `effective_from date` — inclusive start (null = no lower bound; keeps existing rows working).
+- `effective_until date` — inclusive end (null = ongoing).
+- `is_one_time boolean not null default false` — flags one-time entries; when true, `effective_from = effective_until = the single date`.
+
+No data backfill needed — existing rows read as "ongoing" (both dates null).
+
+## Session generation
+
+Update `reconcile_and_generate_class_sessions` RPC so that when it iterates candidate dates for a schedule:
+
+- Skip dates before `effective_from` (when set).
+- Skip dates after `effective_until` (when set).
+- For `is_one_time = true`, only emit exactly one session on `effective_from`.
+
+Deactivation of expired schedules: after generation, mark `is_active = false` where `effective_until < today` so the list auto-tidies.
+
+## Frontend files touched
+
+- `src/pages/admin/ClassSchedules.tsx` — mode toggle, date pickers, conditional form fields, list badges, past one-time collapse.
+- `src/lib/scheduleConflicts.ts` — conflict check respects effective window (only compare overlapping date ranges; one-time vs recurring only conflicts if the recurring rule covers that date).
+- `src/integrations/supabase/types.ts` — regenerated automatically after migration.
 
 ## Out of scope
-- Changing the fee amount, freeze policy, or admin approval flow.
-- Any change to non-freeze billing.
+
+- No changes to member-facing schedule browser (already reads from `class_sessions`, so it will just show what's generated).
+- No bulk migration of the existing one-off sessions you inserted directly into `class_sessions` — those keep working as-is.
+
+## Technical notes
+
+- Migration order: add columns → update RPC → add index on `(effective_until)` for the auto-deactivate sweep.
+- GRANTs: `class_schedules` already has row policies; new columns inherit table grants, no new GRANT needed.
+- Timezone: date comparisons in the RPC continue to use `America/Detroit` via the existing `club_today()` helper.
