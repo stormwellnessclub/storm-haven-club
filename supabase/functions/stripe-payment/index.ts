@@ -2536,10 +2536,12 @@ serve(async (req) => {
 
       case 'charge_annual_fee': {
         const { memberId, customerId } = body;
+        await assertStaff();
         
         if (!memberId || !customerId) {
           throw new Error("Missing memberId or customerId");
         }
+
 
         // Get member to determine gender
         const { data: member } = await supabase
