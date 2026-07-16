@@ -114,6 +114,8 @@ export default function ClassSchedules() {
   const [effectiveFrom, setEffectiveFrom] = useState<string>("");
   const [effectiveUntil, setEffectiveUntil] = useState<string>("");
   const [oneTimeDate, setOneTimeDate] = useState<string>("");
+  const [formError, setFormError] = useState<string | null>(null);
+
 
   // Fetch schedules
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
