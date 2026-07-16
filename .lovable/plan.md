@@ -1,60 +1,35 @@
-# Flexible Class Scheduling: Recurring, Duration, One-Time
+# Fix: Latte orders showing two milks on ticket
 
-Extend the Admin → Class Schedules page so each entry can be created in one of three modes instead of only "recurring weekly forever."
+## Root cause
 
-## Modes
+The Coffee & Lattes category has a proper **Milk** group (single-select, required, free): Whole, 2%, Almond, Oat — the customer can freely swap between them.
 
-1. **Recurring (ongoing)** — current behavior. Every week on that day/time until deactivated.
-2. **Recurring for a duration** — same as above, but bounded by a start date and end date. Auto-stops generating after end date.
-3. **One-time only** — a single session on a specific date. Not added to the weekly recurring loop.
+But the same category **also** has paid duplicates sitting in the generic **Add-ons** group (multi-select):
+- `oat milk` — +$0.75
+- `almond milk` — +$1.00
 
-## UX (Admin → Class Schedules dialog)
+When a customer picks "Oat Milk" from the Milk group and *also* taps the "oat milk +$0.75" chip in Add-ons (easy to do — it looks like the only way to get oat milk), the order sticker prints **two milks** and they're charged an extra $0.75–$1. This is exactly the "two milks on the ticket" issue.
 
-Add a "Schedule type" segmented control at the top of the new/edit dialog:
+The Milk selector itself is already working correctly — it's a single-select radio, so customers can switch off Whole Milk. The Whole Milk default just happens to be the first `is_required` option; that's standard and can stay.
 
-```text
-( ● Recurring ongoing ) ( ○ Recurring for a period ) ( ○ One-time )
-```
+## Change
 
-- **Recurring ongoing**: shows Day of week + times (current form).
-- **Recurring for a period**: adds Start date + End date pickers below Day of week. Day of week required.
-- **One-time**: replaces Day of week with a single Date picker. Auto-derives day_of_week from the chosen date. Skips conflict-check across future weeks.
+Data-only fix in `cafe_menu_addons` (Coffee & Lattes category, `ab6e378d-…`):
 
-List view: badges next to each schedule — "Ongoing", "Thru MMM D", or "One-time MMM D, YYYY". One-time schedules that have already run are collapsed under a "Past one-time classes" section.
+1. Deactivate the duplicate milk entries in the Add-ons group:
+   - `oat milk` (`311c16d7-…`) → `is_active = false`
+   - `almond milk` (`083e797d-…`) → `is_active = false`
 
-## Data model (schema migration)
+   Deactivate rather than delete so any historical orders referencing them stay intact.
 
-Add three nullable columns to `public.class_schedules`:
+2. Leave the free **Milk** group (Whole / 2% / Almond / Oat) as-is — it already lets customers swap milks at no charge with a single selection.
 
-- `effective_from date` — inclusive start (null = no lower bound; keeps existing rows working).
-- `effective_until date` — inclusive end (null = ongoing).
-- `is_one_time boolean not null default false` — flags one-time entries; when true, `effective_from = effective_until = the single date`.
+3. Leave `extra shot espresso` and `extra matcha` in the Add-ons group untouched.
 
-No data backfill needed — existing rows read as "ongoing" (both dates null).
+No frontend code changes needed — `CafeAddonDialog` already renders the Milk group as a single-select radio, so once the duplicates are gone, only one milk can ever land on the ticket.
 
-## Session generation
+## Verification
 
-Update `reconcile_and_generate_class_sessions` RPC so that when it iterates candidate dates for a schedule:
-
-- Skip dates before `effective_from` (when set).
-- Skip dates after `effective_until` (when set).
-- For `is_one_time = true`, only emit exactly one session on `effective_from`.
-
-Deactivation of expired schedules: after generation, mark `is_active = false` where `effective_until < today` so the list auto-tidies.
-
-## Frontend files touched
-
-- `src/pages/admin/ClassSchedules.tsx` — mode toggle, date pickers, conditional form fields, list badges, past one-time collapse.
-- `src/lib/scheduleConflicts.ts` — conflict check respects effective window (only compare overlapping date ranges; one-time vs recurring only conflicts if the recurring rule covers that date).
-- `src/integrations/supabase/types.ts` — regenerated automatically after migration.
-
-## Out of scope
-
-- No changes to member-facing schedule browser (already reads from `class_sessions`, so it will just show what's generated).
-- No bulk migration of the existing one-off sessions you inserted directly into `class_sessions` — those keep working as-is.
-
-## Technical notes
-
-- Migration order: add columns → update RPC → add index on `(effective_until)` for the auto-deactivate sweep.
-- GRANTs: `class_schedules` already has row policies; new columns inherit table grants, no new GRANT needed.
-- Timezone: date comparisons in the RPC continue to use `America/Detroit` via the existing `club_today()` helper.
+- Open a Latte in the café order UI → **Milk** section shows Whole/2%/Almond/Oat, tapping any one swaps the choice (no double-add).
+- Add-ons section no longer lists "oat milk" or "almond milk".
+- Placing an order with Oat Milk selected produces a ticket with exactly one milk line.
