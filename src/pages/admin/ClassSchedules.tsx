@@ -110,11 +110,10 @@ export default function ClassSchedules() {
   const [maxCapacity, setMaxCapacity] = useState<number | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [isInviteOnly, setIsInviteOnly] = useState(false);
-
-  // Fetch schedules
-  const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
-    queryKey: ['class-schedules'],
-    queryFn: async () => {
+  const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("ongoing");
+  const [effectiveFrom, setEffectiveFrom] = useState<string>("");
+  const [effectiveUntil, setEffectiveUntil] = useState<string>("");
+  const [oneTimeDate, setOneTimeDate] = useState<string>("");
       const { data, error } = await supabase
         .from("class_schedules")
         .select(`
