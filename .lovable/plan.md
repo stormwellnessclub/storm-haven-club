@@ -1,42 +1,38 @@
-## Problem
+## Goal
 
-When you add a class in **Recurring** mode it works, but "One-time" doesn't behave right. Looking at the code + database, there are three separate issues that combine into "only recurring works":
+Downgrade Dalal Elali's (`STM-000166`) Stripe subscription to **Silver Women's Monthly** so her **July 16, 2026** charge and every renewal after bills at **$200 dues + processing fee** — no proration, no immediate charge. The DB record already shows a pending Silver change from June; we just need to make Stripe agree and finalize the record.
 
-1. **Calendar view (default) hides the type** — `WeeklyCalendarView` renders every schedule by `day_of_week` with no badge or date. A one-time entry saves fine but looks identical to a weekly recurring class in its day column, with no date shown, so it appears "not added" or "just another recurring one."
-2. **No calendar tile for a one-time class on the actual date** — because the calendar is a generic weekly grid, a class scheduled only for e.g. Fri 7/17/26 is drawn on every Friday column visually, which is misleading.
-3. **Silent save failures aren't surfaced** — the "For a period" / "One-time" branches skip the conflict-warning path, but if the underlying insert throws (e.g., invalid time, missing class type), the toast fires but the dialog stays open with no inline error, so it feels like nothing happened.
+## Current State
 
-There are no unique constraints or RLS rules blocking one-time inserts, and `reconcile_and_generate_class_sessions` already respects `effective_from` / `effective_until`, so sessions ARE being created — they're just invisible on the admin calendar.
+- Member row: `membership_type = Gold`, `pending_tier_change = Silver` (set 2026-06-17), `tier_change_used = false`.
+- Stripe sub `sub_1TCPqOLyZrsSqLhsBwJDgcf7` (status `active`):
+  - Item `si_UAlNN6QvtYMdrd` → Gold price `price_1Sl9pvLyZrsSqLhsIWyf2WwX` ($250)
+  - Item `si_UAlNitKW7BmVK2` → Gold processing fee `price_1T4kPMLyZrsSqLhs9UZEUCg1` ($7.78, `base_amount=25000`)
+  - Current period: 2026-06-16 → **2026-07-16** (next invoice date).
 
-## Plan
+## Steps
 
-### 1. `src/components/admin/WeeklyCalendarView.tsx`
-- Extend the `ClassSchedule` prop type with `is_one_time`, `effective_from`, `effective_until`.
-- On each schedule tile, add a small badge row:
-  - `One-time · Jul 17` when `is_one_time` is true
-  - `Thru Aug 15` when only `effective_until` is set
-  - `From Jul 20` when only `effective_from` is set
-  - `Jul 20 – Aug 15` for full window
-- Visually dim the tile in weeks where the current calendar week is outside its effective window (optional, subtle opacity).
-- Keep click-to-edit behavior unchanged.
+1. **Create a Silver processing-fee price** on `prod_U28bascR7hn8we` (recurring monthly, `unit_amount = 628`, metadata `{ type: "processing_fee", base_amount: "20000" }`). Grossed-up per project formula: `(200 + 0.30)/(1 − 0.029) = $206.28` → fee = **$6.28**.
+2. **Update the subscription** with `proration_behavior = "none"` and `billing_cycle_anchor = "unchanged"`:
+   - Swap dues item to `price_1Sl9llLyZrsSqLhsJhm0MdJi` (Silver Women's Monthly, $200).
+   - Swap processing-fee item to the new $6.28 price from step 1.
+   - Add metadata `downgrade_effective = "2026-07-16"`, `previous_tier = "Gold"`.
+3. **Verify** with `stripe_api_read` that the upcoming invoice for `cus_U6fdFuYWGsORnw` totals $206.28 on 2026-07-16 with no proration lines.
+4. **Update the members row** for Dalal:
+   - `membership_type = 'Silver'`
+   - Clear `pending_tier_change`, `pending_tier_change_at`, `pending_tier_change_by`
+   - Set `tier_change_used = true`, `tier_change_used_at = now()`
+   - `updated_at = now()`
+5. **Log** an `admin_action_log` entry: `action_type = 'tier_downgrade'`, notes referencing the June 9 request honored on the July 16 cycle.
 
-### 2. `src/pages/admin/ClassSchedules.tsx`
-- Default `viewMode` to `"table"` when the query returns any `is_one_time`/dated schedules on first load, so users can clearly see them listed with the existing badges (lines 829-841 already render these correctly in table mode).
-- In the dialog: show a small inline error region (red text) inside the form when the mutation `onError` fires, in addition to the toast, so validation failures don't feel silent.
-- When user picks **One-time**, auto-uncheck "Active" toggle? No — leave `is_active=true` (needed for reconcile to pick it up).
-- Immediately after save, call the existing `reconcile_and_generate_class_sessions` (already done) AND invalidate `['admin-sessions-calendar']` + `['class-schedules']` so the list refreshes without a page reload.
+## Out of Scope
 
-### 3. Verification pass
-- After changes, insert a test one-time schedule for a near-future date via the UI, confirm:
-  - It appears in the **Table view** with the "One-time · <date>" badge.
-  - It appears in the **Calendar view** with the same badge inside the tile.
-  - A row lands in `class_sessions` for that exact date via the reconcile RPC.
+- No refund/credit for the June 16 Gold charge (member already accepted).
+- No changes to annual fee subscription `sub_1TBmP2LyZrsSqLhsYri0XEjH`.
+- No proration line items.
 
-### Out of scope
-- No DB schema changes — columns already exist.
-- No changes to member-facing `ScheduleBrowser` (one-time sessions already flow through `class_sessions` and render correctly there).
-- No reconcile RPC changes.
+## Verification
 
-## Files touched
-- `src/components/admin/WeeklyCalendarView.tsx` — add badge + prop type
-- `src/pages/admin/ClassSchedules.tsx` — default view, inline error, cache invalidation
+After running, I'll:
+- Re-fetch the subscription and confirm both items point to the Silver prices.
+- Pull the upcoming invoice preview and paste the exact $ total ($206.28) and next billing date (2026-07-16) back to you before we consider it done.
