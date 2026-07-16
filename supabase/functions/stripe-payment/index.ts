@@ -3543,6 +3543,8 @@ serve(async (req) => {
         if (!memberId) {
           throw new Error("Member ID required");
         }
+        await assertOwnerOrStaff(memberId);
+
 
         // Get member's stripe_customer_id
         const { data: memberData, error: memberError } = await supabase
