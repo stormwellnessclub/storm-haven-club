@@ -3903,21 +3903,8 @@ serve(async (req) => {
         logStep("Creating annual fee payment link with auto-email", { applicationId, gender: feeGender });
 
         // Verify admin/staff role
-        const { data: staffRole } = await supabase
-          .from('staff_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        await assertStaff();
 
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (!staffRole?.role && !userRole?.role) {
-          throw new Error("Unauthorized: Admin access required");
-        }
 
         // Fetch application details
         const { data: application, error: appError } = await supabase
