@@ -201,6 +201,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Non-staff callers may only target themselves. Prevents member-to-member
+    // SMS harassment via other users' userIds or phone numbers.
+    if (!callerIsAdmin) {
+      const targetUserId = body.to.userId ?? null;
+      if (!callerUserId || (targetUserId && targetUserId !== callerUserId)) {
+        return new Response(
+          JSON.stringify({ error: "Cannot send SMS to another user" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      // Force the recipient to the caller regardless of what was submitted.
+      body.to = { userId: callerUserId };
+    }
+
+
     // Apply admin-published override (if any). Admin-custom always uses code path.
     let renderer = defaultRenderer;
     if (body.templateKey !== "admin-custom") {
