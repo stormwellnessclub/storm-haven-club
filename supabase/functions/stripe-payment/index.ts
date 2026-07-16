@@ -6131,7 +6131,9 @@ serve(async (req) => {
 
       case 'deactivate_member': {
         const { memberId, detachPaymentMethods = true } = body;
+        await assertStaff();
         if (!memberId) throw new Error("Missing memberId");
+
 
         logStep("Deactivate member", { memberId, detachPaymentMethods });
 
