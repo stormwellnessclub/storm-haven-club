@@ -14,6 +14,16 @@ const HOUR = 60 * 60 * 1000;
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const serviceKeyGuard = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const anonKeyGuard = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (authHeader !== `Bearer ${serviceKeyGuard}` && authHeader !== `Bearer ${anonKeyGuard}`) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",

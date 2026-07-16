@@ -11,6 +11,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const serviceKeyGuard = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  const anonKeyGuard = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const authHeader = req.headers.get('Authorization') ?? '';
+  if (authHeader !== `Bearer ${serviceKeyGuard}` && authHeader !== `Bearer ${anonKeyGuard}`) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

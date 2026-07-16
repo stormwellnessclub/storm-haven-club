@@ -28,15 +28,15 @@ serve(async (req) => {
 
   let event: Stripe.Event;
   try {
-    if (sig && secret) {
-      event = await stripe.webhooks.constructEventAsync(raw, sig, secret);
-    } else {
-      // Fallback: parse without verification (dev/test only)
-      event = JSON.parse(raw);
+    if (!sig || !secret) {
+      // Fail closed — never trust an unsigned/unconfigured webhook.
+      return new Response("Webhook signature missing or secret not configured", { status: 400 });
     }
+    event = await stripe.webhooks.constructEventAsync(raw, sig, secret);
   } catch (e: any) {
     return new Response(`Webhook signature error: ${e.message}`, { status: 400 });
   }
+
 
   const activate = async (intentId: string | null, sessionId: string | null) => {
     let voucher: any = null;

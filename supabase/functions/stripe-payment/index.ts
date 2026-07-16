@@ -429,6 +429,31 @@ serve(async (req) => {
       }
     }
 
+    // Role helpers (security)
+    const assertStaff = async (roles: string[] = ['super_admin', 'admin', 'manager']) => {
+      const { data: rows } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', roles);
+      if (!rows || rows.length === 0) {
+        throw new Error("Unauthorized: Staff access required");
+      }
+    };
+    const assertOwnerOrStaff = async (memberId: string | null | undefined, roles: string[] = ['super_admin', 'admin', 'manager', 'front_desk']) => {
+      if (memberId) {
+        const { data: m } = await supabase
+          .from('members')
+          .select('user_id')
+          .eq('id', memberId)
+          .maybeSingle();
+        if (m?.user_id && m.user_id === user.id) return;
+      }
+      await assertStaff(roles);
+    };
+
+
+
     // Get or create Stripe customer
     const getOrCreateCustomer = async (): Promise<string> => {
       const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
@@ -1263,6 +1288,8 @@ serve(async (req) => {
         if (!memberId) {
           throw new Error("Member ID required");
         }
+        await assertOwnerOrStaff(memberId);
+
 
         // Get member's stripe_customer_id
         const { data: memberData, error: memberError } = await supabase
@@ -1453,6 +1480,7 @@ serve(async (req) => {
 
       case 'charge_saved_card': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
+        await assertStaff();
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -1461,6 +1489,7 @@ serve(async (req) => {
         if (!memberId && !directCustomerId) {
           throw new Error("Either memberId or stripeCustomerId is required");
         }
+
 
         if (amount < 50) {
           throw new Error("Minimum charge amount is $0.50");
@@ -1696,6 +1725,7 @@ serve(async (req) => {
       // NEW: 3DS-aware charging for admin card charges
       case 'charge_saved_card_with_3ds': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount: taxAmount3ds, subtotal: bodySubtotal3ds, payment_type: paymentType3ds } = body;
+        await assertStaff();
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -1704,6 +1734,7 @@ serve(async (req) => {
         if (!memberId && !directCustomerId) {
           throw new Error("Either memberId or stripeCustomerId is required");
         }
+
 
         if (amount < 50) {
           throw new Error("Minimum charge amount is $0.50");
@@ -2205,6 +2236,8 @@ serve(async (req) => {
         if (!paymentMethodId) {
           throw new Error("Payment method ID required");
         }
+        await assertOwnerOrStaff(memberId);
+
 
         logStep("Setting default payment method", { paymentMethodId, userId: user.id, memberId });
 
@@ -2281,8 +2314,10 @@ serve(async (req) => {
       case 'process_membership_payment': {
         // Same logic as create_activation_checkout but can be called by admin
         const { tier, gender, isFoundingMember, startDate, memberId, skipAnnualFee, successUrl, cancelUrl } = body;
-        
+        await assertOwnerOrStaff(memberId);
+
         if (!tier || !gender || !startDate || !memberId) {
+
           throw new Error("Missing required fields for membership payment");
         }
 
@@ -2432,8 +2467,12 @@ serve(async (req) => {
       case 'process_class_pass': {
         // Similar to create_class_pass_checkout but for admin use
         const { category, passType, userId, isMember, successUrl, cancelUrl } = body;
-        
+        if (userId !== user.id) {
+          await assertStaff();
+        }
+
         if (!category || !passType || !userId) {
+
           throw new Error("Missing required fields for class pass");
         }
 
@@ -2497,10 +2536,12 @@ serve(async (req) => {
 
       case 'charge_annual_fee': {
         const { memberId, customerId } = body;
+        await assertStaff();
         
         if (!memberId || !customerId) {
           throw new Error("Missing memberId or customerId");
         }
+
 
         // Get member to determine gender
         const { data: member } = await supabase
@@ -3502,6 +3543,8 @@ serve(async (req) => {
         if (!memberId) {
           throw new Error("Member ID required");
         }
+        await assertOwnerOrStaff(memberId);
+
 
         // Get member's stripe_customer_id
         const { data: memberData, error: memberError } = await supabase
@@ -3860,21 +3903,8 @@ serve(async (req) => {
         logStep("Creating annual fee payment link with auto-email", { applicationId, gender: feeGender });
 
         // Verify admin/staff role
-        const { data: staffRole } = await supabase
-          .from('staff_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+        await assertStaff();
 
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (!staffRole?.role && !userRole?.role) {
-          throw new Error("Unauthorized: Admin access required");
-        }
 
         // Fetch application details
         const { data: application, error: appError } = await supabase
@@ -5962,7 +5992,9 @@ serve(async (req) => {
 
       case 'retry_subscription_invoice': {
         const { memberId } = body;
+        await assertStaff();
         if (!memberId) throw new Error("Missing memberId");
+
 
         logStep("Retry subscription invoice", { memberId });
 
@@ -6035,7 +6067,9 @@ serve(async (req) => {
 
       case 'sync_member_subscription_status': {
         const { memberId } = body;
+        await assertOwnerOrStaff(memberId);
         if (!memberId) throw new Error("Missing memberId");
+
 
         logStep("Sync member subscription status", { memberId });
 
@@ -6097,7 +6131,9 @@ serve(async (req) => {
 
       case 'deactivate_member': {
         const { memberId, detachPaymentMethods = true } = body;
+        await assertStaff();
         if (!memberId) throw new Error("Missing memberId");
+
 
         logStep("Deactivate member", { memberId, detachPaymentMethods });
 
