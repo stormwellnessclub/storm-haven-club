@@ -114,6 +114,11 @@ export default function ClassSchedules() {
   const [effectiveFrom, setEffectiveFrom] = useState<string>("");
   const [effectiveUntil, setEffectiveUntil] = useState<string>("");
   const [oneTimeDate, setOneTimeDate] = useState<string>("");
+
+  // Fetch schedules
+  const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
+    queryKey: ['class-schedules'],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("class_schedules")
         .select(`
