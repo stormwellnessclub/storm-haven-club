@@ -2314,8 +2314,10 @@ serve(async (req) => {
       case 'process_membership_payment': {
         // Same logic as create_activation_checkout but can be called by admin
         const { tier, gender, isFoundingMember, startDate, memberId, skipAnnualFee, successUrl, cancelUrl } = body;
-        
+        await assertOwnerOrStaff(memberId);
+
         if (!tier || !gender || !startDate || !memberId) {
+
           throw new Error("Missing required fields for membership payment");
         }
 
