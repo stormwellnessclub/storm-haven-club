@@ -429,6 +429,31 @@ serve(async (req) => {
       }
     }
 
+    // Role helpers (security)
+    const assertStaff = async (roles: string[] = ['super_admin', 'admin', 'manager']) => {
+      const { data: rows } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .in('role', roles);
+      if (!rows || rows.length === 0) {
+        throw new Error("Unauthorized: Staff access required");
+      }
+    };
+    const assertOwnerOrStaff = async (memberId: string | null | undefined, roles: string[] = ['super_admin', 'admin', 'manager', 'front_desk']) => {
+      if (memberId) {
+        const { data: m } = await supabase
+          .from('members')
+          .select('user_id')
+          .eq('id', memberId)
+          .maybeSingle();
+        if (m?.user_id && m.user_id === user.id) return;
+      }
+      await assertStaff(roles);
+    };
+
+
+
     // Get or create Stripe customer
     const getOrCreateCustomer = async (): Promise<string> => {
       const customers = await stripe.customers.list({ email: user.email!, limit: 1 });
