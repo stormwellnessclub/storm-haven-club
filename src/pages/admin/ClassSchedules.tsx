@@ -98,6 +98,8 @@ export default function ClassSchedules() {
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
   const [weeksToGenerate, setWeeksToGenerate] = useState(4);
   const [viewMode, setViewMode] = useState<"table" | "calendar">("calendar");
+  const [viewModeAutoSet, setViewModeAutoSet] = useState(false);
+
   const [hideInactive, setHideInactive] = useState(true);
   
   // Form state
@@ -114,6 +116,8 @@ export default function ClassSchedules() {
   const [effectiveFrom, setEffectiveFrom] = useState<string>("");
   const [effectiveUntil, setEffectiveUntil] = useState<string>("");
   const [oneTimeDate, setOneTimeDate] = useState<string>("");
+  const [formError, setFormError] = useState<string | null>(null);
+
 
   // Fetch schedules
   const { data: schedules = [], isLoading: schedulesLoading } = useQuery({
@@ -133,6 +137,19 @@ export default function ClassSchedules() {
       return data as ClassSchedule[];
     },
   });
+
+  // Auto-switch to table view once if any dated / one-time schedule exists,
+  // since the weekly calendar can't fully represent windowed schedules.
+  useEffect(() => {
+    if (viewModeAutoSet || schedules.length === 0) return;
+    const hasDated = schedules.some(
+      (s) => s.is_one_time || s.effective_from || s.effective_until
+    );
+    if (hasDated) setViewMode("table");
+    setViewModeAutoSet(true);
+  }, [schedules, viewModeAutoSet]);
+
+
 
   // Fetch class types
   const { data: classTypes = [] } = useQuery({
@@ -192,8 +209,10 @@ export default function ClassSchedules() {
     setEffectiveFrom("");
     setEffectiveUntil("");
     setOneTimeDate("");
+    setFormError(null);
     setEditingSchedule(null);
   }
+
 
   function openEditDialog(schedule: ClassSchedule) {
     setEditingSchedule(schedule);
@@ -319,9 +338,11 @@ export default function ClassSchedules() {
     },
     onError: (error: Error) => {
       console.error('Schedule error:', error);
+      setFormError(error.message || "Failed to save schedule");
       toast.error(error.message || "Failed to save schedule");
     },
   });
+
 
   // Generate + reconcile sessions mutation
   const generateSessionsMutation = useMutation({
@@ -619,7 +640,13 @@ export default function ClassSchedules() {
                     </div>
                   )}
                 </div>
+                {formError && (
+                  <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {formError}
+                  </div>
+                )}
                 <DialogFooter className="flex-col sm:flex-row gap-2">
+
                   {editingSchedule && (
                     <Button
                       variant="destructive"
@@ -659,9 +686,10 @@ export default function ClassSchedules() {
                     Cancel
                   </Button>
                   <Button 
-                    onClick={() => scheduleMutation.mutate()}
+                    onClick={() => { setFormError(null); scheduleMutation.mutate(); }}
                     disabled={scheduleMutation.isPending}
                   >
+
                     {scheduleMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     {editingSchedule ? "Update" : "Create"}
                   </Button>

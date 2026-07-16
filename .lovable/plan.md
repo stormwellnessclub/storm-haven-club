@@ -1,35 +1,42 @@
-# Fix: Latte orders showing two milks on ticket
+## Problem
 
-## Root cause
+When you add a class in **Recurring** mode it works, but "One-time" doesn't behave right. Looking at the code + database, there are three separate issues that combine into "only recurring works":
 
-The Coffee & Lattes category has a proper **Milk** group (single-select, required, free): Whole, 2%, Almond, Oat — the customer can freely swap between them.
+1. **Calendar view (default) hides the type** — `WeeklyCalendarView` renders every schedule by `day_of_week` with no badge or date. A one-time entry saves fine but looks identical to a weekly recurring class in its day column, with no date shown, so it appears "not added" or "just another recurring one."
+2. **No calendar tile for a one-time class on the actual date** — because the calendar is a generic weekly grid, a class scheduled only for e.g. Fri 7/17/26 is drawn on every Friday column visually, which is misleading.
+3. **Silent save failures aren't surfaced** — the "For a period" / "One-time" branches skip the conflict-warning path, but if the underlying insert throws (e.g., invalid time, missing class type), the toast fires but the dialog stays open with no inline error, so it feels like nothing happened.
 
-But the same category **also** has paid duplicates sitting in the generic **Add-ons** group (multi-select):
-- `oat milk` — +$0.75
-- `almond milk` — +$1.00
+There are no unique constraints or RLS rules blocking one-time inserts, and `reconcile_and_generate_class_sessions` already respects `effective_from` / `effective_until`, so sessions ARE being created — they're just invisible on the admin calendar.
 
-When a customer picks "Oat Milk" from the Milk group and *also* taps the "oat milk +$0.75" chip in Add-ons (easy to do — it looks like the only way to get oat milk), the order sticker prints **two milks** and they're charged an extra $0.75–$1. This is exactly the "two milks on the ticket" issue.
+## Plan
 
-The Milk selector itself is already working correctly — it's a single-select radio, so customers can switch off Whole Milk. The Whole Milk default just happens to be the first `is_required` option; that's standard and can stay.
+### 1. `src/components/admin/WeeklyCalendarView.tsx`
+- Extend the `ClassSchedule` prop type with `is_one_time`, `effective_from`, `effective_until`.
+- On each schedule tile, add a small badge row:
+  - `One-time · Jul 17` when `is_one_time` is true
+  - `Thru Aug 15` when only `effective_until` is set
+  - `From Jul 20` when only `effective_from` is set
+  - `Jul 20 – Aug 15` for full window
+- Visually dim the tile in weeks where the current calendar week is outside its effective window (optional, subtle opacity).
+- Keep click-to-edit behavior unchanged.
 
-## Change
+### 2. `src/pages/admin/ClassSchedules.tsx`
+- Default `viewMode` to `"table"` when the query returns any `is_one_time`/dated schedules on first load, so users can clearly see them listed with the existing badges (lines 829-841 already render these correctly in table mode).
+- In the dialog: show a small inline error region (red text) inside the form when the mutation `onError` fires, in addition to the toast, so validation failures don't feel silent.
+- When user picks **One-time**, auto-uncheck "Active" toggle? No — leave `is_active=true` (needed for reconcile to pick it up).
+- Immediately after save, call the existing `reconcile_and_generate_class_sessions` (already done) AND invalidate `['admin-sessions-calendar']` + `['class-schedules']` so the list refreshes without a page reload.
 
-Data-only fix in `cafe_menu_addons` (Coffee & Lattes category, `ab6e378d-…`):
+### 3. Verification pass
+- After changes, insert a test one-time schedule for a near-future date via the UI, confirm:
+  - It appears in the **Table view** with the "One-time · <date>" badge.
+  - It appears in the **Calendar view** with the same badge inside the tile.
+  - A row lands in `class_sessions` for that exact date via the reconcile RPC.
 
-1. Deactivate the duplicate milk entries in the Add-ons group:
-   - `oat milk` (`311c16d7-…`) → `is_active = false`
-   - `almond milk` (`083e797d-…`) → `is_active = false`
+### Out of scope
+- No DB schema changes — columns already exist.
+- No changes to member-facing `ScheduleBrowser` (one-time sessions already flow through `class_sessions` and render correctly there).
+- No reconcile RPC changes.
 
-   Deactivate rather than delete so any historical orders referencing them stay intact.
-
-2. Leave the free **Milk** group (Whole / 2% / Almond / Oat) as-is — it already lets customers swap milks at no charge with a single selection.
-
-3. Leave `extra shot espresso` and `extra matcha` in the Add-ons group untouched.
-
-No frontend code changes needed — `CafeAddonDialog` already renders the Milk group as a single-select radio, so once the duplicates are gone, only one milk can ever land on the ticket.
-
-## Verification
-
-- Open a Latte in the café order UI → **Milk** section shows Whole/2%/Almond/Oat, tapping any one swaps the choice (no double-add).
-- Add-ons section no longer lists "oat milk" or "almond milk".
-- Placing an order with Oat Milk selected produces a ticket with exactly one milk line.
+## Files touched
+- `src/components/admin/WeeklyCalendarView.tsx` — add badge + prop type
+- `src/pages/admin/ClassSchedules.tsx` — default view, inline error, cache invalidation

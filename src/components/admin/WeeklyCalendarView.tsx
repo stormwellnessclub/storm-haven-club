@@ -1,7 +1,9 @@
 import { useMemo, useRef, useEffect } from "react";
+import { format, parseISO } from "date-fns";
 import { ScheduleConflict } from "@/lib/scheduleConflicts";
 import { cn } from "@/lib/utils";
 import { computeOverlapColumns, timeToMinutes } from "@/lib/calendarOverlap";
+
 
 interface ClassType {
   id: string;
@@ -25,9 +27,29 @@ interface ClassSchedule {
   room: string | null;
   max_capacity: number | null;
   is_active: boolean;
+  is_one_time?: boolean;
+  effective_from?: string | null;
+  effective_until?: string | null;
   class_types?: ClassType;
   instructors?: Instructor | null;
 }
+
+function formatDateBadge(d: string): string {
+  try {
+    return format(parseISO(d), "MMM d");
+  } catch {
+    return d;
+  }
+}
+
+function scheduleBadge(s: ClassSchedule): string | null {
+  if (s.is_one_time && s.effective_from) return `One-time · ${formatDateBadge(s.effective_from)}`;
+  if (s.effective_from && s.effective_until) return `${formatDateBadge(s.effective_from)} – ${formatDateBadge(s.effective_until)}`;
+  if (s.effective_until) return `Thru ${formatDateBadge(s.effective_until)}`;
+  if (s.effective_from) return `From ${formatDateBadge(s.effective_from)}`;
+  return null;
+}
+
 
 interface WeeklyCalendarViewProps {
   schedules: ClassSchedule[];
@@ -252,9 +274,15 @@ export function WeeklyCalendarView({ schedules, conflicts, onEditSchedule }: Wee
                     {formatTime12h(schedule.start_time)}–{formatTime12h(schedule.end_time)}
                     {schedule.room ? ` · ${schedule.room}` : ""}
                   </p>
+                  {scheduleBadge(schedule) && (
+                    <p className="text-[9px] leading-tight truncate mt-0.5 font-semibold uppercase tracking-wide opacity-90">
+                      {scheduleBadge(schedule)}
+                    </p>
+                  )}
                 </div>
               );
             })}
+
           </div>
         ))}
       </div>
