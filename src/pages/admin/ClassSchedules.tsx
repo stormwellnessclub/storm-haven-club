@@ -188,6 +188,10 @@ export default function ClassSchedules() {
     setMaxCapacity(null);
     setIsActive(true);
     setIsInviteOnly(false);
+    setScheduleMode("ongoing");
+    setEffectiveFrom("");
+    setEffectiveUntil("");
+    setOneTimeDate("");
     setEditingSchedule(null);
   }
 
@@ -202,6 +206,22 @@ export default function ClassSchedules() {
     setMaxCapacity(schedule.max_capacity);
     setIsActive(schedule.is_active);
     setIsInviteOnly(!!schedule.is_invite_only);
+    if (schedule.is_one_time) {
+      setScheduleMode("one_time");
+      setOneTimeDate(schedule.effective_from || "");
+      setEffectiveFrom("");
+      setEffectiveUntil("");
+    } else if (schedule.effective_from || schedule.effective_until) {
+      setScheduleMode("duration");
+      setEffectiveFrom(schedule.effective_from || "");
+      setEffectiveUntil(schedule.effective_until || "");
+      setOneTimeDate("");
+    } else {
+      setScheduleMode("ongoing");
+      setEffectiveFrom("");
+      setEffectiveUntil("");
+      setOneTimeDate("");
+    }
     setDialogOpen(true);
   }
 
@@ -212,25 +232,55 @@ export default function ClassSchedules() {
         throw new Error("Class type is required");
       }
 
+      // Resolve effective window + day_of_week based on mode
+      let resolvedDayOfWeek = dayOfWeek;
+      let resolvedFrom: string | null = null;
+      let resolvedUntil: string | null = null;
+      const isOneTime = scheduleMode === "one_time";
+
+      if (scheduleMode === "one_time") {
+        if (!oneTimeDate) throw new Error("Please pick a date for the one-time class");
+        // Derive day_of_week from the picked date (local)
+        const [y, m, d] = oneTimeDate.split("-").map(Number);
+        resolvedDayOfWeek = new Date(y, m - 1, d).getDay();
+        resolvedFrom = oneTimeDate;
+        resolvedUntil = oneTimeDate;
+      } else if (scheduleMode === "duration") {
+        if (!effectiveFrom || !effectiveUntil) {
+          throw new Error("Please pick both a start and end date");
+        }
+        if (effectiveUntil < effectiveFrom) {
+          throw new Error("End date must be on or after the start date");
+        }
+        resolvedFrom = effectiveFrom;
+        resolvedUntil = effectiveUntil;
+      }
+
       const scheduleData = {
         class_type_id: classTypeId,
         instructor_id: instructorId || null,
-        day_of_week: dayOfWeek,
+        day_of_week: resolvedDayOfWeek,
         start_time: startTime,
         end_time: endTime,
         room: room.trim() || null,
         max_capacity: maxCapacity,
         is_active: isActive,
         is_invite_only: isInviteOnly,
+        is_one_time: isOneTime,
+        effective_from: resolvedFrom,
+        effective_until: resolvedUntil,
       };
 
-      // Pre-save conflict check
-      const warnings = checkNewScheduleConflicts(
-        { ...scheduleData, id: editingSchedule?.id },
-        schedules
-      );
-      if (warnings.length > 0) {
-        throw new Error(warnings.join(". "));
+      // Pre-save conflict check (only for ongoing recurring rules to avoid
+      // spurious warnings on dated / one-time entries).
+      if (scheduleMode === "ongoing") {
+        const warnings = checkNewScheduleConflicts(
+          { ...scheduleData, id: editingSchedule?.id },
+          schedules
+        );
+        if (warnings.length > 0) {
+          throw new Error(warnings.join(". "));
+        }
       }
 
       if (editingSchedule) {
