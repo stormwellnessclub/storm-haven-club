@@ -1480,6 +1480,7 @@ serve(async (req) => {
 
       case 'charge_saved_card': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
+        await assertStaff();
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
@@ -1488,6 +1489,7 @@ serve(async (req) => {
         if (!memberId && !directCustomerId) {
           throw new Error("Either memberId or stripeCustomerId is required");
         }
+
 
         if (amount < 50) {
           throw new Error("Minimum charge amount is $0.50");
