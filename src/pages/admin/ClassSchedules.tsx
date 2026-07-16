@@ -194,8 +194,10 @@ export default function ClassSchedules() {
     setEffectiveFrom("");
     setEffectiveUntil("");
     setOneTimeDate("");
+    setFormError(null);
     setEditingSchedule(null);
   }
+
 
   function openEditDialog(schedule: ClassSchedule) {
     setEditingSchedule(schedule);
