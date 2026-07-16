@@ -426,7 +426,7 @@ export default function ClassSchedules() {
                 <DialogHeader>
                   <DialogTitle>{editingSchedule ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
                   <DialogDescription>
-                    {editingSchedule ? "Update the schedule details." : "Create a new recurring class schedule."}
+                    {editingSchedule ? "Update the schedule details." : "Add a recurring, time-limited, or one-time class."}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
