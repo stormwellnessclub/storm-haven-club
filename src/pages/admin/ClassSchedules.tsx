@@ -822,9 +822,24 @@ export default function ClassSchedules() {
                       </TableCell>
                       <TableCell>{schedule.room || "—"}</TableCell>
                       <TableCell>
-                        <Badge variant={schedule.is_active ? "default" : "secondary"}>
-                          {schedule.is_active ? "Active" : "Inactive"}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <Badge variant={schedule.is_active ? "default" : "secondary"}>
+                            {schedule.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                          {schedule.is_one_time ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              One-time{schedule.effective_from ? ` · ${format(new Date(schedule.effective_from + "T00:00:00"), "MMM d, yyyy")}` : ""}
+                            </Badge>
+                          ) : schedule.effective_until ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              Thru {format(new Date(schedule.effective_until + "T00:00:00"), "MMM d")}
+                            </Badge>
+                          ) : schedule.effective_from ? (
+                            <Badge variant="outline" className="text-[10px]">
+                              From {format(new Date(schedule.effective_from + "T00:00:00"), "MMM d")}
+                            </Badge>
+                          ) : null}
+                        </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
