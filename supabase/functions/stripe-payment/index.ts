@@ -2467,8 +2467,12 @@ serve(async (req) => {
       case 'process_class_pass': {
         // Similar to create_class_pass_checkout but for admin use
         const { category, passType, userId, isMember, successUrl, cancelUrl } = body;
-        
+        if (userId !== user.id) {
+          await assertStaff();
+        }
+
         if (!category || !passType || !userId) {
+
           throw new Error("Missing required fields for class pass");
         }
 
