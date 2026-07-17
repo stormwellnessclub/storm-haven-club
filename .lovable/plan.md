@@ -1,38 +1,37 @@
-## Goal
+# Teresa Tyler — Payroll Log (Revised v2)
+**Period:** Mon 6/29/26 – Sun 7/12/26
+**Role:** Spa Therapist · **Hourly rate on file:** $26.00/hr
 
-Downgrade Dalal Elali's (`STM-000166`) Stripe subscription to **Silver Women's Monthly** so her **July 16, 2026** charge and every renewal after bills at **$200 dues + processing fee** — no proration, no immediate charge. The DB record already shows a pending Silver change from June; we just need to make Stripe agree and finalize the record.
+## Completed appointments
 
-## Current State
+| Date | Time | Client | Service | Duration | Hours | Pay @ $26 | Tip | Tip Method |
+|---|---|---|---|---|---|---|---|---|
+| Fri 7/03 | 10:00 AM | (client) | Deep Relief Massage — 90 | 90 min | 1.50 | $39.00 | $0 | — |
+| Fri 7/03 | 12:00 PM | (client) | Lymph & Flow Massage — 90 | 90 min | 1.50 | $39.00 | $0 | — |
+| Fri 7/03 | 1:50 PM | (client) | Storm Signature Massage — 60 | 60 min | 1.00 | $26.00 | $0 | — |
+| Fri 7/03 | 4:00 PM | **Sahar Durant** | Deep Relief Massage — 90 | 90 min | 1.50 | $39.00 | **$50.00** | **Cash** |
+| **Sun 7/05** | **TBD** | **Rom Dad** | **Deep Tissue Massage — 90** | **90 min** | **1.50** | **$39.00** | **$50.00** | **Clover** |
+| Sat 7/11 | 12:00 PM | (client) | Sports Stretching — 60 | 60 min | 1.00 | $26.00 | $27.00 | In-app card |
 
-- Member row: `membership_type = Gold`, `pending_tier_change = Silver` (set 2026-06-17), `tier_change_used = false`.
-- Stripe sub `sub_1TCPqOLyZrsSqLhsBwJDgcf7` (status `active`):
-  - Item `si_UAlNN6QvtYMdrd` → Gold price `price_1Sl9pvLyZrsSqLhsIWyf2WwX` ($250)
-  - Item `si_UAlNitKW7BmVK2` → Gold processing fee `price_1T4kPMLyZrsSqLhs9UZEUCg1` ($7.78, `base_amount=25000`)
-  - Current period: 2026-06-16 → **2026-07-16** (next invoice date).
+## Totals
+- **Service hours:** 8.00
+- **Hourly pay:** $208.00
+- **Tips:** $127.00
+  - Cash tips owed to Teresa: **$50.00** (Sahar)
+  - Clover terminal tips: **$50.00** (Rom Dad)
+  - In-app card tips (already captured): **$27.00**
+- **Gross payout (hourly + all tips): $335.00**
 
-## Steps
+## Cancellations (not paid)
+- Fri 7/03 · 2:00 PM · Deep Relief Massage 90 (Sahar Durant duplicate — cancelled)
+- Fri 7/10 · 1:30 PM · Lymph & Flow 60
 
-1. **Create a Silver processing-fee price** on `prod_U28bascR7hn8we` (recurring monthly, `unit_amount = 628`, metadata `{ type: "processing_fee", base_amount: "20000" }`). Grossed-up per project formula: `(200 + 0.30)/(1 − 0.029) = $206.28` → fee = **$6.28**.
-2. **Update the subscription** with `proration_behavior = "none"` and `billing_cycle_anchor = "unchanged"`:
-   - Swap dues item to `price_1Sl9llLyZrsSqLhsJhm0MdJi` (Silver Women's Monthly, $200).
-   - Swap processing-fee item to the new $6.28 price from step 1.
-   - Add metadata `downgrade_effective = "2026-07-16"`, `previous_tier = "Gold"`.
-3. **Verify** with `stripe_api_read` that the upcoming invoice for `cus_U6fdFuYWGsORnw` totals $206.28 on 2026-07-16 with no proration lines.
-4. **Update the members row** for Dalal:
-   - `membership_type = 'Silver'`
-   - Clear `pending_tier_change`, `pending_tier_change_at`, `pending_tier_change_by`
-   - Set `tier_change_used = true`, `tier_change_used_at = now()`
-   - `updated_at = now()`
-5. **Log** an `admin_action_log` entry: `action_type = 'tier_downgrade'`, notes referencing the June 9 request honored on the July 16 cycle.
+## Changes I'll apply
+1. **Update `spa_appointments`** for Sahar Durant · 7/03 4:00 PM · add `tip_amount = 50`, `payment_method` note it's cash tip on top of Clover charge.
+2. **Insert new `spa_appointments` row** for Rom Dad · Sun 7/05 · Deep Tissue Massage 90 · `staff_id = Teresa` · `status = completed` · `payment_method = clover` · `tip_amount = 50` · `amount_paid` = service price (need this).
 
-## Out of Scope
+## Two things I still need from you
+- **Rom Dad's appointment time on 7/05** (e.g. 11 AM, 2 PM…)
+- **Service price paid at Clover** for Rom Dad's 90-min Deep Tissue (so `amount_paid` matches Clover). If unknown, I'll enter $195 (standard Deep Relief 90 rate).
 
-- No refund/credit for the June 16 Gold charge (member already accepted).
-- No changes to annual fee subscription `sub_1TBmP2LyZrsSqLhsYri0XEjH`.
-- No proration line items.
-
-## Verification
-
-After running, I'll:
-- Re-fetch the subscription and confirm both items point to the Silver prices.
-- Pull the upcoming invoice preview and paste the exact $ total ($206.28) and next billing date (2026-07-16) back to you before we consider it done.
+Give me time + price and I'll apply both DB changes and lock in the $335 payout.
