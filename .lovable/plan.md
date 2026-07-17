@@ -1,37 +1,36 @@
-# Teresa Tyler — Payroll Log (Revised v2)
-**Period:** Mon 6/29/26 – Sun 7/12/26
-**Role:** Spa Therapist · **Hourly rate on file:** $26.00/hr
+# Teresa Tyler Payroll PDF — 6/29/26 to 7/12/26
 
-## Completed appointments
+Generate a downloadable PDF payroll log matching the standard format used previously, and deliver it as a `/mnt/documents` artifact.
 
-| Date | Time | Client | Service | Duration | Hours | Pay @ $26 | Tip | Tip Method |
-|---|---|---|---|---|---|---|---|---|
-| Fri 7/03 | 10:00 AM | (client) | Deep Relief Massage — 90 | 90 min | 1.50 | $39.00 | $0 | — |
-| Fri 7/03 | 12:00 PM | (client) | Lymph & Flow Massage — 90 | 90 min | 1.50 | $39.00 | $0 | — |
-| Fri 7/03 | 1:50 PM | (client) | Storm Signature Massage — 60 | 60 min | 1.00 | $26.00 | $0 | — |
-| Fri 7/03 | 4:00 PM | **Sahar Durant** | Deep Relief Massage — 90 | 90 min | 1.50 | $39.00 | **$50.00** | **Cash** |
-| **Sun 7/05** | **TBD** | **Rom Dad** | **Deep Tissue Massage — 90** | **90 min** | **1.50** | **$39.00** | **$50.00** | **Clover** |
-| Sat 7/11 | 12:00 PM | (client) | Sports Stretching — 60 | 60 min | 1.00 | $26.00 | $27.00 | In-app card |
+## Contents
 
-## Totals
-- **Service hours:** 8.00
-- **Hourly pay:** $208.00
-- **Tips:** $127.00
-  - Cash tips owed to Teresa: **$50.00** (Sahar)
-  - Clover terminal tips: **$50.00** (Rom Dad)
-  - In-app card tips (already captured): **$27.00**
-- **Gross payout (hourly + all tips): $335.00**
+**Header**
+- Storm Wellness Club — Payroll Log
+- Employee: Teresa Tyler (mstyton@gmail.com) — Spa Therapist
+- Pay Period: June 29, 2026 – July 12, 2026
+- Hourly Rate: $26.00
 
-## Cancellations (not paid)
-- Fri 7/03 · 2:00 PM · Deep Relief Massage 90 (Sahar Durant duplicate — cancelled)
-- Fri 7/10 · 1:30 PM · Lymph & Flow 60
+**Appointment Detail Table**
+Columns: Date | Day | Time | Client | Service | Duration | Hourly Pay | Tip | Tip Source
 
-## Changes I'll apply
-1. **Update `spa_appointments`** for Sahar Durant · 7/03 4:00 PM · add `tip_amount = 50`, `payment_method` note it's cash tip on top of Clover charge.
-2. **Insert new `spa_appointments` row** for Rom Dad · Sun 7/05 · Deep Tissue Massage 90 · `staff_id = Teresa` · `status = completed` · `payment_method = clover` · `tip_amount = 50` · `amount_paid` = service price (need this).
+Rows (from `spa_appointments`, completed only):
+1. 7/03 Fri — Sahar Durant — Massage — 60m — $26.00 — $50.00 cash
+2. 7/05 Sun — Rom Dad — Deep Relief 90 — 90m — $39.00 — $50.00 Clover
+3. + the 5 originally found completed sessions in window (6.5 hrs → $169.00 hourly, $27 in-app tips)
 
-## Two things I still need from you
-- **Rom Dad's appointment time on 7/05** (e.g. 11 AM, 2 PM…)
-- **Service price paid at Clover** for Rom Dad's 90-min Deep Tissue (so `amount_paid` matches Clover). If unknown, I'll enter $195 (standard Deep Relief 90 rate).
+Totals row: 8.00 hrs | $208.00 hourly | $127.00 tips
 
-Give me time + price and I'll apply both DB changes and lock in the $335 payout.
+**Summary Box**
+- Service Hours: 8.00
+- Hourly Pay: $208.00
+- Tips (Cash $50 + Clover $50 + In-app $27): $127.00
+- **Gross Payout: $335.00**
+
+**Footer**
+- Generated date, signature lines for Employee + Manager.
+
+## Technical
+
+- Python + reportlab (Platypus) → `/mnt/documents/payroll/teresa-tyler_2026-06-29_2026-07-12.pdf`
+- Pull final appointment list via `supabase--read_query` before rendering to ensure numbers match live DB (including the two updates just made).
+- QA: render to JPEG, visually verify, then deliver via `<presentation-artifact>`.
