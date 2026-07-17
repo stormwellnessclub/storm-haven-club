@@ -1,36 +1,21 @@
-# Teresa Tyler Payroll PDF — 6/29/26 to 7/12/26
+# Fix Malak Bazzi's Missing Red-Light Credits
 
-Generate a downloadable PDF payroll log matching the standard format used previously, and deliver it as a `/mnt/documents` artifact.
+## Diagnosis
+- Your +2 red-light adjustment posted successfully on 2026-07-17 at 02:49 AM.
+- It attached to `member_credits` row `45560893…` — cycle **6/16/26 – 7/15/26**, which expired 2 days ago.
+- No active red-light bucket exists for the current cycle (7/16/26 – 8/15/26) yet, so the credits are invisible in her log/balance.
 
-## Contents
+## Fix
+1. **Reverse** the misplaced adjustment on the expired cycle:
+   - Update `member_credits` row `45560893…`: `credits_remaining` 3 → 1, `credits_total` 4 → 2 (restores it to its pre-add state so the expired bucket is clean).
+   - Insert a `credit_adjustments` "remove 2" entry with reason: *"Reversal — credits re-issued on current cycle 7/16–8/15"*, adjusted_by = you.
 
-**Header**
-- Storm Wellness Club — Payroll Log
-- Employee: Teresa Tyler (mstyton@gmail.com) — Spa Therapist
-- Pay Period: June 29, 2026 – July 12, 2026
-- Hourly Rate: $26.00
+2. **Re-issue** the 2 credits on a fresh active cycle:
+   - Insert a new `member_credits` row: `credit_type=red_light`, `credits_total=2`, `credits_remaining=2`, `cycle_start=2026-07-16`, `cycle_end=2026-08-15`, `expires_at=2026-08-15 23:59:59 ET`.
+   - Insert a `credit_adjustments` "add 2" entry against that new row with reason: *"Manual add 2 red light — re-issued on current cycle (originally posted to expired 6/16–7/15 bucket)"*, adjusted_by = you.
 
-**Appointment Detail Table**
-Columns: Date | Day | Time | Client | Service | Duration | Hourly Pay | Tip | Tip Source
+## Result
+Malak will show **2 active red-light credits** in her log and balance, expiring 8/15/26. Full audit trail preserved on both cycles.
 
-Rows (from `spa_appointments`, completed only):
-1. 7/03 Fri — Sahar Durant — Massage — 60m — $26.00 — $50.00 cash
-2. 7/05 Sun — Rom Dad — Deep Relief 90 — 90m — $39.00 — $50.00 Clover
-3. + the 5 originally found completed sessions in window (6.5 hrs → $169.00 hourly, $27 in-app tips)
-
-Totals row: 8.00 hrs | $208.00 hourly | $127.00 tips
-
-**Summary Box**
-- Service Hours: 8.00
-- Hourly Pay: $208.00
-- Tips (Cash $50 + Clover $50 + In-app $27): $127.00
-- **Gross Payout: $335.00**
-
-**Footer**
-- Generated date, signature lines for Employee + Manager.
-
-## Technical
-
-- Python + reportlab (Platypus) → `/mnt/documents/payroll/teresa-tyler_2026-06-29_2026-07-12.pdf`
-- Pull final appointment list via `supabase--read_query` before rendering to ensure numbers match live DB (including the two updates just made).
-- QA: render to JPEG, visually verify, then deliver via `<presentation-artifact>`.
+## Not doing
+- Not touching her regular monthly grant — if her plan auto-grants on 7/16, the grant job can still run separately and stack on top.
