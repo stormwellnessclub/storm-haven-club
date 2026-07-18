@@ -19,7 +19,7 @@ export default function EventsIndex() {
       const { data, error } = await supabase
         .from("events")
         .select("id, slug, title, description, starts_at, ends_at, venue, capacity, status, member_price_cents, non_member_price_cents, image_url")
-        .eq("status", "published")
+        .in("status", ["published", "on_sale"])
         .gte("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true });
       if (error) throw error;
