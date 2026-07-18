@@ -2681,6 +2681,7 @@ export type Database = {
           id: string
           member_referral: string | null
           no_show: boolean | null
+          payment_method: string | null
           phone_number: string | null
           price_paid: number
           purchased_at: string | null
@@ -2714,6 +2715,7 @@ export type Database = {
           id?: string
           member_referral?: string | null
           no_show?: boolean | null
+          payment_method?: string | null
           phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null
@@ -2747,6 +2749,7 @@ export type Database = {
           id?: string
           member_referral?: string | null
           no_show?: boolean | null
+          payment_method?: string | null
           phone_number?: string | null
           price_paid?: number
           purchased_at?: string | null

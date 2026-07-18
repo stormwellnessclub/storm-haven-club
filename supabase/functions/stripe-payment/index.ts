@@ -899,6 +899,79 @@ serve(async (req) => {
         );
       }
 
+      case 'create_guest_pass_payment_intent': {
+        // Inline card charge for walk-in guest pass sales at the front desk.
+        // Creates a PaymentIntent tied to a Stripe customer for the GUEST
+        // (not the admin), so receipts/customer records don't attach to staff.
+        await assertStaff(['super_admin', 'admin', 'manager', 'front_desk']);
+
+        const guestName: string = (body.guestName || '').trim();
+        const guestEmailRaw: string = (body.guestEmail || '').trim();
+        const guestEmail = guestEmailRaw || null;
+        const phoneNumber: string | null = body.phoneNumber || null;
+        const subtotalCents = Math.max(0, Math.round(Number(body.subtotalCents) || 0));
+        const includeFee = body.includeProcessingFee !== false;
+
+        if (!guestName) throw new Error('Guest name is required');
+        if (subtotalCents <= 0) throw new Error('Invalid amount');
+
+        // Gross-up fee: (subtotal + $0.30) / (1 - 0.029)
+        const totalCents = includeFee
+          ? Math.round((subtotalCents + 30) / (1 - 0.029))
+          : subtotalCents;
+
+        // Find or create a Stripe customer for the GUEST (not the admin)
+        let guestCustomerId: string | null = null;
+        if (guestEmail) {
+          const existing = await stripe.customers.list({ email: guestEmail, limit: 1 });
+          if (existing.data.length > 0) {
+            guestCustomerId = existing.data[0].id;
+          } else {
+            const created = await stripe.customers.create({
+              email: guestEmail,
+              name: guestName,
+              phone: phoneNumber || undefined,
+              metadata: { type: 'guest_pass_walkin' },
+            });
+            guestCustomerId = created.id;
+          }
+        } else {
+          const created = await stripe.customers.create({
+            name: guestName,
+            phone: phoneNumber || undefined,
+            metadata: { type: 'guest_pass_walkin' },
+          });
+          guestCustomerId = created.id;
+        }
+
+        const intent = await stripe.paymentIntents.create({
+          amount: totalCents,
+          currency: 'usd',
+          customer: guestCustomerId,
+          description: `Guest Pass – ${guestName}`,
+          automatic_payment_methods: { enabled: true },
+          metadata: {
+            type: 'guest_pass_walkin',
+            guest_name: guestName,
+            guest_email: guestEmail || '',
+            phone_number: phoneNumber || '',
+            sold_by: user.id,
+          },
+        });
+
+        return new Response(
+          JSON.stringify({
+            clientSecret: intent.client_secret,
+            paymentIntentId: intent.id,
+            customerId: guestCustomerId,
+            totalCents,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+
+
       case 'create_guest_pass_experience_checkout': {
         const { 
           guestName, 
