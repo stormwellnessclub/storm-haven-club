@@ -2395,6 +2395,71 @@ export type Database = {
         }
         Relationships: []
       }
+      event_tickets: {
+        Row: {
+          amount_cents: number
+          buyer_email: string
+          buyer_first_name: string | null
+          buyer_last_name: string | null
+          buyer_phone: string | null
+          checked_in_at: string | null
+          created_at: string
+          event_id: string
+          id: string
+          qr_token: string
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          ticket_type: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          buyer_email: string
+          buyer_first_name?: string | null
+          buyer_last_name?: string | null
+          buyer_phone?: string | null
+          checked_in_at?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          qr_token?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          ticket_type: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          buyer_email?: string
+          buyer_first_name?: string | null
+          buyer_last_name?: string | null
+          buyer_phone?: string | null
+          checked_in_at?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          qr_token?: string
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          ticket_type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_tickets_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_votes: {
         Row: {
           created_at: string
@@ -2422,6 +2487,63 @@ export type Database = {
           updated_at?: string
           user_id?: string
           voter_type?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          capacity: number
+          created_at: string
+          description: string | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          member_price_cents: number
+          member_stripe_price_id: string | null
+          non_member_price_cents: number
+          non_member_stripe_price_id: string | null
+          slug: string
+          starts_at: string
+          status: string
+          title: string
+          updated_at: string
+          venue: string | null
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          member_price_cents?: number
+          member_stripe_price_id?: string | null
+          non_member_price_cents?: number
+          non_member_stripe_price_id?: string | null
+          slug: string
+          starts_at: string
+          status?: string
+          title: string
+          updated_at?: string
+          venue?: string | null
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          member_price_cents?: number
+          member_stripe_price_id?: string | null
+          non_member_price_cents?: number
+          non_member_stripe_price_id?: string | null
+          slug?: string
+          starts_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          venue?: string | null
         }
         Relationships: []
       }
@@ -9094,6 +9216,15 @@ export type Database = {
       get_dunning_efficiency: {
         Args: { p_end_date: string; p_start_date: string }
         Returns: Json
+      }
+      get_event_availability: {
+        Args: { _slug: string }
+        Returns: {
+          capacity: number
+          remaining: number
+          sold: number
+          status: string
+        }[]
       }
       get_instructor_portal_status: {
         Args: never
