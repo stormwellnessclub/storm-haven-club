@@ -123,6 +123,7 @@ import EventVoteTracking from "./pages/admin/EventVoteTracking";
 import EventsHub from "./pages/admin/EventsHub";
 import EventDetail from "./pages/admin/EventDetail";
 import EventPage from "./pages/EventPage";
+import EventsIndex from "./pages/EventsIndex";
 import EventSuccess from "./pages/EventSuccess";
 import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
