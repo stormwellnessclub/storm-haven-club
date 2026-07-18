@@ -123,6 +123,7 @@ import EventVoteTracking from "./pages/admin/EventVoteTracking";
 import EventsHub from "./pages/admin/EventsHub";
 import EventDetail from "./pages/admin/EventDetail";
 import EventPage from "./pages/EventPage";
+import EventsIndex from "./pages/EventsIndex";
 import EventSuccess from "./pages/EventSuccess";
 import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
@@ -406,6 +407,7 @@ const App = () => (
               <Route path="/admin/event-votes" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/events/:slug" element={<EventPage />} />
+              <Route path="/events" element={<EventsIndex />} />
               <Route path="/events/:slug/success" element={<EventSuccess />} />
               <Route path="/admin/non-member-accounts" element={<ProtectedAdminRoute><NonMemberAccounts /></ProtectedAdminRoute>} />
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
