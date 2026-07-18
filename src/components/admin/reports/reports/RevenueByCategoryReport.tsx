@@ -10,7 +10,7 @@ interface RevenueByCategoryReportProps {
   filters: Record<string, string | boolean>;
 }
 
-const COLORS = ['hsl(142, 76%, 36%)', 'hsl(45, 93%, 47%)', 'hsl(199, 89%, 48%)', 'hsl(280, 67%, 50%)', 'hsl(25, 95%, 53%)', 'hsl(0, 84%, 60%)', 'hsl(170, 70%, 40%)'];
+const COLORS = ['hsl(142, 76%, 36%)', 'hsl(45, 93%, 47%)', 'hsl(199, 89%, 48%)', 'hsl(280, 67%, 50%)', 'hsl(25, 95%, 53%)', 'hsl(0, 84%, 60%)', 'hsl(170, 70%, 40%)', 'hsl(340, 82%, 55%)', 'hsl(220, 15%, 55%)'];
 
 export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportProps) {
   const { data, isLoading } = useQuery({
@@ -19,7 +19,7 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
       const startDate = format(dateRange.start, 'yyyy-MM-dd');
       const endDate = format(dateRange.end, 'yyyy-MM-dd');
 
-      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes] = await Promise.all([
+      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, eventsRes] = await Promise.all([
         supabase.from('manual_charges').select('amount, description, created_at')
           .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
         supabase.from('cafe_orders').select('total_amount')
@@ -30,6 +30,8 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
           .gte('purchased_at', startDate).lte('purchased_at', endDate),
         supabase.from('guest_passes').select('price_paid')
           .gte('purchased_at', startDate).lte('purchased_at', endDate),
+        supabase.from('event_tickets').select('amount_cents, created_at')
+          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'paid'),
       ]);
 
       let membershipRevenue = 0, initiationFees = 0, annualFees = 0, otherCharges = 0;
@@ -46,6 +48,7 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
       const spaRevenue = (spaRes.data || []).reduce((s, a) => s + (Number(a.member_price) || Number(a.service_price) || 0), 0);
       const classRevenue = (classPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
       const guestPassRevenue = (guestPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
+      const eventsRevenue = (eventsRes.data || []).reduce((s, t) => s + ((Number(t.amount_cents) || 0) / 100), 0);
 
       return [
         { name: 'Memberships', value: membershipRevenue },
@@ -55,6 +58,7 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
         { name: 'Spa Services', value: spaRevenue },
         { name: 'Class Passes', value: classRevenue },
         { name: 'Guest Passes', value: guestPassRevenue },
+        { name: 'Events', value: eventsRevenue },
         { name: 'Other', value: otherCharges },
       ].filter(item => item.value > 0);
     },

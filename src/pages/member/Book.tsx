@@ -6,6 +6,7 @@ import { useUserCredits } from "@/hooks/useUserCredits";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
 import { UpcomingBookingsPanel } from "@/components/booking/UpcomingBookingsPanel";
+import { EventAnnouncementBanner } from "@/components/events/EventAnnouncementBanner";
 
 /**
  * Single starting point for booking anything in the club.
@@ -62,6 +63,8 @@ export default function MemberBook() {
             Pick what you'd like to book today.
           </p>
         </header>
+
+        <EventAnnouncementBanner />
 
         <UpcomingBookingsPanel scope="member" />
 

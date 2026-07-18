@@ -117,17 +117,24 @@ serve(async (req) => {
       cancel_url: `${origin}/events/${event.slug}?cancelled=1`,
       metadata: {
         type: "event_ticket",
+        category: "events",
         event_id: event.id,
         event_slug: event.slug,
+        event_title: event.title,
         ticket_ids: ticketIds.join(","),
         ticket_type: ticketType,
+        quantity: String(qty),
       },
       payment_intent_data: {
-        description: `${event.title} — ${qty} ticket(s) (${ticketType === "member" ? "Member" : "Non-Member"})`,
+        description: `Event Ticket — ${event.title} — ${qty} × ${ticketType === "member" ? "Member" : "Non-Member"}`,
         metadata: {
           type: "event_ticket",
+          category: "events",
           event_id: event.id,
+          event_slug: event.slug,
+          event_title: event.title,
           ticket_ids: ticketIds.join(","),
+          ticket_type: ticketType,
         },
       },
     });
