@@ -1,21 +1,34 @@
-# Fix Malak Bazzi's Missing Red-Light Credits
+## Likely cause
 
-## Diagnosis
-- Your +2 red-light adjustment posted successfully on 2026-07-17 at 02:49 AM.
-- It attached to `member_credits` row `45560893…` — cycle **6/16/26 – 7/15/26**, which expired 2 days ago.
-- No active red-light bucket exists for the current cycle (7/16/26 – 8/15/26) yet, so the credits are invisible in her log/balance.
+Cafe image uploads go to the `cafe-menu-images` storage bucket. The RLS policies on `storage.objects` for that bucket (migration `20260503043627`) only allow these roles to INSERT/UPDATE/DELETE:
 
-## Fix
-1. **Reverse** the misplaced adjustment on the expired cycle:
-   - Update `member_credits` row `45560893…`: `credits_remaining` 3 → 1, `credits_total` 4 → 2 (restores it to its pre-add state so the expired bucket is clean).
-   - Insert a `credit_adjustments` "remove 2" entry with reason: *"Reversal — credits re-issued on current cycle 7/16–8/15"*, adjusted_by = you.
+- `super_admin`
+- `admin`
+- `manager`
+- `cafe_staff`
 
-2. **Re-issue** the 2 credits on a fresh active cycle:
-   - Insert a new `member_credits` row: `credit_type=red_light`, `credits_total=2`, `credits_remaining=2`, `cycle_start=2026-07-16`, `cycle_end=2026-08-15`, `expires_at=2026-08-15 23:59:59 ET`.
-   - Insert a `credit_adjustments` "add 2" entry against that new row with reason: *"Manual add 2 red light — re-issued on current cycle (originally posted to expired 6/16–7/15 bucket)"*, adjusted_by = you.
+Any other staff role (e.g. `front_desk`, `staff`, `kiosk`, an instructor, or an unauthenticated kiosk session) is rejected by RLS, and the Supabase client surfaces it as a generic "new row violates row-level security policy" / "Upload failed" toast in `CafeMenuManager` / `useCafeMenu.uploadCafeMenuImage`.
 
-## Result
-Malak will show **2 active red-light credits** in her log and balance, expiring 8/15/26. Full audit trail preserved on both cycles.
+Secondary contributor: the upload uses `{ upsert: true }`, which requires both INSERT **and** UPDATE policies to pass — so a role missing from either policy fails silently on retry.
 
-## Not doing
-- Not touching her regular monthly grant — if her plan auto-grants on 7/16, the grant job can still run separately and stack on top.
+## To confirm before fixing
+
+1. Reproduce the upload and capture the exact error text (console + network 4xx body from `/storage/v1/object/cafe-menu-images/...`).
+2. Check which account is uploading and what roles it has in `user_roles`. If the user role is not in the allow-list above, that's the failure.
+3. If the error is instead `413`/`payload too large` or a MIME rejection, the cause is different (bucket size/mime limit) and we'll adjust accordingly.
+
+## Fix (pending confirmation)
+
+Depending on what step 2 shows, one of:
+
+- **A. Role gap (most likely):** add the missing role(s) to the three `cafe-menu-images` storage policies — typically extending the allow-list to include `front_desk` / `staff` if the person managing the menu isn't a cafe_staff/admin.
+- **B. Correct user, wrong role assignment:** grant the uploading user the `cafe_staff` role in `user_roles` instead of widening the policy.
+- **C. Non-RLS error (size/mime/network):** adjust bucket limits or the client-side validation in `CafeMenuManager` accordingly.
+
+No code changes yet — I'd like the exact error message and the uploading account so we pick the right fix and don't over-widen storage write access.
+
+### Technical notes
+
+- Bucket policies live in `supabase/migrations/20260503043627_e6da1c41-7c4f-478b-9971-ec9b2ce470ca.sql`.
+- Upload code: `uploadCafeMenuImage` in `src/hooks/useCafeMenu.ts` (line 274).
+- Any policy change must cover INSERT and UPDATE (because of `upsert: true`); DELETE only needed for the image-review page.
