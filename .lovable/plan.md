@@ -1,23 +1,35 @@
+The existing `send-sound-bath-vote-blast` function is for the vote (now closed). The event is confirmed for **Saturday, July 25 at 7:00 PM**, so we need a new announcement blast that drives ticket sales.
 
-## Problem
+## What I'll build
 
-The Sound Bath event page exists at `/events/sound-bath-jul-25-2026` but there is no link to it anywhere in the public marketing site. `Navigation.tsx` and `Footer.tsx` link to Classes, Spa, Cafe, etc., but not Events, so visitors can't discover it.
+### 1. New edge function: `send-sound-bath-event-blast`
+- Admin-only (via `requireStaff`).
+- Three modes controlled by request body:
+  - `{ preview: true }` → returns rendered HTML for the in-app preview dialog (no send, no log).
+  - `{ testEmail: "stormfitnessllc@gmail.com" }` → sends one real email to that address, logs it under a distinct `email_type` (`sound_bath_event_test`) so it doesn't affect dedupe.
+  - `{}` → full blast to all `status = active` members with an email, idempotent via `email_audit_log` on `email_type = sound_bath_event_jul_25_2026`.
+- Uses Resend, `from: Storm Wellness Club <admin@stormwellnessclub.com>`.
 
-## Plan
+### 2. Email content
+Same brand styling as the vote email (cream/gold/dark, serif). Content:
+- Header: "You're Invited" / "Sound Bath, Nervous System Reset & Guided Meditation"
+- Date: **Saturday, July 25, 2026 · 7:00 PM** (90 minutes)
+- Led by Crystal Bell — full experience description (breathwork → guided meditation → extended sound bath)
+- Tickets: Members $30 · Non-Members $40
+- What to bring: mat, pillow, blanket, eye mask
+- Primary CTA button → `https://stormwellnessclub.com/events/sound-bath-jul-25-2026`
+- Secondary link → `/events`
+- Footer with contact
 
-1. **Add "Events" link to main site navigation** — `src/components/Navigation.tsx`
-   - Insert `{ href: "/events", label: "Events" }` in the `navLinks` array (after "Classes").
-   - Same link appears automatically in the mobile menu since both use `navLinks`.
+### 3. Admin UI (in `/admin/events` → Sound Bath event detail, next to existing Preview/Send buttons)
+- **Preview email** button — opens dialog with iframe (reuse `PreviewVoteEmailButton` pattern, new component `PreviewEventEmailButton`).
+- **Send test to me** button — prompts/defaults to `stormfitnessllc@gmail.com`, sends single test.
+- **Send blast** button — confirm dialog, then fires full send (reuse `SendVoteBlastButton` pattern).
 
-2. **Add "Events" to footer** — `src/components/Footer.tsx`
-   - Add `{ label: "Events", href: "/events" }` under the "Experience" column alongside Classes/Spa/Cafe.
+## Flow for you
+1. I ship the function + buttons.
+2. You click **Preview email** to review in-app.
+3. You click **Send test** → email lands at stormfitnessllc@gmail.com.
+4. Once you approve, click **Send blast** to email all active members.
 
-3. **Create a public `/events` index page** — `src/pages/EventsIndex.tsx` + route in `src/App.tsx`
-   - Lists all rows from `events` where `status = 'published'` and `starts_at >= now()`, ordered by date.
-   - Each card shows the event hero image, title, date/time (America/Detroit), price tiers (member/non-member), seats remaining (using the existing capacity RPC), and a "Reserve" button that links to `/events/:slug`.
-   - Empty state: "No upcoming events right now — check back soon."
-   - Styled to match the marketing site (gold accent, serif headline) consistent with the existing `EventAnnouncementBanner`.
-
-4. **Route wiring** — add `<Route path="/events" element={<EventsIndex />} />` in `App.tsx` above the existing `/events/:slug` route.
-
-Scope stays purely presentational/discovery — no changes to booking, Stripe, or admin.
+Confirm and I'll build it.
