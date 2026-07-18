@@ -44,14 +44,23 @@ export function MultiImageUploader({
     try {
       const results = await Promise.allSettled(toUpload.map(upload));
       const newUrls: string[] = [];
-      let failed = 0;
+      const failedMsgs: string[] = [];
       results.forEach((r) => {
         if (r.status === "fulfilled") newUrls.push(r.value);
-        else failed += 1;
+        else {
+          const msg = r.reason instanceof Error ? r.reason.message : String(r.reason);
+          console.error("[MultiImageUploader] upload failed:", r.reason);
+          failedMsgs.push(msg);
+        }
       });
       if (newUrls.length) onChange([...value, ...newUrls]);
-      if (failed) toast.error(`${failed} image${failed > 1 ? "s" : ""} failed to upload`);
-      else toast.success(`${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded`);
+      if (failedMsgs.length) {
+        toast.error(
+          `${failedMsgs.length} image${failedMsgs.length > 1 ? "s" : ""} failed: ${failedMsgs[0]}`,
+        );
+      } else {
+        toast.success(`${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded`);
+      }
       if (files.length > room) toast.message(`Only added ${room} of ${files.length} (max ${maxImages})`);
     } finally {
       setUploading(false);
