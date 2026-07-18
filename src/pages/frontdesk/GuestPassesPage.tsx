@@ -88,10 +88,9 @@ function InlineCardCharge({
         return;
       }
       if (paymentIntent?.status === "succeeded") {
-        onSuccess(
-          paymentIntent.id,
-          (paymentIntent.customer as string | null) ?? null,
-        );
+        const customerId =
+          ((paymentIntent as any)?.customer as string | null) ?? null;
+        onSuccess(paymentIntent.id, customerId);
       } else {
         toast.error(`Payment status: ${paymentIntent?.status || "unknown"}`);
         setSubmitting(false);
