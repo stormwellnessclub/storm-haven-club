@@ -80,12 +80,17 @@ export function EventAnnouncementBanner() {
             )}
           </div>
         </div>
-        <Button asChild size="lg" variant="gold" className="shrink-0 w-full sm:w-auto">
-          <Link to={`/events/${event.slug}`}>
-            Reserve your seat
-            <ArrowRight className="h-4 w-4 ml-1" />
-          </Link>
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+          <Button asChild size="lg" variant="outline" className="border-gold/40">
+            <Link to={`/events/${event.slug}`}>More info</Link>
+          </Button>
+          <Button asChild size="lg" variant="gold">
+            <Link to={`/events/${event.slug}`}>
+              Reserve
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Link>
+          </Button>
+        </div>
       </div>
     </Card>
   );
