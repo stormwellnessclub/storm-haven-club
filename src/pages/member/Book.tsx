@@ -64,6 +64,8 @@ export default function MemberBook() {
           </p>
         </header>
 
+        <EventAnnouncementBanner />
+
         <UpcomingBookingsPanel scope="member" />
 
         <div className="space-y-3">
