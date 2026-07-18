@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SOUND_BATH_VOTE, isVoteOpen } from "@/lib/eventVote";
 import { useEventVoteTallies } from "@/hooks/useEventVote";
 import { format } from "date-fns";
-import { ArrowRight, Calendar, Ticket, Vote, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Calendar, Ticket, Vote, Sparkles } from "lucide-react";
 
 // Registry of events. Add new events here as they get planned.
 // Each event points to whichever tracking view already exists (votes, tickets, etc).
