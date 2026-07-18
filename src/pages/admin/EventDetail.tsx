@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatInTimeZone } from "date-fns-tz";
 import { ArrowLeft, Ticket, DollarSign, Users } from "lucide-react";
 import { format } from "date-fns";
+import { EventEmailBlastControls } from "@/components/admin/EventEmailBlastControls";
 
 const CLUB_TZ = "America/Detroit";
 
@@ -105,6 +106,17 @@ export default function EventDetail() {
                 <CardContent><div className="text-3xl font-bold">${(revenueCents / 100).toFixed(2)}</div></CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Email announcement</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <EventEmailBlastControls />
+              </CardContent>
+            </Card>
+
+
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
