@@ -30,7 +30,7 @@ import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection"
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppointmentsCard";
 import { UpcomingSpaAppointmentsCard } from "@/components/portal/UpcomingSpaAppointmentsCard";
-import { EventVoteCard } from "@/components/events/EventVoteCard";
+import { EventAnnouncementBanner } from "@/components/events/EventAnnouncementBanner";
 
 import {
   CreditCard,
@@ -170,8 +170,8 @@ export default function MemberDashboard() {
   return (
     <MemberLayout title="Dashboard">
       <div className="space-y-8">
-        {/* Member Vote — Sound Bath */}
-        <EventVoteCard voterType="member" />
+        {/* Upcoming Event Announcement */}
+        <EventAnnouncementBanner />
 
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
@@ -219,39 +219,6 @@ export default function MemberDashboard() {
           </AnimatedSection>
         )}
 
-        {/* Kids Care Flyer */}
-        {(() => {
-          const dismissed = typeof window !== "undefined" && localStorage.getItem("kids_care_flyer_dismissed");
-          if (dismissed) return null;
-          return (
-            <AnimatedSection animation="fade-in">
-              <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-r from-primary/5 to-accent/5">
-                <button
-                  onClick={() => { localStorage.setItem("kids_care_flyer_dismissed", "1"); window.location.reload(); }}
-                  className="absolute top-3 right-3 text-muted-foreground hover:text-foreground text-sm"
-                  aria-label="Dismiss"
-                >✕</button>
-                <CardContent className="flex flex-col sm:flex-row items-center gap-4 p-5">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <Baby className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1 text-center sm:text-left">
-                    <h3 className="font-serif text-lg font-semibold">Kids Care is Now Open!</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">Supervised childcare while you work out. <p className="text-sm text-muted-foreground mt-0.5">Supervised childcare while you work out. Ages 4 months – 8 years. $75/mo for 16 sessions.</p></p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button asChild size="sm">
-                      <Link to="/member/kids-care">Get a Pass</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link to="/member/kids-care-bookings">View Schedule</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </AnimatedSection>
-          );
-        })()}
 
         {/* Credit Expiration / Low Balance Warnings */}
         {!creditsLoading && (() => {
