@@ -1,34 +1,34 @@
-## Likely cause
+## Root cause (confirmed)
 
-Cafe image uploads go to the `cafe-menu-images` storage bucket. The RLS policies on `storage.objects` for that bucket (migration `20260503043627`) only allow these roles to INSERT/UPDATE/DELETE:
+The admin Event Vote page reads `event_votes` and `event_vote_tallies` directly via the client, but neither has `GRANT` for the `authenticated` role in Postgres:
 
-- `super_admin`
-- `admin`
-- `manager`
-- `cafe_staff`
+```
+grantee      | privilege_type
+-------------+---------------
+sandbox_exec | INSERT / SELECT
+(no rows for authenticated / anon / service_role)
+```
 
-Any other staff role (e.g. `front_desk`, `staff`, `kiosk`, an instructor, or an unauthenticated kiosk session) is rejected by RLS, and the Supabase client surfaces it as a generic "new row violates row-level security policy" / "Upload failed" toast in `CafeMenuManager` / `useCafeMenu.uploadCafeMenuImage`.
+Meanwhile the data itself is fine — 10 votes exist, tallies compute correctly (Saturday 5, Either 3, Friday 2), and RLS policies already allow super_admin/admin to read every row. But PostgREST checks table-level `GRANT` *before* RLS, so every admin query silently returns an empty set. That's why the Live Tally shows 0 and "No votes yet" renders even though the rows are there.
 
-Secondary contributor: the upload uses `{ upsert: true }`, which requires both INSERT **and** UPDATE policies to pass — so a role missing from either policy fails silently on retry.
+(Votes still get cast because upserts go through the anon/auth key with default grants that existed when the table was created; a later security migration revoked the standard grants without re-adding them.)
 
-## To confirm before fixing
+## Fix
 
-1. Reproduce the upload and capture the exact error text (console + network 4xx body from `/storage/v1/object/cafe-menu-images/...`).
-2. Check which account is uploading and what roles it has in `user_roles`. If the user role is not in the allow-list above, that's the failure.
-3. If the error is instead `413`/`payload too large` or a MIME rejection, the cause is different (bucket size/mime limit) and we'll adjust accordingly.
+Single migration that restores the required grants — no code changes, no RLS changes.
 
-## Fix (pending confirmation)
+```sql
+GRANT SELECT, INSERT, UPDATE ON public.event_votes TO authenticated;
+GRANT DELETE               ON public.event_votes TO authenticated; -- admins delete policy already gates this
+GRANT ALL                  ON public.event_votes TO service_role;
 
-Depending on what step 2 shows, one of:
+GRANT SELECT ON public.event_vote_tallies TO authenticated;
+GRANT SELECT ON public.event_vote_tallies TO anon; -- tallies are public-safe aggregates shown on voting card
+GRANT ALL    ON public.event_vote_tallies TO service_role;
+```
 
-- **A. Role gap (most likely):** add the missing role(s) to the three `cafe-menu-images` storage policies — typically extending the allow-list to include `front_desk` / `staff` if the person managing the menu isn't a cafe_staff/admin.
-- **B. Correct user, wrong role assignment:** grant the uploading user the `cafe_staff` role in `user_roles` instead of widening the policy.
-- **C. Non-RLS error (size/mime/network):** adjust bucket limits or the client-side validation in `CafeMenuManager` accordingly.
+## Verification
 
-No code changes yet — I'd like the exact error message and the uploading account so we pick the right fix and don't over-widen storage write access.
-
-### Technical notes
-
-- Bucket policies live in `supabase/migrations/20260503043627_e6da1c41-7c4f-478b-9971-ec9b2ce470ca.sql`.
-- Upload code: `uploadCafeMenuImage` in `src/hooks/useCafeMenu.ts` (line 274).
-- Any policy change must cover INSERT and UPDATE (because of `upsert: true`); DELETE only needed for the image-review page.
+1. Reload `/admin/event-votes` — Total votes: 10, Members: 8, Non-Members: 2, individual table lists all 10 voters with names/emails resolved from `non_member_profiles` and (where applicable) `members`.
+2. `/admin/events` summary card reflects the same 10 total.
+3. Member/non-member voting card on the portal still tallies live.
