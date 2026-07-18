@@ -407,6 +407,7 @@ const App = () => (
               <Route path="/admin/event-votes" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/events/:slug" element={<EventPage />} />
+              <Route path="/events" element={<EventsIndex />} />
               <Route path="/events/:slug/success" element={<EventSuccess />} />
               <Route path="/admin/non-member-accounts" element={<ProtectedAdminRoute><NonMemberAccounts /></ProtectedAdminRoute>} />
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
