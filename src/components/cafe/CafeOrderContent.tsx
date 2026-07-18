@@ -1065,7 +1065,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center">
                                     <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy/30 italic">
-                                      Coming soon
+                                      Image coming soon
                                     </span>
                                   </div>
                                 )}
@@ -1132,7 +1132,7 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center">
                                   <span className="font-cafe-mono text-[10px] tracking-[0.3em] uppercase text-cafe-burgundy/30 italic">
-                                    Coming soon
+                                    Image coming soon
                                   </span>
                                 </div>
                               )}
