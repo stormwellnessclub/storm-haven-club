@@ -402,8 +402,11 @@ const App = () => (
               <Route path="/admin/class-roster/:sessionId" element={<ProtectedAdminRoute><ClassRoster /></ProtectedAdminRoute>} />
               <Route path="/admin/marketing" element={<ProtectedAdminRoute><Marketing /></ProtectedAdminRoute>} />
               <Route path="/admin/events" element={<ProtectedAdminRoute><EventsHub /></ProtectedAdminRoute>} />
+              <Route path="/admin/events/:slug" element={<ProtectedAdminRoute><EventDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
+              <Route path="/events/:slug" element={<EventPage />} />
+              <Route path="/events/:slug/success" element={<EventSuccess />} />
               <Route path="/admin/non-member-accounts" element={<ProtectedAdminRoute><NonMemberAccounts /></ProtectedAdminRoute>} />
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/people" element={<ProtectedAdminRoute><People /></ProtectedAdminRoute>} />
