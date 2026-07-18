@@ -1,0 +1,1 @@
+ALTER TABLE public.guest_passes ADD COLUMN IF NOT EXISTS payment_method text;
