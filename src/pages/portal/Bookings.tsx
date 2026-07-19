@@ -28,6 +28,7 @@ import {
 import { useAllAppointmentHistory } from "@/hooks/useAllAppointmentHistory";
 import { SpaAppointmentRow } from "@/components/portal/SpaAppointmentRow";
 import { PTAppointmentRow } from "@/components/portal/PTAppointmentRow";
+import { UpcomingEventTickets } from "@/components/bookings/UpcomingEventTickets";
 
 const REVIEWABLE_STATUSES = new Set(["confirmed", "completed", "no_show"]);
 
