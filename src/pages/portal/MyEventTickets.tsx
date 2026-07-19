@@ -126,7 +126,6 @@ export default function MyEventTickets() {
       )}
 
       <div className="flex items-center gap-3">
-      <div className="flex items-center gap-3">
         <Ticket className="h-6 w-6 text-primary" />
         <h1 className="text-2xl md:text-3xl font-semibold">My Event Tickets</h1>
       </div>
