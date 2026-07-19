@@ -158,6 +158,34 @@ export default function EventPage() {
             <p className="text-muted-foreground whitespace-pre-line">{event.description}</p>
           )}
 
+          {(event as any).details && (
+            <div className="rounded-xl border bg-muted/30 p-5 space-y-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> What to expect
+              </h3>
+              <p className="text-sm text-foreground/90 whitespace-pre-line leading-relaxed">
+                {(event as any).details}
+              </p>
+            </div>
+          )}
+
+          {(event as any).what_to_bring && (
+            <div className="rounded-xl border bg-muted/30 p-5 space-y-2">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <PackageCheck className="h-4 w-4 text-primary" /> What to bring
+              </h3>
+              <ul className="text-sm text-foreground/90 space-y-1.5 list-disc list-inside marker:text-primary">
+                {String((event as any).what_to_bring)
+                  .split("\n")
+                  .map((line: string) => line.trim())
+                  .filter(Boolean)
+                  .map((line: string, i: number) => (
+                    <li key={i}>{line.replace(/^[•\-*]\s*/, "")}</li>
+                  ))}
+              </ul>
+            </div>
+          )}
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border p-4">
               <div className="text-xs uppercase text-muted-foreground">Members</div>
