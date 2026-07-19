@@ -9,9 +9,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatInTimeZone } from "date-fns-tz";
-import { ArrowLeft, Ticket, DollarSign, Users, Clock, Download } from "lucide-react";
+import { ArrowLeft, Ticket, DollarSign, Users, Clock, Download, Ban, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { EventEmailBlastControls } from "@/components/admin/EventEmailBlastControls";
+import { toast } from "sonner";
 
 const CLUB_TZ = "America/Detroit";
 
