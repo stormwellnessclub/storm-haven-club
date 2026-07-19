@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Loader2, Ticket, Calendar, MapPin, Sparkles } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
+import { PortalUpcomingEvents } from "@/components/events/PortalUpcomingEvents";
 
 const CLUB_TZ = "America/Detroit";
 
@@ -128,6 +129,9 @@ export default function MyEventTickets() {
         <Ticket className="h-6 w-6 text-primary" />
         <h1 className="text-2xl md:text-3xl font-semibold">My Event Tickets</h1>
       </div>
+
+      <PortalUpcomingEvents />
+
 
       {(loading || verifying) && (
         <div className="flex items-center justify-center py-10 text-muted-foreground">

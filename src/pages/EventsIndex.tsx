@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,10 +10,13 @@ import { Navigation } from "@/components/Navigation";
 import { Footer } from "@/components/Footer";
 import { formatInTimeZone } from "date-fns-tz";
 import { CalendarDays, MapPin, Ticket } from "lucide-react";
+import { BuyTicketsDialog, type BuyTicketsDialogEvent } from "@/components/events/BuyTicketsDialog";
 
 const CLUB_TZ = "America/Detroit";
 
 export default function EventsIndex() {
+  const [buyEvent, setBuyEvent] = useState<BuyTicketsDialogEvent | null>(null);
+
   const { data: events, isLoading } = useQuery({
     queryKey: ["public-events"],
     queryFn: async () => {
@@ -113,8 +117,21 @@ export default function EventsIndex() {
                       <Button asChild variant="outline" size="lg">
                         <Link to={`/events/${event.slug}`}>More info</Link>
                       </Button>
-                      <Button asChild size="lg">
-                        <Link to={`/events/${event.slug}#tickets`}>Buy Tickets</Link>
+                      <Button
+                        size="lg"
+                        disabled={event.status === "sold_out"}
+                        onClick={() =>
+                          setBuyEvent({
+                            slug: event.slug,
+                            title: event.title,
+                            starts_at: event.starts_at,
+                            venue: event.venue,
+                            member_price_cents: event.member_price_cents ?? 0,
+                            non_member_price_cents: event.non_member_price_cents ?? 0,
+                          })
+                        }
+                      >
+                        {event.status === "sold_out" ? "Sold Out" : "Buy Tickets"}
                       </Button>
                     </div>
                   </CardContent>
@@ -124,6 +141,12 @@ export default function EventsIndex() {
           </div>
         )}
       </section>
+
+      <BuyTicketsDialog
+        event={buyEvent}
+        open={!!buyEvent}
+        onOpenChange={(v) => !v && setBuyEvent(null)}
+      />
 
       <Footer />
     </div>
