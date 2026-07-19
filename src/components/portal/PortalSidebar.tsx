@@ -14,6 +14,7 @@ import {
   Zap,
   ShoppingBag,
   Coffee,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
