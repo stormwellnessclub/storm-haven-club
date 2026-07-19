@@ -92,14 +92,60 @@ serve(async (req) => {
 
     // Mark any prior pending rows for this buyer+event older than 15 minutes as abandoned
     // so we don't accumulate stale "pending" tickets from repeated open-and-close attempts.
+    // Also cancel the associated Stripe PaymentIntent and record why the attempt was abandoned.
     const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    await supabase
+    const { data: stalePending } = await supabase
       .from("event_tickets")
-      .update({ status: "abandoned" })
+      .select("id, stripe_payment_intent_id")
       .eq("event_id", event.id)
       .eq("buyer_email", email)
       .eq("status", "pending")
       .lt("created_at", fifteenMinAgo);
+    if (stalePending && stalePending.length > 0) {
+      await Promise.allSettled(
+        stalePending.map(async (row: any) => {
+          let reason = "no_payment_intent";
+          if (row.stripe_payment_intent_id) {
+            try {
+              const pi = await stripe.paymentIntents.retrieve(row.stripe_payment_intent_id);
+              const err = (pi as any).last_payment_error;
+              if (err?.code || err?.decline_code || err?.message) {
+                reason = `declined:${err.code || err.decline_code || "declined"}`;
+              } else if (pi.status === "requires_payment_method") {
+                reason = "never_entered_card";
+              } else if (pi.status === "requires_action" || pi.status === "requires_confirmation") {
+                reason = "3ds_abandoned";
+              } else {
+                reason = pi.status || "other";
+              }
+              const cancelable = [
+                "requires_payment_method",
+                "requires_confirmation",
+                "requires_action",
+                "processing",
+              ].includes(pi.status);
+              if (cancelable) {
+                try {
+                  await stripe.paymentIntents.cancel(row.stripe_payment_intent_id, {
+                    cancellation_reason: "abandoned",
+                  });
+                } catch (_) { /* ignore */ }
+              }
+            } catch (_) {
+              reason = "stripe_lookup_failed";
+            }
+          }
+          await supabase
+            .from("event_tickets")
+            .update({
+              status: "abandoned",
+              abandon_reason: reason,
+              abandoned_at: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+        }),
+      );
+    }
 
     // Insert pending ticket rows
     const rows = Array.from({ length: qty }).map(() => ({
