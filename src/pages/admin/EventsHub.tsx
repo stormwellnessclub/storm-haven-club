@@ -152,7 +152,9 @@ export default function EventsHub() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalTicketsSold}</div>
-              <p className="text-xs text-muted-foreground mt-1">Across all live events</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {totalPending} pending · {totalAbandoned} abandoned
+              </p>
             </CardContent>
           </Card>
         </div>
