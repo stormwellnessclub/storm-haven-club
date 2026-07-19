@@ -113,7 +113,9 @@ serve(async (req) => {
       mode: "payment",
       customer_email: email,
       line_items: [{ price: priceId, quantity: qty }],
-      success_url: `${origin}/events/${event.slug}/success?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: userId
+        ? `${origin}/portal/my-tickets?session_id={CHECKOUT_SESSION_ID}&just_purchased=1`
+        : `${origin}/events/${event.slug}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/events/${event.slug}?cancelled=1`,
       metadata: {
         type: "event_ticket",
