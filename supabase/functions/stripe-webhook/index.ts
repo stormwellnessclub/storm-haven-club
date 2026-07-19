@@ -1684,6 +1684,38 @@ serve(async (req) => {
                 logError(wcError, "WELLNESS_CREDIT_PURCHASE");
               }
             }
+          } else if (metadata.type === 'event_ticket') {
+            const sessionPaymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : null;
+            const ticketIds = (metadata.ticket_ids || '').split(',').map((id: string) => id.trim()).filter(Boolean);
+
+            if (ticketIds.length > 0) {
+              await supabase
+                .from('event_tickets')
+                .update({ stripe_payment_intent_id: sessionPaymentIntentId })
+                .in('id', ticketIds);
+            }
+
+            if (session.payment_status === 'paid') {
+              await supabase
+                .from('event_tickets')
+                .update({
+                  status: 'paid',
+                  stripe_payment_intent_id: sessionPaymentIntentId,
+                })
+                .eq('stripe_session_id', session.id)
+                .eq('status', 'pending');
+
+              const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+              const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+              await fetch(`${supabaseUrl}/functions/v1/send-event-ticket-confirmation`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${serviceKey}`,
+                },
+                body: JSON.stringify({ session_id: session.id }),
+              });
+            }
           } else {
             // FALLBACK: Handle purchases from Stripe Payment Links (no metadata)
             logStep("No recognized metadata type — attempting price-based fallback", { type: metadata.type, sessionId: session.id });
