@@ -745,8 +745,24 @@ serve(async (req) => {
             const body = await resp.text();
             logStep("Mother's Day confirm response", { status: resp.status, body: body.slice(0, 500) });
           }
+
+          if (md.type === 'event_ticket') {
+            logStep("Event ticket PI succeeded — invoking finalize", { piId: pi.id });
+            const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+            const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+            const resp = await fetch(`${supabaseUrl}/functions/v1/finalize-event-ticket-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${serviceKey}`,
+              },
+              body: JSON.stringify({ payment_intent_id: pi.id }),
+            });
+            const body = await resp.text();
+            logStep("Event ticket finalize response", { status: resp.status, body: body.slice(0, 500) });
+          }
         } catch (e: any) {
-          logError("payment_intent.succeeded handler error", "MOTHERS_DAY_FALLBACK", { error: e.message });
+          logError("payment_intent.succeeded handler error", "PAYMENT_INTENT_SUCCEEDED", { error: e.message });
         }
         break;
       }
