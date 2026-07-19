@@ -232,5 +232,6 @@ export default function MyEventTickets() {
           );
         })}
     </div>
+    </Layout>
   );
 }
