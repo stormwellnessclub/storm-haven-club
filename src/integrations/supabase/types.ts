@@ -2495,6 +2495,7 @@ export type Database = {
           capacity: number
           created_at: string
           description: string | null
+          details: string | null
           ends_at: string | null
           id: string
           image_url: string | null
@@ -2508,11 +2509,13 @@ export type Database = {
           title: string
           updated_at: string
           venue: string | null
+          what_to_bring: string | null
         }
         Insert: {
           capacity?: number
           created_at?: string
           description?: string | null
+          details?: string | null
           ends_at?: string | null
           id?: string
           image_url?: string | null
@@ -2526,11 +2529,13 @@ export type Database = {
           title: string
           updated_at?: string
           venue?: string | null
+          what_to_bring?: string | null
         }
         Update: {
           capacity?: number
           created_at?: string
           description?: string | null
+          details?: string | null
           ends_at?: string | null
           id?: string
           image_url?: string | null
@@ -2544,6 +2549,7 @@ export type Database = {
           title?: string
           updated_at?: string
           venue?: string | null
+          what_to_bring?: string | null
         }
         Relationships: []
       }
