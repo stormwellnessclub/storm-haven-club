@@ -359,6 +359,7 @@ const App = () => (
               <Route path="/portal/support" element={<ProtectedPortalRoute><PortalSupport /></ProtectedPortalRoute>} />
               <Route path="/portal/wellness" element={<ProtectedPortalRoute><PortalRecovery /></ProtectedPortalRoute>} />
               <Route path="/portal/cafe" element={<ProtectedPortalRoute><PortalCafe /></ProtectedPortalRoute>} />
+              <Route path="/portal/my-tickets" element={<ProtectedPortalRoute><PortalMyEventTickets /></ProtectedPortalRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />
