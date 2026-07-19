@@ -2403,6 +2403,7 @@ export type Database = {
           buyer_last_name: string | null
           buyer_phone: string | null
           checked_in_at: string | null
+          confirmation_email_sent_at: string | null
           created_at: string
           event_id: string
           id: string
@@ -2421,6 +2422,7 @@ export type Database = {
           buyer_last_name?: string | null
           buyer_phone?: string | null
           checked_in_at?: string | null
+          confirmation_email_sent_at?: string | null
           created_at?: string
           event_id: string
           id?: string
@@ -2439,6 +2441,7 @@ export type Database = {
           buyer_last_name?: string | null
           buyer_phone?: string | null
           checked_in_at?: string | null
+          confirmation_email_sent_at?: string | null
           created_at?: string
           event_id?: string
           id?: string

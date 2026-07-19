@@ -28,6 +28,7 @@ import {
 import { useAllAppointmentHistory } from "@/hooks/useAllAppointmentHistory";
 import { SpaAppointmentRow } from "@/components/portal/SpaAppointmentRow";
 import { PTAppointmentRow } from "@/components/portal/PTAppointmentRow";
+import { UpcomingEventTickets } from "@/components/bookings/UpcomingEventTickets";
 
 const REVIEWABLE_STATUSES = new Set(["confirmed", "completed", "no_show"]);
 
@@ -245,6 +246,7 @@ export default function PortalBookings() {
                 {upcomingPT.map((a) => <PTAppointmentRow key={a.id} appt={a} />)}
               </section>
             )}
+            <UpcomingEventTickets myTicketsPath="/portal/my-tickets" />
           </TabsContent>
           <TabsContent value="past" className="space-y-6 mt-4">
             <section className="space-y-3">

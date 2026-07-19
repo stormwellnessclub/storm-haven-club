@@ -45,6 +45,11 @@ serve(async (req) => {
         })
         .eq("stripe_session_id", session_id)
         .eq("status", "pending");
+
+      // Fire confirmation email (idempotent inside the function)
+      supabase.functions
+        .invoke("send-event-ticket-confirmation", { body: { session_id } })
+        .catch((e) => console.error("confirmation email invoke failed:", e?.message || e));
     }
 
     // Return refreshed tickets
