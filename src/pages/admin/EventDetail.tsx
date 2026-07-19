@@ -199,10 +199,14 @@ export default function EventDetail() {
                     <TabsList>
                       <TabsTrigger value="all">All ({tickets.length})</TabsTrigger>
                       <TabsTrigger value="paid">Paid ({paidTickets.length})</TabsTrigger>
-                      <TabsTrigger value="pending">Pending ({pendingTickets.length})</TabsTrigger>
+                      <TabsTrigger value="pending">Pending ({pendingActive.length})</TabsTrigger>
+                      <TabsTrigger value="abandoned">Abandoned ({abandonedTickets.length})</TabsTrigger>
                       <TabsTrigger value="refunded">Refunded</TabsTrigger>
                     </TabsList>
                   </Tabs>
+                  <Button variant="outline" size="sm" onClick={sweepAbandoned} disabled={sweeping}>
+                    <Ban className="h-4 w-4 mr-1" /> Sweep stale
+                  </Button>
                   <Button variant="outline" size="sm" onClick={exportCsv} disabled={paidTickets.length === 0}>
                     <Download className="h-4 w-4 mr-1" /> Export CSV
                   </Button>
