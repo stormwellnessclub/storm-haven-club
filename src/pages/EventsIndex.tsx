@@ -15,6 +15,8 @@ import { BuyTicketsDialog, type BuyTicketsDialogEvent } from "@/components/event
 const CLUB_TZ = "America/Detroit";
 
 export default function EventsIndex() {
+  const [buyEvent, setBuyEvent] = useState<BuyTicketsDialogEvent | null>(null);
+
   const { data: events, isLoading } = useQuery({
     queryKey: ["public-events"],
     queryFn: async () => {
