@@ -14,6 +14,7 @@ import {
   Zap,
   ShoppingBag,
   Coffee,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -41,6 +42,8 @@ const portalMenuItems: MenuItem[] = [
   { title: "Dashboard", url: "/portal", icon: LayoutDashboard },
   { title: "My Bookings", url: "/portal/bookings", icon: Calendar },
   { title: "My Passes", url: "/portal/passes", icon: Ticket },
+  { title: "Events", url: "/events", icon: Sparkles },
+  
   
   { title: "Buy Passes", url: "/class-passes", icon: CreditCard },
   { title: "Recovery Booking", url: "/portal/wellness", icon: Zap },

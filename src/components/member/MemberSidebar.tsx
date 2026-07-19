@@ -27,6 +27,7 @@ import {
   Baby,
   Coffee,
   Heart,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
@@ -56,6 +57,7 @@ const sidebarGroups: SidebarGroupDef[] = [
     items: [
       { title: "Dashboard", url: "/member", icon: LayoutDashboard },
       { title: "Member Entry", url: "/member/entry", icon: ScanLine },
+      { title: "Events", url: "/events", icon: Sparkles },
       { title: "Support", url: "/member/support", icon: MessageCircle },
       { title: "Café Order", url: "/member/cafe", icon: Coffee },
       { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
