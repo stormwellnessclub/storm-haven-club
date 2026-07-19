@@ -109,9 +109,14 @@ export default function EventsIndex() {
                       </div>
                     </div>
 
-                    <Button asChild className="w-full" size="lg">
-                      <Link to={`/events/${event.slug}`}>Reserve Your Spot</Link>
-                    </Button>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button asChild variant="outline" size="lg">
+                        <Link to={`/events/${event.slug}`}>More info</Link>
+                      </Button>
+                      <Button asChild size="lg">
+                        <Link to={`/events/${event.slug}#tickets`}>Buy Tickets</Link>
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               );
