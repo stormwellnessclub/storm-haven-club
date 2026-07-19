@@ -132,6 +132,7 @@ export default function MemberBookings() {
                 {upcomingPT.map((a) => <PTAppointmentRow key={a.id} appt={a} />)}
               </section>
             )}
+            <UpcomingEventTickets myTicketsPath="/portal/my-tickets" />
           </TabsContent>
 
           <TabsContent value="past" className="mt-6 space-y-8">
