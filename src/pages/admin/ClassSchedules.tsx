@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,18 @@ interface ClassSchedule {
   instructors?: Instructor | null;
 }
 
+interface GeneratedSessionPreview {
+  id: string;
+  schedule_id: string | null;
+  session_date: string;
+  start_time: string;
+  end_time: string;
+  current_enrollment: number;
+  max_capacity: number;
+  is_cancelled: boolean;
+  is_hidden: boolean;
+}
+
 type ScheduleMode = "ongoing" | "duration" | "one_time";
 
 const DAYS_OF_WEEK = [
@@ -93,6 +106,7 @@ const DAYS_OF_WEEK = [
 
 export default function ClassSchedules() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
@@ -194,6 +208,39 @@ export default function ClassSchedules() {
       return count || 0;
     },
   });
+
+  // Fetch generated sessions so staff can immediately find rosters for schedules they add.
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const generatedThroughStr = format(addWeeks(new Date(), 6), 'yyyy-MM-dd');
+  const { data: generatedSessions = [] } = useQuery({
+    queryKey: ['schedule-generated-sessions', todayStr, generatedThroughStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_sessions")
+        .select("id, schedule_id, session_date, start_time, end_time, current_enrollment, max_capacity, is_cancelled, is_hidden")
+        .gte("session_date", todayStr)
+        .lte("session_date", generatedThroughStr)
+        .order("session_date")
+        .order("start_time");
+      if (error) throw error;
+      return (data || []) as GeneratedSessionPreview[];
+    },
+  });
+
+  const generatedSessionsBySchedule = useMemo(() => {
+    const map = new Map<string, GeneratedSessionPreview[]>();
+    for (const session of generatedSessions) {
+      if (!session.schedule_id) continue;
+      const list = map.get(session.schedule_id) || [];
+      list.push(session);
+      map.set(session.schedule_id, list);
+    }
+    return map;
+  }, [generatedSessions]);
+
+  const openRoster = useCallback((sessionId: string) => {
+    navigate(`/admin/class-roster/${sessionId}`);
+  }, [navigate]);
 
   function resetForm() {
     setClassTypeId("");
@@ -302,17 +349,25 @@ export default function ClassSchedules() {
         }
       }
 
+      let savedScheduleId = editingSchedule?.id || "";
+
       if (editingSchedule) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("class_schedules")
           .update(scheduleData as any)
-          .eq("id", editingSchedule.id);
+          .eq("id", editingSchedule.id)
+          .select("id")
+          .single();
         if (error) throw error;
+        savedScheduleId = data.id;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("class_schedules")
-          .insert([scheduleData as any]);
+          .insert([scheduleData as any])
+          .select("id")
+          .single();
         if (error) throw error;
+        savedScheduleId = data.id;
       }
 
       // Await reconciliation INSIDE the mutation so sessions are synced before onSuccess
@@ -323,16 +378,46 @@ export default function ClassSchedules() {
       });
       if (reconcileError) {
         console.error('Reconciliation error:', reconcileError);
+        throw new Error(`Schedule saved, but sessions did not generate: ${reconcileError.message}`);
       }
+
+      const { data: nextSession, error: nextSessionError } = await supabase
+        .from("class_sessions")
+        .select("id, session_date, start_time")
+        .eq("schedule_id", savedScheduleId)
+        .gte("session_date", today)
+        .eq("is_cancelled", false)
+        .eq("is_hidden", false)
+        .order("session_date")
+        .order("start_time")
+        .limit(1)
+        .maybeSingle();
+      if (nextSessionError) throw nextSessionError;
+
+      return { nextSession };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
       queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
       queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
       queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
       queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
       queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
-      toast.success(editingSchedule ? "Schedule updated — sessions reconciled" : "Schedule created — sessions generated");
+      queryClient.invalidateQueries({ queryKey: ['schedule-generated-sessions'] });
+      const nextSession = result?.nextSession;
+      if (nextSession?.id) {
+        toast.success(
+          `${editingSchedule ? "Schedule updated" : "Schedule created"} — next roster ${format(new Date(`${nextSession.session_date}T00:00:00`), "MMM d")} at ${formatTime(nextSession.start_time)}`,
+          {
+            action: {
+              label: "Open roster",
+              onClick: () => openRoster(nextSession.id),
+            },
+          }
+        );
+      } else {
+        toast.success(`${editingSchedule ? "Schedule updated" : "Schedule created"} — no visible roster in the current generation window`);
+      }
       setDialogOpen(false);
       resetForm();
     },
@@ -675,6 +760,7 @@ export default function ClassSchedules() {
                           queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-today'] });
                           queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
                           queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
+                          queryClient.invalidateQueries({ queryKey: ['schedule-generated-sessions'] });
                           toast.success("Schedule deleted");
                           setDialogOpen(false);
                           resetForm();
@@ -836,11 +922,16 @@ export default function ClassSchedules() {
                     <TableHead>Instructor</TableHead>
                     <TableHead>Room</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Generated Rosters</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(hideInactive ? schedules.filter(s => s.is_active) : schedules).map((schedule) => (
+                  {(hideInactive ? schedules.filter(s => s.is_active) : schedules).map((schedule) => {
+                    const upcomingForSchedule = generatedSessionsBySchedule.get(schedule.id) || [];
+                    const visibleUpcoming = upcomingForSchedule.filter((s) => !s.is_cancelled && !s.is_hidden).slice(0, 4);
+                    const hiddenCount = upcomingForSchedule.length - visibleUpcoming.length;
+                    return (
                     <TableRow key={schedule.id}>
                       <TableCell className="font-medium">
                         {DAYS_OF_WEEK.find((d) => d.value === schedule.day_of_week)?.label}
@@ -875,6 +966,33 @@ export default function ClassSchedules() {
                           ) : null}
                         </div>
                       </TableCell>
+                      <TableCell>
+                        {visibleUpcoming.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {visibleUpcoming.map((session) => (
+                              <Button
+                                key={session.id}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => openRoster(session.id)}
+                              >
+                                {format(new Date(`${session.session_date}T00:00:00`), "MMM d")} · {formatTime(session.start_time)} · {session.current_enrollment}/{session.max_capacity}
+                              </Button>
+                            ))}
+                            {upcomingForSchedule.length > visibleUpcoming.length && (
+                              <Badge variant="secondary" className="h-7 px-2 text-xs">
+                                +{upcomingForSchedule.length - visibleUpcoming.length} more
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">
+                            {hiddenCount > 0 ? "Only hidden/cancelled sessions" : "No generated roster yet"}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
@@ -885,7 +1003,7 @@ export default function ClassSchedules() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  );})}
                 </TableBody>
               </Table>
             )}
