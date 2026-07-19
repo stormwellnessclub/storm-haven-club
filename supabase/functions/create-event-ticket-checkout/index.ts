@@ -90,6 +90,17 @@ serve(async (req) => {
     const amountCents = isMember ? event.member_price_cents : event.non_member_price_cents;
     if (!priceId) throw new Error("Pricing not configured for this event");
 
+    // Mark any prior pending rows for this buyer+event older than 15 minutes as abandoned
+    // so we don't accumulate stale "pending" tickets from repeated open-and-close attempts.
+    const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+    await supabase
+      .from("event_tickets")
+      .update({ status: "abandoned" })
+      .eq("event_id", event.id)
+      .eq("buyer_email", email)
+      .eq("status", "pending")
+      .lt("created_at", fifteenMinAgo);
+
     // Insert pending ticket rows
     const rows = Array.from({ length: qty }).map(() => ({
       event_id: event.id,
