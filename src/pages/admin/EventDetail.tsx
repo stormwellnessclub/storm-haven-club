@@ -46,9 +46,43 @@ export default function EventDetail() {
   });
 
   const paidTickets = tickets.filter((t: any) => t.status === "paid");
+  const pendingTickets = tickets.filter((t: any) => t.status === "pending");
   const revenueCents = paidTickets.reduce((sum: number, t: any) => sum + (t.amount_cents || 0), 0);
   const memberCount = paidTickets.filter((t: any) => t.ticket_type === "member").length;
   const nonMemberCount = paidTickets.filter((t: any) => t.ticket_type === "non_member").length;
+
+  const [filter, setFilter] = useState<"all" | "paid" | "pending" | "refunded">("all");
+  const filteredTickets = useMemo(
+    () => (filter === "all" ? tickets : tickets.filter((t: any) => t.status === filter)),
+    [tickets, filter]
+  );
+
+  const exportCsv = () => {
+    const rows = paidTickets.map((t: any) => ({
+      name: `${t.buyer_first_name || ""} ${t.buyer_last_name || ""}`.trim(),
+      email: t.buyer_email || "",
+      phone: t.buyer_phone || "",
+      type: t.ticket_type === "member" ? "Member" : "Non-Member",
+      account: t.user_id ? "Portal account" : "Guest checkout",
+      amount: `$${((t.amount_cents || 0) / 100).toFixed(2)}`,
+      purchased_at: format(new Date(t.created_at), "yyyy-MM-dd HH:mm"),
+    }));
+    const header = ["Name", "Email", "Phone", "Type", "Account", "Amount", "Purchased"];
+    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [
+      header.join(","),
+      ...rows.map((r) => [r.name, r.email, r.phone, r.type, r.account, r.amount, r.purchased_at].map(escape).join(",")),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug}-roster-${format(new Date(), "yyyyMMdd-HHmm")}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <AdminLayout>
