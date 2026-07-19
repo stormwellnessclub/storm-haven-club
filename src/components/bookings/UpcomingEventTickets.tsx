@@ -34,7 +34,7 @@ export function UpcomingEventTickets({ myTicketsPath }: { myTicketsPath: string 
   });
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 pb-24 md:pb-0">
       <h3 className="text-sm font-semibold text-muted-foreground">Events</h3>
       {Array.from(byEvent.values()).map((group) => {
         const evt = group[0].event;
