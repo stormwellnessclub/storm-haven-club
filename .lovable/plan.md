@@ -1,58 +1,44 @@
-## Issues to fix
+## Verified current state
 
-### 1. Confirmation email not delivered
-Edge function logs show: `send-event-ticket-confirmation error: The notify.stormwellnessclub.com domain is not verified.` Resend rejected the send, so no email went out. The finalize function already invokes it correctly — the block is at the mail provider.
+- `/admin/events` (**EventsHub**) — shows event cards with only `Sold / capacity` and `Revenue`. No names, no abandoned count. This is what you're looking at.
+- `/admin/events/:slug` (**EventDetail**, reached via the "Manage" button) — already renders a full roster table (Name, Email, Phone, Type, Account, Status, Amount, Purchased) with tabs for Paid / Pending / Abandoned / Refunded and a CSV export. RLS policies confirm admin can read everything.
+- `event_tickets` currently has no `abandon_reason` column and we never cancel the Stripe PaymentIntent when we sweep a row to `abandoned`, so those PIs sit in Stripe as "Incomplete" for 24h.
 
-**Fix:** switch the sender to a verified sending identity we already use elsewhere in the project (same one auth/booking receipts use — e.g. `hello@stormwellnessclub.com` via the Lovable email infra). I'll confirm the currently verified sender by checking `email_domain--check_email_domain_status` and update `FROM` in `send-event-ticket-confirmation` to match. No template rewrite.
+## Plan
 
-### 2. "View ticket" button unreachable on iPhone
-On the member Bookings page the floating bottom nav (Book Activity / Support / Account) sits on top of the last event card, so the "View ticket" button can't be tapped.
+### 1. EventsHub — show roster + abandoned right on the hub
+On each event card in `src/pages/admin/EventsHub.tsx`:
+- Extend the `ticketStats` query to also count `pending (active, <30 min old)`, `abandoned`, and `refunded`.
+- Add a compact rows list under each card showing the last ~5 paid buyers (Name · Type · Amount) with a "View all N" link to `/admin/events/:slug`.
+- Add stat lines: `Abandoned: N` and `Pending: N` alongside Sold/Revenue.
+- Fix the top "Tickets sold" summary strip to also show total abandoned across events.
 
-**Fix:** in `src/components/bookings/UpcomingEventTickets.tsx` (and the surrounding sections in `member/Bookings.tsx` / `portal/Bookings.tsx`) add extra bottom padding on mobile so the last card clears the floating nav (increase container `pb-20` to `pb-32` on mobile only).
+This way the hub itself surfaces names and abandoned tracking without requiring a drill-down click.
 
-### 3. "View ticket" sends me to admin dashboard, not the ticket
-`UpcomingEventTickets` is passed `myTicketsPath="/portal/my-tickets"` from BOTH the member and portal Bookings pages. For a member on `/member/*`, the app redirects `/portal/*` for non-portal users, landing you on admin.
+### 2. Real abandoned tracking (data + Stripe hygiene)
+Migration:
+- Add `event_tickets.abandon_reason text` and `event_tickets.abandoned_at timestamptz` columns.
 
-**Fix:**
-- Register a member-side route `/member/tickets` that renders the same `MyEventTickets` component inside `MemberLayout`.
-- `src/pages/member/Bookings.tsx` passes `myTicketsPath="/member/tickets"`.
-- Add "My Tickets" link to `MemberSidebar` pointing to `/member/tickets` (portal sidebar keeps `/portal/my-tickets`).
-- Inside `MyEventTickets`, detect layout context so the "Back" and internal links stay within the current area.
+`create-event-ticket-checkout` (and `EventDetail` "Sweep stale" button — refactored to call a small new edge function `sweep-abandoned-event-tickets` so both places use one code path):
+- When flipping a `pending` row to `abandoned`, also:
+  - Call `stripe.paymentIntents.retrieve(pi_id)` — inspect status and `last_payment_error`.
+  - Set `abandon_reason` to one of: `never_entered_card` (status `requires_payment_method`, no error), `declined: <message>` (has `last_payment_error`), `3ds_abandoned` (`requires_action`/`requires_confirmation`), `other`.
+  - Call `stripe.paymentIntents.cancel(pi_id, { cancellation_reason: 'abandoned' })` when the PI is cancelable, so it disappears from Stripe's Incomplete list.
+  - Set `abandoned_at = now()`.
+- Use `Promise.allSettled` so a single Stripe failure doesn't block the batch.
 
-### 4. Two pending tickets showing under my name
-Each time the Buy dialog opens we insert `pending` rows plus a PaymentIntent, so abandoned attempts leave stale `pending` rows. Currently only "paid" rows should count against the roster, but they still clutter the admin pending KPI.
+### 3. Surface the reason in EventDetail
+In `src/pages/admin/EventDetail.tsx`:
+- In the Abandoned tab, show a small badge column with the human-readable reason (`Never entered card`, `Declined: insufficient_funds`, `3DS abandoned`, etc.) using the new `abandon_reason` field.
+- Add a `Total abandoned attempts` and `Total pending (active)` line to the KPI grid so it matches what's shown on the hub.
 
-**Fix (two parts):**
-- **Cleanup:** in `create-event-ticket-checkout`, before inserting new pending rows, cancel any existing `pending` rows for the same `buyer_email` + `event_id` older than 15 minutes (set `status = 'abandoned'`). Also add a lightweight scheduled job (extend the existing `process-abandoned-class-pass-checkouts` cron or add a sibling) that flips pending event tickets to `abandoned` after 30 min.
-- **Admin visibility:** in `src/pages/admin/EventDetail.tsx`, split the "Pending" KPI into "Pending (active, <30m)" and "Abandoned", and add an "Abandoned" filter option in the roster table. This gives admin a clean list of people who started but never paid.
-
-### 5. Track abandoned checkouts for follow-up emails
-Same abandoned rows above become the follow-up list.
-
-**Fix:**
-- Add a small admin action on the EventDetail page: an "Email abandoned" button that opens a preview and sends a one-off reminder to abandoned buyers via the existing transactional email sender. No new cron/automation — manual send only for now.
-
-### 6. Email logo/header misaligned on iPhone
-The confirmation email uses a text header (no image logo) inside a `<div>` with `padding` but the outer wrapper doesn't set `width:100%` on the table for Gmail iOS/Apple Mail.
-
-**Fix:** in `send-event-ticket-confirmation` `buildHtml`, wrap content in a proper `<table role="presentation" width="100%">` with a centered inner `<table width="600">`, and center the "STORM WELLNESS CLUB" eyebrow + title using `text-align:center` on the header cell. This is the standard email-client-safe pattern and renders identically on desktop and iPhone.
-
-### 7. Admin ticket-sales tracking (clarification, no new code)
-Admins already view sales at `/admin/events` → click the event → EventDetail page (paid / pending KPIs, roster with member vs guest, CSV export). I'll add a short note in the sidebar description and keep #4's abandoned split so admins see the full funnel: Paid, Pending (active), Abandoned.
+### 4. (Skip unless you want it) Move PI creation to Pay click
+Not doing this — bigger rewrite of the embedded checkout dialog for a modest win. The auto-cancel in step 2 already keeps the Stripe Incomplete list clean.
 
 ## Files touched
-- `supabase/functions/send-event-ticket-confirmation/index.ts` — sender + table-based HTML
-- `supabase/functions/create-event-ticket-checkout/index.ts` — mark stale pending as abandoned before insert
-- `supabase/functions/process-abandoned-class-pass-checkouts/index.ts` (or new sibling) — sweep pending event tickets
-- `src/App.tsx` — add `/member/tickets` route
-- `src/pages/member/Bookings.tsx` — path prop update, extra bottom padding
-- `src/pages/portal/Bookings.tsx` — extra bottom padding
-- `src/components/bookings/UpcomingEventTickets.tsx` — mobile padding, safer link behaviour
-- `src/components/member/MemberSidebar.tsx` — "My Tickets" link
-- `src/pages/portal/MyEventTickets.tsx` — layout-aware rendering
-- `src/pages/admin/EventDetail.tsx` — abandoned split + "Email abandoned" action
 
-## Out of scope
-- Rebuilding the ticket detail page visuals
-- Automated dunning sequence for abandoned buyers (only a manual one-off send)
-- Changing pricing or purchase flow logic
+- Migration: `event_tickets.abandon_reason`, `event_tickets.abandoned_at`
+- `supabase/functions/create-event-ticket-checkout/index.ts` — extract sweep logic, cancel PIs, record reason
+- `supabase/functions/sweep-abandoned-event-tickets/index.ts` — new, staff-guarded (`requireStaff`), used by the admin "Sweep stale" button
+- `src/pages/admin/EventsHub.tsx` — richer per-event stats + last-5 roster + abandoned totals
+- `src/pages/admin/EventDetail.tsx` — reason badge in Abandoned tab, new KPIs, wire "Sweep stale" to the new function

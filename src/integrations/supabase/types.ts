@@ -2397,6 +2397,8 @@ export type Database = {
       }
       event_tickets: {
         Row: {
+          abandon_reason: string | null
+          abandoned_at: string | null
           amount_cents: number
           buyer_email: string
           buyer_first_name: string | null
@@ -2416,6 +2418,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          abandon_reason?: string | null
+          abandoned_at?: string | null
           amount_cents: number
           buyer_email: string
           buyer_first_name?: string | null
@@ -2435,6 +2439,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          abandon_reason?: string | null
+          abandoned_at?: string | null
           amount_cents?: number
           buyer_email?: string
           buyer_first_name?: string | null
