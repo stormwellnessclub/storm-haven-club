@@ -31,7 +31,7 @@ export default function EventPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, slug, title, description, starts_at, venue, capacity, status, member_price_cents, non_member_price_cents, image_url")
+        .select("id, slug, title, description, details, what_to_bring, starts_at, venue, capacity, status, member_price_cents, non_member_price_cents, image_url")
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
