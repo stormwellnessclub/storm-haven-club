@@ -117,10 +117,41 @@ export default function EventsIndex() {
                       <Button asChild variant="outline" size="lg">
                         <Link to={`/events/${event.slug}`}>More info</Link>
                       </Button>
-                      <Button asChild size="lg">
-                        <Link to={`/events/${event.slug}#tickets`}>Buy Tickets</Link>
+                      <Button
+                        size="lg"
+                        disabled={event.status === "sold_out"}
+                        onClick={() =>
+                          setBuyEvent({
+                            slug: event.slug,
+                            title: event.title,
+                            starts_at: event.starts_at,
+                            venue: event.venue,
+                            member_price_cents: event.member_price_cents ?? 0,
+                            non_member_price_cents: event.non_member_price_cents ?? 0,
+                          })
+                        }
+                      >
+                        {event.status === "sold_out" ? "Sold Out" : "Buy Tickets"}
                       </Button>
                     </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <BuyTicketsDialog
+        event={buyEvent}
+        open={!!buyEvent}
+        onOpenChange={(v) => !v && setBuyEvent(null)}
+      />
+
+      <Footer />
+    </div>
+  );
+}
                   </CardContent>
                 </Card>
               );
