@@ -517,34 +517,8 @@ export default function ClassSchedules() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="grid gap-2">
-                    <Label>Schedule type</Label>
-                    <div className="grid grid-cols-3 gap-1 rounded-md border p-1 bg-muted/30">
-                      {([
-                        { v: "ongoing", label: "Recurring" },
-                        { v: "duration", label: "For a period" },
-                        { v: "one_time", label: "One-time" },
-                      ] as const).map((opt) => (
-                        <button
-                          key={opt.v}
-                          type="button"
-                          onClick={() => setScheduleMode(opt.v)}
-                          className={`text-xs px-2 py-1.5 rounded-sm font-medium transition-colors ${
-                            scheduleMode === opt.v
-                              ? "bg-background shadow-sm"
-                              : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {scheduleMode === "ongoing" && "Repeats every week on the chosen day until deactivated."}
-                      {scheduleMode === "duration" && "Repeats every week on the chosen day between the start and end dates."}
-                      {scheduleMode === "one_time" && "A single session on a specific date. Does not repeat."}
-                    </p>
-                  </div>
+
+
 
                   {scheduleMode === "one_time" ? (
                     <div className="grid gap-2">
