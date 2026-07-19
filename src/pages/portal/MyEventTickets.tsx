@@ -32,6 +32,8 @@ type TicketRow = {
 
 export default function MyEventTickets() {
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const isMember = location.pathname.startsWith("/member");
   const sessionId = params.get("session_id");
   const justPurchased = params.get("just_purchased") === "1";
 
