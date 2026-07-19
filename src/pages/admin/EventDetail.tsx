@@ -73,16 +73,22 @@ export default function EventDetail() {
   const sweepAbandoned = async () => {
     if (!event?.id) return;
     setSweeping(true);
-    const cutoff = new Date(Date.now() - THIRTY_MIN).toISOString();
-    const { error } = await supabase
-      .from("event_tickets")
-      .update({ status: "abandoned" })
-      .eq("event_id", event.id)
-      .eq("status", "pending")
-      .lt("created_at", cutoff);
+    const { data, error } = await supabase.functions.invoke("sweep-abandoned-event-tickets", {
+      body: { event_id: event.id },
+    });
     setSweeping(false);
     if (error) toast.error("Sweep failed: " + error.message);
-    else toast.success("Stale pending tickets marked as abandoned");
+    else toast.success(`Swept ${data?.swept ?? 0} stale pending ticket(s)`);
+  };
+
+  const reasonLabel = (r?: string | null) => {
+    if (!r) return "—";
+    if (r === "never_entered_card") return "Never entered card";
+    if (r === "3ds_abandoned") return "3DS abandoned";
+    if (r === "no_payment_intent") return "Closed before card entry";
+    if (r === "stripe_lookup_failed") return "Stripe lookup failed";
+    if (r.startsWith("declined:")) return `Declined: ${r.slice("declined:".length)}`;
+    return r;
   };
 
   const exportCsv = () => {
@@ -225,6 +231,7 @@ export default function EventDetail() {
                       <TableHead>Type</TableHead>
                       <TableHead>Account</TableHead>
                       <TableHead>Status</TableHead>
+                      {filter === "abandoned" && <TableHead>Reason</TableHead>}
                       <TableHead>Amount</TableHead>
                       <TableHead>Purchased</TableHead>
                     </TableRow>
@@ -232,7 +239,7 @@ export default function EventDetail() {
                   <TableBody>
                     {filteredTickets.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={filter === "abandoned" ? 9 : 8} className="text-center text-muted-foreground py-8">
                           No tickets in this view.
                         </TableCell>
                       </TableRow>
@@ -255,6 +262,11 @@ export default function EventDetail() {
                             {t.status}
                           </Badge>
                         </TableCell>
+                        {filter === "abandoned" && (
+                          <TableCell className="text-xs text-muted-foreground">
+                            {reasonLabel(t.abandon_reason)}
+                          </TableCell>
+                        )}
                         <TableCell>${(t.amount_cents / 100).toFixed(2)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {format(new Date(t.created_at), "MMM d, h:mm a")}

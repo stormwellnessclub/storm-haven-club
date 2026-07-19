@@ -54,21 +54,49 @@ export default function EventsHub() {
     },
   });
 
-  const { data: ticketStats = {} } = useQuery<Record<string, { sold: number; revenue: number }>>({
+  type EventStats = {
+    sold: number;
+    revenue: number;
+    pending: number;
+    abandoned: number;
+    refunded: number;
+    recent: Array<{ name: string; type: "member" | "non_member"; amount: number; created_at: string }>;
+  };
+
+  const { data: ticketStats = {} } = useQuery<Record<string, EventStats>>({
     queryKey: ["events-hub-ticket-stats", ticketedEvents.map((e) => e.id).join(",")],
     enabled: ticketedEvents.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("event_tickets")
-        .select("event_id, amount_cents, status")
+        .select("event_id, amount_cents, status, ticket_type, buyer_first_name, buyer_last_name, created_at")
         .in("event_id", ticketedEvents.map((e) => e.id))
-        .eq("status", "paid");
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      const map: Record<string, { sold: number; revenue: number }> = {};
+      const map: Record<string, EventStats> = {};
+      const THIRTY_MIN = 30 * 60 * 1000;
+      const now = Date.now();
       (data ?? []).forEach((t: any) => {
-        const s = map[t.event_id] || { sold: 0, revenue: 0 };
-        s.sold += 1;
-        s.revenue += t.amount_cents || 0;
+        const s = map[t.event_id] || { sold: 0, revenue: 0, pending: 0, abandoned: 0, refunded: 0, recent: [] };
+        if (t.status === "paid") {
+          s.sold += 1;
+          s.revenue += t.amount_cents || 0;
+          if (s.recent.length < 5) {
+            s.recent.push({
+              name: `${t.buyer_first_name || ""} ${t.buyer_last_name || ""}`.trim() || "—",
+              type: t.ticket_type,
+              amount: t.amount_cents || 0,
+              created_at: t.created_at,
+            });
+          }
+        } else if (t.status === "refunded") {
+          s.refunded += 1;
+        } else if (t.status === "abandoned") {
+          s.abandoned += 1;
+        } else if (t.status === "pending") {
+          if (now - new Date(t.created_at).getTime() < THIRTY_MIN) s.pending += 1;
+          else s.abandoned += 1;
+        }
         map[t.event_id] = s;
       });
       return map;
@@ -76,6 +104,8 @@ export default function EventsHub() {
   });
 
   const totalTicketsSold = Object.values(ticketStats).reduce((a, b) => a + b.sold, 0);
+  const totalAbandoned = Object.values(ticketStats).reduce((a, b) => a + b.abandoned, 0);
+  const totalPending = Object.values(ticketStats).reduce((a, b) => a + b.pending, 0);
 
   return (
     <AdminLayout>
@@ -122,7 +152,9 @@ export default function EventsHub() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalTicketsSold}</div>
-              <p className="text-xs text-muted-foreground mt-1">Across all live events</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {totalPending} pending · {totalAbandoned} abandoned
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -130,7 +162,7 @@ export default function EventsHub() {
         {/* Ticketed events */}
         <div className="grid gap-4 md:grid-cols-2">
           {ticketedEvents.map((e: any) => {
-            const stats = ticketStats[e.id] || { sold: 0, revenue: 0 };
+            const stats = ticketStats[e.id] || { sold: 0, revenue: 0, pending: 0, abandoned: 0, refunded: 0, recent: [] };
             const dateLabel = format(new Date(e.starts_at), "EEE MMM d, yyyy · h:mm a");
             return (
               <Card key={e.id} className="flex flex-col">
@@ -156,15 +188,50 @@ export default function EventsHub() {
                       <span className="font-semibold tabular-nums">${(stats.revenue / 100).toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Pending / Abandoned</span>
+                      <span className="font-medium tabular-nums">{stats.pending} / {stats.abandoned}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Pricing</span>
                       <span className="font-medium">${(e.member_price_cents / 100).toFixed(0)} / ${(e.non_member_price_cents / 100).toFixed(0)}</span>
                     </div>
                   </div>
 
+                  {stats.recent.length > 0 && (
+                    <div className="rounded-lg border p-3">
+                      <div className="text-xs font-medium text-muted-foreground mb-2">
+                        Latest buyers
+                      </div>
+                      <ul className="space-y-1 text-sm">
+                        {stats.recent.map((r, idx) => (
+                          <li key={idx} className="flex items-center justify-between gap-2">
+                            <span className="truncate">
+                              {r.name}
+                              <span className="text-xs text-muted-foreground ml-1">
+                                · {r.type === "member" ? "Member" : "Non-Member"}
+                              </span>
+                            </span>
+                            <span className="tabular-nums text-xs text-muted-foreground">
+                              ${(r.amount / 100).toFixed(0)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {stats.sold > stats.recent.length && (
+                        <Link
+                          to={`/admin/events/${e.slug}`}
+                          className="mt-2 inline-block text-xs text-primary hover:underline"
+                        >
+                          View all {stats.sold} buyers →
+                        </Link>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex gap-2 flex-wrap">
                     <Button asChild size="sm">
                       <Link to={`/admin/events/${e.slug}`}>
-                        Manage <ArrowRight className="h-4 w-4 ml-1" />
+                        Manage roster <ArrowRight className="h-4 w-4 ml-1" />
                       </Link>
                     </Button>
                     {e.slug === SOUND_BATH_VOTE.slug && (
