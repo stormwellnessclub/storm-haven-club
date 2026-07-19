@@ -195,21 +195,25 @@ export default function EventDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tickets.length === 0 && (
+                    {filteredTickets.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                          No tickets yet.
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                          No tickets in this view.
                         </TableCell>
                       </TableRow>
                     )}
-                    {tickets.map((t: any) => (
+                    {filteredTickets.map((t: any) => (
                       <TableRow key={t.id}>
                         <TableCell>{t.buyer_first_name} {t.buyer_last_name}</TableCell>
                         <TableCell className="text-sm">{t.buyer_email}</TableCell>
+                        <TableCell className="text-sm">{t.buyer_phone || "—"}</TableCell>
                         <TableCell>
                           <Badge variant={t.ticket_type === "member" ? "default" : "secondary"}>
                             {t.ticket_type === "member" ? "Member" : "Non-Member"}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {t.user_id ? "Portal account" : "Guest checkout"}
                         </TableCell>
                         <TableCell>
                           <Badge variant={t.status === "paid" ? "default" : t.status === "pending" ? "secondary" : "destructive"}>
