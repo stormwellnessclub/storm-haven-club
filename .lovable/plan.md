@@ -1,47 +1,27 @@
-## Problem
+## Plan
 
-On mobile widths (like your current 545px preview), the **Schedule type** segmented toggle in the "New Schedule" dialog sits in the middle of a long form, below Class Type / Instructor, and renders as three small grey text buttons inside a thin `bg-muted/30` bar. It's easy to scroll right past it — which is why it looks like the options aren't there at all. The code path is wired correctly (fields, save, and the session generator all honor `is_one_time` / `effective_from` / `effective_until`), so this is a discoverability problem, not a data problem.
+I verified the newest class schedules are being saved and sessions are being generated in the database. The visibility problem is likely the admin roster/schedule experience: **Today's Classes** defaults to today only, the public/member schedule only shows the 4-week booking window, and the class schedule manager does not clearly show the generated session dates/roster links after a schedule is added.
 
-## Fix
+### What I will change
 
-Rebuild the top of the dialog so the schedule type is the **first, largest** decision, not a subtle segmented control buried mid-form.
+1. **Make schedule creation show exactly where the class went**
+   - After adding or editing a schedule, show a clear success message with the next generated class date/time.
+   - Include an action to open that class roster directly.
 
-**In `src/pages/admin/ClassSchedules.tsx`, restructure the New/Edit Schedule dialog:**
+2. **Add “generated sessions” visibility inside Class Schedule Management**
+   - For each schedule row/card, show its upcoming generated sessions within the booking window.
+   - Add quick links like **View roster** for each generated class.
+   - This will cover recurring, date-range, and one-time classes.
 
-1. **Move "Schedule type" to the very top of the dialog, above Class Type.**
-2. Replace the tiny segmented toggle with **three large tap-target cards** stacked (mobile) / in a row (desktop):
+3. **Improve the admin Classes page so new classes are easier to find**
+   - Add an **Upcoming** view/list so staff are not stuck on “today” only.
+   - Keep Day View intact, but make future added classes discoverable without manually clicking dates one by one.
 
-   ```text
-   ┌──────────────────────────────┐
-   │ 🔁 Recurring                 │  ← Repeats weekly, no end date
-   ├──────────────────────────────┤
-   │ 📅 For a period              │  ← Repeats weekly between two dates
-   ├──────────────────────────────┤
-   │ ⭐ One-time                   │  ← Single session on one date
-   └──────────────────────────────┘
-   ```
+4. **Harden session generation for one-time and date-range classes**
+   - Ensure one-time/date-range schedules generate sessions immediately when their dates fall inside the visible booking window.
+   - Keep the public/member booking limit at 4 weeks, per your earlier request.
 
-   Each card: icon + bold title + one-line description. Selected card = solid primary border + subtle bg tint. Full-width, min 56px tall so they're impossible to miss.
-
-3. **Conditionally reveal the correct date fields directly under the picker** so it's visually obvious what changes:
-   - Recurring → Day of Week only
-   - For a period → Day of Week + Start Date + End Date (in a highlighted panel)
-   - One-time → single Date field (in a highlighted panel)
-
-4. Widen the dialog to `sm:max-w-[560px]` and add `max-h-[90vh] overflow-y-auto` so the whole form is reachable on a phone.
-
-5. Also add a compact `TypeBadge` (Recurring / Period / One-time) to each row of the existing Schedules table so once created, one-time and dated schedules are visually distinguishable at a glance.
-
-## No backend changes
-
-The DB already supports all three modes:
-- `class_schedules.is_one_time`, `effective_from`, `effective_until` exist
-- `reconcile_and_generate_class_sessions` already filters on those fields (verified in the latest migration)
-- Save mutation already sets them correctly
-
-So this is a **UI-only change** to `src/pages/admin/ClassSchedules.tsx`. No migrations, no edge functions.
-
-## Out of scope (ask if you also want these)
-
-- Adding a "Quick add class" button on the `/admin/classes` day view
-- Multi-day recurring (e.g. Mon+Wed+Fri in one rule) — currently one weekday per schedule
+5. **Verify with real data**
+   - Confirm the most recently added classes appear in admin schedule management.
+   - Confirm their roster links open the correct class roster.
+   - Confirm public/member schedule still respects the 4-week booking window.
