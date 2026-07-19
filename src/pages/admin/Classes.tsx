@@ -209,6 +209,8 @@ export default function Classes() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-day"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-sessions-calendar"] });
       toast.success("Instructor updated");
     },
     onError: () => toast.error("Failed to update instructor"),
@@ -317,6 +319,8 @@ export default function Classes() {
       setCancellationReason("");
       setHideFromMembers(true);
       setSelectedSession(null);
+      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-upcoming'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
       toast.success("Class cancelled");
     },
     onError: () => toast.error("Failed to cancel class"),
