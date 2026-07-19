@@ -37,6 +37,7 @@ interface ClassSession {
   max_capacity: number;
   current_enrollment: number;
   is_cancelled: boolean;
+  is_hidden: boolean;
   room: string | null;
   cancellation_reason: string | null;
   class_types: {
@@ -109,7 +110,7 @@ export default function Classes() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState("");
   const [hideFromMembers, setHideFromMembers] = useState(true);
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "upcoming" | "calendar">("list");
   const [showInactive, setShowInactive] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -137,15 +138,47 @@ export default function Classes() {
     },
   });
 
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const upcomingThroughStr = format(addDays(new Date(), 28), 'yyyy-MM-dd');
+  const { data: upcomingSessions = [], isLoading: upcomingLoading } = useQuery({
+    queryKey: ['admin-class-sessions-upcoming', todayStr, upcomingThroughStr, showInactive],
+    queryFn: async () => {
+      let query = supabase
+        .from('class_sessions')
+        .select(`
+          *,
+          class_types!inner (id, name, category, is_active),
+          instructors (id, first_name, last_name)
+        `)
+        .gte('session_date', todayStr)
+        .lte('session_date', upcomingThroughStr)
+        .order('session_date')
+        .order('start_time');
+      if (!showInactive) {
+        query = query.eq('is_hidden', false).eq('is_cancelled', false);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as ClassSession[];
+    },
+  });
+
   // Filter out sessions from inactive class types unless toggle is on
   const filteredSessions = showInactive
     ? sessions
     : sessions.filter(s => s.class_types?.is_active !== false);
 
+  const filteredUpcomingSessions = showInactive
+    ? upcomingSessions
+    : upcomingSessions.filter(s => s.class_types?.is_active !== false);
+
+  const displayedSessions = view === "upcoming" ? filteredUpcomingSessions : filteredSessions;
+  const displayedSessionsLoading = view === "upcoming" ? upcomingLoading : isLoading;
+
   // Fetch attendee previews for all sessions on this day
-  const sessionIds = filteredSessions.map(s => s.id);
+  const sessionIds = displayedSessions.map(s => s.id);
   const { data: attendeePreviews = {} } = useQuery({
-    queryKey: ['admin-session-attendees-preview', selectedDateStr, sessionIds.join(',')],
+    queryKey: ['admin-session-attendees-preview', view, selectedDateStr, sessionIds.join(',')],
     queryFn: async (): Promise<Record<string, AttendeePreview[]>> => {
       return resolveAttendeePreviewsForSessions(sessionIds);
     },
@@ -317,6 +350,9 @@ export default function Classes() {
                 <TabsTrigger value="list" className="gap-1.5">
                   <List className="h-3.5 w-3.5" /> Day View
                 </TabsTrigger>
+                <TabsTrigger value="upcoming" className="gap-1.5">
+                  <CalendarIcon className="h-3.5 w-3.5" /> Upcoming
+                </TabsTrigger>
                 <TabsTrigger value="calendar" className="gap-1.5">
                   <CalendarDays className="h-3.5 w-3.5" /> Week Calendar
                 </TabsTrigger>
@@ -332,6 +368,7 @@ export default function Classes() {
         ) : (
         <>
         {/* Date navigation */}
+        {view === "list" ? (
         <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" size="icon" onClick={() => setSelectedDate(d => addDays(d, -1))}>
             <ChevronLeft className="h-4 w-4" />
@@ -360,20 +397,39 @@ export default function Classes() {
             </PopoverContent>
           </Popover>
         </div>
+        ) : (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4 flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <p className="font-medium">Upcoming generated class rosters</p>
+                <p className="text-sm text-muted-foreground">
+                  Showing visible classes from today through {format(addDays(new Date(), 28), 'MMMM d, yyyy')}.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/class-schedules')}>
+                Add or edit schedules
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-        {isLoading ? (
+        {displayedSessionsLoading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : filteredSessions.length === 0 ? (
+        ) : displayedSessions.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
             <Dumbbell className="h-12 w-12 mx-auto mb-3 opacity-50" />
             <p className="text-lg font-semibold">No Classes</p>
-            <p className="text-sm mt-2">There are no active classes scheduled for {format(selectedDate, 'MMMM d, yyyy')}.</p>
+            <p className="text-sm mt-2">
+              {view === "upcoming"
+                ? "There are no visible upcoming generated classes in the next 4 weeks."
+                : `There are no active classes scheduled for ${format(selectedDate, 'MMMM d, yyyy')}.`}
+            </p>
           </div>
         ) : (
           <div className="grid gap-4">
-            {filteredSessions.map((session) => {
+            {displayedSessions.map((session) => {
               const status = getSessionStatus(session);
               const attendees = attendeePreviews[session.id] || [];
               const isFull = session.current_enrollment >= session.max_capacity;
@@ -404,6 +460,12 @@ export default function Classes() {
                           {isFull && <Badge variant="destructive" className="text-xs">Full</Badge>}
                         </div>
                         <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground flex-wrap">
+                          {view === "upcoming" && (
+                            <span className="flex items-center gap-1 font-medium text-foreground">
+                              <CalendarIcon className="h-3.5 w-3.5" />
+                              {format(parseISO(session.session_date), 'EEE, MMM d')}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1">
                             <Clock className="h-3.5 w-3.5" />
                             {formatTime(session.start_time)} – {formatTime(session.end_time)}
