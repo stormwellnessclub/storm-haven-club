@@ -443,7 +443,7 @@ export default function ClassSchedules() {
                   Add Schedule
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingSchedule ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
                   <DialogDescription>
@@ -451,6 +451,38 @@ export default function ClassSchedules() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
+                  {/* Schedule type — prominent card selector at top */}
+                  <div className="grid gap-2">
+                    <Label className="text-sm font-semibold">Schedule type</Label>
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {([
+                        { v: "ongoing", label: "Recurring", desc: "Repeats weekly, no end date", Icon: Repeat },
+                        { v: "duration", label: "For a period", desc: "Weekly between two dates", Icon: CalendarRange },
+                        { v: "one_time", label: "One-time", desc: "Single session on one date", Icon: CalendarClock },
+                      ] as const).map(({ v, label, desc, Icon }) => {
+                        const selected = scheduleMode === v;
+                        return (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setScheduleMode(v)}
+                            className={`flex sm:flex-col items-start gap-2 rounded-lg border-2 p-3 text-left transition-all min-h-[64px] ${
+                              selected
+                                ? "border-primary bg-primary/5 shadow-sm"
+                                : "border-border hover:border-primary/40 hover:bg-muted/40"
+                            }`}
+                          >
+                            <Icon className={`h-5 w-5 shrink-0 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+                            <div className="flex-1 min-w-0">
+                              <div className={`text-sm font-semibold ${selected ? "text-primary" : ""}`}>{label}</div>
+                              <div className="text-xs text-muted-foreground leading-tight">{desc}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <div className="grid gap-2">
                     <Label htmlFor="classType">Class Type</Label>
                     <Select value={classTypeId} onValueChange={setClassTypeId}>
