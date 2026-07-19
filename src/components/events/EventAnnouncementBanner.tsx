@@ -85,8 +85,8 @@ export function EventAnnouncementBanner() {
             <Link to={`/events/${event.slug}`}>More info</Link>
           </Button>
           <Button asChild size="lg" variant="gold">
-            <Link to={`/events/${event.slug}`}>
-              Reserve
+            <Link to={`/events/${event.slug}#tickets`}>
+              Buy Sound Bath Tickets
               <ArrowRight className="h-4 w-4 ml-1" />
             </Link>
           </Button>

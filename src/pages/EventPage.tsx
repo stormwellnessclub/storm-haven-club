@@ -8,15 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatInTimeZone } from "date-fns-tz";
-import { CalendarDays, MapPin, Ticket } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, CalendarDays, MapPin, Ticket } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const CLUB_TZ = "America/Detroit";
 
 export default function EventPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,6 +48,37 @@ export default function EventPage() {
     refetchInterval: 30000,
     enabled: !!slug,
   });
+
+  const { data: profile } = useQuery({
+    queryKey: ["event-buyer-profile", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, email, phone")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  useEffect(() => {
+    if (!user) return;
+    const meta = user.user_metadata || {};
+    if (!firstName) setFirstName(profile?.first_name || meta.first_name || "");
+    if (!lastName) setLastName(profile?.last_name || meta.last_name || "");
+    if (!email) setEmail(profile?.email || user.email || "");
+    if (!phone) setPhone(profile?.phone || meta.phone || "");
+  }, [user, profile, firstName, lastName, email, phone]);
+
+  useEffect(() => {
+    if (!event || window.location.hash !== "#tickets") return;
+    window.setTimeout(() => {
+      document.getElementById("tickets")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+  }, [event]);
 
   const remaining = availability?.remaining ?? 0;
   const soldOut = event?.status === "sold_out" || (availability && remaining <= 0);
@@ -140,10 +173,22 @@ export default function EventPage() {
           </p>
 
           {!soldOut && (
-            <div className="space-y-4 border-t pt-6">
+            <Button asChild size="lg" className="w-full">
+              <a href="#tickets">
+                Buy Sound Bath Tickets
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </a>
+            </Button>
+          )}
+
+          {!soldOut && (
+            <div id="tickets" className="scroll-mt-24 space-y-4 border-t pt-6">
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Ticket className="h-4 w-4" /> Reserve your seat
+                <Ticket className="h-4 w-4" /> Buy Sound Bath Tickets
               </h3>
+              <p className="text-sm text-muted-foreground">
+                Enter the guest details for the tickets. Members receive the member rate automatically when the email matches an active membership.
+              </p>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label>First name</Label>
@@ -173,7 +218,7 @@ export default function EventPage() {
                 </div>
               </div>
               <Button className="w-full" size="lg" onClick={handleCheckout} disabled={submitting}>
-                {submitting ? "Redirecting to checkout…" : "Buy tickets"}
+                {submitting ? "Redirecting to checkout…" : "Buy Sound Bath Tickets"}
               </Button>
             </div>
           )}
