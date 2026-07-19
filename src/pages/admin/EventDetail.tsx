@@ -47,16 +47,43 @@ export default function EventDetail() {
   });
 
   const paidTickets = tickets.filter((t: any) => t.status === "paid");
-  const pendingTickets = tickets.filter((t: any) => t.status === "pending");
+  const THIRTY_MIN = 30 * 60 * 1000;
+  const now = Date.now();
+  const pendingActive = tickets.filter(
+    (t: any) => t.status === "pending" && now - new Date(t.created_at).getTime() < THIRTY_MIN
+  );
+  const abandonedTickets = tickets.filter(
+    (t: any) =>
+      t.status === "abandoned" ||
+      (t.status === "pending" && now - new Date(t.created_at).getTime() >= THIRTY_MIN)
+  );
   const revenueCents = paidTickets.reduce((sum: number, t: any) => sum + (t.amount_cents || 0), 0);
   const memberCount = paidTickets.filter((t: any) => t.ticket_type === "member").length;
   const nonMemberCount = paidTickets.filter((t: any) => t.ticket_type === "non_member").length;
 
-  const [filter, setFilter] = useState<"all" | "paid" | "pending" | "refunded">("all");
-  const filteredTickets = useMemo(
-    () => (filter === "all" ? tickets : tickets.filter((t: any) => t.status === filter)),
-    [tickets, filter]
-  );
+  const [filter, setFilter] = useState<"all" | "paid" | "pending" | "abandoned" | "refunded">("all");
+  const filteredTickets = useMemo(() => {
+    if (filter === "all") return tickets;
+    if (filter === "pending") return pendingActive;
+    if (filter === "abandoned") return abandonedTickets;
+    return tickets.filter((t: any) => t.status === filter);
+  }, [tickets, filter, pendingActive, abandonedTickets]);
+
+  const [sweeping, setSweeping] = useState(false);
+  const sweepAbandoned = async () => {
+    if (!event?.id) return;
+    setSweeping(true);
+    const cutoff = new Date(Date.now() - THIRTY_MIN).toISOString();
+    const { error } = await supabase
+      .from("event_tickets")
+      .update({ status: "abandoned" })
+      .eq("event_id", event.id)
+      .eq("status", "pending")
+      .lt("created_at", cutoff);
+    setSweeping(false);
+    if (error) toast.error("Sweep failed: " + error.message);
+    else toast.success("Stale pending tickets marked as abandoned");
+  };
 
   const exportCsv = () => {
     const rows = paidTickets.map((t: any) => ({
