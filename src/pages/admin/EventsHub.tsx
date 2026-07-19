@@ -54,21 +54,49 @@ export default function EventsHub() {
     },
   });
 
-  const { data: ticketStats = {} } = useQuery<Record<string, { sold: number; revenue: number }>>({
+  type EventStats = {
+    sold: number;
+    revenue: number;
+    pending: number;
+    abandoned: number;
+    refunded: number;
+    recent: Array<{ name: string; type: "member" | "non_member"; amount: number; created_at: string }>;
+  };
+
+  const { data: ticketStats = {} } = useQuery<Record<string, EventStats>>({
     queryKey: ["events-hub-ticket-stats", ticketedEvents.map((e) => e.id).join(",")],
     enabled: ticketedEvents.length > 0,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("event_tickets")
-        .select("event_id, amount_cents, status")
+        .select("event_id, amount_cents, status, ticket_type, buyer_first_name, buyer_last_name, created_at")
         .in("event_id", ticketedEvents.map((e) => e.id))
-        .eq("status", "paid");
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      const map: Record<string, { sold: number; revenue: number }> = {};
+      const map: Record<string, EventStats> = {};
+      const THIRTY_MIN = 30 * 60 * 1000;
+      const now = Date.now();
       (data ?? []).forEach((t: any) => {
-        const s = map[t.event_id] || { sold: 0, revenue: 0 };
-        s.sold += 1;
-        s.revenue += t.amount_cents || 0;
+        const s = map[t.event_id] || { sold: 0, revenue: 0, pending: 0, abandoned: 0, refunded: 0, recent: [] };
+        if (t.status === "paid") {
+          s.sold += 1;
+          s.revenue += t.amount_cents || 0;
+          if (s.recent.length < 5) {
+            s.recent.push({
+              name: `${t.buyer_first_name || ""} ${t.buyer_last_name || ""}`.trim() || "—",
+              type: t.ticket_type,
+              amount: t.amount_cents || 0,
+              created_at: t.created_at,
+            });
+          }
+        } else if (t.status === "refunded") {
+          s.refunded += 1;
+        } else if (t.status === "abandoned") {
+          s.abandoned += 1;
+        } else if (t.status === "pending") {
+          if (now - new Date(t.created_at).getTime() < THIRTY_MIN) s.pending += 1;
+          else s.abandoned += 1;
+        }
         map[t.event_id] = s;
       });
       return map;
@@ -76,6 +104,8 @@ export default function EventsHub() {
   });
 
   const totalTicketsSold = Object.values(ticketStats).reduce((a, b) => a + b.sold, 0);
+  const totalAbandoned = Object.values(ticketStats).reduce((a, b) => a + b.abandoned, 0);
+  const totalPending = Object.values(ticketStats).reduce((a, b) => a + b.pending, 0);
 
   return (
     <AdminLayout>
