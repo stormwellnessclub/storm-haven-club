@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.reconcile_and_generate_class_sessions(date, integer) TO authenticated;
