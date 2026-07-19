@@ -27,6 +27,7 @@ import {
   Baby,
   Coffee,
   Heart,
+  Sparkles,
 } from "lucide-react";
 import {
   Sidebar,
