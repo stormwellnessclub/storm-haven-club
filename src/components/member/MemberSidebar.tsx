@@ -58,7 +58,7 @@ const sidebarGroups: SidebarGroupDef[] = [
       { title: "Dashboard", url: "/member", icon: LayoutDashboard },
       { title: "Member Entry", url: "/member/entry", icon: ScanLine },
       { title: "Events", url: "/events", icon: Sparkles },
-      { title: "My Tickets", url: "/portal/my-tickets", icon: Ticket },
+      { title: "My Tickets", url: "/member/tickets", icon: Ticket },
       { title: "Support", url: "/member/support", icon: MessageCircle },
       { title: "Café Order", url: "/member/cafe", icon: Coffee },
       { title: "Storm Shop", url: "/shop", icon: ShoppingBag },

@@ -10,7 +10,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const FROM = "Storm Wellness Club <hello@notify.stormwellnessclub.com>";
+const FROM = "Storm Wellness Club <hello@stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
 const TZ = "America/Detroit";
 
@@ -51,38 +51,61 @@ function buildHtml(opts: {
   portalTicketsUrl: string;
 }) {
   const extras = (s?: string | null) =>
-    s && s.trim() ? `<p style="margin:0 0 16px;white-space:pre-line;">${s}</p>` : "";
-  return `
-  <div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;">
-    <div style="max-width:600px;margin:0 auto;background:#fff;border:1px solid #c9a86a;padding:36px;border-radius:6px;">
-      <p style="letter-spacing:.4em;font-size:11px;color:#a17e3a;margin:0 0 6px;">STORM WELLNESS CLUB</p>
-      <h1 style="font-family:Georgia,serif;color:#a17e3a;font-size:26px;margin:0 0 18px;">You're in — ${opts.eventName} ✨</h1>
-      <p style="margin:0 0 14px;">Hi ${opts.firstName || "there"},</p>
-      <p style="margin:0 0 18px;">Thank you for reserving your spot at our <strong>${opts.eventName}</strong>. Your ticket is confirmed and we can't wait to host you.</p>
+    s && s.trim() ? `<p style="margin:0 0 16px;white-space:pre-line;color:#3a2e1a;font-family:Georgia,serif;">${s}</p>` : "";
+  const row = (label: string, value: string, mono = false) => `
+    <tr>
+      <td style="padding:6px 0;color:#6b5a3b;font-family:Georgia,serif;font-size:14px;">${label}</td>
+      <td style="padding:6px 0;text-align:right;font-family:${mono ? "monospace" : "Georgia,serif"};font-size:${mono ? "12px" : "14px"};color:#3a2e1a;">${value}</td>
+    </tr>`;
 
-      <h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:22px 0 8px;">Your reservation</h3>
-      <table style="width:100%;border-collapse:collapse;margin:0 0 22px;">
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Event</td><td style="padding:6px 0;text-align:right;">${opts.eventName}</td></tr>
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Date</td><td style="padding:6px 0;text-align:right;">${opts.eventDate}</td></tr>
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Time</td><td style="padding:6px 0;text-align:right;">${opts.eventTime}</td></tr>
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Venue</td><td style="padding:6px 0;text-align:right;">${opts.venue}</td></tr>
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Tickets</td><td style="padding:6px 0;text-align:right;">${opts.quantity} × ${opts.tierLabel}</td></tr>
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Total paid</td><td style="padding:6px 0;text-align:right;">$${opts.total}</td></tr>
-        <tr><td style="padding:6px 0;color:#6b5a3b;">Confirmation #</td><td style="padding:6px 0;text-align:right;font-family:monospace;font-size:12px;">${opts.orderId}</td></tr>
-      </table>
-
-      ${opts.details ? `<h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:22px 0 8px;">What to expect</h3>${extras(opts.details)}` : ""}
-      ${opts.whatToBring ? `<h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:22px 0 8px;">What to bring</h3>${extras(opts.whatToBring)}` : ""}
-
-      <p style="margin:24px 0 8px;">Show this email or your QR code at check-in. Members can view tickets anytime in the portal:</p>
-      <p style="text-align:center;margin:16px 0 24px;">
-        <a href="${opts.portalTicketsUrl}" style="background:#a17e3a;color:#fff;padding:12px 28px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">View my tickets</a>
-      </p>
-
-      <p style="font-size:13px;color:#6b5a3b;margin:24px 0 0;">Need to make a change? Reply to this email or reach us at support@stormwellnessclub.com — tickets are non-refundable but transferable up to 24 hours before the event.</p>
-      <p style="font-size:12px;color:#8a7a5a;margin:22px 0 0;">With gratitude,<br/>The Storm Wellness Club Team</p>
-    </div>
-  </div>`;
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${opts.eventName}</title></head>
+<body style="margin:0;padding:0;background:#ece2d2;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ece2d2;padding:24px 0;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border:1px solid #c9a86a;border-radius:6px;">
+          <tr>
+            <td align="center" style="padding:32px 28px 8px 28px;">
+              <div style="letter-spacing:.4em;font-size:11px;color:#a17e3a;font-family:Helvetica,Arial,sans-serif;text-align:center;">STORM WELLNESS CLUB</div>
+              <h1 style="font-family:Georgia,serif;color:#a17e3a;font-size:24px;line-height:1.3;margin:10px 0 0 0;text-align:center;font-weight:normal;">You're in — ${opts.eventName} ✨</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 28px 8px 28px;font-family:Georgia,serif;color:#3a2e1a;font-size:15px;line-height:1.55;">
+              <p style="margin:0 0 14px 0;">Hi ${opts.firstName || "there"},</p>
+              <p style="margin:0 0 18px 0;">Thank you for reserving your spot at our <strong>${opts.eventName}</strong>. Your ticket is confirmed and we can't wait to host you.</p>
+              <h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:20px 0 8px 0;font-weight:normal;">Your reservation</h3>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
+                ${row("Event", opts.eventName)}
+                ${row("Date", opts.eventDate)}
+                ${row("Time", opts.eventTime)}
+                ${row("Venue", opts.venue)}
+                ${row("Tickets", `${opts.quantity} × ${opts.tierLabel}`)}
+                ${row("Total paid", `$${opts.total}`)}
+                ${row("Confirmation #", opts.orderId, true)}
+              </table>
+              ${opts.details ? `<h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:20px 0 8px 0;font-weight:normal;">What to expect</h3>${extras(opts.details)}` : ""}
+              ${opts.whatToBring ? `<h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:20px 0 8px 0;font-weight:normal;">What to bring</h3>${extras(opts.whatToBring)}` : ""}
+              <p style="margin:24px 0 8px 0;">Show this email or your QR code at check-in. You can view your ticket anytime here:</p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:0 28px 24px 28px;">
+              <a href="${opts.portalTicketsUrl}" style="background:#a17e3a;color:#ffffff;padding:12px 28px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;font-size:14px;">View my tickets</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 28px 28px 28px;font-family:Georgia,serif;color:#6b5a3b;font-size:13px;line-height:1.5;">
+              <p style="margin:0 0 12px 0;">Need to make a change? Reply to this email or reach us at support@stormwellnessclub.com — tickets are non-refundable but transferable up to 24 hours before the event.</p>
+              <p style="font-size:12px;color:#8a7a5a;margin:16px 0 0 0;">With gratitude,<br/>The Storm Wellness Club Team</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body></html>`;
 }
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));

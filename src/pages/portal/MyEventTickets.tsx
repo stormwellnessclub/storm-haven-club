@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Loader2, Ticket, Calendar, MapPin, Sparkles } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { PortalUpcomingEvents } from "@/components/events/PortalUpcomingEvents";
+import { PortalLayout } from "@/components/portal/PortalLayout";
+import { MemberLayout } from "@/components/member/MemberLayout";
 
 const CLUB_TZ = "America/Detroit";
 
@@ -32,6 +34,8 @@ type TicketRow = {
 
 export default function MyEventTickets() {
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const isMember = location.pathname.startsWith("/member");
   const sessionId = params.get("session_id");
   const justPurchased = params.get("just_purchased") === "1";
 
@@ -105,8 +109,12 @@ export default function MyEventTickets() {
     return Array.from(map.values());
   }, [tickets]);
 
+  const Layout: any = isMember ? MemberLayout : PortalLayout;
+
   return (
-    <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-6">
+    <Layout title="My Event Tickets">
+    <div className="max-w-3xl mx-auto p-4 md:p-8 pb-32 md:pb-8 space-y-6">
+
       {showBanner && (
         <Card className="border-green-600/40 bg-green-50 dark:bg-green-950/20">
           <CardContent className="flex items-start gap-3 p-4">
@@ -224,5 +232,6 @@ export default function MyEventTickets() {
           );
         })}
     </div>
+    </Layout>
   );
 }
