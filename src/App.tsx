@@ -187,6 +187,7 @@ import PortalPaymentHistory from "@/pages/portal/PaymentHistory";
 import PortalProfile from "@/pages/portal/Profile";
 import PortalSupport from "@/pages/portal/Support";
 import PortalRecovery from "@/pages/portal/Recovery";
+import PortalMyEventTickets from "@/pages/portal/MyEventTickets";
 
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
@@ -358,6 +359,7 @@ const App = () => (
               <Route path="/portal/support" element={<ProtectedPortalRoute><PortalSupport /></ProtectedPortalRoute>} />
               <Route path="/portal/wellness" element={<ProtectedPortalRoute><PortalRecovery /></ProtectedPortalRoute>} />
               <Route path="/portal/cafe" element={<ProtectedPortalRoute><PortalCafe /></ProtectedPortalRoute>} />
+              <Route path="/portal/my-tickets" element={<ProtectedPortalRoute><PortalMyEventTickets /></ProtectedPortalRoute>} />
               
               {/* Admin Routes - Protected by Role */}
               <Route path="/admin" element={<ProtectedAdminRoute><Dashboard /></ProtectedAdminRoute>} />

@@ -43,6 +43,7 @@ const portalMenuItems: MenuItem[] = [
   { title: "My Bookings", url: "/portal/bookings", icon: Calendar },
   { title: "My Passes", url: "/portal/passes", icon: Ticket },
   { title: "Events", url: "/events", icon: Sparkles },
+  { title: "My Tickets", url: "/portal/my-tickets", icon: Ticket },
   
   
   { title: "Buy Passes", url: "/class-passes", icon: CreditCard },
