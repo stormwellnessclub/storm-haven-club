@@ -17,6 +17,7 @@ interface Body {
   email: string;
   phone?: string;
   quantity?: number;
+  embedded?: boolean;
 }
 
 serve(async (req) => {
@@ -107,6 +108,45 @@ serve(async (req) => {
       .select("id");
     if (insErr) throw insErr;
     const ticketIds = (tickets ?? []).map((t: any) => t.id);
+
+    if (body.embedded) {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amountCents * qty,
+        currency: "usd",
+        receipt_email: email,
+        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+        description: `Event Ticket — ${event.title} — ${qty} × ${ticketType === "member" ? "Member" : "Non-Member"}`,
+        metadata: {
+          type: "event_ticket",
+          category: "events",
+          event_id: event.id,
+          event_slug: event.slug,
+          event_title: event.title,
+          ticket_ids: ticketIds.join(","),
+          ticket_type: ticketType,
+          quantity: String(qty),
+          buyer_email: email,
+        },
+      });
+
+      await supabase
+        .from("event_tickets")
+        .update({ stripe_payment_intent_id: paymentIntent.id })
+        .in("id", ticketIds);
+
+      return new Response(
+        JSON.stringify({
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+          ticket_ids: ticketIds,
+          ticketType,
+          amountCents,
+          totalCents: amountCents * qty,
+          quantity: qty,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
 
     const origin = req.headers.get("origin") || "https://stormwellnessclub.com";
     const checkout = await stripe.checkout.sessions.create({
