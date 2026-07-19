@@ -1,40 +1,41 @@
-## 1. Enrich event "More info" content
+## Goal
+After a member buys Sound Bath tickets, land them on an in-portal confirmation with their ticket details (and keep them visible later in "My Tickets").
 
-Add two new optional text fields to `events` so we can describe the experience without cramming everything into `description`:
+## Changes
 
-- `details` — long-form "what the event entails" (agenda, vibe, who it's for).
-- `what_to_bring` — bulletable list of recommended items.
+### 1. New portal page: `src/pages/portal/MyEventTickets.tsx`
+- Route: `/portal/my-tickets` (accessible to members and non-member portal users).
+- Reads `event_tickets` for the current `auth.uid()` joined with `events` (title, starts_at, venue, slug, details, what_to_bring).
+- Renders each paid ticket as a card: event title, ET-formatted date/time, venue, ticket type (Member/Non-Member/etc.), buyer name, and a QR block using `qr_token` (rendered via existing QR util if present, otherwise a simple monospace token + note).
+- If URL contains `?session_id=…&just_purchased=1`, calls `verify-event-ticket` first (to force-finalize just-completed sessions), then shows a green "You're in!" confirmation banner at the top with a subtle confetti/checkmark and CTA "Back to Events".
+- Empty state: "No tickets yet — browse events" linking to `/events`.
 
-Migration:
-```sql
-ALTER TABLE public.events
-  ADD COLUMN IF NOT EXISTS details text,
-  ADD COLUMN IF NOT EXISTS what_to_bring text;
-```
+### 2. Route success back into the portal for logged-in buyers
+- `supabase/functions/create-event-ticket-checkout/index.ts`: if the request is authenticated (Authorization header resolves to a user), set  
+  `success_url = ${origin}/portal/my-tickets?session_id={CHECKOUT_SESSION_ID}&just_purchased=1`.  
+  Otherwise keep the existing public `/events/:slug/success` URL (guests).
+- `src/pages/EventPage.tsx`: no logic change needed — the edge function decides the redirect based on auth.
 
-Populate for the Sound Bath (Jul 25, 2026) with copy along these lines (final wording will be a single UPDATE, editable later in admin):
+### 3. Reuse verify function
+- `verify-event-ticket` already returns `paid` + `tickets[]`. No change needed; the new portal page calls it exactly once when `session_id` is present, then also fetches all tickets for the user for the full list.
 
-- **Details:** ~90 min immersive sound healing journey using crystal + Tibetan bowls, gongs, and chimes. Doors 6:30 PM, session 7:00 PM. Light refreshments after. All levels welcome — no experience needed.
-- **What to bring:** yoga mat, blanket, pillow/bolster, water bottle, eye mask (optional), comfy layers. Arrive 15 min early to settle in.
+### 4. Sidebar entries
+- `src/components/portal/PortalSidebar.tsx` and `src/components/member/MemberSidebar.tsx`: add a "My Tickets" link (icon: `Ticket`) pointing to `/portal/my-tickets`, placed just below the existing "Events" entry.
 
-Render on `src/pages/EventPage.tsx`:
-- New "What to expect" section (from `details`) above the ticket form.
-- New "What to bring" section rendered as a bulleted list (split `what_to_bring` on newlines).
-- Both sections only show if the field is set, so other events aren't forced into the same shape.
+### 5. Router wiring
+- `src/App.tsx`: register `/portal/my-tickets` inside the authenticated portal route group so it inherits the portal layout/guard.
 
-Also surface `details` / `what_to_bring` in the admin event edit form (`src/pages/admin/EventDetail.tsx` or its editor) as two textareas so you can update copy without SQL.
-
-## 2. Add "Events" to member + non-member portal navigation
-
-The non-member portal reuses `PortalSidebar` + `PortalBottomNav` (there is no separate non-member sidebar), so a single change covers both audiences.
-
-- `src/components/portal/PortalSidebar.tsx`: add `{ title: "Events", url: "/portal/events", icon: Ticket-ish }` in the main group (between "My Bookings" and "My Passes", or right after "Recovery Booking" — will pick whichever reads cleaner in the existing order).
-- `src/components/portal/PortalBottomNav.tsx`: replace one of the less-used mobile slots with an Events entry, or add as a 4th item if space allows (mobile nav currently has 3).
-
-Route target `/portal/events` will render a lightweight portal-flavored list (reusing the public `EventsIndex` query) so members stay inside the portal chrome instead of bouncing to the public marketing page. Clicking an event still routes to the existing `EventPage` for purchase.
+### 6. Public `EventSuccess.tsx`
+- Leave the existing public success page untouched for guest buyers (they aren't logged in).
+- Add a small "View in your portal" button on it that only shows when a session is detected in `localStorage`/auth — optional, low priority.
 
 ## Technical notes
+- RLS on `event_tickets` already restricts SELECT to `user_id = auth.uid()` (verified previously when we built the roster). No policy changes needed.
+- QR rendering: use `qrcode.react` if it's already in the dependency tree; otherwise render `qr_token` as a styled code block — the front desk scanner can still key it in. (We'll check on implementation; no new dep unless needed.)
+- Timezone: format all times with `formatInTimeZone(..., "America/Detroit", ...)` per project standard.
+- No schema changes.
 
-- No changes to Stripe, checkout, or `get_event_availability`.
-- RLS on `events` already allows public read of `on_sale` events; new columns inherit that.
-- Icon: use `Sparkles` or `Ticket` from lucide-react (already imported in sidebar).
+## Out of scope
+- Emailing tickets (already handled).
+- Admin-side changes.
+- Transferring/refunding tickets from the portal.
