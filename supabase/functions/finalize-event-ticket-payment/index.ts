@@ -42,15 +42,11 @@ serve(async (req) => {
     if (!tickets || tickets.length === 0) throw new Error("No tickets found for this payment");
 
     if (paid) {
-      const chargeId =
-        typeof paymentIntent.latest_charge === "string" ? paymentIntent.latest_charge : null;
-
       await supabase
         .from("event_tickets")
         .update({
           status: "paid",
           stripe_payment_intent_id: paymentIntent.id,
-          stripe_session_id: chargeId,
         })
         .eq("stripe_payment_intent_id", payment_intent_id)
         .eq("status", "pending");
