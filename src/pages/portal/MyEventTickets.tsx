@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Loader2, Ticket, Calendar, MapPin, Sparkles } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
+import { PortalUpcomingEvents } from "@/components/events/PortalUpcomingEvents";
 
 const CLUB_TZ = "America/Detroit";
 
