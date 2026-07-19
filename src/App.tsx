@@ -187,6 +187,7 @@ import PortalPaymentHistory from "@/pages/portal/PaymentHistory";
 import PortalProfile from "@/pages/portal/Profile";
 import PortalSupport from "@/pages/portal/Support";
 import PortalRecovery from "@/pages/portal/Recovery";
+import PortalMyEventTickets from "@/pages/portal/MyEventTickets";
 
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
