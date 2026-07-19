@@ -77,16 +77,16 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
     })();
   }, [open]);
 
+  const eventTime = useMemo(
+    () => event ? formatInTimeZone(new Date(event.starts_at), CLUB_TZ, "EEEE, MMMM d · h:mm a 'ET'") : "",
+    [event]
+  );
+
   if (!event) return null;
 
   const memberPrice = (event.member_price_cents / 100).toFixed(0);
   const nonMemberPrice = (event.non_member_price_cents / 100).toFixed(0);
   const maxQty = 6;
-
-  const eventTime = useMemo(
-    () => formatInTimeZone(new Date(event.starts_at), CLUB_TZ, "EEEE, MMMM d · h:mm a 'ET'"),
-    [event.starts_at]
-  );
   const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   const handleCheckout = async () => {
