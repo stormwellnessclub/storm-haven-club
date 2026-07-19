@@ -289,6 +289,7 @@ function EmbeddedTicketPayment({
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
+        confirmParams: { return_url: `${window.location.origin}/portal/my-tickets` },
         redirect: "if_required",
       });
       if (error) throw new Error(error.message || "Payment could not be completed");
