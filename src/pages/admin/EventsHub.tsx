@@ -162,7 +162,7 @@ export default function EventsHub() {
         {/* Ticketed events */}
         <div className="grid gap-4 md:grid-cols-2">
           {ticketedEvents.map((e: any) => {
-            const stats = ticketStats[e.id] || { sold: 0, revenue: 0 };
+            const stats = ticketStats[e.id] || { sold: 0, revenue: 0, pending: 0, abandoned: 0, refunded: 0, recent: [] };
             const dateLabel = format(new Date(e.starts_at), "EEE MMM d, yyyy · h:mm a");
             return (
               <Card key={e.id} className="flex flex-col">
@@ -188,15 +188,50 @@ export default function EventsHub() {
                       <span className="font-semibold tabular-nums">${(stats.revenue / 100).toFixed(2)}</span>
                     </div>
                     <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Pending / Abandoned</span>
+                      <span className="font-medium tabular-nums">{stats.pending} / {stats.abandoned}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Pricing</span>
                       <span className="font-medium">${(e.member_price_cents / 100).toFixed(0)} / ${(e.non_member_price_cents / 100).toFixed(0)}</span>
                     </div>
                   </div>
 
+                  {stats.recent.length > 0 && (
+                    <div className="rounded-lg border p-3">
+                      <div className="text-xs font-medium text-muted-foreground mb-2">
+                        Latest buyers
+                      </div>
+                      <ul className="space-y-1 text-sm">
+                        {stats.recent.map((r, idx) => (
+                          <li key={idx} className="flex items-center justify-between gap-2">
+                            <span className="truncate">
+                              {r.name}
+                              <span className="text-xs text-muted-foreground ml-1">
+                                · {r.type === "member" ? "Member" : "Non-Member"}
+                              </span>
+                            </span>
+                            <span className="tabular-nums text-xs text-muted-foreground">
+                              ${(r.amount / 100).toFixed(0)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      {stats.sold > stats.recent.length && (
+                        <Link
+                          to={`/admin/events/${e.slug}`}
+                          className="mt-2 inline-block text-xs text-primary hover:underline"
+                        >
+                          View all {stats.sold} buyers →
+                        </Link>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex gap-2 flex-wrap">
                     <Button asChild size="sm">
                       <Link to={`/admin/events/${e.slug}`}>
-                        Manage <ArrowRight className="h-4 w-4 ml-1" />
+                        Manage roster <ArrowRight className="h-4 w-4 ml-1" />
                       </Link>
                     </Button>
                     {e.slug === SOUND_BATH_VOTE.slug && (
