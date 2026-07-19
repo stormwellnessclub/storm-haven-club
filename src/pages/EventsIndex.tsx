@@ -152,15 +152,3 @@ export default function EventsIndex() {
     </div>
   );
 }
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <Footer />
-    </div>
-  );
-}
