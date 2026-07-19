@@ -151,7 +151,10 @@ export default function EventDetail() {
                     <Clock className="h-4 w-4" /> Pending
                   </CardTitle>
                 </CardHeader>
-                <CardContent><div className="text-3xl font-bold">{pendingTickets.length}</div></CardContent>
+                <CardContent>
+                  <div className="text-3xl font-bold">{pendingActive.length}</div>
+                  <div className="text-xs text-muted-foreground">{abandonedTickets.length} abandoned</div>
+                </CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
