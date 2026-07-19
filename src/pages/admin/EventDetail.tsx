@@ -106,7 +106,7 @@ export default function EventDetail() {
               <Badge variant={event.status === "on_sale" ? "default" : "secondary"}>{event.status}</Badge>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
@@ -116,6 +116,14 @@ export default function EventDetail() {
                 <CardContent>
                   <div className="text-3xl font-bold">{paidTickets.length}<span className="text-base text-muted-foreground"> / {event.capacity}</span></div>
                 </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-muted-foreground flex items-center gap-2">
+                    <Clock className="h-4 w-4" /> Pending
+                  </CardTitle>
+                </CardHeader>
+                <CardContent><div className="text-3xl font-bold">{pendingTickets.length}</div></CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2">
@@ -152,12 +160,21 @@ export default function EventDetail() {
               </CardContent>
             </Card>
 
-
-
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-3">
                 <CardTitle>Roster</CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center flex-wrap">
+                  <Tabs value={filter} onValueChange={(v) => setFilter(v as any)}>
+                    <TabsList>
+                      <TabsTrigger value="all">All ({tickets.length})</TabsTrigger>
+                      <TabsTrigger value="paid">Paid ({paidTickets.length})</TabsTrigger>
+                      <TabsTrigger value="pending">Pending ({pendingTickets.length})</TabsTrigger>
+                      <TabsTrigger value="refunded">Refunded</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <Button variant="outline" size="sm" onClick={exportCsv} disabled={paidTickets.length === 0}>
+                    <Download className="h-4 w-4 mr-1" /> Export CSV
+                  </Button>
                   <Button variant="outline" size="sm" asChild>
                     <a href={`/events/${event.slug}`} target="_blank" rel="noreferrer">Public page</a>
                   </Button>
@@ -169,7 +186,9 @@ export default function EventDetail() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
                       <TableHead>Type</TableHead>
+                      <TableHead>Account</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Purchased</TableHead>
