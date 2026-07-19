@@ -2,36 +2,27 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatInTimeZone } from "date-fns-tz";
-import { ArrowRight, CalendarDays, MapPin, Ticket, Sparkles, PackageCheck } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import { ArrowRight, CalendarDays, MapPin, Sparkles, PackageCheck } from "lucide-react";
+import { useState } from "react";
+import { BuyTicketsDialog } from "@/components/events/BuyTicketsDialog";
 
 const CLUB_TZ = "America/Detroit";
 
 export default function EventPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", slug],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, slug, title, description, details, what_to_bring, starts_at, venue, capacity, status, member_price_cents, non_member_price_cents, image_url")
+        .select("id, slug, title, description, details, what_to_bring, starts_at, venue, status, member_price_cents, non_member_price_cents, image_url")
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
@@ -39,78 +30,7 @@ export default function EventPage() {
     },
   });
 
-  const { data: availability } = useQuery({
-    queryKey: ["event-availability", slug],
-    queryFn: async () => {
-      const { data } = await supabase.rpc("get_event_availability", { _slug: slug });
-      return data?.[0] ?? null;
-    },
-    refetchInterval: 30000,
-    enabled: !!slug,
-  });
-
-  const { data: profile } = useQuery({
-    queryKey: ["event-buyer-profile", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("first_name, last_name, email, phone")
-        .eq("user_id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user?.id,
-    staleTime: 60_000,
-  });
-
-  useEffect(() => {
-    if (!user) return;
-    const meta = user.user_metadata || {};
-    if (!firstName) setFirstName(profile?.first_name || meta.first_name || "");
-    if (!lastName) setLastName(profile?.last_name || meta.last_name || "");
-    if (!email) setEmail(profile?.email || user.email || "");
-    if (!phone) setPhone(profile?.phone || meta.phone || "");
-  }, [user, profile, firstName, lastName, email, phone]);
-
-  useEffect(() => {
-    if (!event || window.location.hash !== "#tickets") return;
-    window.setTimeout(() => {
-      document.getElementById("tickets")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 100);
-  }, [event]);
-
-  const remaining = availability?.remaining ?? 0;
-  const soldOut = event?.status === "sold_out" || (availability && remaining <= 0);
-
-  const handleCheckout = async () => {
-    if (!firstName.trim() || !lastName.trim() || !email.trim()) {
-      toast.error("Please fill in your name and email.");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-event-ticket-checkout", {
-        body: {
-          slug,
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          phone,
-          quantity,
-        },
-      });
-      if (error) throw error;
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        throw new Error(data?.error || "Could not start checkout");
-      }
-    } catch (e: any) {
-      toast.error(e.message || "Checkout failed");
-      setSubmitting(false);
-    }
-  };
+  const soldOut = event?.status === "sold_out";
 
   if (isLoading) {
     return <div className="max-w-3xl mx-auto p-6 space-y-4"><Skeleton className="h-64" /></div>;
@@ -148,9 +68,9 @@ export default function EventPage() {
                 )}
               </div>
             </div>
-            <Badge variant={soldOut ? "destructive" : "default"} className="shrink-0">
-              {soldOut ? "Sold Out" : `${remaining} left`}
-            </Badge>
+            {soldOut && (
+              <Badge variant="destructive" className="shrink-0">Sold Out</Badge>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -200,64 +120,20 @@ export default function EventPage() {
             We'll automatically apply your member rate at checkout if your email matches an active membership.
           </p>
 
-          {!soldOut && (
-            <Button asChild size="lg" className="w-full">
-              <a href="#tickets">
-                Buy Sound Bath Tickets
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </a>
+          {!soldOut ? (
+            <Button size="lg" className="w-full" onClick={() => setBuyOpen(true)}>
+              Buy Tickets
+              <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-          )}
-
-          {!soldOut && (
-            <div id="tickets" className="scroll-mt-24 space-y-4 border-t pt-6">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Ticket className="h-4 w-4" /> Buy Sound Bath Tickets
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Enter the guest details for the tickets. Members receive the member rate automatically when the email matches an active membership.
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <Label>First name</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Last name</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Email</Label>
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Phone (optional)</Label>
-                  <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Quantity</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={Math.min(6, remaining)}
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
-                  />
-                </div>
-              </div>
-              <Button className="w-full" size="lg" onClick={handleCheckout} disabled={submitting}>
-                {submitting ? "Redirecting to checkout…" : "Buy Sound Bath Tickets"}
-              </Button>
-            </div>
-          )}
-
-          {soldOut && (
+          ) : (
             <div className="border-t pt-6 text-center text-muted-foreground">
               This event is sold out. Reach out to concierge to join the waitlist.
             </div>
           )}
         </CardContent>
       </Card>
+
+      <BuyTicketsDialog event={event} open={buyOpen} onOpenChange={setBuyOpen} />
     </div>
   );
 }
