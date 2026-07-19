@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatInTimeZone } from "date-fns-tz";
-import { ArrowRight, CalendarDays, MapPin, Ticket } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPin, Ticket, Sparkles, PackageCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
