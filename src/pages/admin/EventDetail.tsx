@@ -231,6 +231,7 @@ export default function EventDetail() {
                       <TableHead>Type</TableHead>
                       <TableHead>Account</TableHead>
                       <TableHead>Status</TableHead>
+                      {filter === "abandoned" && <TableHead>Reason</TableHead>}
                       <TableHead>Amount</TableHead>
                       <TableHead>Purchased</TableHead>
                     </TableRow>
@@ -238,7 +239,7 @@ export default function EventDetail() {
                   <TableBody>
                     {filteredTickets.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={filter === "abandoned" ? 9 : 8} className="text-center text-muted-foreground py-8">
                           No tickets in this view.
                         </TableCell>
                       </TableRow>
@@ -261,6 +262,11 @@ export default function EventDetail() {
                             {t.status}
                           </Badge>
                         </TableCell>
+                        {filter === "abandoned" && (
+                          <TableCell className="text-xs text-muted-foreground">
+                            {reasonLabel(t.abandon_reason)}
+                          </TableCell>
+                        )}
                         <TableCell>${(t.amount_cents / 100).toFixed(2)}</TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {format(new Date(t.created_at), "MMM d, h:mm a")}
