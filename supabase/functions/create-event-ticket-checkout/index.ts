@@ -114,7 +114,7 @@ serve(async (req) => {
         amount: amountCents * qty,
         currency: "usd",
         receipt_email: email,
-        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+        payment_method_types: ["card"],
         description: `Event Ticket — ${event.title} — ${qty} × ${ticketType === "member" ? "Member" : "Non-Member"}`,
         metadata: {
           type: "event_ticket",
