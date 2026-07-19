@@ -73,16 +73,22 @@ export default function EventDetail() {
   const sweepAbandoned = async () => {
     if (!event?.id) return;
     setSweeping(true);
-    const cutoff = new Date(Date.now() - THIRTY_MIN).toISOString();
-    const { error } = await supabase
-      .from("event_tickets")
-      .update({ status: "abandoned" })
-      .eq("event_id", event.id)
-      .eq("status", "pending")
-      .lt("created_at", cutoff);
+    const { data, error } = await supabase.functions.invoke("sweep-abandoned-event-tickets", {
+      body: { event_id: event.id },
+    });
     setSweeping(false);
     if (error) toast.error("Sweep failed: " + error.message);
-    else toast.success("Stale pending tickets marked as abandoned");
+    else toast.success(`Swept ${data?.swept ?? 0} stale pending ticket(s)`);
+  };
+
+  const reasonLabel = (r?: string | null) => {
+    if (!r) return "—";
+    if (r === "never_entered_card") return "Never entered card";
+    if (r === "3ds_abandoned") return "3DS abandoned";
+    if (r === "no_payment_intent") return "Closed before card entry";
+    if (r === "stripe_lookup_failed") return "Stripe lookup failed";
+    if (r.startsWith("declined:")) return `Declined: ${r.slice("declined:".length)}`;
+    return r;
   };
 
   const exportCsv = () => {
