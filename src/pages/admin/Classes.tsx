@@ -345,7 +345,7 @@ export default function Classes() {
                 Show all
               </Label>
             </div>
-            <Tabs value={view} onValueChange={(v) => setView(v as "list" | "calendar")}>
+            <Tabs value={view} onValueChange={(v) => setView(v as "list" | "upcoming" | "calendar")}>
               <TabsList>
                 <TabsTrigger value="list" className="gap-1.5">
                   <List className="h-3.5 w-3.5" /> Day View
