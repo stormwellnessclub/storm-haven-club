@@ -91,8 +91,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { session_id } = await req.json();
-    if (!session_id) throw new Error("session_id required");
+    const { session_id, payment_intent_id } = await req.json();
+    if (!session_id && !payment_intent_id) throw new Error("session_id or payment_intent_id required");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -100,12 +100,16 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { data: tickets, error } = await supabase
+    let query = supabase
       .from("event_tickets")
       .select(
         "id, user_id, buyer_email, buyer_first_name, ticket_type, amount_cents, status, confirmation_email_sent_at, event_id, events(title, starts_at, venue, details, what_to_bring)"
-      )
-      .eq("stripe_session_id", session_id);
+      );
+    query = payment_intent_id
+      ? query.eq("stripe_payment_intent_id", payment_intent_id)
+      : query.eq("stripe_session_id", session_id);
+
+    const { data: tickets, error } = await query;
 
     if (error) throw error;
     if (!tickets || tickets.length === 0) throw new Error("no tickets for session");
@@ -140,7 +144,7 @@ serve(async (req) => {
       quantity: tickets.length,
       tierLabel: tierLabel(first.ticket_type || ""),
       total: (totalCents / 100).toFixed(2),
-      orderId: session_id.slice(-10).toUpperCase(),
+      orderId: (payment_intent_id || session_id).slice(-10).toUpperCase(),
       whatToBring: evt?.what_to_bring ?? null,
       details: evt?.details ?? null,
       portalTicketsUrl: portalUrl,
@@ -158,7 +162,7 @@ serve(async (req) => {
     await supabase
       .from("event_tickets")
       .update({ confirmation_email_sent_at: new Date().toISOString() })
-      .eq("stripe_session_id", session_id);
+      .in("id", tickets.map((t: any) => t.id));
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
