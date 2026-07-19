@@ -1,0 +1,1 @@
+ALTER TABLE public.event_tickets ADD COLUMN IF NOT EXISTS confirmation_email_sent_at timestamptz;
