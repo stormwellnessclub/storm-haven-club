@@ -179,7 +179,7 @@ export default function PortalPaymentHistory() {
                     const isOpen = expanded.has(p.id);
                     const showToggle = hasDetails(p);
                     return (
-                      <>
+                      <Fragment key={p.id}>
                         <TableRow
                           key={p.id}
                           className={showToggle ? "cursor-pointer" : ""}
