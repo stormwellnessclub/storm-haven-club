@@ -437,6 +437,11 @@ export default function FrontDeskPage() {
 function FrontDeskKiosk() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<KioskSearchResult | null>(null);
+  const [firstVisit, setFirstVisit] = useState<{
+    checkInId?: string;
+    name: string;
+  } | null>(null);
+  const [tourSaving, setTourSaving] = useState(false);
 
   const { results, isSearching, search, clearResults } = useKioskSearch();
   const { entries, stats, refetch } = useKioskAttendance();
