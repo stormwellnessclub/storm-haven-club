@@ -468,10 +468,13 @@ function FrontDeskKiosk() {
       const idText = selected.member_id_text || selected.name;
       const result = await checkInMember(idText);
       if (result.access_granted) {
+        const fullName = `${result.member?.first_name ?? ""} ${result.member?.last_name ?? ""}`.trim();
         if (result.already_in) {
-          toast.info(`${result.member?.first_name} ${result.member?.last_name} is already checked in today`);
+          toast.info(`${fullName} is already checked in today`);
+        } else if (result.is_first_visit) {
+          setFirstVisit({ checkInId: result.check_in_id, name: fullName });
         } else {
-          toast.success(`${result.member?.first_name} ${result.member?.last_name} checked in!`);
+          toast.success(`${fullName} checked in!`);
         }
         refetch();
       } else {
