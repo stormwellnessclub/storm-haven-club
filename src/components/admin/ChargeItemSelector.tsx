@@ -155,6 +155,7 @@ export function ChargeItemSelector({
   const [manualPaymentMethod, setManualPaymentMethod] = useState("cash");
   const [alsoActivate, setAlsoActivate] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
+  const [receiptNote, setReceiptNote] = useState("");
 
   // Cafe state
   const [isAddingCafeItem, setIsAddingCafeItem] = useState(false);
@@ -527,6 +528,7 @@ export function ChargeItemSelector({
           status: "succeeded",
           charged_by: user?.id || "unknown",
           user_id: nonMember?.userId || user?.id || "unknown",
+          note: receiptNote.trim() || null,
         };
         if (!nonMember) {
           insertData.member_id = member.id;
@@ -571,6 +573,16 @@ export function ChargeItemSelector({
           taxAmount: taxAmountCents,
           subtotal: subtotalCents,
           payment_type: paymentType,
+          note: receiptNote.trim() || undefined,
+          lineItems: cartItems.map((it) => ({
+            name: it.label,
+            quantity: it.quantity,
+            unit_price: it.unitAmount,
+          })),
+          recipientEmail: (nonMember as any)?.email || (member as any)?.email || undefined,
+          recipientName: (nonMember as any)?.name
+            || `${(member as any)?.first_name ?? ""} ${(member as any)?.last_name ?? ""}`.trim()
+            || undefined,
         };
         if (nonMember?.stripeCustomerId) {
           chargeBody.stripeCustomerId = nonMember.stripeCustomerId;
@@ -611,6 +623,7 @@ export function ChargeItemSelector({
     setChargeDescription("");
     setChargeType("other");
     setIsManualPayment(false);
+    setReceiptNote("");
     setManualPaymentMethod("cash");
     setAlsoActivate(false);
     setIsAddingCafeItem(false);
@@ -986,6 +999,21 @@ export function ChargeItemSelector({
                     </Select>
                   </div>
                 )}
+
+                <div>
+                  <Label>Note for receipt (optional)</Label>
+                  <Textarea
+                    value={receiptNote}
+                    onChange={(e) => setReceiptNote(e.target.value)}
+                    placeholder="e.g. Charging today for açaí bowl purchased 7/16"
+                    rows={2}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Shown on the customer's email receipt.
+                  </p>
+                </div>
+
+
 
                 <Button className="w-full" onClick={handleCharge} disabled={isCharging}>
                   {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}

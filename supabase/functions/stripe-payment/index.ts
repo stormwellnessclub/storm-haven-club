@@ -14,6 +14,50 @@ function calculateProcessingFee(amountInCents: number): number {
   return totalCents - amountInCents;
 }
 
+// Fire-and-forget POS/charge receipt email. Never throws.
+async function sendPosChargeReceipt(opts: {
+  supabase: any;
+  recipientEmail?: string | null;
+  recipientName?: string | null;
+  amountCents: number;
+  subtotalCents?: number;
+  taxCents?: number;
+  processingFeeCents?: number;
+  description: string;
+  note?: string | null;
+  lineItems?: Array<{ name: string; quantity: number; unit_price: number }>;
+  paymentIntentId?: string | null;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+}) {
+  try {
+    if (!opts.recipientEmail) return;
+    await opts.supabase.functions.invoke("send-email", {
+      body: {
+        template: "pos_charge_receipt",
+        to: opts.recipientEmail,
+        data: {
+          name: opts.recipientName || "there",
+          email: opts.recipientEmail,
+          amount: (opts.amountCents / 100).toFixed(2),
+          subtotal: opts.subtotalCents != null ? (opts.subtotalCents / 100).toFixed(2) : undefined,
+          tax: opts.taxCents != null ? (opts.taxCents / 100).toFixed(2) : undefined,
+          processingFee: opts.processingFeeCents != null ? (opts.processingFeeCents / 100).toFixed(2) : undefined,
+          description: opts.description,
+          note: opts.note || undefined,
+          lineItems: opts.lineItems || [],
+          paymentIntentId: opts.paymentIntentId || undefined,
+          cardBrand: opts.cardBrand || undefined,
+          cardLast4: opts.cardLast4 || undefined,
+          chargedAt: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[stripe-payment] failed to send POS receipt", err);
+  }
+}
+
 // Cache the Processing Fee product ID to avoid repeated lookups
 let processingFeeProductId: string | null = null;
 
@@ -1705,6 +1749,7 @@ serve(async (req) => {
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
+              note: body.note || null,
             });
 
           if (insertError) {
@@ -1722,6 +1767,7 @@ serve(async (req) => {
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
+              note: body.note || null,
             });
 
           if (insertError) {
@@ -1781,6 +1827,25 @@ serve(async (req) => {
               }
             }
           }
+        }
+
+        // Fire-and-forget POS/charge receipt (only for successful charges)
+        if (paymentIntent.status === 'succeeded') {
+          await sendPosChargeReceipt({
+            supabase,
+            recipientEmail: body.recipientEmail || null,
+            recipientName: body.recipientName || customerName,
+            amountCents: totalAmountWithFee,
+            subtotalCents: bodySubtotal ?? undefined,
+            taxCents: taxAmount ?? undefined,
+            processingFeeCents: processingFeeCents ?? undefined,
+            description: feeDescription,
+            note: body.note || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            paymentIntentId: paymentIntent.id,
+            cardBrand,
+            cardLast4,
+          });
         }
 
         return new Response(
@@ -2013,6 +2078,7 @@ serve(async (req) => {
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,
+                note: body.note || null,
               });
           } else if (applicationIdForLog) {
             await supabase
@@ -2025,8 +2091,26 @@ serve(async (req) => {
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,
+                note: body.note || null,
               });
           }
+
+          // Fire-and-forget POS/charge receipt
+          await sendPosChargeReceipt({
+            supabase,
+            recipientEmail: body.recipientEmail || null,
+            recipientName: body.recipientName || customerName,
+            amountCents: totalAmount3ds,
+            subtotalCents: bodySubtotal3ds ?? undefined,
+            taxCents: taxAmount3ds ?? undefined,
+            processingFeeCents: processingFee3ds ?? undefined,
+            description: feeDescription3ds,
+            note: body.note || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            paymentIntentId: paymentIntent3ds.id,
+            cardBrand: cardBrand3ds,
+            cardLast4: cardLast43ds,
+          });
 
           // Sync to member profile if initiation fee
           const isInitiationFee3ds = description.toLowerCase().includes('initiation') || 

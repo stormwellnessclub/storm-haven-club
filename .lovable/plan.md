@@ -1,45 +1,44 @@
-## Problem
 
-Inside **Front Desk → Members**, clicking a member opens `MemberDetailSheet`, but:
+## Goal
 
-1. **"Sell" and "Process" buttons in the sheet header do nothing.** Their `onClick` handlers in `src/components/admin/MemberDetailSheet.tsx` (lines ~745–762) are empty stubs with the comment "Will be handled by parent component" — nothing was ever wired up.
-2. **Charging a saved card fails for front desk staff.** The `charge_saved_card` case in `supabase/functions/stripe-payment/index.ts` calls `assertStaff()` with its default role list `['super_admin', 'admin', 'manager']`, so `front_desk` is rejected. That's why the "Charge Saved Card" flow (used for a cafe/walk-in sale against a member's card on file) can't complete. `charge_saved_card_with_3ds` has the same gap.
+When staff charges a member from Cafe POS or from a member's profile, the sale should:
+1. Show up in **that member's** purchase history (not the staff user's).
+2. Email the member an itemized **receipt** with the charge details.
+3. Optionally include a **staff note** (e.g. "Charged 7/18 for açaí bowl purchased 7/16") that appears in the receipt and on the internal record.
 
-Listing cards already allows front desk (`assertOwnerOrStaff` includes `front_desk`), so cards should display — but the charge step blocks them.
+---
 
-## Fix
+## Changes
 
-### 1. Wire the header buttons in `MemberDetailSheet`
+### 1. Attribute cafe POS orders to the actual buyer
+- `src/hooks/useCafeOrder.ts` — extend `CreateOrderParams` with optional `memberId`, `userId`, `staffNote`, and `chargedByLabel`. When provided (POS flow), insert `cafe_orders` with those values instead of the current staff `auth.uid()` lookup. Fallback behavior for the member self-order path stays unchanged.
+- `src/pages/admin/FrontDeskPOS.tsx` — pass `selectedCustomer.memberId` / `userId` and the new note into `createOrder.mutateAsync`. Also pass them into the `stripe-payment` invocation (`memberId` is already accepted; add `note`).
 
-In `src/components/admin/MemberDetailSheet.tsx`:
+### 2. Add a "Note for receipt" field (staff-facing, member-visible)
+- `src/pages/admin/FrontDeskPOS.tsx` — add a `Textarea` above the "Charge Card / Cash / Clover" actions, labelled "Note (shown on receipt — optional)". Placeholder: "e.g. Charged today for açaí bowl purchased on 7/16".
+- `src/components/admin/MemberDetailSheet.tsx` — same note field inside the existing "Charge card on file" dialog (member profile → Process).
+- DB migration: add `note TEXT` column to `manual_charges` and `cafe_orders`. Include GRANTs consistent with existing columns.
+- `supabase/functions/stripe-payment/index.ts` (`charge_saved_card` + `charge_saved_card_with_3ds` branches): accept `body.note`, store on the `manual_charges` insert, and include in the Stripe PaymentIntent `metadata.note` and `description` suffix for Stripe dashboard visibility.
 
-- **Process** button → open the existing "Charge Saved Card" dialog (`setShowChargeDialog(true)`), same dialog the Payments tab opens. This lets front desk charge any amount to the member's card on file for a cafe/POS sale without leaving the member sheet.
-- **Sell** button → navigate to `/frontdesk/pos` (or `/admin/pos` for admins) with the member pre-selected via router `state`, so the POS cart opens with this customer already chosen.
-- Both buttons visible in `frontdesk` viewer mode.
+### 3. Email receipt on successful charge
+- New template case in `supabase/functions/send-email/index.ts`: `pos_charge_receipt`. Inputs: `customerName`, `email`, `lineItems[]` (name, qty, unitPrice), `subtotal`, `tax`, `processingFee`, `total`, `cardBrand`, `cardLast4`, `chargedAt`, `staffNote?`. Uses existing minimal receipt footer style. Subject: `Your receipt from Storm Wellness Club — $X.XX`.
+- `supabase/functions/stripe-payment/index.ts`: after `manual_charges` insert succeeds and PI is `succeeded`, look up the member's email + name and invoke `send-email` with `pos_charge_receipt`. Payload includes the parsed line items (POS passes them; member-profile charge sends single line = description).
+- POS passes structured `lineItems` in the `stripe-payment` body so the receipt itemizes them (not just "Front Desk POS — item1, item2").
+- Guard with try/catch; receipt failure never blocks the charge (log warning only).
 
-### 2. Pre-select the customer in Front Desk POS
+### 4. Purchase history visibility
+- `src/components/admin/MemberDetailSheet.tsx` — the existing "Purchase History" section already reads `manual_charges` + `cafe_orders` filtered by the member's IDs. With change #1, POS cafe orders will now appear there automatically. Verify the tab surfaces the new `note` (small muted line under the row).
 
-In `src/pages/admin/FrontDeskPOS.tsx`:
-
-- Read `location.state.presetCustomer` on mount and, if present, call `setSelectedCustomer(...)` so the cart is already tied to that member. Clear the state after applying so a refresh doesn't re-inject it.
-
-### 3. Allow `front_desk` to charge a saved card
-
-In `supabase/functions/stripe-payment/index.ts`:
-
-- `case 'charge_saved_card'`: change `await assertStaff();` to `await assertStaff(['super_admin', 'admin', 'manager', 'front_desk']);`
-- `case 'charge_saved_card_with_3ds'`: same change.
-
-No other role gates need to move — RLS on `manual_charges` / logging already tolerates staff roles.
+---
 
 ## Out of scope
+- No change to member self-service cafe orders (already correctly attributed).
+- No change to Stripe-hosted receipts (we send our own branded receipt).
+- No change to Clover/Cash flows beyond recording the note; those don't email a card receipt but the `cafe_orders.note` is stored and shown in history.
 
-- No changes to the Payments tab UI, card-list rendering, or Stripe products.
-- No changes to admin role permissions elsewhere.
-- No changes to the cafe menu / POS cart itself — only the entry point from the member sheet and the backend role check.
+---
 
-## Verification
-
-- As a front desk user: search a member with a card on file, open the sheet, click **Process** → charge dialog opens, enter $5 + description → success toast, charge appears in `manual_charges`.
-- Click **Sell** → routes to `/frontdesk/pos` with the member already selected in the POS customer field; add a latte, check out on saved card → order created and card charged.
-- As an admin, both buttons still work and route to `/admin/pos`.
+## Technical notes
+- Migration adds two nullable `note TEXT` columns — no data backfill needed.
+- The receipt uses the member's `profiles.email` (falls back to `members.email`); if neither present, skip send and log.
+- Idempotency: receipt send is gated on `paymentIntent.status === 'succeeded'` and only after the `manual_charges` row is inserted, so the retry path in Stripe won't double-send from this code path.
