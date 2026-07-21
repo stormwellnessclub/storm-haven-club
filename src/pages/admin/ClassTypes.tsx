@@ -292,7 +292,7 @@ export default function ClassTypes() {
           <div>
             <h1 className="text-2xl font-bold">Class Management</h1>
             <p className="text-muted-foreground">
-              Manage class types and recurring schedules
+              Manage class types. Use Class Schedules for ongoing, date-range, and one-off classes.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ export default function ClassTypes() {
           <DialogHeader>
             <DialogTitle>Add Schedule</DialogTitle>
             <DialogDescription>
-              Add a recurring weekly schedule for this class
+              Adds an ongoing weekly schedule for this class. For date-range or one-off classes, use Class Schedules.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
