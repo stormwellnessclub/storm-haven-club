@@ -3545,8 +3545,10 @@ export type Database = {
           charged_by: string
           created_at: string
           description: string
+          failed_at: string | null
           id: string
           member_id: string | null
+          metadata: Json
           note: string | null
           refund_method: string | null
           refund_notes: string | null
@@ -3563,8 +3565,10 @@ export type Database = {
           charged_by: string
           created_at?: string
           description: string
+          failed_at?: string | null
           id?: string
           member_id?: string | null
+          metadata?: Json
           note?: string | null
           refund_method?: string | null
           refund_notes?: string | null
@@ -3581,8 +3585,10 @@ export type Database = {
           charged_by?: string
           created_at?: string
           description?: string
+          failed_at?: string | null
           id?: string
           member_id?: string | null
+          metadata?: Json
           note?: string | null
           refund_method?: string | null
           refund_notes?: string | null
