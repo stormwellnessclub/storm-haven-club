@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.mark_first_visit_tour_offered(uuid, text) FROM PUBLIC, anon;
