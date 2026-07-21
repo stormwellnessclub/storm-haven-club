@@ -2099,7 +2099,7 @@ serve(async (req) => {
           await sendPosChargeReceipt({
             supabase,
             recipientEmail: body.recipientEmail || null,
-            recipientName: body.recipientName || customerName3ds,
+            recipientName: body.recipientName || customerName,
             amountCents: totalAmount3ds,
             subtotalCents: bodySubtotal3ds ?? undefined,
             taxCents: taxAmount3ds ?? undefined,
