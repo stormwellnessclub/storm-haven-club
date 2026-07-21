@@ -528,6 +528,7 @@ export function ChargeItemSelector({
           status: "succeeded",
           charged_by: user?.id || "unknown",
           user_id: nonMember?.userId || user?.id || "unknown",
+          note: receiptNote.trim() || null,
         };
         if (!nonMember) {
           insertData.member_id = member.id;
