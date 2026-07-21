@@ -155,6 +155,7 @@ export function ChargeItemSelector({
   const [manualPaymentMethod, setManualPaymentMethod] = useState("cash");
   const [alsoActivate, setAlsoActivate] = useState(false);
   const [isCharging, setIsCharging] = useState(false);
+  const [receiptNote, setReceiptNote] = useState("");
 
   // Cafe state
   const [isAddingCafeItem, setIsAddingCafeItem] = useState(false);
