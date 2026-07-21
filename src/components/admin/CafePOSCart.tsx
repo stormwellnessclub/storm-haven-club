@@ -49,6 +49,7 @@ export function CafePOSCart({
   const canChargeCard = selectedCustomer?.cardOnFile && selectedCustomer?.stripeCustomerId;
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cash">(canChargeCard ? "card" : "cash");
   const [cashReceived, setCashReceived] = useState("");
+  const [note, setNote] = useState("");
   const selectedMemberNameParts = selectedCustomer?.name.trim().split(/\s+/) || [];
 
   // ---- Cafe Credit ----
