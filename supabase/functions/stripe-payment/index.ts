@@ -2078,6 +2078,7 @@ serve(async (req) => {
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,
+                note: body.note || null,
               });
           } else if (applicationIdForLog) {
             await supabase
@@ -2090,8 +2091,26 @@ serve(async (req) => {
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
                 charged_by: user.id,
+                note: body.note || null,
               });
           }
+
+          // Fire-and-forget POS/charge receipt
+          await sendPosChargeReceipt({
+            supabase,
+            recipientEmail: body.recipientEmail || null,
+            recipientName: body.recipientName || customerName3ds,
+            amountCents: totalAmount3ds,
+            subtotalCents: bodySubtotal3ds ?? undefined,
+            taxCents: taxAmount3ds ?? undefined,
+            processingFeeCents: processingFee3ds ?? undefined,
+            description: feeDescription3ds,
+            note: body.note || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            paymentIntentId: paymentIntent3ds.id,
+            cardBrand: cardBrand3ds,
+            cardLast4: cardLast43ds,
+          });
 
           // Sync to member profile if initiation fee
           const isInitiationFee3ds = description.toLowerCase().includes('initiation') || 
