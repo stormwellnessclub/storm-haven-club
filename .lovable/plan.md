@@ -1,44 +1,44 @@
+## Goals
 
-## Goal
-
-When staff charges a member from Cafe POS or from a member's profile, the sale should:
-1. Show up in **that member's** purchase history (not the staff user's).
-2. Email the member an itemized **receipt** with the charge details.
-3. Optionally include a **staff note** (e.g. "Charged 7/18 for açaí bowl purchased 7/16") that appears in the receipt and on the internal record.
-
----
+1. **Purchase history detail** – members can see item descriptions and the date of sale (not just a truncated line) in the portal.
+2. **Failed cafe/POS charges** – when a "charge card on file" attempt fails, it is recorded, emailed to the member, and shows in both the member portal and admin views.
+3. **Admin failed-payment "Resolve" button** works on old/already-succeeded/superseded rows, not only on rows that are currently `failed`/`requires_action`.
 
 ## Changes
 
-### 1. Attribute cafe POS orders to the actual buyer
-- `src/hooks/useCafeOrder.ts` — extend `CreateOrderParams` with optional `memberId`, `userId`, `staffNote`, and `chargedByLabel`. When provided (POS flow), insert `cafe_orders` with those values instead of the current staff `auth.uid()` lookup. Fallback behavior for the member self-order path stays unchanged.
-- `src/pages/admin/FrontDeskPOS.tsx` — pass `selectedCustomer.memberId` / `userId` and the new note into `createOrder.mutateAsync`. Also pass them into the `stripe-payment` invocation (`memberId` is already accepted; add `note`).
+### 1. Portal Payment History (`src/pages/portal/PaymentHistory.tsx`)
+- Expand each row into an expandable detail (click chevron) showing:
+  - Full description (currently truncated to the DB `description` field).
+  - Itemized breakdown from `manual_charges.metadata.items` and `cafe_orders.items` when present.
+  - Optional staff note (`manual_charges.note` / `cafe_orders.note`).
+  - Sale date + time (America/Detroit, formatted "MMM d, yyyy · h:mm a").
+  - Payment method summary (brand · last4) when available in metadata.
+- Add `cafe_orders` to the union so cafe purchases appear alongside `manual_charges` and `class_passes`.
+- Include rows with `status IN ('failed','requires_payment_method','requires_action')` and show a red "Failed" badge with the decline reason (from `metadata.decline_reason` or `metadata.error`).
 
-### 2. Add a "Note for receipt" field (staff-facing, member-visible)
-- `src/pages/admin/FrontDeskPOS.tsx` — add a `Textarea` above the "Charge Card / Cash / Clover" actions, labelled "Note (shown on receipt — optional)". Placeholder: "e.g. Charged today for açaí bowl purchased on 7/16".
-- `src/components/admin/MemberDetailSheet.tsx` — same note field inside the existing "Charge card on file" dialog (member profile → Process).
-- DB migration: add `note TEXT` column to `manual_charges` and `cafe_orders`. Include GRANTs consistent with existing columns.
-- `supabase/functions/stripe-payment/index.ts` (`charge_saved_card` + `charge_saved_card_with_3ds` branches): accept `body.note`, store on the `manual_charges` insert, and include in the Stripe PaymentIntent `metadata.note` and `description` suffix for Stripe dashboard visibility.
+### 2. Record failed cafe / POS card-on-file charges
+In `supabase/functions/stripe-payment/index.ts`:
+- In the `chargeSavedCard` / POS branches (around lines 1739 and 7580) and inside the outer `catch` (line 7617), when a `StripeCardError` occurs during `paymentIntents.create({confirm:true, off_session:true})`, insert a `manual_charges` row (or a `cafe_orders` row for cafe POS) with:
+  - `status: 'failed'`
+  - `stripe_payment_intent_id`: `error.payment_intent?.id` when Stripe returned one, otherwise null.
+  - `metadata`: `{ decline_code, decline_reason: error.message, failed_at }`.
+  - `note`, `amount`, `description`, `member_id`, `user_id`, `charged_by` preserved from the request.
+- After recording, invoke `send-email` with a new template `cafe_charge_failed` (or `pos_charge_failed` for non-cafe POS): itemized breakdown, decline reason, "please update your card / bring payment on next visit" copy, and the staff note.
+- Return the existing `{ success: false, error }` shape so the frontend keeps its current UX.
 
-### 3. Email receipt on successful charge
-- New template case in `supabase/functions/send-email/index.ts`: `pos_charge_receipt`. Inputs: `customerName`, `email`, `lineItems[]` (name, qty, unitPrice), `subtotal`, `tax`, `processingFee`, `total`, `cardBrand`, `cardLast4`, `chargedAt`, `staffNote?`. Uses existing minimal receipt footer style. Subject: `Your receipt from Storm Wellness Club — $X.XX`.
-- `supabase/functions/stripe-payment/index.ts`: after `manual_charges` insert succeeds and PI is `succeeded`, look up the member's email + name and invoke `send-email` with `pos_charge_receipt`. Payload includes the parsed line items (POS passes them; member-profile charge sends single line = description).
-- POS passes structured `lineItems` in the `stripe-payment` body so the receipt itemizes them (not just "Front Desk POS — item1, item2").
-- Guard with try/catch; receipt failure never blocks the charge (log warning only).
+### 3. Admin visibility of failed cafe charges
+- `src/pages/admin/FailedPaymentsHistory.tsx` – extend the `billingType` filter to include `pos` and `cafe`, and update `useFailedPaymentsHistory` to union `manual_charges` rows where `type IN ('pos','cafe')` and `status='failed'` (currently the hook only surfaces subscription/`payment_attempts` failures — confirm and extend as needed).
+- Add a Cafe/POS failure count to the summary KPIs.
 
-### 4. Purchase history visibility
-- `src/components/admin/MemberDetailSheet.tsx` — the existing "Purchase History" section already reads `manual_charges` + `cafe_orders` filtered by the member's IDs. With change #1, POS cafe orders will now appear there automatically. Verify the tab surfaces the new `note` (small muted line under the row).
+### 4. Resolve button always available (`FailedPaymentsHistory.tsx`)
+- Change the render condition at line 466/518 so the **Resolve** button also shows for rows that are already `succeeded`, `superseded`, or have a `recovered` flag but no `resolved_at`. Only hide it when `resolved_at` is already set.
+- When resolved status ≠ `failed`, pre-select `superseded_by_later_payment` as the default reason.
+- Keep the audit-trail insert into `payment_attempts.metadata.resolution` unchanged.
 
----
+### 5. Failed-charge email template
+- New template `pos_charge_failed` in `send-email` edge function (mobile-safe table layout, matches existing `pos_charge_receipt` styling): decline reason, itemized cart, staff note, "Please stop by the front desk or update your card" call-to-action linking to `/member/payment-methods`.
 
-## Out of scope
-- No change to member self-service cafe orders (already correctly attributed).
-- No change to Stripe-hosted receipts (we send our own branded receipt).
-- No change to Clover/Cash flows beyond recording the note; those don't email a card receipt but the `cafe_orders.note` is stored and shown in history.
-
----
-
-## Technical notes
-- Migration adds two nullable `note TEXT` columns — no data backfill needed.
-- The receipt uses the member's `profiles.email` (falls back to `members.email`); if neither present, skip send and log.
-- Idempotency: receipt send is gated on `paymentIntent.status === 'succeeded'` and only after the `manual_charges` row is inserted, so the retry path in Stripe won't double-send from this code path.
+## Notes / Non-goals
+- No schema migration needed for `manual_charges` (already has `status`, `metadata`, `note`). If `cafe_orders` lacks a `status='failed'` value, a small migration will add it.
+- Timezone stays `America/Detroit`.
+- Portal design tokens reused; no new colors.
