@@ -1,26 +1,23 @@
-## Root cause
+## Plan: make Front Desk show today’s admin check-ins
 
-Cafe self-orders from the member portal fail with **"Unauthorized: Staff access required"**.
+I confirmed the database already has today’s check-ins: `check_ins` has 21 entries for today, `class_bookings` has 5 checked-in class attendees, and scanner logs show 8 auto check-ins. The problem is not that the records are missing.
 
-`CafeOrderContent.handleConfirmOrder` (member path) calls the `stripe-payment` edge function with `action: "charge_saved_card"`. That action currently gates on `assertStaff(['super_admin','admin','manager','front_desk'])` at `supabase/functions/stripe-payment/index.ts:1701`, so any logged-in member without a staff role is rejected — even when charging their own card on file for their own cafe order.
+### What I’ll change
+1. **Use the same admin attendance source in Front Desk mode**
+   - Replace the Front Desk kiosk-only attendance fetch with the fuller attendance loader that reads the actual admin check-in tables directly: member check-ins, guest passes, class bookings, and spa appointments.
+   - This keeps Front Desk in sync with check-ins done from admin, scanner, roster, spa, and guest flows.
 
-Confirmed: `list_payment_methods` already uses `assertOwnerOrStaff(memberId)`, which is why the saved card list loads fine but checkout fails on the charge itself.
+2. **Preserve the Front Desk display**
+   - Keep the same totals, “Currently In,” member counts, and attendance table.
+   - Map the existing attendance fields so member names, class/spa labels, guest/non-member labels, and first-visit notes still display correctly.
 
-## Fix
+3. **Add reliable refresh behavior**
+   - Keep the manual Refresh button.
+   - Ensure the feed re-checks automatically and updates after check-ins from both admin and front desk actions.
 
-Swap the `charge_saved_card` gate from staff-only to owner-or-staff, matching the existing helper used by `list_payment_methods`.
+4. **Validate with real data**
+   - After implementation, verify the Front Desk attendance count is no longer zero and matches today’s backend records.
 
-In `supabase/functions/stripe-payment/index.ts` inside `case 'charge_saved_card':`
-- Replace `await assertStaff(['super_admin','admin','manager','front_desk']);`
-- With `await assertOwnerOrStaff(memberId, ['super_admin','admin','manager','front_desk']);`
-
-This keeps all existing staff paths (Front Desk POS, admin manual charges) working, and additionally allows a signed-in member to charge only their own card on their own member record — the helper looks up `members.user_id` server-side and only accepts staff otherwise, so a member cannot pass someone else's `memberId`.
-
-`charge_nonmember_saved_card` and `charge_saved_card_with_3ds` are not part of the member cafe path and are out of scope.
-
-## Verification
-
-1. Deploy `stripe-payment`.
-2. As a regular member on `/member/cafe`, add an item, hit Checkout with a saved card → order completes, receipt sent, no "staff access" error.
-3. As Front Desk on `/frontdesk` POS, charge a member's card on file → still works.
-4. Confirm a member cannot supply a different member's `memberId` (helper rejects and falls through to `assertStaff`, returning 401).
+### Technical notes
+- The current backend RPC `kiosk_todays_attendance()` is valid and has execute permission, but the live Front Desk display is still showing zero despite today’s data existing.
+- The admin-facing attendance hook already reads the underlying tables directly and is a better fit for a shared Front Desk dashboard that must reflect admin-created check-ins.
