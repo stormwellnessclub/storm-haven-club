@@ -58,6 +58,107 @@ async function sendPosChargeReceipt(opts: {
   }
 }
 
+// Fire-and-forget failed POS/charge notice email. Never throws.
+async function sendPosChargeFailed(opts: {
+  supabase: any;
+  recipientEmail?: string | null;
+  recipientName?: string | null;
+  amountCents: number;
+  description: string;
+  note?: string | null;
+  lineItems?: Array<{ name: string; quantity: number; unit_price: number }>;
+  declineCode?: string | null;
+  declineReason?: string | null;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+}) {
+  try {
+    if (!opts.recipientEmail) return;
+    await opts.supabase.functions.invoke("send-email", {
+      body: {
+        template: "pos_charge_failed",
+        to: opts.recipientEmail,
+        data: {
+          name: opts.recipientName || "there",
+          email: opts.recipientEmail,
+          amount: (opts.amountCents / 100).toFixed(2),
+          description: opts.description,
+          note: opts.note || undefined,
+          lineItems: opts.lineItems || [],
+          declineCode: opts.declineCode || undefined,
+          declineReason: opts.declineReason || "Your card was declined.",
+          cardBrand: opts.cardBrand || undefined,
+          cardLast4: opts.cardLast4 || undefined,
+          attemptedAt: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[stripe-payment] failed to send POS failure notice", err);
+  }
+}
+
+// Persist a failed POS/manual charge attempt so admins and members can see it.
+async function recordFailedPosCharge(opts: {
+  supabase: any;
+  memberIdForLog: string | null;
+  userIdForLog: string | null;
+  applicationIdForLog: string | null;
+  chargedByUserId: string;
+  amountCents: number;
+  description: string;
+  note?: string | null;
+  isPosCharge: boolean;
+  paymentType?: string | null;
+  lineItems?: Array<{ name: string; quantity: number; unit_price: number }>;
+  taxCents?: number | null;
+  subtotalCents?: number | null;
+  processingFeeCents?: number | null;
+  paymentIntentId?: string | null;
+  declineCode?: string | null;
+  declineReason?: string | null;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+}) {
+  try {
+    const base = {
+      amount: opts.amountCents,
+      description: opts.description,
+      stripe_payment_intent_id: opts.paymentIntentId || null,
+      status: 'failed' as const,
+      charged_by: opts.chargedByUserId,
+      note: opts.note || null,
+      failed_at: new Date().toISOString(),
+      metadata: {
+        type: opts.isPosCharge ? 'pos' : (opts.paymentType || 'manual_charge'),
+        line_items: opts.lineItems || [],
+        subtotal_cents: opts.subtotalCents ?? null,
+        tax_cents: opts.taxCents ?? null,
+        processing_fee_cents: opts.processingFeeCents ?? null,
+        decline_code: opts.declineCode || null,
+        decline_reason: opts.declineReason || null,
+        card_brand: opts.cardBrand || null,
+        card_last4: opts.cardLast4 || null,
+      },
+    };
+    if (opts.memberIdForLog && opts.userIdForLog) {
+      await opts.supabase.from('manual_charges').insert({
+        ...base,
+        member_id: opts.memberIdForLog,
+        user_id: opts.userIdForLog,
+      });
+    } else if (opts.applicationIdForLog) {
+      await opts.supabase.from('manual_charges').insert({
+        ...base,
+        application_id: opts.applicationIdForLog,
+        user_id: opts.chargedByUserId,
+      });
+    }
+  } catch (err) {
+    console.error("[stripe-payment] failed to record failed charge", err);
+  }
+}
+
 // Cache the Processing Fee product ID to avoid repeated lookups
 let processingFeeProductId: string | null = null;
 
@@ -1709,25 +1810,79 @@ serve(async (req) => {
           : description;
 
         // Create and confirm a payment intent
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: totalAmountWithFee,
-          currency: 'usd',
-          customer: customerId,
-          payment_method: paymentMethodId,
-          off_session: true,
-          confirm: true,
-          description: feeDescription,
-          metadata: {
-            type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
-            member_id: memberIdForLog || 'application',
-            charged_by: user.id,
-            customer_name: customerName,
-            base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
-            processing_fee: String(processingFeeCents),
-            ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
-            ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
-          },
-        });
+        let paymentIntent;
+        try {
+          paymentIntent = await stripe.paymentIntents.create({
+            amount: totalAmountWithFee,
+            currency: 'usd',
+            customer: customerId,
+            payment_method: paymentMethodId,
+            off_session: true,
+            confirm: true,
+            description: feeDescription,
+            metadata: {
+              type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
+              member_id: memberIdForLog || 'application',
+              charged_by: user.id,
+              customer_name: customerName,
+              base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
+              processing_fee: String(processingFeeCents),
+              ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
+              ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
+            },
+          });
+        } catch (chargeErr: any) {
+          const declineCode = chargeErr?.decline_code || chargeErr?.code || null;
+          const declineReason = chargeErr?.message || 'Your card was declined.';
+          const failedPiId = chargeErr?.payment_intent?.id || null;
+          logStep("Payment intent failed", { declineCode, declineReason });
+
+          await recordFailedPosCharge({
+            supabase,
+            memberIdForLog,
+            userIdForLog,
+            applicationIdForLog,
+            chargedByUserId: user.id,
+            amountCents: totalAmountWithFee,
+            description: feeDescription,
+            note: body.note || null,
+            isPosCharge,
+            paymentType: payment_type || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            taxCents: taxAmount ?? null,
+            subtotalCents: bodySubtotal ?? null,
+            processingFeeCents,
+            paymentIntentId: failedPiId,
+            declineCode,
+            declineReason,
+            cardBrand: cardBrand || null,
+            cardLast4: cardLast4 || null,
+          });
+
+          await sendPosChargeFailed({
+            supabase,
+            recipientEmail: body.recipientEmail || null,
+            recipientName: body.recipientName || customerName,
+            amountCents: totalAmountWithFee,
+            description: feeDescription,
+            note: body.note || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            declineCode,
+            declineReason,
+            cardBrand: cardBrand || null,
+            cardLast4: cardLast4 || null,
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: declineReason,
+              decline_code: declineCode,
+              payment_intent_id: failedPiId,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
 
         logStep("Payment intent created", { 
           paymentIntentId: paymentIntent.id, 
