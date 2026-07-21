@@ -257,6 +257,8 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
                   <EmbeddedTicketPayment
                     paymentIntentId={paymentIntentId}
                     totalCents={checkoutSummary?.totalCents || 0}
+                    eventSlug={event.slug}
+                    isAuthed={isAuthed}
                     onBack={() => setStep("details")}
                     onComplete={handlePurchaseComplete}
                   />
