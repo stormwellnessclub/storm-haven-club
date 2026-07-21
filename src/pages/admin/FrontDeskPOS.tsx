@@ -24,6 +24,19 @@ export default function FrontDeskPOS() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [isCharging, setIsCharging] = useState(false);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Pre-select a customer when navigated in from MemberDetailSheet's "Sell" button
+  useEffect(() => {
+    const preset = (location.state as { presetCustomer?: POSCustomer } | null)?.presetCustomer;
+    if (preset) {
+      setSelectedCustomer(preset);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
   const updateStatus = useUpdateCafeOrderStatus();
   const createOrder = useCreateCafeOrder();
