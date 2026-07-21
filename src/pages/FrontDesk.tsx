@@ -444,7 +444,7 @@ function FrontDeskKiosk() {
   const [tourSaving, setTourSaving] = useState(false);
 
   const { results, isSearching, search, clearResults } = useKioskSearch();
-  const { entries, stats, refetch } = useKioskAttendance();
+  const { entries, stats, error: attendanceError, refetch } = useKioskAttendance();
   const { checkInMember, checkInGuest, checkInClass, checkInSpa, isCheckingIn } = useKioskCheckIn();
 
   // ─── Search ────────────────────────────────────────────────────────
