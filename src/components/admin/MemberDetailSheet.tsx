@@ -316,6 +316,7 @@ function PaymentMethodsSection({
 
 export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate, viewerMode = "admin" }: MemberDetailSheetProps) {
   const isFrontDesk = viewerMode === "frontdesk";
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isSuperAdmin, loading: rolesLoading } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
