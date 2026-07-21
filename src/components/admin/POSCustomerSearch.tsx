@@ -104,6 +104,7 @@ export function POSCustomerSearch({ onSelect, selected }: POSCustomerSearchProps
           cardLast4: nm.card_last4,
           type: "non_member",
           memberId: null,
+          userId: nm.user_id ?? null,
         });
       }
 
