@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -315,6 +316,7 @@ function PaymentMethodsSection({
 
 export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperActivate, viewerMode = "admin" }: MemberDetailSheetProps) {
   const isFrontDesk = viewerMode === "frontdesk";
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isSuperAdmin, loading: rolesLoading } = useUserRoles();
   const [isEditing, setIsEditing] = useState(false);
@@ -745,8 +747,8 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {/* Will be handled by parent component */}}
-                  title="Process Payment"
+                  onClick={() => setShowChargeDialog(true)}
+                  title="Charge saved card"
                 >
                   <DollarSign className="h-4 w-4 mr-1" />
                   Process
@@ -754,8 +756,23 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {/* Will be handled by parent component */}}
-                  title="Sell Package"
+                  onClick={() => {
+                    const presetCustomer = {
+                      name: `${member.first_name} ${member.last_name}`.trim(),
+                      email: member.email,
+                      cardOnFile: !!(member.card_brand && member.card_last4),
+                      stripeCustomerId: member.stripe_customer_id ?? null,
+                      cardBrand: member.card_brand ?? null,
+                      cardLast4: member.card_last4 ?? null,
+                      type: "member" as const,
+                      memberId: member.id,
+                    };
+                    onOpenChange(false);
+                    navigate(isFrontDesk ? "/frontdesk/pos" : "/admin/pos", {
+                      state: { presetCustomer },
+                    });
+                  }}
+                  title="Start POS sale for this member"
                 >
                   <ShoppingBag className="h-4 w-4 mr-1" />
                   Sell

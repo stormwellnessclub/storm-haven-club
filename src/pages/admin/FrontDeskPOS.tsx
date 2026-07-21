@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Clock, Loader2, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAdminCafeOrders, useUpdateCafeOrderStatus } from "@/hooks/useAdminCafeOrders";
 import { useCreateCafeOrder, CafeOrderItem } from "@/hooks/useCafeOrder";
 import { format } from "date-fns";
@@ -22,6 +23,19 @@ export default function FrontDeskPOS() {
   const [selectedCustomer, setSelectedCustomer] = useState<POSCustomer | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [isCharging, setIsCharging] = useState(false);
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Pre-select a customer when navigated in from MemberDetailSheet's "Sell" button
+  useEffect(() => {
+    const preset = (location.state as { presetCustomer?: POSCustomer } | null)?.presetCustomer;
+    if (preset) {
+      setSelectedCustomer(preset);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
   const updateStatus = useUpdateCafeOrderStatus();
