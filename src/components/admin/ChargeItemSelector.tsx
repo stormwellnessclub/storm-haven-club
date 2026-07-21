@@ -623,6 +623,7 @@ export function ChargeItemSelector({
     setChargeDescription("");
     setChargeType("other");
     setIsManualPayment(false);
+    setReceiptNote("");
     setManualPaymentMethod("cash");
     setAlsoActivate(false);
     setIsAddingCafeItem(false);
