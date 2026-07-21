@@ -573,6 +573,16 @@ export function ChargeItemSelector({
           taxAmount: taxAmountCents,
           subtotal: subtotalCents,
           payment_type: paymentType,
+          note: receiptNote.trim() || undefined,
+          lineItems: cartItems.map((it) => ({
+            name: it.label,
+            quantity: it.quantity,
+            unit_price: it.unitPrice,
+          })),
+          recipientEmail: (nonMember as any)?.email || (member as any)?.email || undefined,
+          recipientName: (nonMember as any)?.name
+            || `${(member as any)?.first_name ?? ""} ${(member as any)?.last_name ?? ""}`.trim()
+            || undefined,
         };
         if (nonMember?.stripeCustomerId) {
           chargeBody.stripeCustomerId = nonMember.stripeCustomerId;
