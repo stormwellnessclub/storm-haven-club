@@ -12,6 +12,7 @@ export default function EventSuccess() {
   const { slug = "" } = useParams();
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
+  const paymentIntentId = params.get("payment_intent_id") || params.get("payment_intent");
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -20,15 +21,17 @@ export default function EventSuccess() {
   useEffect(() => {
     let cancelled = false;
     const run = async () => {
-      if (!sessionId) {
-        setError("Missing session id");
+      if (!sessionId && !paymentIntentId) {
+        setError("Missing payment reference");
         setLoading(false);
         return;
       }
       try {
-        const { data, error } = await supabase.functions.invoke("verify-event-ticket", {
-          body: { session_id: sessionId },
-        });
+        const fn = paymentIntentId ? "finalize-event-ticket-payment" : "verify-event-ticket";
+        const body = paymentIntentId
+          ? { payment_intent_id: paymentIntentId }
+          : { session_id: sessionId };
+        const { data, error } = await supabase.functions.invoke(fn, { body });
         if (error) throw error;
         if (cancelled) return;
         setPaid(!!data?.paid);
@@ -43,7 +46,8 @@ export default function EventSuccess() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, paymentIntentId]);
+
 
   const eventInfo = tickets[0]?.events;
 
