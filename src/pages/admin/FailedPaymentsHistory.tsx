@@ -214,10 +214,13 @@ export default function FailedPaymentsHistory() {
         resolved_at: new Date().toISOString(),
       },
     };
+    const isManualCharge = resolveTarget.id.startsWith("mc_");
+    const targetTable = isManualCharge ? "manual_charges" : "payment_attempts";
+    const targetId = isManualCharge ? resolveTarget.id.slice(3) : resolveTarget.id;
     const { error } = await supabase
-      .from("payment_attempts")
+      .from(targetTable as any)
       .update({ resolved_at: new Date().toISOString(), metadata: newMetadata as any })
-      .eq("id", resolveTarget.id);
+      .eq("id", targetId);
     if (error) {
       toast.error(error.message);
     } else {
