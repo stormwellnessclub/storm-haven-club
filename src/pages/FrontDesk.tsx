@@ -823,6 +823,58 @@ function FrontDeskKiosk() {
           <TodaysKidsCare />
         </div>
       </main>
+
+      {/* First-visit celebration + tour prompt */}
+      <Dialog open={!!firstVisit} onOpenChange={(open) => { if (!open) setFirstVisit(null); }}>
+        <DialogContent className="max-w-md border-4 border-amber-400 bg-gradient-to-br from-amber-50 to-white">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-lg">
+              <PartyPopper className="h-9 w-9" />
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-amber-900">
+              🎉 First Club Visit!
+            </DialogTitle>
+            <DialogDescription className="text-center text-base">
+              <span className="font-semibold text-foreground">{firstVisit?.name}</span> is here for their very first time.
+              <br />
+              Offer them a tour of the club?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setFirstVisit(null)}
+              disabled={tourSaving}
+            >
+              Skip
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-semibold"
+              disabled={tourSaving}
+              onClick={async () => {
+                if (!firstVisit?.checkInId) { setFirstVisit(null); return; }
+                setTourSaving(true);
+                try {
+                  await (supabase.rpc as any)("mark_first_visit_tour_offered", {
+                    p_check_in_id: firstVisit.checkInId,
+                    p_staff_name: null,
+                  });
+                  toast.success(`Tour offered to ${firstVisit.name}`);
+                  refetch();
+                } catch (err: any) {
+                  toast.error(err?.message || "Could not save tour note");
+                } finally {
+                  setTourSaving(false);
+                  setFirstVisit(null);
+                }
+              }}
+            >
+              {tourSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Tour offered ✓
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
