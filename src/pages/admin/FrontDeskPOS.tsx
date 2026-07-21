@@ -67,7 +67,11 @@ export default function FrontDeskPOS() {
     setSelectedCustomer(null);
   };
 
-  const handlePlaceOrder = async (paymentMethod: "card" | "cash" = "card") => {
+  const handlePlaceOrder = async (
+    paymentMethod: "card" | "cash" = "card",
+    _credit?: unknown,
+    note: string = ""
+  ) => {
     if (cart.length === 0) return;
     setIsCharging(true);
 
@@ -82,6 +86,11 @@ export default function FrontDeskPOS() {
       const total = subtotal + tax + processingFee;
 
       const itemNames = cart.map((i) => i.name).join(", ");
+      const receiptLineItems = cart.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit_price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
+      }));
 
       // If paying by card and customer has card on file, charge via Stripe first
       if (isCardCharge) {
@@ -96,6 +105,10 @@ export default function FrontDeskPOS() {
             processingFee: Math.round(processingFee * 100),
             subtotal: Math.round(subtotal * 100),
             taxAmount: Math.round(tax * 100),
+            note: note || undefined,
+            lineItems: receiptLineItems,
+            recipientEmail: selectedCustomer.email || undefined,
+            recipientName: selectedCustomer.name || undefined,
           },
         });
 
@@ -146,6 +159,9 @@ export default function FrontDeskPOS() {
       await createOrder.mutateAsync({
         orderItems,
         paymentMethod: orderPaymentMethod,
+        overrideMemberId: selectedCustomer?.memberId ?? null,
+        overrideUserId: selectedCustomer?.userId ?? null,
+        note: note || null,
       });
 
       toast.success(paymentMethod === "cash" ? "Cash sale recorded" : "Order placed");
