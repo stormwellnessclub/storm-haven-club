@@ -1798,7 +1798,7 @@ serve(async (req) => {
       // NEW: 3DS-aware charging for admin card charges
       case 'charge_saved_card_with_3ds': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount: taxAmount3ds, subtotal: bodySubtotal3ds, payment_type: paymentType3ds } = body;
-        await assertStaff();
+        await assertStaff(['super_admin', 'admin', 'manager', 'front_desk']);
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
