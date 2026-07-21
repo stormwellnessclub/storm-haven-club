@@ -14,6 +14,50 @@ function calculateProcessingFee(amountInCents: number): number {
   return totalCents - amountInCents;
 }
 
+// Fire-and-forget POS/charge receipt email. Never throws.
+async function sendPosChargeReceipt(opts: {
+  supabase: any;
+  recipientEmail?: string | null;
+  recipientName?: string | null;
+  amountCents: number;
+  subtotalCents?: number;
+  taxCents?: number;
+  processingFeeCents?: number;
+  description: string;
+  note?: string | null;
+  lineItems?: Array<{ name: string; quantity: number; unit_price: number }>;
+  paymentIntentId?: string | null;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+}) {
+  try {
+    if (!opts.recipientEmail) return;
+    await opts.supabase.functions.invoke("send-email", {
+      body: {
+        template: "pos_charge_receipt",
+        to: opts.recipientEmail,
+        data: {
+          name: opts.recipientName || "there",
+          email: opts.recipientEmail,
+          amount: (opts.amountCents / 100).toFixed(2),
+          subtotal: opts.subtotalCents != null ? (opts.subtotalCents / 100).toFixed(2) : undefined,
+          tax: opts.taxCents != null ? (opts.taxCents / 100).toFixed(2) : undefined,
+          processingFee: opts.processingFeeCents != null ? (opts.processingFeeCents / 100).toFixed(2) : undefined,
+          description: opts.description,
+          note: opts.note || undefined,
+          lineItems: opts.lineItems || [],
+          paymentIntentId: opts.paymentIntentId || undefined,
+          cardBrand: opts.cardBrand || undefined,
+          cardLast4: opts.cardLast4 || undefined,
+          chargedAt: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[stripe-payment] failed to send POS receipt", err);
+  }
+}
+
 // Cache the Processing Fee product ID to avoid repeated lookups
 let processingFeeProductId: string | null = null;
 
