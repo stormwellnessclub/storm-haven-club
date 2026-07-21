@@ -1,32 +1,45 @@
-## Plan: Fix class scheduling so one-off and date-range classes are obvious and work
+## Problem
 
-1. **Expose the correct scheduling page clearly**
-   - Add **Class Schedules** as its own sidebar item under Classes, so it is not hidden behind “Class Management.”
-   - Rename the page copy from “Manage recurring weekly class schedules” to wording that includes **ongoing, date-range, and one-time classes**.
+Inside **Front Desk → Members**, clicking a member opens `MemberDetailSheet`, but:
 
-2. **Make the Add Class flow unmistakable**
-   - Change the primary button from **Add Schedule** to **Add Class to Schedule**.
-   - Keep the three schedule options at the top, but make them more direct:
-     - **Ongoing weekly**
-     - **Date range** — example: Aug 6 through Aug 20
-     - **One-off class** — one date only
-   - When **Date range** is selected, show start/end dates directly under the day selector.
-   - When **One-off class** is selected, show only the class date, and automatically determine the weekday.
+1. **"Sell" and "Process" buttons in the sheet header do nothing.** Their `onClick` handlers in `src/components/admin/MemberDetailSheet.tsx` (lines ~745–762) are empty stubs with the comment "Will be handled by parent component" — nothing was ever wired up.
+2. **Charging a saved card fails for front desk staff.** The `charge_saved_card` case in `supabase/functions/stripe-payment/index.ts` calls `assertStaff()` with its default role list `['super_admin', 'admin', 'manager']`, so `front_desk` is rejected. That's why the "Charge Saved Card" flow (used for a cafe/walk-in sale against a member's card on file) can't complete. `charge_saved_card_with_3ds` has the same gap.
 
-3. **Fix the confusing “all ongoing” display**
-   - Update the table/calendar labels so date-range and one-off entries visibly show their type and exact dates.
-   - Add a **Type** column in the schedule table: Ongoing / Date range / One-off.
-   - Update the card title from “Weekly Schedule” to **Schedule Rules** so date-range and one-off classes don’t appear mislabeled as ongoing.
+Listing cards already allows front desk (`assertOwnerOrStaff` includes `front_desk`), so cards should display — but the charge step blocks them.
 
-4. **Ensure generated rosters appear for future date ranges**
-   - When saving a class dated in the future, run session generation starting from that class’s start date, not only from today.
-   - This prevents an Aug 6–Aug 20 class from saving but not producing visible roster buttons.
+## Fix
 
-5. **Add direct navigation after saving**
-   - After creating a one-off or date-range class, show a success message with **Open roster** if a session was generated.
-   - Keep the existing generated roster buttons in the table for quick access.
+### 1. Wire the header buttons in `MemberDetailSheet`
 
-## Technical notes
-- Frontend changes are mainly in `src/pages/admin/ClassSchedules.tsx` and `src/components/admin/AdminSidebar.tsx`.
-- No new database table is needed because `class_schedules` already has `is_one_time`, `effective_from`, and `effective_until` fields.
-- I will only adjust scheduling UI/navigation and generation behavior for this issue.
+In `src/components/admin/MemberDetailSheet.tsx`:
+
+- **Process** button → open the existing "Charge Saved Card" dialog (`setShowChargeDialog(true)`), same dialog the Payments tab opens. This lets front desk charge any amount to the member's card on file for a cafe/POS sale without leaving the member sheet.
+- **Sell** button → navigate to `/frontdesk/pos` (or `/admin/pos` for admins) with the member pre-selected via router `state`, so the POS cart opens with this customer already chosen.
+- Both buttons visible in `frontdesk` viewer mode.
+
+### 2. Pre-select the customer in Front Desk POS
+
+In `src/pages/admin/FrontDeskPOS.tsx`:
+
+- Read `location.state.presetCustomer` on mount and, if present, call `setSelectedCustomer(...)` so the cart is already tied to that member. Clear the state after applying so a refresh doesn't re-inject it.
+
+### 3. Allow `front_desk` to charge a saved card
+
+In `supabase/functions/stripe-payment/index.ts`:
+
+- `case 'charge_saved_card'`: change `await assertStaff();` to `await assertStaff(['super_admin', 'admin', 'manager', 'front_desk']);`
+- `case 'charge_saved_card_with_3ds'`: same change.
+
+No other role gates need to move — RLS on `manual_charges` / logging already tolerates staff roles.
+
+## Out of scope
+
+- No changes to the Payments tab UI, card-list rendering, or Stripe products.
+- No changes to admin role permissions elsewhere.
+- No changes to the cafe menu / POS cart itself — only the entry point from the member sheet and the backend role check.
+
+## Verification
+
+- As a front desk user: search a member with a card on file, open the sheet, click **Process** → charge dialog opens, enter $5 + description → success toast, charge appears in `manual_charges`.
+- Click **Sell** → routes to `/frontdesk/pos` with the member already selected in the POS customer field; add a latte, check out on saved card → order created and card charged.
+- As an admin, both buttons still work and route to `/admin/pos`.
