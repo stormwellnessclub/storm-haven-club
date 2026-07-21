@@ -234,7 +234,7 @@ export default function ClassSchedules() {
 
   // Fetch generated sessions so staff can immediately find rosters for schedules they add.
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const generatedThroughStr = format(addWeeks(new Date(), 6), 'yyyy-MM-dd');
+  const generatedThroughStr = format(addWeeks(new Date(), 12), 'yyyy-MM-dd');
   const { data: generatedSessions = [] } = useQuery({
     queryKey: ['schedule-generated-sessions', todayStr, generatedThroughStr],
     queryFn: async () => {
@@ -1074,6 +1074,7 @@ export default function ClassSchedules() {
                 <SelectItem value="4">4 weeks</SelectItem>
                 <SelectItem value="6">6 weeks</SelectItem>
                 <SelectItem value="8">8 weeks</SelectItem>
+                <SelectItem value="12">12 weeks</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-2">
