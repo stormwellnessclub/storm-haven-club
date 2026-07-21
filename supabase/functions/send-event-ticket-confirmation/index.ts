@@ -126,7 +126,7 @@ serve(async (req) => {
     let query = supabase
       .from("event_tickets")
       .select(
-        "id, user_id, buyer_email, buyer_first_name, ticket_type, amount_cents, status, confirmation_email_sent_at, event_id, events(title, starts_at, venue, details, what_to_bring)"
+        "id, user_id, buyer_email, buyer_first_name, ticket_type, amount_cents, status, confirmation_email_sent_at, event_id, stripe_payment_intent_id, events(slug, title, starts_at, venue, details, what_to_bring)"
       );
     query = payment_intent_id
       ? query.eq("stripe_payment_intent_id", payment_intent_id)
@@ -156,7 +156,13 @@ serve(async (req) => {
 
     const evt = first.events;
     const totalCents = tickets.reduce((s: number, t: any) => s + (t.amount_cents || 0), 0);
-    const portalUrl = first.user_id ? `${SITE}/portal/my-tickets` : `${SITE}/events`;
+    const pi = first.stripe_payment_intent_id || payment_intent_id;
+    const portalUrl = first.user_id
+      ? `${SITE}/portal/my-tickets`
+      : (evt?.slug && pi
+          ? `${SITE}/events/${evt.slug}/success?payment_intent_id=${pi}`
+          : `${SITE}/events`);
+
 
     const html = buildHtml({
       firstName: first.buyer_first_name || "",

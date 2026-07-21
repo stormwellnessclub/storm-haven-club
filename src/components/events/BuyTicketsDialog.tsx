@@ -39,6 +39,7 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
   const [step, setStep] = useState<"details" | "payment" | "success">("details");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [isAuthed, setIsAuthed] = useState(false);
   const [checkoutSummary, setCheckoutSummary] = useState<{
     ticketType: string;
     quantity: number;
@@ -61,6 +62,7 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       const user = u?.user;
+      setIsAuthed(!!user);
       if (!user) return;
       setEmail((prev) => prev || user.email || "");
       const { data: profile } = await supabase
@@ -255,6 +257,8 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
                   <EmbeddedTicketPayment
                     paymentIntentId={paymentIntentId}
                     totalCents={checkoutSummary?.totalCents || 0}
+                    eventSlug={event.slug}
+                    isAuthed={isAuthed}
                     onBack={() => setStep("details")}
                     onComplete={handlePurchaseComplete}
                   />
@@ -271,13 +275,17 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
 function EmbeddedTicketPayment({
   paymentIntentId,
   totalCents,
+  eventSlug,
+  isAuthed,
   onBack,
   onComplete,
 }: {
   paymentIntentId: string;
   totalCents: number;
+  eventSlug: string;
+  isAuthed: boolean;
   onBack: () => void;
-  onComplete: (tickets: Array<any>) => void;
+  onComplete: (tickets: any[]) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -287,9 +295,12 @@ function EmbeddedTicketPayment({
     if (!stripe || !elements) return;
     setPaying(true);
     try {
+      const returnUrl = isAuthed
+        ? `${window.location.origin}/portal/my-tickets?just_purchased=1`
+        : `${window.location.origin}/events/${eventSlug}/success?payment_intent_id=${paymentIntentId}`;
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
-        confirmParams: { return_url: `${window.location.origin}/portal/my-tickets` },
+        confirmParams: { return_url: returnUrl },
         redirect: "if_required",
       });
       if (error) throw new Error(error.message || "Payment could not be completed");

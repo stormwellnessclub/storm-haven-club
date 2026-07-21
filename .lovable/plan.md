@@ -1,27 +1,45 @@
-## Plan
+## Problem
 
-I verified the newest class schedules are being saved and sessions are being generated in the database. The visibility problem is likely the admin roster/schedule experience: **Today's Classes** defaults to today only, the public/member schedule only shows the 4-week booking window, and the class schedule manager does not clearly show the generated session dates/roster links after a schedule is added.
+Non-members buying a Sound Bath ticket end up "pushed out" of the app with no on-screen confirmation, no `/portal/my-tickets` view, and no confirmation email.
 
-### What I will change
+Root causes found in the code:
 
-1. **Make schedule creation show exactly where the class went**
-   - After adding or editing a schedule, show a clear success message with the next generated class date/time.
-   - Include an action to open that class roster directly.
+1. **`BuyTicketsDialog` embedded payment sets `return_url: "${origin}/portal/my-tickets"`.** For any card that requires 3-D Secure (or any redirect payment flow), Stripe navigates the non-member to `/portal/my-tickets`, which is an auth-protected route → they get bounced to login/home. Nothing ever calls `finalize-event-ticket-payment`, so the ticket stays `pending`, the success screen is never shown, and no confirmation email is queued.
+2. **The public `EventSuccess` page (`/events/:slug/success`) only handles Checkout `session_id`.** It has no branch for `payment_intent_id`, so even if we redirect non-members there we get "Missing session id".
+3. **After a successful non-redirect payment**, `MyEventTickets` (used inside the dialog's fallback success) is a portal page — non-members can't reach it from the ticket email either (email link points to `/portal/my-tickets` when `user_id` is null it falls back to `/events`, but that page has no receipt).
+4. **Confirmation email**: only fires from `finalize-event-ticket-payment`. If step 1 breaks, the email never sends. Also need to confirm `send-event-ticket-confirmation` and `finalize-event-ticket-payment` allow unauthenticated invocation (verify_jwt=false) so the flow works for guests.
 
-2. **Add “generated sessions” visibility inside Class Schedule Management**
-   - For each schedule row/card, show its upcoming generated sessions within the booking window.
-   - Add quick links like **View roster** for each generated class.
-   - This will cover recurring, date-range, and one-time classes.
+## Fix
 
-3. **Improve the admin Classes page so new classes are easier to find**
-   - Add an **Upcoming** view/list so staff are not stuck on “today” only.
-   - Keep Day View intact, but make future added classes discoverable without manually clicking dates one by one.
+### 1. Public return / success URL for non-members
+In `src/components/events/BuyTicketsDialog.tsx`:
+- Determine `isAuthed` at dialog open (already fetched via `supabase.auth.getUser`).
+- Pass `eventSlug` + `isAuthed` into `EmbeddedTicketPayment`.
+- Set `return_url` to:
+  - `${origin}/portal/my-tickets?just_purchased=1` when authed.
+  - `${origin}/events/${slug}/success?payment_intent_id=${paymentIntentId}` when guest.
+- Success-step CTA: for guests show "Done" only (no "View my tickets" link into portal).
 
-4. **Harden session generation for one-time and date-range classes**
-   - Ensure one-time/date-range schedules generate sessions immediately when their dates fall inside the visible booking window.
-   - Keep the public/member booking limit at 4 weeks, per your earlier request.
+### 2. Make `EventSuccess` handle `payment_intent_id`
+In `src/pages/EventSuccess.tsx`:
+- Read `payment_intent_id` from query params in addition to `session_id`.
+- If `payment_intent_id` present, call `finalize-event-ticket-payment` with it; otherwise keep current `verify-event-ticket` flow.
+- Render the same "You're in!" confirmation using the returned tickets (buyer name, event, time, venue, order id, "confirmation sent to <email>").
+- Add a friendly note for guests: "Save this page or your confirmation email — your QR code will be emailed to you."
 
-5. **Verify with real data**
-   - Confirm the most recently added classes appear in admin schedule management.
-   - Confirm their roster links open the correct class roster.
-   - Confirm public/member schedule still respects the 4-week booking window.
+### 3. Ensure email always fires for guests
+- `finalize-event-ticket-payment` already invokes `send-event-ticket-confirmation` on transition to `paid`. Confirm both functions are configured for public invocation (verify_jwt = false in `supabase/config.toml`; add entries if missing).
+- In `send-event-ticket-confirmation`, when `user_id` is null set `portalTicketsUrl` to `${SITE}/events/${event.slug}/success?payment_intent_id=<pi>` so the "View my tickets" button in the email lands on a page the guest can actually open.
+
+### 4. Deploy
+Deploy `finalize-event-ticket-payment` and `send-event-ticket-confirmation` after changes.
+
+## Out of scope
+- Building a full guest ticket portal (QR code viewer for non-members) — the email + success page will carry the confirmation details and QR token for now.
+- Any change to member/portal purchase flow (that already works).
+
+## Files touched
+- `src/components/events/BuyTicketsDialog.tsx`
+- `src/pages/EventSuccess.tsx`
+- `supabase/functions/send-event-ticket-confirmation/index.ts`
+- `supabase/config.toml` (only if verify_jwt entries are missing)
