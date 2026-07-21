@@ -28,6 +28,7 @@ export function useKioskAttendance() {
   const [stats, setStats] = useState<KioskAttendanceStats>({
     total: 0, currently_in: 0, members: 0, guests: 0, classes: 0, spa: 0,
   });
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -50,8 +51,10 @@ export function useKioskAttendance() {
 
       setEntries(rawEntries);
       setStats(data?.stats || { total: 0, currently_in: 0, members: 0, guests: 0, classes: 0, spa: 0 });
-    } catch (err) {
+      setError(null);
+    } catch (err: any) {
       console.error("Kiosk attendance error:", err);
+      setError(err?.message || "Couldn't load attendance");
     }
   }, []);
 
@@ -59,25 +62,11 @@ export function useKioskAttendance() {
     fetchAll();
     const interval = setInterval(fetchAll, 15000);
 
-    // Realtime: refresh immediately when any check-in changes so all open
-    // dashboards/kiosks stay in sync within ~1s instead of the 15s poll window.
     const channel = supabase
       .channel("kiosk-attendance-sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "check_ins" },
-        () => fetchAll()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "guest_passes" },
-        () => fetchAll()
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "class_bookings" },
-        () => fetchAll()
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "check_ins" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "guest_passes" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "class_bookings" }, () => fetchAll())
       .subscribe();
 
     return () => {
@@ -86,5 +75,5 @@ export function useKioskAttendance() {
     };
   }, [fetchAll]);
 
-  return { entries, stats, refetch: fetchAll };
+  return { entries, stats, error, refetch: fetchAll };
 }

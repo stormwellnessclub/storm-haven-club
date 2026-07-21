@@ -1,0 +1,10 @@
+GRANT EXECUTE ON FUNCTION public.kiosk_todays_attendance() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_search_visitors(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_class_roster(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_kids_care_roster(date) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_check_in_member(text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_check_in_guest(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_check_in_class(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_check_in_spa(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_check_in_kids_care(uuid) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.kiosk_check_out_kids_care(uuid) TO anon, authenticated;

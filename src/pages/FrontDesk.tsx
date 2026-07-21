@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, UserCheck, Clock, CheckCircle2, XCircle, User,
   Calendar, Loader2, Ticket, BookOpen, Sparkles, Ban, Baby,
-  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight, PartyPopper,
+  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight, PartyPopper, RefreshCw,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -444,7 +444,7 @@ function FrontDeskKiosk() {
   const [tourSaving, setTourSaving] = useState(false);
 
   const { results, isSearching, search, clearResults } = useKioskSearch();
-  const { entries, stats, refetch } = useKioskAttendance();
+  const { entries, stats, error: attendanceError, refetch } = useKioskAttendance();
   const { checkInMember, checkInGuest, checkInClass, checkInSpa, isCheckingIn } = useKioskCheckIn();
 
   // ─── Search ────────────────────────────────────────────────────────
@@ -755,11 +755,22 @@ function FrontDeskKiosk() {
         {/* Attendance Feed */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Clock className="h-5 w-5" /> Today's Attendance ({entries.length})
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Clock className="h-5 w-5" /> Today's Attendance ({entries.length})
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => refetch()} className="h-8">
+                <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
+            {attendanceError && (
+              <div className="mb-3 p-3 rounded-md border border-red-300 bg-red-50 text-red-800 text-sm flex items-center justify-between gap-3">
+                <span>Couldn't load attendance: {attendanceError}</span>
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="h-7">Retry</Button>
+              </div>
+            )}
             {entries.length > 0 ? (
               <div className="overflow-y-auto max-h-[400px]">
                 <Table>
