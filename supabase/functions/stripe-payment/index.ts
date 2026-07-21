@@ -1810,25 +1810,79 @@ serve(async (req) => {
           : description;
 
         // Create and confirm a payment intent
-        const paymentIntent = await stripe.paymentIntents.create({
-          amount: totalAmountWithFee,
-          currency: 'usd',
-          customer: customerId,
-          payment_method: paymentMethodId,
-          off_session: true,
-          confirm: true,
-          description: feeDescription,
-          metadata: {
-            type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
-            member_id: memberIdForLog || 'application',
-            charged_by: user.id,
-            customer_name: customerName,
-            base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
-            processing_fee: String(processingFeeCents),
-            ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
-            ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
-          },
-        });
+        let paymentIntent;
+        try {
+          paymentIntent = await stripe.paymentIntents.create({
+            amount: totalAmountWithFee,
+            currency: 'usd',
+            customer: customerId,
+            payment_method: paymentMethodId,
+            off_session: true,
+            confirm: true,
+            description: feeDescription,
+            metadata: {
+              type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
+              member_id: memberIdForLog || 'application',
+              charged_by: user.id,
+              customer_name: customerName,
+              base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
+              processing_fee: String(processingFeeCents),
+              ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
+              ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
+            },
+          });
+        } catch (chargeErr: any) {
+          const declineCode = chargeErr?.decline_code || chargeErr?.code || null;
+          const declineReason = chargeErr?.message || 'Your card was declined.';
+          const failedPiId = chargeErr?.payment_intent?.id || null;
+          logStep("Payment intent failed", { declineCode, declineReason });
+
+          await recordFailedPosCharge({
+            supabase,
+            memberIdForLog,
+            userIdForLog,
+            applicationIdForLog,
+            chargedByUserId: user.id,
+            amountCents: totalAmountWithFee,
+            description: feeDescription,
+            note: body.note || null,
+            isPosCharge,
+            paymentType: payment_type || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            taxCents: taxAmount ?? null,
+            subtotalCents: bodySubtotal ?? null,
+            processingFeeCents,
+            paymentIntentId: failedPiId,
+            declineCode,
+            declineReason,
+            cardBrand: cardBrand || null,
+            cardLast4: cardLast4 || null,
+          });
+
+          await sendPosChargeFailed({
+            supabase,
+            recipientEmail: body.recipientEmail || null,
+            recipientName: body.recipientName || customerName,
+            amountCents: totalAmountWithFee,
+            description: feeDescription,
+            note: body.note || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            declineCode,
+            declineReason,
+            cardBrand: cardBrand || null,
+            cardLast4: cardLast4 || null,
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: declineReason,
+              decline_code: declineCode,
+              payment_intent_id: failedPiId,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
 
         logStep("Payment intent created", { 
           paymentIntentId: paymentIntent.id, 
