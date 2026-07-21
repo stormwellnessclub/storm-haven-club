@@ -8,8 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, UserCheck, Clock, CheckCircle2, XCircle, User,
   Calendar, Loader2, Ticket, BookOpen, Sparkles, Ban, Baby,
-  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight,
+  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight, PartyPopper,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
@@ -436,6 +437,11 @@ export default function FrontDeskPage() {
 function FrontDeskKiosk() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selected, setSelected] = useState<KioskSearchResult | null>(null);
+  const [firstVisit, setFirstVisit] = useState<{
+    checkInId?: string;
+    name: string;
+  } | null>(null);
+  const [tourSaving, setTourSaving] = useState(false);
 
   const { results, isSearching, search, clearResults } = useKioskSearch();
   const { entries, stats, refetch } = useKioskAttendance();
@@ -462,10 +468,13 @@ function FrontDeskKiosk() {
       const idText = selected.member_id_text || selected.name;
       const result = await checkInMember(idText);
       if (result.access_granted) {
+        const fullName = `${result.member?.first_name ?? ""} ${result.member?.last_name ?? ""}`.trim();
         if (result.already_in) {
-          toast.info(`${result.member?.first_name} ${result.member?.last_name} is already checked in today`);
+          toast.info(`${fullName} is already checked in today`);
+        } else if (result.is_first_visit) {
+          setFirstVisit({ checkInId: result.check_in_id, name: fullName });
         } else {
-          toast.success(`${result.member?.first_name} ${result.member?.last_name} checked in!`);
+          toast.success(`${fullName} checked in!`);
         }
         refetch();
       } else {
@@ -776,6 +785,11 @@ function FrontDeskKiosk() {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span>{entry.name}</span>
+                              {entry.is_first_visit && (
+                                <Badge className="text-[10px] px-1.5 py-0 h-5 bg-amber-400 text-amber-950 hover:bg-amber-400 border-amber-500">
+                                  ⭐ 1st Visit
+                                </Badge>
+                              )}
                               {entry.sub_type && (
                                 <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal">{entry.sub_type}</Badge>
                               )}
@@ -809,6 +823,58 @@ function FrontDeskKiosk() {
           <TodaysKidsCare />
         </div>
       </main>
+
+      {/* First-visit celebration + tour prompt */}
+      <Dialog open={!!firstVisit} onOpenChange={(open) => { if (!open) setFirstVisit(null); }}>
+        <DialogContent className="max-w-md border-4 border-amber-400 bg-gradient-to-br from-amber-50 to-white">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-lg">
+              <PartyPopper className="h-9 w-9" />
+            </div>
+            <DialogTitle className="text-center text-2xl font-bold text-amber-900">
+              🎉 First Club Visit!
+            </DialogTitle>
+            <DialogDescription className="text-center text-base">
+              <span className="font-semibold text-foreground">{firstVisit?.name}</span> is here for their very first time.
+              <br />
+              Offer them a tour of the club?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setFirstVisit(null)}
+              disabled={tourSaving}
+            >
+              Skip
+            </Button>
+            <Button
+              className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-semibold"
+              disabled={tourSaving}
+              onClick={async () => {
+                if (!firstVisit?.checkInId) { setFirstVisit(null); return; }
+                setTourSaving(true);
+                try {
+                  await (supabase.rpc as any)("mark_first_visit_tour_offered", {
+                    p_check_in_id: firstVisit.checkInId,
+                    p_staff_name: null,
+                  });
+                  toast.success(`Tour offered to ${firstVisit.name}`);
+                  refetch();
+                } catch (err: any) {
+                  toast.error(err?.message || "Could not save tour note");
+                } finally {
+                  setTourSaving(false);
+                  setFirstVisit(null);
+                }
+              }}
+            >
+              {tourSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Tour offered ✓
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -6,6 +6,7 @@ export interface KioskCheckInResult {
   success: boolean;
   access_granted: boolean;
   already_in?: boolean;
+  is_first_visit?: boolean;
   denial_reason?: string;
   message?: string;
   check_in_id?: string;

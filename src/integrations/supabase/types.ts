@@ -9560,6 +9560,10 @@ export type Database = {
       }
       lookup_mothers_day_voucher: { Args: { p_code: string }; Returns: Json }
       mark_class_milestones_seen: { Args: never; Returns: number }
+      mark_first_visit_tour_offered: {
+        Args: { p_check_in_id: string; p_staff_name?: string }
+        Returns: Json
+      }
       mark_guest_pass_used: { Args: { p_pass_id: string }; Returns: Json }
       mark_member_achievement_celebrated: {
         Args: { _achievement_id: string; _achievement_type: string }
