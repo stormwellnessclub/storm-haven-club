@@ -1749,6 +1749,7 @@ serve(async (req) => {
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
+              note: body.note || null,
             });
 
           if (insertError) {
@@ -1766,6 +1767,7 @@ serve(async (req) => {
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
               charged_by: user.id,
+              note: body.note || null,
             });
 
           if (insertError) {
