@@ -1,23 +1,28 @@
-## Plan: make Front Desk show today’s admin check-ins
+## Problem
 
-I confirmed the database already has today’s check-ins: `check_ins` has 21 entries for today, `class_bookings` has 5 checked-in class attendees, and scanner logs show 8 auto check-ins. The problem is not that the records are missing.
+After a member cancels, admin still can't "Hold" the freed seat. The Roster header shows the class as full even though a spot opened up.
 
-### What I’ll change
-1. **Use the same admin attendance source in Front Desk mode**
-   - Replace the Front Desk kiosk-only attendance fetch with the fuller attendance loader that reads the actual admin check-in tables directly: member check-ins, guest passes, class bookings, and spa appointments.
-   - This keeps Front Desk in sync with check-ins done from admin, scanner, roster, spa, and guest flows.
+## Root cause
 
-2. **Preserve the Front Desk display**
-   - Keep the same totals, “Currently In,” member counts, and attendance table.
-   - Map the existing attendance fields so member names, class/spa labels, guest/non-member labels, and first-visit notes still display correctly.
+In `src/pages/admin/ClassRoster.tsx`, seat math uses the full `bookings.length`, which includes cancelled and no-show rows (they're kept in the list so admin can see history, greyed out). So:
 
-3. **Add reliable refresh behavior**
-   - Keep the manual Refresh button.
-   - Ensure the feed re-checks automatically and updates after check-ins from both admin and front desk actions.
+- Line 1201: `remaining = session.max_capacity - bookings.length` → cancelled rows are counted as occupying seats.
+- Line 324 (inside `holdSlotsMutation`): same formula → the mutation throws `"Only 0 seats remain"`.
 
-4. **Validate with real data**
-   - After implementation, verify the Front Desk attendance count is no longer zero and matches today’s backend records.
+Meanwhile the auto-heal at line 231 already computes the correct active count: `attendees.filter(a => !a.isNoShow && !a.isCancelled).length`.
 
-### Technical notes
-- The current backend RPC `kiosk_todays_attendance()` is valid and has execute permission, but the live Front Desk display is still showing zero despite today’s data existing.
-- The admin-facing attendance hook already reads the underlying tables directly and is a better fit for a shared Front Desk dashboard that must reflect admin-created check-ins.
+## Fix
+
+Compute an `activeBookingsCount` once from `bookings` (excluding `isCancelled` and `isNoShow`) and use it wherever "seats taken" is needed:
+
+1. `holdSlotsMutation` remaining check (line 324) → use `activeBookingsCount`.
+2. Post-insert `current_enrollment` update (line 341) → `activeBookingsCount + count`.
+3. Header "Hold seats" block (lines 1200–1215) → `remaining` uses `activeBookingsCount`; button's initial `holdCount` also uses it.
+
+No schema, RPC, or backend changes. Cancellation flow already frees the seat in the DB (`cancel_class_booking`); this only corrects the admin UI's local math so the Hold action isn't gated by stale seat counts.
+
+## Verification
+
+- Open a session with a cancelled attendee and confirm the amber banner shows the correct remaining seats.
+- Click "Hold seat" and confirm it inserts a hold row without the "Only 0 seats remain" error.
+- Confirm `current_enrollment` matches the active (non-cancelled) count after holding.
