@@ -39,6 +39,7 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
   const [step, setStep] = useState<"details" | "payment" | "success">("details");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [isAuthed, setIsAuthed] = useState(false);
   const [checkoutSummary, setCheckoutSummary] = useState<{
     ticketType: string;
     quantity: number;
@@ -61,6 +62,7 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       const user = u?.user;
+      setIsAuthed(!!user);
       if (!user) return;
       setEmail((prev) => prev || user.email || "");
       const { data: profile } = await supabase
