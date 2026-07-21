@@ -577,7 +577,7 @@ export function ChargeItemSelector({
           lineItems: cartItems.map((it) => ({
             name: it.label,
             quantity: it.quantity,
-            unit_price: it.unitPrice,
+            unit_price: it.unitAmount,
           })),
           recipientEmail: (nonMember as any)?.email || (member as any)?.email || undefined,
           recipientName: (nonMember as any)?.name
