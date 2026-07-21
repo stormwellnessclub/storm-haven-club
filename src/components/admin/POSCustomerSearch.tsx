@@ -14,6 +14,7 @@ export interface POSCustomer {
   cardLast4?: string | null;
   type: "member" | "non_member" | "guest";
   memberId?: string | null;
+  userId?: string | null;
 }
 
 interface POSCustomerSearchProps {
