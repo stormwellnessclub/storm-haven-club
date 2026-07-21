@@ -1829,6 +1829,25 @@ serve(async (req) => {
           }
         }
 
+        // Fire-and-forget POS/charge receipt (only for successful charges)
+        if (paymentIntent.status === 'succeeded') {
+          await sendPosChargeReceipt({
+            supabase,
+            recipientEmail: body.recipientEmail || null,
+            recipientName: body.recipientName || customerName,
+            amountCents: totalAmountWithFee,
+            subtotalCents: bodySubtotal ?? undefined,
+            taxCents: taxAmount ?? undefined,
+            processingFeeCents: processingFeeCents ?? undefined,
+            description: feeDescription,
+            note: body.note || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            paymentIntentId: paymentIntent.id,
+            cardBrand,
+            cardLast4,
+          });
+        }
+
         return new Response(
           JSON.stringify({ 
             success: paymentIntent.status === 'succeeded',
