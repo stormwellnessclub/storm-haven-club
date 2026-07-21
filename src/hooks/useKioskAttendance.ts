@@ -99,7 +99,7 @@ export function useKioskAttendance() {
 
         (supabase.from as any)("spa_appointments")
           .select(`
-            id, checked_in_at, service_name, user_id, customer_user_id, customer_first_name, customer_last_name, customer_email,
+            id, checked_in_at, service_name, user_id, member_id,
             member:members(first_name, last_name, id)
           `)
           .not("checked_in_at", "is", null)
@@ -148,8 +148,8 @@ export function useKioskAttendance() {
       const missingUserIds = Array.from(
         new Set(
           [...classCheckIns, ...spaCheckIns]
-            .filter((row: any) => !row.member && (row.user_id || row.customer_user_id))
-            .map((row: any) => (row.user_id || row.customer_user_id) as string)
+            .filter((row: any) => !row.member && row.user_id)
+            .map((row: any) => row.user_id as string)
         )
       );
 
@@ -205,7 +205,7 @@ export function useKioskAttendance() {
           };
         }
 
-        const userId = row.user_id || row.customer_user_id;
+        const userId = row.user_id;
         if (userId && nonMemberMap.has(userId)) {
           const profile = nonMemberMap.get(userId);
           return {
@@ -223,9 +223,7 @@ export function useKioskAttendance() {
         }
 
         if (row.walk_in_name) return { name: row.walk_in_name, subType: "Walk-in" };
-        const spaName = normalizeName(row.customer_first_name, row.customer_last_name);
-        if (spaName) return { name: spaName, subType: fallbackType };
-        if (row.walk_in_email || row.customer_email) return { name: row.walk_in_email || row.customer_email, subType: fallbackType };
+        if (row.walk_in_email) return { name: row.walk_in_email, subType: fallbackType };
         return { name: fallbackName, subType: fallbackType };
       };
 
