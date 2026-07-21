@@ -61,7 +61,7 @@ export function POSCustomerSearch({ onSelect, selected }: POSCustomerSearchProps
       // 1. Members
       const { data: members } = await supabase
         .from("members")
-        .select("id, first_name, last_name, email, stripe_customer_id, card_brand, card_last4")
+        .select("id, user_id, first_name, last_name, email, stripe_customer_id, card_brand, card_last4")
         .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
         .eq("status", "active")
         .limit(8);
@@ -79,6 +79,7 @@ export function POSCustomerSearch({ onSelect, selected }: POSCustomerSearchProps
           cardLast4: m.card_last4,
           type: "member",
           memberId: m.id,
+          userId: (m as any).user_id ?? null,
         });
       }
 
