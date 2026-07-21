@@ -1200,8 +1200,8 @@ export default function ClassRoster() {
 
       {/* Hold seats action */}
       {(() => {
-        const holdCountActive = bookings.filter((a) => a.isAdminHold).length;
-        const remaining = session.max_capacity - bookings.length;
+        const holdCountActive = bookings.filter((a) => a.isAdminHold && !a.isCancelled && !a.isNoShow).length;
+        const remaining = session.max_capacity - activeBookingsCount;
         return (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300/40 bg-amber-50 px-3 py-2 text-sm dark:bg-amber-950/30">
             <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
