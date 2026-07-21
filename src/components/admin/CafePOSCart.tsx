@@ -358,12 +358,33 @@ export function CafePOSCart({
         </CardContent>
       </Card>
 
+      {/* Note for receipt */}
+      {cart.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Note (optional)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Label className="text-xs text-muted-foreground">
+              Shown on the customer's email receipt
+            </Label>
+            <Textarea
+              className="mt-1"
+              rows={2}
+              placeholder="e.g. Charged today for açaí bowl purchased on 7/16"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Payment Buttons */}
       <div className="space-y-2">
         <Button
           className="w-full"
           disabled={cart.length === 0 || isPlacing}
-          onClick={() => onPlaceOrder(effectiveMethod, buildCreditPayload())}
+          onClick={() => onPlaceOrder(effectiveMethod, buildCreditPayload(), note.trim())}
         >
           {isPlacing ? (
             <>
