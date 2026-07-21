@@ -24,6 +24,7 @@ export interface CafeOrder {
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+  note?: string | null;
 }
 
 interface CreateOrderParams {
