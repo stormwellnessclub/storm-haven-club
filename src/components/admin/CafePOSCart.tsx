@@ -24,7 +24,7 @@ interface CafePOSCartProps {
   updateQuantity: (itemId: string, delta: number) => void;
   selectedCustomer: POSCustomer | null;
   onCustomerSelect: (customer: POSCustomer | null) => void;
-  onPlaceOrder: (paymentMethod: "card" | "cash", credit: CreditApplication | null) => void;
+  onPlaceOrder: (paymentMethod: "card" | "cash", credit: CreditApplication | null, note: string) => void;
   onClearCart: () => void;
   isPlacing: boolean;
 }
