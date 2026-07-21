@@ -124,6 +124,29 @@ export function useFailedPaymentsHistory(filters: FailedHistoryFilters) {
       const { data, error } = await q;
       if (error) throw error;
 
+      // Also fetch failed POS / cafe / manual charges (card-on-file declines)
+      let mcQuery = supabase
+        .from("manual_charges")
+        .select(`
+          id, member_id, amount, description, status, stripe_payment_intent_id,
+          created_at, failed_at, resolved_at, metadata, note,
+          members ( first_name, last_name, email, membership_type )
+        `)
+        .eq("status", "failed")
+        .order("created_at", { ascending: false })
+        .limit(2000);
+
+      if (filters.from) mcQuery = mcQuery.gte("created_at", startOfDay(filters.from).toISOString());
+      if (filters.to) mcQuery = mcQuery.lte("created_at", endOfDay(filters.to).toISOString());
+      if (filters.status === "unresolved") mcQuery = mcQuery.is("resolved_at", null);
+
+      const includeManual =
+        !filters.status ||
+        filters.status === "all" ||
+        filters.status === "failed" ||
+        filters.status === "unresolved";
+      const { data: mcData } = includeManual ? await mcQuery : { data: [] as any[] };
+
       // Map + filter client-side for billing_type/search (these depend on derived/joined data)
       const rows: FailedHistoryRow[] = (data ?? []).map((r: any) => {
         const billingType = classifyBillingType(r.metadata, r.invoice_number);
@@ -156,7 +179,49 @@ export function useFailedPaymentsHistory(filters: FailedHistoryFilters) {
         };
       });
 
-      let filtered = rows;
+      const mcRows: FailedHistoryRow[] = (mcData ?? []).map((r: any) => {
+        const meta = r.metadata || {};
+        const memberName = r.members
+          ? `${r.members.first_name ?? ""} ${r.members.last_name ?? ""}`.trim()
+          : "Unknown";
+        const desc = (r.description || "").toLowerCase();
+        const inferredType =
+          meta.type === "pos" || desc.includes("café") || desc.includes("cafe") || desc.includes("pos")
+            ? "cafe"
+            : desc.includes("shop") || desc.includes("merch")
+            ? "shop"
+            : desc.includes("guest")
+            ? "guest_pass"
+            : "manual_charge";
+        return {
+          id: `mc_${r.id}`,
+          member_id: r.member_id,
+          member_name: memberName || "Unknown",
+          member_email: r.members?.email ?? "",
+          membership_type: r.members?.membership_type ?? null,
+          amount: Number(r.amount) / 100,
+          currency: "usd",
+          status: "failed",
+          billing_type: inferredType,
+          decline_code: meta.decline_code ?? null,
+          decline_reason: meta.decline_reason ?? null,
+          failure_message: meta.decline_reason ?? r.description ?? null,
+          attempt_number: null,
+          next_retry_at: null,
+          created_at: r.created_at,
+          failed_at: r.failed_at ?? r.created_at,
+          succeeded_at: null,
+          resolved_at: r.resolved_at,
+          stripe_charge_id: null,
+          stripe_invoice_id: null,
+          stripe_payment_intent_id: r.stripe_payment_intent_id,
+          recovered: false,
+        };
+      });
+
+      let filtered = [...rows, ...mcRows].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
       if (filters.billingType && filters.billingType !== "all") {
         filtered = filtered.filter((r) => r.billing_type === filters.billingType);
       }
