@@ -1000,6 +1000,21 @@ export function ChargeItemSelector({
                   </div>
                 )}
 
+                <div>
+                  <Label>Note for receipt (optional)</Label>
+                  <Textarea
+                    value={receiptNote}
+                    onChange={(e) => setReceiptNote(e.target.value)}
+                    placeholder="e.g. Charging today for açaí bowl purchased 7/16"
+                    rows={2}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Shown on the customer's email receipt.
+                  </p>
+                </div>
+
+
+
                 <Button className="w-full" onClick={handleCharge} disabled={isCharging}>
                   {isCharging && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                   {isManualPayment ? "Record" : "Charge"} ${isManualPayment ? cartTotalBeforeFee.toFixed(2) : cartGrandTotal.toFixed(2)}
