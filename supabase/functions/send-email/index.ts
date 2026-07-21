@@ -938,6 +938,103 @@ serve(async (req) => {
         `;
         break;
 
+      case 'pos_charge_receipt': {
+        const posDate = data.chargedAt
+          ? new Date(data.chargedAt).toLocaleString('en-US', {
+              timeZone: 'America/Detroit',
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: 'numeric', minute: '2-digit',
+            })
+          : new Date().toLocaleString('en-US', { timeZone: 'America/Detroit' });
+
+        const lineItemRows = Array.isArray(data.lineItems) && data.lineItems.length
+          ? data.lineItems.map((li: any) => `
+              <tr>
+                <td style="padding: 6px 0; color: #1C170F;">${li.quantity}× ${li.name}</td>
+                <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${(Number(li.unit_price) * Number(li.quantity)).toFixed(2)}</td>
+              </tr>`).join('')
+          : '';
+
+        subject = `Your receipt from Storm Wellness Club — $${data.amount}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Receipt</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thanks — here's your receipt for today's purchase at Storm Wellness Club.
+              </p>
+
+              ${data.note ? `
+                <div style="background: #FFF8E7; border-left: 4px solid #C1B19C; padding: 14px 16px; border-radius: 6px; margin: 20px 0;">
+                  <div style="font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #88766B; margin-bottom: 6px;">Note from the front desk</div>
+                  <div style="color: #1C170F; font-size: 15px; line-height: 1.6;">${data.note}</div>
+                </div>
+              ` : ''}
+
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, serif;">Receipt Details</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  ${lineItemRows ? `
+                    <tr><td colspan="2" style="padding-bottom: 6px; color: #88766B; font-size: 12px; letter-spacing: .06em; text-transform: uppercase;">Items</td></tr>
+                    ${lineItemRows}
+                    <tr><td colspan="2" style="border-top: 1px solid #C1B19C; padding-top: 8px;"></td></tr>
+                  ` : `
+                    <tr>
+                      <td style="padding: 8px 0; color: #88766B;">Description</td>
+                      <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.description || 'Purchase'}</td>
+                    </tr>
+                  `}
+                  ${data.subtotal ? `
+                    <tr>
+                      <td style="padding: 6px 0; color: #88766B;">Subtotal</td>
+                      <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.subtotal}</td>
+                    </tr>` : ''}
+                  ${data.tax ? `
+                    <tr>
+                      <td style="padding: 6px 0; color: #88766B;">MI Sales Tax (6%)</td>
+                      <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.tax}</td>
+                    </tr>` : ''}
+                  ${data.processingFee && Number(data.processingFee) > 0 ? `
+                    <tr>
+                      <td style="padding: 6px 0; color: #88766B;">Processing Fee</td>
+                      <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.processingFee}</td>
+                    </tr>` : ''}
+                  <tr>
+                    <td style="padding: 10px 0 4px; color: #1C170F; font-weight: 700;">Total Charged</td>
+                    <td style="padding: 10px 0 4px; text-align: right; font-weight: 700; font-size: 18px; color: #1C170F;">$${data.amount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${posDate}</td>
+                  </tr>
+                  ${data.cardBrand ? `
+                    <tr>
+                      <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
+                      <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.cardBrand} •••• ${data.cardLast4 || '****'}</td>
+                    </tr>` : ''}
+                </table>
+              </div>
+
+              <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+                Please keep this email as your receipt. If anything looks off, reply to this email and we'll take care of it.
+              </p>
+
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
       case 'application_approved_locked_date':
         subject = `Your Membership is Approved - Starting ${data.lockedStartDate}!`;
         html = `
