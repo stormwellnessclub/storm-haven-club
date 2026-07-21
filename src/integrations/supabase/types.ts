@@ -833,6 +833,7 @@ export type Database = {
           estimated_ready_at: string | null
           id: string
           member_id: string | null
+          note: string | null
           order_items: Json
           payment_intent_id: string | null
           payment_method: string | null
@@ -847,6 +848,7 @@ export type Database = {
           estimated_ready_at?: string | null
           id?: string
           member_id?: string | null
+          note?: string | null
           order_items: Json
           payment_intent_id?: string | null
           payment_method?: string | null
@@ -861,6 +863,7 @@ export type Database = {
           estimated_ready_at?: string | null
           id?: string
           member_id?: string | null
+          note?: string | null
           order_items?: Json
           payment_intent_id?: string | null
           payment_method?: string | null
@@ -3544,6 +3547,7 @@ export type Database = {
           description: string
           id: string
           member_id: string | null
+          note: string | null
           refund_method: string | null
           refund_notes: string | null
           refunded_at: string | null
@@ -3561,6 +3565,7 @@ export type Database = {
           description: string
           id?: string
           member_id?: string | null
+          note?: string | null
           refund_method?: string | null
           refund_notes?: string | null
           refunded_at?: string | null
@@ -3578,6 +3583,7 @@ export type Database = {
           description?: string
           id?: string
           member_id?: string | null
+          note?: string | null
           refund_method?: string | null
           refund_notes?: string | null
           refunded_at?: string | null
