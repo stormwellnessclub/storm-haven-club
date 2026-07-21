@@ -466,7 +466,7 @@ export default function FailedPaymentsHistory() {
                   <TableBody>
                     {rows.map((r) => {
                       const recon = reconcileResults.get(r.id);
-                      const isUnresolved = !r.resolved_at && (r.status === "failed" || r.status === "requires_action");
+                      const isUnresolved = !r.resolved_at;
                       return (
                         <TableRow key={r.id}>
                           <TableCell className="text-sm whitespace-nowrap">{format(new Date(r.created_at), "MMM d, yyyy")}</TableCell>
