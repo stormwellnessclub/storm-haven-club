@@ -30,6 +30,10 @@ interface CreateOrderParams {
   orderItems: CafeOrderItem[];
   paymentMethod: "card" | "member_account" | "cash";
   paymentIntentId?: string;
+  /** Override buyer attribution (used by Front Desk POS) */
+  overrideMemberId?: string | null;
+  overrideUserId?: string | null;
+  note?: string | null;
 }
 
 export function useCreateCafeOrder() {
@@ -37,7 +41,14 @@ export function useCreateCafeOrder() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ orderItems, paymentMethod, paymentIntentId }: CreateOrderParams) => {
+    mutationFn: async ({
+      orderItems,
+      paymentMethod,
+      paymentIntentId,
+      overrideMemberId,
+      overrideUserId,
+      note,
+    }: CreateOrderParams) => {
       if (!user) {
         throw new Error("You must be signed in to place an order");
       }
@@ -45,25 +56,33 @@ export function useCreateCafeOrder() {
       // Calculate total
       const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-      // Get member_id if user is a member
-      const { data: memberData } = await supabase
-        .from("members")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Attribute the order to the buyer (POS) or, for self-order, the signed-in user
+      let attributedUserId: string | null = overrideUserId ?? user.id;
+      let attributedMemberId: string | null = overrideMemberId ?? null;
+
+      // Self-order path — look up member_id from signed-in user
+      if (overrideMemberId === undefined && overrideUserId === undefined) {
+        const { data: memberData } = await supabase
+          .from("members")
+          .select("id")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        attributedMemberId = memberData?.id || null;
+      }
 
       // Create order
       try {
         const { data, error } = await (supabase.from as any)("cafe_orders")
           .insert({
-            user_id: user.id,
-            member_id: memberData?.id || null,
+            user_id: attributedUserId,
+            member_id: attributedMemberId,
             order_items: orderItems,
             total_amount: totalAmount,
             status: "pending",
             payment_method: paymentMethod,
             payment_intent_id: paymentIntentId || null,
             estimated_ready_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+            note: note || null,
           })
           .select()
           .single();
