@@ -1034,6 +1034,93 @@ serve(async (req) => {
         break;
       }
 
+      case 'pos_charge_failed': {
+        const attemptedAt = data.attemptedAt
+          ? new Date(data.attemptedAt).toLocaleString('en-US', {
+              timeZone: 'America/Detroit',
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: 'numeric', minute: '2-digit',
+            })
+          : new Date().toLocaleString('en-US', { timeZone: 'America/Detroit' });
+
+        const failedLineItems = Array.isArray(data.lineItems) && data.lineItems.length
+          ? data.lineItems.map((li: any) => `
+              <tr>
+                <td style="padding: 6px 0; color: #1C170F;">${li.quantity}× ${li.name}</td>
+                <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${(Number(li.unit_price) * Number(li.quantity)).toFixed(2)}</td>
+              </tr>`).join('')
+          : '';
+
+        subject = `Payment declined — $${data.amount} at Storm Wellness Club`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Your card was declined</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We tried to charge your card on file for a recent purchase at Storm Wellness Club, but it was declined. No charge was made.
+              </p>
+
+              <div style="background: #FEF2F2; border-left: 4px solid #DC2626; padding: 14px 16px; border-radius: 6px; margin: 20px 0;">
+                <div style="font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #991B1B; margin-bottom: 6px;">Decline reason</div>
+                <div style="color: #7F1D1D; font-size: 15px; line-height: 1.6;">${data.declineReason || 'Your card was declined.'}</div>
+              </div>
+
+              ${data.note ? `
+                <div style="background: #FFF8E7; border-left: 4px solid #C1B19C; padding: 14px 16px; border-radius: 6px; margin: 20px 0;">
+                  <div style="font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #88766B; margin-bottom: 6px;">Note from the front desk</div>
+                  <div style="color: #1C170F; font-size: 15px; line-height: 1.6;">${data.note}</div>
+                </div>
+              ` : ''}
+
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #1C170F; font-family: Georgia, serif;">Attempted Charge</h3>
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  ${failedLineItems ? `
+                    <tr><td colspan="2" style="padding-bottom: 6px; color: #88766B; font-size: 12px; letter-spacing: .06em; text-transform: uppercase;">Items</td></tr>
+                    ${failedLineItems}
+                    <tr><td colspan="2" style="border-top: 1px solid #C1B19C; padding-top: 8px;"></td></tr>
+                  ` : `
+                    <tr>
+                      <td style="padding: 8px 0; color: #88766B;">Description</td>
+                      <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.description || 'Purchase'}</td>
+                    </tr>
+                  `}
+                  <tr>
+                    <td style="padding: 10px 0 4px; color: #1C170F; font-weight: 700;">Amount</td>
+                    <td style="padding: 10px 0 4px; text-align: right; font-weight: 700; font-size: 18px; color: #1C170F;">$${data.amount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Attempted</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${attemptedAt}</td>
+                  </tr>
+                  ${data.cardBrand ? `
+                    <tr>
+                      <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
+                      <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.cardBrand} •••• ${data.cardLast4 || '****'}</td>
+                    </tr>` : ''}
+                </table>
+              </div>
+
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Please update your payment method in your member portal or stop by the front desk so we can complete this purchase.
+              </p>
+
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
 
       case 'application_approved_locked_date':
         subject = `Your Membership is Approved - Starting ${data.lockedStartDate}!`;
