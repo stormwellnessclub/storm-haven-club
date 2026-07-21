@@ -1698,7 +1698,7 @@ serve(async (req) => {
 
       case 'charge_saved_card': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
-        await assertStaff(['super_admin', 'admin', 'manager', 'front_desk']);
+        await assertOwnerOrStaff(memberId, ['super_admin', 'admin', 'manager', 'front_desk']);
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
