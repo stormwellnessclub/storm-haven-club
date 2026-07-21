@@ -67,6 +67,15 @@ export function useKioskAttendance() {
       const tomorrowIso = clubTodayEnd();
       const todayStr = clubTodayDateStr();
 
+      const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("kiosk_todays_attendance");
+      if (!rpcError) {
+        const normalized = normalizeRpcPayload(rpcData);
+        setEntries(normalized.entries);
+        setStats(normalized.stats);
+        setError(null);
+        return;
+      }
+
       const [memberRes, guestRes, classRes, spaRes, currentlyInRes] = await Promise.allSettled([
         supabase
           .from("check_ins")
@@ -127,13 +136,7 @@ export function useKioskAttendance() {
 
       const directErrors = [memberResult, guestResult, classResult, spaResult].filter((res) => res.error);
       if (directErrors.length > 0) {
-        const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("kiosk_todays_attendance");
-        if (rpcError) throw directErrors[0].error || rpcError;
-        const normalized = normalizeRpcPayload(rpcData);
-        setEntries(normalized.entries);
-        setStats(normalized.stats);
-        setError(null);
-        return;
+        throw directErrors[0].error || rpcError;
       }
 
       const memberCheckIns = memberResult.data || [];
