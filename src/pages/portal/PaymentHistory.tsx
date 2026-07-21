@@ -304,7 +304,7 @@ export default function PortalPaymentHistory() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </TableBody>
