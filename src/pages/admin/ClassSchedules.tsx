@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,6 +130,7 @@ function weeksForWindow(startDate: string, endDate: string | null) {
 export default function ClassSchedules() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
@@ -215,6 +216,15 @@ export default function ClassSchedules() {
       return data as Instructor[];
     },
   });
+
+  useEffect(() => {
+    const classTypeFromUrl = searchParams.get("classTypeId");
+    if (!classTypeFromUrl || dialogOpen || editingSchedule) return;
+    setClassTypeId(classTypeFromUrl);
+    setScheduleMode("ongoing");
+    setDialogOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [dialogOpen, editingSchedule, searchParams, setSearchParams]);
 
   // Fetch upcoming session count
   const { data: upcomingSessionCount = 0 } = useQuery({

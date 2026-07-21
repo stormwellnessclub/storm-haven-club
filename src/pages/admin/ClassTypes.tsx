@@ -276,10 +276,7 @@ export default function ClassTypes() {
   }
 
   function openQuickSchedule(classTypeId: string) {
-    setSelectedClassTypeId(classTypeId);
-    resetScheduleForm();
-    setSelectedClassTypeId(classTypeId);
-    setQuickScheduleDialogOpen(true);
+    navigate(`/admin/class-schedules?classTypeId=${classTypeId}`);
   }
 
   const { grouped = {}, sortedCategories = [] } = classTypesData || {};
