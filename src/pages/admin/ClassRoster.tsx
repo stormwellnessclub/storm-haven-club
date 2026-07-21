@@ -317,11 +317,14 @@ export default function ClassRoster() {
     onError: (err: any) => toast.error(err.message || "Failed to update capacity"),
   });
 
+  // Active bookings (exclude cancelled and no-show — those seats are free)
+  const activeBookingsCount = bookings.filter((a: any) => !a.isCancelled && !a.isNoShow).length;
+
   // Hold slots mutation — insert N placeholder bookings
   const holdSlotsMutation = useMutation({
     mutationFn: async ({ count, note }: { count: number; note: string }) => {
       if (!session) throw new Error("Session not loaded");
-      const remaining = session.max_capacity - bookings.length;
+      const remaining = session.max_capacity - activeBookingsCount;
       if (count < 1) throw new Error("Hold at least 1 seat");
       if (count > remaining) throw new Error(`Only ${remaining} seat${remaining === 1 ? "" : "s"} remain`);
       const baseLabel = note.trim() || "HOLD — Pending";
@@ -338,7 +341,7 @@ export default function ClassRoster() {
       if (error) throw error;
       await supabase
         .from("class_sessions")
-        .update({ current_enrollment: bookings.length + count })
+        .update({ current_enrollment: activeBookingsCount + count })
         .eq("id", sessionId!);
     },
     onSuccess: (_d, vars) => {
