@@ -275,13 +275,17 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
 function EmbeddedTicketPayment({
   paymentIntentId,
   totalCents,
+  eventSlug,
+  isAuthed,
   onBack,
   onComplete,
 }: {
   paymentIntentId: string;
   totalCents: number;
+  eventSlug: string;
+  isAuthed: boolean;
   onBack: () => void;
-  onComplete: (tickets: Array<any>) => void;
+  onComplete: (tickets: any[]) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -291,9 +295,12 @@ function EmbeddedTicketPayment({
     if (!stripe || !elements) return;
     setPaying(true);
     try {
+      const returnUrl = isAuthed
+        ? `${window.location.origin}/portal/my-tickets?just_purchased=1`
+        : `${window.location.origin}/events/${eventSlug}/success?payment_intent_id=${paymentIntentId}`;
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
-        confirmParams: { return_url: `${window.location.origin}/portal/my-tickets` },
+        confirmParams: { return_url: returnUrl },
         redirect: "if_required",
       });
       if (error) throw new Error(error.message || "Payment could not be completed");
