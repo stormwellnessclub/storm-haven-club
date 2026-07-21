@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ import {
 import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle, Trash2, Repeat, CalendarRange, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addWeeks } from "date-fns";
+import { format, addWeeks, differenceInCalendarDays } from "date-fns";
 import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
@@ -104,9 +104,33 @@ const DAYS_OF_WEEK = [
   { value: 6, label: "Saturday" },
 ];
 
+function getScheduleTypeLabel(schedule: Pick<ClassSchedule, "is_one_time" | "effective_from" | "effective_until">) {
+  if (schedule.is_one_time) return "One-off class";
+  if (schedule.effective_from || schedule.effective_until) return "Date range";
+  return "Ongoing weekly";
+}
+
+function formatScheduleWindow(schedule: Pick<ClassSchedule, "is_one_time" | "effective_from" | "effective_until">) {
+  const formatDate = (value: string) => format(new Date(`${value}T00:00:00`), "MMM d, yyyy");
+  if (schedule.is_one_time && schedule.effective_from) return formatDate(schedule.effective_from);
+  if (schedule.effective_from && schedule.effective_until) {
+    return `${formatDate(schedule.effective_from)} – ${formatDate(schedule.effective_until)}`;
+  }
+  if (schedule.effective_from) return `Starts ${formatDate(schedule.effective_from)}`;
+  if (schedule.effective_until) return `Ends ${formatDate(schedule.effective_until)}`;
+  return "No end date";
+}
+
+function weeksForWindow(startDate: string, endDate: string | null) {
+  if (!endDate) return 6;
+  const days = Math.max(0, differenceInCalendarDays(new Date(`${endDate}T00:00:00`), new Date(`${startDate}T00:00:00`)));
+  return Math.min(12, Math.max(1, Math.ceil((days + 1) / 7) + 1));
+}
+
 export default function ClassSchedules() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [editingSchedule, setEditingSchedule] = useState<ClassSchedule | null>(null);
@@ -193,6 +217,15 @@ export default function ClassSchedules() {
     },
   });
 
+  useEffect(() => {
+    const classTypeFromUrl = searchParams.get("classTypeId");
+    if (!classTypeFromUrl || dialogOpen || editingSchedule) return;
+    setClassTypeId(classTypeFromUrl);
+    setScheduleMode("ongoing");
+    setDialogOpen(true);
+    setSearchParams({}, { replace: true });
+  }, [dialogOpen, editingSchedule, searchParams, setSearchParams]);
+
   // Fetch upcoming session count
   const { data: upcomingSessionCount = 0 } = useQuery({
     queryKey: ['upcoming-sessions-count'],
@@ -211,7 +244,7 @@ export default function ClassSchedules() {
 
   // Fetch generated sessions so staff can immediately find rosters for schedules they add.
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const generatedThroughStr = format(addWeeks(new Date(), 6), 'yyyy-MM-dd');
+  const generatedThroughStr = format(addWeeks(new Date(), 12), 'yyyy-MM-dd');
   const { data: generatedSessions = [] } = useQuery({
     queryKey: ['schedule-generated-sessions', todayStr, generatedThroughStr],
     queryFn: async () => {
@@ -299,6 +332,7 @@ export default function ClassSchedules() {
       }
 
       // Resolve effective window + day_of_week based on mode
+      const today = format(new Date(), 'yyyy-MM-dd');
       let resolvedDayOfWeek = dayOfWeek;
       let resolvedFrom: string | null = null;
       let resolvedUntil: string | null = null;
@@ -370,11 +404,14 @@ export default function ClassSchedules() {
         savedScheduleId = data.id;
       }
 
-      // Await reconciliation INSIDE the mutation so sessions are synced before onSuccess
-      const today = format(new Date(), 'yyyy-MM-dd');
+      // Await reconciliation INSIDE the mutation so sessions are synced before onSuccess.
+      // Future one-off / date-range schedules need generation to start at their date,
+      // otherwise the roster may not appear immediately after save.
+      const generationStartDate = resolvedFrom && resolvedFrom > today ? resolvedFrom : today;
+      const generationWeeksAhead = weeksForWindow(generationStartDate, resolvedUntil);
       const { error: reconcileError } = await supabase.rpc('reconcile_and_generate_class_sessions', {
-        _start_date: today,
-        _weeks_ahead: 6
+        _start_date: generationStartDate,
+        _weeks_ahead: generationWeeksAhead
       });
       if (reconcileError) {
         console.error('Reconciliation error:', reconcileError);
@@ -385,7 +422,7 @@ export default function ClassSchedules() {
         .from("class_sessions")
         .select("id, session_date, start_time")
         .eq("schedule_id", savedScheduleId)
-        .gte("session_date", today)
+        .gte("session_date", generationStartDate)
         .eq("is_cancelled", false)
         .eq("is_hidden", false)
         .order("session_date")
@@ -504,9 +541,9 @@ export default function ClassSchedules() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Class Schedules</h1>
+              <h1 className="text-2xl font-bold">Class Schedules</h1>
             <p className="text-muted-foreground">
-              Manage recurring weekly class schedules
+              Add ongoing weekly, date-range, and one-off classes
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -525,14 +562,14 @@ export default function ClassSchedules() {
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Schedule
+                  Add Class to Schedule
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editingSchedule ? "Edit Schedule" : "Add Schedule"}</DialogTitle>
                   <DialogDescription>
-                    {editingSchedule ? "Update the schedule details." : "Add a recurring, time-limited, or one-time class."}
+                    {editingSchedule ? "Update the schedule details." : "Choose whether this class repeats forever, runs for a date range, or happens once."}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
@@ -541,9 +578,9 @@ export default function ClassSchedules() {
                     <Label className="text-sm font-semibold">Schedule type</Label>
                     <div className="grid gap-2 sm:grid-cols-3">
                       {([
-                        { v: "ongoing", label: "Recurring", desc: "Repeats weekly, no end date", Icon: Repeat },
-                        { v: "duration", label: "For a period", desc: "Weekly between two dates", Icon: CalendarRange },
-                        { v: "one_time", label: "One-time", desc: "Single session on one date", Icon: CalendarClock },
+                        { v: "ongoing", label: "Ongoing weekly", desc: "Repeats every week with no end date", Icon: Repeat },
+                        { v: "duration", label: "Date range", desc: "Example: Aug 6 through Aug 20", Icon: CalendarRange },
+                        { v: "one_time", label: "One-off class", desc: "One date only", Icon: CalendarClock },
                       ] as const).map(({ v, label, desc, Icon }) => {
                         const selected = scheduleMode === v;
                         return (
@@ -656,7 +693,7 @@ export default function ClassSchedules() {
                       )}
                     </>
                   )}
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="startTime">Start Time</Label>
                       <Input
@@ -676,7 +713,7 @@ export default function ClassSchedules() {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label htmlFor="room">Room</Label>
                       <Input
@@ -801,8 +838,8 @@ export default function ClassSchedules() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{activeScheduleCount}</div>
-              <p className="text-xs text-muted-foreground">
-                Recurring weekly classes
+                <p className="text-xs text-muted-foreground">
+                  Ongoing, date-range, and one-off rules
               </p>
             </CardContent>
           </Card>
@@ -859,9 +896,9 @@ export default function ClassSchedules() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
             <div>
-              <CardTitle>Weekly Schedule</CardTitle>
+              <CardTitle>Schedule Rules</CardTitle>
               <CardDescription>
-                These recurring schedules define when classes happen each week
+                These rules define ongoing classes, limited date ranges, and one-off classes
               </CardDescription>
             </div>
             <div className="flex items-center gap-3">
@@ -918,6 +955,7 @@ export default function ClassSchedules() {
                   <TableRow>
                     <TableHead>Day</TableHead>
                     <TableHead>Time</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Instructor</TableHead>
                     <TableHead>Room</TableHead>
@@ -939,6 +977,16 @@ export default function ClassSchedules() {
                       <TableCell>
                         {formatTime(schedule.start_time)} - {formatTime(schedule.end_time)}
                       </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Badge variant={schedule.is_one_time || schedule.effective_from || schedule.effective_until ? "default" : "secondary"}>
+                            {getScheduleTypeLabel(schedule)}
+                          </Badge>
+                          <div className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatScheduleWindow(schedule)}
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell>{schedule.class_types?.name || "—"}</TableCell>
                       <TableCell>
                         {schedule.instructors
@@ -953,7 +1001,7 @@ export default function ClassSchedules() {
                           </Badge>
                           {schedule.is_one_time ? (
                             <Badge variant="outline" className="text-[10px]">
-                              One-time{schedule.effective_from ? ` · ${format(new Date(schedule.effective_from + "T00:00:00"), "MMM d, yyyy")}` : ""}
+                              One-off{schedule.effective_from ? ` · ${format(new Date(schedule.effective_from + "T00:00:00"), "MMM d, yyyy")}` : ""}
                             </Badge>
                           ) : schedule.effective_until ? (
                             <Badge variant="outline" className="text-[10px]">
@@ -1036,6 +1084,7 @@ export default function ClassSchedules() {
                 <SelectItem value="4">4 weeks</SelectItem>
                 <SelectItem value="6">6 weeks</SelectItem>
                 <SelectItem value="8">8 weeks</SelectItem>
+                <SelectItem value="12">12 weeks</SelectItem>
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground mt-2">
