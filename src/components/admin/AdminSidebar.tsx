@@ -45,6 +45,7 @@ import {
   AlertCircle,
   Leaf,
   GraduationCap,
+  Tag,
 } from "lucide-react";
 import {
   Sidebar,
