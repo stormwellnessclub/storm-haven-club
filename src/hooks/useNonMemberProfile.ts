@@ -123,6 +123,30 @@ export function useNonMemberProfile() {
     },
   });
 
+  const signAgreementField = (field: "single_class_pass_agreement_signed" | "class_package_agreement_signed", label: string) =>
+    useMutation({
+      mutationFn: async () => {
+        if (!user) throw new Error("Not authenticated");
+        const { data, error } = await (supabase.from("non_member_profiles") as any)
+          .update({ [field]: true, [`${field}_at`]: new Date().toISOString() })
+          .eq("user_id", user.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
+        toast.success(`${label} signed successfully!`);
+      },
+      onError: (err: any) => {
+        toast.error(`Failed to sign agreement: ${err.message}`);
+      },
+    });
+
+  const signSingleClassPassAgreement = signAgreementField("single_class_pass_agreement_signed", "Single Class Pass Agreement");
+  const signClassPackageAgreement = signAgreementField("class_package_agreement_signed", "Class Package Agreement");
+
   return {
     profile: profileQuery.data,
     isLoading: profileQuery.isLoading,
@@ -130,5 +154,9 @@ export function useNonMemberProfile() {
     isUpdating: updateProfile.isPending,
     signWaiver: signWaiver.mutate,
     isSigningWaiver: signWaiver.isPending,
+    signSingleClassPassAgreement: signSingleClassPassAgreement.mutate,
+    isSigningSingleClassPassAgreement: signSingleClassPassAgreement.isPending,
+    signClassPackageAgreement: signClassPackageAgreement.mutate,
+    isSigningClassPackageAgreement: signClassPackageAgreement.isPending,
   };
 }
