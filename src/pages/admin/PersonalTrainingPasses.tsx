@@ -40,6 +40,8 @@ export default function PersonalTrainingPasses() {
   const [sellPreset, setSellPreset] = useState<{ id: string; label: string } | undefined>();
   const [bookOpen, setBookOpen] = useState(false);
   const [bookPreset, setBookPreset] = useState<{ id: string; label: string } | undefined>();
+  const [legacyOpen, setLegacyOpen] = useState(false);
+  const [legacyPreset, setLegacyPreset] = useState<{ id: string; label: string } | undefined>();
   const [filter, setFilter] = useState<"all" | PtFormat>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
