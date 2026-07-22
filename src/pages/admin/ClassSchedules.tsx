@@ -42,10 +42,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle, Trash2, Repeat, CalendarRange, CalendarClock } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle, Trash2, Repeat, CalendarRange, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addWeeks, differenceInCalendarDays } from "date-fns";
+import { format, addWeeks, differenceInCalendarDays, parse, startOfDay } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
@@ -645,12 +648,33 @@ export default function ClassSchedules() {
                   {scheduleMode === "one_time" ? (
                     <div className="grid gap-2">
                       <Label htmlFor="oneTimeDate">Date</Label>
-                      <Input
-                        id="oneTimeDate"
-                        type="date"
-                        value={oneTimeDate}
-                        onChange={(e) => setOneTimeDate(e.target.value)}
-                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="oneTimeDate"
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !oneTimeDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {oneTimeDate
+                              ? format(parse(oneTimeDate, "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")
+                              : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={oneTimeDate ? parse(oneTimeDate, "yyyy-MM-dd", new Date()) : undefined}
+                            onSelect={(d) => setOneTimeDate(d ? format(d, "yyyy-MM-dd") : "")}
+                            disabled={(d) => d < startOfDay(new Date())}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   ) : (
                     <>
@@ -673,21 +697,62 @@ export default function ClassSchedules() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label htmlFor="effFrom">Start Date</Label>
-                            <Input
-                              id="effFrom"
-                              type="date"
-                              value={effectiveFrom}
-                              onChange={(e) => setEffectiveFrom(e.target.value)}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="effFrom"
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !effectiveFrom && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {effectiveFrom
+                                    ? format(parse(effectiveFrom, "yyyy-MM-dd", new Date()), "MMM d, yyyy")
+                                    : <span>Start</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={effectiveFrom ? parse(effectiveFrom, "yyyy-MM-dd", new Date()) : undefined}
+                                  onSelect={(d) => setEffectiveFrom(d ? format(d, "yyyy-MM-dd") : "")}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="effUntil">End Date</Label>
-                            <Input
-                              id="effUntil"
-                              type="date"
-                              value={effectiveUntil}
-                              onChange={(e) => setEffectiveUntil(e.target.value)}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="effUntil"
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !effectiveUntil && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {effectiveUntil
+                                    ? format(parse(effectiveUntil, "yyyy-MM-dd", new Date()), "MMM d, yyyy")
+                                    : <span>End</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={effectiveUntil ? parse(effectiveUntil, "yyyy-MM-dd", new Date()) : undefined}
+                                  onSelect={(d) => setEffectiveUntil(d ? format(d, "yyyy-MM-dd") : "")}
+                                  disabled={(d) => effectiveFrom ? d < parse(effectiveFrom, "yyyy-MM-dd", new Date()) : false}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
                       )}
@@ -939,7 +1004,7 @@ export default function ClassSchedules() {
               </div>
             ) : schedules.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No schedules found</p>
                 <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
