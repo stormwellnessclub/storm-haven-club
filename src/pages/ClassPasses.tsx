@@ -19,7 +19,10 @@ import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementC
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { GuestCheckoutSheet } from "@/components/class-passes/GuestCheckoutSheet";
 import { useClassPassPricing, findPrice } from "@/hooks/useClassPassPricing";
+
+const PENDING_PURCHASE_KEY = "pendingClassPassPurchase";
 
 
 interface PricingTier {
