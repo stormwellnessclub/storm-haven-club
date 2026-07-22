@@ -106,7 +106,8 @@ export default function PersonalTrainingSchedule() {
             <h1 className="text-2xl font-semibold flex items-center gap-2"><Calendar className="h-5 w-5" /> PT Schedule</h1>
             <p className="text-sm text-muted-foreground">Book Personal Training sessions and auto-deduct from packs.</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" asChild><Link to="/admin/personal-training/trainers">Trainers</Link></Button>
             <Button variant="outline" asChild><Link to="/admin/personal-training/passes">Customers & Packs</Link></Button>
             <Button onClick={() => { setBookPreset({}); setBookOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Book Session

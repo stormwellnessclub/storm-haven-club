@@ -1,55 +1,68 @@
-## What happened
 
-Nothing was deleted or cancelled — sessions were **hidden** by the schedule reconcile job that ran when you were editing schedules tonight.
+# Personal Training Admin Expansion
 
-The reconcile function (`reconcile_and_generate_class_sessions`) marks a session `is_hidden = true` whenever its parent `class_schedule` gets deactivated. It does **not** check whether members are already booked into that session. When you edited/replaced schedules earlier, the old parent schedules were deactivated and the future sessions attached to them were silently hidden — including ones with confirmed bookings.
+Builds a scheduling portal for trainers, a notes system, legacy-session grants, and per-item visibility toggles — all admin-only until you flip individual items public.
 
-Confirmed data (verified in the DB just now):
+## 1. Trainer scheduling portal
 
-| Date | Time | Class | Confirmed bookings | State |
-|---|---|---|---|---|
-| Sun 7/26 | 11:00 AM | Reformer Sculpt – Adv/Int (Heated) | 2 | hidden (not cancelled) |
-| Sat 7/25 | 12:00 PM | Full Body Strength | 2 | hidden (not cancelled) |
-| Mon 8/3 | 10:00 AM | Reformer Sculpt – Adv/Int (Heated) | 8 | hidden (not cancelled) |
+New admin page: `/admin/personal-training/trainers` (link from PT Schedule header, next to "Customers & Packs").
 
-The bookings themselves are intact — the sessions just stopped showing on the public schedule and the roster.
+Per trainer (uses existing `instructors` rows flagged as PT):
+- **Weekly availability** — recurring day + start/end time blocks (e.g. Mon 8:00a–12:00p).
+- **Date overrides** — block out dates or add extra one-off windows (time off, extra hours).
+- **Per-format eligibility** — checkboxes for `one_on_one`, `reformer_one_on_one`, `semi_private`.
+- **Public visibility toggle** — `is_public_pt` per trainer. Hidden trainers never appear in public booking or "Any trainer" pickers on public surfaces; still bookable from admin.
 
-## Fix
+Existing `BookPTSessionDialog` gets a light change: when picking trainer, filter by format eligibility and warn if the chosen time falls outside availability (soft warning, not a block, so admin can still override).
 
-**1. Restore the 3 sessions right now**
-Set `is_hidden = false` on those three session IDs so they reappear on the schedule and roster. No booking data changes — the 2/2/8 confirmed bookings are already attached.
+## 2. Notes
 
-**2. Sweep for anything else affected**
-Run one query across all future sessions where `is_hidden = true` AND at least one confirmed booking exists, and unhide every match. (Current sweep shows only the 3 above, but re-check at fix time.)
+- **Shared PT board** on the trainers page (top card) — free-form notes list, add/edit/delete, timestamped with author name.
+- **Per-trainer notes** — notes tab inside each trainer's detail sheet on the same page.
 
-**3. Patch `reconcile_and_generate_class_sessions` so this can't happen again**
-Change the "hide orphaned sessions" step to exclude any session that has confirmed bookings. Those sessions stay visible and keep their roster; admin can still cancel them explicitly if needed. Add the same guard to the "class type deactivated" branch.
+Both admin-only. Reuses the same visual pattern as the existing NotesBoard used elsewhere in admin.
 
-Concretely, the hide step becomes:
+## 3. Legacy sessions from old location
 
-```sql
-UPDATE class_sessions cs
-SET is_hidden = true, updated_at = now()
-WHERE cs.session_date >= _start_date
-  AND cs.is_cancelled = false
-  AND cs.is_hidden = false
-  AND cs.schedule_id IS NOT NULL
-  AND (
-    EXISTS (SELECT 1 FROM class_schedules s WHERE s.id = cs.schedule_id AND s.is_active = false)
-    OR EXISTS (SELECT 1 FROM class_types ct WHERE ct.id = cs.class_type_id AND ct.is_active = false)
-  )
-  AND NOT EXISTS (
-    SELECT 1 FROM class_bookings cb
-    WHERE cb.session_id = cs.id AND cb.status = 'confirmed'
-  );
-```
+New button on `/admin/personal-training/passes` → "Grant legacy pack".
 
-**4. One-line admin note (no UI change requested)**
-When you deactivate a schedule that has future sessions with bookings, we leave those sessions visible so the roster is preserved — cancel them individually if you actually want to remove them.
+Form:
+- Member search (same picker as SellPT)
+- Format (1:1 / Reformer 1:1 / Semi-Private)
+- Pack name (defaults to "Legacy — Old Location")
+- Sessions remaining
+- Expiration date (defaults to +6 months)
+- Notes
 
-## Technical details
+Creates a row in `pt_passes` with `payment_method = 'legacy'`, `price_cents_charged = 0`, `stripe_payment_intent_id = null`, and a `sold_by_admin_id` set to the current admin. No charge, no Stripe touch. Shows up in the member's pass list identically to a purchased pack.
 
-- Migration: add the `NOT EXISTS (confirmed bookings)` guard to both hide-branches in `public.reconcile_and_generate_class_sessions`.
-- Data fix (same migration): `UPDATE class_sessions SET is_hidden = false, updated_at = now() WHERE session_date >= CURRENT_DATE AND is_hidden = true AND is_cancelled = false AND EXISTS (SELECT 1 FROM class_bookings cb WHERE cb.session_id = class_sessions.id AND cb.status = 'confirmed');`
-- No code changes to the schedule browser, roster, or booking hooks — they already filter on `is_hidden = false`, so unhiding is sufficient.
-- Enrollment counts on the 3 sessions already match confirmed bookings (2/2/8), so no recount needed.
+## 4. Public visibility (per item, now)
+
+Everything stays hidden from public/member surfaces until toggled:
+- `pt_packs.is_public` already exists — public PT pages and member-facing pickers will now respect it strictly.
+- New `instructors.is_public_pt` — trainer only appears publicly when true.
+- Add a small "PT Publishing" summary card on the trainers page showing counts of public vs hidden packs and trainers, so you can see at a glance what's live.
+
+No global master switch — you turn on packs and trainers individually when ready.
+
+## Technical notes
+
+### Schema (single migration)
+- `pt_trainer_availability` — `id`, `instructor_id`, `weekday` (0–6), `start_time`, `end_time`, timestamps. RLS: admin-manage, authenticated read.
+- `pt_trainer_overrides` — `id`, `instructor_id`, `date`, `kind` ('block' | 'extra'), `start_time?`, `end_time?`, `note`, timestamps.
+- `pt_trainer_formats` — `instructor_id`, `format`, PK(instructor_id, format).
+- `pt_notes` — `id`, `scope` ('shared' | 'trainer'), `instructor_id?` (null when shared), `body`, `created_by`, timestamps.
+- `instructors.is_public_pt boolean default false` (additive column).
+- `pt_passes.payment_method` already exists — legacy grants use `'legacy'`.
+- All new tables: GRANT block per policy scope, RLS enabled, admin-write policies via `has_any_role`, authenticated read for availability/formats/overrides (so future public booking works without another migration).
+
+### Frontend
+- New page `src/pages/admin/PersonalTrainingTrainers.tsx` with sections: PT Publishing summary → Shared notes → Trainer list → per-trainer detail sheet (availability, overrides, formats, visibility toggle, notes).
+- New dialog `src/components/admin/GrantLegacyPtPackDialog.tsx` opened from the passes page.
+- Small tweak to `BookPTSessionDialog` to filter trainers by format and show an "outside availability" warning.
+- Register route in `src/App.tsx`; add link on `PersonalTrainingSchedule` header.
+
+### Out of scope (call out if you want later)
+- Public trainer booking UI on the marketing site.
+- Auto-enforcing availability as a hard block (currently a soft warning only).
+- Backfilling old session dates into a usage log.

@@ -198,6 +198,7 @@ import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
 import AdminPersonalTrainingPacks from "@/pages/admin/PersonalTrainingPacks";
 import AdminPersonalTrainingPasses from "@/pages/admin/PersonalTrainingPasses";
 import AdminPersonalTrainingSchedule from "@/pages/admin/PersonalTrainingSchedule";
+import AdminPersonalTrainingTrainers from "@/pages/admin/PersonalTrainingTrainers";
 
 
 const queryClient = new QueryClient();
@@ -430,6 +431,7 @@ const App = () => (
               <Route path="/admin/personal-training/packs" element={<ProtectedAdminRoute><AdminPersonalTrainingPacks /></ProtectedAdminRoute>} />
               <Route path="/admin/personal-training/passes" element={<ProtectedAdminRoute><AdminPersonalTrainingPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/personal-training/schedule" element={<ProtectedAdminRoute><AdminPersonalTrainingSchedule /></ProtectedAdminRoute>} />
+              <Route path="/admin/personal-training/trainers" element={<ProtectedAdminRoute><AdminPersonalTrainingTrainers /></ProtectedAdminRoute>} />
               
               
               <Route path="*" element={<NotFound />} />

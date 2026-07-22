@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Minus, Save, ChevronDown, ChevronRight, UserPlus, Calendar } from "lucide-react";
+import { Loader2, Plus, Minus, Save, ChevronDown, ChevronRight, UserPlus, Calendar, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { format as fmtDate, parseISO, differenceInDays } from "date-fns";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
+import { GrantLegacyPtPackDialog } from "@/components/admin/GrantLegacyPtPackDialog";
 import { PT_FORMAT_LABEL, PtFormat, PtPass, formatCents } from "@/lib/ptFormat";
 import { Link } from "react-router-dom";
 
@@ -39,6 +40,8 @@ export default function PersonalTrainingPasses() {
   const [sellPreset, setSellPreset] = useState<{ id: string; label: string } | undefined>();
   const [bookOpen, setBookOpen] = useState(false);
   const [bookPreset, setBookPreset] = useState<{ id: string; label: string } | undefined>();
+  const [legacyOpen, setLegacyOpen] = useState(false);
+  const [legacyPreset, setLegacyPreset] = useState<{ id: string; label: string } | undefined>();
   const [filter, setFilter] = useState<"all" | PtFormat>("all");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [search, setSearch] = useState("");
@@ -207,12 +210,18 @@ export default function PersonalTrainingPasses() {
               Personal Training packs grouped by customer. Click a customer to view, edit, or sell more.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" asChild>
+              <Link to="/admin/personal-training/trainers">Trainers</Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/admin/personal-training/schedule"><Calendar className="h-4 w-4 mr-2" /> Schedule</Link>
             </Button>
             <Button variant="outline" onClick={() => { setBookPreset(undefined); setBookOpen(true); }}>
               <Calendar className="h-4 w-4 mr-2" /> Book Session
+            </Button>
+            <Button variant="outline" onClick={() => { setLegacyPreset(undefined); setLegacyOpen(true); }}>
+              <Archive className="h-4 w-4 mr-2" /> Grant legacy pack
             </Button>
             <Button onClick={() => { setSellPreset(undefined); setSellOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Sell PT
@@ -537,6 +546,12 @@ export default function PersonalTrainingPasses() {
         presetUserId={bookPreset?.id}
         presetUserName={bookPreset?.label}
         onSellPack={(id, label) => { setBookOpen(false); setSellPreset({ id, label }); setSellOpen(true); }}
+      />
+      <GrantLegacyPtPackDialog
+        open={legacyOpen}
+        onOpenChange={(v) => { setLegacyOpen(v); if (!v) setLegacyPreset(undefined); }}
+        presetUserId={legacyPreset?.id}
+        presetUserLabel={legacyPreset?.label}
       />
     </AdminLayout>
   );
