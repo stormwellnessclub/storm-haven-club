@@ -110,6 +110,7 @@ import ClassTypes from "./pages/admin/ClassTypes";
 import ClassTypeDetail from "./pages/admin/ClassTypeDetail";
 import Instructors from "./pages/admin/Instructors";
 import ClassSchedules from "./pages/admin/ClassSchedules";
+import ClassPassPricing from "./pages/admin/ClassPassPricing";
 import EmailManagement from "./pages/admin/EmailManagement";
 import FreezeRequests from "./pages/admin/FreezeRequests";
 import Equipment from "./pages/admin/Equipment";
