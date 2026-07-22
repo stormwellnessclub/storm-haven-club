@@ -9709,6 +9709,15 @@ export type Database = {
         }
         Returns: Json
       }
+      kiosk_cafe_active_orders: { Args: never; Returns: Json }
+      kiosk_cafe_notification_counts: {
+        Args: never
+        Returns: {
+          pending_count: number
+          preparing_count: number
+          total_active_count: number
+        }[]
+      }
       kiosk_check_in_class: { Args: { p_booking_id: string }; Returns: Json }
       kiosk_check_in_guest: { Args: { p_guest_pass_id: string }; Returns: Json }
       kiosk_check_in_kids_care: {
@@ -9730,7 +9739,18 @@ export type Database = {
         Returns: Json
       }
       kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
+      kiosk_support_notification_counts: {
+        Args: never
+        Returns: {
+          open_count: number
+          unread_count: number
+        }[]
+      }
       kiosk_todays_attendance: { Args: never; Returns: Json }
+      kiosk_update_cafe_order_status: {
+        Args: { p_new_status: string; p_order_id: string }
+        Returns: undefined
+      }
       link_member_by_email: {
         Args: never
         Returns: {
