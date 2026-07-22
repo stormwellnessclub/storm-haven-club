@@ -1,64 +1,44 @@
-# Front Desk: first-time-to-club vs first-time-as-member
+## What's broken
 
-## What exists today
+A visitor who lands on `/class-passes` (via nav, footer, `/schedule` → BookingModal, etc.) and clicks a price gets a toast that says "Please sign in to purchase class passes" and nothing happens — the buttons just error out. That's the dead-end you're describing. From `src/pages/ClassPasses.tsx` line 386:
 
-- `kiosk_check_in_member` RPC returns `is_first_visit = true` only when the member has **zero prior `check_ins` rows**.
-- `FrontDesk.tsx` shows a "⭐ 1st Visit" badge + celebration dialog and calls `mark_first_visit_tour_offered`.
-- Problem: a member who visited before as a guest, class-pass drop-in, or non-member is treated like a normal returning check-in, so the front desk never gets prompted to give them a member tour.
+```ts
+if (!user) {
+  toast.error("Please sign in to purchase class passes");
+  return;
+}
+```
 
-## What the user wants
+The "Sign In / Create Free Account" links lower on the page take them to `/auth`, which drops them out of the buying flow — they land on a login screen with no memory of what they were trying to buy, and most never come back.
 
-Two distinct signals surfaced at check-in:
-
-1. **First time ever at the club** — no prior activity of any kind.
-2. **First time here as a member** — has prior activity (guest pass, class pass, non-member visit, spa appt, cafe order, etc.) under the same email, but this is the first check-in since their membership activated.
-
-Front desk should get a clear popup + persistent badge for **either** case, with wording that tells them which one, so they know to offer a tour + membership walkthrough.
+Passes must attach to an account (so credits can be redeemed at booking), so we can't do a true anonymous checkout — but we can make the account step feel like part of checkout instead of a wall.
 
 ## Plan
 
-### 1. Database — extend `kiosk_check_in_member`
+1. **Inline sign-up drawer on `/class-passes`** — when a guest clicks a price:
+   - Open a bottom sheet (mobile) / modal (desktop) titled "Create your account to check out" with First name, Last name, Email, Phone, Password.
+   - Submit creates a Supabase auth user, seeds a `non_member_profiles` row (same as current non-member onboarding), then automatically resumes `handlePurchase(category, passType)` — no page reload, no re-click.
+   - Existing users get a "Already have an account? Sign in" toggle inside the same sheet that logs them in and resumes the purchase the same way.
 
-Add a new `first_visit_kind` field to the RPC response:
+2. **Persist the pending purchase across auth** — stash `{category, passType}` in `sessionStorage` before opening the sheet so a hard refresh or email-confirmation bounce still resumes checkout on return.
 
-- `'first_ever'` — no prior `check_ins` **and** no prior guest_pass / class_pass / non_member_profile / spa_appointment / cafe_order rows matching the member's email.
-- `'first_as_member'` — no prior `check_ins` for this `member_id`, but prior activity exists under the same email (guest pass, class pass, non-member profile, spa appt, etc.).
-- `'returning'` — has prior check-ins.
+3. **Fix the "just errors out" UX** — replace the `toast.error` early-return with opening the sheet, so no click is ever a dead end.
 
-Keep `is_first_visit` boolean for backward compat: true when kind is `first_ever` **or** `first_as_member`. Store the kind in the `check_ins.notes` field ("First club visit" / "First visit as member" / "Kiosk check-in") so history is auditable.
+4. **Same treatment on `BookingModal`** — currently when a non-member tries to book with no passes, it does `navigate("/class-passes")`. Change it to open the same inline purchase drawer in place so they never leave the schedule.
 
-Signal for "prior activity under same email" — check for at least one row in any of:
-- `guest_passes` where `guest_email = members.email`
-- `class_passes` where `user_id = members.user_id` OR pending_class_pass_checkouts by email
-- `non_member_profiles` where `email = members.email`
-- `spa_appointments` where `customer_email = members.email`
-- `cafe_orders` where `customer_email = members.email`
+5. **Public entry visibility** — add a prominent "Buy a class pass" button to `/schedule` header so drop-in visitors have an obvious CTA without hunting through the nav.
 
-(Confirm exact column names when implementing — schema may vary; use whichever email column each table actually has.)
+6. **Waivers stay inline** — the existing inline waiver/agreement signing flow already works for non-members (recent fix); no changes needed there. It will trigger automatically after the new account is created, before Stripe checkout opens.
 
-### 2. Frontend — `src/pages/FrontDesk.tsx`
+## Technical notes
 
-- Extend `KioskCheckInResult` (in `useKioskCheckIn.ts`) with `first_visit_kind?: 'first_ever' | 'first_as_member' | 'returning'`.
-- Replace the current single celebration dialog with a variant that reads:
-  - **first_ever**: "🎉 First time at Storm! Offer a full club tour."
-  - **first_as_member**: "⭐ First visit as a member! Offer the member walkthrough (app, credits, booking)."
-- Update the roster badge next to the name:
-  - `⭐ 1st Visit` (first_ever) — gold
-  - `🆕 New Member` (first_as_member) — blue
-- Both dismiss via existing `mark_first_visit_tour_offered` RPC (no schema change to tracking).
-
-### 3. Kiosk attendance list
-
-`useKioskAttendance.ts` currently infers `is_first_visit` from `notes.startsWith("first club visit")`. Extend it to also flag `first_as_member` when notes start with "First visit as member" and pass a `first_visit_kind` field so the roster shows the right badge for today's list.
+- New component: `src/components/class-passes/GuestCheckoutSheet.tsx` — wraps the sign-up form + resume logic; reused by `ClassPasses.tsx` and `BookingModal.tsx`.
+- Reuse the existing non-member signup path in `AuthContext` / `useNonMemberProfile` — don't fork auth logic.
+- After `signUp`, wait for `useAuth().user` to hydrate (or use the returned session) before calling `handlePurchase`, so the Stripe edge function sees the auth header.
+- `sessionStorage` key: `pendingClassPassPurchase = { category, passType, ts }`, cleared on success/cancel return.
+- No schema changes. No edge function changes. No changes to member-facing `/portal/book/class` (already handled by `BuyPassesDrawer`).
 
 ## Out of scope
 
-- No changes to guest/class/spa check-in flows.
-- No changes to `mark_first_visit_tour_offered` — it just marks the prompt as offered regardless of kind.
-
-## Verification
-
-1. Brand-new member (no prior anything) checks in → gold "1st Visit" badge + "First time at Storm" dialog.
-2. Member whose email previously bought a guest pass or class drop-in checks in → blue "New Member" badge + "First visit as a member" dialog.
-3. Returning member → no badge, no dialog.
-4. Second check-in same day for any of the above → no dialog (already_in path).
+- True anonymous/guest checkout with no account (passes need an owner to redeem).
+- Changes to member pricing, Stripe products, or the waiver system.
