@@ -207,22 +207,11 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                     </span>
                   </div>
                   <div className="text-center">
-                    {user ? (
-                      <PurchaseButton 
-                        category="pilatesCycling" 
-                        passType={tier.passType}
-                        price={isMember ? tier.memberPrice : tier.nonMemberPrice}
-                      />
-                    ) : (
-                      <div className="flex flex-col gap-1 items-center">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link to="/auth?redirect=/class-passes">Sign In</Link>
-                        </Button>
-                        <Link to="/auth?redirect=/class-passes" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                          Create Account
-                        </Link>
-                      </div>
-                    )}
+                    <PurchaseButton
+                      category="pilatesCycling"
+                      passType={tier.passType}
+                      price={user && isMember ? tier.memberPrice : tier.nonMemberPrice}
+                    />
                   </div>
                 </div>
               ))}
