@@ -440,6 +440,7 @@ function FrontDeskKiosk() {
   const [firstVisit, setFirstVisit] = useState<{
     checkInId?: string;
     name: string;
+    kind: "first_ever" | "first_as_member";
   } | null>(null);
   const [tourSaving, setTourSaving] = useState(false);
 
