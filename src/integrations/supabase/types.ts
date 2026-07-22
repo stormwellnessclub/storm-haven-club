@@ -1918,6 +1918,7 @@ export type Database = {
           image_url: string | null
           is_active: boolean
           is_heated: boolean
+          is_signature: boolean
           max_capacity: number
           name: string
           updated_at: string
@@ -1931,6 +1932,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           is_heated?: boolean
+          is_signature?: boolean
           max_capacity?: number
           name: string
           updated_at?: string
@@ -1944,6 +1946,7 @@ export type Database = {
           image_url?: string | null
           is_active?: boolean
           is_heated?: boolean
+          is_signature?: boolean
           max_capacity?: number
           name?: string
           updated_at?: string
@@ -3136,6 +3139,7 @@ export type Database = {
           id: string
           invited_at: string | null
           is_active: boolean
+          is_master: boolean
           last_login_at: string | null
           last_name: string
           pay_type: Database["public"]["Enums"]["instructor_pay_type"]
@@ -3156,6 +3160,7 @@ export type Database = {
           id?: string
           invited_at?: string | null
           is_active?: boolean
+          is_master?: boolean
           last_login_at?: string | null
           last_name: string
           pay_type?: Database["public"]["Enums"]["instructor_pay_type"]
@@ -3176,6 +3181,7 @@ export type Database = {
           id?: string
           invited_at?: string | null
           is_active?: boolean
+          is_master?: boolean
           last_login_at?: string | null
           last_name?: string
           pay_type?: Database["public"]["Enums"]["instructor_pay_type"]
@@ -9277,6 +9283,7 @@ export type Database = {
           id: string
           invited_at: string | null
           is_active: boolean
+          is_master: boolean
           last_login_at: string | null
           last_name: string
           pay_type: Database["public"]["Enums"]["instructor_pay_type"]
