@@ -12,6 +12,22 @@ export function useAdminSupportNotifications() {
     queryKey: ['admin-support-notifications'],
     queryFn: async (): Promise<SupportNotifications> => {
       try {
+        // Front desk / kiosk has no auth session; RLS on email_conversations
+        // would return 0. Use the SECURITY DEFINER kiosk RPC in that case.
+        const { data: sessionData } = await supabase.auth.getSession();
+        const hasAuth = !!sessionData?.session?.user;
+
+        if (!hasAuth) {
+          const { data, error } = await (supabase.rpc as any)(
+            'kiosk_support_notification_counts',
+          );
+          if (error) throw error;
+          const row = Array.isArray(data) ? data[0] : data;
+          const openCount = row?.open_count ?? 0;
+          const unreadCount = row?.unread_count ?? 0;
+          return { openCount, unreadCount, totalActiveCount: openCount + unreadCount };
+        }
+
         const { count: openCount, error: openError } = await supabase
           .from('email_conversations')
           .select('*', { count: 'exact', head: true })
