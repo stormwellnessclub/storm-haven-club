@@ -24,6 +24,7 @@ export interface ClassSession {
     description: string | null;
     duration_minutes: number;
     is_heated: boolean;
+    is_signature?: boolean;
     image_url: string | null;
   };
   instructor: {
@@ -31,6 +32,7 @@ export interface ClassSession {
     first_name: string;
     last_name: string;
     photo_url: string | null;
+    is_master?: boolean;
   } | null;
 }
 
@@ -74,13 +76,15 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
             description,
             duration_minutes,
             is_heated,
+            is_signature,
             image_url
           ),
           instructor:instructors (
             id,
             first_name,
             last_name,
-            photo_url
+            photo_url,
+            is_master
           )
         `)
         .gte("session_date", format(weekStart, "yyyy-MM-dd"))
@@ -150,13 +154,15 @@ export function useUpcomingSessions(limit = 10) {
             description,
             duration_minutes,
             is_heated,
+            is_signature,
             image_url
           ),
           instructor:instructors (
             id,
             first_name,
             last_name,
-            photo_url
+            photo_url,
+            is_master
           )
         `)
         .gte("session_date", today)

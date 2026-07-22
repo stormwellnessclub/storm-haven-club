@@ -49,6 +49,7 @@ interface Instructor {
   photo_url: string | null;
   specialties: string[] | null;
   is_active: boolean;
+  is_master?: boolean;
 }
 
 export default function Instructors() {
@@ -66,6 +67,7 @@ export default function Instructors() {
   const [bio, setBio] = useState("");
   const [specialties, setSpecialties] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [isMaster, setIsMaster] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Instructor | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -107,12 +109,17 @@ export default function Instructors() {
     if (data) {
       (data as any[]).sort((a, b) => (a.last_name || "").localeCompare(b.last_name || ""));
     }
-    
+
     if (error) {
       toast.error("Failed to load instructors");
       console.error(error);
     } else {
-      setInstructors(data || []);
+      // Fetch is_master flag separately (not returned by RPC)
+      const { data: masterRows } = await supabase.from("instructors").select("id, is_master");
+      const masterMap: Record<string, boolean> = {};
+      (masterRows || []).forEach((r: any) => { masterMap[r.id] = !!r.is_master; });
+      const merged = (data || []).map((i: any) => ({ ...i, is_master: !!masterMap[i.id] }));
+      setInstructors(merged);
       // Load portal status in parallel
       const { data: statusRows } = await (supabase as any).rpc("get_instructor_portal_status");
       if (statusRows) {
@@ -153,6 +160,7 @@ export default function Instructors() {
     setBio("");
     setSpecialties("");
     setIsActive(true);
+    setIsMaster(false);
     setEditingInstructor(null);
   }
 
@@ -165,6 +173,7 @@ export default function Instructors() {
     setBio(instructor.bio || "");
     setSpecialties(instructor.specialties?.join(", ") || "");
     setIsActive(instructor.is_active);
+    setIsMaster(!!instructor.is_master);
     setDialogOpen(true);
   }
 
@@ -179,7 +188,7 @@ export default function Instructors() {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
 
-    const instructorData = {
+    const instructorData: any = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       email: email.trim(),
@@ -187,6 +196,7 @@ export default function Instructors() {
       bio: bio.trim() || null,
       specialties: specialtiesArray.length > 0 ? specialtiesArray : null,
       is_active: isActive,
+      is_master: isMaster,
     };
 
     if (editingInstructor) {
@@ -314,6 +324,19 @@ export default function Instructors() {
                     onCheckedChange={setIsActive}
                   />
                 </div>
+                <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                  <div>
+                    <Label htmlFor="master">👑 Master Instructor</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Their classes appear in the Signature tab
+                    </p>
+                  </div>
+                  <Switch
+                    id="master"
+                    checked={isMaster}
+                    onCheckedChange={setIsMaster}
+                  />
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -366,6 +389,11 @@ export default function Instructors() {
                           <span className="font-medium">
                             {instructor.first_name} {instructor.last_name}
                           </span>
+                          {instructor.is_master && (
+                            <Badge className="bg-gradient-to-r from-amber-500 to-amber-700 text-white border-0 text-[10px]">
+                              👑 Master
+                            </Badge>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>{instructor.email}</TableCell>

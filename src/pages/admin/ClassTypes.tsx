@@ -44,6 +44,7 @@ interface ClassType {
   duration_minutes: number;
   max_capacity: number;
   is_heated: boolean;
+  is_signature: boolean;
   is_active: boolean;
 }
 
@@ -94,6 +95,7 @@ export default function ClassTypes() {
   const [durationMinutes, setDurationMinutes] = useState(50);
   const [maxCapacity, setMaxCapacity] = useState(20);
   const [isHeated, setIsHeated] = useState(false);
+  const [isSignature, setIsSignature] = useState(false);
   
   // Quick schedule form state
   const [instructorId, setInstructorId] = useState("");
@@ -185,8 +187,9 @@ export default function ClassTypes() {
         duration_minutes: durationMinutes,
         max_capacity: maxCapacity,
         is_heated: isHeated,
+        is_signature: isSignature,
         is_active: true,
-      }]);
+      }] as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -399,6 +402,7 @@ export default function ClassTypes() {
                           durationMinutes={classType.duration_minutes}
                           maxCapacity={classType.max_capacity}
                           isHeated={classType.is_heated}
+                          isSignature={classType.is_signature}
                           isActive={classType.is_active}
                           scheduleCount={classType.scheduleCount}
                           onAddSchedule={() => openQuickSchedule(classType.id)}
@@ -475,6 +479,18 @@ export default function ClassTypes() {
             <div className="flex items-center justify-between">
               <Label>Heated Class</Label>
               <Switch checked={isHeated} onCheckedChange={setIsHeated} />
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+              <div>
+                <Label className="flex items-center gap-1.5">
+                  <span className="text-amber-700 dark:text-amber-400">👑</span>
+                  Signature Class
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Featured tab, taught by Master Instructors
+                </p>
+              </div>
+              <Switch checked={isSignature} onCheckedChange={setIsSignature} />
             </div>
           </div>
           <DialogFooter>

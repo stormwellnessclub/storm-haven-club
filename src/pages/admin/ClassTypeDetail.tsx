@@ -61,6 +61,7 @@ interface ClassType {
   duration_minutes: number;
   max_capacity: number;
   is_heated: boolean;
+  is_signature: boolean;
   is_active: boolean;
 }
 
@@ -125,6 +126,7 @@ export default function ClassTypeDetail() {
   const [durationMinutes, setDurationMinutes] = useState(50);
   const [maxCapacity, setMaxCapacity] = useState(20);
   const [isHeated, setIsHeated] = useState(false);
+  const [isSignature, setIsSignature] = useState(false);
   const [isActive, setIsActive] = useState(true);
   
   // Schedule form state
@@ -230,8 +232,9 @@ export default function ClassTypeDetail() {
           duration_minutes: durationMinutes,
           max_capacity: maxCapacity,
           is_heated: isHeated,
+          is_signature: isSignature,
           is_active: isActive,
-        })
+        } as any)
         .eq("id", id);
       if (error) throw error;
     },
@@ -375,6 +378,7 @@ export default function ClassTypeDetail() {
     setDurationMinutes(classType.duration_minutes);
     setMaxCapacity(classType.max_capacity);
     setIsHeated(classType.is_heated);
+    setIsSignature(classType.is_signature);
     setIsActive(classType.is_active);
     setEditDialogOpen(true);
   }
@@ -447,6 +451,11 @@ export default function ClassTypeDetail() {
                   <Badge variant="outline" className="text-orange-600 border-orange-300">
                     <Flame className="h-3 w-3 mr-1" />
                     Heated
+                  </Badge>
+                )}
+                {classType.is_signature && (
+                  <Badge className="bg-gradient-to-r from-amber-500 to-amber-700 text-white border-0">
+                    👑 Signature
                   </Badge>
                 )}
               </div>
@@ -719,6 +728,13 @@ export default function ClassTypeDetail() {
             <div className="flex items-center justify-between">
               <Label>Heated Class</Label>
               <Switch checked={isHeated} onCheckedChange={setIsHeated} />
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+              <div>
+                <Label>👑 Signature Class</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">Featured in Signature tab</p>
+              </div>
+              <Switch checked={isSignature} onCheckedChange={setIsSignature} />
             </div>
             <div className="flex items-center justify-between">
               <Label>Active</Label>

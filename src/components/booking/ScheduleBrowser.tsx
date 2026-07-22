@@ -9,7 +9,7 @@ import {
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake, Heart,
-  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin, Info,
+  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin, Info, Crown,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -26,6 +26,7 @@ import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 
 type RoomFilter = "all" | "Reformer Studio" | "Cycle Studio" | "Aerobics Studio";
 type HeatFilter = "all" | "heated" | "non_heated";
+type SignatureFilter = "all" | "signature";
 
 const categoryConfig: Record<string, { icon: typeof Activity; label: string; color: string }> = {
   reformer: { icon: CircleDot, label: "Reformer Pilates", color: "bg-amber-900/10 text-amber-900" },
@@ -55,12 +56,14 @@ interface ClassSession {
     description: string | null;
     duration_minutes: number;
     is_heated: boolean;
+    is_signature: boolean;
     image_url: string | null;
   };
   instructors: {
     id: string;
     first_name: string;
     last_name: string;
+    is_master: boolean;
   } | null;
 }
 
@@ -89,6 +92,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   const todayRef = React.useRef<HTMLDivElement>(null);
   const [roomFilter, setRoomFilter] = useState<RoomFilter>("all");
   const [heatFilter, setHeatFilter] = useState<HeatFilter>("all");
+  const [signatureFilter, setSignatureFilter] = useState<SignatureFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -117,6 +121,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
         description: ct.description,
         duration_minutes: ct.duration_minutes,
         is_heated: ct.is_heated,
+        is_signature: ct.is_signature,
         image_url: ct.image_url,
       },
       instructor: session.instructors
@@ -125,6 +130,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
             first_name: session.instructors.first_name,
             last_name: session.instructors.last_name,
             photo_url: null,
+            is_master: session.instructors.is_master,
           }
         : null,
     };
@@ -198,8 +204,8 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
         .select(`
           id, session_date, start_time, end_time, max_capacity, current_enrollment, is_cancelled, room,
           is_fundraiser, fundraiser_beneficiary, session_notes, override_price_cents, is_invite_only,
-          class_types!inner(id, name, category, description, duration_minutes, is_heated, image_url),
-          instructors(id, first_name, last_name)
+          class_types!inner(id, name, category, description, duration_minutes, is_heated, is_signature, image_url),
+          instructors(id, first_name, last_name, is_master)
         `)
         .gte("session_date", startStr)
         .lte("session_date", endStr)
@@ -229,8 +235,12 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
         if (heatFilter === "all") return true;
         if (heatFilter === "heated") return s.class_types.is_heated === true;
         return s.class_types.is_heated === false;
+      })
+      .filter((s) => {
+        if (signatureFilter === "all") return true;
+        return s.class_types.is_signature === true || s.instructors?.is_master === true;
       });
-  }, [sessions, roomFilter, heatFilter]);
+  }, [sessions, roomFilter, heatFilter, signatureFilter]);
 
   const sessionsByDate = useMemo(() => {
     const map: Record<string, ClassSession[]> = {};
@@ -341,9 +351,21 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                     {h.label}
                   </button>
                 ))}
-                {(roomFilter !== "all" || heatFilter !== "all") && (
+                <button
+                  onClick={() => setSignatureFilter(signatureFilter === "signature" ? "all" : "signature")}
+                  className={`filter-badge flex items-center gap-1.5 ${
+                    signatureFilter === "signature"
+                      ? "bg-gradient-to-r from-amber-500 to-amber-700 text-white border-amber-600 shadow-sm"
+                      : "border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                  }`}
+                  title="Classes taught by Storm's Master Instructors"
+                >
+                  <Crown className="w-3.5 h-3.5" />
+                  Signature
+                </button>
+                {(roomFilter !== "all" || heatFilter !== "all" || signatureFilter !== "all") && (
                   <button
-                    onClick={() => { setRoomFilter("all"); setHeatFilter("all"); }}
+                    onClick={() => { setRoomFilter("all"); setHeatFilter("all"); setSignatureFilter("all"); }}
                     className="text-xs text-muted-foreground hover:text-foreground underline ml-1"
                   >
                     Clear
@@ -561,6 +583,11 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                 <div className="flex items-start justify-between gap-2">
                                   <h3 className="font-serif text-base font-medium truncate">{ct.name}</h3>
                                   <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                                    {(ct.is_signature || session.instructors?.is_master) && (
+                                      <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-amber-700 text-white border-0">
+                                        <Crown className="w-2.5 h-2.5 mr-0.5" /> Signature
+                                      </Badge>
+                                    )}
                                     {session.is_invite_only && (
                                       <Badge className="text-[10px] bg-purple-600 hover:bg-purple-600 text-white">
                                         Invite Only

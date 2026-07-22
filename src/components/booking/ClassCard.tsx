@@ -2,7 +2,7 @@ import { ClassSession } from "@/hooks/useClassSessions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Clock, MapPin, User, Flame, Users, Heart } from "lucide-react";
+import { Clock, MapPin, User, Flame, Users, Heart, Crown } from "lucide-react";
 import { format, parse } from "date-fns";
 import { StarRating } from "@/components/reviews/StarRating";
 
@@ -47,10 +47,16 @@ export function ClassCard({ session, onBook, onJoinWaitlist, isBooked = false, i
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
                 {session.class_type.name}
               </h3>
+              {(session.class_type.is_signature || session.instructor?.is_master) && (
+                <Badge className="text-xs bg-gradient-to-r from-amber-500 to-amber-700 text-white border-0">
+                  <Crown className="h-3 w-3 mr-1" />
+                  Signature
+                </Badge>
+              )}
               {session.class_type.is_heated && (
                 <Badge variant="destructive" className="text-xs">
                   <Flame className="h-3 w-3 mr-1" />
