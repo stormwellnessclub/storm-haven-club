@@ -62,8 +62,14 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const hasSingleAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
   const hasClassPackageAgreementConfigured = classPackageAgreements && classPackageAgreements.length > 0;
-  const needsSingleAgreement = !!profile && hasSingleAgreementConfigured && !profile.single_class_pass_agreement_signed;
-  const needsClassPackageAgreement = !!profile && hasClassPackageAgreementConfigured && !profile.class_package_agreement_signed;
+  const singleAgreementSigned =
+    (profile?.single_class_pass_agreement_signed === true) ||
+    ((nonMemberProfile as any)?.single_class_pass_agreement_signed === true);
+  const classPackageAgreementSigned =
+    (profile?.class_package_agreement_signed === true) ||
+    ((nonMemberProfile as any)?.class_package_agreement_signed === true);
+  const needsSingleAgreement = hasSingleAgreementConfigured && !singleAgreementSigned;
+  const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !classPackageAgreementSigned;
 
   const handlePurchase = async (passType: "single" | "tenPack") => {
     if (!user) {
