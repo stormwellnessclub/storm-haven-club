@@ -2811,12 +2811,25 @@ serve(async (req) => {
         let passCategory: 'pilatesCycling' | 'otherClasses' = category as 'pilatesCycling' | 'otherClasses';
         // Category already matches classPasses keys (pilatesCycling or otherClasses)
 
-        const passConfig = STRIPE_PRODUCTS.classPasses[passCategory];
-        if (!passConfig) {
-          throw new Error(`Invalid category: ${category}`);
+        // Prefer DB-managed price; fallback to hardcoded map.
+        const dbCategory2 = passCategory === 'pilatesCycling' ? 'pilates_cycling' : 'other';
+        const dbPassType2 = passType === 'tenPack' ? '10_pack' : (passType as string);
+        const audience2 = isMember ? 'member' : 'non_member';
+        let priceId: string | undefined;
+        try {
+          const { data: priceRow2 } = await supabase
+            .from('class_pricing')
+            .select('stripe_price_id')
+            .eq('category', dbCategory2)
+            .eq('pass_type', dbPassType2)
+            .eq('audience', audience2)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (priceRow2?.stripe_price_id) priceId = priceRow2.stripe_price_id;
+        } catch (_e) { /* fall through */ }
+        if (!priceId) {
+          priceId = (passConfig as any)[passType as string]?.[isMember ? 'member' : 'nonMember'];
         }
-
-        const priceId = (passConfig as any)[passType as string]?.[isMember ? 'member' : 'nonMember'];
         if (!priceId) {
           throw new Error(`Price not found for ${category} ${passType} ${isMember ? 'member' : 'non-member'}`);
         }
