@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronRight, Plus, Flame, Calendar } from "lucide-react";
+import { ChevronRight, Plus, Flame, Calendar, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ClassTypeCardProps {
@@ -11,6 +11,7 @@ interface ClassTypeCardProps {
   durationMinutes: number;
   maxCapacity: number;
   isHeated: boolean;
+  isSignature?: boolean;
   isActive: boolean;
   scheduleCount: number;
   onAddSchedule?: () => void;
@@ -23,6 +24,7 @@ export function ClassTypeCard({
   durationMinutes,
   maxCapacity,
   isHeated,
+  isSignature,
   isActive,
   scheduleCount,
   onAddSchedule,
@@ -52,6 +54,15 @@ export function ClassTypeCard({
                 <span className="flex items-center gap-1 text-orange-600">
                   <Flame className="h-3 w-3" />
                   Heated
+                </span>
+              </>
+            )}
+            {isSignature && (
+              <>
+                <span>•</span>
+                <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400 font-medium">
+                  <Crown className="h-3 w-3" />
+                  Signature
                 </span>
               </>
             )}
