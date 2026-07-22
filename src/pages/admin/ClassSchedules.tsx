@@ -1013,6 +1013,7 @@ export default function ClassSchedules() {
                 schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
                 conflicts={conflicts}
                 onEditSchedule={openEditDialog}
+                bookingReleaseCutoff={addWeeks(new Date(), 4)}
               />
             ) : (
               <Table>
