@@ -4,6 +4,8 @@ import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 
 export type KioskAttendanceType = "member" | "guest" | "class" | "spa";
 
+export type FirstVisitKind = "first_ever" | "first_as_member" | "returning";
+
 export interface KioskAttendanceEntry {
   id: string;
   type: KioskAttendanceType;
@@ -13,6 +15,7 @@ export interface KioskAttendanceEntry {
   photo_url?: string | null;
   sub_type?: string | null;
   is_first_visit?: boolean;
+  first_visit_kind?: FirstVisitKind;
 }
 
 export interface KioskAttendanceStats {
