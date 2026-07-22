@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Plus, Minus, Save, ChevronDown, ChevronRight, UserPlus, Calendar } from "lucide-react";
+import { Loader2, Plus, Minus, Save, ChevronDown, ChevronRight, UserPlus, Calendar, Archive } from "lucide-react";
 import { toast } from "sonner";
 import { format as fmtDate, parseISO, differenceInDays } from "date-fns";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
+import { GrantLegacyPtPackDialog } from "@/components/admin/GrantLegacyPtPackDialog";
 import { PT_FORMAT_LABEL, PtFormat, PtPass, formatCents } from "@/lib/ptFormat";
 import { Link } from "react-router-dom";
 
