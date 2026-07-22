@@ -76,13 +76,15 @@ export function useClassSessions(options: UseClassSessionsOptions = {}) {
             description,
             duration_minutes,
             is_heated,
+            is_signature,
             image_url
           ),
           instructor:instructors (
             id,
             first_name,
             last_name,
-            photo_url
+            photo_url,
+            is_master
           )
         `)
         .gte("session_date", format(weekStart, "yyyy-MM-dd"))
