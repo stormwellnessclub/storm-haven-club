@@ -1,51 +1,34 @@
-## Diagnosis (verified)
+# Fix: Freeze request fails with generic error
 
-Public schedule fetch fails with HTTP 401:
-`permission denied for table instructors` (code 42501).
+## Root cause (verified)
 
-Confirmed by hitting the Data API as `anon` with the exact query `ScheduleBrowser.tsx` runs, and by inspecting the catalog:
+Two database objects reference a column that no longer exists on `billing_arrears`:
 
-- `public.instructors` has **no `GRANT`s to any role** (`role_table_grants` returns 0 rows for it), so PostgREST rejects every read — including the embed used by `/schedule`.
-- RLS policies exist for staff, but PostgREST checks grants **before** RLS.
-- Data itself is fine: `class_sessions` has 158 upcoming visible rows.
+- Trigger `enforce_no_freeze_when_past_due` (fires BEFORE INSERT on `member_freezes`)
+- RPC `check_freeze_block_status` (used by the portal to show the past-due banner)
 
-An earlier tightening pass on the `instructors` table dropped all grants without restoring the public-safe subset needed by the schedule embed.
+Both do:
+```
+SUM(ba.outstanding_cents) FROM billing_arrears ba WHERE ba.outstanding_cents > 0 ...
+```
+
+But `billing_arrears` has no `outstanding_cents` column — only `amount_due_cents` and `amount_paid_cents`. Every freeze insert therefore throws a Postgres "column does not exist" error, which the client surfaces as the generic "Failed to submit freeze request" toast Deana is seeing. Her account is genuinely clean (0 arrears rows unpaid, subscription `active`), so she should be able to freeze.
 
 ## Fix
 
-One migration to restore correct grants + a public-read RLS policy limited to safe columns.
+Single migration that replaces both function bodies to compute outstanding from the actual columns:
 
-**Sensitive columns to keep private from `anon`:** `email`, `phone`, `pay_type`, `default_per_class_rate`, `hourly_rate`, `user_id`, `invited_at`, `last_login_at`, `portal_enabled`, `is_public_pt`.
-
-**Public-safe columns for `anon`:** `id`, `first_name`, `last_name`, `bio`, `photo_url`, `specialties`, `is_active`, `is_master`, `created_at`, `updated_at`.
-
-### Migration
-
-```sql
--- 1. Restore table-level grants (were fully missing).
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.instructors TO authenticated;
-GRANT ALL ON public.instructors TO service_role;
-
--- 2. Grant anon SELECT only on public-safe columns.
-GRANT SELECT
-  (id, first_name, last_name, bio, photo_url, specialties,
-   is_active, is_master, created_at, updated_at)
-  ON public.instructors TO anon;
-
--- 3. RLS policy so anon can read active instructors
---    (existing staff/authenticated policies remain unchanged).
-CREATE POLICY "Public can view active instructors (safe cols)"
-  ON public.instructors
-  FOR SELECT
-  TO anon
-  USING (is_active = true);
+```
+GREATEST(amount_due_cents - COALESCE(amount_paid_cents, 0), 0)
 ```
 
-No frontend changes needed — `ScheduleBrowser.tsx` already only selects the safe columns (`id, first_name, last_name, is_master`).
+- `public.enforce_no_freeze_when_past_due()` — same logic, just swap the `outstanding_cents` references for the computed expression.
+- `public.check_freeze_block_status()` — same swap so the portal past-due banner works again.
+
+No schema changes, no RLS changes, no frontend changes. Behavior after fix: members with no unpaid arrears (like Deana) can submit freeze requests; members with a real outstanding balance still get blocked with the correct dollar amount.
 
 ## Verification
 
 After the migration:
-1. Re-run the anon curl against `/rest/v1/class_sessions?...instructors(id,...)` — expect HTTP 200 with rows.
-2. Load `/schedule` in the preview — sessions should render.
-3. Confirm anon still cannot read `email`/`phone` (a query selecting those columns as anon should still return 42501).
+1. Re-run `check_freeze_block_status` as Deana → expect `blocked=false`.
+2. Have Deana submit her freeze request again → should succeed.
