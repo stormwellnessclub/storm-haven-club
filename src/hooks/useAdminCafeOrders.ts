@@ -143,7 +143,15 @@ export function useUpdateCafeOrderStatus() {
 
   return useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      if (!user) throw new Error("You must be signed in");
+      // Front desk / kiosk (no auth) — route through the kiosk RPC.
+      if (!user) {
+        const { error } = await (supabase.rpc as any)("kiosk_update_cafe_order_status", {
+          p_order_id: orderId,
+          p_new_status: status,
+        });
+        if (error) throw error;
+        return { id: orderId, status } as unknown as CafeOrder;
+      }
 
       const updateData: any = {
         status,
