@@ -393,6 +393,7 @@ const App = () => (
               <Route path="/admin/class-types/:id" element={<ProtectedAdminRoute><ClassTypeDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/instructors" element={<ProtectedAdminRoute><Instructors /></ProtectedAdminRoute>} />
               <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
+              <Route path="/admin/class-pass-pricing" element={<ProtectedAdminRoute><ClassPassPricing /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-pins" element={<ProtectedAdminRoute><StaffPins /></ProtectedAdminRoute>} />
