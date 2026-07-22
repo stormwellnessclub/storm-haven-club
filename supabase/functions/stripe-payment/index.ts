@@ -2828,7 +2828,8 @@ serve(async (req) => {
           if (priceRow2?.stripe_price_id) priceId = priceRow2.stripe_price_id;
         } catch (_e) { /* fall through */ }
         if (!priceId) {
-          priceId = (passConfig as any)[passType as string]?.[isMember ? 'member' : 'nonMember'];
+          const passConfig = (STRIPE_PRODUCTS.classPasses as any)[passCategory];
+          priceId = passConfig?.[passType as string]?.[isMember ? 'member' : 'nonMember'];
         }
         if (!priceId) {
           throw new Error(`Price not found for ${category} ${passType} ${isMember ? 'member' : 'non-member'}`);
