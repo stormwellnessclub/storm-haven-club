@@ -473,7 +473,10 @@ function FrontDeskKiosk() {
         if (result.already_in) {
           toast.info(`${fullName} is already checked in today`);
         } else if (result.is_first_visit) {
-          setFirstVisit({ checkInId: result.check_in_id, name: fullName });
+          const kind = (result.first_visit_kind === "first_as_member" ? "first_as_member" : "first_ever") as
+            | "first_ever"
+            | "first_as_member";
+          setFirstVisit({ checkInId: result.check_in_id, name: fullName, kind });
         } else {
           toast.success(`${fullName} checked in!`);
         }
