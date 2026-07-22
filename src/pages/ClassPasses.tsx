@@ -343,6 +343,9 @@ export default function ClassPasses() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successPass, setSuccessPass] = useState<any>(null);
 
+  // Inline guest checkout (account create / sign in) sheet
+  const [guestSheetOpen, setGuestSheetOpen] = useState(false);
+
   // Detect Stripe return: backend appends ?session_id={CHECKOUT_SESSION_ID} to successUrl
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
