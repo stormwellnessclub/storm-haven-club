@@ -1,34 +1,38 @@
-# Fix: Freeze request fails with generic error
+# Fix: Front desk can't see/hear cafe orders or concierge requests
 
 ## Root cause (verified)
 
-Two database objects reference a column that no longer exists on `billing_arrears`:
+The front desk shell uses a device PIN — no authenticated user. Every relevant hook queries tables whose RLS policies gate access on `has_any_role(auth.uid(), ...)`, which returns false with no auth session:
 
-- Trigger `enforce_no_freeze_when_past_due` (fires BEFORE INSERT on `member_freezes`)
-- RPC `check_freeze_block_status` (used by the portal to show the past-due banner)
+- `cafe_orders` — only visible to staff roles via `auth.uid()`; anon returns 0 rows → **red cafe banner never appears, chime never fires, `/frontdesk/cafe` POS queue is empty**.
+- `email_conversations` / `email_messages` — same → **blue concierge/support banner never appears, chime never fires**.
+- `useAdminCafeOrders` is also `enabled: !!user`, so even with correct RLS it would bail on the front desk.
 
-Both do:
-```
-SUM(ba.outstanding_cents) FROM billing_arrears ba WHERE ba.outstanding_cents > 0 ...
-```
-
-But `billing_arrears` has no `outstanding_cents` column — only `amount_due_cents` and `amount_paid_cents`. Every freeze insert therefore throws a Postgres "column does not exist" error, which the client surfaces as the generic "Failed to submit freeze request" toast Deana is seeing. Her account is genuinely clean (0 arrears rows unpaid, subscription `active`), so she should be able to freeze.
+This matches the existing kiosk pattern already used for check-ins (`kiosk_search_visitors`, `kiosk_todays_attendance`, etc.): the front desk is trusted by the shared PIN, so `SECURITY DEFINER` RPCs granted to `anon` are the right unlock.
 
 ## Fix
 
-Single migration that replaces both function bodies to compute outstanding from the actual columns:
+### 1. Database — four new `SECURITY DEFINER` RPCs (single migration)
 
-```
-GREATEST(amount_due_cents - COALESCE(amount_paid_cents, 0), 0)
-```
+All `SET search_path = public`, granted to `anon` + `authenticated`.
 
-- `public.enforce_no_freeze_when_past_due()` — same logic, just swap the `outstanding_cents` references for the computed expression.
-- `public.check_freeze_block_status()` — same swap so the portal past-due banner works again.
+- `kiosk_cafe_notification_counts()` → `{ pending_count int, preparing_count int, total_active_count int }`. Feeds banner + chime count.
+- `kiosk_cafe_active_orders()` → JSON array of active cafe orders (pending + preparing + ready), each with items, totals, note, member/non-member display name + phone. Feeds `/frontdesk/cafe` queue.
+- `kiosk_update_cafe_order_status(order_id uuid, new_status text)` → updates status + `completed_at`, guarded to statuses `pending|preparing|ready|completed|cancelled`. Feeds Mark Preparing / Mark Ready / Complete buttons.
+- `kiosk_support_notification_counts()` → `{ open_count int, unread_count int }`. Feeds blue banner + support chime.
 
-No schema changes, no RLS changes, no frontend changes. Behavior after fix: members with no unpaid arrears (like Deana) can submit freeze requests; members with a real outstanding balance still get blocked with the correct dollar amount.
+### 2. Frontend — route the shell hooks through the kiosk RPCs when there's no auth user
+
+- `src/hooks/useAdminCafeNotifications.ts` — if no `auth.uid()`, call `kiosk_cafe_notification_counts` instead of the direct table select. Keeps admin behavior unchanged.
+- `src/hooks/useAdminSupportNotifications.ts` — same pattern with `kiosk_support_notification_counts`.
+- `src/hooks/useAdminCafeOrders.ts` — remove the `!!user` gate; when there's no user, call `kiosk_cafe_active_orders` for reads and `kiosk_update_cafe_order_status` for status writes. Admin path (signed-in) keeps the existing direct-table read/update.
+
+No changes to banners, chimes, or the front-desk cafe page component — they'll start receiving data automatically once the hooks return rows. Realtime chime channel already listens to `cafe_orders` INSERT (public realtime is fine to observe row-count changes); if realtime doesn't fire without auth, the 30s polling fallback already in `AdminCafeChime` will still trigger the chime because the count will now change.
 
 ## Verification
 
-After the migration:
-1. Re-run `check_freeze_block_status` as Deana → expect `blocked=false`.
-2. Have Deana submit her freeze request again → should succeed.
+1. Sign out (or open front desk in a fresh tab), enter kiosk PIN, land on `/frontdesk`.
+2. Have a member place a cafe order → red banner appears within 30s, chime plays.
+3. Open `/frontdesk/cafe` → order visible with name + items + Mark Preparing / Complete buttons that actually update status.
+4. Have a member send a concierge/support message → blue banner appears, support chime plays.
+5. Signed-in admin `/admin/cafe/pos` continues to work exactly as before (unchanged code path).

@@ -31,9 +31,34 @@ export function useAdminCafeOrders(filters?: AdminCafeOrdersFilters) {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["admin-cafe-orders", filters],
+    queryKey: ["admin-cafe-orders", filters, user ? "auth" : "kiosk"],
     queryFn: async (): Promise<AdminCafeOrder[]> => {
-      if (!user) return [];
+      // Front desk / kiosk (no auth) — use SECURITY DEFINER RPC. RLS on
+      // cafe_orders otherwise returns zero rows.
+      if (!user) {
+        try {
+          const { data, error } = await (supabase.rpc as any)("kiosk_cafe_active_orders");
+          if (error) throw error;
+          let rows = (Array.isArray(data) ? data : []) as AdminCafeOrder[];
+
+          if (filters?.status) rows = rows.filter((r) => r.status === filters.status);
+          if (filters?.memberId) rows = rows.filter((r) => (r as any).member_id === filters.memberId);
+          if (filters?.dateFrom) {
+            const from = filters.dateFrom.getTime();
+            rows = rows.filter((r) => new Date(r.created_at as any).getTime() >= from);
+          }
+          if (filters?.dateTo) {
+            const to = filters.dateTo.getTime();
+            rows = rows.filter((r) => new Date(r.created_at as any).getTime() <= to);
+          }
+          // Newest first for the queue view
+          rows.sort((a, b) => new Date(b.created_at as any).getTime() - new Date(a.created_at as any).getTime());
+          return rows;
+        } catch (err) {
+          console.error("kiosk_cafe_active_orders failed:", err);
+          return [];
+        }
+      }
 
       try {
         let query = (supabase.from as any)("cafe_orders")
@@ -108,7 +133,7 @@ export function useAdminCafeOrders(filters?: AdminCafeOrdersFilters) {
         throw error;
       }
     },
-    enabled: !!user,
+    // Enable on kiosk as well — queries the SECURITY DEFINER RPC without auth.
   });
 }
 
@@ -118,7 +143,15 @@ export function useUpdateCafeOrderStatus() {
 
   return useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      if (!user) throw new Error("You must be signed in");
+      // Front desk / kiosk (no auth) — route through the kiosk RPC.
+      if (!user) {
+        const { error } = await (supabase.rpc as any)("kiosk_update_cafe_order_status", {
+          p_order_id: orderId,
+          p_new_status: status,
+        });
+        if (error) throw error;
+        return { id: orderId, status } as unknown as CafeOrder;
+      }
 
       const updateData: any = {
         status,
