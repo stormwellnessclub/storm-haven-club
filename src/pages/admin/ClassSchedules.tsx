@@ -42,10 +42,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Calendar, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle, Trash2, Repeat, CalendarRange, CalendarClock } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Loader2, RefreshCw, CalendarPlus, Info, Table2, LayoutGrid, AlertTriangle, Trash2, Repeat, CalendarRange, CalendarClock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, addWeeks, differenceInCalendarDays } from "date-fns";
+import { format, addWeeks, differenceInCalendarDays, parse, startOfDay } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
