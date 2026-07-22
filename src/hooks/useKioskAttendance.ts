@@ -181,6 +181,12 @@ export function useKioskAttendance() {
 
       memberCheckIns.forEach((ci: any) => {
         const member = ci.members;
+        const notesLower = ci.notes ? String(ci.notes).toLowerCase() : "";
+        const kind: FirstVisitKind = notesLower.startsWith("first club visit")
+          ? "first_ever"
+          : notesLower.startsWith("first visit as member")
+          ? "first_as_member"
+          : "returning";
         all.push({
           id: `member-${ci.id}`,
           type: "member",
@@ -189,7 +195,8 @@ export function useKioskAttendance() {
           subtitle: [member?.member_id, member?.membership_type].filter(Boolean).join(" • ") || "Member",
           photo_url: member?.photo_url || null,
           sub_type: "Member",
-          is_first_visit: !!ci.notes && String(ci.notes).toLowerCase().startsWith("first club visit"),
+          is_first_visit: kind !== "returning",
+          first_visit_kind: kind,
         });
       });
 
