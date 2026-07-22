@@ -524,11 +524,11 @@ export default function ClassPasses() {
             </p>
             {!user ? (
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button asChild variant="gold" size="sm">
-                  <Link to="/auth?redirect=/class-passes">Sign In</Link>
+                <Button variant="gold" size="sm" onClick={() => setGuestSheetOpen(true)}>
+                  Create account to buy
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/auth?mode=signup&redirect=/class-passes">Create Free Account</Link>
+                  <Link to="/auth?redirect=/class-passes">Sign In</Link>
                 </Button>
               </div>
             ) : (
