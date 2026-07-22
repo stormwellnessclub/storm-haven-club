@@ -504,6 +504,14 @@ export default function ClassPasses() {
         ]}
       />
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
+      <GuestCheckoutSheet
+        open={guestSheetOpen}
+        onOpenChange={setGuestSheetOpen}
+        onAuthenticated={() => {
+          // The [user] effect above will pick up the stashed pending purchase
+          // and resume handlePurchase automatically once auth hydrates.
+        }}
+      />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">
