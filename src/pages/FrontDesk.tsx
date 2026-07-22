@@ -800,9 +800,14 @@ function FrontDeskKiosk() {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span>{entry.name}</span>
-                              {entry.is_first_visit && (
+                              {entry.first_visit_kind === "first_ever" && (
                                 <Badge className="text-[10px] px-1.5 py-0 h-5 bg-amber-400 text-amber-950 hover:bg-amber-400 border-amber-500">
                                   ⭐ 1st Visit
+                                </Badge>
+                              )}
+                              {entry.first_visit_kind === "first_as_member" && (
+                                <Badge className="text-[10px] px-1.5 py-0 h-5 bg-blue-500 text-white hover:bg-blue-500 border-blue-600">
+                                  🆕 New Member
                                 </Badge>
                               )}
                               {entry.sub_type && (
