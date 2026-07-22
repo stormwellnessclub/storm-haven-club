@@ -374,6 +374,22 @@ export default function ClassPasses() {
     }
   }, []);
 
+  // If the user just authenticated (via the inline sheet or /auth) and we have
+  // a stashed pending pass, resume the purchase automatically.
+  useEffect(() => {
+    if (!user) return;
+    let pending: { category: 'pilatesCycling'; passType: 'single' | 'tenPack' } | null = null;
+    try {
+      const raw = sessionStorage.getItem(PENDING_PURCHASE_KEY);
+      if (raw) pending = JSON.parse(raw);
+    } catch { /* ignore */ }
+    if (!pending) return;
+    sessionStorage.removeItem(PENDING_PURCHASE_KEY);
+    setTimeout(() => handlePurchase(pending!.category, pending!.passType), 250);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+
   const handlePurchase = async (
     category: 'pilatesCycling',
     passType: 'single' | 'tenPack'
