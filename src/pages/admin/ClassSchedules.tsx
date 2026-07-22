@@ -942,7 +942,7 @@ export default function ClassSchedules() {
               </div>
             ) : schedules.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p className="font-medium">No schedules found</p>
                 <p className="text-sm mt-1">Add your first schedule to get started.</p>
               </div>
