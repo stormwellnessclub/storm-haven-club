@@ -207,12 +207,18 @@ export default function PersonalTrainingPasses() {
               Personal Training packs grouped by customer. Click a customer to view, edit, or sell more.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" asChild>
+              <Link to="/admin/personal-training/trainers">Trainers</Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/admin/personal-training/schedule"><Calendar className="h-4 w-4 mr-2" /> Schedule</Link>
             </Button>
             <Button variant="outline" onClick={() => { setBookPreset(undefined); setBookOpen(true); }}>
               <Calendar className="h-4 w-4 mr-2" /> Book Session
+            </Button>
+            <Button variant="outline" onClick={() => { setLegacyPreset(undefined); setLegacyOpen(true); }}>
+              <Archive className="h-4 w-4 mr-2" /> Grant legacy pack
             </Button>
             <Button onClick={() => { setSellPreset(undefined); setSellOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Sell PT
