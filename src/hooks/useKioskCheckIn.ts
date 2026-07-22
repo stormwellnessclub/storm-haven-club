@@ -2,11 +2,14 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type FirstVisitKind = "first_ever" | "first_as_member" | "returning";
+
 export interface KioskCheckInResult {
   success: boolean;
   access_granted: boolean;
   already_in?: boolean;
   is_first_visit?: boolean;
+  first_visit_kind?: FirstVisitKind;
   denial_reason?: string;
   message?: string;
   check_in_id?: string;

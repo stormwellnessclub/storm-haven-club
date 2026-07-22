@@ -1,38 +1,64 @@
-# Fix: Front desk can't see/hear cafe orders or concierge requests
+# Front Desk: first-time-to-club vs first-time-as-member
 
-## Root cause (verified)
+## What exists today
 
-The front desk shell uses a device PIN — no authenticated user. Every relevant hook queries tables whose RLS policies gate access on `has_any_role(auth.uid(), ...)`, which returns false with no auth session:
+- `kiosk_check_in_member` RPC returns `is_first_visit = true` only when the member has **zero prior `check_ins` rows**.
+- `FrontDesk.tsx` shows a "⭐ 1st Visit" badge + celebration dialog and calls `mark_first_visit_tour_offered`.
+- Problem: a member who visited before as a guest, class-pass drop-in, or non-member is treated like a normal returning check-in, so the front desk never gets prompted to give them a member tour.
 
-- `cafe_orders` — only visible to staff roles via `auth.uid()`; anon returns 0 rows → **red cafe banner never appears, chime never fires, `/frontdesk/cafe` POS queue is empty**.
-- `email_conversations` / `email_messages` — same → **blue concierge/support banner never appears, chime never fires**.
-- `useAdminCafeOrders` is also `enabled: !!user`, so even with correct RLS it would bail on the front desk.
+## What the user wants
 
-This matches the existing kiosk pattern already used for check-ins (`kiosk_search_visitors`, `kiosk_todays_attendance`, etc.): the front desk is trusted by the shared PIN, so `SECURITY DEFINER` RPCs granted to `anon` are the right unlock.
+Two distinct signals surfaced at check-in:
 
-## Fix
+1. **First time ever at the club** — no prior activity of any kind.
+2. **First time here as a member** — has prior activity (guest pass, class pass, non-member visit, spa appt, cafe order, etc.) under the same email, but this is the first check-in since their membership activated.
 
-### 1. Database — four new `SECURITY DEFINER` RPCs (single migration)
+Front desk should get a clear popup + persistent badge for **either** case, with wording that tells them which one, so they know to offer a tour + membership walkthrough.
 
-All `SET search_path = public`, granted to `anon` + `authenticated`.
+## Plan
 
-- `kiosk_cafe_notification_counts()` → `{ pending_count int, preparing_count int, total_active_count int }`. Feeds banner + chime count.
-- `kiosk_cafe_active_orders()` → JSON array of active cafe orders (pending + preparing + ready), each with items, totals, note, member/non-member display name + phone. Feeds `/frontdesk/cafe` queue.
-- `kiosk_update_cafe_order_status(order_id uuid, new_status text)` → updates status + `completed_at`, guarded to statuses `pending|preparing|ready|completed|cancelled`. Feeds Mark Preparing / Mark Ready / Complete buttons.
-- `kiosk_support_notification_counts()` → `{ open_count int, unread_count int }`. Feeds blue banner + support chime.
+### 1. Database — extend `kiosk_check_in_member`
 
-### 2. Frontend — route the shell hooks through the kiosk RPCs when there's no auth user
+Add a new `first_visit_kind` field to the RPC response:
 
-- `src/hooks/useAdminCafeNotifications.ts` — if no `auth.uid()`, call `kiosk_cafe_notification_counts` instead of the direct table select. Keeps admin behavior unchanged.
-- `src/hooks/useAdminSupportNotifications.ts` — same pattern with `kiosk_support_notification_counts`.
-- `src/hooks/useAdminCafeOrders.ts` — remove the `!!user` gate; when there's no user, call `kiosk_cafe_active_orders` for reads and `kiosk_update_cafe_order_status` for status writes. Admin path (signed-in) keeps the existing direct-table read/update.
+- `'first_ever'` — no prior `check_ins` **and** no prior guest_pass / class_pass / non_member_profile / spa_appointment / cafe_order rows matching the member's email.
+- `'first_as_member'` — no prior `check_ins` for this `member_id`, but prior activity exists under the same email (guest pass, class pass, non-member profile, spa appt, etc.).
+- `'returning'` — has prior check-ins.
 
-No changes to banners, chimes, or the front-desk cafe page component — they'll start receiving data automatically once the hooks return rows. Realtime chime channel already listens to `cafe_orders` INSERT (public realtime is fine to observe row-count changes); if realtime doesn't fire without auth, the 30s polling fallback already in `AdminCafeChime` will still trigger the chime because the count will now change.
+Keep `is_first_visit` boolean for backward compat: true when kind is `first_ever` **or** `first_as_member`. Store the kind in the `check_ins.notes` field ("First club visit" / "First visit as member" / "Kiosk check-in") so history is auditable.
+
+Signal for "prior activity under same email" — check for at least one row in any of:
+- `guest_passes` where `guest_email = members.email`
+- `class_passes` where `user_id = members.user_id` OR pending_class_pass_checkouts by email
+- `non_member_profiles` where `email = members.email`
+- `spa_appointments` where `customer_email = members.email`
+- `cafe_orders` where `customer_email = members.email`
+
+(Confirm exact column names when implementing — schema may vary; use whichever email column each table actually has.)
+
+### 2. Frontend — `src/pages/FrontDesk.tsx`
+
+- Extend `KioskCheckInResult` (in `useKioskCheckIn.ts`) with `first_visit_kind?: 'first_ever' | 'first_as_member' | 'returning'`.
+- Replace the current single celebration dialog with a variant that reads:
+  - **first_ever**: "🎉 First time at Storm! Offer a full club tour."
+  - **first_as_member**: "⭐ First visit as a member! Offer the member walkthrough (app, credits, booking)."
+- Update the roster badge next to the name:
+  - `⭐ 1st Visit` (first_ever) — gold
+  - `🆕 New Member` (first_as_member) — blue
+- Both dismiss via existing `mark_first_visit_tour_offered` RPC (no schema change to tracking).
+
+### 3. Kiosk attendance list
+
+`useKioskAttendance.ts` currently infers `is_first_visit` from `notes.startsWith("first club visit")`. Extend it to also flag `first_as_member` when notes start with "First visit as member" and pass a `first_visit_kind` field so the roster shows the right badge for today's list.
+
+## Out of scope
+
+- No changes to guest/class/spa check-in flows.
+- No changes to `mark_first_visit_tour_offered` — it just marks the prompt as offered regardless of kind.
 
 ## Verification
 
-1. Sign out (or open front desk in a fresh tab), enter kiosk PIN, land on `/frontdesk`.
-2. Have a member place a cafe order → red banner appears within 30s, chime plays.
-3. Open `/frontdesk/cafe` → order visible with name + items + Mark Preparing / Complete buttons that actually update status.
-4. Have a member send a concierge/support message → blue banner appears, support chime plays.
-5. Signed-in admin `/admin/cafe/pos` continues to work exactly as before (unchanged code path).
+1. Brand-new member (no prior anything) checks in → gold "1st Visit" badge + "First time at Storm" dialog.
+2. Member whose email previously bought a guest pass or class drop-in checks in → blue "New Member" badge + "First visit as a member" dialog.
+3. Returning member → no badge, no dialog.
+4. Second check-in same day for any of the above → no dialog (already_in path).

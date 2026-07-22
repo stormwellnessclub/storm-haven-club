@@ -440,6 +440,7 @@ function FrontDeskKiosk() {
   const [firstVisit, setFirstVisit] = useState<{
     checkInId?: string;
     name: string;
+    kind: "first_ever" | "first_as_member";
   } | null>(null);
   const [tourSaving, setTourSaving] = useState(false);
 
@@ -472,7 +473,10 @@ function FrontDeskKiosk() {
         if (result.already_in) {
           toast.info(`${fullName} is already checked in today`);
         } else if (result.is_first_visit) {
-          setFirstVisit({ checkInId: result.check_in_id, name: fullName });
+          const kind = (result.first_visit_kind === "first_as_member" ? "first_as_member" : "first_ever") as
+            | "first_ever"
+            | "first_as_member";
+          setFirstVisit({ checkInId: result.check_in_id, name: fullName, kind });
         } else {
           toast.success(`${fullName} checked in!`);
         }
@@ -796,9 +800,14 @@ function FrontDeskKiosk() {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span>{entry.name}</span>
-                              {entry.is_first_visit && (
+                              {entry.first_visit_kind === "first_ever" && (
                                 <Badge className="text-[10px] px-1.5 py-0 h-5 bg-amber-400 text-amber-950 hover:bg-amber-400 border-amber-500">
                                   ⭐ 1st Visit
+                                </Badge>
+                              )}
+                              {entry.first_visit_kind === "first_as_member" && (
+                                <Badge className="text-[10px] px-1.5 py-0 h-5 bg-blue-500 text-white hover:bg-blue-500 border-blue-600">
+                                  🆕 New Member
                                 </Badge>
                               )}
                               {entry.sub_type && (
@@ -837,18 +846,49 @@ function FrontDeskKiosk() {
 
       {/* First-visit celebration + tour prompt */}
       <Dialog open={!!firstVisit} onOpenChange={(open) => { if (!open) setFirstVisit(null); }}>
-        <DialogContent className="max-w-md border-4 border-amber-400 bg-gradient-to-br from-amber-50 to-white">
+        <DialogContent
+          className={
+            firstVisit?.kind === "first_as_member"
+              ? "max-w-md border-4 border-blue-500 bg-gradient-to-br from-blue-50 to-white"
+              : "max-w-md border-4 border-amber-400 bg-gradient-to-br from-amber-50 to-white"
+          }
+        >
           <DialogHeader>
-            <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-lg">
+            <div
+              className={
+                firstVisit?.kind === "first_as_member"
+                  ? "mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg"
+                  : "mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-lg"
+              }
+            >
               <PartyPopper className="h-9 w-9" />
             </div>
-            <DialogTitle className="text-center text-2xl font-bold text-amber-900">
-              🎉 First Club Visit!
+            <DialogTitle
+              className={
+                firstVisit?.kind === "first_as_member"
+                  ? "text-center text-2xl font-bold text-blue-900"
+                  : "text-center text-2xl font-bold text-amber-900"
+              }
+            >
+              {firstVisit?.kind === "first_as_member"
+                ? "⭐ First Visit as a Member!"
+                : "🎉 First Club Visit!"}
             </DialogTitle>
             <DialogDescription className="text-center text-base">
-              <span className="font-semibold text-foreground">{firstVisit?.name}</span> is here for their very first time.
-              <br />
-              Offer them a tour of the club?
+              <span className="font-semibold text-foreground">{firstVisit?.name}</span>{" "}
+              {firstVisit?.kind === "first_as_member" ? (
+                <>
+                  has been here before, but this is their first visit as a member.
+                  <br />
+                  Walk them through member perks — app, credits, booking, and offer a quick tour.
+                </>
+              ) : (
+                <>
+                  is here for their very first time.
+                  <br />
+                  Offer them a full tour of the club?
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-center">
@@ -860,7 +900,11 @@ function FrontDeskKiosk() {
               Skip
             </Button>
             <Button
-              className="bg-amber-500 hover:bg-amber-600 text-amber-950 font-semibold"
+              className={
+                firstVisit?.kind === "first_as_member"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                  : "bg-amber-500 hover:bg-amber-600 text-amber-950 font-semibold"
+              }
               disabled={tourSaving}
               onClick={async () => {
                 if (!firstVisit?.checkInId) { setFirstVisit(null); return; }
@@ -870,7 +914,11 @@ function FrontDeskKiosk() {
                     p_check_in_id: firstVisit.checkInId,
                     p_staff_name: null,
                   });
-                  toast.success(`Tour offered to ${firstVisit.name}`);
+                  toast.success(
+                    firstVisit.kind === "first_as_member"
+                      ? `Member walkthrough offered to ${firstVisit.name}`
+                      : `Tour offered to ${firstVisit.name}`
+                  );
                   refetch();
                 } catch (err: any) {
                   toast.error(err?.message || "Could not save tour note");
@@ -881,7 +929,7 @@ function FrontDeskKiosk() {
               }}
             >
               {tourSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Tour offered ✓
+              {firstVisit?.kind === "first_as_member" ? "Walkthrough offered ✓" : "Tour offered ✓"}
             </Button>
           </DialogFooter>
         </DialogContent>

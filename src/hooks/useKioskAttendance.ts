@@ -4,6 +4,8 @@ import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 
 export type KioskAttendanceType = "member" | "guest" | "class" | "spa";
 
+export type FirstVisitKind = "first_ever" | "first_as_member" | "returning";
+
 export interface KioskAttendanceEntry {
   id: string;
   type: KioskAttendanceType;
@@ -13,6 +15,7 @@ export interface KioskAttendanceEntry {
   photo_url?: string | null;
   sub_type?: string | null;
   is_first_visit?: boolean;
+  first_visit_kind?: FirstVisitKind;
 }
 
 export interface KioskAttendanceStats {
@@ -46,6 +49,7 @@ const normalizeRpcPayload = (data: any) => {
     photo_url: e.photo_url || null,
     sub_type: e.sub_type || null,
     is_first_visit: !!e.is_first_visit,
+    first_visit_kind: (e.first_visit_kind as FirstVisitKind) || (e.is_first_visit ? "first_ever" : "returning"),
   }));
 
   rawEntries.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -177,6 +181,12 @@ export function useKioskAttendance() {
 
       memberCheckIns.forEach((ci: any) => {
         const member = ci.members;
+        const notesLower = ci.notes ? String(ci.notes).toLowerCase() : "";
+        const kind: FirstVisitKind = notesLower.startsWith("first club visit")
+          ? "first_ever"
+          : notesLower.startsWith("first visit as member")
+          ? "first_as_member"
+          : "returning";
         all.push({
           id: `member-${ci.id}`,
           type: "member",
@@ -185,7 +195,8 @@ export function useKioskAttendance() {
           subtitle: [member?.member_id, member?.membership_type].filter(Boolean).join(" • ") || "Member",
           photo_url: member?.photo_url || null,
           sub_type: "Member",
-          is_first_visit: !!ci.notes && String(ci.notes).toLowerCase().startsWith("first club visit"),
+          is_first_visit: kind !== "returning",
+          first_visit_kind: kind,
         });
       });
 
