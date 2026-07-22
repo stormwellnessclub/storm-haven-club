@@ -739,7 +739,26 @@ serve(async (req) => {
         logStep("Membership verified server-side", { userId: user.id, isVerifiedMember });
 
         const memberStatus = isVerifiedMember ? 'member' : 'nonMember';
-        const priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
+        const audience = isVerifiedMember ? 'member' : 'non_member';
+        const dbCategory = category === 'pilatesCycling' ? 'pilates_cycling' : category === 'otherClasses' ? 'other' : category;
+        const dbPassType = passType === 'tenPack' ? '10_pack' : passType;
+
+        // Prefer DB-managed price (admin-editable). Fallback to hardcoded map.
+        let priceId: string | undefined;
+        try {
+          const { data: priceRow } = await supabase
+            .from('class_pricing')
+            .select('stripe_price_id')
+            .eq('category', dbCategory)
+            .eq('pass_type', dbPassType)
+            .eq('audience', audience)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (priceRow?.stripe_price_id) priceId = priceRow.stripe_price_id;
+        } catch (_e) { /* fall through */ }
+        if (!priceId) {
+          priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
+        }
 
         if (!priceId) {
           throw new Error(`Invalid class pass configuration: ${category}/${passType}/${memberStatus}`);
