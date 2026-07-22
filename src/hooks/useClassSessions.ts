@@ -24,6 +24,7 @@ export interface ClassSession {
     description: string | null;
     duration_minutes: number;
     is_heated: boolean;
+    is_signature?: boolean;
     image_url: string | null;
   };
   instructor: {
@@ -31,6 +32,7 @@ export interface ClassSession {
     first_name: string;
     last_name: string;
     photo_url: string | null;
+    is_master?: boolean;
   } | null;
 }
 
