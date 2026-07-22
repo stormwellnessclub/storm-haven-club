@@ -379,9 +379,17 @@ export default function ClassPasses() {
     passType: 'single' | 'tenPack'
   ) => {
     if (!user) {
-      toast.error("Please sign in to purchase class passes");
+      // Guest — stash the intended purchase and open the inline signup sheet
+      try {
+        sessionStorage.setItem(
+          PENDING_PURCHASE_KEY,
+          JSON.stringify({ category, passType, ts: Date.now() })
+        );
+      } catch { /* ignore storage errors */ }
+      setGuestSheetOpen(true);
       return;
     }
+
 
     // Check liability waiver first (universal requirement — covers both members and non-members)
     if (!hasLiabilityWaiver) {
