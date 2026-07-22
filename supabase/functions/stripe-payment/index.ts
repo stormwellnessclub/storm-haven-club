@@ -739,7 +739,26 @@ serve(async (req) => {
         logStep("Membership verified server-side", { userId: user.id, isVerifiedMember });
 
         const memberStatus = isVerifiedMember ? 'member' : 'nonMember';
-        const priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
+        const audience = isVerifiedMember ? 'member' : 'non_member';
+        const dbCategory = category === 'pilatesCycling' ? 'pilates_cycling' : category === 'otherClasses' ? 'other' : category;
+        const dbPassType = passType === 'tenPack' ? '10_pack' : passType;
+
+        // Prefer DB-managed price (admin-editable). Fallback to hardcoded map.
+        let priceId: string | undefined;
+        try {
+          const { data: priceRow } = await supabase
+            .from('class_pricing')
+            .select('stripe_price_id')
+            .eq('category', dbCategory)
+            .eq('pass_type', dbPassType)
+            .eq('audience', audience)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (priceRow?.stripe_price_id) priceId = priceRow.stripe_price_id;
+        } catch (_e) { /* fall through */ }
+        if (!priceId) {
+          priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
+        }
 
         if (!priceId) {
           throw new Error(`Invalid class pass configuration: ${category}/${passType}/${memberStatus}`);
@@ -2792,12 +2811,26 @@ serve(async (req) => {
         let passCategory: 'pilatesCycling' | 'otherClasses' = category as 'pilatesCycling' | 'otherClasses';
         // Category already matches classPasses keys (pilatesCycling or otherClasses)
 
-        const passConfig = STRIPE_PRODUCTS.classPasses[passCategory];
-        if (!passConfig) {
-          throw new Error(`Invalid category: ${category}`);
+        // Prefer DB-managed price; fallback to hardcoded map.
+        const dbCategory2 = passCategory === 'pilatesCycling' ? 'pilates_cycling' : 'other';
+        const dbPassType2 = passType === 'tenPack' ? '10_pack' : (passType as string);
+        const audience2 = isMember ? 'member' : 'non_member';
+        let priceId: string | undefined;
+        try {
+          const { data: priceRow2 } = await supabase
+            .from('class_pricing')
+            .select('stripe_price_id')
+            .eq('category', dbCategory2)
+            .eq('pass_type', dbPassType2)
+            .eq('audience', audience2)
+            .eq('is_active', true)
+            .maybeSingle();
+          if (priceRow2?.stripe_price_id) priceId = priceRow2.stripe_price_id;
+        } catch (_e) { /* fall through */ }
+        if (!priceId) {
+          const passConfig = (STRIPE_PRODUCTS.classPasses as any)[passCategory];
+          priceId = passConfig?.[passType as string]?.[isMember ? 'member' : 'nonMember'];
         }
-
-        const priceId = (passConfig as any)[passType as string]?.[isMember ? 'member' : 'nonMember'];
         if (!priceId) {
           throw new Error(`Price not found for ${category} ${passType} ${isMember ? 'member' : 'non-member'}`);
         }

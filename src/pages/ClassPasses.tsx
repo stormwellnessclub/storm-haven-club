@@ -19,6 +19,7 @@ import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementC
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { useClassPassPricing, findPrice } from "@/hooks/useClassPassPricing";
 
 
 interface PricingTier {
@@ -28,7 +29,8 @@ interface PricingTier {
   nonMemberPrice: number;
 }
 
-const classPassPricing: PricingTier[] = [
+// Default fallback used only if the pricing table hasn't loaded yet.
+const FALLBACK_CLASS_PASS_PRICING: PricingTier[] = [
   { type: "Single Class", passType: 'single', memberPrice: 25, nonMemberPrice: 30 },
   { type: "10 Class Pack", passType: 'tenPack', memberPrice: 170, nonMemberPrice: 285 },
 ];
@@ -119,6 +121,18 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
   isMember: boolean;
   user: any;
 }) {
+  const { data: pricingRows } = useClassPassPricing();
+  const classPassPricing: PricingTier[] = (() => {
+    const single = findPrice(pricingRows, 'pilates_cycling', 'single', 'member');
+    const singleNM = findPrice(pricingRows, 'pilates_cycling', 'single', 'non_member');
+    const tenPack = findPrice(pricingRows, 'pilates_cycling', '10_pack', 'member');
+    const tenPackNM = findPrice(pricingRows, 'pilates_cycling', '10_pack', 'non_member');
+    if (!single || !singleNM || !tenPack || !tenPackNM) return FALLBACK_CLASS_PASS_PRICING;
+    return [
+      { type: single.row.label, passType: 'single', memberPrice: single.dollars, nonMemberPrice: singleNM.dollars },
+      { type: tenPack.row.label, passType: 'tenPack', memberPrice: tenPack.dollars, nonMemberPrice: tenPackNM.dollars },
+    ];
+  })();
   const PurchaseButton = ({ 
     category, 
     passType, 

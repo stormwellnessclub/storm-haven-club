@@ -1621,33 +1621,39 @@ export type Database = {
       }
       class_pricing: {
         Row: {
+          audience: string
           category: Database["public"]["Enums"]["class_category"]
           created_at: string
           id: string
           is_active: boolean
-          member_price: number
-          non_member_price: number
+          label: string
           pass_type: string
+          price_cents: number
+          stripe_price_id: string
           updated_at: string
         }
         Insert: {
+          audience: string
           category: Database["public"]["Enums"]["class_category"]
           created_at?: string
           id?: string
           is_active?: boolean
-          member_price: number
-          non_member_price: number
+          label: string
           pass_type: string
+          price_cents: number
+          stripe_price_id: string
           updated_at?: string
         }
         Update: {
+          audience?: string
           category?: Database["public"]["Enums"]["class_category"]
           created_at?: string
           id?: string
           is_active?: boolean
-          member_price?: number
-          non_member_price?: number
+          label?: string
           pass_type?: string
+          price_cents?: number
+          stripe_price_id?: string
           updated_at?: string
         }
         Relationships: []
