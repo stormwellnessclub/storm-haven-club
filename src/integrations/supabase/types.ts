@@ -5243,12 +5243,16 @@ export type Database = {
           card_exp_month: number | null
           card_exp_year: number | null
           card_last4: string | null
+          class_package_agreement_signed: boolean
+          class_package_agreement_signed_at: string | null
           created_at: string
           email: string | null
           first_name: string | null
           id: string
           last_name: string | null
           phone: string | null
+          single_class_pass_agreement_signed: boolean
+          single_class_pass_agreement_signed_at: string | null
           sms_opt_in: boolean
           sms_opt_in_at: string | null
           sms_opt_in_source: string | null
@@ -5265,12 +5269,16 @@ export type Database = {
           card_exp_month?: number | null
           card_exp_year?: number | null
           card_last4?: string | null
+          class_package_agreement_signed?: boolean
+          class_package_agreement_signed_at?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
+          single_class_pass_agreement_signed?: boolean
+          single_class_pass_agreement_signed_at?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
           sms_opt_in_source?: string | null
@@ -5287,12 +5295,16 @@ export type Database = {
           card_exp_month?: number | null
           card_exp_year?: number | null
           card_last4?: string | null
+          class_package_agreement_signed?: boolean
+          class_package_agreement_signed_at?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
+          single_class_pass_agreement_signed?: boolean
+          single_class_pass_agreement_signed_at?: string | null
           sms_opt_in?: boolean
           sms_opt_in_at?: string | null
           sms_opt_in_source?: string | null
