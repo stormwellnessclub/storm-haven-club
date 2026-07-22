@@ -17,6 +17,10 @@ export interface NonMemberProfile {
   card_exp_year: number | null;
   waiver_signed: boolean;
   waiver_signed_at: string | null;
+  single_class_pass_agreement_signed: boolean;
+  single_class_pass_agreement_signed_at: string | null;
+  class_package_agreement_signed: boolean;
+  class_package_agreement_signed_at: string | null;
   sms_opt_in: boolean | null;
   sms_opt_in_at: string | null;
   sms_opt_out_at: string | null;
@@ -119,6 +123,30 @@ export function useNonMemberProfile() {
     },
   });
 
+  const signAgreementField = (field: "single_class_pass_agreement_signed" | "class_package_agreement_signed", label: string) =>
+    useMutation({
+      mutationFn: async () => {
+        if (!user) throw new Error("Not authenticated");
+        const { data, error } = await (supabase.from("non_member_profiles") as any)
+          .update({ [field]: true, [`${field}_at`]: new Date().toISOString() })
+          .eq("user_id", user.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
+        toast.success(`${label} signed successfully!`);
+      },
+      onError: (err: any) => {
+        toast.error(`Failed to sign agreement: ${err.message}`);
+      },
+    });
+
+  const signSingleClassPassAgreement = signAgreementField("single_class_pass_agreement_signed", "Single Class Pass Agreement");
+  const signClassPackageAgreement = signAgreementField("class_package_agreement_signed", "Class Package Agreement");
+
   return {
     profile: profileQuery.data,
     isLoading: profileQuery.isLoading,
@@ -126,5 +154,9 @@ export function useNonMemberProfile() {
     isUpdating: updateProfile.isPending,
     signWaiver: signWaiver.mutate,
     isSigningWaiver: signWaiver.isPending,
+    signSingleClassPassAgreement: signSingleClassPassAgreement.mutate,
+    isSigningSingleClassPassAgreement: signSingleClassPassAgreement.isPending,
+    signClassPackageAgreement: signClassPackageAgreement.mutate,
+    isSigningClassPackageAgreement: signClassPackageAgreement.isPending,
   };
 }

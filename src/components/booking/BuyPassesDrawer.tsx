@@ -62,8 +62,14 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
   const hasSingleAgreementConfigured = singleClassAgreements && singleClassAgreements.length > 0;
   const hasClassPackageAgreementConfigured = classPackageAgreements && classPackageAgreements.length > 0;
-  const needsSingleAgreement = !!profile && hasSingleAgreementConfigured && !profile.single_class_pass_agreement_signed;
-  const needsClassPackageAgreement = !!profile && hasClassPackageAgreementConfigured && !profile.class_package_agreement_signed;
+  const singleAgreementSigned =
+    (profile?.single_class_pass_agreement_signed === true) ||
+    ((nonMemberProfile as any)?.single_class_pass_agreement_signed === true);
+  const classPackageAgreementSigned =
+    (profile?.class_package_agreement_signed === true) ||
+    ((nonMemberProfile as any)?.class_package_agreement_signed === true);
+  const needsSingleAgreement = hasSingleAgreementConfigured && !singleAgreementSigned;
+  const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !classPackageAgreementSigned;
 
   const handlePurchase = async (passType: "single" | "tenPack") => {
     if (!user) {
@@ -118,16 +124,28 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
 
     const hasProfile = !!profileHook.profile;
     const signerMap: Record<string, { sign: (vars: any, opts: any) => void; isPending: boolean; agreements?: any[] }> = {
-      single_class_pass: {
-        sign: profileHook.signSingleClassPassAgreement,
-        isPending: profileHook.isSigningSingleClassPassAgreement,
-        agreements: singleClassAgreements,
-      },
-      class_package: {
-        sign: profileHook.signClassPackageAgreement,
-        isPending: profileHook.isSigningClassPackageAgreement,
-        agreements: classPackageAgreements,
-      },
+      single_class_pass: hasProfile
+        ? {
+            sign: profileHook.signSingleClassPassAgreement,
+            isPending: profileHook.isSigningSingleClassPassAgreement,
+            agreements: singleClassAgreements,
+          }
+        : {
+            sign: (nonMemberHook as any).signSingleClassPassAgreement,
+            isPending: (nonMemberHook as any).isSigningSingleClassPassAgreement,
+            agreements: singleClassAgreements,
+          },
+      class_package: hasProfile
+        ? {
+            sign: profileHook.signClassPackageAgreement,
+            isPending: profileHook.isSigningClassPackageAgreement,
+            agreements: classPackageAgreements,
+          }
+        : {
+            sign: (nonMemberHook as any).signClassPackageAgreement,
+            isPending: (nonMemberHook as any).isSigningClassPackageAgreement,
+            agreements: classPackageAgreements,
+          },
       liability_waiver: hasProfile
         ? { sign: profileHook.signWaiver, isPending: profileHook.isSigningWaiver, agreements: waiverAgreements }
         : { sign: nonMemberHook.signWaiver, isPending: nonMemberHook.isSigningWaiver, agreements: waiverAgreements },

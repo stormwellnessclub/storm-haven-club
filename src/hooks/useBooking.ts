@@ -196,20 +196,32 @@ export function useBookClass() {
                                   pass.pass_type === "single_class_pass";
         
         if (isGuestPass || isSingleClassPass) {
-          // Check if user has signed the required agreement
+          // Check if user has signed the required agreement — check member profile first,
+          // then fall back to non-member profile so non-members can book with their pass too.
           const { data: profile, error: profileError } = await (supabase
             .from("profiles")
             .select("guest_pass_agreement_signed, single_class_pass_agreement_signed")
             .eq("user_id", currentUserId)
-            .single() as any);
+            .maybeSingle() as any);
 
           if (profileError) throw profileError;
-          
-          if (isGuestPass && (!profile || !(profile as any).guest_pass_agreement_signed)) {
+
+          const { data: nonMemberProfile } = await (supabase
+            .from("non_member_profiles")
+            .select("single_class_pass_agreement_signed")
+            .eq("user_id", currentUserId)
+            .maybeSingle() as any);
+
+          const guestSigned = !!(profile as any)?.guest_pass_agreement_signed;
+          const singleSigned =
+            !!(profile as any)?.single_class_pass_agreement_signed ||
+            !!(nonMemberProfile as any)?.single_class_pass_agreement_signed;
+
+          if (isGuestPass && !guestSigned) {
             throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
           }
-          
-          if (isSingleClassPass && (!profile || !(profile as any).single_class_pass_agreement_signed)) {
+
+          if (isSingleClassPass && !singleSigned) {
             throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
           }
         }
