@@ -17,6 +17,10 @@ export interface NonMemberProfile {
   card_exp_year: number | null;
   waiver_signed: boolean;
   waiver_signed_at: string | null;
+  single_class_pass_agreement_signed: boolean;
+  single_class_pass_agreement_signed_at: string | null;
+  class_package_agreement_signed: boolean;
+  class_package_agreement_signed_at: string | null;
   sms_opt_in: boolean | null;
   sms_opt_in_at: string | null;
   sms_opt_out_at: string | null;
