@@ -547,6 +547,12 @@ export default function PersonalTrainingPasses() {
         presetUserName={bookPreset?.label}
         onSellPack={(id, label) => { setBookOpen(false); setSellPreset({ id, label }); setSellOpen(true); }}
       />
+      <GrantLegacyPtPackDialog
+        open={legacyOpen}
+        onOpenChange={(v) => { setLegacyOpen(v); if (!v) setLegacyPreset(undefined); }}
+        presetUserId={legacyPreset?.id}
+        presetUserLabel={legacyPreset?.label}
+      />
     </AdminLayout>
   );
 }
