@@ -198,6 +198,7 @@ import AdminTrainingRequests from "@/pages/admin/TrainingRequests";
 import AdminPersonalTrainingPacks from "@/pages/admin/PersonalTrainingPacks";
 import AdminPersonalTrainingPasses from "@/pages/admin/PersonalTrainingPasses";
 import AdminPersonalTrainingSchedule from "@/pages/admin/PersonalTrainingSchedule";
+import AdminPersonalTrainingTrainers from "@/pages/admin/PersonalTrainingTrainers";
 
 
 const queryClient = new QueryClient();
