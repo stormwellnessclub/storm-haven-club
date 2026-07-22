@@ -121,6 +121,18 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
   isMember: boolean;
   user: any;
 }) {
+  const { data: pricingRows } = useClassPassPricing();
+  const classPassPricing: PricingTier[] = (() => {
+    const single = findPrice(pricingRows, 'pilates_cycling', 'single', 'member');
+    const singleNM = findPrice(pricingRows, 'pilates_cycling', 'single', 'non_member');
+    const tenPack = findPrice(pricingRows, 'pilates_cycling', '10_pack', 'member');
+    const tenPackNM = findPrice(pricingRows, 'pilates_cycling', '10_pack', 'non_member');
+    if (!single || !singleNM || !tenPack || !tenPackNM) return FALLBACK_CLASS_PASS_PRICING;
+    return [
+      { type: single.row.label, passType: 'single', memberPrice: single.dollars, nonMemberPrice: singleNM.dollars },
+      { type: tenPack.row.label, passType: 'tenPack', memberPrice: tenPack.dollars, nonMemberPrice: tenPackNM.dollars },
+    ];
+  })();
   const PurchaseButton = ({ 
     category, 
     passType, 
