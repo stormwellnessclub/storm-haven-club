@@ -49,6 +49,7 @@ const normalizeRpcPayload = (data: any) => {
     photo_url: e.photo_url || null,
     sub_type: e.sub_type || null,
     is_first_visit: !!e.is_first_visit,
+    first_visit_kind: (e.first_visit_kind as FirstVisitKind) || (e.is_first_visit ? "first_ever" : "returning"),
   }));
 
   rawEntries.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
