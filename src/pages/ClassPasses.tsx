@@ -19,7 +19,10 @@ import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementC
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { GuestCheckoutSheet } from "@/components/class-passes/GuestCheckoutSheet";
 import { useClassPassPricing, findPrice } from "@/hooks/useClassPassPricing";
+
+const PENDING_PURCHASE_KEY = "pendingClassPassPurchase";
 
 
 interface PricingTier {
@@ -204,22 +207,11 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                     </span>
                   </div>
                   <div className="text-center">
-                    {user ? (
-                      <PurchaseButton 
-                        category="pilatesCycling" 
-                        passType={tier.passType}
-                        price={isMember ? tier.memberPrice : tier.nonMemberPrice}
-                      />
-                    ) : (
-                      <div className="flex flex-col gap-1 items-center">
-                        <Button size="sm" variant="outline" asChild>
-                          <Link to="/auth?redirect=/class-passes">Sign In</Link>
-                        </Button>
-                        <Link to="/auth?redirect=/class-passes" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                          Create Account
-                        </Link>
-                      </div>
-                    )}
+                    <PurchaseButton
+                      category="pilatesCycling"
+                      passType={tier.passType}
+                      price={user && isMember ? tier.memberPrice : tier.nonMemberPrice}
+                    />
                   </div>
                 </div>
               ))}
@@ -351,6 +343,9 @@ export default function ClassPasses() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successPass, setSuccessPass] = useState<any>(null);
 
+  // Inline guest checkout (account create / sign in) sheet
+  const [guestSheetOpen, setGuestSheetOpen] = useState(false);
+
   // Detect Stripe return: backend appends ?session_id={CHECKOUT_SESSION_ID} to successUrl
   useEffect(() => {
     const sessionId = searchParams.get("session_id");
@@ -379,14 +374,38 @@ export default function ClassPasses() {
     }
   }, []);
 
+  // If the user just authenticated (via the inline sheet or /auth) and we have
+  // a stashed pending pass, resume the purchase automatically.
+  useEffect(() => {
+    if (!user) return;
+    let pending: { category: 'pilatesCycling'; passType: 'single' | 'tenPack' } | null = null;
+    try {
+      const raw = sessionStorage.getItem(PENDING_PURCHASE_KEY);
+      if (raw) pending = JSON.parse(raw);
+    } catch { /* ignore */ }
+    if (!pending) return;
+    sessionStorage.removeItem(PENDING_PURCHASE_KEY);
+    setTimeout(() => handlePurchase(pending!.category, pending!.passType), 250);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+
   const handlePurchase = async (
     category: 'pilatesCycling',
     passType: 'single' | 'tenPack'
   ) => {
     if (!user) {
-      toast.error("Please sign in to purchase class passes");
+      // Guest — stash the intended purchase and open the inline signup sheet
+      try {
+        sessionStorage.setItem(
+          PENDING_PURCHASE_KEY,
+          JSON.stringify({ category, passType, ts: Date.now() })
+        );
+      } catch { /* ignore storage errors */ }
+      setGuestSheetOpen(true);
       return;
     }
+
 
     // Check liability waiver first (universal requirement — covers both members and non-members)
     if (!hasLiabilityWaiver) {
@@ -485,6 +504,14 @@ export default function ClassPasses() {
         ]}
       />
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
+      <GuestCheckoutSheet
+        open={guestSheetOpen}
+        onOpenChange={setGuestSheetOpen}
+        onAuthenticated={() => {
+          // The [user] effect above will pick up the stashed pending purchase
+          // and resume handlePurchase automatically once auth hydrates.
+        }}
+      />
       {/* Hero */}
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6">
@@ -497,11 +524,11 @@ export default function ClassPasses() {
             </p>
             {!user ? (
               <div className="mt-6 flex flex-wrap gap-3">
-                <Button asChild variant="gold" size="sm">
-                  <Link to="/auth?redirect=/class-passes">Sign In</Link>
+                <Button variant="gold" size="sm" onClick={() => setGuestSheetOpen(true)}>
+                  Create account to buy
                 </Button>
                 <Button asChild variant="outline" size="sm">
-                  <Link to="/auth?mode=signup&redirect=/class-passes">Create Free Account</Link>
+                  <Link to="/auth?redirect=/class-passes">Sign In</Link>
                 </Button>
               </div>
             ) : (
