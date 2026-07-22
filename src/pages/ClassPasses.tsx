@@ -19,6 +19,7 @@ import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementC
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
+import { useClassPassPricing, findPrice } from "@/hooks/useClassPassPricing";
 
 
 interface PricingTier {
@@ -28,7 +29,8 @@ interface PricingTier {
   nonMemberPrice: number;
 }
 
-const classPassPricing: PricingTier[] = [
+// Default fallback used only if the pricing table hasn't loaded yet.
+const FALLBACK_CLASS_PASS_PRICING: PricingTier[] = [
   { type: "Single Class", passType: 'single', memberPrice: 25, nonMemberPrice: 30 },
   { type: "10 Class Pack", passType: 'tenPack', memberPrice: 170, nonMemberPrice: 285 },
 ];
