@@ -3140,6 +3140,7 @@ export type Database = {
           invited_at: string | null
           is_active: boolean
           is_master: boolean
+          is_public_pt: boolean
           last_login_at: string | null
           last_name: string
           pay_type: Database["public"]["Enums"]["instructor_pay_type"]
@@ -3161,6 +3162,7 @@ export type Database = {
           invited_at?: string | null
           is_active?: boolean
           is_master?: boolean
+          is_public_pt?: boolean
           last_login_at?: string | null
           last_name: string
           pay_type?: Database["public"]["Enums"]["instructor_pay_type"]
@@ -3182,6 +3184,7 @@ export type Database = {
           invited_at?: string | null
           is_active?: boolean
           is_master?: boolean
+          is_public_pt?: boolean
           last_login_at?: string | null
           last_name?: string
           pay_type?: Database["public"]["Enums"]["instructor_pay_type"]
@@ -6210,6 +6213,58 @@ export type Database = {
           },
         ]
       }
+      pt_notes: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          instructor_id: string | null
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instructor_id?: string | null
+          scope: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          instructor_id?: string | null
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_notes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_notes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_notes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_packs: {
         Row: {
           created_at: string
@@ -6354,6 +6409,156 @@ export type Database = {
             columns: ["pass_id"]
             isOneToOne: false
             referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_trainer_availability: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          instructor_id: string
+          start_time: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          instructor_id: string
+          start_time: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          instructor_id?: string
+          start_time?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_trainer_availability_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_availability_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_availability_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_trainer_formats: {
+        Row: {
+          created_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          instructor_id: string
+        }
+        Insert: {
+          created_at?: string
+          format: Database["public"]["Enums"]["pt_format"]
+          instructor_id: string
+        }
+        Update: {
+          created_at?: string
+          format?: Database["public"]["Enums"]["pt_format"]
+          instructor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_trainer_formats_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_formats_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_formats_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_trainer_overrides: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string | null
+          id: string
+          instructor_id: string
+          kind: string
+          note: string | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time?: string | null
+          id?: string
+          instructor_id: string
+          kind: string
+          note?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string | null
+          id?: string
+          instructor_id?: string
+          kind?: string
+          note?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_trainer_overrides_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_overrides_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_overrides_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
             referencedColumns: ["id"]
           },
         ]
@@ -9284,6 +9489,7 @@ export type Database = {
           invited_at: string | null
           is_active: boolean
           is_master: boolean
+          is_public_pt: boolean
           last_login_at: string | null
           last_name: string
           pay_type: Database["public"]["Enums"]["instructor_pay_type"]
