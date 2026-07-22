@@ -648,12 +648,33 @@ export default function ClassSchedules() {
                   {scheduleMode === "one_time" ? (
                     <div className="grid gap-2">
                       <Label htmlFor="oneTimeDate">Date</Label>
-                      <Input
-                        id="oneTimeDate"
-                        type="date"
-                        value={oneTimeDate}
-                        onChange={(e) => setOneTimeDate(e.target.value)}
-                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            id="oneTimeDate"
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !oneTimeDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {oneTimeDate
+                              ? format(parse(oneTimeDate, "yyyy-MM-dd", new Date()), "EEE, MMM d, yyyy")
+                              : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={oneTimeDate ? parse(oneTimeDate, "yyyy-MM-dd", new Date()) : undefined}
+                            onSelect={(d) => setOneTimeDate(d ? format(d, "yyyy-MM-dd") : "")}
+                            disabled={(d) => d < startOfDay(new Date())}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   ) : (
                     <>
@@ -676,21 +697,62 @@ export default function ClassSchedules() {
                         <div className="grid grid-cols-2 gap-4">
                           <div className="grid gap-2">
                             <Label htmlFor="effFrom">Start Date</Label>
-                            <Input
-                              id="effFrom"
-                              type="date"
-                              value={effectiveFrom}
-                              onChange={(e) => setEffectiveFrom(e.target.value)}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="effFrom"
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !effectiveFrom && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {effectiveFrom
+                                    ? format(parse(effectiveFrom, "yyyy-MM-dd", new Date()), "MMM d, yyyy")
+                                    : <span>Start</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={effectiveFrom ? parse(effectiveFrom, "yyyy-MM-dd", new Date()) : undefined}
+                                  onSelect={(d) => setEffectiveFrom(d ? format(d, "yyyy-MM-dd") : "")}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="effUntil">End Date</Label>
-                            <Input
-                              id="effUntil"
-                              type="date"
-                              value={effectiveUntil}
-                              onChange={(e) => setEffectiveUntil(e.target.value)}
-                            />
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  id="effUntil"
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !effectiveUntil && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {effectiveUntil
+                                    ? format(parse(effectiveUntil, "yyyy-MM-dd", new Date()), "MMM d, yyyy")
+                                    : <span>End</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={effectiveUntil ? parse(effectiveUntil, "yyyy-MM-dd", new Date()) : undefined}
+                                  onSelect={(d) => setEffectiveUntil(d ? format(d, "yyyy-MM-dd") : "")}
+                                  disabled={(d) => effectiveFrom ? d < parse(effectiveFrom, "yyyy-MM-dd", new Date()) : false}
+                                  initialFocus
+                                  className={cn("p-3 pointer-events-auto")}
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
                       )}
