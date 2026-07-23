@@ -2574,6 +2574,165 @@ export type Database = {
         }
         Relationships: []
       }
+      gift_card_redemptions: {
+        Row: {
+          amount_cents: number
+          applied_to_id: string | null
+          applied_to_type: string | null
+          balance_after_cents: number
+          created_at: string
+          gift_card_id: string
+          id: string
+          notes: string | null
+          redeemed_by_member_id: string | null
+          redeemed_by_user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          applied_to_id?: string | null
+          applied_to_type?: string | null
+          balance_after_cents: number
+          created_at?: string
+          gift_card_id: string
+          id?: string
+          notes?: string | null
+          redeemed_by_member_id?: string | null
+          redeemed_by_user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          applied_to_id?: string | null
+          applied_to_type?: string | null
+          balance_after_cents?: number
+          created_at?: string
+          gift_card_id?: string
+          id?: string
+          notes?: string | null
+          redeemed_by_member_id?: string | null
+          redeemed_by_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_card_redemptions_gift_card_id_fkey"
+            columns: ["gift_card_id"]
+            isOneToOne: false
+            referencedRelation: "gift_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_redemptions_redeemed_by_member_id_fkey"
+            columns: ["redeemed_by_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_redemptions_redeemed_by_member_id_fkey"
+            columns: ["redeemed_by_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_card_redemptions_redeemed_by_member_id_fkey"
+            columns: ["redeemed_by_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gift_cards: {
+        Row: {
+          amount_cents: number
+          balance_cents: number
+          code: string
+          created_at: string
+          custom_message: string | null
+          email_sent_at: string | null
+          expires_at: string | null
+          id: string
+          issued_by: string | null
+          notes: string | null
+          payment_method: string
+          payment_reference: string | null
+          purchaser_email: string | null
+          purchaser_member_id: string | null
+          purchaser_name: string | null
+          purchaser_user_id: string | null
+          recipient_email: string
+          recipient_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          balance_cents: number
+          code: string
+          created_at?: string
+          custom_message?: string | null
+          email_sent_at?: string | null
+          expires_at?: string | null
+          id?: string
+          issued_by?: string | null
+          notes?: string | null
+          payment_method: string
+          payment_reference?: string | null
+          purchaser_email?: string | null
+          purchaser_member_id?: string | null
+          purchaser_name?: string | null
+          purchaser_user_id?: string | null
+          recipient_email: string
+          recipient_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          balance_cents?: number
+          code?: string
+          created_at?: string
+          custom_message?: string | null
+          email_sent_at?: string | null
+          expires_at?: string | null
+          id?: string
+          issued_by?: string | null
+          notes?: string | null
+          payment_method?: string
+          payment_reference?: string | null
+          purchaser_email?: string | null
+          purchaser_member_id?: string | null
+          purchaser_name?: string | null
+          purchaser_user_id?: string | null
+          recipient_email?: string
+          recipient_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_cards_purchaser_member_id_fkey"
+            columns: ["purchaser_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_purchaser_member_id_fkey"
+            columns: ["purchaser_member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_purchaser_member_id_fkey"
+            columns: ["purchaser_member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_milestones: {
         Row: {
           achieved_at: string | null
@@ -9376,6 +9535,7 @@ export type Database = {
           sessions_skipped: number
         }[]
       }
+      generate_gift_card_code: { Args: never; Returns: string }
       generate_mothers_day_code: { Args: never; Returns: string }
       generate_referral_code: { Args: { _member_id: string }; Returns: string }
       generate_shifts_from_templates: {
