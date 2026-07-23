@@ -61,18 +61,52 @@ export default function NonMemberDetail() {
   const [wellnessCreditCount, setWellnessCreditCount] = useState("4");
   const [wellnessExpirationDays, setWellnessExpirationDays] = useState("30");
 
-  // Fetch profile
+  // Fetch profile — auto-create from auth profile if a non-member row doesn't exist yet
+  // (handles "orphan" users who have class passes but never had a non_member_profiles row).
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-nonmember-detail", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: existing, error } = await supabase
         .from("non_member_profiles")
         .select("*")
         .eq("user_id", userId!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data;
+      if (existing) return existing;
+
+      // Backfill from public.profiles so the detail page always opens cleanly.
+      const { data: base } = await supabase
+        .from("profiles")
+        .select("user_id, first_name, last_name, email, phone")
+        .eq("user_id", userId!)
+        .maybeSingle();
+
+      const insertPayload = {
+        user_id: userId!,
+        first_name: base?.first_name ?? null,
+        last_name: base?.last_name ?? null,
+        email: base?.email ?? null,
+        phone: base?.phone ?? null,
+      };
+      const { data: created, error: insertErr } = await supabase
+        .from("non_member_profiles")
+        .insert(insertPayload)
+        .select("*")
+        .maybeSingle();
+      if (insertErr) throw insertErr;
+      return created ?? { ...insertPayload, waiver_signed: null, waiver_signed_at: null, created_at: new Date().toISOString() } as any;
+    },
+  });
+
+  // Effective waiver status (explicit flag OR inferred from bookings/passes)
+  const { data: waiverStatus } = useQuery({
+    queryKey: ["admin-nonmember-waiver-status", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("effective_waiver_status", { _user_ids: [userId!] });
+      if (error) throw error;
+      return (data?.[0] ?? null) as { user_id: string; status: string; source: string; signed_at: string | null } | null;
     },
   });
 
