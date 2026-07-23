@@ -2992,6 +2992,9 @@ export default function MemberDetail() {
           queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
           queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin", id] });
         }}
+      />
+    )}
+
     {showGiftCardDialog && member && (
       <SellGiftCardDialog
         open={showGiftCardDialog}
@@ -3005,8 +3008,6 @@ export default function MemberDetail() {
           stripe_customer_id: (member as any).stripe_customer_id || null,
         }}
       />
-    )}
-    </>
     )}
     </>
   );
