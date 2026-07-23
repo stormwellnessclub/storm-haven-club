@@ -105,8 +105,18 @@ export default function NonMemberAccounts() {
         passesData = passes || [];
       }
 
+      // Effective waiver status via RPC (explicit flag OR inferred from bookings/passes)
+      let waiverMap = new Map<string, { status: string; source: string; signed_at: string | null }>();
+      if (userIds.length > 0) {
+        const { data: waiverRows } = await supabase.rpc("effective_waiver_status", { _user_ids: userIds });
+        (waiverRows || []).forEach((w: any) => {
+          waiverMap.set(w.user_id, { status: w.status, source: w.source, signed_at: w.signed_at });
+        });
+      }
+
       return allProfiles.map((p: any) => {
         const userPasses = passesData.filter((pass: any) => pass.user_id === p.user_id);
+        const w = waiverMap.get(p.user_id);
         return {
           user_id: p.user_id,
           email: p.email,
@@ -116,6 +126,9 @@ export default function NonMemberAccounts() {
           card_brand: p.card_brand,
           card_last4: p.card_last4,
           waiver_signed: p.waiver_signed,
+          waiver_status: (w?.status === "signed" ? "signed" : "unsigned") as "signed" | "unsigned",
+          waiver_source: (w?.source ?? "none") as NonMemberAccount["waiver_source"],
+          waiver_signed_at: w?.signed_at ?? null,
           stripe_customer_id: p.stripe_customer_id,
           created_at: p.created_at,
           activePasses: userPasses.filter((pass: any) => pass.status === "active").length,
