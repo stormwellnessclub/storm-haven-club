@@ -98,11 +98,14 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
         });
         if (error) throw error;
       } else {
-        // red_light, dry_cryo, or guest_pass_credit
+        // class_credits, red_light, dry_cryo, or guest_pass_credit
         if (!prefill?.userId && !prefill?.memberId) throw new Error("User or member ID required");
         const cycleStart = format(new Date(), "yyyy-MM-dd");
         const cycleEnd = format(expiresAt, "yyyy-MM-dd");
-        const creditType = grantType === "guest_pass_credit" ? "guest_pass" : grantType;
+        const creditType: "class" | "guest_pass" | "red_light" | "dry_cryo" =
+          grantType === "guest_pass_credit" ? "guest_pass"
+          : grantType === "class_credits" ? "class"
+          : grantType;
 
         // If member already has an active (non-expired, remaining > 0) credit of this type,
         // add to that existing row instead of creating a parallel row that would hide it.
