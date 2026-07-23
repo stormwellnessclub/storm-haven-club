@@ -316,11 +316,33 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
             </>
           )}
 
-          {/* Wellness credit quantity */}
-          {(grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Credits</Label>
-              <Input type="number" min={1} max={50} value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
+          {/* Credit quantity (class, wellness, guest pass credit) */}
+          {(grantType === "class_credits" || grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">How many credits?</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={50}
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                className="h-12 text-lg font-semibold"
+              />
+              <div className="flex flex-wrap gap-2">
+                {[1, 5, 10, 20].map((n) => (
+                  <Button
+                    key={n}
+                    type="button"
+                    variant={quantity === n ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setQuantity(n)}
+                    className="h-8"
+                  >
+                    {n}
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
 
