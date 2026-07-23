@@ -520,10 +520,6 @@ export default function NonMemberDetail() {
                 </Card>
               </div>
 
-              <div className="space-y-6">{/* placeholder to close block */}</div>
-                </Card>
-              </div>
-
               <div className="space-y-6">
                 {/* Card on File */}
                 <Card>
