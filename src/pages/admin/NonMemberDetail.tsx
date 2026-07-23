@@ -498,8 +498,8 @@ export default function NonMemberDetail() {
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    {profile.waiver_signed ? (
+                  <CardContent className="space-y-2">
+                    {waiverStatus?.status === "signed" ? (
                       <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                         <ShieldCheck className="h-3 w-3 mr-1" /> Signed
                       </Badge>
@@ -508,7 +508,19 @@ export default function NonMemberDetail() {
                         <ShieldX className="h-3 w-3 mr-1" /> Missing
                       </Badge>
                     )}
+                    {waiverStatus?.status === "signed" && (
+                      <p className="text-xs text-muted-foreground">
+                        {waiverStatus.source === "explicit" && "Digitally signed"}
+                        {waiverStatus.source === "inferred_booking" && "Verified via class booking"}
+                        {waiverStatus.source === "inferred_pass" && "Verified via class pass purchase"}
+                        {waiverStatus.signed_at && ` · ${format(new Date(waiverStatus.signed_at), "MMM d, yyyy")}`}
+                      </p>
+                    )}
                   </CardContent>
+                </Card>
+              </div>
+
+              <div className="space-y-6">{/* placeholder to close block */}</div>
                 </Card>
               </div>
 
