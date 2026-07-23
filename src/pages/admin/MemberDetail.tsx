@@ -2992,7 +2992,21 @@ export default function MemberDetail() {
           queryClient.invalidateQueries({ queryKey: ["member-credits", id] });
           queryClient.invalidateQueries({ queryKey: ["member-class-passes-admin", id] });
         }}
+    {showGiftCardDialog && member && (
+      <SellGiftCardDialog
+        open={showGiftCardDialog}
+        onOpenChange={setShowGiftCardDialog}
+        member={{
+          id: member.id,
+          user_id: member.user_id || undefined,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          email: member.email,
+          stripe_customer_id: (member as any).stripe_customer_id || null,
+        }}
       />
+    )}
+    </>
     )}
     </>
   );
