@@ -220,6 +220,8 @@ export default function NonMemberDetail() {
     onSuccess: () => {
       toast.success("Waiver status updated");
       queryClient.invalidateQueries({ queryKey: ["admin-nonmember-detail", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-nonmember-waiver-status", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-non-member-accounts"] });
     },
     onError: (err: Error) => toast.error(`Failed: ${err.message}`),
   });
