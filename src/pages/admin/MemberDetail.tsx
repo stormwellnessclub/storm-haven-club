@@ -35,6 +35,7 @@ import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
+import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
