@@ -23,24 +23,29 @@ export function MaintenanceJuly23Banner() {
 
   return (
     <div
-      className="relative px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5"
+      className="relative px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6"
       style={{
         background: "linear-gradient(135deg, #2a1a05 0%, #4a2f10 60%, #6b4620 100%)",
-        borderBottom: "1px solid #c9a86a",
+        borderBottom: "2px solid #c9a86a",
         color: "#f5ecd2",
       }}
     >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Wrench className="w-5 h-5 flex-shrink-0" style={{ color: "#e8c878" }} />
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <div
+          className="flex-shrink-0 rounded-full p-3"
+          style={{ background: "rgba(232,200,120,0.15)", border: "1px solid #c9a86a" }}
+        >
+          <Wrench className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: "#e8c878" }} />
+        </div>
         <div className="min-w-0">
-          <div className="font-serif text-base sm:text-lg leading-tight" style={{ color: "#f5ecd2" }}>
+          <div className="font-serif text-lg sm:text-2xl leading-tight" style={{ color: "#f5ecd2" }}>
             Thursday, July 23 — Scheduled Maintenance
           </div>
-          <div className="text-xs sm:text-sm mt-0.5" style={{ color: "#d8c89a" }}>
+          <div className="text-sm sm:text-base mt-1.5" style={{ color: "#e0d0a2" }}>
             We'll open at <strong style={{ color: "#f5ecd2" }}>7:30 AM</strong> for required interior maintenance. A second window from{" "}
             <strong style={{ color: "#f5ecd2" }}>2–4 PM</strong> needs about one hour of limited access to one locker room.
           </div>
-          <div className="text-[11px] mt-0.5 italic" style={{ color: "#b8a878" }}>
+          <div className="text-xs sm:text-sm mt-1.5 italic" style={{ color: "#b8a878" }}>
             All other amenities and the facility remain fully open. Thank you for your patience.
           </div>
         </div>
@@ -48,11 +53,12 @@ export function MaintenanceJuly23Banner() {
       <button
         onClick={dismiss}
         aria-label="Dismiss"
-        className="absolute top-2 right-2 p-1 rounded hover:bg-white/10 transition"
+        className="absolute top-3 right-3 p-1.5 rounded hover:bg-white/10 transition"
         style={{ color: "#c9a86a" }}
       >
-        <X className="w-4 h-4" />
+        <X className="w-5 h-5" />
       </button>
     </div>
   );
 }
+
