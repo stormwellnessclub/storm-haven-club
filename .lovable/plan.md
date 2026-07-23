@@ -1,75 +1,70 @@
-## 1. Confirming Mariam's guest pass credits
 
-Yes — the previous fix already converted her 10 "guest pass credits" into class credits on her `member_credits` record. She has no lingering guest-pass-credit rows.
+## Two issues to fix
 
-To prevent a repeat, the root cause is the grant dialog itself:
-- The dialog defaults members to **"Guest Pass Credit"** (which lets a member bring guests), but the label is easy to misread as "credits for the member".
-- There is no direct **"Class Credits"** option in the grant dialog today — the only way to give free classes is via the "Class Pass" (single / 10-pack) option, which some admins skip past.
+### 1. Non-member detail page crashes for some accounts
+`NonMemberAccounts.tsx` lists two groups of accounts:
+- Real rows in `non_member_profiles` (597)
+- "Orphaned" users found in `class_passes` who have no `non_member_profiles` row (5)
 
-## 2. Fix the "Grant Pass / Credit" dialog UI
+When you click an orphan, we navigate to `/admin/non-member-accounts/:userId`, which calls
+`.from("non_member_profiles").select("*").eq("user_id", ...).single()`. Because no row exists, `.single()` throws
+and the page shows nothing / an error. Same failure happens for any row whose profile was deleted.
 
-Problem: `sm:max-w-md` with no scroll → on smaller windows the inputs get clipped and the number field is tiny.
+**Fix:** auto-create the `non_member_profiles` row on demand from `profiles` when the detail page loads and no
+non-member row exists. Use `maybeSingle()` + a fallback insert (email/name/phone pulled from `profiles`). No user
+action required — clicking a name always opens their file cleanly.
 
-Changes in `src/components/admin/AdminGrantPassDialog.tsx`:
-- Widen dialog to `sm:max-w-lg`, add `max-h-[85vh] overflow-y-auto` so the body scrolls when needed.
-- Enlarge the quantity `<Input type="number">` (h-11, text-lg, `inputMode="numeric"`) and add quick-pick chips (1 / 5 / 10) for wellness / guest pass credit fields.
-- Reorder member-grant options so **Class Credits** appears first (see below), rename `guest_pass_credit` label to **"Guest Pass Credit — lets member invite guests"** to remove ambiguity.
-- Add a new grant type **`class_credits`** that writes to `member_credits` with `credit_type = 'class'` (matches what `useBooking` looks for). Uses the same "add to existing active cycle" logic as wellness credits.
+### 2. "Missing waiver" count is wrong
 
-## 3. Sell a gift card from a member account (with custom email)
+The system enforces the liability waiver at every booking + pass-purchase entry point, so nobody with an active
+pass or a class booking should show as "missing waiver". Confirmed against the data:
 
-New end-to-end feature.
+- 549 non-members show `waiver_signed = false`
+- 224 of them own class passes
+- **195 of those 224 already have booked or attended classes** — impossible unless the waiver was actually signed
 
-### Data model — new migration
-- Table `public.gift_cards`
-  - `code` (unique, human-friendly like `STORM-XXXX-XXXX`)
-  - `amount_cents`, `balance_cents`
-  - `purchaser_member_id`, `purchaser_user_id` (nullable)
-  - `recipient_name`, `recipient_email`, `custom_message`
-  - `payment_method` ('card_on_file' | 'cash' | 'clover' | 'external')
-  - `status` ('active' | 'redeemed' | 'void'), `issued_by`, `notes`, `expires_at`
-- Table `public.gift_card_redemptions` — audit trail of applications against `cafe_orders` / `manual_charges` / spa etc.
-- RLS: admins/front_desk full access; members can read their own purchased cards and any card whose email matches theirs (to see balance). Standard `GRANT` block.
+Root cause: `waiver_signed` is a single boolean set only by the in-app "Sign waiver" click. Passes bought via
+Stripe payment links, front-desk POS, bulk imports, and admin grants never flip the flag, so the badge lies.
+There is no separate signatures table to cross-check.
 
-### Admin UI — new dialog `SellGiftCardDialog.tsx`
-Opened from a "Sell Gift Card" button on `MemberDetail.tsx` (charge/actions area) and from Front Desk POS.
-Fields:
-- Amount (preset chips $25 / $50 / $100 / $150 / custom)
-- Recipient name + email (defaults to the member if it's for themselves; toggle "This is a gift for someone else")
-- Custom message (textarea)
-- Payment method: **Card on file** (member's saved Stripe card), Cash, Clover, External (mirrors the guest-pass POS pattern)
-- Optional expiration date
+**Fix — treat waiver as signed when there is any hard evidence of it, and expose the source:**
 
-On submit:
-1. If `card_on_file`: call existing `charge-member-card` edge function with amount + `chargeType: 'gift_card'` and a note `Gift card for <recipient>`.
-2. Insert into `gift_cards` (generating unique code) — done in a new edge function `create-gift-card` so the code and Stripe charge stay atomic.
-3. Trigger the app-email `gift-card-delivery` (below) to the recipient with the code + custom message. Purchaser gets a receipt (existing `pos_charge_receipt` covers the charge itself).
+Add a database function `public.effective_waiver_status(_user_id uuid)` that returns:
+- `signed` — flag is true, OR they have any completed class booking (attendance implies waiver signed at the door
+  or in-app), OR they have any active/used class pass (purchase flow forces waiver)
+- `unsigned` — no flag, no booking, no pass
+- plus `signed_at` (from `non_member_profiles.waiver_signed_at`) and `source`
+  (`explicit` / `inferred_booking` / `inferred_pass` / `none`)
 
-### Email template
-- Add `supabase/functions/_shared/transactional-email-templates/gift-card-delivery.tsx` — brand-styled: recipient name, sender name, custom message block, gift code, amount, expiration, "How to redeem" copy, link to `stormwellnessclub.com`.
-- Register in `registry.ts`. Deploy `send-transactional-email`.
+Backfill migration: for any `non_member_profiles` row where `waiver_signed IS NOT TRUE` **and** the user has a
+class booking with status in ('confirmed','completed','no_show') or an active/used class pass, set
+`waiver_signed = true` and `waiver_signed_at = coalesce(earliest booking created_at, earliest pass created_at)`.
+This only touches rows with objective proof of signing.
 
-### Redemption (initial scope)
-- Show gift card balance in the member portal under Passes.
-- Admin can look up a card by code from POS / MemberDetail and apply balance to a `manual_charges` cart line (creates a row in `gift_card_redemptions`, decrements `balance_cents`).
-- Full auto-application at every checkout surface is out of scope for this pass — flagged as follow-up.
+Update the admin UI:
+- `NonMemberAccounts.tsx` — recompute the "Missing Waiver" stat and column badge from the effective status, not
+  the raw boolean. Show a tooltip on inferred-signed rows explaining the source ("Signed via class booking on
+  Mar 3, 2025").
+- `NonMemberDetail.tsx` — waiver card shows: badge (Signed/Unsigned), signed date, and source. If unsigned but
+  inferred (e.g. record predates the flag), show an admin one-click "Mark as signed on paper" that writes
+  `waiver_signed = true, waiver_signed_at = now()` and logs to `admin_action_log`.
+- Add a filter chip: **Truly missing waiver** vs. **Signed (inferred)** vs. **Signed (explicit)** so you can see
+  who genuinely still needs to sign digitally.
 
-## Technical notes
-- No Stripe product needed; gift card is a member charge captured to the member's existing customer.
-- Gift card code generator: 12 chars, uppercase alphanumeric excluding I/O/0/1, unique-checked in a `SECURITY DEFINER` RPC.
-- Email includes unsubscribe footer automatically via infra.
+## Technical section
 
-## Files touched
-- `src/components/admin/AdminGrantPassDialog.tsx` — resize + new "Class Credits" type + relabel.
-- `supabase/migrations/*` — new gift card tables + RPC.
-- `src/components/admin/SellGiftCardDialog.tsx` — new.
-- `src/pages/admin/MemberDetail.tsx` — wire "Sell Gift Card" button.
-- `src/pages/frontdesk/POS.tsx` — same button.
-- `supabase/functions/create-gift-card/index.ts` — new edge function.
-- `supabase/functions/_shared/transactional-email-templates/gift-card-delivery.tsx` + registry — new template.
-- `src/pages/portal/Passes.tsx` — show gift card balance.
+Files:
+- `supabase/migrations/*` — new `effective_waiver_status` function + one-shot backfill UPDATE, plus permissive
+  GRANT to `authenticated`.
+- `src/pages/admin/NonMemberDetail.tsx` — swap `.single()` → `.maybeSingle()`, auto-create row from `profiles` if
+  null, and load effective waiver status.
+- `src/pages/admin/NonMemberAccounts.tsx` — fetch `effective_waiver_status` per row (single RPC returning table
+  by user_ids), recompute `missingWaivers` stat and the waiver column, add filter values.
+- `src/components/admin/NonMemberDetailSheet.tsx` — same waiver badge/source logic.
+- `src/hooks/useNonMemberProfile.ts` — expose `waiverStatus` field (signed/unsigned/source/date).
 
-## Out of scope (flag for later)
-- Automatic gift-card application at cafe/spa/class-pass checkout.
-- Public gift-card purchase page for non-members.
-- Partial refund of a gift card back to the purchaser.
+Members table (`profiles.waiver_signed`) has the same class of stale-flag problem; scope this plan to
+non-members since that's what you asked about. I can apply the same treatment to members in a follow-up if you
+want.
+
+No changes to booking/purchase flows — those already enforce the waiver correctly.

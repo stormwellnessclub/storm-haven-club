@@ -9469,6 +9469,15 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      effective_waiver_status: {
+        Args: { _user_ids: string[] }
+        Returns: {
+          signed_at: string
+          source: string
+          status: string
+          user_id: string
+        }[]
+      }
       ensure_spa_review_token: {
         Args: { _appointment_id: string }
         Returns: string
