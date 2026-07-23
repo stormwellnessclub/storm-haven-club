@@ -68,7 +68,17 @@ export function PortalSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
+    <Sidebar
+      collapsible="icon"
+      className="border-r-0"
+      style={{
+        ["--sidebar-background" as any]: "38 25% 6%",
+        ["--sidebar-foreground" as any]: "48 16% 84%",
+        ["--sidebar-border" as any]: "38 25% 12%",
+        ["--sidebar-accent" as any]: "38 25% 12%",
+        ["--sidebar-accent-foreground" as any]: "48 30% 92%",
+      }}
+    >
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <img src={stormLogo} alt="Storm Wellness" className="h-8 w-8 object-contain" />
