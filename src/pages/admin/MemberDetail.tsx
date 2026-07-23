@@ -245,6 +245,7 @@ export default function MemberDetail() {
   // Edit credit state
   const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showGrantDialog, setShowGrantDialog] = useState(false);
+  const [showGiftCardDialog, setShowGiftCardDialog] = useState(false);
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
