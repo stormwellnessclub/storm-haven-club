@@ -194,8 +194,9 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   };
 
   const typeLabel: Record<GrantType, string> = {
+    class_credits: "Class Credits (member can book classes)",
     guest_pass: "Guest Pass Voucher (non-member / walk-in)",
-    guest_pass_credit: "Guest Pass Credit (member can redeem in app)",
+    guest_pass_credit: "Guest Pass Credit — lets member invite guests",
     class_pass: "Class Pass",
     kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
@@ -204,7 +205,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["guest_pass", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo"]
+    ? ["class_credits", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo", "guest_pass"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
