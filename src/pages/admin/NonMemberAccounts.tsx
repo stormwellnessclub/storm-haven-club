@@ -501,8 +501,20 @@ export default function NonMemberAccounts() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {account.waiver_signed ? (
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        {account.waiver_status === "signed" ? (
+                          <Badge
+                            variant="outline"
+                            className="text-xs bg-green-50 text-green-700 border-green-200"
+                            title={
+                              account.waiver_source === "explicit"
+                                ? "Digitally signed"
+                                : account.waiver_source === "inferred_booking"
+                                ? `Verified via class booking${account.waiver_signed_at ? ` on ${format(new Date(account.waiver_signed_at), "MMM d, yyyy")}` : ""}`
+                                : account.waiver_source === "inferred_pass"
+                                ? `Verified via class pass${account.waiver_signed_at ? ` on ${format(new Date(account.waiver_signed_at), "MMM d, yyyy")}` : ""}`
+                                : "Signed"
+                            }
+                          >
                             <ShieldCheck className="h-3 w-3 mr-1" /> Signed
                           </Badge>
                         ) : (
