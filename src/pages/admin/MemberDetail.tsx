@@ -1902,6 +1902,13 @@ export default function MemberDetail() {
                           <Gift className="h-4 w-4 mr-1" />Grant
                         </Button>
                       )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowGiftCardDialog(true)}
+                      >
+                        <Gift className="h-4 w-4 mr-1" />Sell Gift Card
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
