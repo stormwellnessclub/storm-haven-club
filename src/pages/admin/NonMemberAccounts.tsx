@@ -229,7 +229,7 @@ export default function NonMemberAccounts() {
   // Summary stats
   const totalAccounts = accounts?.length || 0;
   const withActivePasses = accounts?.filter((a) => a.activePasses > 0).length || 0;
-  const missingWaivers = accounts?.filter((a) => !a.waiver_signed).length || 0;
+  const missingWaivers = accounts?.filter((a) => a.waiver_status !== "signed").length || 0;
   const pendingCount = pendingImports?.length || 0;
 
   return (
