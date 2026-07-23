@@ -32,6 +32,9 @@ interface NonMemberAccount {
   card_brand: string | null;
   card_last4: string | null;
   waiver_signed: boolean | null;
+  waiver_status: "signed" | "unsigned";
+  waiver_source: "explicit" | "inferred_booking" | "inferred_pass" | "none";
+  waiver_signed_at: string | null;
   stripe_customer_id: string | null;
   created_at: string;
   activePasses: number;
