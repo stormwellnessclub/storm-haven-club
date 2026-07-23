@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Send, Search, Eye, EyeOff, Users, Mail, Megaphone } from "lucide-react";
+import { MaintenanceBlastControls } from "@/components/admin/MaintenanceBlastControls";
 
 interface Recipient {
   id: string;
@@ -214,6 +215,8 @@ export function AnnouncementsTab() {
 
   return (
     <div className="space-y-6">
+      <MaintenanceBlastControls />
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <Megaphone className="h-5 w-5 mt-1 text-accent" />

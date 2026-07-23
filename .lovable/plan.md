@@ -1,44 +1,45 @@
-## What's broken
 
-A visitor who lands on `/class-passes` (via nav, footer, `/schedule` → BookingModal, etc.) and clicks a price gets a toast that says "Please sign in to purchase class passes" and nothing happens — the buttons just error out. That's the dead-end you're describing. From `src/pages/ClassPasses.tsx` line 386:
+## Goal
+Notify all active members about Thursday, July 23 maintenance: late opening at 7:30 AM and a partial locker room closure between 2–4 PM.
 
-```ts
-if (!user) {
-  toast.error("Please sign in to purchase class passes");
-  return;
-}
-```
+## 1. Member Portal Banner
 
-The "Sign In / Create Free Account" links lower on the page take them to `/auth`, which drops them out of the buying flow — they land on a login screen with no memory of what they were trying to buy, and most never come back.
+Add a new dismissible info banner component `MaintenanceJuly23Banner.tsx` (styled like `MemorialDayHoursBanner`) mounted in `MemberLayout.tsx` and `PortalLayout.tsx`. Auto-hides after end of day July 23 (America/Detroit).
 
-Passes must attach to an account (so credits can be redeemed at booking), so we can't do a true anonymous checkout — but we can make the account step feel like part of checkout instead of a wall.
+**Banner copy:**
 
-## Plan
+> **Thursday, July 23 — Scheduled Maintenance**
+> We'll open at **7:30 AM** for required interior maintenance. A second maintenance window runs **2–4 PM** requiring ~1 hour of limited access to one locker room. All other amenities and the facility remain fully open. Thank you for your patience.
 
-1. **Inline sign-up drawer on `/class-passes`** — when a guest clicks a price:
-   - Open a bottom sheet (mobile) / modal (desktop) titled "Create your account to check out" with First name, Last name, Email, Phone, Password.
-   - Submit creates a Supabase auth user, seeds a `non_member_profiles` row (same as current non-member onboarding), then automatically resumes `handlePurchase(category, passType)` — no page reload, no re-click.
-   - Existing users get a "Already have an account? Sign in" toggle inside the same sheet that logs them in and resumes the purchase the same way.
+## 2. Email Blast
 
-2. **Persist the pending purchase across auth** — stash `{category, passType}` in `sessionStorage` before opening the sheet so a hard refresh or email-confirmation bounce still resumes checkout on return.
+New admin-triggered edge function `send-july-23-maintenance-blast` (modeled on `send-sound-bath-event-blast`), plus a preview/test/send control on the Admin Marketing or EventsHub page using the existing `EventEmailBlastControls` pattern.
 
-3. **Fix the "just errors out" UX** — replace the `toast.error` early-return with opening the sheet, so no click is ever a dead end.
+Sends to all `members` with `status = 'active'` and an email on file. Idempotent via `email_send_log` message_id `july-23-maintenance-<member_id>`.
 
-4. **Same treatment on `BookingModal`** — currently when a non-member tries to book with no passes, it does `navigate("/class-passes")`. Change it to open the same inline purchase drawer in place so they never leave the schedule.
+**Subject:** Heads up: Thursday 7/23 opening at 7:30 AM (brief maintenance)
 
-5. **Public entry visibility** — add a prominent "Buy a class pass" button to `/schedule` header so drop-in visitors have an obvious CTA without hunting through the nav.
+**Email body:**
 
-6. **Waivers stay inline** — the existing inline waiver/agreement signing flow already works for non-members (recent fix); no changes needed there. It will trigger automatically after the new account is created, before Stripe checkout opens.
+> Hi {{first_name}},
+>
+> A quick heads up about **Thursday, July 23**:
+>
+> - **We'll open at 7:30 AM** instead of our usual time so our team can complete required interior maintenance before members arrive.
+> - **Between 2:00 PM and 4:00 PM**, we'll need approximately **one hour of limited access to one of the locker rooms** to finish a second maintenance task. The rest of the facility and all amenities will remain fully available during that window.
+>
+> Everything else runs on the normal schedule — classes, recovery, spa, cafe, and the studios are all open as usual once we unlock the doors at 7:30 AM.
+>
+> Thank you for your patience as we keep the club in top shape for you.
+>
+> — The Storm Wellness Club Team
 
-## Technical notes
+## Technical Notes
 
-- New component: `src/components/class-passes/GuestCheckoutSheet.tsx` — wraps the sign-up form + resume logic; reused by `ClassPasses.tsx` and `BookingModal.tsx`.
-- Reuse the existing non-member signup path in `AuthContext` / `useNonMemberProfile` — don't fork auth logic.
-- After `signUp`, wait for `useAuth().user` to hydrate (or use the returned session) before calling `handlePurchase`, so the Stripe edge function sees the auth header.
-- `sessionStorage` key: `pendingClassPassPurchase = { category, passType, ts }`, cleared on success/cancel return.
-- No schema changes. No edge function changes. No changes to member-facing `/portal/book/class` (already handled by `BuyPassesDrawer`).
+- Banner: pure frontend, dismissal stored in `localStorage` key `maint_july23_dismissed`, auto-suppressed after `2026-07-24 00:00 America/Detroit`.
+- Edge function reuses existing Lovable Emails infrastructure (`enqueue_email` → `transactional_emails` queue). Adds one `_shared/transactional-email-templates/july-23-maintenance.tsx` React Email template registered in `registry.ts`.
+- Admin trigger UI added to `EventsHub.tsx` (or Marketing page — confirm which you'd prefer).
 
-## Out of scope
-
-- True anonymous/guest checkout with no account (passes need an owner to redeem).
-- Changes to member pricing, Stripe products, or the waiver system.
+## Please confirm before I build
+1. Copy above looks good?
+2. Put the admin "Send blast" button on **Marketing** page or **EventsHub**?
