@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Loader2, Gift } from "lucide-react";
 
-type GrantType = "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo";
+type GrantType = "class_credits" | "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo";
 
 interface AdminGrantPassDialogProps {
   open: boolean;
@@ -98,11 +98,14 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
         });
         if (error) throw error;
       } else {
-        // red_light, dry_cryo, or guest_pass_credit
+        // class_credits, red_light, dry_cryo, or guest_pass_credit
         if (!prefill?.userId && !prefill?.memberId) throw new Error("User or member ID required");
         const cycleStart = format(new Date(), "yyyy-MM-dd");
         const cycleEnd = format(expiresAt, "yyyy-MM-dd");
-        const creditType = grantType === "guest_pass_credit" ? "guest_pass" : grantType;
+        const creditType: "class" | "guest_pass" | "red_light" | "dry_cryo" =
+          grantType === "guest_pass_credit" ? "guest_pass"
+          : grantType === "class_credits" ? "class"
+          : grantType;
 
         // If member already has an active (non-expired, remaining > 0) credit of this type,
         // add to that existing row instead of creating a parallel row that would hide it.
@@ -191,8 +194,9 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
   };
 
   const typeLabel: Record<GrantType, string> = {
+    class_credits: "Class Credits (member can book classes)",
     guest_pass: "Guest Pass Voucher (non-member / walk-in)",
-    guest_pass_credit: "Guest Pass Credit (member can redeem in app)",
+    guest_pass_credit: "Guest Pass Credit — lets member invite guests",
     class_pass: "Class Pass",
     kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
@@ -201,12 +205,12 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["guest_pass", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo"]
+    ? ["class_credits", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo", "guest_pass"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Gift className="h-5 w-5" />
@@ -312,11 +316,33 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
             </>
           )}
 
-          {/* Wellness credit quantity */}
-          {(grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">Credits</Label>
-              <Input type="number" min={1} max={50} value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 1)} />
+          {/* Credit quantity (class, wellness, guest pass credit) */}
+          {(grantType === "class_credits" || grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">How many credits?</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={50}
+                value={quantity}
+                onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
+                className="h-12 text-lg font-semibold"
+              />
+              <div className="flex flex-wrap gap-2">
+                {[1, 5, 10, 20].map((n) => (
+                  <Button
+                    key={n}
+                    type="button"
+                    variant={quantity === n ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setQuantity(n)}
+                    className="h-8"
+                  >
+                    {n}
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
 

@@ -3117,6 +3117,63 @@ serve(async (req) => {
         break;
       }
 
+      case 'gift_card_delivery': {
+        const amountFmt = String(data.amount || '0.00');
+        const expiresFmt = data.expiresAt
+          ? new Date(data.expiresAt).toLocaleDateString('en-US', {
+              timeZone: 'America/Detroit',
+              month: 'long', day: 'numeric', year: 'numeric',
+            })
+          : null;
+        const senderName = data.senderName || 'A Storm Wellness Club member';
+        subject = `You've received a $${amountFmt} Storm Wellness Club gift card`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">A gift, just for you</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.recipientName || data.name || 'there'},
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                <strong>${senderName}</strong> has sent you a Storm Wellness Club gift card.
+              </p>
+
+              ${data.customMessage ? `
+                <div style="background: #FFF8E7; border-left: 4px solid #C1B19C; padding: 18px 20px; border-radius: 6px; margin: 24px 0;">
+                  <div style="font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #88766B; margin-bottom: 8px;">A note from ${senderName}</div>
+                  <div style="color: #1C170F; font-size: 16px; line-height: 1.7; font-style: italic;">"${data.customMessage}"</div>
+                </div>
+              ` : ''}
+
+              <div style="background: #1C170F; color: #FFF8E7; border-radius: 12px; padding: 28px 24px; margin: 28px 0; text-align: center; font-family: Georgia, serif;">
+                <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Gift Card Value</div>
+                <div style="font-size: 42px; font-weight: 700; margin-bottom: 20px;">$${amountFmt}</div>
+                <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Redemption Code</div>
+                <div style="font-size: 22px; font-weight: 700; letter-spacing: 3px; background: #FFF8E7; color: #1C170F; padding: 12px 16px; border-radius: 6px; display: inline-block;">${data.code}</div>
+                ${expiresFmt ? `<div style="font-size: 13px; color: #C1B19C; margin-top: 18px;">Valid through ${expiresFmt}</div>` : ''}
+              </div>
+
+              <h3 style="color: #1C170F; font-family: Georgia, serif; margin-top: 30px;">How to redeem</h3>
+              <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
+                <li>Visit us in person and give this code to the front desk at checkout.</li>
+                <li>Use it toward classes, the café, spa services, or shop items.</li>
+                <li>Balance will be applied to your purchase; any remaining balance stays on the card.</li>
+              </ul>
+
+              <div style="text-align: center; margin: 32px 0;">
+                <a href="${BASE_URL}" style="${emailStyles.button}">Visit Storm Wellness Club</a>
+              </div>
+
+              <p style="margin: 30px 0 5px 0; color: #1C170F;">See you soon,</p>
+              <p style="font-weight: 600; color: #1f2937; margin: 0;">— The Storm Wellness Club Team</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       case 'custom_message': {
         subject = String(data?.subject || 'A message from Storm Wellness Club');
         const bodyHtml = String(data?.bodyHtml || '');
