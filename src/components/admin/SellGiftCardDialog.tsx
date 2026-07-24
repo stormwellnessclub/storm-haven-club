@@ -316,6 +316,46 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
                 <Label className="text-xs text-muted-foreground">Internal Notes (optional)</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Staff-only notes" />
               </div>
+
+              {/* Schedule send */}
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Schedule delivery for later</div>
+                    <div className="text-xs text-muted-foreground">
+                      {scheduleEnabled ? "Recipient will receive it on the chosen date" : "Send email immediately"}
+                    </div>
+                  </div>
+                  <Switch checked={scheduleEnabled} onCheckedChange={setScheduleEnabled} />
+                </div>
+                {scheduleEnabled && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("justify-start text-left font-normal")}>
+                          <CalendarClock className="mr-2 h-4 w-4" />
+                          {scheduleDate ? format(scheduleDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduleDate}
+                          onSelect={setScheduleDate}
+                          disabled={(d) => d.getTime() < Date.now() - 24 * 60 * 60 * 1000}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+              {/* Preview */}
+              <Button type="button" variant="outline" className="w-full" onClick={() => setShowPreview(true)}>
+                <Eye className="h-4 w-4 mr-1" /> Preview gift card
+              </Button>
             </div>
 
             <DialogFooter>
@@ -328,10 +368,13 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
                   sellMutation.isPending
                   || !amount
                   || (isGift && (!recipientName.trim() || !recipientEmail.trim()))
+                  || (scheduleEnabled && (!scheduleDate || (scheduledSendAt?.getTime() ?? 0) <= Date.now()))
                 }
               >
                 {sellMutation.isPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Processing…</>
+                ) : scheduleEnabled ? (
+                  <><CalendarClock className="h-4 w-4 mr-1" /> Schedule ${amount.toFixed(2)} Gift Card</>
                 ) : (
                   <><Gift className="h-4 w-4 mr-1" /> Sell ${amount.toFixed(2)} Gift Card</>
                 )}
@@ -340,6 +383,25 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
           </>
         )}
       </DialogContent>
+
+      {/* Preview dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gift Card Preview</DialogTitle>
+            <DialogDescription>Exactly what the recipient will see.</DialogDescription>
+          </DialogHeader>
+          <GiftCardPreview
+            amountCents={Math.round(amount * 100)}
+            recipientName={effectiveRecipientName || "Recipient"}
+            senderName={memberName || "A Storm Wellness Club member"}
+            customMessage={customMessage}
+            scheduledSendAt={scheduledSendAt?.toISOString()}
+            expiresAt={expiresAt?.toISOString()}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
+
