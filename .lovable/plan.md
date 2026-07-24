@@ -1,25 +1,61 @@
-## Add delete for Class Types
 
-Currently in Admin → Class Management you can create/edit/activate class types and delete individual schedules, but there's no way to delete a class **type**. Add that.
+## What's actually going on
 
-### Where to add the control
+I dug into the database and the two things you're seeing have separate causes.
 
-1. **Class Type Detail page** (`src/pages/admin/ClassTypeDetail.tsx`) — primary location. Add a red **Delete class type** button in the header actions area (next to Edit / Active toggle).
-2. **Class Types list** (`src/pages/admin/ClassTypes.tsx` via `ClassTypeCard`) — add a small trash icon on each row for quick delete from the list.
+### 1. The mystery Aug 10 classes (and many others)
 
-### Behavior (safety-first)
+There are **36 sessions on the public schedule that have no `schedule_id`** — meaning no parent row in Class Management. That's why you can't find or edit them. They were auto-generated back in May–July by an older cron job that then had its schedule row deleted, orphaning the sessions.
 
-Deleting a class type is destructive because sessions/bookings/passes may reference it. The button opens a confirm dialog that:
+Examples:
+- Sun Aug 10, 9:00am — Reformer Sculpt (no instructor)
+- Sun Aug 10, 9:00am — Reformer Sculpt – Adv/Int (Heated) (no instructor)
+- Sun Aug 10, 10:00am — Signature Flow
+- Mon Aug 11 / Wed Aug 12 / Aug 17 / Aug 18 / … through Sept 29
 
-- Fetches counts: recurring schedules, upcoming sessions (session_date >= today, not cancelled), past sessions, total bookings.
-- **Blocks hard delete** if there are **upcoming sessions with bookings** (`current_enrollment > 0`) or any active class passes tied to it. Shows a clear message: "Cannot delete — N members are booked in upcoming sessions. Cancel those sessions first."
-- If safe, offers two choices:
-  - **Deactivate instead** (recommended) — sets `is_active = false`. Hides from schedule/booking but preserves history. This is the default suggested action.
-  - **Delete permanently** — only enabled when there are zero upcoming bookings. Cascades: delete `class_schedules` for this type, cancel/delete future empty sessions, then delete the `class_types` row. Past sessions are kept (they hold historical bookings) and the class type row can only be truly removed if no sessions reference it — otherwise we fall back to deactivate + explain.
+Almost all are 0-booking Reformer/Heated 9am sessions. **One has bookings**: Sun Jul 27, 10am Signature Flow (2 attendees) — we'll preserve that one.
 
-### Implementation notes
+### 2. Why the schedule "stops after Aug 17"
 
-- Add a `delete_class_type` SECURITY DEFINER RPC that runs the safety checks server-side and performs the cascade atomically. Admin/super_admin only.
-- The client button calls the RPC and shows the returned summary (e.g., "Deleted class type, removed 3 schedules and 12 future empty sessions").
-- After success: invalidate `class-types` / `class-schedules` queries and navigate back to `/admin/class-types`.
-- No UI changes beyond adding the button + confirm dialog; existing layout and styling reused (shadcn `AlertDialog`, `Button variant="destructive"`).
+Sessions actually exist all the way through **Sept 29** in the database. The public/member `ScheduleBrowser` is hard-capped at **current week + 3 more weeks** (Monday start). Today is Fri Jul 24, so the last visible week is Aug 10–16 → the schedule visually ends Sun Aug 16 / Mon Aug 17. That's the "4-week booking window" you set up earlier — working as coded, but the label doesn't make it obvious *why* it stops.
+
+---
+
+## Plan
+
+### Step 1 — Clean up orphan sessions (data fix)
+
+Migration that runs once:
+- **Delete** all `class_sessions` where `schedule_id IS NULL`, `session_date >= today`, and there are zero confirmed bookings (35 rows).
+- **Leave alone** the Jul 27 Signature Flow session with 2 attendees. It stays visible; the 2 members keep their booking.
+- Add a NOT-NULL-ish safety: change the `schedule_id` foreign key to `ON DELETE CASCADE` so if a schedule is ever deleted again, its sessions go with it instead of being orphaned.
+
+### Step 2 — Give admin a way to find/remove one-offs going forward
+
+In `src/pages/admin/ClassSchedules.tsx` add a small **"Orphan sessions"** panel (only shown when count > 0) that lists any session with no parent schedule and gives you a per-row **Delete** button. So this never becomes a mystery again.
+
+### Step 3 — Make the 4-week booking window obvious
+
+In `src/components/booking/ScheduleBrowser.tsx`:
+- Show a persistent header line: **"Booking open through Sun, Aug 16. Next 4 weeks release Mon, Aug 17."** (dates roll forward automatically).
+- When you're on the last visible week, replace the disabled "next" arrow with a soft card: *"More classes release next Monday — check back then."*
+- Optional toggle we can add if you want: bump the window from **4 weeks → 5 or 6 weeks**. My recommendation is to keep it at 4 so members book near-term and no-shows drop; but easy to change — let me know.
+
+### Step 4 — Admin can see further than members
+
+In the admin `WeeklyCalendarView` you already can scroll past the 4-week cutoff. I'll add a subtle **"Public booking cutoff: Aug 16"** marker line on the calendar so you always know where the member-visible edge falls when you're building future weeks.
+
+---
+
+## Technical notes
+
+- Orphan cleanup runs as a single migration with a `WHERE schedule_id IS NULL AND session_date >= CURRENT_DATE AND NOT EXISTS (SELECT 1 FROM class_bookings WHERE session_id = class_sessions.id AND status='confirmed')` guard.
+- The FK change: `ALTER TABLE class_sessions DROP CONSTRAINT class_sessions_schedule_id_fkey, ADD CONSTRAINT ... FOREIGN KEY (schedule_id) REFERENCES class_schedules(id) ON DELETE CASCADE`.
+- Booking cutoff currently: `startOfWeek(addWeeks(today, 3), { weekStartsOn: 1 })`. Label will be derived from `endOfWeek(maxWeekStart, { weekStartsOn: 1 })` so it stays in sync if we ever change the window size.
+
+---
+
+## Please confirm before I build
+
+1. **OK to delete the 35 empty orphan sessions** and keep the Jul 27 Signature Flow one (which has 2 bookings)?
+2. Keep the booking window at **4 weeks**, or bump to 5 or 6?
