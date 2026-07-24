@@ -144,6 +144,8 @@ export default function ClassSchedules() {
   const [viewModeAutoSet, setViewModeAutoSet] = useState(false);
 
   const [hideInactive, setHideInactive] = useState(true);
+  const [instructorDrawerId, setInstructorDrawerId] = useState<string | null>(null);
+  
   
   // Form state
   const [classTypeId, setClassTypeId] = useState("");
