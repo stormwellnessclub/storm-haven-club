@@ -261,6 +261,9 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
             <section className="p-6 sm:px-8 sm:py-6">
               {step === "details" ? (
                 <>
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Your info (buyer)
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <Label>First name</Label>
@@ -291,6 +294,57 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
                       />
                     </div>
                   </div>
+
+                  <div className="mt-4 flex items-center justify-between rounded-md border p-3">
+                    <div>
+                      <div className="text-sm font-medium">These tickets are for someone else</div>
+                      <div className="text-xs text-muted-foreground">
+                        {forSomeoneElse ? "Enter each attendee's name below" : "You'll be the attendee on the roster"}
+                      </div>
+                    </div>
+                    <Switch checked={forSomeoneElse} onCheckedChange={setForSomeoneElse} />
+                  </div>
+
+                  {forSomeoneElse && (
+                    <div className="mt-3 space-y-3">
+                      {Array.from({ length: quantity }).map((_, i) => {
+                        const a = attendees[i] || { first_name: "", last_name: "", email: "", phone: "" };
+                        const update = (patch: Partial<typeof a>) =>
+                          setAttendees((prev) => {
+                            const next = [...prev];
+                            while (next.length <= i) next.push({ first_name: "", last_name: "", email: "", phone: "" });
+                            next[i] = { ...next[i], ...patch };
+                            return next;
+                          });
+                        return (
+                          <div key={i} className="rounded-md border p-3">
+                            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Attendee {i + 1}
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div>
+                                <Label className="text-xs">First name *</Label>
+                                <Input value={a.first_name} onChange={(e) => update({ first_name: e.target.value })} />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Last name *</Label>
+                                <Input value={a.last_name} onChange={(e) => update({ last_name: e.target.value })} />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-xs">Email (optional — they'll get a confirmation)</Label>
+                                <Input type="email" value={a.email} onChange={(e) => update({ email: e.target.value })} />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-xs">Phone (optional)</Label>
+                                <Input value={a.phone} onChange={(e) => update({ phone: e.target.value })} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
 
                   <DialogFooter className="mt-5 gap-2 sm:gap-2">
                     <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
