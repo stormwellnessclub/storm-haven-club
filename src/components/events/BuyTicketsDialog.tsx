@@ -67,6 +67,8 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
     setPaymentIntentId(null);
     setCheckoutSummary(null);
     setSubmitting(false);
+    setForSomeoneElse(false);
+    setAttendees([{ first_name: "", last_name: "", email: "", phone: "" }]);
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       const user = u?.user;
@@ -86,6 +88,17 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
       }
     })();
   }, [open]);
+
+  // Keep attendee list length matched to quantity when in gift mode
+  useEffect(() => {
+    if (!forSomeoneElse) return;
+    setAttendees((prev) => {
+      const next = [...prev];
+      while (next.length < quantity) next.push({ first_name: "", last_name: "", email: "", phone: "" });
+      return next.slice(0, quantity);
+    });
+  }, [quantity, forSomeoneElse]);
+
 
   const eventTime = useMemo(
     () => event ? formatInTimeZone(new Date(event.starts_at), CLUB_TZ, "EEEE, MMMM d · h:mm a 'ET'") : "",
