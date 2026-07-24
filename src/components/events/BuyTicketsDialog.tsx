@@ -117,6 +117,31 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
       toast.error("Please fill in your name and email.");
       return;
     }
+    let attendeePayload: Array<{ first_name: string; last_name: string; email?: string; phone?: string }> | undefined;
+    if (forSomeoneElse) {
+      const trimmed = attendees.slice(0, quantity).map((a) => ({
+        first_name: a.first_name.trim(),
+        last_name: a.last_name.trim(),
+        email: a.email.trim(),
+        phone: a.phone.trim(),
+      }));
+      for (let i = 0; i < trimmed.length; i++) {
+        if (!trimmed[i].first_name || !trimmed[i].last_name) {
+          toast.error(`Ticket ${i + 1}: please enter attendee first and last name.`);
+          return;
+        }
+        if (trimmed[i].email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed[i].email)) {
+          toast.error(`Ticket ${i + 1}: invalid attendee email.`);
+          return;
+        }
+      }
+      attendeePayload = trimmed.map((a) => ({
+        first_name: a.first_name,
+        last_name: a.last_name,
+        email: a.email || undefined,
+        phone: a.phone || undefined,
+      }));
+    }
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-event-ticket-checkout", {
@@ -128,6 +153,8 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
           phone: phone.trim() || undefined,
           quantity,
           embedded: true,
+          is_gift: forSomeoneElse,
+          attendees: attendeePayload,
         },
       });
       if (error) throw error;
@@ -149,6 +176,7 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
       setSubmitting(false);
     }
   };
+
 
   const handlePurchaseComplete = (tickets: Array<any>) => {
     setCheckoutSummary((prev) => (prev ? { ...prev, tickets } : prev));
