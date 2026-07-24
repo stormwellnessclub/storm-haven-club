@@ -542,6 +542,7 @@ export default function ClassSchedules() {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        <OrphanSessionsPanel />
         <div className="flex items-center justify-between">
           <div>
               <h1 className="text-2xl font-bold">Class Schedules</h1>
