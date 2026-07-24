@@ -51,7 +51,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
-import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
+import { WeeklyCalendarView, type CalendarPrefill } from "@/components/admin/WeeklyCalendarView";
+import { InstructorScheduleDrawer } from "@/components/admin/InstructorScheduleDrawer";
 import { OrphanSessionsPanel } from "@/components/admin/OrphanSessionsPanel";
 
 interface ClassType {
@@ -143,6 +144,8 @@ export default function ClassSchedules() {
   const [viewModeAutoSet, setViewModeAutoSet] = useState(false);
 
   const [hideInactive, setHideInactive] = useState(true);
+  const [instructorDrawerId, setInstructorDrawerId] = useState<string | null>(null);
+  
   
   // Form state
   const [classTypeId, setClassTypeId] = useState("");
@@ -327,6 +330,48 @@ export default function ClassSchedules() {
     }
     setDialogOpen(true);
   }
+
+  /** Open the Add-schedule dialog with optional prefill from calendar/instructor drawer. */
+  function openAddDialog(prefill?: {
+    dayOfWeek?: number;
+    time?: string;
+    date?: Date;
+    instructorId?: string;
+    mode?: ScheduleMode;
+  }) {
+    resetForm();
+    if (prefill?.instructorId) setInstructorId(prefill.instructorId);
+    if (typeof prefill?.dayOfWeek === "number") setDayOfWeek(prefill.dayOfWeek);
+    if (prefill?.time) {
+      setStartTime(prefill.time);
+      // Default to a 50-min class ending on the next slot
+      const [h, m] = prefill.time.split(":").map(Number);
+      const endMin = h * 60 + m + 50;
+      const eh = Math.floor(endMin / 60) % 24;
+      const em = endMin % 60;
+      setEndTime(`${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`);
+    }
+    if (prefill?.mode) {
+      setScheduleMode(prefill.mode);
+    }
+    if (prefill?.date && (prefill.mode === "one_time" || (!prefill.mode && !prefill.time))) {
+      // Month click = one-off on that date
+      const dateStr = format(prefill.date, "yyyy-MM-dd");
+      setScheduleMode("one_time");
+      setOneTimeDate(dateStr);
+    }
+    setDialogOpen(true);
+  }
+
+  const handleCreateAtSlot = useCallback((prefill: CalendarPrefill) => {
+    openAddDialog({
+      dayOfWeek: prefill.dayOfWeek,
+      time: prefill.time,
+      date: prefill.date,
+      mode: prefill.suggestedMode,
+    });
+  }, []);
+
 
   // Create/Update schedule mutation
   const scheduleMutation = useMutation({
@@ -1015,8 +1060,11 @@ export default function ClassSchedules() {
                 schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
                 conflicts={conflicts}
                 onEditSchedule={openEditDialog}
+                onCreateAtSlot={handleCreateAtSlot}
+                onInstructorClick={(id) => setInstructorDrawerId(id)}
                 bookingReleaseCutoff={addWeeks(new Date(), 4)}
               />
+
             ) : (
               <Table>
                 <TableHeader>
@@ -1180,6 +1228,18 @@ export default function ClassSchedules() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <InstructorScheduleDrawer
+        instructorId={instructorDrawerId}
+        onClose={() => setInstructorDrawerId(null)}
+        onAddClassWithInstructor={(id) => {
+          setInstructorDrawerId(null);
+          openAddDialog({ instructorId: id });
+        }}
+        onOpenSession={(sessionId) => {
+          setInstructorDrawerId(null);
+          navigate(`/admin/class-roster/${sessionId}`);
+        }}
+      />
     </AdminLayout>
   );
 }
