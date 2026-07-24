@@ -57,10 +57,12 @@ serve(async (req) => {
       paymentMethod,
       paymentReference,
       expiresAt,
+      scheduledSendAt,
       notes,
     } = body as {
       purchaserMemberId?: string;
       purchaserUserId?: string;
+      scheduledSendAt?: string;
       purchaserName?: string;
       purchaserEmail?: string;
       recipientName: string;
@@ -86,6 +88,9 @@ serve(async (req) => {
     const code: string = codeData as any;
     if (!code) throw new Error("Failed to generate gift card code");
 
+    const scheduledDate = scheduledSendAt ? new Date(scheduledSendAt) : null;
+    const isScheduled = scheduledDate && scheduledDate.getTime() > Date.now() + 60_000;
+
     const insertPayload: Record<string, unknown> = {
       code,
       amount_cents: Math.round(amountCents),
@@ -99,7 +104,8 @@ serve(async (req) => {
       custom_message: customMessage?.trim() || null,
       payment_method: paymentMethod,
       payment_reference: paymentReference || null,
-      status: "active",
+      status: isScheduled ? "scheduled" : "active",
+      scheduled_send_at: isScheduled ? scheduledDate!.toISOString() : null,
       issued_by: user.id,
       notes: notes?.trim() || null,
       expires_at: expiresAt || null,
@@ -108,45 +114,47 @@ serve(async (req) => {
     const { data: card, error: insertErr } = await supabase
       .from("gift_cards")
       .insert(insertPayload)
-      .select("id, code, amount_cents, expires_at, recipient_name, recipient_email, custom_message, purchaser_name")
+      .select("id, code, amount_cents, expires_at, recipient_name, recipient_email, custom_message, purchaser_name, scheduled_send_at, status")
       .single();
     if (insertErr) throw insertErr;
 
-    log("Card created", { id: card.id, code: card.code });
+    log("Card created", { id: card.id, code: card.code, scheduled: isScheduled });
 
-    // Send delivery email.
+    // Send delivery email now (unless scheduled for later).
     let emailSent = false;
-    try {
-      const { error: emailErr } = await supabase.functions.invoke("send-email", {
-        body: {
-          type: "gift_card_delivery",
-          to: card.recipient_email,
-          data: {
-            name: card.recipient_name,
-            recipientName: card.recipient_name,
-            senderName: card.purchaser_name || purchaserName || "A Storm Wellness Club member",
-            customMessage: card.custom_message || "",
-            code: card.code,
-            amount: (Number(card.amount_cents) / 100).toFixed(2),
-            expiresAt: card.expires_at,
+    if (!isScheduled) {
+      try {
+        const { error: emailErr } = await supabase.functions.invoke("send-email", {
+          body: {
+            type: "gift_card_delivery",
+            to: card.recipient_email,
+            data: {
+              name: card.recipient_name,
+              recipientName: card.recipient_name,
+              senderName: card.purchaser_name || purchaserName || "A Storm Wellness Club member",
+              customMessage: card.custom_message || "",
+              code: card.code,
+              amount: (Number(card.amount_cents) / 100).toFixed(2),
+              expiresAt: card.expires_at,
+            },
           },
-        },
-      });
-      if (emailErr) {
-        log("Email send failed", { err: String(emailErr) });
-      } else {
-        emailSent = true;
-        await supabase
-          .from("gift_cards")
-          .update({ email_sent_at: new Date().toISOString() })
-          .eq("id", card.id);
+        });
+        if (emailErr) {
+          log("Email send failed", { err: String(emailErr) });
+        } else {
+          emailSent = true;
+          await supabase
+            .from("gift_cards")
+            .update({ email_sent_at: new Date().toISOString(), delivered_at: new Date().toISOString() })
+            .eq("id", card.id);
+        }
+      } catch (e) {
+        log("Email send threw", { err: String(e) });
       }
-    } catch (e) {
-      log("Email send threw", { err: String(e) });
     }
 
     return new Response(
-      JSON.stringify({ success: true, id: card.id, code: card.code, emailSent }),
+      JSON.stringify({ success: true, id: card.id, code: card.code, emailSent, scheduled: !!isScheduled, scheduledSendAt: card.scheduled_send_at }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
