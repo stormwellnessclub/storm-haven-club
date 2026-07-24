@@ -1060,8 +1060,11 @@ export default function ClassSchedules() {
                 schedules={hideInactive ? schedules.filter(s => s.is_active) : schedules}
                 conflicts={conflicts}
                 onEditSchedule={openEditDialog}
+                onCreateAtSlot={handleCreateAtSlot}
+                onInstructorClick={(id) => setInstructorDrawerId(id)}
                 bookingReleaseCutoff={addWeeks(new Date(), 4)}
               />
+
             ) : (
               <Table>
                 <TableHeader>
