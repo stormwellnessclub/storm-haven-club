@@ -1,6 +1,6 @@
 import { addMonths, subDays, endOfDay, format } from "date-fns";
 
-export type CreditType = "class" | "red_light" | "dry_cryo" | "guest_pass";
+export type CreditType = "class" | "red_light" | "dry_cryo" | "guest_pass" | "ozone";
 
 export interface TierCreditAllocation {
   class: number;
@@ -20,6 +20,7 @@ export const CREDIT_TYPE_LABELS: Record<CreditType, string> = {
   red_light: "Red Light Therapy",
   dry_cryo: "Dry Cryo",
   guest_pass: "Complimentary Guest Pass",
+  ozone: "Ozone Sauna",
 };
 
 export const CREDIT_TYPE_DESCRIPTIONS: Record<CreditType, string> = {
@@ -27,6 +28,7 @@ export const CREDIT_TYPE_DESCRIPTIONS: Record<CreditType, string> = {
   red_light: "Red light therapy sessions",
   dry_cryo: "Dry cryotherapy sessions",
   guest_pass: "Invite a guest to visit the club for free",
+  ozone: "Ozone sauna sessions in Spa Room 3",
 };
 
 export function getTierCredits(membershipType: string): TierCreditAllocation {
