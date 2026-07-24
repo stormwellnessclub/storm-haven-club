@@ -45,6 +45,14 @@ const recoveryServices = [
     serviceKey: "cryo",
     creditType: "dry_cryo" as const,
   },
+  {
+    name: "Ozone Sauna",
+    description: "60-minute ozone sauna session for detoxification, circulation, and recovery. Spa Room 3.",
+    duration: "60 min",
+    price: "$85",
+    serviceKey: "ozone",
+    creditType: "ozone" as const,
+  },
 ];
 
 const wellnessPacks = [
@@ -61,6 +69,20 @@ const wellnessPacks = [
     sessions: 4,
     creditType: "dry_cryo" as const,
     price: "$160",
+  },
+  {
+    name: "Ozone Sauna 6-Pack",
+    description: "6 Ozone Sauna sessions. Paid in full.",
+    sessions: 6,
+    creditType: "ozone" as const,
+    price: "$450",
+  },
+  {
+    name: "Ozone Sauna 20-Pack",
+    description: "20 Ozone Sauna sessions. Paid in full — best value.",
+    sessions: 20,
+    creditType: "ozone" as const,
+    price: "$1,300",
   },
 ];
 
