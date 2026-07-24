@@ -55,6 +55,7 @@ export function useUserCredits() {
           classCredits: null,
           redLightCredits: null,
           dryCredits: null,
+          ozoneCredits: null,
           guestPassCredits: null,
           classPasses: [],
         };
