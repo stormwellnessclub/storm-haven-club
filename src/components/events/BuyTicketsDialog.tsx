@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Loader2, Ticket } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { CheckCircle2, Loader2, Ticket, Trash2 } from "lucide-react";
+
 
 const CLUB_TZ = "America/Detroit";
 
@@ -51,6 +53,12 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [forSomeoneElse, setForSomeoneElse] = useState(false);
+  type Attendee = { first_name: string; last_name: string; email: string; phone: string };
+  const [attendees, setAttendees] = useState<Attendee[]>([
+    { first_name: "", last_name: "", email: "", phone: "" },
+  ]);
+
 
   useEffect(() => {
     if (!open) return;
@@ -59,6 +67,8 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
     setPaymentIntentId(null);
     setCheckoutSummary(null);
     setSubmitting(false);
+    setForSomeoneElse(false);
+    setAttendees([{ first_name: "", last_name: "", email: "", phone: "" }]);
     (async () => {
       const { data: u } = await supabase.auth.getUser();
       const user = u?.user;
@@ -79,6 +89,17 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
     })();
   }, [open]);
 
+  // Keep attendee list length matched to quantity when in gift mode
+  useEffect(() => {
+    if (!forSomeoneElse) return;
+    setAttendees((prev) => {
+      const next = [...prev];
+      while (next.length < quantity) next.push({ first_name: "", last_name: "", email: "", phone: "" });
+      return next.slice(0, quantity);
+    });
+  }, [quantity, forSomeoneElse]);
+
+
   const eventTime = useMemo(
     () => event ? formatInTimeZone(new Date(event.starts_at), CLUB_TZ, "EEEE, MMMM d · h:mm a 'ET'") : "",
     [event]
@@ -96,6 +117,31 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
       toast.error("Please fill in your name and email.");
       return;
     }
+    let attendeePayload: Array<{ first_name: string; last_name: string; email?: string; phone?: string }> | undefined;
+    if (forSomeoneElse) {
+      const trimmed = attendees.slice(0, quantity).map((a) => ({
+        first_name: a.first_name.trim(),
+        last_name: a.last_name.trim(),
+        email: a.email.trim(),
+        phone: a.phone.trim(),
+      }));
+      for (let i = 0; i < trimmed.length; i++) {
+        if (!trimmed[i].first_name || !trimmed[i].last_name) {
+          toast.error(`Ticket ${i + 1}: please enter attendee first and last name.`);
+          return;
+        }
+        if (trimmed[i].email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed[i].email)) {
+          toast.error(`Ticket ${i + 1}: invalid attendee email.`);
+          return;
+        }
+      }
+      attendeePayload = trimmed.map((a) => ({
+        first_name: a.first_name,
+        last_name: a.last_name,
+        email: a.email || undefined,
+        phone: a.phone || undefined,
+      }));
+    }
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-event-ticket-checkout", {
@@ -107,6 +153,8 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
           phone: phone.trim() || undefined,
           quantity,
           embedded: true,
+          is_gift: forSomeoneElse,
+          attendees: attendeePayload,
         },
       });
       if (error) throw error;
@@ -128,6 +176,7 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
       setSubmitting(false);
     }
   };
+
 
   const handlePurchaseComplete = (tickets: Array<any>) => {
     setCheckoutSummary((prev) => (prev ? { ...prev, tickets } : prev));
@@ -212,6 +261,9 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
             <section className="p-6 sm:px-8 sm:py-6">
               {step === "details" ? (
                 <>
+                  <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Your info (buyer)
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
                       <Label>First name</Label>
@@ -242,6 +294,57 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
                       />
                     </div>
                   </div>
+
+                  <div className="mt-4 flex items-center justify-between rounded-md border p-3">
+                    <div>
+                      <div className="text-sm font-medium">These tickets are for someone else</div>
+                      <div className="text-xs text-muted-foreground">
+                        {forSomeoneElse ? "Enter each attendee's name below" : "You'll be the attendee on the roster"}
+                      </div>
+                    </div>
+                    <Switch checked={forSomeoneElse} onCheckedChange={setForSomeoneElse} />
+                  </div>
+
+                  {forSomeoneElse && (
+                    <div className="mt-3 space-y-3">
+                      {Array.from({ length: quantity }).map((_, i) => {
+                        const a = attendees[i] || { first_name: "", last_name: "", email: "", phone: "" };
+                        const update = (patch: Partial<typeof a>) =>
+                          setAttendees((prev) => {
+                            const next = [...prev];
+                            while (next.length <= i) next.push({ first_name: "", last_name: "", email: "", phone: "" });
+                            next[i] = { ...next[i], ...patch };
+                            return next;
+                          });
+                        return (
+                          <div key={i} className="rounded-md border p-3">
+                            <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              Attendee {i + 1}
+                            </div>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <div>
+                                <Label className="text-xs">First name *</Label>
+                                <Input value={a.first_name} onChange={(e) => update({ first_name: e.target.value })} />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Last name *</Label>
+                                <Input value={a.last_name} onChange={(e) => update({ last_name: e.target.value })} />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-xs">Email (optional — they'll get a confirmation)</Label>
+                                <Input type="email" value={a.email} onChange={(e) => update({ email: e.target.value })} />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <Label className="text-xs">Phone (optional)</Label>
+                                <Input value={a.phone} onChange={(e) => update({ phone: e.target.value })} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
 
                   <DialogFooter className="mt-5 gap-2 sm:gap-2">
                     <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>

@@ -2412,6 +2412,10 @@ export type Database = {
           abandon_reason: string | null
           abandoned_at: string | null
           amount_cents: number
+          attendee_email: string | null
+          attendee_first_name: string | null
+          attendee_last_name: string | null
+          attendee_phone: string | null
           buyer_email: string
           buyer_first_name: string | null
           buyer_last_name: string | null
@@ -2420,7 +2424,9 @@ export type Database = {
           confirmation_email_sent_at: string | null
           created_at: string
           event_id: string
+          gifted_by_user_id: string | null
           id: string
+          is_gift: boolean
           qr_token: string
           status: string
           stripe_payment_intent_id: string | null
@@ -2433,6 +2439,10 @@ export type Database = {
           abandon_reason?: string | null
           abandoned_at?: string | null
           amount_cents: number
+          attendee_email?: string | null
+          attendee_first_name?: string | null
+          attendee_last_name?: string | null
+          attendee_phone?: string | null
           buyer_email: string
           buyer_first_name?: string | null
           buyer_last_name?: string | null
@@ -2441,7 +2451,9 @@ export type Database = {
           confirmation_email_sent_at?: string | null
           created_at?: string
           event_id: string
+          gifted_by_user_id?: string | null
           id?: string
+          is_gift?: boolean
           qr_token?: string
           status?: string
           stripe_payment_intent_id?: string | null
@@ -2454,6 +2466,10 @@ export type Database = {
           abandon_reason?: string | null
           abandoned_at?: string | null
           amount_cents?: number
+          attendee_email?: string | null
+          attendee_first_name?: string | null
+          attendee_last_name?: string | null
+          attendee_phone?: string | null
           buyer_email?: string
           buyer_first_name?: string | null
           buyer_last_name?: string | null
@@ -2462,7 +2478,9 @@ export type Database = {
           confirmation_email_sent_at?: string | null
           created_at?: string
           event_id?: string
+          gifted_by_user_id?: string | null
           id?: string
+          is_gift?: boolean
           qr_token?: string
           status?: string
           stripe_payment_intent_id?: string | null

@@ -49,6 +49,9 @@ function buildHtml(opts: {
   whatToBring?: string | null;
   details?: string | null;
   portalTicketsUrl: string;
+  giftFromName?: string | null;
+  attendeeNames?: string[] | null;
+  isAttendeeCopy?: boolean;
 }) {
   const extras = (s?: string | null) =>
     s && s.trim() ? `<p style="margin:0 0 16px;white-space:pre-line;color:#3a2e1a;font-family:Georgia,serif;">${s}</p>` : "";
@@ -57,6 +60,16 @@ function buildHtml(opts: {
       <td style="padding:6px 0;color:#6b5a3b;font-family:Georgia,serif;font-size:14px;">${label}</td>
       <td style="padding:6px 0;text-align:right;font-family:${mono ? "monospace" : "Georgia,serif"};font-size:${mono ? "12px" : "14px"};color:#3a2e1a;">${value}</td>
     </tr>`;
+
+  const giftBanner = opts.giftFromName
+    ? `<div style="margin:0 0 18px 0;padding:12px 14px;background:#faf3e4;border:1px solid #c9a86a;border-radius:4px;color:#6b5a3b;font-family:Georgia,serif;font-size:14px;">
+         🎁 <strong>${opts.giftFromName}</strong> ${opts.isAttendeeCopy ? "gifted you this ticket." : "purchased this ticket for someone else."}
+       </div>`
+    : "";
+
+  const attendeeLine = opts.attendeeNames && opts.attendeeNames.length && !opts.isAttendeeCopy
+    ? `<p style="margin:0 0 14px 0;color:#3a2e1a;">Ticket${opts.attendeeNames.length > 1 ? "s" : ""} reserved for: <strong>${opts.attendeeNames.join(", ")}</strong>.</p>`
+    : "";
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${opts.eventName}</title></head>
@@ -74,7 +87,9 @@ function buildHtml(opts: {
           <tr>
             <td style="padding:20px 28px 8px 28px;font-family:Georgia,serif;color:#3a2e1a;font-size:15px;line-height:1.55;">
               <p style="margin:0 0 14px 0;">Hi ${opts.firstName || "there"},</p>
+              ${giftBanner}
               <p style="margin:0 0 18px 0;">Thank you for reserving your spot at our <strong>${opts.eventName}</strong>. Your ticket is confirmed and we can't wait to host you.</p>
+              ${attendeeLine}
               <h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:20px 0 8px 0;font-weight:normal;">Your reservation</h3>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
                 ${row("Event", opts.eventName)}
@@ -108,6 +123,7 @@ function buildHtml(opts: {
 </body></html>`;
 }
 
+
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 serve(async (req) => {
@@ -126,7 +142,7 @@ serve(async (req) => {
     let query = supabase
       .from("event_tickets")
       .select(
-        "id, user_id, buyer_email, buyer_first_name, ticket_type, amount_cents, status, confirmation_email_sent_at, event_id, stripe_payment_intent_id, events(slug, title, starts_at, venue, details, what_to_bring)"
+        "id, user_id, buyer_email, buyer_first_name, buyer_last_name, ticket_type, amount_cents, status, confirmation_email_sent_at, event_id, stripe_payment_intent_id, is_gift, attendee_first_name, attendee_last_name, attendee_email, events(slug, title, starts_at, venue, details, what_to_bring)"
       );
     query = payment_intent_id
       ? query.eq("stripe_payment_intent_id", payment_intent_id)
@@ -163,8 +179,14 @@ serve(async (req) => {
           ? `${SITE}/events/${evt.slug}/success?payment_intent_id=${pi}`
           : `${SITE}/events`);
 
+    const buyerFullName = `${first.buyer_first_name || ""} ${first.buyer_last_name || ""}`.trim() || "A Storm Wellness Club member";
+    const anyGift = tickets.some((t: any) => t.is_gift && (t.attendee_first_name || t.attendee_last_name));
+    const attendeeNames: string[] = tickets
+      .map((t: any) => `${t.attendee_first_name || ""} ${t.attendee_last_name || ""}`.trim())
+      .filter((s: string) => s.length > 0);
 
-    const html = buildHtml({
+    // Purchaser copy (always to buyer)
+    const buyerHtml = buildHtml({
       firstName: first.buyer_first_name || "",
       eventName: evt?.title || "Storm Event",
       eventDate: evt?.starts_at ? fmtDate(evt.starts_at) : "",
@@ -177,21 +199,61 @@ serve(async (req) => {
       whatToBring: evt?.what_to_bring ?? null,
       details: evt?.details ?? null,
       portalTicketsUrl: portalUrl,
+      giftFromName: anyGift ? buyerFullName : null,
+      attendeeNames: anyGift ? attendeeNames : null,
+      isAttendeeCopy: false,
     });
 
     const sendRes = await resend.emails.send({
       from: FROM,
       to: [to],
       subject: `You're in — ${evt?.title || "Storm Event"} ✨`,
-      html,
+      html: buyerHtml,
     });
 
     if ((sendRes as any).error) throw new Error((sendRes as any).error.message || "resend failed");
+
+    // Per-attendee copies for gifts where an attendee email is present and differs from the buyer.
+    const buyerLower = String(to).toLowerCase();
+    const attendeeSent = new Set<string>();
+    for (const t of tickets as any[]) {
+      const ae = (t.attendee_email || "").trim().toLowerCase();
+      if (!ae || ae === buyerLower || attendeeSent.has(ae)) continue;
+      attendeeSent.add(ae);
+      try {
+        const html = buildHtml({
+          firstName: t.attendee_first_name || "",
+          eventName: evt?.title || "Storm Event",
+          eventDate: evt?.starts_at ? fmtDate(evt.starts_at) : "",
+          eventTime: evt?.starts_at ? fmtTime(evt.starts_at) : "",
+          venue: evt?.venue || "Storm Wellness Club",
+          quantity: 1,
+          tierLabel: tierLabel(t.ticket_type || ""),
+          total: ((t.amount_cents || 0) / 100).toFixed(2),
+          orderId: (payment_intent_id || session_id).slice(-10).toUpperCase(),
+          whatToBring: evt?.what_to_bring ?? null,
+          details: evt?.details ?? null,
+          portalTicketsUrl: `${SITE}/events`,
+          giftFromName: buyerFullName,
+          attendeeNames: null,
+          isAttendeeCopy: true,
+        });
+        await resend.emails.send({
+          from: FROM,
+          to: [t.attendee_email],
+          subject: `You've been gifted a ticket — ${evt?.title || "Storm Event"} ✨`,
+          html,
+        });
+      } catch (e) {
+        console.error("attendee copy failed:", e);
+      }
+    }
 
     await supabase
       .from("event_tickets")
       .update({ confirmation_email_sent_at: new Date().toISOString() })
       .in("id", tickets.map((t: any) => t.id));
+
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
