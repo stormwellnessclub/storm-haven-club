@@ -51,7 +51,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
-import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
+import { WeeklyCalendarView, type CalendarPrefill } from "@/components/admin/WeeklyCalendarView";
+import { InstructorScheduleDrawer } from "@/components/admin/InstructorScheduleDrawer";
 import { OrphanSessionsPanel } from "@/components/admin/OrphanSessionsPanel";
 
 interface ClassType {
