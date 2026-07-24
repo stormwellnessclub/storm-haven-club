@@ -34,6 +34,7 @@ export interface UserCreditsData {
   classCredits: MemberCredit | null;
   redLightCredits: MemberCredit | null;
   dryCredits: MemberCredit | null;
+  ozoneCredits: MemberCredit | null;
   guestPassCredits: MemberCredit | null;
   classPasses: ClassPass[];
 }
