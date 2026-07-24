@@ -123,6 +123,9 @@ export function useUserCredits() {
               case "dry_cryo":
                 if (!dryCredits) dryCredits = typedCredit;
                 break;
+              case "ozone" as any:
+                if (!ozoneCredits) ozoneCredits = typedCredit;
+                break;
               case "guest_pass":
                 if (!guestPassCredits) guestPassCredits = typedCredit;
                 break;
