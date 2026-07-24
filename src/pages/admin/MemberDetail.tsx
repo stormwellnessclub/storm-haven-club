@@ -101,7 +101,7 @@ import {
   FileText, Tag, Activity, BarChart3, Plus, Edit2, X, Settings, 
   AlertCircle, CheckCircle2, ExternalLink, XCircle, Loader2, PlayCircle,
   Clock, Shield, Snowflake, Crown, RefreshCcw, Coins, Minus, ArrowUpCircle, ArrowDownCircle,
-  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban, Pencil, Gift
+  ArrowUpDown, Send, Info, RotateCcw, CalendarClock, Ban, Pencil, Gift, Ticket
 } from "lucide-react";
 import {
   Table,
