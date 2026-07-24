@@ -86,6 +86,7 @@ export function useUserCredits() {
       let classCredits: MemberCredit | null = null;
       let redLightCredits: MemberCredit | null = null;
       let dryCredits: MemberCredit | null = null;
+      let ozoneCredits: MemberCredit | null = null;
       let guestPassCredits: MemberCredit | null = null;
 
       const now = new Date().toISOString();
