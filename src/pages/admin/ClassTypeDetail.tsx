@@ -463,10 +463,37 @@ export default function ClassTypeDetail() {
                 {CATEGORY_LABELS[classType.category] || classType.category}
               </CardDescription>
             </div>
-            <Button variant="outline" onClick={openEditTypeDialog}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={openEditTypeDialog}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (!confirm(`Delete class type "${classType.name}"?\n\nThis will remove its recurring schedules and future empty sessions. If historical bookings exist, it will be deactivated instead to preserve history.`)) return;
+                  const { data, error } = await supabase.rpc('delete_class_type', { _class_type_id: classType.id, _force: false });
+                  if (error) { toast.error(error.message); return; }
+                  const res = data as any;
+                  if (res?.status === 'blocked') {
+                    toast.error(res.message || 'Cannot delete');
+                    return;
+                  }
+                  if (res?.status === 'deactivated') {
+                    toast.success(res.message || 'Deactivated');
+                    queryClient.invalidateQueries({ queryKey: ['class-type'] });
+                    queryClient.invalidateQueries({ queryKey: ['class-types'] });
+                    return;
+                  }
+                  toast.success(`Deleted "${res?.name || classType.name}"`);
+                  queryClient.invalidateQueries({ queryKey: ['class-types'] });
+                  navigate('/admin/class-types');
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
