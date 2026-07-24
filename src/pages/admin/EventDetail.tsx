@@ -91,22 +91,31 @@ export default function EventDetail() {
     return r;
   };
 
+  const attendeeName = (t: any) => {
+    const fn = t.attendee_first_name || t.buyer_first_name || "";
+    const ln = t.attendee_last_name || t.buyer_last_name || "";
+    return `${fn} ${ln}`.trim();
+  };
+  const attendeeEmail = (t: any) => t.attendee_email || t.buyer_email || "";
+
   const exportCsv = () => {
     const rows = paidTickets.map((t: any) => ({
-      name: `${t.buyer_first_name || ""} ${t.buyer_last_name || ""}`.trim(),
-      email: t.buyer_email || "",
-      phone: t.buyer_phone || "",
+      name: attendeeName(t),
+      email: attendeeEmail(t),
+      phone: t.attendee_phone || t.buyer_phone || "",
       type: t.ticket_type === "member" ? "Member" : "Non-Member",
+      gift: t.is_gift ? `Gift from ${t.buyer_first_name || ""} ${t.buyer_last_name || ""}`.trim() : "",
       account: t.user_id ? "Portal account" : "Guest checkout",
       amount: `$${((t.amount_cents || 0) / 100).toFixed(2)}`,
       purchased_at: format(new Date(t.created_at), "yyyy-MM-dd HH:mm"),
     }));
-    const header = ["Name", "Email", "Phone", "Type", "Account", "Amount", "Purchased"];
+    const header = ["Name", "Email", "Phone", "Type", "Gift", "Account", "Amount", "Purchased"];
     const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
     const csv = [
       header.join(","),
-      ...rows.map((r) => [r.name, r.email, r.phone, r.type, r.account, r.amount, r.purchased_at].map(escape).join(",")),
+      ...rows.map((r) => [r.name, r.email, r.phone, r.type, r.gift, r.account, r.amount, r.purchased_at].map(escape).join(",")),
     ].join("\n");
+
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
