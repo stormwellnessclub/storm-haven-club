@@ -7119,14 +7119,21 @@ serve(async (req) => {
           throw new Error("Service name is required");
         }
 
-        // Map service to price ID
+        // Map service to price ID (pre-created Stripe products)
         const recoveryPriceMap: Record<string, string> = {
           'rlt20': STRIPE_PRODUCTS.guestAddons.rlt20,
           'cryo': STRIPE_PRODUCTS.guestAddons.cryo,
         };
 
+        // Some recovery services are priced inline (no pre-created Stripe product).
+        // Map by service key -> { name, unit_amount_cents }
+        const inlineRecoveryMap: Record<string, { name: string; unit_amount: number }> = {
+          'ozone': { name: 'Ozone Sauna — Single Session', unit_amount: 8500 },
+        };
+
         const recoveryPriceId = recoveryPriceMap[serviceName];
-        if (!recoveryPriceId) {
+        const inlineItem = inlineRecoveryMap[serviceName];
+        if (!recoveryPriceId && !inlineItem) {
           throw new Error(`Unknown recovery service: ${serviceName}`);
         }
 
@@ -7139,10 +7146,25 @@ serve(async (req) => {
           stripe_customer_id: recoveryCustomerId,
         }, { onConflict: 'user_id' });
 
-        // Add processing fee
-        const recoveryPrice = await stripe.prices.retrieve(recoveryPriceId);
-        const recoveryFeeItem = await createProcessingFeeLineItem(stripe, recoveryPrice.unit_amount || 0);
-        const recoveryLineItems: { price: string; quantity: number }[] = [{ price: recoveryPriceId, quantity: 1 }];
+        // Build line items (pre-created price OR inline price_data)
+        let recoveryBaseAmount = 0;
+        const recoveryLineItems: any[] = [];
+        if (recoveryPriceId) {
+          const recoveryPrice = await stripe.prices.retrieve(recoveryPriceId);
+          recoveryBaseAmount = recoveryPrice.unit_amount || 0;
+          recoveryLineItems.push({ price: recoveryPriceId, quantity: 1 });
+        } else if (inlineItem) {
+          recoveryBaseAmount = inlineItem.unit_amount;
+          recoveryLineItems.push({
+            price_data: {
+              currency: 'usd',
+              product_data: { name: inlineItem.name },
+              unit_amount: inlineItem.unit_amount,
+            },
+            quantity: 1,
+          });
+        }
+        const recoveryFeeItem = await createProcessingFeeLineItem(stripe, recoveryBaseAmount);
         if (recoveryFeeItem) recoveryLineItems.push(recoveryFeeItem);
 
         if (embedded) {
