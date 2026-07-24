@@ -201,11 +201,12 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
     dry_cryo: "Dry Cryotherapy Credits",
+    ozone: "Ozone Sauna Credits",
   };
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["class_credits", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo", "guest_pass"]
+    ? ["class_credits", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo", "ozone", "guest_pass"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
