@@ -112,6 +112,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
           paymentMethod,
           paymentReference: ref,
           expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
+          scheduledSendAt: scheduledSendAt ? scheduledSendAt.toISOString() : undefined,
           notes: notes.trim() || undefined,
         },
       });
@@ -122,9 +123,13 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
     },
     onSuccess: (result) => {
       setIssued(result);
-      toast.success(`Gift card ${result.code} sent to ${effectiveRecipientEmail}`);
+      const msg = scheduledSendAt
+        ? `Gift card ${result.code} scheduled for ${format(scheduledSendAt, "PPP 'at' p")}`
+        : `Gift card ${result.code} sent to ${effectiveRecipientEmail}`;
+      toast.success(msg);
       queryClient.invalidateQueries({ queryKey: ["admin-member-detail"] });
       queryClient.invalidateQueries({ queryKey: ["member-gift-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["portal-gift-cards"] });
       onSuccess?.();
     },
     onError: (err: Error) => toast.error(err.message),
