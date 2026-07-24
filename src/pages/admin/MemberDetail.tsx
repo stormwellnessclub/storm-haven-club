@@ -36,6 +36,7 @@ import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
+import { SellEventTicketDialog } from "@/components/admin/SellEventTicketDialog";
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
@@ -246,6 +247,7 @@ export default function MemberDetail() {
   const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showGrantDialog, setShowGrantDialog] = useState(false);
   const [showGiftCardDialog, setShowGiftCardDialog] = useState(false);
+  const [showEventTicketDialog, setShowEventTicketDialog] = useState(false);
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
@@ -1909,6 +1911,13 @@ export default function MemberDetail() {
                       >
                         <Gift className="h-4 w-4 mr-1" />Sell Gift Card
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowEventTicketDialog(true)}
+                      >
+                        <Ticket className="h-4 w-4 mr-1" />Sell Event Ticket
+                      </Button>
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -2999,6 +3008,20 @@ export default function MemberDetail() {
       <SellGiftCardDialog
         open={showGiftCardDialog}
         onOpenChange={setShowGiftCardDialog}
+        member={{
+          id: member.id,
+          user_id: member.user_id || undefined,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          email: member.email,
+          stripe_customer_id: (member as any).stripe_customer_id || null,
+        }}
+      />
+    )}
+    {showEventTicketDialog && member && (
+      <SellEventTicketDialog
+        open={showEventTicketDialog}
+        onOpenChange={setShowEventTicketDialog}
         member={{
           id: member.id,
           user_id: member.user_id || undefined,
