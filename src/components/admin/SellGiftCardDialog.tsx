@@ -15,7 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Loader2, Gift, CheckCircle2, Copy } from "lucide-react";
+import { CalendarIcon, Loader2, Gift, CheckCircle2, Copy, Eye, CalendarClock } from "lucide-react";
+import { GiftCardPreview } from "@/components/gift-cards/GiftCardPreview";
 
 type PaymentMethod = "card_on_file" | "cash" | "clover" | "external";
 
@@ -48,6 +49,18 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
   const [paymentReference, setPaymentReference] = useState("");
   const [expiresAt, setExpiresAt] = useState<Date | undefined>(addMonths(new Date(), 12));
   const [notes, setNotes] = useState("");
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [showPreview, setShowPreview] = useState(false);
+
+  const scheduledSendAt = (() => {
+    if (!scheduleEnabled || !scheduleDate) return undefined;
+    const [h, m] = scheduleTime.split(":").map((n) => parseInt(n, 10));
+    const d = new Date(scheduleDate);
+    d.setHours(h || 9, m || 0, 0, 0);
+    return d;
+  })();
 
   const [issued, setIssued] = useState<{ code: string; amount: number } | null>(null);
 
