@@ -331,6 +331,48 @@ export default function ClassSchedules() {
     setDialogOpen(true);
   }
 
+  /** Open the Add-schedule dialog with optional prefill from calendar/instructor drawer. */
+  function openAddDialog(prefill?: {
+    dayOfWeek?: number;
+    time?: string;
+    date?: Date;
+    instructorId?: string;
+    mode?: ScheduleMode;
+  }) {
+    resetForm();
+    if (prefill?.instructorId) setInstructorId(prefill.instructorId);
+    if (typeof prefill?.dayOfWeek === "number") setDayOfWeek(prefill.dayOfWeek);
+    if (prefill?.time) {
+      setStartTime(prefill.time);
+      // Default to a 50-min class ending on the next slot
+      const [h, m] = prefill.time.split(":").map(Number);
+      const endMin = h * 60 + m + 50;
+      const eh = Math.floor(endMin / 60) % 24;
+      const em = endMin % 60;
+      setEndTime(`${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`);
+    }
+    if (prefill?.mode) {
+      setScheduleMode(prefill.mode);
+    }
+    if (prefill?.date && (prefill.mode === "one_time" || (!prefill.mode && !prefill.time))) {
+      // Month click = one-off on that date
+      const dateStr = format(prefill.date, "yyyy-MM-dd");
+      setScheduleMode("one_time");
+      setOneTimeDate(dateStr);
+    }
+    setDialogOpen(true);
+  }
+
+  const handleCreateAtSlot = useCallback((prefill: CalendarPrefill) => {
+    openAddDialog({
+      dayOfWeek: prefill.dayOfWeek,
+      time: prefill.time,
+      date: prefill.date,
+      mode: prefill.suggestedMode,
+    });
+  }, []);
+
+
   // Create/Update schedule mutation
   const scheduleMutation = useMutation({
     mutationFn: async () => {
