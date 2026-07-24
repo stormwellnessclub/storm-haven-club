@@ -7346,6 +7346,108 @@ serve(async (req) => {
         );
       }
 
+      case 'admin_send_nonmember_card_setup_link': {
+        logStep("Admin sending non-member card setup link", { userId: body.userId });
+
+        // Verify admin role
+        const { data: sendLinkRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+        const sendLinkRoleNames = (sendLinkRoles || []).map((r: any) => r.role);
+        if (!['super_admin', 'admin', 'manager', 'front_desk'].some(r => sendLinkRoleNames.includes(r))) {
+          throw new Error('Unauthorized: admin role required');
+        }
+
+        const targetUserId = body.userId;
+        const sendEmailFlag = body.sendEmail !== false; // default true
+        if (!targetUserId) throw new Error('userId is required');
+
+        const { data: nmProfile } = await supabase
+          .from('non_member_profiles')
+          .select('email, first_name, last_name, stripe_customer_id')
+          .eq('user_id', targetUserId)
+          .maybeSingle();
+
+        if (!nmProfile?.email) throw new Error('Non-member profile has no email');
+
+        // Get or create Stripe customer
+        let nmCustomerId = nmProfile.stripe_customer_id;
+        if (!nmCustomerId) {
+          const found = await stripe.customers.list({ email: nmProfile.email, limit: 1 });
+          if (found.data.length > 0) {
+            nmCustomerId = found.data[0].id;
+          } else {
+            const created = await stripe.customers.create({
+              email: nmProfile.email,
+              name: [nmProfile.first_name, nmProfile.last_name].filter(Boolean).join(' ') || undefined,
+              metadata: { user_id: targetUserId, source: 'admin_nonmember_card_link' },
+            });
+            nmCustomerId = created.id;
+          }
+          await supabase
+            .from('non_member_profiles')
+            .update({ stripe_customer_id: nmCustomerId })
+            .eq('user_id', targetUserId);
+        }
+
+        const origin = req.headers.get('origin') || 'https://stormwellnessclub.com';
+        const setupSession = await stripe.checkout.sessions.create({
+          customer: nmCustomerId,
+          mode: 'setup',
+          payment_method_types: ['card'],
+          metadata: {
+            purpose: 'nonmember_card_on_file',
+            user_id: targetUserId,
+            initiated_by: user.id,
+          },
+          success_url: `${origin}/portal/payment-methods?card_added=1`,
+          cancel_url: `${origin}/portal/payment-methods?card_added=cancelled`,
+        });
+
+        try {
+          await supabase.from('card_setup_attempts').insert({
+            member_id: null,
+            stripe_customer_id: nmCustomerId,
+            stripe_setup_intent: setupSession.id,
+            source: 'admin_nonmember_link',
+            status: 'initiated',
+            metadata: { user_id: targetUserId, initiated_by: user.id },
+          });
+        } catch (_e) { /* non-fatal */ }
+
+        let emailSent = false;
+        if (sendEmailFlag) {
+          try {
+            const { error: emailErr } = await supabase.functions.invoke('send-email', {
+              body: {
+                type: 'nonmember_card_setup_link',
+                to: nmProfile.email,
+                data: {
+                  name: [nmProfile.first_name, nmProfile.last_name].filter(Boolean).join(' ') || 'there',
+                  setup_url: setupSession.url,
+                },
+              },
+            });
+            if (!emailErr) emailSent = true;
+            else logStep("Email send failed", { error: String(emailErr) });
+          } catch (e) {
+            logStep("Email send exception", { error: String(e) });
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            url: setupSession.url,
+            sessionId: setupSession.id,
+            emailSent,
+            recipient: nmProfile.email,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       case 'admin_import_stripe_class_passes': {
         logStep("Admin importing Stripe class passes", { priceId: (body as any).priceId, confirm: (body as any).confirm });
 

@@ -1,39 +1,48 @@
+# Add card on file for non-members
 
-## Add Ozone Sauna to the Spa
+## Current state
+- Non-members can already add/update a card themselves at **/portal/payment-methods** using an in-app Stripe PaymentElement (`create_nonmember_setup_intent` + `sync_nonmember_card_metadata`).
+- Admin **cannot** initiate a card add for a non-member from `src/pages/admin/NonMemberDetail.tsx` — only "Refresh card from Stripe" exists today.
 
-A new self-serve Recovery service booked in **Spa Room 3**, 60-minute blocks, with three pay-in-full pricing options.
+## What to build
 
-### 1. Data setup (migration)
+### 1. Admin-initiated "Send card setup link" (email flow)
+New button on `NonMemberDetail.tsx` in the payment section (next to "Refresh card"). Clicking it:
+- Calls new edge action `admin_send_nonmember_card_setup_link` on `stripe-payment`.
+- Server creates a Stripe **Checkout Session in `mode: 'setup'`** for that non-member's Stripe customer (create customer if missing), with `success_url` = `/portal/payment-methods?card_added=1` and `cancel_url` = `/portal/payment-methods`.
+- Server invokes `send-transactional-email` with new template `nonmember-card-setup-link` (recipient = non-member email, contains the hosted Stripe URL, expires in 24h note).
+- Success toast shows "Setup link sent to {email}".
 
-- Insert **Spa Room 3** into `spa_rooms` (currently only Spa Room 5 and Red Light Therapy exist).
-- Insert **Ozone Sauna** into `spa_services`:
-  - `category` = `Recovery`
-  - `duration_minutes` = 60
-  - `cleanup_minutes` = 15 (matches recovery pattern; adjustable)
-  - `price` = 85.00 (single-session default shown on menu)
-  - `requires_intake_form` = false
-  - `is_active` = true
-- Add three purchasable pass options (single / 6-pack / 20-pack) at **$85 / $450 / $1,300**. Prices display as bundle totals only — no "per session" breakdown shown to the customer.
-- Pin Ozone Sauna to Spa Room 3 so bookings don't collide with other services.
+### 2. Card-added confirmation on return
+On `/portal/payment-methods`, when `?card_added=1` is present:
+- Call `sync_nonmember_card_metadata` (already exists) to pull the new PM into `non_member_profiles`.
+- Show success toast, strip the query param.
 
-### 2. Booking flow
+### 3. Webhook safety net
+In `supabase/functions/stripe-webhook/index.ts`, on `checkout.session.completed` where `mode === 'setup'` and metadata `purpose === 'nonmember_card_on_file'`:
+- Set the resulting payment method as customer default.
+- Update `non_member_profiles.card_brand/last4/exp_*` from the PaymentMethod.
+- This covers the case where the non-member closes the tab before hitting the return URL.
 
-- Uses the existing Recovery-style direct-book path (like Red Light / Cryo): pick date + time, confirm.
-- **Waiver + card on file required** before the booking dialog will submit — same gate the massage flow uses. If missing, prompt inline to sign the waiver and add a card, then resume.
-- 6-pack and 20-pack purchases charge in full upfront and drop credits into the member's account; each future booking deducts one credit instead of re-charging.
+### 4. Admin: "Copy setup link" alternative
+Same action returns the URL to the admin UI, so admin can copy/paste it into a text/Clover receipt instead of email if desired.
 
-### 3. UI
+### 5. Self-serve visibility (small tweak)
+On the non-member portal Dashboard, if `!card_last4`, add a small "Add a card on file" call-to-action linking to `/portal/payment-methods`. Users already have access — this just makes it obvious.
 
-- Ozone Sauna appears under the **Recovery** section on the public spa menu and in the member portal spa view, alongside Red Light, Cryo, Starpool.
-- Service card shows the three pricing options as one price list (Single $85 · 6 Sessions $450 · 20 Sessions $1,300) with a single **Book** button.
-- Admin sees it in Spa Management → Services (edit price / toggle active / view bookings) and the booking appears on the Spa Room 3 lane in the daily schedule.
+## Files to touch
 
-### 4. Technical notes
+- `supabase/functions/stripe-payment/index.ts` — add `admin_send_nonmember_card_setup_link` (admin-role guarded, resolves customer, creates setup Checkout Session with `metadata.purpose='nonmember_card_on_file'`, sends email, returns `{ url }`).
+- `supabase/functions/_shared/transactional-email-templates/nonmember-card-setup-link.tsx` — new React Email template with CTA button to the Stripe URL. Register in `registry.ts`.
+- `supabase/functions/stripe-webhook/index.ts` — handle `mode==='setup'` completion for non-members (default PM + sync metadata).
+- `src/pages/admin/NonMemberDetail.tsx` — add "Send card setup link" and "Copy link" buttons in the payment card block.
+- `src/pages/portal/PaymentMethods.tsx` — detect `?card_added=1`, call sync, toast, clean URL.
+- `src/pages/portal/Dashboard.tsx` — conditional "Add card on file" CTA when none exists.
 
-- Migration: `INSERT` into `spa_rooms` and `spa_services`; add the three package options to whichever table the existing recovery packs use (will confirm during build — likely `spa_service_addons` or a new `spa_service_packages` row set). Grants + RLS follow existing recovery-service patterns.
-- No Stripe product pre-creation needed for single sessions (charged via existing spa booking edge function). Packages use the same "charge card on file, credit member's account" flow already used for Red Light / Cryo packs.
-- Frontend: no new pages — Ozone Sauna picks up the existing Recovery service card and booking sheet components automatically once the row exists.
+## Out of scope (per your reply)
+- Admin entering raw card numbers in-app. PCI + Stripe Link/Radar restrictions make this the wrong path; the emailed/hosted link keeps you PCI-safe and Stripe handles 3DS.
 
-### Open item to confirm during build
-
-Only two rooms exist in `spa_rooms` today. I'll add "Spa Room 3" as a new room and pin Ozone Sauna to it. If you actually meant an existing physical room that just isn't in the system yet, that's still the right move — the label will read "Spa Room 3" everywhere. Say the word if you want a different display name.
+## Notes
+- No schema changes needed — reusing existing `non_member_profiles` card columns.
+- No new secrets.
+- Uses existing Lovable transactional email infra.

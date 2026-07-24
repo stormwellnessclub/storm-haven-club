@@ -151,6 +151,33 @@ export default function PortalPaymentMethods() {
     }
   }, [addCardOpen]);
 
+  // Handle return from Stripe-hosted setup Checkout (admin-sent link flow)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const flag = params.get("card_added");
+    if (!flag) return;
+    // Clean URL
+    params.delete("card_added");
+    const newSearch = params.toString();
+    window.history.replaceState({}, "", window.location.pathname + (newSearch ? `?${newSearch}` : ""));
+    if (flag === "cancelled") {
+      toast.info("Card setup cancelled");
+      return;
+    }
+    (async () => {
+      try {
+        await supabase.functions.invoke("stripe-payment", {
+          body: { action: "sync_nonmember_card_metadata" },
+        });
+        toast.success("Card added successfully!");
+        queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
+      } catch {
+        toast.error("Card saved but sync failed — try refreshing");
+      }
+    })();
+  }, [user?.id, queryClient]);
+
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       setClientSecret(null);
