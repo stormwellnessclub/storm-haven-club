@@ -2649,8 +2649,10 @@ export type Database = {
           code: string
           created_at: string
           custom_message: string | null
+          delivered_at: string | null
           email_sent_at: string | null
           expires_at: string | null
+          first_redeemed_at: string | null
           id: string
           issued_by: string | null
           notes: string | null
@@ -2662,6 +2664,7 @@ export type Database = {
           purchaser_user_id: string | null
           recipient_email: string
           recipient_name: string
+          scheduled_send_at: string | null
           status: string
           updated_at: string
         }
@@ -2671,8 +2674,10 @@ export type Database = {
           code: string
           created_at?: string
           custom_message?: string | null
+          delivered_at?: string | null
           email_sent_at?: string | null
           expires_at?: string | null
+          first_redeemed_at?: string | null
           id?: string
           issued_by?: string | null
           notes?: string | null
@@ -2684,6 +2689,7 @@ export type Database = {
           purchaser_user_id?: string | null
           recipient_email: string
           recipient_name: string
+          scheduled_send_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -2693,8 +2699,10 @@ export type Database = {
           code?: string
           created_at?: string
           custom_message?: string | null
+          delivered_at?: string | null
           email_sent_at?: string | null
           expires_at?: string | null
+          first_redeemed_at?: string | null
           id?: string
           issued_by?: string | null
           notes?: string | null
@@ -2706,6 +2714,7 @@ export type Database = {
           purchaser_user_id?: string | null
           recipient_email?: string
           recipient_name?: string
+          scheduled_send_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -9413,6 +9422,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      cancel_scheduled_gift_card: {
+        Args: { p_gift_card_id: string }
+        Returns: Json
+      }
       check_and_award_achievements: {
         Args: { _member_id: string }
         Returns: undefined
@@ -9717,6 +9730,29 @@ export type Database = {
       get_member_service_utilization: {
         Args: { p_days?: number; p_member_id: string }
         Returns: Json
+      }
+      get_my_gift_cards: {
+        Args: never
+        Returns: {
+          amount_cents: number
+          balance_cents: number
+          code: string
+          created_at: string
+          custom_message: string
+          delivered_at: string
+          delivery_status: string
+          email_sent_at: string
+          expires_at: string
+          first_redeemed_at: string
+          id: string
+          payment_method: string
+          recipient_email: string
+          recipient_name: string
+          redeemed_cents: number
+          redemption_count: number
+          scheduled_send_at: string
+          status: string
+        }[]
       }
       get_next_waitlist_position: {
         Args: { p_session_id: string }
@@ -10061,6 +10097,10 @@ export type Database = {
       refund_waitlist_hold: {
         Args: { p_waitlist_id: string }
         Returns: undefined
+      }
+      reschedule_gift_card: {
+        Args: { p_gift_card_id: string; p_new_time: string }
+        Returns: Json
       }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       staff_book_wellness_appointment: {
