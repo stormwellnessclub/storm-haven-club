@@ -119,7 +119,7 @@ export default function PortalRecovery() {
         .from("member_credits")
         .select("*")
         .eq("user_id", user!.id)
-        .eq("credit_type", creditType)
+        .eq("credit_type", creditType as any)
         .gt("credits_remaining", 0)
         .gt("expires_at", now)
         .order("expires_at", { ascending: true })
