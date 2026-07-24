@@ -296,7 +296,9 @@ export default function PortalRecovery() {
           {recoveryServices.map((service) => {
             const hasCredit = service.creditType === "red_light"
               ? (redLightCredits?.credits_remaining ?? 0) > 0
-              : (dryCredits?.credits_remaining ?? 0) > 0;
+              : service.creditType === "dry_cryo"
+              ? (dryCredits?.credits_remaining ?? 0) > 0
+              : (ozoneCredits?.credits_remaining ?? 0) > 0;
 
             return (
               <Card key={service.serviceKey}>
