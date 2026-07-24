@@ -15,7 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, Loader2, Ticket } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { CheckCircle2, Loader2, Ticket, Trash2 } from "lucide-react";
+
 
 const CLUB_TZ = "America/Detroit";
 
@@ -51,6 +53,12 @@ export function BuyTicketsDialog({ event, open, onOpenChange }: Props) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [forSomeoneElse, setForSomeoneElse] = useState(false);
+  type Attendee = { first_name: string; last_name: string; email: string; phone: string };
+  const [attendees, setAttendees] = useState<Attendee[]>([
+    { first_name: "", last_name: "", email: "", phone: "" },
+  ]);
+
 
   useEffect(() => {
     if (!open) return;
