@@ -2963,6 +2963,37 @@ serve(async (req) => {
         break;
       }
 
+      case 'nonmember_card_setup_link': {
+        const name = data.name || 'there';
+        const setupUrl = data.setup_url;
+        subject = 'Add a card on file — Storm Wellness Club';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${name},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Storm Wellness Club would like you to add a card on file. Your card is securely stored with Stripe and only charged for services you book or purchases you approve.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${setupUrl}" style="${emailStyles.button}">Add Card on File</a>
+              </div>
+              <p style="font-size: 14px; line-height: 1.6; color: #6b7280; margin-bottom: 20px;">
+                This secure link opens a Stripe-hosted form. If the button doesn't work, copy and paste this URL into your browser:<br/>
+                <span style="word-break: break-all; color: #374151;">${setupUrl}</span>
+              </p>
+              <p style="font-size: 13px; color: #9ca3af; margin-top: 30px;">
+                If you didn't expect this email, you can safely ignore it.
+              </p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
+
       case 'card_expiring': {
         const firstName = data.first_name || 'Member';
         const cardBrand = data.card_brand || 'Card';
