@@ -193,7 +193,8 @@ export default function PortalRecovery() {
       if (!data?.clientSecret) throw new Error("No checkout session returned");
 
       setCheckoutClientSecret(data.clientSecret);
-      setCheckoutLabel(`${creditType === "red_light" ? "Red Light" : "Dry Cryo"} ${quantity}-Pack`);
+      const packLabel = creditType === "red_light" ? "Red Light" : creditType === "dry_cryo" ? "Dry Cryo" : "Ozone Sauna";
+      setCheckoutLabel(`${packLabel} ${quantity}-Pack`);
     } catch (err) {
       console.error("Pack checkout error:", err);
       toast.error(err instanceof Error ? err.message : "Failed to start checkout");
