@@ -10,6 +10,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+interface AttendeeInput {
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone?: string | null;
+}
+
 interface Body {
   slug: string;
   first_name: string;
@@ -18,7 +25,10 @@ interface Body {
   phone?: string;
   quantity?: number;
   embedded?: boolean;
+  is_gift?: boolean;
+  attendees?: AttendeeInput[];
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -147,24 +157,57 @@ serve(async (req) => {
       );
     }
 
+    // Validate + normalize attendees (if provided). Otherwise buyer is the attendee.
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    let attendees: AttendeeInput[] | null = null;
+    if (Array.isArray(body.attendees) && body.attendees.length > 0) {
+      if (body.attendees.length !== qty) {
+        throw new Error("Attendee list must match quantity");
+      }
+      attendees = body.attendees.map((a, i) => {
+        const fn = (a.first_name || "").trim();
+        const ln = (a.last_name || "").trim();
+        if (!fn || !ln) throw new Error(`Attendee ${i + 1}: first and last name are required`);
+        const em = (a.email || "").trim().toLowerCase();
+        if (em && !emailRe.test(em)) throw new Error(`Attendee ${i + 1}: invalid email`);
+        return {
+          first_name: fn,
+          last_name: ln,
+          email: em || null,
+          phone: (a.phone || "").trim() || null,
+        };
+      });
+    }
+    const isGift = !!body.is_gift || !!attendees;
+
     // Insert pending ticket rows
-    const rows = Array.from({ length: qty }).map(() => ({
-      event_id: event.id,
-      user_id: userId,
-      buyer_email: email,
-      buyer_first_name: firstName,
-      buyer_last_name: lastName,
-      buyer_phone: phone,
-      ticket_type: ticketType,
-      amount_cents: amountCents,
-      status: "pending",
-    }));
+    const rows = Array.from({ length: qty }).map((_, i) => {
+      const a = attendees?.[i];
+      return {
+        event_id: event.id,
+        user_id: userId,
+        buyer_email: email,
+        buyer_first_name: firstName,
+        buyer_last_name: lastName,
+        buyer_phone: phone,
+        attendee_first_name: a ? a.first_name : null,
+        attendee_last_name: a ? a.last_name : null,
+        attendee_email: a ? a.email : null,
+        attendee_phone: a ? a.phone : null,
+        is_gift: isGift,
+        gifted_by_user_id: isGift ? userId : null,
+        ticket_type: ticketType,
+        amount_cents: amountCents,
+        status: "pending",
+      };
+    });
     const { data: tickets, error: insErr } = await supabase
       .from("event_tickets")
       .insert(rows)
       .select("id");
     if (insErr) throw insErr;
     const ticketIds = (tickets ?? []).map((t: any) => t.id);
+
 
     if (body.embedded) {
       const paymentIntent = await stripe.paymentIntents.create({

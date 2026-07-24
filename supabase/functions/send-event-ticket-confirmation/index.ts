@@ -49,6 +49,9 @@ function buildHtml(opts: {
   whatToBring?: string | null;
   details?: string | null;
   portalTicketsUrl: string;
+  giftFromName?: string | null;
+  attendeeNames?: string[] | null;
+  isAttendeeCopy?: boolean;
 }) {
   const extras = (s?: string | null) =>
     s && s.trim() ? `<p style="margin:0 0 16px;white-space:pre-line;color:#3a2e1a;font-family:Georgia,serif;">${s}</p>` : "";
@@ -57,6 +60,16 @@ function buildHtml(opts: {
       <td style="padding:6px 0;color:#6b5a3b;font-family:Georgia,serif;font-size:14px;">${label}</td>
       <td style="padding:6px 0;text-align:right;font-family:${mono ? "monospace" : "Georgia,serif"};font-size:${mono ? "12px" : "14px"};color:#3a2e1a;">${value}</td>
     </tr>`;
+
+  const giftBanner = opts.giftFromName
+    ? `<div style="margin:0 0 18px 0;padding:12px 14px;background:#faf3e4;border:1px solid #c9a86a;border-radius:4px;color:#6b5a3b;font-family:Georgia,serif;font-size:14px;">
+         🎁 <strong>${opts.giftFromName}</strong> ${opts.isAttendeeCopy ? "gifted you this ticket." : "purchased this ticket for someone else."}
+       </div>`
+    : "";
+
+  const attendeeLine = opts.attendeeNames && opts.attendeeNames.length && !opts.isAttendeeCopy
+    ? `<p style="margin:0 0 14px 0;color:#3a2e1a;">Ticket${opts.attendeeNames.length > 1 ? "s" : ""} reserved for: <strong>${opts.attendeeNames.join(", ")}</strong>.</p>`
+    : "";
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${opts.eventName}</title></head>
@@ -74,7 +87,9 @@ function buildHtml(opts: {
           <tr>
             <td style="padding:20px 28px 8px 28px;font-family:Georgia,serif;color:#3a2e1a;font-size:15px;line-height:1.55;">
               <p style="margin:0 0 14px 0;">Hi ${opts.firstName || "there"},</p>
+              ${giftBanner}
               <p style="margin:0 0 18px 0;">Thank you for reserving your spot at our <strong>${opts.eventName}</strong>. Your ticket is confirmed and we can't wait to host you.</p>
+              ${attendeeLine}
               <h3 style="font-family:Georgia,serif;color:#a17e3a;font-size:16px;margin:20px 0 8px 0;font-weight:normal;">Your reservation</h3>
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;">
                 ${row("Event", opts.eventName)}
@@ -107,6 +122,7 @@ function buildHtml(opts: {
   </table>
 </body></html>`;
 }
+
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
