@@ -438,12 +438,31 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       <section className={embedded ? "py-6 bg-background" : "py-12 bg-background"}>
         <div className={embedded ? "" : "container mx-auto px-6"}>
           <ResumeBookingBanner kind="class" onResume={handleResumeBooking} />
+          {!selectedDate && (
+            <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
+              <Info className="h-3.5 w-3.5 text-accent shrink-0" />
+              <span>
+                Booking is open through{" "}
+                <span className="font-medium text-foreground">
+                  {format(addDays(maxWeekStart, 6), "EEE, MMM d")}
+                </span>
+                . The next 4 weeks release{" "}
+                <span className="font-medium text-foreground">
+                  {format(addWeeks(maxWeekStart, 1), "EEE, MMM d")}
+                </span>
+                .
+              </span>
+            </div>
+          )}
           {atHorizon && !selectedDate && (
             <div className="mb-6 flex items-start gap-3 rounded-md border border-accent/30 bg-accent/5 p-4 text-sm">
               <Info className="h-4 w-4 mt-0.5 text-accent shrink-0" />
               <p className="text-muted-foreground leading-relaxed">
-                You've reached the end of the current schedule. New classes are released in{" "}
-                <span className="font-medium text-foreground">4-week increments</span> — check back soon for the next block of dates to view and book.
+                You've reached the end of the current booking window. More classes release on{" "}
+                <span className="font-medium text-foreground">
+                  {format(addWeeks(maxWeekStart, 1), "EEEE, MMMM d")}
+                </span>
+                . We release the schedule in <span className="font-medium text-foreground">4-week blocks</span> so instructors and room assignments stay accurate — check back then to book the next block.
               </p>
             </div>
           )}

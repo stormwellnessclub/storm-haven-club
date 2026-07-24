@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView } from "@/components/admin/WeeklyCalendarView";
+import { OrphanSessionsPanel } from "@/components/admin/OrphanSessionsPanel";
 
 interface ClassType {
   id: string;
@@ -542,6 +543,7 @@ export default function ClassSchedules() {
   return (
     <AdminLayout>
       <div className="space-y-6">
+        <OrphanSessionsPanel />
         <div className="flex items-center justify-between">
           <div>
               <h1 className="text-2xl font-bold">Class Schedules</h1>
