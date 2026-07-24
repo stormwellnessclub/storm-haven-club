@@ -1,48 +1,61 @@
-# Add card on file for non-members
 
-## Current state
-- Non-members can already add/update a card themselves at **/portal/payment-methods** using an in-app Stripe PaymentElement (`create_nonmember_setup_intent` + `sync_nonmember_card_metadata`).
-- Admin **cannot** initiate a card add for a non-member from `src/pages/admin/NonMemberDetail.tsx` — only "Refresh card from Stripe" exists today.
+## Goal
+Give members a portal page to track gift cards they've purchased, preview the card before sending, and schedule delivery for a future date.
 
-## What to build
+## 1. Schema additions (`gift_cards`)
+Add columns:
+- `scheduled_send_at timestamptz` — when set and in future, delivery is deferred.
+- `delivered_at timestamptz` — set when the recipient email is confirmed as sent (from `email_send_log` sent status).
+- `first_redeemed_at timestamptz` — populated by trigger on first `gift_card_redemptions` insert.
+- Extend `status` values: `scheduled`, `sent`, `delivered`, `partially_redeemed`, `redeemed`, `expired`, `void`.
 
-### 1. Admin-initiated "Send card setup link" (email flow)
-New button on `NonMemberDetail.tsx` in the payment section (next to "Refresh card"). Clicking it:
-- Calls new edge action `admin_send_nonmember_card_setup_link` on `stripe-payment`.
-- Server creates a Stripe **Checkout Session in `mode: 'setup'`** for that non-member's Stripe customer (create customer if missing), with `success_url` = `/portal/payment-methods?card_added=1` and `cancel_url` = `/portal/payment-methods`.
-- Server invokes `send-transactional-email` with new template `nonmember-card-setup-link` (recipient = non-member email, contains the hosted Stripe URL, expires in 24h note).
-- Success toast shows "Setup link sent to {email}".
+Add index on `(scheduled_send_at, status)` for the cron worker.
 
-### 2. Card-added confirmation on return
-On `/portal/payment-methods`, when `?card_added=1` is present:
-- Call `sync_nonmember_card_metadata` (already exists) to pull the new PM into `non_member_profiles`.
-- Show success toast, strip the query param.
+RLS: add a member-scoped SELECT policy on `gift_cards` and `gift_card_redemptions` so purchasers can read their own cards (matched by `purchaser_user_id = auth.uid()` OR `purchaser_member_id` linked to the caller). Admin/staff policies stay.
 
-### 3. Webhook safety net
-In `supabase/functions/stripe-webhook/index.ts`, on `checkout.session.completed` where `mode === 'setup'` and metadata `purpose === 'nonmember_card_on_file'`:
-- Set the resulting payment method as customer default.
-- Update `non_member_profiles.card_brand/last4/exp_*` from the PaymentMethod.
-- This covers the case where the non-member closes the tab before hitting the return URL.
+## 2. Backend
+- Update `create-gift-card` to accept `scheduledSendAt`. If in the future: insert row with `status='scheduled'`, skip the email send, and record `email_sent_at = null`.
+- New edge function `process-scheduled-gift-cards` (cron, every 5 min): finds `status='scheduled'` rows where `scheduled_send_at <= now()`, sends the existing gift card email via `send-email`, flips status to `sent`, stamps `email_sent_at`.
+- Add a lightweight webhook/poll: after `send-email` logs a `sent` row in `email_send_log` for template `gift_card_delivery`, a trigger (or a status-refresh RPC called by the portal) stamps `delivered_at` and sets status to `delivered`.
+- New RPC `get_my_gift_cards()` returning purchaser's cards with computed fields: `redeemed_cents`, `remaining_cents`, `redemption_count`, `last_redeemed_at`, `delivery_status` (scheduled/sent/delivered/failed based on `email_send_log`).
+- New RPC `cancel_scheduled_gift_card(id)` — only allowed while `status='scheduled'`; refunds via existing refund flow only if paid by card (out of scope here — for now mark `void` and surface a note telling the member to contact staff for a refund).
+- New RPC `reschedule_gift_card(id, new_time)` — only while `status='scheduled'`.
 
-### 4. Admin: "Copy setup link" alternative
-Same action returns the URL to the admin UI, so admin can copy/paste it into a text/Clover receipt instead of email if desired.
+## 3. Member portal page — `/portal/gift-cards`
+Route added to portal shell + nav (Gift icon).
 
-### 5. Self-serve visibility (small tweak)
-On the non-member portal Dashboard, if `!card_last4`, add a small "Add a card on file" call-to-action linking to `/portal/payment-methods`. Users already have access — this just makes it obvious.
+Sections:
+- **Summary cards**: Total gifted, Total redeemed, Outstanding balance, Scheduled to send.
+- **Tabs**: Scheduled · Sent · Delivered · Redeemed · All.
+- **Table/list** columns: Recipient (name + masked email), Amount, Remaining balance, Status badge (color-coded), Sent date, Last redemption, Actions.
+- **Row actions**:
+  - Preview (opens the same email template rendered in a dialog with a "This is exactly what your recipient will see" note).
+  - Resend email (allowed for `sent`/`delivered`).
+  - Reschedule / Cancel (only while `scheduled`).
+  - Copy code (with masked reveal).
+- **Detail drawer**: shows full custom message, redemption history from `gift_card_redemptions`, delivery attempts from `email_send_log`.
 
-## Files to touch
+## 4. Preview component
+- New `GiftCardPreview.tsx` — renders the same visual layout as the delivery email (branded card graphic, recipient name, amount, custom message, "Redeem at checkout" instructions).
+- Used in:
+  - Portal gift card page row action.
+  - Admin `SellGiftCardDialog` — add a "Preview" button before "Send" so staff can show the member what will be delivered. If `scheduledSendAt` is set, preview shows the scheduled date banner.
 
-- `supabase/functions/stripe-payment/index.ts` — add `admin_send_nonmember_card_setup_link` (admin-role guarded, resolves customer, creates setup Checkout Session with `metadata.purpose='nonmember_card_on_file'`, sends email, returns `{ url }`).
-- `supabase/functions/_shared/transactional-email-templates/nonmember-card-setup-link.tsx` — new React Email template with CTA button to the Stripe URL. Register in `registry.ts`.
-- `supabase/functions/stripe-webhook/index.ts` — handle `mode==='setup'` completion for non-members (default PM + sync metadata).
-- `src/pages/admin/NonMemberDetail.tsx` — add "Send card setup link" and "Copy link" buttons in the payment card block.
-- `src/pages/portal/PaymentMethods.tsx` — detect `?card_added=1`, call sync, toast, clean URL.
-- `src/pages/portal/Dashboard.tsx` — conditional "Add card on file" CTA when none exists.
+## 5. Admin dialog updates (`SellGiftCardDialog`)
+- Add a "Send now / Schedule for later" toggle with date + time picker (America/Detroit).
+- Show live preview.
+- On submit, pass `scheduledSendAt` to `create-gift-card`.
 
-## Out of scope (per your reply)
-- Admin entering raw card numbers in-app. PCI + Stripe Link/Radar restrictions make this the wrong path; the emailed/hosted link keeps you PCI-safe and Stripe handles 3DS.
+## 6. Cron
+Schedule `process-scheduled-gift-cards` every 5 minutes via pg_cron.
 
-## Notes
-- No schema changes needed — reusing existing `non_member_profiles` card columns.
-- No new secrets.
-- Uses existing Lovable transactional email infra.
+## Out of scope
+- Automated refunds when cancelling a scheduled card (staff handles manually for now).
+- SMS delivery of gift cards.
+- Recipient-side redemption UI changes (unchanged — code entry at checkout still works).
+
+## Technical notes
+- Follow existing tokenized styling for the preview (no hardcoded colors).
+- All timestamps stored UTC, rendered `America/Detroit`.
+- All new RPCs `SECURITY DEFINER`, `SET search_path = public`, granted only to `authenticated`.
+- New portal route protected by existing member auth guard.

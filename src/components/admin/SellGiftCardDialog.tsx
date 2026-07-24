@@ -15,7 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Loader2, Gift, CheckCircle2, Copy } from "lucide-react";
+import { CalendarIcon, Loader2, Gift, CheckCircle2, Copy, Eye, CalendarClock } from "lucide-react";
+import { GiftCardPreview } from "@/components/gift-cards/GiftCardPreview";
 
 type PaymentMethod = "card_on_file" | "cash" | "clover" | "external";
 
@@ -48,6 +49,18 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
   const [paymentReference, setPaymentReference] = useState("");
   const [expiresAt, setExpiresAt] = useState<Date | undefined>(addMonths(new Date(), 12));
   const [notes, setNotes] = useState("");
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [showPreview, setShowPreview] = useState(false);
+
+  const scheduledSendAt = (() => {
+    if (!scheduleEnabled || !scheduleDate) return undefined;
+    const [h, m] = scheduleTime.split(":").map((n) => parseInt(n, 10));
+    const d = new Date(scheduleDate);
+    d.setHours(h || 9, m || 0, 0, 0);
+    return d;
+  })();
 
   const [issued, setIssued] = useState<{ code: string; amount: number } | null>(null);
 
@@ -99,6 +112,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
           paymentMethod,
           paymentReference: ref,
           expiresAt: expiresAt ? expiresAt.toISOString() : undefined,
+          scheduledSendAt: scheduledSendAt ? scheduledSendAt.toISOString() : undefined,
           notes: notes.trim() || undefined,
         },
       });
@@ -109,9 +123,13 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
     },
     onSuccess: (result) => {
       setIssued(result);
-      toast.success(`Gift card ${result.code} sent to ${effectiveRecipientEmail}`);
+      const msg = scheduledSendAt
+        ? `Gift card ${result.code} scheduled for ${format(scheduledSendAt, "PPP 'at' p")}`
+        : `Gift card ${result.code} sent to ${effectiveRecipientEmail}`;
+      toast.success(msg);
       queryClient.invalidateQueries({ queryKey: ["admin-member-detail"] });
       queryClient.invalidateQueries({ queryKey: ["member-gift-cards"] });
+      queryClient.invalidateQueries({ queryKey: ["portal-gift-cards"] });
       onSuccess?.();
     },
     onError: (err: Error) => toast.error(err.message),
@@ -298,6 +316,46 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
                 <Label className="text-xs text-muted-foreground">Internal Notes (optional)</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Staff-only notes" />
               </div>
+
+              {/* Schedule send */}
+              <div className="space-y-2 rounded-md border p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Schedule delivery for later</div>
+                    <div className="text-xs text-muted-foreground">
+                      {scheduleEnabled ? "Recipient will receive it on the chosen date" : "Send email immediately"}
+                    </div>
+                  </div>
+                  <Switch checked={scheduleEnabled} onCheckedChange={setScheduleEnabled} />
+                </div>
+                {scheduleEnabled && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className={cn("justify-start text-left font-normal")}>
+                          <CalendarClock className="mr-2 h-4 w-4" />
+                          {scheduleDate ? format(scheduleDate, "PPP") : "Pick a date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduleDate}
+                          onSelect={setScheduleDate}
+                          disabled={(d) => d.getTime() < Date.now() - 24 * 60 * 60 * 1000}
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
+                  </div>
+                )}
+              </div>
+
+              {/* Preview */}
+              <Button type="button" variant="outline" className="w-full" onClick={() => setShowPreview(true)}>
+                <Eye className="h-4 w-4 mr-1" /> Preview gift card
+              </Button>
             </div>
 
             <DialogFooter>
@@ -310,10 +368,13 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
                   sellMutation.isPending
                   || !amount
                   || (isGift && (!recipientName.trim() || !recipientEmail.trim()))
+                  || (scheduleEnabled && (!scheduleDate || (scheduledSendAt?.getTime() ?? 0) <= Date.now()))
                 }
               >
                 {sellMutation.isPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Processing…</>
+                ) : scheduleEnabled ? (
+                  <><CalendarClock className="h-4 w-4 mr-1" /> Schedule ${amount.toFixed(2)} Gift Card</>
                 ) : (
                   <><Gift className="h-4 w-4 mr-1" /> Sell ${amount.toFixed(2)} Gift Card</>
                 )}
@@ -322,6 +383,25 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
           </>
         )}
       </DialogContent>
+
+      {/* Preview dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gift Card Preview</DialogTitle>
+            <DialogDescription>Exactly what the recipient will see.</DialogDescription>
+          </DialogHeader>
+          <GiftCardPreview
+            amountCents={Math.round(amount * 100)}
+            recipientName={effectiveRecipientName || "Recipient"}
+            senderName={memberName || "A Storm Wellness Club member"}
+            customMessage={customMessage}
+            scheduledSendAt={scheduledSendAt?.toISOString()}
+            expiresAt={expiresAt?.toISOString()}
+          />
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
+
