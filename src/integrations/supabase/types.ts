@@ -10186,7 +10186,7 @@ export type Database = {
         | "cycling"
         | "aerobics"
       conversation_status: "open" | "in_progress" | "resolved" | "closed"
-      credit_type: "class" | "red_light" | "dry_cryo" | "guest_pass"
+      credit_type: "class" | "red_light" | "dry_cryo" | "guest_pass" | "ozone"
       enrollment_status: "active" | "completed" | "cancelled" | "paused"
       instructor_pay_type: "per_class" | "hourly" | "mixed"
       marketing_source:
@@ -10400,7 +10400,7 @@ export const Constants = {
         "aerobics",
       ],
       conversation_status: ["open", "in_progress", "resolved", "closed"],
-      credit_type: ["class", "red_light", "dry_cryo", "guest_pass"],
+      credit_type: ["class", "red_light", "dry_cryo", "guest_pass", "ozone"],
       enrollment_status: ["active", "completed", "cancelled", "paused"],
       instructor_pay_type: ["per_class", "hourly", "mixed"],
       marketing_source: [
