@@ -552,8 +552,32 @@ export default function NonMemberDetail() {
                     ) : (
                       <p className="text-sm text-muted-foreground">No card on file</p>
                     )}
+                    <div className="mt-4 pt-4 border-t space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        {profile.card_last4 ? "Send a secure link so they can update their card." : "Send a secure link so they can add a card on file."}
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline" size="sm" className="flex-1"
+                          onClick={() => sendCardLinkMutation.mutate({ sendEmail: true })}
+                          disabled={sendCardLinkMutation.isPending || !profile.email}
+                        >
+                          {sendCardLinkMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Mail className="h-4 w-4 mr-2" />}
+                          Email setup link
+                        </Button>
+                        <Button
+                          variant="ghost" size="sm"
+                          onClick={() => sendCardLinkMutation.mutate({ sendEmail: false })}
+                          disabled={sendCardLinkMutation.isPending}
+                          title="Get link to copy"
+                        >
+                          Copy link
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
+
 
                 {/* Quick Actions */}
                 <Card>
