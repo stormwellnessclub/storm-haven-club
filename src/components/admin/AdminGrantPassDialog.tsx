@@ -318,7 +318,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
           )}
 
           {/* Credit quantity (class, wellness, guest pass credit) */}
-          {(grantType === "class_credits" || grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
+          {(grantType === "class_credits" || grantType === "red_light" || grantType === "dry_cryo" || grantType === "ozone" || grantType === "guest_pass_credit") && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">How many credits?</Label>
               <Input
