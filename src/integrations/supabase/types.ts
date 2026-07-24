@@ -9469,6 +9469,10 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      delete_class_type: {
+        Args: { _class_type_id: string; _force?: boolean }
+        Returns: Json
+      }
       effective_waiver_status: {
         Args: { _user_ids: string[] }
         Returns: {
