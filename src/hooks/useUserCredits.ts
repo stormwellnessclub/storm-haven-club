@@ -34,6 +34,7 @@ export interface UserCreditsData {
   classCredits: MemberCredit | null;
   redLightCredits: MemberCredit | null;
   dryCredits: MemberCredit | null;
+  ozoneCredits: MemberCredit | null;
   guestPassCredits: MemberCredit | null;
   classPasses: ClassPass[];
 }
@@ -54,6 +55,7 @@ export function useUserCredits() {
           classCredits: null,
           redLightCredits: null,
           dryCredits: null,
+          ozoneCredits: null,
           guestPassCredits: null,
           classPasses: [],
         };
@@ -84,6 +86,7 @@ export function useUserCredits() {
       let classCredits: MemberCredit | null = null;
       let redLightCredits: MemberCredit | null = null;
       let dryCredits: MemberCredit | null = null;
+      let ozoneCredits: MemberCredit | null = null;
       let guestPassCredits: MemberCredit | null = null;
 
       const now = new Date().toISOString();
@@ -120,6 +123,9 @@ export function useUserCredits() {
               case "dry_cryo":
                 if (!dryCredits) dryCredits = typedCredit;
                 break;
+              case "ozone" as any:
+                if (!ozoneCredits) ozoneCredits = typedCredit;
+                break;
               case "guest_pass":
                 if (!guestPassCredits) guestPassCredits = typedCredit;
                 break;
@@ -135,7 +141,7 @@ export function useUserCredits() {
           .select("*")
           .eq("user_id", user.id)
           .is("member_id", null)
-          .in("credit_type", ["red_light", "dry_cryo"])
+          .in("credit_type", ["red_light", "dry_cryo", "ozone"] as any)
           .gt("credits_remaining", 0)
           .gt("expires_at", now)
           .order("expires_at", { ascending: true });
@@ -154,10 +160,13 @@ export function useUserCredits() {
               case "dry_cryo":
                 if (!dryCredits) dryCredits = typedCredit;
                 break;
+              case "ozone" as any:
+                if (!ozoneCredits) ozoneCredits = typedCredit;
+                break;
             }
           }
         }
-        console.log("[useUserCredits] Non-member wellness credits:", { redLightCredits, dryCredits });
+        console.log("[useUserCredits] Non-member wellness credits:", { redLightCredits, dryCredits, ozoneCredits });
       }
 
       // Get active class passes
@@ -183,6 +192,7 @@ export function useUserCredits() {
         classCredits,
         redLightCredits,
         dryCredits,
+        ozoneCredits,
         guestPassCredits,
         classPasses: (passes || []) as ClassPass[],
       };

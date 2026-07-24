@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Loader2, Gift } from "lucide-react";
 
-type GrantType = "class_credits" | "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo";
+type GrantType = "class_credits" | "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo" | "ozone";
 
 interface AdminGrantPassDialogProps {
   open: boolean;
@@ -98,11 +98,11 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
         });
         if (error) throw error;
       } else {
-        // class_credits, red_light, dry_cryo, or guest_pass_credit
+        // class_credits, red_light, dry_cryo, ozone, or guest_pass_credit
         if (!prefill?.userId && !prefill?.memberId) throw new Error("User or member ID required");
         const cycleStart = format(new Date(), "yyyy-MM-dd");
         const cycleEnd = format(expiresAt, "yyyy-MM-dd");
-        const creditType: "class" | "guest_pass" | "red_light" | "dry_cryo" =
+        const creditType: "class" | "guest_pass" | "red_light" | "dry_cryo" | "ozone" =
           grantType === "guest_pass_credit" ? "guest_pass"
           : grantType === "class_credits" ? "class"
           : grantType;
@@ -201,11 +201,12 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
     kids_care_pass: "Kids Care Pass",
     red_light: "Red Light Therapy Credits",
     dry_cryo: "Dry Cryotherapy Credits",
+    ozone: "Ozone Sauna Credits",
   };
 
   // Filter available types based on prefill
   const availableTypes: GrantType[] = prefill?.userId
-    ? ["class_credits", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo", "guest_pass"]
+    ? ["class_credits", "guest_pass_credit", "class_pass", "kids_care_pass", "red_light", "dry_cryo", "ozone", "guest_pass"]
     : ["guest_pass"]; // Without a user, can only grant guest passes
 
   return (
@@ -317,7 +318,7 @@ export function AdminGrantPassDialog({ open, onOpenChange, prefill, onSuccess }:
           )}
 
           {/* Credit quantity (class, wellness, guest pass credit) */}
-          {(grantType === "class_credits" || grantType === "red_light" || grantType === "dry_cryo" || grantType === "guest_pass_credit") && (
+          {(grantType === "class_credits" || grantType === "red_light" || grantType === "dry_cryo" || grantType === "ozone" || grantType === "guest_pass_credit") && (
             <div className="space-y-2">
               <Label className="text-sm font-medium">How many credits?</Label>
               <Input

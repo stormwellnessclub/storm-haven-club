@@ -7119,14 +7119,21 @@ serve(async (req) => {
           throw new Error("Service name is required");
         }
 
-        // Map service to price ID
+        // Map service to price ID (pre-created Stripe products)
         const recoveryPriceMap: Record<string, string> = {
           'rlt20': STRIPE_PRODUCTS.guestAddons.rlt20,
           'cryo': STRIPE_PRODUCTS.guestAddons.cryo,
         };
 
+        // Some recovery services are priced inline (no pre-created Stripe product).
+        // Map by service key -> { name, unit_amount_cents }
+        const inlineRecoveryMap: Record<string, { name: string; unit_amount: number }> = {
+          'ozone': { name: 'Ozone Sauna — Single Session', unit_amount: 8500 },
+        };
+
         const recoveryPriceId = recoveryPriceMap[serviceName];
-        if (!recoveryPriceId) {
+        const inlineItem = inlineRecoveryMap[serviceName];
+        if (!recoveryPriceId && !inlineItem) {
           throw new Error(`Unknown recovery service: ${serviceName}`);
         }
 
@@ -7139,10 +7146,25 @@ serve(async (req) => {
           stripe_customer_id: recoveryCustomerId,
         }, { onConflict: 'user_id' });
 
-        // Add processing fee
-        const recoveryPrice = await stripe.prices.retrieve(recoveryPriceId);
-        const recoveryFeeItem = await createProcessingFeeLineItem(stripe, recoveryPrice.unit_amount || 0);
-        const recoveryLineItems: { price: string; quantity: number }[] = [{ price: recoveryPriceId, quantity: 1 }];
+        // Build line items (pre-created price OR inline price_data)
+        let recoveryBaseAmount = 0;
+        const recoveryLineItems: any[] = [];
+        if (recoveryPriceId) {
+          const recoveryPrice = await stripe.prices.retrieve(recoveryPriceId);
+          recoveryBaseAmount = recoveryPrice.unit_amount || 0;
+          recoveryLineItems.push({ price: recoveryPriceId, quantity: 1 });
+        } else if (inlineItem) {
+          recoveryBaseAmount = inlineItem.unit_amount;
+          recoveryLineItems.push({
+            price_data: {
+              currency: 'usd',
+              product_data: { name: inlineItem.name },
+              unit_amount: inlineItem.unit_amount,
+            },
+            quantity: 1,
+          });
+        }
+        const recoveryFeeItem = await createProcessingFeeLineItem(stripe, recoveryBaseAmount);
         if (recoveryFeeItem) recoveryLineItems.push(recoveryFeeItem);
 
         if (embedded) {
@@ -7187,16 +7209,12 @@ serve(async (req) => {
           throw new Error("creditType and quantity are required");
         }
 
-        // Map credit type to price IDs for wellness packs
-        const wellnessPriceMap: Record<string, string> = {
-          'red_light_4': STRIPE_PRODUCTS.guestAddons.rlt20,   // Red Light single session price x4
-          'dry_cryo_4': STRIPE_PRODUCTS.guestAddons.cryo,     // Dry Cryo single session price x4
+        // Ozone Sauna uses bundle pricing (pay-in-full packs), not single-price * qty.
+        // 6 sessions = $450, 20 sessions = $1300.
+        const ozoneBundlePrice: Record<number, number> = {
+          6: 45000,
+          20: 130000,
         };
-
-        // Use single session price * quantity
-        const singlePriceId = creditType === 'red_light' 
-          ? STRIPE_PRODUCTS.guestAddons.rlt20 
-          : STRIPE_PRODUCTS.guestAddons.cryo;
 
         const wellnessCustomerId = await getOrCreateCustomer();
 
@@ -7207,10 +7225,37 @@ serve(async (req) => {
           stripe_customer_id: wellnessCustomerId,
         }, { onConflict: 'user_id' });
 
-        const wellnessPrice = await stripe.prices.retrieve(singlePriceId);
-        const totalAmount = (wellnessPrice.unit_amount || 0) * quantity;
+        let wellnessLineItems: any[] = [];
+        let totalAmount = 0;
+
+        if (creditType === 'ozone') {
+          const bundleAmount = ozoneBundlePrice[quantity];
+          if (!bundleAmount) {
+            throw new Error(`Ozone Sauna is only sold as 6-pack or 20-pack (got ${quantity})`);
+          }
+          totalAmount = bundleAmount;
+          wellnessLineItems.push({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `Ozone Sauna ${quantity}-Session Pack`,
+                description: `${quantity} Ozone Sauna sessions (60 min each, Spa Room 3)`,
+              },
+              unit_amount: bundleAmount,
+            },
+            quantity: 1,
+          });
+        } else {
+          // Existing red_light / dry_cryo path: single-session price × quantity
+          const singlePriceId = creditType === 'red_light'
+            ? STRIPE_PRODUCTS.guestAddons.rlt20
+            : STRIPE_PRODUCTS.guestAddons.cryo;
+          const wellnessPrice = await stripe.prices.retrieve(singlePriceId);
+          totalAmount = (wellnessPrice.unit_amount || 0) * quantity;
+          wellnessLineItems.push({ price: singlePriceId, quantity });
+        }
+
         const wellnessFeeItem = await createProcessingFeeLineItem(stripe, totalAmount);
-        const wellnessLineItems: { price: string; quantity: number }[] = [{ price: singlePriceId, quantity }];
         if (wellnessFeeItem) wellnessLineItems.push(wellnessFeeItem);
 
         const wellnessSession = await stripe.checkout.sessions.create({

@@ -45,6 +45,14 @@ const recoveryServices = [
     serviceKey: "cryo",
     creditType: "dry_cryo" as const,
   },
+  {
+    name: "Ozone Sauna",
+    description: "60-minute ozone sauna session for detoxification, circulation, and recovery. Spa Room 3.",
+    duration: "60 min",
+    price: "$85",
+    serviceKey: "ozone",
+    creditType: "ozone" as const,
+  },
 ];
 
 const wellnessPacks = [
@@ -61,6 +69,20 @@ const wellnessPacks = [
     sessions: 4,
     creditType: "dry_cryo" as const,
     price: "$160",
+  },
+  {
+    name: "Ozone Sauna 6-Pack",
+    description: "6 Ozone Sauna sessions. Paid in full.",
+    sessions: 6,
+    creditType: "ozone" as const,
+    price: "$450",
+  },
+  {
+    name: "Ozone Sauna 20-Pack",
+    description: "20 Ozone Sauna sessions. Paid in full — best value.",
+    sessions: 20,
+    creditType: "ozone" as const,
+    price: "$1,300",
   },
 ];
 
@@ -87,7 +109,7 @@ export default function PortalRecovery() {
 
   const needsProfileCompletion = profile && (!profile.first_name || !profile.last_name || !profile.phone);
 
-  const handleUseCredit = async (serviceKey: string, creditType: "red_light" | "dry_cryo") => {
+  const handleUseCredit = async (serviceKey: string, creditType: "red_light" | "dry_cryo" | "ozone") => {
     // For non-members, we book directly via the edge function or just deduct credit
     setLoadingService(serviceKey);
     try {
@@ -97,7 +119,7 @@ export default function PortalRecovery() {
         .from("member_credits")
         .select("*")
         .eq("user_id", user!.id)
-        .eq("credit_type", creditType)
+        .eq("credit_type", creditType as any)
         .gt("credits_remaining", 0)
         .gt("expires_at", now)
         .order("expires_at", { ascending: true })
@@ -171,7 +193,8 @@ export default function PortalRecovery() {
       if (!data?.clientSecret) throw new Error("No checkout session returned");
 
       setCheckoutClientSecret(data.clientSecret);
-      setCheckoutLabel(`${creditType === "red_light" ? "Red Light" : "Dry Cryo"} ${quantity}-Pack`);
+      const packLabel = creditType === "red_light" ? "Red Light" : creditType === "dry_cryo" ? "Dry Cryo" : "Ozone Sauna";
+      setCheckoutLabel(`${packLabel} ${quantity}-Pack`);
     } catch (err) {
       console.error("Pack checkout error:", err);
       toast.error(err instanceof Error ? err.message : "Failed to start checkout");
@@ -208,6 +231,7 @@ export default function PortalRecovery() {
 
   const redLightCredits = creditsData?.redLightCredits;
   const dryCredits = creditsData?.dryCredits;
+  const ozoneCredits = creditsData?.ozoneCredits;
 
   return (
     <PortalLayout title="Recovery & Wellness">
@@ -272,7 +296,9 @@ export default function PortalRecovery() {
           {recoveryServices.map((service) => {
             const hasCredit = service.creditType === "red_light"
               ? (redLightCredits?.credits_remaining ?? 0) > 0
-              : (dryCredits?.credits_remaining ?? 0) > 0;
+              : service.creditType === "dry_cryo"
+              ? (dryCredits?.credits_remaining ?? 0) > 0
+              : (ozoneCredits?.credits_remaining ?? 0) > 0;
 
             return (
               <Card key={service.serviceKey}>

@@ -19,9 +19,12 @@ export function useWellnessCredits() {
   return useQuery({
     queryKey: ["wellness-credits", user?.id],
     queryFn: async (): Promise<Record<WellnessCreditType, WellnessCredit | null>> => {
-      if (!user) {
-        return { red_light: null, dry_cryo: null };
-      }
+      const empty: Record<WellnessCreditType, WellnessCredit | null> = {
+        red_light: null,
+        dry_cryo: null,
+        ozone: null,
+      };
+      if (!user) return empty;
 
       // Get member ID first
       const { data: memberData } = await supabase
@@ -31,35 +34,30 @@ export function useWellnessCredits() {
         .in("status", ["active", "frozen"])
         .maybeSingle();
 
-      if (!memberData) {
-        return { red_light: null, dry_cryo: null };
-      }
+      if (!memberData) return empty;
 
-      // Get current credits for red_light and dry_cryo
+      // Get current credits for red_light, dry_cryo, ozone
       const now = new Date().toISOString();
       const { data: credits, error } = await supabase
         .from("member_credits")
         .select("*")
         .eq("member_id", memberData.id)
-        .in("credit_type", ["red_light", "dry_cryo"])
+        .in("credit_type", ["red_light", "dry_cryo", "ozone"] as any)
         .gt("credits_remaining", 0)
         .gte("expires_at", now)
         .order("expires_at", { ascending: true });
 
       if (error) {
         console.error("Error fetching wellness credits:", error);
-        return { red_light: null, dry_cryo: null };
+        return empty;
       }
 
       // Get the first available credit for each type (earliest expiring)
-      const result: Record<WellnessCreditType, WellnessCredit | null> = {
-        red_light: null,
-        dry_cryo: null,
-      };
+      const result: Record<WellnessCreditType, WellnessCredit | null> = { ...empty };
 
       for (const credit of credits || []) {
         const creditType = credit.credit_type as WellnessCreditType;
-        if (!result[creditType]) {
+        if (creditType in result && !result[creditType]) {
           result[creditType] = credit as WellnessCredit;
         }
       }
