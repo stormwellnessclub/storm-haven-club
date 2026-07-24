@@ -91,7 +91,7 @@ serve(async (req) => {
     if (event.status !== "on_sale") throw new Error("This event is not on sale");
 
     // Availability
-    const { data: avail } = await supabase.rpc("get_event_availability", { _slug: body.slug ?? body.event_slug });
+    const { data: avail } = await supabase.rpc("get_event_availability", { _slug: body.event_slug });
     const remaining = (avail && avail[0]?.remaining) ?? 0;
     if (remaining < qty) throw new Error(`Only ${remaining} ticket(s) remaining`);
 
