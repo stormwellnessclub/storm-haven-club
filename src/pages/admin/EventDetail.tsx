@@ -255,9 +255,23 @@ export default function EventDetail() {
                     )}
                     {filteredTickets.map((t: any) => (
                       <TableRow key={t.id}>
-                        <TableCell>{t.buyer_first_name} {t.buyer_last_name}</TableCell>
-                        <TableCell className="text-sm">{t.buyer_email}</TableCell>
-                        <TableCell className="text-sm">{t.buyer_phone || "—"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{attendeeName(t) || "—"}</span>
+                            {t.is_gift && (
+                              <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-700">
+                                Gift
+                              </Badge>
+                            )}
+                          </div>
+                          {t.is_gift && (
+                            <div className="text-[11px] text-muted-foreground">
+                              from {t.buyer_first_name} {t.buyer_last_name}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm">{attendeeEmail(t)}</TableCell>
+                        <TableCell className="text-sm">{t.attendee_phone || t.buyer_phone || "—"}</TableCell>
                         <TableCell>
                           <Badge variant={t.ticket_type === "member" ? "default" : "secondary"}>
                             {t.ticket_type === "member" ? "Member" : "Non-Member"}
@@ -266,6 +280,7 @@ export default function EventDetail() {
                         <TableCell className="text-xs text-muted-foreground">
                           {t.user_id ? "Portal account" : "Guest checkout"}
                         </TableCell>
+
                         <TableCell>
                           <Badge variant={t.status === "paid" ? "default" : t.status === "pending" ? "secondary" : "destructive"}>
                             {t.status}
