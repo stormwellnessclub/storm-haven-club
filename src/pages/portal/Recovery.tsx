@@ -109,7 +109,7 @@ export default function PortalRecovery() {
 
   const needsProfileCompletion = profile && (!profile.first_name || !profile.last_name || !profile.phone);
 
-  const handleUseCredit = async (serviceKey: string, creditType: "red_light" | "dry_cryo") => {
+  const handleUseCredit = async (serviceKey: string, creditType: "red_light" | "dry_cryo" | "ozone") => {
     // For non-members, we book directly via the edge function or just deduct credit
     setLoadingService(serviceKey);
     try {
