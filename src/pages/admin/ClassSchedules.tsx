@@ -1228,6 +1228,18 @@ export default function ClassSchedules() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <InstructorScheduleDrawer
+        instructorId={instructorDrawerId}
+        onClose={() => setInstructorDrawerId(null)}
+        onAddClassWithInstructor={(id) => {
+          setInstructorDrawerId(null);
+          openAddDialog({ instructorId: id });
+        }}
+        onOpenSession={(sessionId) => {
+          setInstructorDrawerId(null);
+          navigate(`/admin/class-roster/${sessionId}`);
+        }}
+      />
     </AdminLayout>
   );
 }
