@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Loader2, Gift } from "lucide-react";
 
-type GrantType = "class_credits" | "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo";
+type GrantType = "class_credits" | "guest_pass" | "guest_pass_credit" | "class_pass" | "kids_care_pass" | "red_light" | "dry_cryo" | "ozone";
 
 interface AdminGrantPassDialogProps {
   open: boolean;
