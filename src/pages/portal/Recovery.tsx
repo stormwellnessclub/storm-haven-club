@@ -231,6 +231,7 @@ export default function PortalRecovery() {
 
   const redLightCredits = creditsData?.redLightCredits;
   const dryCredits = creditsData?.dryCredits;
+  const ozoneCredits = creditsData?.ozoneCredits;
 
   return (
     <PortalLayout title="Recovery & Wellness">
