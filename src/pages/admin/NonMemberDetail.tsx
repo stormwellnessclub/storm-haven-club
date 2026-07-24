@@ -208,6 +208,32 @@ export default function NonMemberDetail() {
     onError: (err: Error) => toast.error(`Failed to refresh: ${err.message}`),
   });
 
+  // Send / copy Stripe card setup link for admin
+  const sendCardLinkMutation = useMutation({
+    mutationFn: async ({ sendEmail }: { sendEmail: boolean }) => {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "admin_send_nonmember_card_setup_link", userId, sendEmail },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return { ...data, _sendEmail: sendEmail };
+    },
+    onSuccess: async (data: any) => {
+      if (data._sendEmail) {
+        toast.success(data.emailSent ? `Setup link emailed to ${data.recipient}` : "Link generated (email failed — copy below)");
+      }
+      if (data.url) {
+        try {
+          await navigator.clipboard.writeText(data.url);
+          toast.success("Setup link copied to clipboard");
+        } catch {
+          window.prompt("Copy setup link:", data.url);
+        }
+      }
+    },
+    onError: (err: Error) => toast.error(`Failed: ${err.message}`),
+  });
+
   // Toggle waiver
   const toggleWaiverMutation = useMutation({
     mutationFn: async (signed: boolean) => {
