@@ -1,7 +1,7 @@
 // Wellness service to credit type mapping
 // This file provides the mapping between spa service names and their corresponding credit types
 
-export type WellnessCreditType = 'red_light' | 'dry_cryo';
+export type WellnessCreditType = 'red_light' | 'dry_cryo' | 'ozone';
 
 // Service name patterns that match specific credit types
 // The keys are substrings that can appear in service names (case-insensitive)
@@ -17,12 +17,14 @@ export const WELLNESS_SERVICE_TO_CREDIT: Record<string, WellnessCreditType> = {
   'cryo therapy': 'dry_cryo',
   'zerobody': 'dry_cryo',
   'zero body': 'dry_cryo',
+  'ozone': 'ozone',
 };
 
 // Credit type display names
 export const CREDIT_TYPE_DISPLAY_NAMES: Record<WellnessCreditType, string> = {
   red_light: 'Red Light Therapy',
   dry_cryo: 'Dry Cryotherapy',
+  ozone: 'Ozone Sauna',
 };
 
 /**
