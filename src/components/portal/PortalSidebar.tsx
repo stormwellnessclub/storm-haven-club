@@ -15,6 +15,7 @@ import {
   ShoppingBag,
   Coffee,
   Sparkles,
+  Gift,
 } from "lucide-react";
 import {
   Sidebar,
@@ -52,6 +53,7 @@ const portalMenuItems: MenuItem[] = [
   { title: "Storm Shop", url: "/shop", icon: ShoppingBag },
   { title: "Payment Methods", url: "/portal/payment-methods", icon: Wallet },
   { title: "Payment History", url: "/portal/payment-history", icon: Receipt },
+  { title: "My Gift Cards", url: "/portal/gift-cards", icon: Gift },
   { title: "Support", url: "/portal/support", icon: MessageCircle },
   { title: "Profile", url: "/portal/profile", icon: User },
 ];
