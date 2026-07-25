@@ -110,6 +110,7 @@ function EventCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const qc = useQueryClient();
   const { data: tickets = [] } = useQuery({
     queryKey: ["frontdesk-event-tickets", event.id],
     enabled: expanded,
@@ -126,6 +127,23 @@ function EventCard({
       return data as TicketRow[];
     },
     refetchInterval: expanded ? 30_000 : false,
+  });
+
+  const checkInMut = useMutation({
+    mutationFn: async ({ ticketId, checkedIn }: { ticketId: string; checkedIn: boolean }) => {
+      const { data, error } = await (supabase.rpc as any)("frontdesk_event_ticket_check_in", {
+        p_ticket_id: ticketId,
+        p_checked_in: checkedIn,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Check-in failed");
+      return data;
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.checkedIn ? "Checked in" : "Check-in undone");
+      qc.invalidateQueries({ queryKey: ["frontdesk-event-tickets", event.id] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Check-in failed"),
   });
 
   const { data: countData } = useQuery({
