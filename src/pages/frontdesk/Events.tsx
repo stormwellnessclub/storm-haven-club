@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { FrontDeskShell } from "./FrontDeskShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,6 +110,7 @@ function EventCard({
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const qc = useQueryClient();
   const { data: tickets = [] } = useQuery({
     queryKey: ["frontdesk-event-tickets", event.id],
     enabled: expanded,
@@ -125,6 +127,23 @@ function EventCard({
       return data as TicketRow[];
     },
     refetchInterval: expanded ? 30_000 : false,
+  });
+
+  const checkInMut = useMutation({
+    mutationFn: async ({ ticketId, checkedIn }: { ticketId: string; checkedIn: boolean }) => {
+      const { data, error } = await (supabase.rpc as any)("frontdesk_event_ticket_check_in", {
+        p_ticket_id: ticketId,
+        p_checked_in: checkedIn,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Check-in failed");
+      return data;
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.checkedIn ? "Checked in" : "Check-in undone");
+      qc.invalidateQueries({ queryKey: ["frontdesk-event-tickets", event.id] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Check-in failed"),
   });
 
   const { data: countData } = useQuery({
@@ -237,19 +256,38 @@ function EventCard({
                         </TableCell>
                         <TableCell className="text-right">
                           {t.checked_in_at ? (
-                            <div className="inline-flex items-center gap-1 text-green-700 text-xs">
-                              <CheckCircle2 className="h-4 w-4" />
-                              {formatInTimeZone(
-                                new Date(t.checked_in_at),
-                                CLUB_TZ,
-                                "h:mm a"
-                              )}
+                            <div className="inline-flex items-center gap-2">
+                              <div className="inline-flex items-center gap-1 text-green-700 text-xs">
+                                <CheckCircle2 className="h-4 w-4" />
+                                {formatInTimeZone(
+                                  new Date(t.checked_in_at),
+                                  CLUB_TZ,
+                                  "h:mm a"
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                disabled={checkInMut.isPending}
+                                onClick={() =>
+                                  checkInMut.mutate({ ticketId: t.id, checkedIn: false })
+                                }
+                              >
+                                Undo
+                              </Button>
                             </div>
                           ) : (
-                            <div className="inline-flex items-center gap-1 text-muted-foreground text-xs">
-                              <Circle className="h-4 w-4" />
-                              Not yet
-                            </div>
+                            <Button
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              disabled={checkInMut.isPending}
+                              onClick={() =>
+                                checkInMut.mutate({ ticketId: t.id, checkedIn: true })
+                              }
+                            >
+                              Check in
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
