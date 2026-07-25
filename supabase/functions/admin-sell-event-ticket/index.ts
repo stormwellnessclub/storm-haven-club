@@ -135,7 +135,9 @@ serve(async (req) => {
         throw new Error("Member has no card on file");
       }
       const description = `Event Ticket — ${event.title} — ${qty} × ${ticketType === "member" ? "Member" : "Non-Member"}`;
-      const { data: charge, error: cErr } = await supabase.functions.invoke("stripe-payment", {
+      // Invoke stripe-payment as the admin (forward their JWT) so its auth check passes.
+      const { data: charge, error: cErr } = await anon.functions.invoke("stripe-payment", {
+        headers: { Authorization: auth },
         body: {
           action: "charge_saved_card_with_3ds",
           amount: totalCents,
