@@ -256,19 +256,38 @@ function EventCard({
                         </TableCell>
                         <TableCell className="text-right">
                           {t.checked_in_at ? (
-                            <div className="inline-flex items-center gap-1 text-green-700 text-xs">
-                              <CheckCircle2 className="h-4 w-4" />
-                              {formatInTimeZone(
-                                new Date(t.checked_in_at),
-                                CLUB_TZ,
-                                "h:mm a"
-                              )}
+                            <div className="inline-flex items-center gap-2">
+                              <div className="inline-flex items-center gap-1 text-green-700 text-xs">
+                                <CheckCircle2 className="h-4 w-4" />
+                                {formatInTimeZone(
+                                  new Date(t.checked_in_at),
+                                  CLUB_TZ,
+                                  "h:mm a"
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-xs"
+                                disabled={checkInMut.isPending}
+                                onClick={() =>
+                                  checkInMut.mutate({ ticketId: t.id, checkedIn: false })
+                                }
+                              >
+                                Undo
+                              </Button>
                             </div>
                           ) : (
-                            <div className="inline-flex items-center gap-1 text-muted-foreground text-xs">
-                              <Circle className="h-4 w-4" />
-                              Not yet
-                            </div>
+                            <Button
+                              size="sm"
+                              className="h-7 px-3 text-xs"
+                              disabled={checkInMut.isPending}
+                              onClick={() =>
+                                checkInMut.mutate({ ticketId: t.id, checkedIn: true })
+                              }
+                            >
+                              Check in
+                            </Button>
                           )}
                         </TableCell>
                       </TableRow>
