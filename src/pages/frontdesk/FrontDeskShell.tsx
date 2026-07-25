@@ -37,6 +37,7 @@ const TABS = [
   { key: "guest",       label: "Guest Passes", to: "/frontdesk/guest-passes", icon: Ticket },
   { key: "spa",         label: "Spa",          to: "/frontdesk/spa",          icon: Sparkles },
   { key: "schedule",    label: "Schedule",     to: "/frontdesk/schedule",     icon: GraduationCap },
+  { key: "events",      label: "Events",       to: "/frontdesk/events",       icon: Ticket },
   { key: "pos",         label: "POS",          to: "/frontdesk/pos",          icon: ShoppingBag },
   { key: "cafe",        label: "Cafe Orders",  to: "/frontdesk/cafe",         icon: UtensilsCrossed },
   { key: "messages",    label: "Messages",     to: "/frontdesk/messages",     icon: MessageCircle },
