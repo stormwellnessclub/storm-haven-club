@@ -9552,6 +9552,10 @@ export type Database = {
           staff_user_id: string
         }[]
       }
+      frontdesk_event_ticket_check_in: {
+        Args: { p_checked_in?: boolean; p_ticket_id: string }
+        Returns: Json
+      }
       frontdesk_open_shifts: {
         Args: never
         Returns: {
