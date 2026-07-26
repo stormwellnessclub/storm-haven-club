@@ -3044,6 +3044,28 @@ serve(async (req) => {
             break;
           }
 
+          // ── PT payment plan: mark past_due on failed installment ──
+          try {
+            const subId = typeof invoice.subscription === 'string'
+              ? invoice.subscription
+              : (invoice.subscription as any).id;
+            const sub = await stripe.subscriptions.retrieve(subId);
+            if (sub.metadata?.type === 'pt_payment_plan') {
+              const passIds = (sub.metadata.pt_pass_ids ?? '')
+                .split(',').map((s: string) => s.trim()).filter(Boolean);
+              if (passIds.length > 0) {
+                await supabase.from('pt_passes')
+                  .update({ payment_plan_status: 'past_due' })
+                  .in('id', passIds);
+              }
+              logStep('PT payment plan installment FAILED', { subId, passIds });
+              return successResponse({ pt_payment_plan_failed: true, subId });
+            }
+          } catch (ptPlanErr) {
+            logError(ptPlanErr, 'PT_PAYMENT_PLAN_FAILED');
+          }
+
+
           const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
             supabase,
             invoice,
