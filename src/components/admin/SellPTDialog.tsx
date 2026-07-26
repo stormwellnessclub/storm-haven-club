@@ -82,7 +82,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         .order("format")
         .order("display_order");
       if (error) throw error;
-      return (data ?? []) as PtPack[];
+      return (data ?? []) as PtPackExt[];
     },
   });
 
