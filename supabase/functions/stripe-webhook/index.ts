@@ -2218,6 +2218,41 @@ serve(async (req) => {
             subscriptionId: invoice.subscription
           });
 
+          // ── PT payment plan handling (installment subscriptions) ──
+          if (invoice.subscription) {
+            try {
+              const subId = typeof invoice.subscription === 'string'
+                ? invoice.subscription
+                : invoice.subscription.id;
+              const sub = await stripe.subscriptions.retrieve(subId);
+              if (sub.metadata?.type === 'pt_payment_plan') {
+                const passIds = (sub.metadata.pt_pass_ids ?? '')
+                  .split(',').map((s: string) => s.trim()).filter(Boolean);
+                const total = parseInt(sub.metadata.installment_total ?? '0', 10) || 0;
+                if (passIds.length > 0) {
+                  // Increment installments_paid atomically per pass
+                  const { data: rows } = await supabase
+                    .from('pt_passes')
+                    .select('id, payment_plan_installments_paid, payment_plan_total_installments')
+                    .in('id', passIds);
+                  for (const r of (rows ?? [])) {
+                    const paid = (r.payment_plan_installments_paid ?? 0) + 1;
+                    const cap = r.payment_plan_total_installments ?? total;
+                    const done = cap > 0 && paid >= cap;
+                    await supabase.from('pt_passes').update({
+                      payment_plan_installments_paid: paid,
+                      payment_plan_status: done ? 'completed' : 'active',
+                    }).eq('id', r.id);
+                  }
+                  logStep('PT payment plan installment recorded', { subId, passIds, total });
+                }
+                return successResponse({ pt_payment_plan: true, subId });
+              }
+            } catch (ptPlanErr) {
+              logError(ptPlanErr, 'PT_PAYMENT_PLAN_SUCCEEDED');
+            }
+          }
+
           const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
           const charge = invoice.charge as Stripe.Charge | string | null;
           let paymentIntentId: string | null = null;
