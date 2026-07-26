@@ -516,16 +516,29 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 <span>{quantity} × {selectedPack.name}</span>
                 <span>{formatCents(subtotalCents)}</span>
               </div>
-              {willCharge && (
+              {willCharge && !planActive && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Processing fee (2.9% + $0.30)</span>
                   <span>{formatCents(processingFeeCents)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-semibold text-base pt-1 border-t">
-                <span>{willCharge ? "Total to charge" : "Total"}</span>
-                <span>{formatCents(totalCents)}</span>
-              </div>
+              {planActive ? (
+                <>
+                  <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                    <span>Monthly (× {planMonths})</span>
+                    <span>{formatCents(perInstallmentCents)}/mo</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    First installment charges today. Auto-cancels after {planMonths} payments.
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                  <span>{willCharge ? "Total to charge" : "Total"}</span>
+                  <span>{formatCents(totalCents)}</span>
+                </div>
+              )}
+
             </div>
           )}
 
