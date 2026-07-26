@@ -179,7 +179,13 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   // ----- Totals -----
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
-  const processingFeeCents = willCharge ? calculateProcessingFee(subtotalCents) : 0;
+  const planEligible = !!selectedPack?.allow_payment_plan && !!selectedPack?.payment_plan_months && (selectedPack?.payment_plan_months ?? 0) >= 2;
+  const planActive = willCharge && usePaymentPlan && planEligible;
+  const planMonths = selectedPack?.payment_plan_months ?? 0;
+  const perInstallmentCents = planActive && planMonths > 0
+    ? Math.ceil(subtotalCents / planMonths)
+    : 0;
+  const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
 
   function reset() {
@@ -195,6 +201,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setSelectedCardId("");
     setAdminNotes("");
     setChargeError(null);
+    setUsePaymentPlan(false);
   }
 
   async function insertPasses(opts: {
