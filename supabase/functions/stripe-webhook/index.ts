@@ -2119,6 +2119,28 @@ serve(async (req) => {
           const subscription = event.data.object as Stripe.Subscription;
           logStep("Subscription deleted", { subscriptionId: subscription.id });
 
+          // ── PT payment plan: cancelled or completed ──
+          if (subscription.metadata?.type === 'pt_payment_plan') {
+            const passIds = (subscription.metadata.pt_pass_ids ?? '')
+              .split(',').map((s: string) => s.trim()).filter(Boolean);
+            if (passIds.length > 0) {
+              const { data: rows } = await supabase
+                .from('pt_passes')
+                .select('id, payment_plan_installments_paid, payment_plan_total_installments')
+                .in('id', passIds);
+              for (const r of (rows ?? [])) {
+                const paid = r.payment_plan_installments_paid ?? 0;
+                const total = r.payment_plan_total_installments ?? 0;
+                const complete = total > 0 && paid >= total;
+                await supabase.from('pt_passes').update({
+                  payment_plan_status: complete ? 'completed' : 'cancelled',
+                }).eq('id', r.id);
+              }
+            }
+            return successResponse({ pt_payment_plan_ended: true, subId: subscription.id });
+          }
+
+
           // Find member by membership subscription ID first
           let memberData: { id: string; stripe_subscription_id?: string | null } | null = null;
           let isAnnualFeeSubscription = false;
