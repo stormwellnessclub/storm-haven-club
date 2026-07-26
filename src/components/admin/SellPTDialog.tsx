@@ -15,6 +15,12 @@ import { addDays, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
 import { calculateProcessingFee } from "@/lib/processingFee";
 
+type PtPackExt = PtPack & {
+  allow_payment_plan?: boolean;
+  payment_plan_months?: number | null;
+  payment_plan_stripe_price_id?: string | null;
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
