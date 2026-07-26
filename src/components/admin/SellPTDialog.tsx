@@ -62,6 +62,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [adminNotes, setAdminNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
+  const [usePaymentPlan, setUsePaymentPlan] = useState(false);
 
   useEffect(() => {
     if (presetUserId) {
