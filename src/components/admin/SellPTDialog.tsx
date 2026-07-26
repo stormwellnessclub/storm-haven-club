@@ -554,7 +554,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
+            {planActive
+              ? `Start plan · ${formatCents(perInstallmentCents)}/mo × ${planMonths}`
+              : willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
           </Button>
         </DialogFooter>
       </DialogContent>
