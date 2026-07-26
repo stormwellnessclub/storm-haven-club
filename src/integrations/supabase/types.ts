@@ -6471,6 +6471,7 @@ export type Database = {
       }
       pt_packs: {
         Row: {
+          allow_payment_plan: boolean
           created_at: string
           display_order: number
           expiration_days: number
@@ -6480,11 +6481,14 @@ export type Database = {
           is_public: boolean
           name: string
           notes: string | null
+          payment_plan_months: number | null
+          payment_plan_stripe_price_id: string | null
           price_cents: number
           sessions: number
           updated_at: string
         }
         Insert: {
+          allow_payment_plan?: boolean
           created_at?: string
           display_order?: number
           expiration_days: number
@@ -6494,11 +6498,14 @@ export type Database = {
           is_public?: boolean
           name: string
           notes?: string | null
+          payment_plan_months?: number | null
+          payment_plan_stripe_price_id?: string | null
           price_cents: number
           sessions: number
           updated_at?: string
         }
         Update: {
+          allow_payment_plan?: boolean
           created_at?: string
           display_order?: number
           expiration_days?: number
@@ -6508,6 +6515,8 @@ export type Database = {
           is_public?: boolean
           name?: string
           notes?: string | null
+          payment_plan_months?: number | null
+          payment_plan_stripe_price_id?: string | null
           price_cents?: number
           sessions?: number
           updated_at?: string
@@ -6525,6 +6534,10 @@ export type Database = {
           pack_id: string | null
           pack_name: string
           payment_method: string | null
+          payment_plan_installments_paid: number
+          payment_plan_status: string
+          payment_plan_subscription_id: string | null
+          payment_plan_total_installments: number | null
           price_cents_charged: number
           sessions_remaining: number
           sessions_total: number
@@ -6544,6 +6557,10 @@ export type Database = {
           pack_id?: string | null
           pack_name: string
           payment_method?: string | null
+          payment_plan_installments_paid?: number
+          payment_plan_status?: string
+          payment_plan_subscription_id?: string | null
+          payment_plan_total_installments?: number | null
           price_cents_charged?: number
           sessions_remaining: number
           sessions_total: number
@@ -6563,6 +6580,10 @@ export type Database = {
           pack_id?: string | null
           pack_name?: string
           payment_method?: string | null
+          payment_plan_installments_paid?: number
+          payment_plan_status?: string
+          payment_plan_subscription_id?: string | null
+          payment_plan_total_installments?: number | null
           price_cents_charged?: number
           sessions_remaining?: number
           sessions_total?: number
@@ -9504,6 +9525,7 @@ export type Database = {
         Args: { _class_type_id: string; _force?: boolean }
         Returns: Json
       }
+      delete_pt_pack: { Args: { p_pack_id: string }; Returns: Json }
       effective_waiver_status: {
         Args: { _user_ids: string[] }
         Returns: {

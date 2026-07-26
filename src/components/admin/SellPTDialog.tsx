@@ -15,6 +15,12 @@ import { addDays, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
 import { calculateProcessingFee } from "@/lib/processingFee";
 
+type PtPackExt = PtPack & {
+  allow_payment_plan?: boolean;
+  payment_plan_months?: number | null;
+  payment_plan_stripe_price_id?: string | null;
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,6 +62,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [adminNotes, setAdminNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
+  const [usePaymentPlan, setUsePaymentPlan] = useState(false);
 
   useEffect(() => {
     if (presetUserId) {
@@ -75,7 +82,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         .order("format")
         .order("display_order");
       if (error) throw error;
-      return (data ?? []) as PtPack[];
+      return (data ?? []) as PtPackExt[];
     },
   });
 
@@ -172,7 +179,13 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   // ----- Totals -----
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
-  const processingFeeCents = willCharge ? calculateProcessingFee(subtotalCents) : 0;
+  const planEligible = !!selectedPack?.allow_payment_plan && !!selectedPack?.payment_plan_months && (selectedPack?.payment_plan_months ?? 0) >= 2;
+  const planActive = willCharge && usePaymentPlan && planEligible;
+  const planMonths = selectedPack?.payment_plan_months ?? 0;
+  const perInstallmentCents = planActive && planMonths > 0
+    ? Math.ceil(subtotalCents / planMonths)
+    : 0;
+  const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
 
   function reset() {
@@ -188,6 +201,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setSelectedCardId("");
     setAdminNotes("");
     setChargeError(null);
+    setUsePaymentPlan(false);
   }
 
   async function insertPasses(opts: {
@@ -210,7 +224,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       payment_method: opts.paymentMethod,
       stripe_payment_intent_id: opts.stripePaymentIntentId ?? null,
       sold_by_admin_id: adminUser?.id ?? null,
-      notes: adminNotes || null,
+      adminNotes: adminNotes || null,
     }));
     const { error } = await (supabase as any).from("pt_passes").insert(rows);
     if (error) throw error;
@@ -227,7 +241,26 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
     setSubmitting(true);
     try {
-      if (paymentChoice === "card_on_file") {
+      if (paymentChoice === "card_on_file" && planActive) {
+        const { data, error } = await supabase.functions.invoke("admin-create-pt-payment-plan", {
+          body: {
+            userId: selectedUserId,
+            packId: selectedPack.id,
+            quantity,
+            paymentMethodId: selectedCardId,
+            activatedAt,
+            expiresAt,
+            adminNotes: adminNotes || null,
+          },
+        });
+        if (error) throw error;
+        if (!(data as any)?.success) {
+          setChargeError((data as any)?.error || "Payment plan setup failed");
+          setSubmitting(false);
+          return;
+        }
+        toast.success(`Payment plan started — ${planMonths} × ${formatCents(perInstallmentCents)}`);
+      } else if (paymentChoice === "card_on_file") {
         const description = `Personal Training: ${quantity} × ${selectedPack.name}`;
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
           body: {
@@ -260,6 +293,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         await insertPasses({ paymentMethod: paymentChoice });
         toast.success(`Sold ${quantity} × ${selectedPack.name}`);
       }
+
 
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
@@ -438,7 +472,26 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                 </label>
 
+                {planEligible && paymentChoice === "card_on_file" && (
+                  <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ml-6 ${planActive ? "border-emerald-600 bg-emerald-500/5" : ""}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={usePaymentPlan}
+                      onChange={(e) => setUsePaymentPlan(e.target.checked)}
+                      disabled={cards.length === 0}
+                    />
+                    <div className="text-sm">
+                      <div className="font-medium">Split into {planMonths} monthly payments</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Auto-charges the card on file each month; ends automatically after the final installment.
+                      </div>
+                    </div>
+                  </label>
+                )}
+
                 <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "offline" ? "border-primary bg-primary/5" : ""}`}>
+
                   <RadioGroupItem value="offline" className="mt-1" />
                   <div className="text-sm">Paid offline / in person</div>
                 </label>
@@ -463,16 +516,29 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 <span>{quantity} × {selectedPack.name}</span>
                 <span>{formatCents(subtotalCents)}</span>
               </div>
-              {willCharge && (
+              {willCharge && !planActive && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Processing fee (2.9% + $0.30)</span>
                   <span>{formatCents(processingFeeCents)}</span>
                 </div>
               )}
-              <div className="flex justify-between font-semibold text-base pt-1 border-t">
-                <span>{willCharge ? "Total to charge" : "Total"}</span>
-                <span>{formatCents(totalCents)}</span>
-              </div>
+              {planActive ? (
+                <>
+                  <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                    <span>Monthly (× {planMonths})</span>
+                    <span>{formatCents(perInstallmentCents)}/mo</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    First installment charges today. Auto-cancels after {planMonths} payments.
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between font-semibold text-base pt-1 border-t">
+                  <span>{willCharge ? "Total to charge" : "Total"}</span>
+                  <span>{formatCents(totalCents)}</span>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -488,7 +554,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
+            {planActive
+              ? `Start plan · ${formatCents(perInstallmentCents)}/mo × ${planMonths}`
+              : willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
           </Button>
         </DialogFooter>
       </DialogContent>

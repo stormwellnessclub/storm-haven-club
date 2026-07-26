@@ -2119,6 +2119,28 @@ serve(async (req) => {
           const subscription = event.data.object as Stripe.Subscription;
           logStep("Subscription deleted", { subscriptionId: subscription.id });
 
+          // ── PT payment plan: cancelled or completed ──
+          if (subscription.metadata?.type === 'pt_payment_plan') {
+            const passIds = (subscription.metadata.pt_pass_ids ?? '')
+              .split(',').map((s: string) => s.trim()).filter(Boolean);
+            if (passIds.length > 0) {
+              const { data: rows } = await supabase
+                .from('pt_passes')
+                .select('id, payment_plan_installments_paid, payment_plan_total_installments')
+                .in('id', passIds);
+              for (const r of (rows ?? [])) {
+                const paid = r.payment_plan_installments_paid ?? 0;
+                const total = r.payment_plan_total_installments ?? 0;
+                const complete = total > 0 && paid >= total;
+                await supabase.from('pt_passes').update({
+                  payment_plan_status: complete ? 'completed' : 'cancelled',
+                }).eq('id', r.id);
+              }
+            }
+            return successResponse({ pt_payment_plan_ended: true, subId: subscription.id });
+          }
+
+
           // Find member by membership subscription ID first
           let memberData: { id: string; stripe_subscription_id?: string | null } | null = null;
           let isAnnualFeeSubscription = false;
@@ -2217,6 +2239,41 @@ serve(async (req) => {
             customerId: invoice.customer,
             subscriptionId: invoice.subscription
           });
+
+          // ── PT payment plan handling (installment subscriptions) ──
+          if (invoice.subscription) {
+            try {
+              const subId = typeof invoice.subscription === 'string'
+                ? invoice.subscription
+                : invoice.subscription.id;
+              const sub = await stripe.subscriptions.retrieve(subId);
+              if (sub.metadata?.type === 'pt_payment_plan') {
+                const passIds = (sub.metadata.pt_pass_ids ?? '')
+                  .split(',').map((s: string) => s.trim()).filter(Boolean);
+                const total = parseInt(sub.metadata.installment_total ?? '0', 10) || 0;
+                if (passIds.length > 0) {
+                  // Increment installments_paid atomically per pass
+                  const { data: rows } = await supabase
+                    .from('pt_passes')
+                    .select('id, payment_plan_installments_paid, payment_plan_total_installments')
+                    .in('id', passIds);
+                  for (const r of (rows ?? [])) {
+                    const paid = (r.payment_plan_installments_paid ?? 0) + 1;
+                    const cap = r.payment_plan_total_installments ?? total;
+                    const done = cap > 0 && paid >= cap;
+                    await supabase.from('pt_passes').update({
+                      payment_plan_installments_paid: paid,
+                      payment_plan_status: done ? 'completed' : 'active',
+                    }).eq('id', r.id);
+                  }
+                  logStep('PT payment plan installment recorded', { subId, passIds, total });
+                }
+                return successResponse({ pt_payment_plan: true, subId });
+              }
+            } catch (ptPlanErr) {
+              logError(ptPlanErr, 'PT_PAYMENT_PLAN_SUCCEEDED');
+            }
+          }
 
           const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
           const charge = invoice.charge as Stripe.Charge | string | null;
@@ -3008,6 +3065,28 @@ serve(async (req) => {
             logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
             break;
           }
+
+          // ── PT payment plan: mark past_due on failed installment ──
+          try {
+            const subId = typeof invoice.subscription === 'string'
+              ? invoice.subscription
+              : (invoice.subscription as any).id;
+            const sub = await stripe.subscriptions.retrieve(subId);
+            if (sub.metadata?.type === 'pt_payment_plan') {
+              const passIds = (sub.metadata.pt_pass_ids ?? '')
+                .split(',').map((s: string) => s.trim()).filter(Boolean);
+              if (passIds.length > 0) {
+                await supabase.from('pt_passes')
+                  .update({ payment_plan_status: 'past_due' })
+                  .in('id', passIds);
+              }
+              logStep('PT payment plan installment FAILED', { subId, passIds });
+              return successResponse({ pt_payment_plan_failed: true, subId });
+            }
+          } catch (ptPlanErr) {
+            logError(ptPlanErr, 'PT_PAYMENT_PLAN_FAILED');
+          }
+
 
           const { memberData, subscriptionType, memberError } = await resolveSubscriptionInvoiceMember(
             supabase,
