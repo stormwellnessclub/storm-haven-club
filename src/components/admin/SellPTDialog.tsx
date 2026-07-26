@@ -241,7 +241,26 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
     setSubmitting(true);
     try {
-      if (paymentChoice === "card_on_file") {
+      if (paymentChoice === "card_on_file" && planActive) {
+        const { data, error } = await supabase.functions.invoke("admin-create-pt-payment-plan", {
+          body: {
+            userId: selectedUserId,
+            packId: selectedPack.id,
+            quantity,
+            paymentMethodId: selectedCardId,
+            activatedAt,
+            expiresAt,
+            notes: adminNotes || null,
+          },
+        });
+        if (error) throw error;
+        if (!(data as any)?.success) {
+          setChargeError((data as any)?.error || "Payment plan setup failed");
+          setSubmitting(false);
+          return;
+        }
+        toast.success(`Payment plan started — ${planMonths} × ${formatCents(perInstallmentCents)}`);
+      } else if (paymentChoice === "card_on_file") {
         const description = `Personal Training: ${quantity} × ${selectedPack.name}`;
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
           body: {
@@ -274,6 +293,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         await insertPasses({ paymentMethod: paymentChoice });
         toast.success(`Sold ${quantity} × ${selectedPack.name}`);
       }
+
 
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
