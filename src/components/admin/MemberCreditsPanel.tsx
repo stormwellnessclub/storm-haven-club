@@ -140,7 +140,8 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
         previous_balance: prev,
         new_balance: next,
         reason: adjustReason || (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
-        adjusted_by: authUser.id,
+        adjusted_by: authUser!.id,
+
       });
       if (logError) throw logError;
       return { prev, next };
