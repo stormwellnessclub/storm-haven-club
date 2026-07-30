@@ -302,6 +302,61 @@ export default function MemberWellness() {
            open={bookingOpen}
            onOpenChange={setBookingOpen}
          />
+
+         {/* Ozone Sauna request */}
+         <Dialog open={ozoneOpen} onOpenChange={setOzoneOpen}>
+           <DialogContent className="sm:max-w-md">
+             <DialogHeader>
+               <DialogTitle>Request an Ozone Sauna Appointment</DialogTitle>
+               <DialogDescription>
+                 Leave your name and number and we'll call you to go over everything and confirm a time.
+               </DialogDescription>
+             </DialogHeader>
+             <div className="space-y-4">
+               <div className="space-y-2">
+                 <Label htmlFor="oz-name">Name</Label>
+                 <Input id="oz-name" value={ozoneName} onChange={(e) => setOzoneName(e.target.value)} maxLength={100} />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-phone">Phone <span className="text-destructive">*</span></Label>
+                 <Input
+                   id="oz-phone"
+                   type="tel"
+                   value={ozonePhone}
+                   onChange={(e) => setOzonePhone(e.target.value)}
+                   placeholder="(313) 555-0123"
+                   maxLength={25}
+                 />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-email">Email</Label>
+                 <Input id="oz-email" type="email" value={ozoneEmail} onChange={(e) => setOzoneEmail(e.target.value)} maxLength={255} />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-pref">Preferred day & time</Label>
+                 <Input
+                   id="oz-pref"
+                   value={ozonePreferred}
+                   onChange={(e) => setOzonePreferred(e.target.value)}
+                   placeholder="e.g. Saturday afternoon"
+                   maxLength={120}
+                 />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-msg">Anything we should know?</Label>
+                 <Textarea id="oz-msg" value={ozoneMessage} onChange={(e) => setOzoneMessage(e.target.value)} rows={3} maxLength={1000} />
+               </div>
+               <Button
+                 className="w-full"
+                 disabled={ozoneSubmitting || !ozoneName.trim() || !ozoneEmail.trim() || ozonePhone.trim().length < 7}
+                 onClick={submitOzoneRequest}
+               >
+                 {ozoneSubmitting ? "Submitting…" : "Send Request"}
+               </Button>
+             </div>
+           </DialogContent>
+         </Dialog>
+
        </div>
      </MemberLayout>
    );
