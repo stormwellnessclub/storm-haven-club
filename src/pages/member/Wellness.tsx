@@ -63,6 +63,17 @@ export default function MemberWellness() {
   const { data: services, isLoading: servicesLoading } = useWellnessServices();
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const { profile } = useUserProfile();
+  const { user } = useAuth();
+
+  // Ozone Sauna request state (request-only: staff call to confirm)
+  const [ozoneOpen, setOzoneOpen] = useState(false);
+  const [ozoneName, setOzoneName] = useState("");
+  const [ozonePhone, setOzonePhone] = useState("");
+  const [ozoneEmail, setOzoneEmail] = useState("");
+  const [ozonePreferred, setOzonePreferred] = useState("");
+  const [ozoneMessage, setOzoneMessage] = useState("");
+  const [ozoneSubmitting, setOzoneSubmitting] = useState(false);
 
   const isLoading = creditsLoading || servicesLoading;
  
@@ -71,6 +82,7 @@ export default function MemberWellness() {
      apt.status === "confirmed" && 
      (apt.service_name?.toLowerCase().includes("red light") || 
       apt.service_name?.toLowerCase().includes("cryo") ||
+      apt.service_name?.toLowerCase().includes("ozone") ||
       apt.service_name?.toLowerCase().includes("zerobody"))
    ) || [];
  
@@ -79,6 +91,51 @@ export default function MemberWellness() {
      setSelectedService(service);
      setBookingOpen(true);
    };
+
+   const openOzoneRequest = () => {
+     setOzoneName(
+       [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
+         (user?.user_metadata?.first_name
+           ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ""}`.trim()
+           : "")
+     );
+     setOzonePhone((profile as any)?.phone || "");
+     setOzoneEmail(user?.email || (profile as any)?.email || "");
+     setOzonePreferred("");
+     setOzoneMessage("");
+     setOzoneOpen(true);
+   };
+
+   const submitOzoneRequest = async () => {
+     if (!ozoneName.trim() || !ozoneEmail.trim()) {
+       toast.error("Please add your name and email.");
+       return;
+     }
+     if (ozonePhone.trim().length < 7) {
+       toast.error("A phone number is required — we call to go over details before your session.");
+       return;
+     }
+     setOzoneSubmitting(true);
+     try {
+       const { error } = await supabase.from("spa_service_requests").insert({
+         name: ozoneName.trim(),
+         email: ozoneEmail.trim(),
+         phone: ozonePhone.trim(),
+         preferred_time: ozonePreferred.trim() || null,
+         service_name: "Ozone Sauna",
+         service_category: "Recovery",
+         message: ozoneMessage.trim() || null,
+       });
+       if (error) throw error;
+       toast.success("Request received — we'll call you to confirm your appointment.");
+       setOzoneOpen(false);
+     } catch (err: any) {
+       toast.error("Failed to submit request: " + err.message);
+     } finally {
+       setOzoneSubmitting(false);
+     }
+   };
+ 
  
    if (isLoading) {
      return (
