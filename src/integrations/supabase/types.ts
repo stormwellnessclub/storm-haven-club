@@ -2676,6 +2676,7 @@ export type Database = {
           notes: string | null
           payment_method: string
           payment_reference: string | null
+          purchase_source: string
           purchaser_email: string | null
           purchaser_member_id: string | null
           purchaser_name: string | null
@@ -2683,7 +2684,9 @@ export type Database = {
           recipient_email: string
           recipient_name: string
           scheduled_send_at: string | null
+          service_label: string | null
           status: string
+          stripe_payment_intent_id: string | null
           updated_at: string
         }
         Insert: {
@@ -2701,6 +2704,7 @@ export type Database = {
           notes?: string | null
           payment_method: string
           payment_reference?: string | null
+          purchase_source?: string
           purchaser_email?: string | null
           purchaser_member_id?: string | null
           purchaser_name?: string | null
@@ -2708,7 +2712,9 @@ export type Database = {
           recipient_email: string
           recipient_name: string
           scheduled_send_at?: string | null
+          service_label?: string | null
           status?: string
+          stripe_payment_intent_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -2726,6 +2732,7 @@ export type Database = {
           notes?: string | null
           payment_method?: string
           payment_reference?: string | null
+          purchase_source?: string
           purchaser_email?: string | null
           purchaser_member_id?: string | null
           purchaser_name?: string | null
@@ -2733,7 +2740,9 @@ export type Database = {
           recipient_email?: string
           recipient_name?: string
           scheduled_send_at?: string | null
+          service_label?: string | null
           status?: string
+          stripe_payment_intent_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -9344,6 +9353,56 @@ export type Database = {
           photo_url: string
         }[]
       }
+      admin_gift_card_redemptions: {
+        Args: { p_gift_card_id: string }
+        Returns: {
+          amount_cents: number
+          applied_to_id: string
+          applied_to_type: string
+          balance_after_cents: number
+          created_at: string
+          id: string
+          notes: string
+          redeemed_by_name: string
+        }[]
+      }
+      admin_gift_card_search: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_source?: string
+          p_status?: string
+          p_to?: string
+        }
+        Returns: {
+          amount_cents: number
+          balance_cents: number
+          code: string
+          created_at: string
+          custom_message: string
+          delivered_at: string
+          derived_status: string
+          email_sent_at: string
+          expires_at: string
+          first_redeemed_at: string
+          id: string
+          notes: string
+          payment_method: string
+          purchase_source: string
+          purchaser_email: string
+          purchaser_name: string
+          recipient_email: string
+          recipient_name: string
+          redeemed_cents: number
+          redemption_count: number
+          scheduled_send_at: string
+          service_label: string
+          status: string
+          total_count: number
+        }[]
+      }
       admin_grant_instructor_portal: {
         Args: { _instructor_id: string }
         Returns: Json
@@ -9359,6 +9418,16 @@ export type Database = {
       admin_set_staff_pin: {
         Args: { _pin: string; _staff_user_id: string }
         Returns: undefined
+      }
+      admin_update_gift_card: {
+        Args: {
+          p_clear_expiry?: boolean
+          p_expires_at?: string
+          p_gift_card_id: string
+          p_notes?: string
+          p_void?: boolean
+        }
+        Returns: Json
       }
       award_class_milestones: {
         Args: { p_booking_id: string }
@@ -10124,6 +10193,16 @@ export type Database = {
         }
         Returns: Json
       }
+      redeem_gift_card: {
+        Args: {
+          p_amount_cents: number
+          p_applied_to_id?: string
+          p_applied_to_type?: string
+          p_code: string
+          p_notes?: string
+        }
+        Returns: Json
+      }
       redeem_guest_pass_credit: {
         Args: {
           p_guest_email: string
@@ -10242,6 +10321,7 @@ export type Database = {
         Args: { _notes?: string; _pass_id: string }
         Returns: Json
       }
+      validate_gift_card_code: { Args: { p_code: string }; Returns: Json }
       validate_manager_refund_code: {
         Args: { _code: string }
         Returns: boolean

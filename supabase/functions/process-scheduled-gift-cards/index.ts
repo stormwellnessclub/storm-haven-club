@@ -20,7 +20,7 @@ serve(async (req) => {
   try {
     const { data: due, error } = await supabase
       .from("gift_cards")
-      .select("id, code, amount_cents, recipient_name, recipient_email, custom_message, purchaser_name, expires_at")
+      .select("id, code, amount_cents, recipient_name, recipient_email, custom_message, purchaser_name, expires_at, service_label")
       .eq("status", "scheduled")
       .lte("scheduled_send_at", new Date().toISOString())
       .limit(100);
@@ -43,6 +43,7 @@ serve(async (req) => {
               customMessage: card.custom_message || "",
               code: card.code,
               amount: (Number(card.amount_cents) / 100).toFixed(2),
+              serviceLabel: (card as any).service_label || "",
               expiresAt: card.expires_at,
             },
           },

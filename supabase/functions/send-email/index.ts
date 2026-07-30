@@ -3179,11 +3179,13 @@ serve(async (req) => {
 
               <div style="background: #1C170F; color: #FFF8E7; border-radius: 12px; padding: 28px 24px; margin: 28px 0; text-align: center; font-family: Georgia, serif;">
                 <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Gift Card Value</div>
-                <div style="font-size: 42px; font-weight: 700; margin-bottom: 20px;">$${amountFmt}</div>
+                <div style="font-size: 42px; font-weight: 700; margin-bottom: ${data.serviceLabel ? '6px' : '20px'};">$${amountFmt}</div>
+                ${data.serviceLabel ? `<div style="font-size: 15px; color: #C1B19C; margin-bottom: 20px;">${data.serviceLabel}</div>` : ''}
                 <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Redemption Code</div>
                 <div style="font-size: 22px; font-weight: 700; letter-spacing: 3px; background: #FFF8E7; color: #1C170F; padding: 12px 16px; border-radius: 6px; display: inline-block;">${data.code}</div>
                 ${expiresFmt ? `<div style="font-size: 13px; color: #C1B19C; margin-top: 18px;">Valid through ${expiresFmt}</div>` : ''}
               </div>
+
 
               <h3 style="color: #1C170F; font-family: Georgia, serif; margin-top: 30px;">How to redeem</h3>
               <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
@@ -3204,6 +3206,45 @@ serve(async (req) => {
         `;
         break;
       }
+
+      case 'gift_card_purchase_receipt': {
+        const amountFmt = String(data.amount || '0.00');
+        const sendsOn = data.scheduledSendAt
+          ? new Date(data.scheduledSendAt).toLocaleDateString('en-US', {
+              timeZone: 'America/Detroit',
+              month: 'long', day: 'numeric', year: 'numeric',
+            })
+          : null;
+        subject = `Your gift card purchase — $${amountFmt}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Thank you for your gift</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151;">
+                Hi ${data.purchaserName || 'there'}, your Storm Wellness Club gift card purchase is confirmed.
+              </p>
+              <div style="border: 1px solid #E6DED2; border-radius: 10px; padding: 20px; margin: 24px 0;">
+                <table style="width: 100%; font-size: 15px; color: #374151;">
+                  <tr><td style="padding: 6px 0; color: #88766B;">Amount</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">$${amountFmt}</td></tr>
+                  ${data.serviceLabel ? `<tr><td style="padding: 6px 0; color: #88766B;">Gift</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${data.serviceLabel}</td></tr>` : ''}
+                  <tr><td style="padding: 6px 0; color: #88766B;">Recipient</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${data.recipientName || ''}${data.recipientEmail ? ` (${data.recipientEmail})` : ''}</td></tr>
+                  <tr><td style="padding: 6px 0; color: #88766B;">Code</td><td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: 700;">${data.code || ''}</td></tr>
+                  <tr><td style="padding: 6px 0; color: #88766B;">Delivery</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${sendsOn ? `Scheduled for ${sendsOn}` : 'Sent now'}</td></tr>
+                </table>
+              </div>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/portal/gift-cards" style="${emailStyles.button}">Track this gift card</a>
+              </div>
+              <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
 
       case 'custom_message': {
         subject = String(data?.subject || 'A message from Storm Wellness Club');
