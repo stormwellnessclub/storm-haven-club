@@ -289,10 +289,15 @@ export default function FailedPaymentsHistory() {
             <History className="h-5 w-5" />
             <span className="text-sm">Audit-grade view of every payment attempt across Stripe and the database.</span>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-              Refresh
+          <div className="flex gap-2 items-center">
+            {lastSyncedAt && (
+              <span className="text-xs text-muted-foreground">
+                Synced {format(lastSyncedAt, "MMM d, h:mm a")}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={syncFromStripe} disabled={isFetching || syncing}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching || syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing Stripe…" : "Refresh"}
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportCsv(rows ?? [])} disabled={!rows?.length}>
               <Download className="h-4 w-4 mr-2" />
