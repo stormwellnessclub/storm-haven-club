@@ -78,6 +78,8 @@ export default function Spa() {
   const [requestService, setRequestService] = useState<SpaService | null>(null);
   const [requestName, setRequestName] = useState("");
   const [requestEmail, setRequestEmail] = useState("");
+  const [requestPhone, setRequestPhone] = useState("");
+  const [requestPreferredTime, setRequestPreferredTime] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
