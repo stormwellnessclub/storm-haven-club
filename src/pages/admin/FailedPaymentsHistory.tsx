@@ -161,6 +161,29 @@ export default function FailedPaymentsHistory() {
 
   const { data: rows, isLoading, refetch, isFetching } = useFailedPaymentsHistory(filters);
 
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+
+  // Refresh = pull the latest charges/invoices from Stripe into the DB, then re-read.
+  const syncFromStripe = async () => {
+    setSyncing(true);
+    try {
+      const start = (range.from ?? new Date(Date.now() - 90 * 864e5)).toISOString();
+      const end = (range.to ?? new Date()).toISOString();
+      const { error } = await supabase.functions.invoke("backfill-payment-history", {
+        body: { start, end, phase: "both" },
+      });
+      if (error) throw error;
+      toast.success("Synced latest payments from Stripe");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Stripe sync failed — showing database records");
+    } finally {
+      setSyncing(false);
+      setLastSyncedAt(new Date());
+      await refetch();
+    }
+  };
+
   const reconcileTargetIds = useMemo(
     () =>
       (rows ?? [])
@@ -289,10 +312,15 @@ export default function FailedPaymentsHistory() {
             <History className="h-5 w-5" />
             <span className="text-sm">Audit-grade view of every payment attempt across Stripe and the database.</span>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`} />
-              Refresh
+          <div className="flex gap-2 items-center">
+            {lastSyncedAt && (
+              <span className="text-xs text-muted-foreground">
+                Synced {format(lastSyncedAt, "MMM d, h:mm a")}
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={syncFromStripe} disabled={isFetching || syncing}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isFetching || syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Syncing Stripe…" : "Refresh"}
             </Button>
             <Button variant="outline" size="sm" onClick={() => exportCsv(rows ?? [])} disabled={!rows?.length}>
               <Download className="h-4 w-4 mr-2" />

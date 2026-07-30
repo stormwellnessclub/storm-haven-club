@@ -95,6 +95,10 @@ export function useFailedPaymentsHistory(filters: FailedHistoryFilters) {
 
   return useQuery({
     queryKey: ["failed-payments-history", filters],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       let q = supabase
         .from("payment_attempts")
