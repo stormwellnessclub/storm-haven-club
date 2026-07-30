@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { kioskHeaders } from "@/lib/kiosk";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -591,6 +592,7 @@ export function ChargeItemSelector({
         }
         const { data, error } = await supabase.functions.invoke("stripe-payment", {
           body: chargeBody,
+          headers: kioskHeaders(),
         });
         if (error) throw error;
         if (data?.requires_action && onRequires3DS) {
