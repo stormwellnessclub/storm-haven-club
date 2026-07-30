@@ -161,6 +161,29 @@ export default function FailedPaymentsHistory() {
 
   const { data: rows, isLoading, refetch, isFetching } = useFailedPaymentsHistory(filters);
 
+  const [syncing, setSyncing] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+
+  // Refresh = pull the latest charges/invoices from Stripe into the DB, then re-read.
+  const syncFromStripe = async () => {
+    setSyncing(true);
+    try {
+      const start = (range.from ?? new Date(Date.now() - 90 * 864e5)).toISOString();
+      const end = (range.to ?? new Date()).toISOString();
+      const { error } = await supabase.functions.invoke("backfill-payment-history", {
+        body: { start, end, phase: "both" },
+      });
+      if (error) throw error;
+      toast.success("Synced latest payments from Stripe");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Stripe sync failed — showing database records");
+    } finally {
+      setSyncing(false);
+      setLastSyncedAt(new Date());
+      await refetch();
+    }
+  };
+
   const reconcileTargetIds = useMemo(
     () =>
       (rows ?? [])
