@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isKioskMode } from "@/lib/kiosk";
+
 import { toast } from "sonner";
 import { CafeOrder } from "./useCafeOrder";
 
