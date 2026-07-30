@@ -191,6 +191,8 @@ import PortalSupport from "@/pages/portal/Support";
 import PortalRecovery from "@/pages/portal/Recovery";
 import PortalMyEventTickets from "@/pages/portal/MyEventTickets";
 import PortalGiftCards from "@/pages/portal/GiftCards";
+import GiftCardStore from "@/pages/GiftCardStore";
+import AdminGiftCardHub from "@/pages/admin/GiftCardHub";
 
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
@@ -257,6 +259,7 @@ const App = () => (
               <Route path="/gut-reset" element={<GutReset />} />
               <Route path="/gut-reset/success" element={<GutResetSuccess />} />
               <Route path="/cafe" element={<Cafe />} />
+              <Route path="/gift-cards" element={<GiftCardStore />} />
               <Route path="/amenities" element={<Amenities />} />
               <Route path="/recovery-guide" element={<RecoveryGuide />} />
               <Route path="/kids-care" element={<KidsCare />} />
@@ -432,6 +435,7 @@ const App = () => (
               <Route path="/admin/spa-management" element={<ProtectedAdminRoute><SpaManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/gut-reset" element={<ProtectedAdminRoute><GutResetAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day" element={<ProtectedAdminRoute><MothersDayAdmin /></ProtectedAdminRoute>} />
+              <Route path="/admin/gift-cards" element={<ProtectedAdminRoute><AdminGiftCardHub /></ProtectedAdminRoute>} />
               <Route path="/admin/mothers-day-class-packs" element={<ProtectedAdminRoute><MothersDayClassPacks /></ProtectedAdminRoute>} />
               <Route path="/admin/abandoned-class-pass-checkouts" element={<ProtectedAdminRoute><AbandonedClassPassCheckouts /></ProtectedAdminRoute>} />
               <Route path="/admin/training-requests" element={<ProtectedAdminRoute><AdminTrainingRequests /></ProtectedAdminRoute>} />
