@@ -67,8 +67,15 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
 
   // ── Device gate (shared with /kiosk/*)
   useEffect(() => {
-    if (sessionStorage.getItem("kioskUnlocked") === "true") setDeviceUnlocked(true);
+    // Require the PIN itself to be cached — staff actions (charges) present it
+    // to edge functions since there's no Supabase session in front desk mode.
+    if (sessionStorage.getItem("kioskUnlocked") === "true" && getKioskPin()) {
+      setDeviceUnlocked(true);
+    } else {
+      sessionStorage.removeItem("kioskUnlocked");
+    }
   }, []);
+
 
   // ── Shift restore
   useEffect(() => {
