@@ -31,6 +31,35 @@ export function setKioskPin(pin: string) {
   }
 }
 
+/**
+ * Exchanges the kiosk PIN for a real, role-limited (front_desk) Supabase
+ * session so RLS-protected reads/writes work on the PIN-gated device.
+ */
+export async function startKioskSession(pin: string): Promise<boolean> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data, error } = await supabase.functions.invoke("kiosk-session", {
+      body: { pin },
+    });
+    if (error || !data?.access_token) {
+      console.error("kiosk-session failed", error || data);
+      return false;
+    }
+    const { error: sessErr } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+    if (sessErr) {
+      console.error("kiosk setSession failed", sessErr);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error("kiosk-session error", e);
+    return false;
+  }
+}
+
 /** Headers to attach to `supabase.functions.invoke` while in kiosk mode. */
 export function kioskHeaders(): Record<string, string> {
   const pin = getKioskPin();
