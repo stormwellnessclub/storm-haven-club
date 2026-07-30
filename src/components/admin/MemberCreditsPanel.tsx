@@ -441,7 +441,7 @@ function BookOnBehalfDialog({
 
   const bookMutation = useMutation({
     mutationFn: async () => {
-      if (!authUser?.id) throw new Error("You must be signed in.");
+      const kiosk = isKioskMode() || !authUser?.id;
       const target = credits.find((c) => c.credit_type === creditType && c.credits_remaining > 0);
       if (!target) throw new Error("No available credit of this type");
 
@@ -464,6 +464,18 @@ function BookOnBehalfDialog({
       // red_light / dry_cryo: deduct + audit
       const prev = target.credits_remaining;
       const next = prev - 1;
+      const reason = `Front desk booked ${CREDIT_TYPE_LABELS[creditType]} session${notes ? ` — ${notes}` : ""}`;
+
+      if (kiosk) {
+        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+          p_credit_id: target.id,
+          p_delta: -1,
+          p_reason: reason,
+        });
+        if (error) throw error;
+        return { kind: creditType };
+      }
+
       const { error: updateError } = await supabase
         .from("member_credits")
         .update({ credits_remaining: next })
@@ -478,9 +490,11 @@ function BookOnBehalfDialog({
         amount: 1,
         previous_balance: prev,
         new_balance: next,
-        reason: `Front desk booked ${CREDIT_TYPE_LABELS[creditType]} session${notes ? ` — ${notes}` : ""}`,
-        adjusted_by: authUser.id,
+        reason,
+        adjusted_by: authUser!.id,
       });
+      if (logError) throw logError;
+
       if (logError) throw logError;
       return { kind: creditType };
     },
