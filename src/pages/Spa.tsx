@@ -204,6 +204,9 @@ export default function Spa() {
     }
   };
 
+  // Services that require a phone consultation before we can confirm a time
+  const isConsultRequestService = (service: SpaService) => /ozone/i.test(service.name);
+
   // Handle "Request" for non-Massage/non-Recovery categories
   const handleRequestService = (service: SpaService) => {
     setRequestService(service);
@@ -213,13 +216,21 @@ export default function Spa() {
         ? `${memberProfile.first_name} ${memberProfile.last_name || ""}`.trim()
         : "");
     setRequestEmail(user?.email || "");
+    setRequestPhone(memberProfile?.phone || (user?.user_metadata?.phone as string) || "");
+    setRequestPreferredTime("");
     setRequestMessage(`I'm interested in booking: ${service.name}`);
     setShowRequestModal(true);
   };
 
+  const requiresPhone = requestService ? isConsultRequestService(requestService) : false;
+
   const handleSubmitRequest = async () => {
     if (!requestName.trim() || !requestEmail.trim()) {
       toast.error("Please fill in your name and email.");
+      return;
+    }
+    if (requiresPhone && requestPhone.trim().length < 7) {
+      toast.error("Please enter a phone number — we need to call you before this appointment.");
       return;
     }
 
@@ -228,6 +239,8 @@ export default function Spa() {
       const { error } = await supabase.from("spa_service_requests").insert({
         name: requestName.trim(),
         email: requestEmail.trim(),
+        phone: requestPhone.trim() || null,
+        preferred_time: requestPreferredTime.trim() || null,
         service_name: requestService?.name || "",
         service_category: requestService?.category || "",
         message: requestMessage.trim() || null,
@@ -235,7 +248,11 @@ export default function Spa() {
 
       if (error) throw error;
 
-      toast.success("We'll be in touch soon!");
+      toast.success(
+        requiresPhone
+          ? "Request received — we'll call you to confirm your appointment."
+          : "We'll be in touch soon!"
+      );
       setShowRequestModal(false);
       setRequestService(null);
     } catch (err: any) {
@@ -244,6 +261,7 @@ export default function Spa() {
       setIsSubmittingRequest(false);
     }
   };
+
 
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
