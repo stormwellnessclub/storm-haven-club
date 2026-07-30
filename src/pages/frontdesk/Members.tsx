@@ -33,21 +33,36 @@ export default function FrontDeskMembersPage() {
     const t = setTimeout(async () => {
       const esc = q.replace(/[%,]/g, "");
       const like = `%${esc}%`;
-      const { data, error } = await supabase
-        .from("members")
-        .select(`
+      const select = `
           id, member_id, first_name, last_name, email, phone,
           membership_type, status, subscription_status,
           membership_start_date, membership_end_date, billing_type,
           gender, is_founding_member, stripe_customer_id, stripe_subscription_id,
           annual_fee_paid_at, annual_fee_subscription_id, created_at,
           card_brand, card_last4, card_exp_month, card_exp_year, user_id
-        `)
+        `;
+      let req = supabase
+        .from("members")
+        .select(select)
         .or(
           `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},member_id.ilike.${like},phone.ilike.${like}`
-        )
+        );
+
+      // Full-name searches ("Mariam Hammoud") match no single column, so split
+      // the query into tokens and require first/last name to match each part.
+      const parts = esc.split(/\s+/).filter(Boolean);
+      if (parts.length > 1) {
+        req = supabase
+          .from("members")
+          .select(select)
+          .ilike("first_name", `%${parts[0]}%`)
+          .ilike("last_name", `%${parts.slice(1).join(" ")}%`);
+      }
+
+      const { data, error } = await req
         .order("last_name", { ascending: true })
         .limit(25);
+
       if (cancelled) return;
       setResults(error ? [] : data || []);
       setLoading(false);
