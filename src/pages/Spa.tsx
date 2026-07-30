@@ -749,10 +749,12 @@ export default function Spa() {
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Request a Service</DialogTitle>
+            <DialogTitle>{requiresPhone ? "Request an Appointment" : "Request a Service"}</DialogTitle>
             <DialogDescription>
               {requestService
-                ? `Inquire about ${requestService.name}. We'll reach out to schedule your appointment.`
+                ? requiresPhone
+                  ? `${requestService.name} is booked by phone — leave your name and number and we'll call you to go over everything and confirm a time.`
+                  : `Inquire about ${requestService.name}. We'll reach out to schedule your appointment.`
                 : "Tell us what you're interested in."}
             </DialogDescription>
           </DialogHeader>
@@ -768,6 +770,17 @@ export default function Spa() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="req-phone">Phone {requiresPhone && <span className="text-destructive">*</span>}</Label>
+              <Input
+                id="req-phone"
+                type="tel"
+                value={requestPhone}
+                onChange={(e) => setRequestPhone(e.target.value)}
+                placeholder="(313) 555-0123"
+                maxLength={25}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="req-email">Email</Label>
               <Input
                 id="req-email"
@@ -776,6 +789,16 @@ export default function Spa() {
                 onChange={(e) => setRequestEmail(e.target.value)}
                 placeholder="you@example.com"
                 maxLength={255}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="req-preferred">Preferred day & time</Label>
+              <Input
+                id="req-preferred"
+                value={requestPreferredTime}
+                onChange={(e) => setRequestPreferredTime(e.target.value)}
+                placeholder="e.g. Saturday afternoon"
+                maxLength={120}
               />
             </div>
             <div className="space-y-2">
@@ -792,11 +815,17 @@ export default function Spa() {
             <Button
               className="w-full"
               variant="gold"
-              disabled={isSubmittingRequest || !requestName.trim() || !requestEmail.trim()}
+              disabled={
+                isSubmittingRequest ||
+                !requestName.trim() ||
+                !requestEmail.trim() ||
+                (requiresPhone && requestPhone.trim().length < 7)
+              }
               onClick={handleSubmitRequest}
             >
               {isSubmittingRequest ? "Submitting…" : "Send Request"}
             </Button>
+
           </div>
         </DialogContent>
       </Dialog>
