@@ -1,68 +1,46 @@
-## 1. Delete PT packs from pricing
+# Gift Cards: Public Purchase, Redemption & Tracking
 
-In `src/pages/admin/PersonalTrainingPacks.tsx`, add a **Delete** button next to Edit on each pack row.
+Builds on the existing gift card system (codes, scheduled delivery, member "My Gift Cards" page, admin sale from a member profile) by adding a real storefront, a code-redemption path, and a full admin tracking hub.
 
-- Safe-delete RPC `delete_pt_pack(pack_id uuid)`:
-  - If any `pt_passes` reference this pack → **soft delete**: set `is_active=false`, `is_public=false`, and rename to `"[Archived] " + name` (preserves history for existing passes).
-  - If no passes reference it → **hard delete** the row.
-- Confirmation dialog explains which path will happen ("This pack has 3 sold passes and will be archived" vs "This pack will be permanently deleted").
-- Invalidates the same query keys `save()` already uses.
+## 1. Public gift card store (`/gift-cards`)
 
-## 2. Admin-only payment plans (autopay installments)
+A branded page anyone can view; purchase requires sign-in (guests are prompted to log in / create an account, then the in-progress purchase resumes automatically — same pattern already used for class pass checkout).
 
-Scope: **admin sale flow only** — no changes to public PT pricing pages or customer-facing checkout.
+Buyer picks:
+- **Amount** — preset tiles ($50 / $100 / $150 / $250) or custom amount ($25–$1000).
+- **Or a service** — curated tiles like "60-Minute Massage — $120", "5-Class Pack — $150", "Recovery Day Pass — $60". Each is a labeled preset; the card is issued as dollar value so it can be used on anything, with the service name shown on the card and in the email.
+- **Recipient** name + email, optional **personal message**, and optional **send date** (send now or schedule).
+- Live preview of the card as the recipient will see it.
 
-### Data model (migration)
+Payment is an embedded Stripe card form inside the page (no redirect off-site), matching the event ticket flow. On success the buyer sees an in-app confirmation, gets a receipt email, and the recipient gets the gift email immediately or on the scheduled date.
 
-Extend `pt_packs` with admin-only installment config:
-- `allow_payment_plan boolean default false`
-- `payment_plan_months integer` (e.g. 2, 3, 4, 6) — nullable
-- `payment_plan_stripe_price_id text` — nullable, auto-created when enabled
+## 2. Redeeming a code
 
-Extend `pt_passes` to track plan state:
-- `payment_plan_subscription_id text` (Stripe sub id)
-- `payment_plan_total_installments integer`
-- `payment_plan_installments_paid integer default 0`
-- `payment_plan_status text` — `none | active | completed | past_due | cancelled`
+- **Online checkout:** a "Have a gift card?" field on member/non-member checkouts (class passes, cafe orders, spa/recovery bookings, event tickets). Entering a valid code validates the balance, applies it to the total, and if the card fully covers the purchase no card charge is made. Partial balances leave the remainder on the card.
+- **Front desk / admin:** a "Redeem gift card" action in POS and on a member profile — enter code, see balance, apply an amount to the sale, with a note field.
+- Every use writes a redemption record (amount, remaining balance, what it paid for, who processed it) so cards can be audited.
 
-### Admin Packs UI
+## 3. Admin Gift Cards hub (`/admin/gift-cards`)
 
-In the pack editor dialog, add a **"Payment plan (admin-only)"** section:
-- Toggle: Allow payment plan
-- When on: number input for # of monthly installments
-- Helper text: "Only visible in Sell PT dialog. Splits price into equal monthly charges via Stripe subscription."
-- On save, if enabled, edge function creates/updates a Stripe recurring Price (`unit_amount = ceil(price_cents / months)`, `interval=month`) and stores the id.
+A single searchable page listing every card issued (public purchases, admin sales, and comped cards):
+- Search by code, recipient name/email, or purchaser.
+- Filters: status (scheduled / sent / active / partially redeemed / fully redeemed / cancelled / expired), date range, source (online vs front desk).
+- Summary stats: total sold, total redeemed, outstanding liability, scheduled for delivery.
+- Row detail drawer: full card info, delivery timeline, personal message, redemption history, and actions — resend email, reschedule, adjust expiry, void/cancel, manually redeem, and add internal notes.
+- CSV export for accounting (outstanding liability is a real balance-sheet item).
+- Ability to issue a card directly from admin (existing dialog, reachable from this hub too) including cash / Clover / comp payment methods.
 
-### Sell PT dialog
+## 4. Emails
 
-In `src/components/admin/SellPTDialog.tsx`, for any selected pack with `allow_payment_plan=true`, show a payment option toggle:
-- **Pay in full** (existing behavior)
-- **Payment plan – N monthly charges of $X** (new)
+- **Recipient gift email** — branded card with amount or service name, code, personal message, sender name, expiry, and a link to view the card online.
+- **Purchaser receipt** — confirmation of what was bought and when it sends.
+- Existing scheduled-send job continues to handle future-dated cards.
 
-When payment plan is chosen and admin is charging card on file:
-- New edge function `admin-create-pt-payment-plan` creates a Stripe subscription on the member's customer using the plan price, with `cancel_at` set after N cycles (or `iterations` via a schedule) so it auto-ends.
-- Grants the `pt_pass` immediately with full sessions, and sets `payment_plan_*` fields.
-- Failed installments follow the existing dues past-due pattern: mark `payment_plan_status='past_due'`, add to `billing_arrears`, notify per existing dunning.
+## Technical notes
 
-Send-link and cash/Clover/external methods stay pay-in-full only (no installments outside card-on-file).
-
-### Webhook
-
-Extend the existing Stripe webhook to recognize this subscription category by metadata (`type: 'pt_payment_plan'`, `pt_pass_id`):
-- On each `invoice.payment_succeeded`: increment `payment_plan_installments_paid`; when it hits the total, mark `completed`.
-- On `invoice.payment_failed`: mark `past_due` + create `billing_arrears` row.
-- On `customer.subscription.deleted` after completion: no-op; on early cancel: mark `cancelled`.
-
-### Member portal display
-
-In `MyPTPassesSection.tsx`, if a pass has an active payment plan, show a small line: `"Payment plan: 2 of 4 monthly charges paid"`. Read-only.
-
-## Files touched
-
-- `src/pages/admin/PersonalTrainingPacks.tsx` — delete button + payment plan fields in editor
-- `src/components/admin/SellPTDialog.tsx` — pay-in-full vs payment-plan toggle
-- `src/components/portal/MyPTPassesSection.tsx` — installment progress line
-- New migration — schema fields + `delete_pt_pack` RPC
-- New edge function `admin-create-pt-payment-plan`
-- New edge function `sync-pt-pack-plan-price` (creates Stripe recurring price when plan is enabled/changed)
-- `supabase/functions/stripe-webhook/index.ts` (or equivalent) — handle `pt_payment_plan` metadata
+- Extend `gift_cards` with `service_label`, `purchase_source` (`online` / `front_desk` / `admin` / `comp`), `stripe_payment_intent_id`, and allow `payment_method = 'stripe_online'`.
+- New edge functions: `create-gift-card-checkout` (creates PaymentIntent, holds a pending card row) and `confirm-gift-card-purchase` (activates the card and triggers delivery on payment success). Reuse the existing `create-gift-card` path for admin/front-desk sales.
+- New security-definer RPCs: `validate_gift_card_code(code)` (returns balance/status without exposing other cards), `redeem_gift_card(code, amount, applied_to_type, applied_to_id, notes)` (atomic balance decrement + redemption row + status transition), and `admin_gift_card_search(...)` for the hub.
+- RLS: buyers see only their own cards (existing `get_my_gift_cards`), recipients can look up by code only through the validate RPC, staff roles get full read via `has_any_role`.
+- Reuse `GiftCardPreview.tsx` for the store, portal, and admin preview. New `RedeemGiftCardField` component shared across checkouts.
+- Add `/gift-cards` to the sitemap with proper title/description for SEO.
