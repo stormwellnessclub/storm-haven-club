@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, CheckCircle2, XCircle, Mail, BarChart3, CreditCard, UserPlus, Megaphone, Gift } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { guestCheckInPatch } from "@/lib/guestPassStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -33,7 +34,7 @@ interface GuestPass {
   phone_number?: string | null;
   guest_gender?: string | null;
   price_paid: number;
-  status: 'active' | 'exhausted' | 'expired';
+  status: string;
   purchased_at: string;
   expires_at: string;
   used_at: string | null;
@@ -182,7 +183,7 @@ export default function GuestPasses() {
     try {
       const { error } = await (supabase
         .from('guest_passes' as any)
-        .update({ used_at: new Date().toISOString(), status: 'exhausted', checked_in_by: user?.id })
+        .update(guestCheckInPatch(user?.id))
         .eq('id', pass.id) as any);
       if (error) throw error;
       toast.success(`${pass.guest_name} checked in!`);
@@ -238,6 +239,7 @@ export default function GuestPasses() {
     if (pass.no_show) return <Badge variant="destructive" className="text-xs">No-Show</Badge>;
     switch (pass.status) {
       case 'active': return <Badge variant="default" className="text-xs">Active</Badge>;
+      case 'used':
       case 'exhausted': return <Badge className="text-xs bg-green-600">Checked In</Badge>;
       case 'expired': return <Badge variant="outline" className="text-xs">Expired</Badge>;
       default: return <Badge className="text-xs">{pass.status}</Badge>;

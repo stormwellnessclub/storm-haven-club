@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { guestCheckInPatch, isGuestPassCheckedIn, guestVisitDateLabel } from "@/lib/guestPassStatus";
 import { format } from "date-fns";
 import {
   Loader2,
@@ -34,7 +35,7 @@ interface GuestPass {
   guest_name: string;
   guest_email: string | null;
   phone_number?: string | null;
-  status: "active" | "exhausted" | "expired";
+  status: string;
   valid_date?: string | null;
   used_at: string | null;
 }
@@ -172,9 +173,9 @@ export default function FrontDeskGuestPassesPage() {
     const { data, error } = await (supabase
       .from("guest_passes" as any)
       .select(
-        "id, guest_name, guest_email, phone_number, status, valid_date, used_at",
+        "id, guest_name, guest_email, phone_number, status, valid_date, used_at, purchased_at",
       )
-      .eq("valid_date", todayStr)
+      .or(`valid_date.eq.${todayStr},and(valid_date.is.null,purchased_at.gte.${todayStr}T00:00:00)`)
       .order("guest_name", { ascending: true }) as any);
     setLoading(false);
     if (error) {
@@ -292,11 +293,7 @@ export default function FrontDeskGuestPassesPage() {
   const markUsed = async (pass: GuestPass) => {
     const { error } = await (supabase
       .from("guest_passes" as any)
-      .update({
-        used_at: new Date().toISOString(),
-        status: "exhausted",
-        checked_in_by: user?.id,
-      })
+      .update(guestCheckInPatch(user?.id))
       .eq("id", pass.id) as any);
     if (error) {
       toast.error(error.message || "Failed to check in");
@@ -343,7 +340,7 @@ export default function FrontDeskGuestPassesPage() {
               ) : (
                 <div className="space-y-2">
                   {passes.map((p) => {
-                    const used = !!p.used_at;
+                    const used = isGuestPassCheckedIn(p);
                     return (
                       <div
                         key={p.id}
@@ -360,7 +357,7 @@ export default function FrontDeskGuestPassesPage() {
                         {used ? (
                           <Badge className="bg-green-100 text-green-800 border-green-200 gap-1">
                             <CheckCircle2 className="h-3 w-3" />
-                            Checked in
+                            Checked in · {guestVisitDateLabel(p)}
                           </Badge>
                         ) : (
                           <Button size="sm" onClick={() => markUsed(p)}>

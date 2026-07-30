@@ -77,9 +77,9 @@ export function useUnifiedAttendance() {
       // Guest passes used today
       supabase
         .from("guest_passes")
-        .select("id, guest_name, guest_email, used_at, valid_date")
-        .eq("status", "used")
-        .eq("valid_date", todayStr),
+        .select("id, guest_name, guest_email, used_at, valid_date, purchased_at, status")
+        .in("status", ["used", "exhausted"])
+        .or(`valid_date.eq.${todayStr},and(used_at.gte.${todayIso},used_at.lt.${tomorrowIso})`),
 
       // Class bookings checked in today
       supabase
@@ -174,12 +174,12 @@ export function useUnifiedAttendance() {
     // Guests
     const guestCheckins = cacheRef.current.guestCheckins;
     guestCheckins.forEach((g: any) => {
-      if (!g.used_at) return;
+      if (!g.used_at && !g.valid_date) return;
       all.push({
         id: `guest-${g.id}`,
         type: "guest",
         name: g.guest_name,
-        time: g.used_at,
+        time: g.used_at || `${g.valid_date}T00:00:00`,
         subtitle: g.guest_email || "Guest Pass",
       });
     });
@@ -272,7 +272,7 @@ export function useUnifiedAttendance() {
       total: all.length,
       currentlyIn: cacheRef.current.currentlyInCount || 0,
       members: memberCheckIns.length,
-      guests: guestCheckins.filter((g: any) => g.used_at).length,
+      guests: guestCheckins.length,
       classes: classCheckins.length,
       spa: spaCheckins.length,
     });

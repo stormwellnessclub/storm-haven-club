@@ -9,6 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck, Send, Loader2, Shield } from "lucide-react";
+import { guestCheckInPatch, isGuestPassCheckedIn, guestVisitDateLabel } from "@/lib/guestPassStatus";
+import { clubTodayDateStr } from "@/lib/clubTime";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,7 +24,7 @@ interface GuestPass {
   phone_number?: string | null;
   guest_gender?: string | null;
   price_paid: number;
-  status: 'active' | 'exhausted' | 'expired';
+  status: string;
   purchased_at: string;
   expires_at: string;
   used_at: string | null;
@@ -74,6 +76,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
     if (guest.no_show) return <Badge variant="destructive">No-Show</Badge>;
     switch (status) {
       case 'active': return <Badge variant="default">Active</Badge>;
+      case 'used':
       case 'exhausted': return <Badge className="bg-green-600">Checked In</Badge>;
       case 'expired': return <Badge variant="outline">Expired</Badge>;
       default: return <Badge>{status}</Badge>;
@@ -109,7 +112,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
     try {
       const { error } = await (supabase
         .from('guest_passes' as any)
-        .update({ used_at: new Date().toISOString(), status: 'exhausted', checked_in_by: user?.id })
+        .update(guestCheckInPatch(user?.id))
         .eq('id', guest.id) as any);
       if (error) throw error;
       toast.success(`${guest.guest_name} checked in!`);
@@ -295,8 +298,8 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
                   </Button>
                 </div>
               )}
-              {guest.used_at && (
-                <div className="text-muted-foreground">Used: {format(new Date(guest.used_at), "MMM d, yyyy h:mm a")}</div>
+              {isGuestPassCheckedIn(guest) && (
+                <div className="text-muted-foreground">Used: {guestVisitDateLabel(guest)}</div>
               )}
               {guest.member_referral && (
                 <div className="flex items-center gap-2 mt-2">
@@ -328,6 +331,10 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
                         if (val === 'active') {
                           updateData.used_at = null;
                           updateData.no_show = false;
+                        } else if (val === 'used' || val === 'exhausted') {
+                          // Never leave a checked-in pass without a date
+                          if (!guest.used_at) updateData.used_at = new Date().toISOString();
+                          if (!guest.valid_date) updateData.valid_date = clubTodayDateStr();
                         }
                         const { error } = await (supabase
                           .from("guest_passes" as any)
@@ -469,7 +476,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Sent {format(new Date(guest.feedback_email_sent_at), "MMM d, yyyy 'at' h:mm a")}</span>
               </div>
-            ) : guest.guest_email && guest.status === 'exhausted' ? (
+            ) : guest.guest_email && isGuestPassCheckedIn(guest) ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -584,7 +591,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
             <div className="space-y-2 text-xs text-muted-foreground">
               <div>Created: {format(new Date(guest.purchased_at), "MMM d, yyyy h:mm a")}</div>
               {guest.valid_date && <div>Visit date: {format(new Date(guest.valid_date), "MMM d, yyyy")}</div>}
-              {guest.used_at && <div>Checked in: {format(new Date(guest.used_at), "MMM d, yyyy h:mm a")}</div>}
+              {isGuestPassCheckedIn(guest) && <div>Checked in: {guestVisitDateLabel(guest)}</div>}
               {guest.no_show && <div className="text-destructive">Marked as no-show</div>}
               {guest.expires_at && <div>Expires: {format(new Date(guest.expires_at), "MMM d, yyyy h:mm a")}</div>}
             </div>

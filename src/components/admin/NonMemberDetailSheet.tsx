@@ -492,10 +492,10 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
                       </div>
                       <div className="text-right">
                         <Badge
-                          variant={gp.status === "active" ? "default" : gp.status === "exhausted" ? "secondary" : "outline"}
+                          variant={gp.status === "active" ? "default" : (gp.status === "exhausted" || gp.status === "used") ? "secondary" : "outline"}
                           className="text-xs"
                         >
-                          {gp.status === "exhausted" ? "Used" : gp.status}
+                          {(gp.status === "exhausted" || gp.status === "used") ? "Used" : gp.status}
                         </Badge>
                         <p className="text-xs text-muted-foreground mt-1">${gp.price_paid}</p>
                       </div>

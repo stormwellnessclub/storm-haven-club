@@ -93,11 +93,9 @@ export function useKioskAttendance() {
 
         supabase
           .from("guest_passes")
-          .select("id, guest_name, guest_email, used_at, valid_date, status")
-          .eq("status", "used")
-          .not("used_at", "is", null)
-          .gte("used_at", todayIso)
-          .lt("used_at", tomorrowIso),
+          .select("id, guest_name, guest_email, used_at, valid_date, purchased_at, status")
+          .in("status", ["used", "exhausted"])
+          .or(`valid_date.eq.${todayStr},and(used_at.gte.${todayIso},used_at.lt.${tomorrowIso})`),
 
         supabase
           .from("class_bookings")
@@ -145,7 +143,7 @@ export function useKioskAttendance() {
 
       const memberCheckIns = memberResult.data || [];
       const guestCheckIns = (guestResult.data || []).filter((g: any) => {
-        if (!g.used_at) return false;
+        if (!g.used_at) return g.valid_date === todayStr;
         const usedDate = new Date(g.used_at).toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
         return usedDate === todayStr;
       });
@@ -205,7 +203,7 @@ export function useKioskAttendance() {
           id: `guest-${guest.id}`,
           type: "guest",
           name: guest.guest_name || guest.guest_email || "Guest",
-          time: guest.used_at,
+          time: guest.used_at || `${guest.valid_date}T00:00:00`,
           subtitle: guest.guest_email || "Guest Pass",
           sub_type: "Guest Pass",
         });
