@@ -173,13 +173,23 @@ export function useUpdateCafeOrderStatus() {
           .update(updateData)
           .eq("id", orderId)
           .select()
-          .single();
+          .maybeSingle();
 
         if (error) {
           if (error.code === "42P01" || error.message?.includes("does not exist")) {
             throw new Error("Cafe ordering is not yet available. Please check back later.");
           }
           throw error;
+        }
+
+        if (!data) {
+          // RLS returned no row (e.g. front desk service account) — use the RPC path.
+          const { error: rpcError } = await (supabase.rpc as any)("kiosk_update_cafe_order_status", {
+            p_order_id: orderId,
+            p_new_status: status,
+          });
+          if (rpcError) throw rpcError;
+          return { id: orderId, status } as unknown as CafeOrder;
         }
 
         return data as CafeOrder;
@@ -189,6 +199,7 @@ export function useUpdateCafeOrderStatus() {
         }
         throw error;
       }
+
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-cafe-orders"] });
