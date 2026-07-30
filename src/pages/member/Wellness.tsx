@@ -11,18 +11,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMySpaAppointments } from "@/hooks/useSpaBooking";
  import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
 import type { SpaService } from "@/hooks/useSpaManagement";
- import { 
-   Zap, 
+ import {
+   Zap,
    Snowflake,
    Calendar,
    Clock,
    Sparkles,
    AlertCircle,
+   Flame,
  } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
  import { Link } from "react-router-dom";
  import { CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAuth } from "@/contexts/AuthContext";
  
 // Fetch the real Recovery services (Red Light & Ice Bed) from the DB so booking
 // hits real spa_service_availability rows.
