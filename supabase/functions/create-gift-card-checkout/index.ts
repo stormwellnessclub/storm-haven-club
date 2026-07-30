@@ -1,3 +1,4 @@
+// Gift card online checkout.
 // Creates a Stripe PaymentIntent for an online gift card purchase and inserts a
 // PENDING gift_cards row. The card is only activated once payment succeeds
 // (see confirm-gift-card-purchase). Requires an authenticated buyer.
