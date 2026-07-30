@@ -12,7 +12,7 @@ Ozone is not instantly bookable — guests must be called first. Everywhere a me
 **Admin and Front Desk: real booking.**
 Staff can book Ozone directly for members and non-members from the existing spa booking tools, with real time slots generated from the hours below.
 
-## Availability (45-minute treatment block)
+## Availability (30-min treatment + 15-min cleanup = 45-min block)
 
 - Monday–Friday: 11:00 AM – 8:15 PM (last appointment 7:30 PM)
 - Saturday–Sunday: 11:00 AM – 6:15 PM (last appointment 5:30 PM)
@@ -23,7 +23,7 @@ Staff can book Ozone directly for members and non-members from the existing spa 
 1. **Database**
    - Add `phone` (text) and `preferred_time` (text, optional) to `spa_service_requests` so staff have a callback number.
    - Insert availability windows for the Ozone Sauna service on all 7 days per the hours above, tied to Spa Room 3.
-   - Set the service's booking block to 45 minutes so slots line up.
+   - Set the Ozone service to 30-minute duration with a 15-minute cleanup buffer, so slots start every 45 minutes but display as 30 min.
 
 2. **Public spa page (`src/pages/Spa.tsx`)**
    - Recovery services currently all render "Book Now". Ozone becomes an exception: "Request Appointment", routed to the existing request modal.
