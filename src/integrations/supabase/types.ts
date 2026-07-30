@@ -7922,6 +7922,8 @@ export type Database = {
           id: string
           message: string | null
           name: string
+          phone: string | null
+          preferred_time: string | null
           service_category: string
           service_name: string
         }
@@ -7931,6 +7933,8 @@ export type Database = {
           id?: string
           message?: string | null
           name: string
+          phone?: string | null
+          preferred_time?: string | null
           service_category: string
           service_name: string
         }
@@ -7940,6 +7944,8 @@ export type Database = {
           id?: string
           message?: string | null
           name?: string
+          phone?: string | null
+          preferred_time?: string | null
           service_category?: string
           service_name?: string
         }

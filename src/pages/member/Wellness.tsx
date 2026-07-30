@@ -11,18 +11,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMySpaAppointments } from "@/hooks/useSpaBooking";
  import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
 import type { SpaService } from "@/hooks/useSpaManagement";
- import { 
-   Zap, 
+ import {
+   Zap,
    Snowflake,
    Calendar,
    Clock,
    Sparkles,
    AlertCircle,
+   Flame,
  } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
  import { Link } from "react-router-dom";
  import { CREDIT_TYPE_LABELS, CREDIT_TYPE_DESCRIPTIONS, CreditType } from "@/lib/memberCredits";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { useAuth } from "@/contexts/AuthContext";
  
 // Fetch the real Recovery services (Red Light & Ice Bed) from the DB so booking
 // hits real spa_service_availability rows.
@@ -55,6 +63,17 @@ export default function MemberWellness() {
   const { data: services, isLoading: servicesLoading } = useWellnessServices();
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const { profile } = useUserProfile();
+  const { user } = useAuth();
+
+  // Ozone Sauna request state (request-only: staff call to confirm)
+  const [ozoneOpen, setOzoneOpen] = useState(false);
+  const [ozoneName, setOzoneName] = useState("");
+  const [ozonePhone, setOzonePhone] = useState("");
+  const [ozoneEmail, setOzoneEmail] = useState("");
+  const [ozonePreferred, setOzonePreferred] = useState("");
+  const [ozoneMessage, setOzoneMessage] = useState("");
+  const [ozoneSubmitting, setOzoneSubmitting] = useState(false);
 
   const isLoading = creditsLoading || servicesLoading;
  
@@ -63,6 +82,7 @@ export default function MemberWellness() {
      apt.status === "confirmed" && 
      (apt.service_name?.toLowerCase().includes("red light") || 
       apt.service_name?.toLowerCase().includes("cryo") ||
+      apt.service_name?.toLowerCase().includes("ozone") ||
       apt.service_name?.toLowerCase().includes("zerobody"))
    ) || [];
  
@@ -71,6 +91,51 @@ export default function MemberWellness() {
      setSelectedService(service);
      setBookingOpen(true);
    };
+
+   const openOzoneRequest = () => {
+     setOzoneName(
+       [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() ||
+         (user?.user_metadata?.first_name
+           ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ""}`.trim()
+           : "")
+     );
+     setOzonePhone((profile as any)?.phone || "");
+     setOzoneEmail(user?.email || (profile as any)?.email || "");
+     setOzonePreferred("");
+     setOzoneMessage("");
+     setOzoneOpen(true);
+   };
+
+   const submitOzoneRequest = async () => {
+     if (!ozoneName.trim() || !ozoneEmail.trim()) {
+       toast.error("Please add your name and email.");
+       return;
+     }
+     if (ozonePhone.trim().length < 7) {
+       toast.error("A phone number is required — we call to go over details before your session.");
+       return;
+     }
+     setOzoneSubmitting(true);
+     try {
+       const { error } = await supabase.from("spa_service_requests").insert({
+         name: ozoneName.trim(),
+         email: ozoneEmail.trim(),
+         phone: ozonePhone.trim(),
+         preferred_time: ozonePreferred.trim() || null,
+         service_name: "Ozone Sauna",
+         service_category: "Recovery",
+         message: ozoneMessage.trim() || null,
+       });
+       if (error) throw error;
+       toast.success("Request received — we'll call you to confirm your appointment.");
+       setOzoneOpen(false);
+     } catch (err: any) {
+       toast.error("Failed to submit request: " + err.message);
+     } finally {
+       setOzoneSubmitting(false);
+     }
+   };
+ 
  
    if (isLoading) {
      return (
@@ -99,7 +164,7 @@ export default function MemberWellness() {
          </div>
  
          {/* Credit Balance Cards */}
-         <div className="grid gap-4 md:grid-cols-2">
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
            <WellnessCreditCard
              credit={credits?.redLightCredits || null}
              type="red_light"
@@ -114,7 +179,43 @@ export default function MemberWellness() {
              iconBg="bg-blue-100 dark:bg-blue-900/20"
              onBook={() => handleBookService(services?.dryCryo)}
            />
+
+           {/* Ozone Sauna — request only (staff call to confirm) */}
+           <Card>
+             <CardHeader>
+               <div className="flex items-center gap-3">
+                 <div className="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/20">
+                   <Flame className="h-6 w-6 text-emerald-600" />
+                 </div>
+                 <div>
+                   <CardTitle className="text-lg">Ozone Sauna</CardTitle>
+                   <CardDescription>30 min · Spa Room 3</CardDescription>
+                 </div>
+               </div>
+             </CardHeader>
+             <CardContent className="space-y-4">
+               {credits?.ozoneCredits ? (
+                 <div className="flex items-end gap-2">
+                   <span className="text-4xl font-bold">{credits.ozoneCredits.credits_remaining}</span>
+                   <span className="text-muted-foreground mb-1">
+                     of {credits.ozoneCredits.credits_total} sessions remaining
+                   </span>
+                 </div>
+               ) : (
+                 <p className="text-sm text-muted-foreground">
+                   Detox, circulation, and recovery. Sessions are scheduled by phone.
+                 </p>
+               )}
+               <p className="text-xs text-muted-foreground">
+                 We call every guest before their first ozone session to go over the details.
+               </p>
+               <Button className="w-full" onClick={openOzoneRequest}>
+                 Request Appointment
+               </Button>
+             </CardContent>
+           </Card>
          </div>
+
  
          {/* No credits message */}
          {!hasWellnessCredits && credits?.isMember && (
@@ -201,6 +302,61 @@ export default function MemberWellness() {
            open={bookingOpen}
            onOpenChange={setBookingOpen}
          />
+
+         {/* Ozone Sauna request */}
+         <Dialog open={ozoneOpen} onOpenChange={setOzoneOpen}>
+           <DialogContent className="sm:max-w-md">
+             <DialogHeader>
+               <DialogTitle>Request an Ozone Sauna Appointment</DialogTitle>
+               <DialogDescription>
+                 Leave your name and number and we'll call you to go over everything and confirm a time.
+               </DialogDescription>
+             </DialogHeader>
+             <div className="space-y-4">
+               <div className="space-y-2">
+                 <Label htmlFor="oz-name">Name</Label>
+                 <Input id="oz-name" value={ozoneName} onChange={(e) => setOzoneName(e.target.value)} maxLength={100} />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-phone">Phone <span className="text-destructive">*</span></Label>
+                 <Input
+                   id="oz-phone"
+                   type="tel"
+                   value={ozonePhone}
+                   onChange={(e) => setOzonePhone(e.target.value)}
+                   placeholder="(313) 555-0123"
+                   maxLength={25}
+                 />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-email">Email</Label>
+                 <Input id="oz-email" type="email" value={ozoneEmail} onChange={(e) => setOzoneEmail(e.target.value)} maxLength={255} />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-pref">Preferred day & time</Label>
+                 <Input
+                   id="oz-pref"
+                   value={ozonePreferred}
+                   onChange={(e) => setOzonePreferred(e.target.value)}
+                   placeholder="e.g. Saturday afternoon"
+                   maxLength={120}
+                 />
+               </div>
+               <div className="space-y-2">
+                 <Label htmlFor="oz-msg">Anything we should know?</Label>
+                 <Textarea id="oz-msg" value={ozoneMessage} onChange={(e) => setOzoneMessage(e.target.value)} rows={3} maxLength={1000} />
+               </div>
+               <Button
+                 className="w-full"
+                 disabled={ozoneSubmitting || !ozoneName.trim() || !ozoneEmail.trim() || ozonePhone.trim().length < 7}
+                 onClick={submitOzoneRequest}
+               >
+                 {ozoneSubmitting ? "Submitting…" : "Send Request"}
+               </Button>
+             </div>
+           </DialogContent>
+         </Dialog>
+
        </div>
      </MemberLayout>
    );

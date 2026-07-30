@@ -78,6 +78,8 @@ export default function Spa() {
   const [requestService, setRequestService] = useState<SpaService | null>(null);
   const [requestName, setRequestName] = useState("");
   const [requestEmail, setRequestEmail] = useState("");
+  const [requestPhone, setRequestPhone] = useState("");
+  const [requestPreferredTime, setRequestPreferredTime] = useState("");
   const [requestMessage, setRequestMessage] = useState("");
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
@@ -202,6 +204,9 @@ export default function Spa() {
     }
   };
 
+  // Services that require a phone consultation before we can confirm a time
+  const isConsultRequestService = (service: SpaService) => /ozone/i.test(service.name);
+
   // Handle "Request" for non-Massage/non-Recovery categories
   const handleRequestService = (service: SpaService) => {
     setRequestService(service);
@@ -211,13 +216,21 @@ export default function Spa() {
         ? `${memberProfile.first_name} ${memberProfile.last_name || ""}`.trim()
         : "");
     setRequestEmail(user?.email || "");
+    setRequestPhone(memberProfile?.phone || (user?.user_metadata?.phone as string) || "");
+    setRequestPreferredTime("");
     setRequestMessage(`I'm interested in booking: ${service.name}`);
     setShowRequestModal(true);
   };
 
+  const requiresPhone = requestService ? isConsultRequestService(requestService) : false;
+
   const handleSubmitRequest = async () => {
     if (!requestName.trim() || !requestEmail.trim()) {
       toast.error("Please fill in your name and email.");
+      return;
+    }
+    if (requiresPhone && requestPhone.trim().length < 7) {
+      toast.error("Please enter a phone number — we need to call you before this appointment.");
       return;
     }
 
@@ -226,6 +239,8 @@ export default function Spa() {
       const { error } = await supabase.from("spa_service_requests").insert({
         name: requestName.trim(),
         email: requestEmail.trim(),
+        phone: requestPhone.trim() || null,
+        preferred_time: requestPreferredTime.trim() || null,
         service_name: requestService?.name || "",
         service_category: requestService?.category || "",
         message: requestMessage.trim() || null,
@@ -233,7 +248,11 @@ export default function Spa() {
 
       if (error) throw error;
 
-      toast.success("We'll be in touch soon!");
+      toast.success(
+        requiresPhone
+          ? "Request received — we'll call you to confirm your appointment."
+          : "We'll be in touch soon!"
+      );
       setShowRequestModal(false);
       setRequestService(null);
     } catch (err: any) {
@@ -243,8 +262,17 @@ export default function Spa() {
     }
   };
 
+
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
+    if (isConsultRequestService(service)) {
+      return (
+        <Button variant="outline" size="sm" onClick={() => handleRequestService(service)}>
+          Request Appointment
+        </Button>
+      );
+    }
+
     if (service.category === "Recovery") {
       return (
         <Button
@@ -721,10 +749,12 @@ export default function Spa() {
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Request a Service</DialogTitle>
+            <DialogTitle>{requiresPhone ? "Request an Appointment" : "Request a Service"}</DialogTitle>
             <DialogDescription>
               {requestService
-                ? `Inquire about ${requestService.name}. We'll reach out to schedule your appointment.`
+                ? requiresPhone
+                  ? `${requestService.name} is booked by phone — leave your name and number and we'll call you to go over everything and confirm a time.`
+                  : `Inquire about ${requestService.name}. We'll reach out to schedule your appointment.`
                 : "Tell us what you're interested in."}
             </DialogDescription>
           </DialogHeader>
@@ -740,6 +770,17 @@ export default function Spa() {
               />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="req-phone">Phone {requiresPhone && <span className="text-destructive">*</span>}</Label>
+              <Input
+                id="req-phone"
+                type="tel"
+                value={requestPhone}
+                onChange={(e) => setRequestPhone(e.target.value)}
+                placeholder="(313) 555-0123"
+                maxLength={25}
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="req-email">Email</Label>
               <Input
                 id="req-email"
@@ -748,6 +789,16 @@ export default function Spa() {
                 onChange={(e) => setRequestEmail(e.target.value)}
                 placeholder="you@example.com"
                 maxLength={255}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="req-preferred">Preferred day & time</Label>
+              <Input
+                id="req-preferred"
+                value={requestPreferredTime}
+                onChange={(e) => setRequestPreferredTime(e.target.value)}
+                placeholder="e.g. Saturday afternoon"
+                maxLength={120}
               />
             </div>
             <div className="space-y-2">
@@ -764,11 +815,17 @@ export default function Spa() {
             <Button
               className="w-full"
               variant="gold"
-              disabled={isSubmittingRequest || !requestName.trim() || !requestEmail.trim()}
+              disabled={
+                isSubmittingRequest ||
+                !requestName.trim() ||
+                !requestEmail.trim() ||
+                (requiresPhone && requestPhone.trim().length < 7)
+              }
               onClick={handleSubmitRequest}
             >
               {isSubmittingRequest ? "Submitting…" : "Send Request"}
             </Button>
+
           </div>
         </DialogContent>
       </Dialog>
