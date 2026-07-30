@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.verify_kiosk_pin(text) TO anon;
