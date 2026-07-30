@@ -1,6 +1,8 @@
 # Ozone Sauna — make it bookable
 
-Ozone Sauna exists as an active Recovery service ($85, 60 min) but has **zero availability windows**, so no time slots can ever be generated. It is also missing entirely from the member Wellness page. That is why there is nowhere to book it.
+Ozone Sauna exists as an active Recovery service ($85) but has **zero availability windows**, so no time slots can ever be generated. It is also missing entirely from the member Wellness page. That is why there is nowhere to book it.
+
+Timing: the treatment is **30 minutes**, plus a **15-minute cleanup**, so the calendar blocks 45 minutes. Public and member views show only "30 min" — the cleanup buffer is admin-side only.
 
 ## How it will work
 
