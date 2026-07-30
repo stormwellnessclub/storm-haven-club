@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Lock, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { setKioskPin } from "@/lib/kiosk";
+import { setKioskPin, startKioskSession } from "@/lib/kiosk";
 import stormLogo from "@/assets/storm-logo-gold.png";
 
 interface KioskPinGateProps {
@@ -27,6 +27,10 @@ export function KioskPinGate({ onUnlock }: KioskPinGateProps) {
       if (data === true) {
         sessionStorage.setItem("kioskUnlocked", "true");
         setKioskPin(pin);
+        // Sign the device into the restricted front desk account so member
+        // lookup, credits, cafe orders and charges pass RLS.
+        const ok = await startKioskSession(pin);
+        if (!ok) toast.error("Unlocked, but staff data access failed. Try again.");
         onUnlock();
       } else {
         toast.error("Invalid PIN");
