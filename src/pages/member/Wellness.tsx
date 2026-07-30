@@ -164,7 +164,7 @@ export default function MemberWellness() {
          </div>
  
          {/* Credit Balance Cards */}
-         <div className="grid gap-4 md:grid-cols-2">
+         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
            <WellnessCreditCard
              credit={credits?.redLightCredits || null}
              type="red_light"
@@ -179,7 +179,43 @@ export default function MemberWellness() {
              iconBg="bg-blue-100 dark:bg-blue-900/20"
              onBook={() => handleBookService(services?.dryCryo)}
            />
+
+           {/* Ozone Sauna — request only (staff call to confirm) */}
+           <Card>
+             <CardHeader>
+               <div className="flex items-center gap-3">
+                 <div className="p-3 rounded-full bg-emerald-100 dark:bg-emerald-900/20">
+                   <Flame className="h-6 w-6 text-emerald-600" />
+                 </div>
+                 <div>
+                   <CardTitle className="text-lg">Ozone Sauna</CardTitle>
+                   <CardDescription>30 min · Spa Room 3</CardDescription>
+                 </div>
+               </div>
+             </CardHeader>
+             <CardContent className="space-y-4">
+               {credits?.ozoneCredits ? (
+                 <div className="flex items-end gap-2">
+                   <span className="text-4xl font-bold">{credits.ozoneCredits.credits_remaining}</span>
+                   <span className="text-muted-foreground mb-1">
+                     of {credits.ozoneCredits.credits_total} sessions remaining
+                   </span>
+                 </div>
+               ) : (
+                 <p className="text-sm text-muted-foreground">
+                   Detox, circulation, and recovery. Sessions are scheduled by phone.
+                 </p>
+               )}
+               <p className="text-xs text-muted-foreground">
+                 We call every guest before their first ozone session to go over the details.
+               </p>
+               <Button className="w-full" onClick={openOzoneRequest}>
+                 Request Appointment
+               </Button>
+             </CardContent>
+           </Card>
          </div>
+
  
          {/* No credits message */}
          {!hasWellnessCredits && credits?.isMember && (
