@@ -111,7 +111,9 @@ export default function FrontDeskPOS() {
             recipientEmail: selectedCustomer.email || undefined,
             recipientName: selectedCustomer.name || undefined,
           },
+          headers: kioskHeaders(),
         });
+
 
         if (chargeError) {
           toast.error("Payment failed: " + (chargeError.message || "Unknown error"));
