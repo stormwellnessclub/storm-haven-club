@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kiosk-pin, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Processing fee calculation: covers Stripe's 2.9% + $0.30
@@ -544,22 +544,39 @@ serve(async (req) => {
     }
 
 
-    // All other actions require authentication
+    // All other actions require authentication.
+    // Exception: the PIN-gated front desk / kiosk has no Supabase session. It may
+    // call a small allowlist of staff charge actions by presenting the kiosk PIN.
+    const KIOSK_ALLOWED_ACTIONS = new Set(['charge_saved_card', 'charge_saved_card_with_3ds']);
+    const kioskPin = req.headers.get('x-kiosk-pin');
     const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      throw new Error("Authorization required");
-    }
+    const hasUserToken = !!authHeader && authHeader.replace('Bearer ', '') !== Deno.env.get('SUPABASE_ANON_KEY');
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error("Invalid authorization");
+    let user: any = null;
+    let kioskMode = false;
+
+    if (!hasUserToken && kioskPin && KIOSK_ALLOWED_ACTIONS.has(action)) {
+      const { data: pinOk, error: pinErr } = await supabase.rpc('verify_kiosk_pin', { p_pin: kioskPin });
+      if (pinErr || pinOk !== true) {
+        throw new Error("Invalid kiosk PIN");
+      }
+      kioskMode = true;
+      logStep("Kiosk PIN authenticated", { action });
+    } else {
+      if (!authHeader) {
+        throw new Error("Authorization required");
+      }
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user: authedUser }, error: authError } = await supabase.auth.getUser(token);
+      if (authError || !authedUser) {
+        throw new Error("Invalid authorization");
+      }
+      user = authedUser;
+      logStep("User authenticated", { userId: user.id, email: user.email });
     }
-    logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Block check: reject all payment actions for blocked persons
-    if (user.email) {
+    if (user?.email) {
       const { data: blockedPerson } = await supabase
         .from('blocked_persons')
         .select('id')
@@ -576,6 +593,11 @@ serve(async (req) => {
 
     // Role helpers (security)
     const assertStaff = async (roles: string[] = ['super_admin', 'admin', 'manager']) => {
+      if (kioskMode) {
+        // Kiosk PIN already proves physical front-desk access.
+        if (!roles.includes('front_desk')) throw new Error("Unauthorized: Staff access required");
+        return;
+      }
       const { data: rows } = await supabase
         .from('user_roles')
         .select('role')
@@ -586,6 +608,7 @@ serve(async (req) => {
       }
     };
     const assertOwnerOrStaff = async (memberId: string | null | undefined, roles: string[] = ['super_admin', 'admin', 'manager', 'front_desk']) => {
+      if (kioskMode) return assertStaff(roles);
       if (memberId) {
         const { data: m } = await supabase
           .from('members')
@@ -608,7 +631,7 @@ serve(async (req) => {
       }
       const customer = await stripe.customers.create({
         email: user.email!,
-        metadata: { user_id: user.id }
+        metadata: { user_id: user?.id ?? null }
       });
       logStep("Created new Stripe customer", { customerId: customer.id });
       return customer.id;
@@ -688,7 +711,7 @@ serve(async (req) => {
             proration_behavior: 'none',
             metadata: {
               member_id: memberId,
-              user_id: user.id,
+              user_id: user?.id ?? null,
               tier: normalizedTier,
               gender: normalizedGender,
               is_founding_member: String(isFoundingMember),
@@ -702,7 +725,7 @@ serve(async (req) => {
           metadata: {
             type: 'membership_activation',
             member_id: memberId,
-            user_id: user.id,
+            user_id: user?.id ?? null,
             tier: normalizedTier,
             gender: normalizedGender,
             is_founding_member: String(isFoundingMember),
@@ -797,7 +820,7 @@ serve(async (req) => {
           cancel_url: cancelUrl,
           metadata: {
             type: 'class_pass',
-            user_id: user.id,
+            user_id: user?.id ?? null,
             category,
             pass_type: passType,
             is_member: String(isVerifiedMember),
@@ -809,7 +832,7 @@ serve(async (req) => {
         // Track pending checkout for abandoned-cart recovery (best-effort, never blocks)
         try {
           await supabase.from('pending_class_pass_checkouts').insert({
-            user_id: user.id,
+            user_id: user?.id ?? null,
             email: user.email,
             name: (user.user_metadata as any)?.first_name || (user.user_metadata as any)?.full_name || null,
             stripe_session_id: session.id,
@@ -889,7 +912,7 @@ serve(async (req) => {
 
         const fundraiserMetadata = {
           type: 'fundraiser_class_booking',
-          user_id: user.id,
+          user_id: user?.id ?? null,
           class_session_id: sessionId,
           amount_cents: String(amountCents),
           beneficiary,
@@ -950,7 +973,7 @@ serve(async (req) => {
 
         const kidsCareMetadata = {
           type: 'kids_care_pass',
-          user_id: user.id,
+          user_id: user?.id ?? null,
           member_id: memberData.id,
         };
 
@@ -1042,7 +1065,7 @@ serve(async (req) => {
           cancel_url: cancelUrl,
           metadata: {
             type: 'guest_pass',
-            user_id: user.id,
+            user_id: user?.id ?? null,
             guest_name: guestName,
             guest_email: guestEmail || '',
             guest_gender: body.guestGender || '',
@@ -1223,7 +1246,7 @@ serve(async (req) => {
           cancel_url: cancelUrl,
           metadata: {
             type: 'guest_pass_experience',
-            user_id: user.id,
+            user_id: user?.id ?? null,
             guest_name: guestName,
             guest_email: guestEmail,
             guest_gender: guestGender || '',
@@ -1347,7 +1370,7 @@ serve(async (req) => {
           cancel_url: safeCancel,
           metadata: {
             type: 'freeze_fee',
-            user_id: user.id,
+            user_id: user?.id ?? null,
             freeze_id: freezeId,
           },
         });
@@ -1437,7 +1460,7 @@ serve(async (req) => {
             metadata: {
               type: 'annual_fee_subscription',
               member_id: memberId,
-              user_id: user.id,
+              user_id: user?.id ?? null,
               gender: normalizedGender,
             },
           },
@@ -1446,7 +1469,7 @@ serve(async (req) => {
           metadata: {
             type: 'annual_fee_subscription',
             member_id: memberId,
-            user_id: user.id,
+            user_id: user?.id ?? null,
             gender: normalizedGender,
           },
         });
@@ -1698,7 +1721,7 @@ serve(async (req) => {
             metadata: { 
               applicant_email: adminApplicantEmail || null, 
               applicant_name: adminApplicantName || null,
-              admin_user_id: user.id,
+              admin_user_id: user?.id ?? null,
             },
           });
           logStep("Card setup attempt logged (admin_portal)", { setupIntentId: adminSetupIntent.id });
@@ -1842,7 +1865,7 @@ serve(async (req) => {
             metadata: {
               type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
               member_id: memberIdForLog || 'application',
-              charged_by: user.id,
+              charged_by: user?.id ?? null,
               customer_name: customerName,
               base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
               processing_fee: String(processingFeeCents),
@@ -1861,7 +1884,7 @@ serve(async (req) => {
             memberIdForLog,
             userIdForLog,
             applicationIdForLog,
-            chargedByUserId: user.id,
+            chargedByUserId: user?.id ?? null,
             amountCents: totalAmountWithFee,
             description: feeDescription,
             note: body.note || null,
@@ -1922,7 +1945,7 @@ serve(async (req) => {
               description: feeDescription,
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-              charged_by: user.id,
+              charged_by: user?.id ?? null,
               note: body.note || null,
             });
 
@@ -1935,12 +1958,12 @@ serve(async (req) => {
             .from('manual_charges')
             .insert({
               application_id: applicationIdForLog,
-              user_id: user.id, // Use the admin's user_id since applicant doesn't have one yet
+              user_id: user?.id ?? null, // Use the admin's user_id since applicant doesn't have one yet
               amount: totalAmountWithFee,
               description: feeDescription,
               stripe_payment_intent_id: paymentIntent.id,
               status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-              charged_by: user.id,
+              charged_by: user?.id ?? null,
               note: body.note || null,
             });
 
@@ -2207,7 +2230,7 @@ serve(async (req) => {
             type: isPosCharge3ds ? 'pos' : (paymentType3ds || 'manual_charge'),
             member_id: memberIdForLog || 'application',
             application_id: applicationIdForLog || '',
-            charged_by: user.id,
+            charged_by: user?.id ?? null,
             customer_name: customerName,
             base_amount: isPosCharge3ds ? String(amount - processingFee3ds) : String(amount),
             processing_fee: String(processingFee3ds),
@@ -2251,7 +2274,7 @@ serve(async (req) => {
                 description: feeDescription3ds,
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
-                charged_by: user.id,
+                charged_by: user?.id ?? null,
                 note: body.note || null,
               });
           } else if (applicationIdForLog) {
@@ -2259,12 +2282,12 @@ serve(async (req) => {
               .from('manual_charges')
               .insert({
                 application_id: applicationIdForLog,
-                user_id: user.id,
+                user_id: user?.id ?? null,
                 amount: totalAmount3ds,
                 description: feeDescription3ds,
                 stripe_payment_intent_id: paymentIntent3ds.id,
                 status: 'succeeded',
-                charged_by: user.id,
+                charged_by: user?.id ?? null,
                 note: body.note || null,
               });
           }
@@ -2447,7 +2470,7 @@ serve(async (req) => {
           customer: customerId,
           payment_method_types: ['card'],
           metadata: {
-            user_id: user.id,
+            user_id: user?.id ?? null,
             member_id: memberId || '',
           },
         });
@@ -2473,7 +2496,7 @@ serve(async (req) => {
             stripe_setup_intent: setupIntent.id,
             source: 'member_portal',
             status: 'initiated',
-            metadata: { user_id: user.id },
+            metadata: { user_id: user?.id ?? null },
           });
           logStep("Card setup attempt logged (member_portal)", { setupIntentId: setupIntent.id });
         } catch (auditErr) {
@@ -3059,7 +3082,7 @@ serve(async (req) => {
           metadata: {
             type: 'membership_activation',
             member_id: memberId,
-            user_id: user.id,
+            user_id: user?.id ?? null,
             tier: normalizedTier,
             gender: normalizedGender,
             is_founding_member: String(isFoundingMember),
@@ -3828,7 +3851,7 @@ serve(async (req) => {
               name: `${memberData.first_name} ${memberData.last_name}`,
               metadata: {
                 member_id: memberId,
-                user_id: user.id,
+                user_id: user?.id ?? null,
               },
             });
             customerId = customer.id;
@@ -3855,7 +3878,7 @@ serve(async (req) => {
           metadata: {
             type: 'membership_dues',
             member_id: memberId,
-            user_id: user.id,
+            user_id: user?.id ?? null,
             tier: normalizedTier,
             gender: normalizedGender,
             billing_type: billingType,
@@ -3864,7 +3887,7 @@ serve(async (req) => {
           subscription_data: {
             metadata: {
               member_id: memberId,
-              user_id: user.id,
+              user_id: user?.id ?? null,
               tier: normalizedTier,
               gender: normalizedGender,
               billing_type: billingType,
@@ -5111,7 +5134,7 @@ serve(async (req) => {
             description: 'Initiation Fee',
             stripe_payment_intent_id: initiationFeeSubscription.latest_invoice as string || initiationFeeSubscription.id,
             status: initiationFeeSubscription.status === 'active' ? 'succeeded' : 'pending',
-            charged_by: user.id,
+            charged_by: user?.id ?? null,
           });
 
         return new Response(
@@ -6861,7 +6884,7 @@ serve(async (req) => {
         if (nmUpdateErr) {
           // Try upsert if no row exists yet
           await supabase.from('non_member_profiles').upsert({
-            user_id: user.id,
+            user_id: user?.id ?? null,
             email: user.email,
             stripe_customer_id: nmCustomerId,
           }, { onConflict: 'user_id' });
@@ -6870,7 +6893,7 @@ serve(async (req) => {
         const nmSetupIntent = await stripe.setupIntents.create({
           customer: nmCustomerId,
           payment_method_types: ['card'],
-          metadata: { user_id: user.id, source: 'nonmember_portal' },
+          metadata: { user_id: user?.id ?? null, source: 'nonmember_portal' },
         });
 
         // Audit log
@@ -6881,7 +6904,7 @@ serve(async (req) => {
             stripe_setup_intent: nmSetupIntent.id,
             source: 'nonmember_portal',
             status: 'initiated',
-            metadata: { user_id: user.id },
+            metadata: { user_id: user?.id ?? null },
           });
         } catch (auditErr) {
           logStep("Warning: Failed to log non-member card setup attempt", { error: String(auditErr) });
@@ -7034,7 +7057,7 @@ serve(async (req) => {
             description: nmDesc,
             metadata: {
               type: nmIsPos ? 'pos' : 'nonmember_charge',
-              user_id: user.id,
+              user_id: user?.id ?? null,
               customer_name: nmCustomerName,
               base_amount: nmIsPos ? String(nmAmount - nmProcessingFeeCents) : String(nmAmount),
               processing_fee: String(nmProcessingFeeCents),
@@ -7141,7 +7164,7 @@ serve(async (req) => {
 
         // Save stripe_customer_id to non_member_profiles
         await supabase.from('non_member_profiles').upsert({
-          user_id: user.id,
+          user_id: user?.id ?? null,
           email: user.email,
           stripe_customer_id: recoveryCustomerId,
         }, { onConflict: 'user_id' });
@@ -7220,7 +7243,7 @@ serve(async (req) => {
 
         // Save stripe_customer_id to non_member_profiles
         await supabase.from('non_member_profiles').upsert({
-          user_id: user.id,
+          user_id: user?.id ?? null,
           email: user.email,
           stripe_customer_id: wellnessCustomerId,
         }, { onConflict: 'user_id' });
@@ -7268,7 +7291,7 @@ serve(async (req) => {
             type: 'wellness_credit_purchase',
             credit_type: creditType,
             quantity: quantity.toString(),
-            user_id: user.id,
+            user_id: user?.id ?? null,
           },
         });
 
@@ -7902,7 +7925,7 @@ serve(async (req) => {
             type: 'admin_user_charge',
             user_id: userId,
             member_id: memberRecordId || '',
-            charged_by: user.id,
+            charged_by: user?.id ?? null,
             customer_name: displayName,
             base_amount: String(baseAmount),
             processing_fee: String(processingFeeCents),
@@ -7921,7 +7944,7 @@ serve(async (req) => {
             description: fullDescription,
             stripe_payment_intent_id: paymentIntent.id,
             status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-            charged_by: user.id,
+            charged_by: user?.id ?? null,
           });
         if (chargeInsertError) {
           logStep("Warning: failed to record manual_charges row", { error: chargeInsertError.message });

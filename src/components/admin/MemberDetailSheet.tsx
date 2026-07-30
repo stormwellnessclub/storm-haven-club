@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { kioskHeaders } from "@/lib/kiosk";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { StripeProvider } from "@/components/StripeProvider";
@@ -532,6 +533,7 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
           amount: amountInCents,
           description: chargeDescription.trim(),
         },
+        headers: kioskHeaders(),
       });
 
       if (error) throw error;

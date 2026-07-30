@@ -16,6 +16,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Minus, Plus, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
+import { isKioskMode } from "@/lib/kiosk";
+
 
 interface MemberCreditRow {
   id: string;
@@ -102,18 +104,32 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
   const adjustMutation = useMutation({
     mutationFn: async () => {
       if (!adjustTarget) throw new Error("No target");
-      if (!authUser?.id) throw new Error("You must be signed in to adjust credits.");
+      const kiosk = isKioskMode() || !authUser?.id;
       const amt = Math.max(1, parseInt(adjustAmount, 10) || 0);
       const delta = adjustMode === "add" ? amt : -amt;
       const prev = adjustTarget.credits_remaining;
       const next = Math.max(0, Math.min(adjustTarget.credits_total, prev + delta));
       if (next === prev) throw new Error("No change");
 
+      // Front desk / kiosk has no auth session — use the SECURITY DEFINER RPC.
+      if (kiosk) {
+        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+          p_credit_id: adjustTarget.id,
+          p_delta: delta,
+          p_reason:
+            adjustReason ||
+            (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
+        });
+        if (error) throw error;
+        return { prev, next };
+      }
+
       const { error: updateError } = await supabase
         .from("member_credits")
         .update({ credits_remaining: next })
         .eq("id", adjustTarget.id);
       if (updateError) throw updateError;
+
 
       const { error: logError } = await supabase.from("credit_adjustments").insert({
         member_id: memberId,
@@ -124,7 +140,8 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
         previous_balance: prev,
         new_balance: next,
         reason: adjustReason || (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
-        adjusted_by: authUser.id,
+        adjusted_by: authUser!.id,
+
       });
       if (logError) throw logError;
       return { prev, next };
@@ -424,7 +441,7 @@ function BookOnBehalfDialog({
 
   const bookMutation = useMutation({
     mutationFn: async () => {
-      if (!authUser?.id) throw new Error("You must be signed in.");
+      const kiosk = isKioskMode() || !authUser?.id;
       const target = credits.find((c) => c.credit_type === creditType && c.credits_remaining > 0);
       if (!target) throw new Error("No available credit of this type");
 
@@ -447,6 +464,18 @@ function BookOnBehalfDialog({
       // red_light / dry_cryo: deduct + audit
       const prev = target.credits_remaining;
       const next = prev - 1;
+      const reason = `Front desk booked ${CREDIT_TYPE_LABELS[creditType]} session${notes ? ` — ${notes}` : ""}`;
+
+      if (kiosk) {
+        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+          p_credit_id: target.id,
+          p_delta: -1,
+          p_reason: reason,
+        });
+        if (error) throw error;
+        return { kind: creditType };
+      }
+
       const { error: updateError } = await supabase
         .from("member_credits")
         .update({ credits_remaining: next })
@@ -461,9 +490,11 @@ function BookOnBehalfDialog({
         amount: 1,
         previous_balance: prev,
         new_balance: next,
-        reason: `Front desk booked ${CREDIT_TYPE_LABELS[creditType]} session${notes ? ` — ${notes}` : ""}`,
-        adjusted_by: authUser.id,
+        reason,
+        adjusted_by: authUser!.id,
       });
+      if (logError) throw logError;
+
       if (logError) throw logError;
       return { kind: creditType };
     },

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isKioskMode } from "@/lib/kiosk";
+
 import { toast } from "sonner";
 import { CafeOrder } from "./useCafeOrder";
 
@@ -143,8 +145,9 @@ export function useUpdateCafeOrderStatus() {
 
   return useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
-      // Front desk / kiosk (no auth) — route through the kiosk RPC.
-      if (!user) {
+      // Front desk / kiosk (no auth session) — route through the kiosk RPC.
+      if (!user || isKioskMode()) {
+
         const { error } = await (supabase.rpc as any)("kiosk_update_cafe_order_status", {
           p_order_id: orderId,
           p_new_status: status,

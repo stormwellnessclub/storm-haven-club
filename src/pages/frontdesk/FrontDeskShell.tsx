@@ -19,6 +19,8 @@ import { ClockOutPrompt } from "./ClockOutPrompt";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
 import { SupportAlertBanner } from "@/components/frontdesk/SupportAlertBanner";
 import { cn } from "@/lib/utils";
+import { getKioskPin } from "@/lib/kiosk";
+
 
 const SHIFT_KEY = "frontdeskActiveShift";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
@@ -67,8 +69,15 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
 
   // ── Device gate (shared with /kiosk/*)
   useEffect(() => {
-    if (sessionStorage.getItem("kioskUnlocked") === "true") setDeviceUnlocked(true);
+    // Require the PIN itself to be cached — staff actions (charges) present it
+    // to edge functions since there's no Supabase session in front desk mode.
+    if (sessionStorage.getItem("kioskUnlocked") === "true" && getKioskPin()) {
+      setDeviceUnlocked(true);
+    } else {
+      sessionStorage.removeItem("kioskUnlocked");
+    }
   }, []);
+
 
   // ── Shift restore
   useEffect(() => {

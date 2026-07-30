@@ -15,6 +15,7 @@ import { MerchPOSTab } from "@/components/admin/MerchPOSTab";
 import { calculateTax } from "@/hooks/useCafeMenu";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { supabase } from "@/integrations/supabase/client";
+import { kioskHeaders } from "@/lib/kiosk";
 import { toast } from "sonner";
 import type { POSCustomer } from "@/components/admin/POSCustomerSearch";
 
@@ -110,7 +111,9 @@ export default function FrontDeskPOS() {
             recipientEmail: selectedCustomer.email || undefined,
             recipientName: selectedCustomer.name || undefined,
           },
+          headers: kioskHeaders(),
         });
+
 
         if (chargeError) {
           toast.error("Payment failed: " + (chargeError.message || "Unknown error"));

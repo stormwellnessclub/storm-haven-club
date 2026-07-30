@@ -2040,7 +2040,7 @@ export type Database = {
       }
       credit_adjustments: {
         Row: {
-          adjusted_by: string
+          adjusted_by: string | null
           adjustment_type: string
           amount: number
           created_at: string
@@ -2053,7 +2053,7 @@ export type Database = {
           reason: string | null
         }
         Insert: {
-          adjusted_by: string
+          adjusted_by?: string | null
           adjustment_type: string
           amount: number
           created_at?: string
@@ -2066,7 +2066,7 @@ export type Database = {
           reason?: string | null
         }
         Update: {
-          adjusted_by?: string
+          adjusted_by?: string | null
           adjustment_type?: string
           amount?: number
           created_at?: string
@@ -3743,7 +3743,7 @@ export type Database = {
         Row: {
           amount: number
           application_id: string | null
-          charged_by: string
+          charged_by: string | null
           created_at: string
           description: string
           failed_at: string | null
@@ -3763,7 +3763,7 @@ export type Database = {
         Insert: {
           amount: number
           application_id?: string | null
-          charged_by: string
+          charged_by?: string | null
           created_at?: string
           description: string
           failed_at?: string | null
@@ -3783,7 +3783,7 @@ export type Database = {
         Update: {
           amount?: number
           application_id?: string | null
-          charged_by?: string
+          charged_by?: string | null
           created_at?: string
           description?: string
           failed_at?: string | null
@@ -9972,6 +9972,10 @@ export type Database = {
           p_pass_id?: string
           p_session_id: string
         }
+        Returns: Json
+      }
+      kiosk_adjust_member_credits: {
+        Args: { p_credit_id: string; p_delta: number; p_reason?: string }
         Returns: Json
       }
       kiosk_cafe_active_orders: { Args: never; Returns: Json }
