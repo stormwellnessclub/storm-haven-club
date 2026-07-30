@@ -1,3 +1,4 @@
+// Gift card purchase confirmation.
 // Confirms an online gift card purchase: verifies the PaymentIntent succeeded,
 // activates the pending gift card, and sends the recipient gift email
 // (or leaves it queued for the scheduled send job) plus a purchaser receipt.
