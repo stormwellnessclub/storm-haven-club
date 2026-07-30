@@ -16,6 +16,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Minus, Plus, Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { CREDIT_TYPE_LABELS, CreditType } from "@/lib/memberCredits";
+import { isKioskMode } from "@/lib/kiosk";
+
 
 interface MemberCreditRow {
   id: string;
