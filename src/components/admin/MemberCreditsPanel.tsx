@@ -104,18 +104,32 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
   const adjustMutation = useMutation({
     mutationFn: async () => {
       if (!adjustTarget) throw new Error("No target");
-      if (!authUser?.id) throw new Error("You must be signed in to adjust credits.");
+      const kiosk = isKioskMode() || !authUser?.id;
       const amt = Math.max(1, parseInt(adjustAmount, 10) || 0);
       const delta = adjustMode === "add" ? amt : -amt;
       const prev = adjustTarget.credits_remaining;
       const next = Math.max(0, Math.min(adjustTarget.credits_total, prev + delta));
       if (next === prev) throw new Error("No change");
 
+      // Front desk / kiosk has no auth session — use the SECURITY DEFINER RPC.
+      if (kiosk) {
+        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+          p_credit_id: adjustTarget.id,
+          p_delta: delta,
+          p_reason:
+            adjustReason ||
+            (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
+        });
+        if (error) throw error;
+        return { prev, next };
+      }
+
       const { error: updateError } = await supabase
         .from("member_credits")
         .update({ credits_remaining: next })
         .eq("id", adjustTarget.id);
       if (updateError) throw updateError;
+
 
       const { error: logError } = await supabase.from("credit_adjustments").insert({
         member_id: memberId,
