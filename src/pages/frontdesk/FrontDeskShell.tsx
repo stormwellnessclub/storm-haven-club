@@ -19,6 +19,8 @@ import { ClockOutPrompt } from "./ClockOutPrompt";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
 import { SupportAlertBanner } from "@/components/frontdesk/SupportAlertBanner";
 import { cn } from "@/lib/utils";
+import { getKioskPin } from "@/lib/kiosk";
+
 
 const SHIFT_KEY = "frontdeskActiveShift";
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
