@@ -145,7 +145,7 @@ export function useKioskAttendance() {
 
       const memberCheckIns = memberResult.data || [];
       const guestCheckIns = (guestResult.data || []).filter((g: any) => {
-        if (!g.used_at) return false;
+        if (!g.used_at) return g.valid_date === todayStr;
         const usedDate = new Date(g.used_at).toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
         return usedDate === todayStr;
       });
@@ -205,7 +205,7 @@ export function useKioskAttendance() {
           id: `guest-${guest.id}`,
           type: "guest",
           name: guest.guest_name || guest.guest_email || "Guest",
-          time: guest.used_at,
+          time: guest.used_at || `${guest.valid_date}T00:00:00`,
           subtitle: guest.guest_email || "Guest Pass",
           sub_type: "Guest Pass",
         });

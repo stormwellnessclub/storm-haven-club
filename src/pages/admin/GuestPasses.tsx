@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, CheckCircle2, XCircle, Mail, BarChart3, CreditCard, UserPlus, Megaphone, Gift } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
+import { guestCheckInPatch } from "@/lib/guestPassStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -182,7 +183,7 @@ export default function GuestPasses() {
     try {
       const { error } = await (supabase
         .from('guest_passes' as any)
-        .update({ used_at: new Date().toISOString(), status: 'exhausted', checked_in_by: user?.id })
+        .update(guestCheckInPatch(user?.id))
         .eq('id', pass.id) as any);
       if (error) throw error;
       toast.success(`${pass.guest_name} checked in!`);
