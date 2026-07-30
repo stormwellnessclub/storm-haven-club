@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, AlertCircle, UserCheck, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { setKioskPin } from "@/lib/kiosk";
 import { clearAuthStorage } from "@/lib/authStorage";
 import logo from "@/assets/storm-logo.png";
 import { NoIndex } from "@/components/seo/NoIndex";
@@ -59,6 +60,7 @@ export default function FrontDeskLogin() {
       }
 
       sessionStorage.setItem("kioskUnlocked", "true");
+      setKioskPin(trimmedPin);
       navigate("/frontdesk", { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unlock failed. Please try again.";
