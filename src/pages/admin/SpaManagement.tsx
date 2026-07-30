@@ -1,5 +1,6 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { SpaRequestsTab } from "@/components/admin/spa/SpaRequestsTab";
 import { SpaServicesTab } from "@/components/admin/spa/SpaServicesTab";
 import { SpaTherapistsTab } from "@/components/admin/spa/SpaTherapistsTab";
 import { SpaRoomsTab } from "@/components/admin/spa/SpaRoomsTab";
@@ -38,6 +39,7 @@ export default function SpaManagement() {
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="mothers-day">Mother's Day Tracking 💛</TabsTrigger>
         </TabsList>
 
@@ -50,6 +52,7 @@ export default function SpaManagement() {
         <TabsContent value="addons"><SpaAddonsTab /></TabsContent>
         <TabsContent value="payroll"><SpaPayrollTab /></TabsContent>
         <TabsContent value="reviews"><SpaReviewsAdminTab /></TabsContent>
+        <TabsContent value="requests"><SpaRequestsTab /></TabsContent>
         <TabsContent value="mothers-day"><MothersDayTab /></TabsContent>
       </Tabs>
     </AdminLayout>
