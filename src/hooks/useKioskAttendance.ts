@@ -93,11 +93,9 @@ export function useKioskAttendance() {
 
         supabase
           .from("guest_passes")
-          .select("id, guest_name, guest_email, used_at, valid_date, status")
-          .eq("status", "used")
-          .not("used_at", "is", null)
-          .gte("used_at", todayIso)
-          .lt("used_at", tomorrowIso),
+          .select("id, guest_name, guest_email, used_at, valid_date, purchased_at, status")
+          .in("status", ["used", "exhausted"])
+          .or(`valid_date.eq.${todayStr},and(used_at.gte.${todayIso},used_at.lt.${tomorrowIso})`),
 
         supabase
           .from("class_bookings")

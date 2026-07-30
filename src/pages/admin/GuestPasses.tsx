@@ -34,7 +34,7 @@ interface GuestPass {
   phone_number?: string | null;
   guest_gender?: string | null;
   price_paid: number;
-  status: 'active' | 'exhausted' | 'expired';
+  status: string;
   purchased_at: string;
   expires_at: string;
   used_at: string | null;
@@ -239,6 +239,7 @@ export default function GuestPasses() {
     if (pass.no_show) return <Badge variant="destructive" className="text-xs">No-Show</Badge>;
     switch (pass.status) {
       case 'active': return <Badge variant="default" className="text-xs">Active</Badge>;
+      case 'used':
       case 'exhausted': return <Badge className="text-xs bg-green-600">Checked In</Badge>;
       case 'expired': return <Badge variant="outline" className="text-xs">Expired</Badge>;
       default: return <Badge className="text-xs">{pass.status}</Badge>;

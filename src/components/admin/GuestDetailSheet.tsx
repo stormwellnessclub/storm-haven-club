@@ -24,7 +24,7 @@ interface GuestPass {
   phone_number?: string | null;
   guest_gender?: string | null;
   price_paid: number;
-  status: 'active' | 'exhausted' | 'expired';
+  status: string;
   purchased_at: string;
   expires_at: string;
   used_at: string | null;
@@ -76,6 +76,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
     if (guest.no_show) return <Badge variant="destructive">No-Show</Badge>;
     switch (status) {
       case 'active': return <Badge variant="default">Active</Badge>;
+      case 'used':
       case 'exhausted': return <Badge className="bg-green-600">Checked In</Badge>;
       case 'expired': return <Badge variant="outline">Expired</Badge>;
       default: return <Badge>{status}</Badge>;
@@ -475,7 +476,7 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
                 <CheckCircle2 className="h-4 w-4" />
                 <span>Sent {format(new Date(guest.feedback_email_sent_at), "MMM d, yyyy 'at' h:mm a")}</span>
               </div>
-            ) : guest.guest_email && guest.status === 'exhausted' ? (
+            ) : guest.guest_email && isGuestPassCheckedIn(guest) ? (
               <Button
                 variant="outline"
                 size="sm"

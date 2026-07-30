@@ -35,7 +35,7 @@ interface GuestPass {
   guest_name: string;
   guest_email: string | null;
   phone_number?: string | null;
-  status: "active" | "exhausted" | "expired";
+  status: string;
   valid_date?: string | null;
   used_at: string | null;
 }

@@ -654,7 +654,7 @@ export default function GuestManagement() {
                         <span className="font-medium text-sm">Guest Pass</span>
                         {pass.no_show ? (
                           <Badge variant="destructive" className="text-xs">No-Show</Badge>
-                        ) : pass.status === "exhausted" ? (
+                        ) : (pass.status === "exhausted" || pass.status === "used") ? (
                           <Badge className="bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300 text-xs">Checked In</Badge>
                         ) : pass.status === "active" ? (
                           <Badge className="text-xs">Active</Badge>

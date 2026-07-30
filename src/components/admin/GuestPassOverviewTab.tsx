@@ -35,7 +35,7 @@ export function GuestPassOverviewTab({ passes }: GuestPassOverviewTabProps) {
 
   const kpis = useMemo(() => {
     const todayExpected = passes.filter(p => p.valid_date === todayStr && p.status === 'active' && !p.no_show);
-    const todayCheckedIn = passes.filter(p => p.valid_date === todayStr && (p.status === 'exhausted' || p.used_at));
+    const todayCheckedIn = passes.filter(p => p.valid_date === todayStr && (p.status === 'exhausted' || p.status === 'used' || p.used_at));
     const todayNoShow = passes.filter(p => p.valid_date === todayStr && p.no_show);
     const weekRevenue = passes
       .filter(p => { const d = new Date(p.purchased_at); return d >= weekStart && d <= weekEnd; })
@@ -56,7 +56,7 @@ export function GuestPassOverviewTab({ passes }: GuestPassOverviewTabProps) {
   // Status distribution for pie chart
   const statusDistribution = useMemo(() => {
     const active = passes.filter(p => p.status === 'active' && !p.no_show).length;
-    const checkedIn = passes.filter(p => p.status === 'exhausted' || p.used_at).length;
+    const checkedIn = passes.filter(p => p.status === 'exhausted' || p.status === 'used' || p.used_at).length;
     const expired = passes.filter(p => p.status === 'expired').length;
     const noShow = passes.filter(p => p.no_show).length;
     return [
@@ -235,7 +235,7 @@ export function GuestPassOverviewTab({ passes }: GuestPassOverviewTabProps) {
                 <p className="text-xs text-muted-foreground">Total Passes</p>
               </div>
               <div>
-                <p className="text-lg font-semibold">{passes.filter(p => p.used_at || p.status === 'exhausted').length}</p>
+                <p className="text-lg font-semibold">{passes.filter(p => p.used_at || p.status === 'exhausted' || p.status === 'used').length}</p>
                 <p className="text-xs text-muted-foreground">Used</p>
               </div>
               <div>
