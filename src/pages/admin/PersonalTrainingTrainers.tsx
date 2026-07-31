@@ -44,13 +44,12 @@ export default function PersonalTrainingTrainers() {
   const { data: instructors = [], isLoading } = useQuery({
     queryKey: ["pt-trainers-list"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, email, is_active, is_public_pt")
-        .eq("is_active", true)
-        .order("first_name");
+      // Email is staff-only; served through the SECURITY DEFINER staff RPC.
+      const { data, error } = await (supabase as any).rpc("get_instructors_with_contact");
       if (error) throw error;
-      return (data ?? []) as Instructor[];
+      return ((data ?? []) as any[])
+        .filter((i) => i.is_active)
+        .sort((a, b) => String(a.first_name).localeCompare(String(b.first_name))) as Instructor[];
     },
   });
 
