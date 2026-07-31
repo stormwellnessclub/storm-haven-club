@@ -266,7 +266,12 @@ serve(async (req) => {
       for (const inv of list.data) {
         invoicesProcessed++;
         const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
-        const memberId = customerId ? customerToMember.get(customerId) : null;
+        const memberId = resolveMember(
+          customerId,
+          getInvoiceSubscriptionId(inv),
+          inv.customer_email ?? null,
+        );
+
         if (!memberId || !inv.id) continue;
 
         const isUnpaid = inv.status === "open" || inv.status === "uncollectible" || inv.status === "past_due";
