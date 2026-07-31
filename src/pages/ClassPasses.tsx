@@ -388,6 +388,7 @@ export default function ClassPasses() {
   const { data: singleClassAgreements } = useAgreements("single_class_pass");
   const { data: classPackageAgreements } = useAgreements("class_package");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
     title: string;
