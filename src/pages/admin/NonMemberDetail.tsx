@@ -196,6 +196,55 @@ export default function NonMemberDetail() {
     },
   });
 
+  // Personal training packs
+  const { data: ptPasses = [], isLoading: ptPassesLoading } = useQuery({
+    queryKey: ["admin-nonmember-pt-passes", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pt_passes")
+        .select("*")
+        .eq("user_id", userId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Personal training appointments
+  const { data: ptAppointments = [], isLoading: ptApptsLoading } = useQuery({
+    queryKey: ["admin-nonmember-pt-appointments", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pt_appointments")
+        .select("*, instructors(first_name, last_name)")
+        .eq("user_id", userId!)
+        .order("starts_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Card setup link history (was a link sent? did they finish?)
+  const { data: cardSetupAttempts = [] } = useQuery({
+    queryKey: ["admin-nonmember-card-setup-attempts", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("card_setup_attempts")
+        .select("id, status, created_at, completed_at, source, metadata")
+        .contains("metadata", { user_id: userId! })
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const latestCardAttempt = cardSetupAttempts[0] as any | undefined;
+
   // Refresh card from Stripe
   const refreshCardMutation = useMutation({
     mutationFn: async () => {
