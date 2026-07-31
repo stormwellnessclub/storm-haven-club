@@ -251,6 +251,8 @@ export default function MemberDetail() {
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
+  const [showCancellationNoticeDialog, setShowCancellationNoticeDialog] = useState(false);
+
 
   // Cancel membership state
   const [showCancelMembershipDialog, setShowCancelMembershipDialog] = useState(false);
