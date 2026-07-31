@@ -125,7 +125,7 @@ export default function PTProgress() {
       />
       <PTCard padded={false}>
         <div className="px-3 pt-1">
-          <PTTabs
+          <PTTabs<Tab>
             value={tab}
             onChange={setTab}
             tabs={[
