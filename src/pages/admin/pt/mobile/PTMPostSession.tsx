@@ -43,7 +43,7 @@ function Field({
         {dictate && dictation.supported && (
           <button
             type="button"
-            onClick={dictation.listening ? dictation.stop : dictation.start}
+            onClick={dictation.toggle}
             className={cn(
               "flex h-7 items-center gap-1 rounded-full border border-pt-line px-2 text-[11px]",
               dictation.listening ? "bg-pt-gold text-pt-noir" : "bg-white text-pt-muted",
