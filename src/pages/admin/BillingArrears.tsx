@@ -647,6 +647,21 @@ export default function BillingArrears() {
         onOpenChange={setBulkOutreachOpen}
         targets={selectedRows}
       />
+      <CancellationNoticeDialog
+        open={cancelNoticeOpen}
+        onOpenChange={setCancelNoticeOpen}
+        targets={selectedRows.map(r => ({
+          id: r.member_id,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          email: r.email,
+          membership_type: r.membership_type,
+          stripe_subscription_id: r.stripe_subscription_id,
+          amountOwed: (r.outstanding_cents || 0) / 100,
+        }))}
+        onSent={() => refetch()}
+      />
+
     </AdminLayout>
   );
 }
