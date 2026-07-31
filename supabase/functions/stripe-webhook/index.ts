@@ -788,10 +788,8 @@ serve(async (req) => {
             } catch (e) {
               logError(e, "PT_SESSION_PAYMENT");
             }
-            return new Response(JSON.stringify({ received: true }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200,
-            });
+            return successResponse({ pt_session_paid: metadata.appointment_id });
+
           }
 
 
