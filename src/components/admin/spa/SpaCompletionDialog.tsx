@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, CreditCard, DollarSign, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
+import { useSpaAddons } from "@/hooks/useSpaManagement";
+
+interface SelectedAddon {
+  id: string;
+  name: string;
+  price: number;
+}
 
 interface SpaCompletionDialogProps {
   open: boolean;
