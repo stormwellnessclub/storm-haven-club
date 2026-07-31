@@ -30,6 +30,8 @@ import { DunningTimeline } from "@/components/admin/DunningTimeline";
 import { BulkChargeDialog } from "@/components/admin/BulkChargeDialog";
 import { BulkSmsDialog } from "@/components/admin/BulkSmsDialog";
 import { BulkOutreachDialog } from "@/components/admin/BulkOutreachDialog";
+import { CancellationNoticeDialog } from "@/components/admin/CancellationNoticeDialog";
+
 
 function DunningBadge({ row }: { row: ArrearsRow }) {
   if (!row.dunning_status) return <span className="text-muted-foreground">—</span>;
