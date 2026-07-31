@@ -78,7 +78,7 @@ export interface KidsCareHourSlot {
   updated_at?: string;
 }
 
-// Fetch all slots for a specific date
+// Fetch all slots for a specific date (public-safe columns only)
 export function useKidsCareHourSlotsForDate(date: Date | undefined) {
   const dateStr = date ? format(date, "yyyy-MM-dd") : "";
 
@@ -88,10 +88,30 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
       if (!dateStr) return [];
       const { data, error } = await (supabase.from as any)("kids_care_hour_slots")
-        .select("*")
+        .select("id, slot_date, open_time, close_time, label, created_at, updated_at")
         .eq("slot_date", dateStr)
         .order("open_time", { ascending: true });
 
+      if (error) throw error;
+      return (data || []).map((s: any) => ({ ...s, notes: null, staff_name: null })) as KidsCareHourSlot[];
+    },
+    enabled: !!date,
+    ...AVAILABILITY_QUERY_OPTS,
+  });
+}
+
+// Staff-only: full slot rows including internal notes / assigned staff.
+export function useKidsCareHourSlotsStaff(date: Date | undefined) {
+  const dateStr = date ? format(date, "yyyy-MM-dd") : "";
+  useKidsCareHourSlotsRealtime();
+  return useQuery({
+    queryKey: ["kids-care-hour-slots-staff", dateStr],
+    queryFn: async (): Promise<KidsCareHourSlot[]> => {
+      if (!dateStr) return [];
+      const { data, error } = await (supabase as any).rpc("get_kids_care_hour_slots_staff", {
+        p_start: dateStr,
+        p_end: dateStr,
+      });
       if (error) throw error;
       return (data || []) as KidsCareHourSlot[];
     },
@@ -99,6 +119,7 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
     ...AVAILABILITY_QUERY_OPTS,
   });
 }
+
 
 // Fetch all slots for a month (for calendar indicators)
 export function useKidsCareHourSlotsForMonth(year: number, month: number) {
