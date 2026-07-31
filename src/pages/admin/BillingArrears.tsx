@@ -269,16 +269,23 @@ function money(cents: number) {
   return `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function statusBadge(status: string) {
+function statusBadge(status: string, owesBalance = false) {
   const s = (status || "").toLowerCase();
   if (s === "past_due") return <Badge variant="destructive">Past Due</Badge>;
   if (s === "active") return <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Active</Badge>;
   if (s === "suspended") return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">Suspended</Badge>;
   if (s === "frozen") return <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Frozen</Badge>;
   if (s === "pending_activation") return <Badge variant="outline">Pending Activation</Badge>;
-  if (s === "cancelled" || s === "canceled") return <Badge variant="secondary">Cancelled</Badge>;
+  if (s === "cancelled" || s === "canceled") {
+    // Cancelling a membership never clears the debt — these were cancelled by us
+    // for non-payment and the member is still liable under their agreement.
+    return owesBalance
+      ? <Badge variant="destructive" title="Cancelled by the club for non-payment — balance still owed under the membership agreement">Cancelled — Still Owes</Badge>
+      : <Badge variant="secondary">Cancelled</Badge>;
+  }
   return <Badge variant="secondary">{status}</Badge>;
 }
+
 
 function exportCsv(rows: ArrearsRow[]) {
   const headers = [
@@ -542,7 +549,7 @@ export default function BillingArrears() {
                           )}
                         </TableCell>
                         <TableCell>{r.membership_type || "—"}</TableCell>
-                        <TableCell>{statusBadge(r.member_status)}</TableCell>
+                        <TableCell>{statusBadge(r.member_status, (r.outstanding_cents ?? 0) > 0)}</TableCell>
                         <TableCell className="text-right">
                           {r.months_behind >= 2 ? (
                             <Badge variant="destructive">{r.months_behind}</Badge>

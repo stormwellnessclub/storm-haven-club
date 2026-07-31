@@ -12591,6 +12591,15 @@ export type Database = {
         }[]
       }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
+      settle_membership_dues_payment: {
+        Args: {
+          p_actor_email?: string
+          p_amount_cents: number
+          p_member_id: string
+          p_note?: string
+        }
+        Returns: Json
+      }
       staff_book_wellness_appointment: {
         Args: {
           p_appointment_date: string

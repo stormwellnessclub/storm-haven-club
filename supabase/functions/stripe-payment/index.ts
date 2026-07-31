@@ -2095,6 +2095,66 @@ serve(async (req) => {
           if (insertError) {
             logStep("Warning: Failed to record manual charge", { error: insertError.message });
           }
+
+          // Connect the money to the debt: if this was a membership charge and it
+          // cleared, settle the member's outstanding invoices and lift past-due.
+          if (paymentIntent.status === 'succeeded') {
+            const d = (feeDescription || description || '').toLowerCase();
+            const isMembershipCollection = d.includes('dues') || d.includes('membership') ||
+              d.includes('initiation') || d.includes('annual fee') || d.includes('past due') ||
+              body.chargeType === 'membership_dues' || body.settleArrears === true;
+
+            if (isMembershipCollection) {
+              const { data: settleRes, error: settleErr } = await supabase.rpc(
+                'settle_membership_dues_payment',
+                {
+                  p_member_id: memberIdForLog,
+                  p_amount_cents: totalAmountWithFee,
+                  p_note: body.note
+                    ? `Paid in club — ${body.note}`
+                    : 'Paid in club (manual charge)',
+                  p_actor_email: user?.email ?? null,
+                },
+              );
+              if (settleErr) {
+                logStep("Warning: failed to settle arrears after charge", { error: settleErr.message });
+              } else {
+                logStep("Arrears settled from manual charge", { result: settleRes });
+
+                // Stop Stripe from continuing to dun invoices we collected by hand.
+                try {
+                  const { data: memberRow } = await supabase
+                    .from('members')
+                    .select('stripe_customer_id, stripe_subscription_id')
+                    .eq('id', memberIdForLog)
+                    .maybeSingle();
+                  const custIds = [memberRow?.stripe_customer_id].filter(Boolean) as string[];
+                  if (memberRow?.stripe_subscription_id) {
+                    try {
+                      const sub = await stripe.subscriptions.retrieve(memberRow.stripe_subscription_id);
+                      const sc = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+                      if (sc && !custIds.includes(sc)) custIds.push(sc);
+                    } catch (_e) { /* subscription may be gone */ }
+                  }
+                  let remainingCents = totalAmountWithFee;
+                  for (const cid of custIds) {
+                    const open = await stripe.invoices.list({ customer: cid, status: 'open', limit: 20 });
+                    const oldestFirst = open.data.sort((a, b) => (a.created ?? 0) - (b.created ?? 0));
+                    for (const inv of oldestFirst) {
+                      if (remainingCents < (inv.amount_remaining ?? 0)) break;
+                      if (!inv.id) continue;
+                      await stripe.invoices.pay(inv.id, { paid_out_of_band: true });
+                      remainingCents -= inv.amount_remaining ?? 0;
+                      logStep("Marked Stripe invoice paid out of band", { invoiceId: inv.id });
+                    }
+                  }
+                } catch (invErr) {
+                  logStep("Warning: could not settle Stripe invoices", { error: String(invErr) });
+                }
+              }
+            }
+          }
+
         } else if (applicationIdForLog) {
           // Application charge (before member record exists)
           const { error: insertError } = await supabase
