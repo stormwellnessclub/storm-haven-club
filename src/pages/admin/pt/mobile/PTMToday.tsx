@@ -11,7 +11,7 @@ import {
 } from "@/components/admin/pt/mobile/PTMobileUI";
 import { PTMAvatar } from "@/components/admin/pt/mobile/PTMobileParts";
 import { usePTMToday, type PTMTodayAppointment } from "@/hooks/pt/usePTMToday";
-import { useIsPTAdmin } from "@/hooks/pt/usePTAccess";
+import { usePTMobileAccess } from "@/hooks/pt/usePTMobileAccess";
 import { PT_LIFECYCLE_LABEL, PT_LIFECYCLE_STYLE } from "@/hooks/pt/usePTSchedule";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +79,7 @@ function TimelineRow({ a, onOpen }: { a: PTMTodayAppointment; onOpen: () => void
 
 export default function PTMToday() {
   const navigate = useNavigate();
-  const isAdmin = useIsPTAdmin();
+  const { isAdmin } = usePTMobileAccess();
   const { data, isLoading, refetch, isRefetching } = usePTMToday({ isAdmin });
   const [pullPx, setPullPx] = useState(0);
   const startY = useRef<number | null>(null);
