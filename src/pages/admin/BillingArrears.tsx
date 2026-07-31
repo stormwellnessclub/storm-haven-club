@@ -468,6 +468,10 @@ export default function BillingArrears() {
                 <Button size="sm" variant="outline" onClick={() => setBulkOutreachOpen(true)}>
                   <MessageSquarePlus className="h-4 w-4 mr-1" /> Log outreach
                 </Button>
+                <Button size="sm" variant="outline" onClick={() => setCancelNoticeOpen(true)}>
+                  <Mail className="h-4 w-4 mr-1" /> Cancellation notice
+                </Button>
+
                 <Button size="sm" variant="ghost" onClick={clearSelection}>
                   <X className="h-4 w-4 mr-1" /> Clear
                 </Button>
