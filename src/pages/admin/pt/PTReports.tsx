@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format as fmtDate, startOfMonth, subMonths } from "date-fns";
 import { BarChart3, Download, CalendarCheck, UserX, Users, DollarSign, FileWarning } from "lucide-react";
 import {
-  PTShell, PTPageHeader, PTCard, PTKpiCard, PTTable, PTColumn, PTEmptyState, PTSectionTitle, ptButtonClass,
+  PTShell, PTPageHeader, PTCard, PTKpiCard, PTTable, PTColumn, PTEmptyState, PTSectionTitle, ptButtonClass, PTAlert,
 } from "@/components/admin/pt/PTUI";
 import { formatCents } from "@/lib/ptFormat";
 import { usePTReportData, usePTReportLookups, PTReportFilters } from "@/hooks/pt/usePTReportData";
@@ -25,7 +25,7 @@ export default function PTReports() {
   });
 
   const { data: lookups } = usePTReportLookups();
-  const { data, isLoading } = usePTReportData(filters);
+  const { data, isLoading, isError, error, refetch } = usePTReportData(filters);
 
   const appts = data?.appointments ?? [];
   const passes = data?.passes ?? [];
@@ -246,6 +246,16 @@ export default function PTReports() {
           </button>
         }
       />
+
+      {isError && (
+        <PTAlert
+          tone="danger"
+          title="Reports could not be loaded"
+          action={<button className={ptButtonClass("outline")} onClick={() => refetch()}>Retry</button>}
+        >
+          {(error as any)?.message ?? "These figures are incomplete — do not use them until the data loads."}
+        </PTAlert>
+      )}
 
       <PTCard>
         <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">

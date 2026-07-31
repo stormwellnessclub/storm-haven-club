@@ -248,9 +248,9 @@ export default function PTTasks() {
         {view === "calendar" && (
           <div className="p-3">
             <div className="flex items-center justify-between pb-3">
-              <button className={ptButtonClass("outline")} onClick={() => setMonth(addMonths(month, -1))}><ChevronLeft className="h-4 w-4" /></button>
+              <button className={ptButtonClass("outline")} onClick={() => setMonth(addMonths(month, -1))} aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
               <div className="font-serif text-lg text-pt-ink">{fmtDate(month, "MMMM yyyy")}</div>
-              <button className={ptButtonClass("outline")} onClick={() => setMonth(addMonths(month, 1))}><ChevronRight className="h-4 w-4" /></button>
+              <button className={ptButtonClass("outline")} onClick={() => setMonth(addMonths(month, 1))} aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
             </div>
             <div className="grid grid-cols-7 gap-px rounded-xl border border-pt-line bg-pt-line overflow-hidden">
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (

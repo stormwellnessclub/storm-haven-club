@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ptmToast } from "@/components/admin/pt/mobile/ptmToast";
+import { compressImage } from "@/lib/imageCompress";
 
 /**
  * Mobile progress snapshot data layer.
@@ -276,9 +277,10 @@ export function usePTMProgressMutations(userId?: string) {
     mutationFn: async (args: { file: File; pose: string; takenOn: string; notes: string }) => {
       if (!userId) throw new Error("Select a client first");
       const { data: auth } = await supabase.auth.getUser();
-      const path = `${userId}/${Date.now()}-${args.file.name.replace(/[^\w.-]/g, "_")}`;
+      const file = await compressImage(args.file);
+      const path = `${userId}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
       const { error: upErr } = await supabase.storage
-        .from("pt-progress-photos").upload(path, args.file, { upsert: false });
+        .from("pt-progress-photos").upload(path, file, { upsert: false, contentType: file.type });
       if (upErr) throw upErr;
       const { error } = await (supabase as any).from("pt_progress_photos").insert({
         user_id: userId,

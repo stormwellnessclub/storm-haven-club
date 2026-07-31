@@ -83,7 +83,7 @@ export default function PTTrainers() {
             >
               <Download className="h-4 w-4" /> Export
             </button>
-            <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/availability")}>
+            <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/trainers")}>
               <CalendarClock className="h-4 w-4" /> Manage availability
             </button>
           </>
@@ -128,7 +128,7 @@ function TrainerSheet({ trainer, onClose }: { trainer: PTTrainerProfile | null; 
                   {trainer.is_master && <PTBadge tone="gold">Master</PTBadge>}
                 </div>
               </div>
-              <button onClick={onClose} className="text-pt-muted hover:text-pt-ink"><X className="h-5 w-5" /></button>
+              <button onClick={onClose} aria-label="Close trainer details" className="text-pt-muted hover:text-pt-ink"><X className="h-5 w-5" /></button>
             </div>
 
             <div className="grid grid-cols-3 gap-2 text-center">

@@ -36,7 +36,7 @@ export default function PTMActionList() {
   const navigate = useNavigate();
   const { isAdmin } = usePTMobileAccess();
 
-  const { data: rows = [], isLoading } = useQuery({
+  const { data: rows = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ["ptm-action-list", key, isAdmin],
     staleTime: 15_000,
     queryFn: async (): Promise<Row[]> => {
@@ -160,6 +160,19 @@ export default function PTMActionList() {
     <PTMobileShell title={title} back>
       {isLoading ? (
         <PTMListSkeleton rows={5} />
+      ) : isError ? (
+        <PTMEmpty
+          title="Couldn't load this list"
+          description={(error as any)?.message ?? "Check your connection and try again."}
+          action={
+            <button
+              onClick={() => refetch()}
+              className="min-h-[44px] rounded-full border border-pt-line px-5 text-sm text-pt-ink"
+            >
+              Try again
+            </button>
+          }
+        />
       ) : rows.length === 0 ? (
         <PTMEmpty title="All clear" description={`Nothing in ${title.toLowerCase()} right now.`} />
       ) : (

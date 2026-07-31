@@ -408,7 +408,12 @@ export default function PTClientDetail() {
                   description: a.instructor_id ? trainerMap[a.instructor_id] : undefined,
                   time: fmtDate(parseISO(a.starts_at), "MMM d"),
                   meta: a.status,
-                  tone: a.status === "no_show" ? ("red" as const) : ("default" as const),
+                  tone:
+                    a.status === "no_show"
+                      ? ("red" as const)
+                      : a.status === "completed"
+                        ? ("green" as const)
+                        : ("default" as const),
                 }))}
               />
             </PTCard>

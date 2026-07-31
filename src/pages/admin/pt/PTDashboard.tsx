@@ -9,7 +9,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { PT_FORMAT_LABEL, formatCents } from "@/lib/ptFormat";
 import {
-  PTShell, PTPageHeader, PTKpiCard, PTCard, PTSectionTitle, PTBadge, PTEmpty, ptButtonClass,
+  PTShell, PTPageHeader, PTKpiCard, PTCard, PTSectionTitle, PTBadge, PTEmpty, ptButtonClass, PTAlert,
 } from "@/components/admin/pt/PTUI";
 import { usePTPeople, usePTTrainerMap, usePTTasks, usePTTaskMutations } from "@/hooks/pt/usePTPortal";
 import {
@@ -33,7 +33,7 @@ export default function PTDashboard() {
   const today = new Date();
   const todayKey = fmtDate(today, "yyyy-MM-dd");
 
-  const { data: dash, isLoading } = usePTDashboard();
+  const { data: dash, isLoading, isError, error, refetch } = usePTDashboard();
   const todays = (dash?.todaySessions ?? []) as PTScheduleAppointment[];
   const trainerMap = usePTTrainerMap();
   const peopleIds = useMemo(() => {
@@ -95,6 +95,18 @@ export default function PTDashboard() {
           </>
         }
       />
+
+      {isError && (
+        <PTAlert
+          tone="danger"
+          title="Today's data could not be loaded"
+          action={<button className={ptButtonClass("outline")} onClick={() => refetch()}>Retry</button>}
+        >
+          {(error as any)?.message ?? "These counts are not accurate right now — retry before acting on them."}
+        </PTAlert>
+      )}
+
+
 
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
         {kpis.map((k) => (

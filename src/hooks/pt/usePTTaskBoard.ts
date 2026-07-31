@@ -37,6 +37,7 @@ export const PT_TASK_STATUSES = ["todo", "in_progress", "done"] as const;
 export function usePTTaskList() {
   return useQuery({
     queryKey: ["pt-tasks", "board"],
+    staleTime: 30_000,
     queryFn: async (): Promise<PTTaskRow[]> => {
       const { data, error } = await (supabase as any)
         .from("pt_tasks")

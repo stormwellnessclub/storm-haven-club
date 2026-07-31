@@ -3,7 +3,7 @@ import {
   GripVertical, Copy, Trash2, ChevronDown, ChevronRight, Plus, Link2, Image as ImageIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { PTBadge, PTCard, ptButtonClass, PTEmptyState } from "@/components/admin/pt/PTUI";
+import { PTBadge, PTCard, ptButtonClass, PTEmptyState, PTConfirmDialog } from "@/components/admin/pt/PTUI";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,6 +45,7 @@ export function PTWorkoutEditor({
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [dragId, setDragId] = useState<string | null>(null);
   const [picker, setPicker] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<PTProgramExercise | null>(null);
 
   const sorted = useMemo(
     () => [...exercises].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
@@ -145,7 +146,7 @@ export function PTWorkoutEditor({
                     <button className={ptButtonClass("ghost")} onClick={() => onDuplicateExercise(ex.id)} aria-label="Duplicate exercise">
                       <Copy className="h-3.5 w-3.5" />
                     </button>
-                    <button className={ptButtonClass("ghost")} onClick={() => onDeleteExercise(ex.id)} aria-label="Remove exercise">
+                    <button className={ptButtonClass("ghost")} onClick={() => setPendingDelete(ex)} aria-label="Remove exercise">
                       <Trash2 className="h-3.5 w-3.5 text-pt-red" />
                     </button>
                   </span>
@@ -202,6 +203,20 @@ export function PTWorkoutEditor({
           <Plus className="h-4 w-4 mr-1.5" /> Custom exercise
         </button>
       </div>
+
+      <PTConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(v) => !v && setPendingDelete(null)}
+        title="Remove this exercise?"
+        description={`"${pendingDelete?.exercise ?? "This exercise"}" will be deleted from this workout. This cannot be undone.`}
+        confirmLabel="Remove exercise"
+        destructive
+        onConfirm={() => {
+          const target = pendingDelete;
+          setPendingDelete(null);
+          if (target) onDeleteExercise(target.id);
+        }}
+      />
     </div>
   );
 }

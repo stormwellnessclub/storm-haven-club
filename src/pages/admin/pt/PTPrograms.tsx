@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   PTShell, PTPageHeader, PTCard, PTSectionTitle, PTBadge, PTStatus, PTEmptyState, PTModal,
-  ptButtonClass, PTDropdown,
+  ptButtonClass, PTDropdown, PTConfirmDialog,
 } from "@/components/admin/pt/PTUI";
 import { PTWorkspaceNav } from "@/components/admin/pt/PTWorkspaceNav";
 import { PTWorkoutEditor } from "@/components/admin/pt/PTWorkoutEditor";
@@ -32,6 +32,9 @@ export default function PTPrograms() {
   const [phaseOpen, setPhaseOpen] = useState(false);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [dragDayId, setDragDayId] = useState<string | null>(null);
+  // Destructive actions must always be confirmed before they run.
+  const [confirmDeleteProgram, setConfirmDeleteProgram] = useState(false);
+  const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const { data: programs = [], isLoading } = usePTProgramList();
@@ -206,7 +209,7 @@ export default function PTPrograms() {
                       { label: "Export program", icon: Download, onSelect: exportProgram },
                       { label: "Share client recap", icon: Share2, onSelect: shareRecap },
                       { label: "Delete program", icon: Trash2, destructive: true, separatorBefore: true,
-                        onSelect: () => m.deleteProgram.mutate(program.id, { onSuccess: () => setSelected(undefined) }) },
+                        onSelect: () => setConfirmDeleteProgram(true) },
                     ]}
                   />
                 </div>
@@ -350,7 +353,7 @@ export default function PTPrograms() {
                     <button className={ptButtonClass("ghost")} onClick={() => m.duplicateDay.mutate(activeDay.id)}>
                       <Copy className="h-3.5 w-3.5 mr-1.5" />Duplicate workout
                     </button>
-                    <button className={ptButtonClass("ghost")} onClick={() => m.deleteDay.mutate(activeDay.id)}>
+                    <button className={ptButtonClass("ghost")} onClick={() => setConfirmDeleteDay(true)}>
                       <Trash2 className="h-3.5 w-3.5 mr-1.5 text-pt-red" />Remove day
                     </button>
                   </div>
@@ -439,6 +442,32 @@ export default function PTPrograms() {
       <PhaseModal
         open={phaseOpen} onOpenChange={setPhaseOpen} phases={phases}
         onSave={(next) => program && m.updateProgram.mutate({ id: program.id, patch: { phases: next } }, { onSuccess: () => setPhaseOpen(false) })}
+      />
+
+      <PTConfirmDialog
+        open={confirmDeleteProgram}
+        onOpenChange={setConfirmDeleteProgram}
+        title="Delete this program?"
+        description={`"${program?.name ?? "This program"}" and all of its workout days and exercises will be permanently removed. This cannot be undone.`}
+        confirmLabel="Delete program"
+        destructive
+        onConfirm={() => {
+          setConfirmDeleteProgram(false);
+          if (program) m.deleteProgram.mutate(program.id, { onSuccess: () => setSelected(undefined) });
+        }}
+      />
+
+      <PTConfirmDialog
+        open={confirmDeleteDay}
+        onOpenChange={setConfirmDeleteDay}
+        title="Remove this workout day?"
+        description="The day and every exercise programmed on it will be deleted. This cannot be undone."
+        confirmLabel="Remove day"
+        destructive
+        onConfirm={() => {
+          setConfirmDeleteDay(false);
+          if (activeDayId) m.deleteDay.mutate(activeDayId);
+        }}
       />
     </PTShell>
   );
