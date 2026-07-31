@@ -61,7 +61,14 @@ export default function FrontDeskLogin() {
 
       sessionStorage.setItem("kioskUnlocked", "true");
       setKioskPin(trimmedPin);
-      await startKioskSession(trimmedPin);
+      const sessionOk = await startKioskSession(trimmedPin);
+      if (!sessionOk) {
+        sessionStorage.removeItem("kioskUnlocked");
+        setError(
+          "PIN accepted, but the front desk session could not be started. Please try again — if this keeps happening, contact an administrator.",
+        );
+        return;
+      }
       navigate("/frontdesk", { replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unlock failed. Please try again.";
