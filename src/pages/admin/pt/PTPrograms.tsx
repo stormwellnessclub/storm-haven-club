@@ -353,7 +353,7 @@ export default function PTPrograms() {
                     <button className={ptButtonClass("ghost")} onClick={() => m.duplicateDay.mutate(activeDay.id)}>
                       <Copy className="h-3.5 w-3.5 mr-1.5" />Duplicate workout
                     </button>
-                    <button className={ptButtonClass("ghost")} onClick={() => m.deleteDay.mutate(activeDay.id)}>
+                    <button className={ptButtonClass("ghost")} onClick={() => setConfirmDeleteDay(true)}>
                       <Trash2 className="h-3.5 w-3.5 mr-1.5 text-pt-red" />Remove day
                     </button>
                   </div>
