@@ -1034,6 +1034,98 @@ serve(async (req) => {
         break;
       }
 
+      case 'spa_receipt': {
+        const apptWhen = data.appointmentDate
+          ? new Date(`${data.appointmentDate}T${data.appointmentTime || '00:00:00'}`).toLocaleString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: 'numeric', minute: '2-digit',
+            })
+          : new Date().toLocaleString('en-US', { timeZone: 'America/Detroit' });
+
+        const addonRows = Array.isArray(data.addons) && data.addons.length
+          ? data.addons.map((a: any) => `
+              <tr>
+                <td style="padding: 6px 0; color: #1C170F;">${a.name}</td>
+                <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${a.price}</td>
+              </tr>`).join('')
+          : '';
+
+        const payLabel = data.cardLabel
+          ? data.cardLabel
+          : data.paymentMethod === 'cash'
+          ? 'Cash'
+          : data.paymentMethod === 'card'
+          ? 'Card on file'
+          : 'Other';
+
+        subject = `Your spa receipt from Storm Wellness Club — $${data.amount}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Spa Receipt</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for visiting the spa at Storm Wellness Club. Here's your itemized receipt.
+              </p>
+
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 6px 0; color: #1C170F;">
+                      ${data.serviceName}${data.durationMinutes ? ` — ${data.durationMinutes} min` : ''}
+                    </td>
+                    <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.servicePrice}</td>
+                  </tr>
+                  ${addonRows}
+                  <tr><td colspan="2" style="border-top: 1px solid #C1B19C; padding-top: 8px;"></td></tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #88766B;">Subtotal</td>
+                    <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.subtotal}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #88766B;">Tip</td>
+                    <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.tip || '0.00'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0 4px; color: #1C170F; font-weight: 700;">Total Charged</td>
+                    <td style="padding: 10px 0 4px; text-align: right; font-weight: 700; font-size: 18px; color: #1C170F;">$${data.amount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${apptWhen}</td>
+                  </tr>
+                  ${data.therapistName ? `
+                    <tr>
+                      <td style="padding: 8px 0; color: #88766B;">Therapist</td>
+                      <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.therapistName}</td>
+                    </tr>` : ''}
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${payLabel}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+                Please keep this email as your receipt. If anything looks off, reply to this email and we'll take care of it.
+              </p>
+
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
+
       case 'pos_charge_failed': {
         const attemptedAt = data.attemptedAt
           ? new Date(data.attemptedAt).toLocaleString('en-US', {
