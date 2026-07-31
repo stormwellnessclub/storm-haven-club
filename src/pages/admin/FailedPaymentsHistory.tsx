@@ -20,7 +20,7 @@ import {
   type FailedHistoryRow,
 } from "@/hooks/useFailedPaymentsHistory";
 import { BackfillPaymentHistoryDialog } from "@/components/admin/BackfillPaymentHistoryDialog";
-import { MembersNotBilledCard } from "@/components/admin/MembersNotBilledCard";
+
 import { ArrearsClassificationBadge } from "@/components/admin/ArrearsClassificationBadge";
 import { useArrearsReconciliation, type ArrearsClassification } from "@/hooks/useArrearsReconciliation";
 import {
@@ -454,8 +454,8 @@ export default function FailedPaymentsHistory() {
           </CardContent>
         </Card>
 
-        {/* Members not billed */}
-        <MembersNotBilledCard />
+        {/* Members not billed — replaced by the Stripe-backed Membership Health page */}
+
 
         {/* History table */}
         <Card>
