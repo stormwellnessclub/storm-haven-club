@@ -37,8 +37,12 @@ export async function requireTrustedCaller(
     return { ok: true, kind: "service", userId: null };
   }
 
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  if (anonKey && token === anonKey) {
+  const publicKeys = [
+    Deno.env.get("SUPABASE_ANON_KEY"),
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEY"),
+    Deno.env.get("SUPABASE_PUBLISHABLE_DEFAULT_KEY"),
+  ].filter((k): k is string => !!k);
+  if (publicKeys.includes(token)) {
     return { ok: true, kind: "cron", userId: null };
   }
 
