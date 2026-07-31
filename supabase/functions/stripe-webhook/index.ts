@@ -79,7 +79,7 @@ async function upsertDunningOnFailure(
     const payload = {
       member_id: member.id,
       stripe_invoice_id: invoice.id,
-      stripe_subscription_id: (invoice.subscription as string) || null,
+      stripe_subscription_id: (getInvoiceSubscriptionId(invoice) as string) || null,
       stripe_customer_id: (invoice.customer as string) || null,
       amount_cents: invoice.amount_due || 0,
       currency: invoice.currency || 'usd',
@@ -355,8 +355,24 @@ type SubscriptionInvoiceType = 'membership_dues' | 'annual_fee';
 const ANNUAL_FEE_PRICE_IDS = new Set(['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN']);
 
 const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
-  const subscription = invoice.subscription as Stripe.Subscription | string | null | undefined;
-  return typeof subscription === 'string' ? subscription : subscription?.id ?? null;
+  // Stripe API 2025-08-27.basil removed `invoice.subscription`. The subscription now lives on
+  // `invoice.parent.subscription_details.subscription`, with a per-line fallback. Read all shapes
+  // so this keeps working across API versions.
+  const anyInvoice = invoice as any;
+  const direct = anyInvoice.subscription as Stripe.Subscription | string | null | undefined;
+  const fromDirect = typeof direct === 'string' ? direct : direct?.id ?? null;
+  if (fromDirect) return fromDirect;
+
+  const parentSub = anyInvoice.parent?.subscription_details?.subscription;
+  const fromParent = typeof parentSub === 'string' ? parentSub : parentSub?.id ?? null;
+  if (fromParent) return fromParent;
+
+  for (const line of (anyInvoice.lines?.data ?? [])) {
+    const lineSub = line?.parent?.subscription_item_details?.subscription;
+    const fromLine = typeof lineSub === 'string' ? lineSub : lineSub?.id ?? null;
+    if (fromLine) return fromLine;
+  }
+  return null;
 };
 
 const getInvoiceCustomerId = (invoice: Stripe.Invoice): string | null => {
@@ -2258,15 +2274,15 @@ serve(async (req) => {
           logStep("Payment succeeded", { 
             invoiceId: invoice.id, 
             customerId: invoice.customer,
-            subscriptionId: invoice.subscription
+            subscriptionId: getInvoiceSubscriptionId(invoice)
           });
 
           // ── PT payment plan handling (installment subscriptions) ──
-          if (invoice.subscription) {
+          if (getInvoiceSubscriptionId(invoice)) {
             try {
-              const subId = typeof invoice.subscription === 'string'
-                ? invoice.subscription
-                : invoice.subscription.id;
+              const subId = typeof getInvoiceSubscriptionId(invoice) === 'string'
+                ? getInvoiceSubscriptionId(invoice)
+                : getInvoiceSubscriptionId(invoice).id;
               const sub = await stripe.subscriptions.retrieve(subId);
               if (sub.metadata?.type === 'pt_payment_plan') {
                 const passIds = (sub.metadata.pt_pass_ids ?? '')
@@ -2325,7 +2341,7 @@ serve(async (req) => {
             chargeId = charge;
           }
 
-          if (!invoice.subscription) {
+          if (!getInvoiceSubscriptionId(invoice)) {
             try {
               const nonMemberChargeType = await resolveNonSubscriptionChargeType(stripe, invoice);
               const customerId = typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null;
@@ -2394,10 +2410,10 @@ serve(async (req) => {
           ) || false;
 
           if (isKidsCareInvoice) {
-            logStep("Kids Care Pass renewal detected", { subscriptionId: invoice.subscription });
+            logStep("Kids Care Pass renewal detected", { subscriptionId: getInvoiceSubscriptionId(invoice) });
 
             try {
-              const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+              const subscription = await stripe.subscriptions.retrieve(getInvoiceSubscriptionId(invoice) as string);
               let subUserId: string | undefined = subscription.metadata?.user_id;
               let subMemberId: string | undefined = subscription.metadata?.member_id;
 
@@ -2560,7 +2576,7 @@ serve(async (req) => {
                 }
                 // Cancel the subscription
                 try {
-                  const subId = invoice.subscription as string;
+                  const subId = getInvoiceSubscriptionId(invoice) as string;
                   if (subId) {
                     await stripe.subscriptions.cancel(subId);
                     logStep("Subscription cancelled for blocked person", { subscriptionId: subId });
@@ -2579,7 +2595,7 @@ serve(async (req) => {
               p_stripe_invoice_id: invoice.id,
               p_stripe_payment_intent_id: paymentIntentId,
               p_stripe_charge_id: chargeId,
-              p_stripe_subscription_id: invoice.subscription as string,
+              p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
               p_invoice_number: invoice.number || null,
               p_amount: invoice.amount_paid / 100, // Convert from cents
               p_currency: invoice.currency || 'usd',
@@ -2619,7 +2635,7 @@ serve(async (req) => {
                   period_end: periodEnd,
                   amount_due_cents: invoice.amount_due || 0,
                   amount_paid_cents: invoice.amount_paid || 0,
-                  stripe_subscription_id: invoice.subscription as string,
+                  stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
                   stripe_payment_intent_id: paymentIntentId,
                   status: 'paid',
                   attempt_count: invoice.attempt_count || 1,
@@ -2669,7 +2685,7 @@ serve(async (req) => {
                     const memberName = `${fullMemberData.first_name || ''} ${fullMemberData.last_name || ''}`.trim() || 'Member';
                     
                     // Get subscription for next billing date
-                    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+                    const subscription = await stripe.subscriptions.retrieve(getInvoiceSubscriptionId(invoice) as string);
                     const nextBillingDate = new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
@@ -2726,7 +2742,7 @@ serve(async (req) => {
               if (memberData.status === 'past_due' || memberData.status === 'pending_activation') {
                 const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
                   p_member_id: memberData.id,
-                  p_stripe_subscription_id: invoice.subscription as string,
+                  p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
                   p_new_status: 'active',
                   p_reason: 'payment_succeeded',
                   p_stripe_event_id: event.id,
@@ -2767,7 +2783,7 @@ serve(async (req) => {
                   let usedLiveCycle = false;
 
                   try {
-                    const liveSub = await stripe.subscriptions.retrieve(invoice.subscription as string);
+                    const liveSub = await stripe.subscriptions.retrieve(getInvoiceSubscriptionId(invoice) as string);
                     const liveStart = (liveSub as unknown as { current_period_start?: number }).current_period_start
                       ?? liveSub.items?.data?.[0]?.current_period_start
                       ?? null;
@@ -2827,7 +2843,7 @@ serve(async (req) => {
                       p_member_id: memberData.id,
                       p_user_id: memberInfo.user_id,
                       p_stripe_invoice_id: invoice.id,
-                      p_stripe_subscription_id: invoice.subscription as string,
+                      p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
                       p_credit_type: creditType,
                       p_amount: amount,
                       p_cycle_start: cycleStartStr,
@@ -3025,7 +3041,7 @@ serve(async (req) => {
                   const memberName = `${fullMemberData.first_name || ''} ${fullMemberData.last_name || ''}`.trim() || 'Member';
                   
                   // Get subscription for next billing date
-                  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+                  const subscription = await stripe.subscriptions.retrieve(getInvoiceSubscriptionId(invoice) as string);
                   const nextBillingDate = new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -3063,7 +3079,7 @@ serve(async (req) => {
               }
             }
           } else {
-            logStep("Member not found for invoice", { subscriptionId: invoice.subscription });
+            logStep("Member not found for invoice", { subscriptionId: getInvoiceSubscriptionId(invoice) });
           }
         } catch (invoiceError) {
           logError(invoiceError, "INVOICE_PAYMENT_SUCCEEDED");
@@ -3078,20 +3094,20 @@ serve(async (req) => {
           logStep("Payment failed", { 
             invoiceId: invoice.id, 
             customerId: invoice.customer,
-            subscriptionId: invoice.subscription
+            subscriptionId: getInvoiceSubscriptionId(invoice)
           });
 
           // Only process subscription invoices
-          if (!invoice.subscription) {
+          if (!getInvoiceSubscriptionId(invoice)) {
             logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
             break;
           }
 
           // ── PT payment plan: mark past_due on failed installment ──
           try {
-            const subId = typeof invoice.subscription === 'string'
-              ? invoice.subscription
-              : (invoice.subscription as any).id;
+            const subId = typeof getInvoiceSubscriptionId(invoice) === 'string'
+              ? getInvoiceSubscriptionId(invoice)
+              : (getInvoiceSubscriptionId(invoice) as any).id;
             const sub = await stripe.subscriptions.retrieve(subId);
             if (sub.metadata?.type === 'pt_payment_plan') {
               const passIds = (sub.metadata.pt_pass_ids ?? '')
@@ -3137,7 +3153,7 @@ serve(async (req) => {
                     member_id: memberData.id,
                     member_status: memberData.status,
                     member_email: memberData.email,
-                    stripe_subscription_id: invoice.subscription,
+                    stripe_subscription_id: getInvoiceSubscriptionId(invoice),
                     action_taken: 'voided_open',
                     triggered_by: 'invoice.payment_failed',
                   },
@@ -3333,7 +3349,7 @@ serve(async (req) => {
               p_stripe_invoice_id: invoice.id,
               p_stripe_payment_intent_id: paymentIntentId,
               p_stripe_charge_id: chargeId,
-              p_stripe_subscription_id: invoice.subscription as string,
+              p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
               p_invoice_number: invoice.number || null,
               p_amount: invoice.amount_due / 100, // Convert from cents
               p_currency: invoice.currency || 'usd',
@@ -3375,7 +3391,7 @@ serve(async (req) => {
                   period_end: periodEnd,
                   amount_due_cents: invoice.amount_due || 0,
                   amount_paid_cents: 0,
-                  stripe_subscription_id: invoice.subscription as string,
+                  stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
                   stripe_payment_intent_id: paymentIntentId,
                   status: 'unpaid',
                   failure_code: failureCode,
@@ -3408,7 +3424,7 @@ serve(async (req) => {
               if (memberData.status === 'active') {
                 const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
                   p_member_id: memberData.id,
-                  p_stripe_subscription_id: invoice.subscription as string,
+                  p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
                   p_new_status: 'past_due',
                   p_reason: 'payment_failed',
                   p_stripe_event_id: event.id,
@@ -3539,7 +3555,7 @@ serve(async (req) => {
               // Don't fail the webhook if admin alert fails
             }
           } else {
-            logStep("Member not found for failed invoice", { subscriptionId: invoice.subscription });
+            logStep("Member not found for failed invoice", { subscriptionId: getInvoiceSubscriptionId(invoice) });
           }
         } catch (invoiceError) {
           logError(invoiceError, "INVOICE_PAYMENT_FAILED");
@@ -3554,11 +3570,11 @@ serve(async (req) => {
           logStep("Payment action required", { 
             invoiceId: invoice.id, 
             customerId: invoice.customer,
-            subscriptionId: invoice.subscription
+            subscriptionId: getInvoiceSubscriptionId(invoice)
           });
 
           // Only process subscription invoices
-          if (!invoice.subscription) {
+          if (!getInvoiceSubscriptionId(invoice)) {
             logStep("Skipping non-subscription invoice", { invoiceId: invoice.id });
             break;
           }
@@ -3586,7 +3602,7 @@ serve(async (req) => {
               p_member_id: memberData.id,
               p_stripe_invoice_id: invoice.id,
               p_stripe_payment_intent_id: paymentIntentId,
-              p_stripe_subscription_id: invoice.subscription as string,
+              p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
               p_invoice_number: invoice.number || null,
               p_amount: invoice.amount_due / 100,
               p_currency: invoice.currency || 'usd',
@@ -3922,11 +3938,11 @@ serve(async (req) => {
           const invoice = event.data.object as Stripe.Invoice;
           
           // Only process draft invoices (before finalization) for subscriptions
-          if (invoice.status !== 'draft' || !invoice.subscription) {
+          if (invoice.status !== 'draft' || !getInvoiceSubscriptionId(invoice)) {
             logStep("Skipping invoice.created - not a draft subscription invoice", { 
               invoiceId: invoice.id, 
               status: invoice.status,
-              hasSubscription: !!invoice.subscription 
+              hasSubscription: !!getInvoiceSubscriptionId(invoice) 
             });
             break;
           }
@@ -3960,7 +3976,7 @@ serve(async (req) => {
                       member_status: cancelledMember.status,
                       member_email: cancelledMember.email,
                       stripe_customer_id: customerId,
-                      stripe_subscription_id: invoice.subscription,
+                      stripe_subscription_id: getInvoiceSubscriptionId(invoice),
                       action_taken: 'deleted_draft',
                     },
                   });
