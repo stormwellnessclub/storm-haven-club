@@ -12471,6 +12471,10 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_complete_session: {
+        Args: { p_appointment_id: string; p_deduct?: boolean; p_note?: Json }
+        Returns: Json
+      }
       pt_complete_task: {
         Args: { p_completed?: boolean; p_task_id: string }
         Returns: Json
