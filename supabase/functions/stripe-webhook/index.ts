@@ -3695,6 +3695,61 @@ serve(async (req) => {
             }
           }
 
+          // Sync to non_member_profiles if this customer belongs to a non-member
+          if (customerId) {
+            try {
+              const { data: nmProfile } = await supabase
+                .from('non_member_profiles')
+                .select('id, user_id')
+                .eq('stripe_customer_id', customerId)
+                .maybeSingle();
+
+              if (nmProfile) {
+                const { error: nmUpdateError } = await supabase
+                  .from('non_member_profiles')
+                  .update({
+                    card_brand: cardBrand,
+                    card_last4: cardLast4,
+                    card_exp_month: cardExpMonth,
+                    card_exp_year: cardExpYear,
+                  })
+                  .eq('id', nmProfile.id);
+
+                if (nmUpdateError) {
+                  logError(nmUpdateError, "SETUP_INTENT_NONMEMBER_CARD_UPDATE");
+                } else {
+                  logStep("Non-member card details updated", { userId: nmProfile.user_id, cardBrand, cardLast4 });
+                }
+
+                // Make the new card the customer default so future charges work
+                if (paymentMethodId) {
+                  try {
+                    await stripe.customers.update(customerId, {
+                      invoice_settings: { default_payment_method: paymentMethodId },
+                    });
+                  } catch (defErr) {
+                    logError(defErr, "SETUP_INTENT_NONMEMBER_SET_DEFAULT");
+                  }
+                }
+
+                // Mark any open card-setup attempt as completed
+                try {
+                  await supabase
+                    .from('card_setup_attempts')
+                    .update({ status: 'completed', completed_at: new Date().toISOString() })
+                    .eq('stripe_customer_id', customerId)
+                    .eq('status', 'initiated');
+                } catch (attemptErr) {
+                  logError(attemptErr, "SETUP_INTENT_NONMEMBER_ATTEMPT_UPDATE");
+                }
+              }
+            } catch (nmErr) {
+              logError(nmErr, "SETUP_INTENT_NONMEMBER_SYNC");
+            }
+          }
+
+
+
           // Sync to membership_applications if this is an application setup
           if (metadata.type === 'application_card_setup' || metadata.type === 'admin_card_setup') {
             const applicantEmail = metadata.applicant_email || metadata.email;

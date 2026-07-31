@@ -24,13 +24,16 @@ import {
 import {
   ArrowLeft, Edit2, X, Check, CreditCard, RefreshCw, ShieldCheck, ShieldX,
   Package, Calendar, Loader2, Mail, Phone, User, Pencil, DollarSign, Clock,
-  Plus, Zap, Gift,
+  Plus, Zap, Gift, Dumbbell,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
+import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
+import { SellPTDialog } from "@/components/admin/SellPTDialog";
+import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { NonMemberGuestPassSaleCard } from "@/components/admin/NonMemberGuestPassSaleCard";
 
@@ -48,6 +51,8 @@ export default function NonMemberDetail() {
   const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showChargeSelector, setShowChargeSelector] = useState(false);
   const [showGrantDialog, setShowGrantDialog] = useState(false);
+  const [showBookPT, setShowBookPT] = useState(false);
+  const [showSellPT, setShowSellPT] = useState(false);
 
   // Add package state
   const [showAddPackage, setShowAddPackage] = useState(false);
@@ -190,6 +195,55 @@ export default function NonMemberDetail() {
       return data || [];
     },
   });
+
+  // Personal training packs
+  const { data: ptPasses = [], isLoading: ptPassesLoading } = useQuery({
+    queryKey: ["admin-nonmember-pt-passes", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pt_passes")
+        .select("*")
+        .eq("user_id", userId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Personal training appointments
+  const { data: ptAppointments = [], isLoading: ptApptsLoading } = useQuery({
+    queryKey: ["admin-nonmember-pt-appointments", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pt_appointments")
+        .select("*, instructors(first_name, last_name)")
+        .eq("user_id", userId!)
+        .order("starts_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Card setup link history (was a link sent? did they finish?)
+  const { data: cardSetupAttempts = [] } = useQuery({
+    queryKey: ["admin-nonmember-card-setup-attempts", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("card_setup_attempts")
+        .select("id, status, created_at, completed_at, source, metadata")
+        .contains("metadata", { user_id: userId! })
+        .order("created_at", { ascending: false })
+        .limit(5);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const latestCardAttempt = cardSetupAttempts[0] as any | undefined;
 
   // Refresh card from Stripe
   const refreshCardMutation = useMutation({
@@ -422,9 +476,17 @@ export default function NonMemberDetail() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/admin/non-member-accounts")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSellPT(true)}>
+              <DollarSign className="h-4 w-4 mr-2" /> Sell PT Pack
+            </Button>
+            <Button size="sm" onClick={() => setShowBookPT(true)}>
+              <Dumbbell className="h-4 w-4 mr-2" /> Book PT Session
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/non-member-accounts")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </div>
         </div>
 
         {/* Tabbed Layout */}
@@ -582,6 +644,20 @@ export default function NonMemberDetail() {
                       <p className="text-xs text-muted-foreground">
                         {profile.card_last4 ? "Send a secure link so they can update their card." : "Send a secure link so they can add a card on file."}
                       </p>
+                      {latestCardAttempt && (
+                        <p className="text-xs">
+                          <span className="text-muted-foreground">
+                            Link sent {format(new Date(latestCardAttempt.created_at), "MMM d, yyyy h:mm a")} ·{" "}
+                          </span>
+                          {latestCardAttempt.status === "completed" ? (
+                            <span className="text-green-600 font-medium">
+                              completed{latestCardAttempt.completed_at ? ` ${format(new Date(latestCardAttempt.completed_at), "MMM d")}` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-medium">not completed yet</span>
+                          )}
+                        </p>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           variant="outline" size="sm" className="flex-1"
@@ -900,6 +976,96 @@ export default function NonMemberDetail() {
                 </Card>
               )}
 
+              {/* Personal Training */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Dumbbell className="h-4 w-4" />
+                      Personal Training ({ptPasses.length} pack{ptPasses.length === 1 ? "" : "s"})
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setShowSellPT(true)}>
+                        <Plus className="h-3 w-3 mr-1" /> Sell Pack
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setShowBookPT(true)}>
+                        <Calendar className="h-3 w-3 mr-1" /> Book Session
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {ptPassesLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : ptPasses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No PT packs. Sell a pack before booking a session.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {ptPasses.map((pass: any) => (
+                        <div key={pass.id} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">
+                              {pass.pack_name || PT_FORMAT_LABEL[pass.format as keyof typeof PT_FORMAT_LABEL] || pass.format}
+                            </p>
+                            <Badge variant={pass.status === "active" ? "default" : "secondary"} className="text-xs">
+                              {pass.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {pass.sessions_remaining} of {pass.sessions_total} sessions left
+                            {pass.expires_at ? ` · expires ${format(new Date(pass.expires_at), "MMM d, yyyy")}` : ""}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Appointments</p>
+                    {ptApptsLoading ? (
+                      <Skeleton className="h-12 w-full" />
+                    ) : ptAppointments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No PT appointments yet</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Format</TableHead>
+                            <TableHead>Trainer</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ptAppointments.map((appt: any) => (
+                            <TableRow key={appt.id}>
+                              <TableCell className="text-sm">
+                                {format(new Date(appt.starts_at), "MMM d, yyyy · h:mm a")}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {PT_FORMAT_LABEL[appt.format as keyof typeof PT_FORMAT_LABEL] || appt.format}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {appt.instructors
+                                  ? `${appt.instructors.first_name ?? ""} ${appt.instructors.last_name ?? ""}`.trim() || "—"
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={appt.status === "scheduled" ? "default" : "secondary"} className="text-xs">
+                                  {appt.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Sell Guest Pass */}
               <NonMemberGuestPassSaleCard
                 userId={userId!}
@@ -1140,6 +1306,30 @@ export default function NonMemberDetail() {
         }}
       />
     )}
+
+    <BookPTSessionDialog
+      open={showBookPT}
+      onOpenChange={setShowBookPT}
+      presetUserId={userId!}
+      presetUserName={`${fullName}${profile.email ? ` (${profile.email})` : ""}`}
+      onSellPack={() => { setShowBookPT(false); setShowSellPT(true); }}
+      onBooked={() => {
+        queryClient.invalidateQueries({ queryKey: ["admin-nonmember-pt-passes", userId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-nonmember-pt-appointments", userId] });
+      }}
+    />
+
+    <SellPTDialog
+      open={showSellPT}
+      onOpenChange={(open) => {
+        setShowSellPT(open);
+        if (!open) {
+          queryClient.invalidateQueries({ queryKey: ["admin-nonmember-pt-passes", userId] });
+        }
+      }}
+      presetUserId={userId!}
+      presetUserName={`${fullName}${profile.email ? ` (${profile.email})` : ""}`}
+    />
     </>
   );
 }
