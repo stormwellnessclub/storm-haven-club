@@ -107,7 +107,7 @@ export function PTMAccordion({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-3 text-left"
+        className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pt-gold"
       >
         <span className="text-[15px] font-semibold text-pt-ink">{title}</span>
         <span className="flex shrink-0 items-center gap-2 text-pt-muted">
