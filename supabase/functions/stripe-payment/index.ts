@@ -6994,7 +6994,94 @@ serve(async (req) => {
         );
       }
 
+      case 'create_pt_session_payment_link': {
+        const { appointmentId } = body;
+        if (!appointmentId) throw new Error("appointmentId is required");
+
+        const { data: ptRoles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .in('role', ['super_admin', 'admin', 'manager', 'front_desk']);
+        if (!ptRoles || ptRoles.length === 0) throw new Error("Unauthorized: Admin access required");
+
+        const { data: appt, error: apptErr } = await supabase
+          .from('pt_appointments')
+          .select('id, user_id, format, starts_at, amount_due_cents, payment_status')
+          .eq('id', appointmentId)
+          .maybeSingle();
+        if (apptErr || !appt) throw new Error("Appointment not found");
+        if (appt.payment_status !== 'unpaid') throw new Error("This session is not marked unpaid");
+        if (!appt.amount_due_cents || appt.amount_due_cents < 50) throw new Error("Set a session rate of at least $0.50 first");
+
+        let ptEmail: string | null = null;
+        let ptName = 'Customer';
+        const { data: ptMember } = await supabase
+          .from('members').select('email, first_name, last_name')
+          .eq('user_id', appt.user_id).maybeSingle();
+        if (ptMember) {
+          ptEmail = ptMember.email;
+          ptName = `${ptMember.first_name ?? ''} ${ptMember.last_name ?? ''}`.trim() || ptEmail || ptName;
+        }
+        if (!ptEmail) {
+          const { data: ptNm } = await supabase
+            .from('non_member_profiles').select('email, first_name, last_name')
+            .eq('user_id', appt.user_id).maybeSingle();
+          if (ptNm) {
+            ptEmail = ptNm.email;
+            ptName = `${ptNm.first_name ?? ''} ${ptNm.last_name ?? ''}`.trim() || ptEmail || ptName;
+          }
+        }
+        if (!ptEmail) {
+          const { data: ptProfile } = await supabase
+            .from('profiles').select('email, full_name')
+            .eq('user_id', appt.user_id).maybeSingle();
+          if (ptProfile) {
+            ptEmail = ptProfile.email;
+            ptName = (ptProfile as any).full_name || ptEmail || ptName;
+          }
+        }
+        if (!ptEmail) throw new Error("No email on file for this customer");
+
+        const ptFee = calculateProcessingFee(appt.amount_due_cents);
+        const ptOrigin = req.headers.get('origin') || 'https://stormwellnessclub.com';
+        const ptSessionDate = new Date(appt.starts_at).toLocaleDateString('en-US', {
+          timeZone: 'America/Detroit', month: 'short', day: 'numeric', year: 'numeric',
+        });
+
+        const ptCheckout = await stripe.checkout.sessions.create({
+          customer_email: ptEmail,
+          mode: 'payment',
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              unit_amount: appt.amount_due_cents + ptFee,
+              product_data: {
+                name: 'Personal Training Session',
+                description: `${appt.format} session on ${ptSessionDate}${ptFee > 0 ? ` (includes $${(ptFee / 100).toFixed(2)} processing fee)` : ''}`,
+              },
+            },
+            quantity: 1,
+          }],
+          metadata: {
+            type: 'pt_session_payment',
+            appointment_id: appt.id,
+            user_id: appt.user_id,
+            base_amount: String(appt.amount_due_cents),
+            processing_fee: String(ptFee),
+          },
+          success_url: `${ptOrigin}/portal/payment-history?pt=paid`,
+          cancel_url: `${ptOrigin}/`,
+        });
+
+        return new Response(
+          JSON.stringify({ url: ptCheckout.url, sessionId: ptCheckout.id, email: ptEmail, name: ptName }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       case 'create_guest_setup_intent': {
+
         const { guestEmail: setupEmail, guestName: setupName } = body;
 
         if (!setupEmail || !setupName) {
