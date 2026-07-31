@@ -94,6 +94,7 @@ import PaymentTracking from "./pages/admin/PaymentTracking";
 import FailedPaymentsHistory from "./pages/admin/FailedPaymentsHistory";
 import BillingEmailLog from "./pages/admin/BillingEmailLog";
 import BillingArrears from "./pages/admin/BillingArrears";
+import MembershipHealth from "./pages/admin/MembershipHealth";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
 import Settings from "./pages/admin/Settings";
 import GuestPasses from "./pages/admin/GuestPasses";
@@ -391,6 +392,7 @@ const App = () => (
               <Route path="/admin/payments/failed-history" element={<ProtectedAdminRoute><FailedPaymentsHistory /></ProtectedAdminRoute>} />
               <Route path="/admin/billing-emails" element={<ProtectedAdminRoute><BillingEmailLog /></ProtectedAdminRoute>} />
               <Route path="/admin/billing-arrears" element={<ProtectedAdminRoute><BillingArrears /></ProtectedAdminRoute>} />
+              <Route path="/admin/membership-health" element={<ProtectedAdminRoute><MembershipHealth /></ProtectedAdminRoute>} />
               <Route path="/admin/revenue-analytics" element={<ProtectedAdminRoute><RevenueAnalytics /></ProtectedAdminRoute>} />
               <Route path="/admin/guest-passes" element={<ProtectedAdminRoute><GuestPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/guests" element={<ProtectedAdminRoute><GuestManagement /></ProtectedAdminRoute>} />
