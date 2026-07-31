@@ -1,71 +1,83 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format as fmtDate, addDays, parseISO, startOfWeek, endOfWeek, isToday } from "date-fns";
+import { format as fmtDate, parseISO } from "date-fns";
 import {
-  CalendarDays, Users, DollarSign, TrendingUp, Plus, Check, Trash2, Clock, ArrowRight, CircleDot,
+  AlertTriangle, ArrowRight, CalendarDays, Check, CircleDot, Clock, DollarSign, Package,
+  Plus, Sparkles, Trash2, TrendingUp, UserPlus, Users, XCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PT_FORMAT_LABEL, formatCents } from "@/lib/ptFormat";
 import {
-  PTShell, PTPageHeader, PTKpiCard, PTCard, PTSectionTitle, PTStatus, PTEmpty, ptButtonClass,
+  PTShell, PTPageHeader, PTKpiCard, PTCard, PTSectionTitle, PTBadge, PTEmpty, ptButtonClass,
 } from "@/components/admin/pt/PTUI";
+import { usePTPeople, usePTTrainerMap, usePTTasks, usePTTaskMutations } from "@/hooks/pt/usePTPortal";
 import {
-  usePTAppointments, usePTPeople, usePTTrainerMap, usePTTasks, usePTTaskMutations,
-} from "@/hooks/pt/usePTPortal";
+  PTScheduleAppointment, PT_LIFECYCLE_LABEL, PT_LIFECYCLE_STYLE, ptLifecycle,
+  usePTAlerts, useResolvePTAlert,
+} from "@/hooks/pt/usePTSchedule";
+import { usePTDashboard } from "@/hooks/pt/usePTDashboardData";
+import { PTAppointmentDrawer } from "@/components/admin/pt/PTAppointmentDrawer";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
 
 export default function PTDashboard() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [bookOpen, setBookOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
+  const [selected, setSelected] = useState<PTScheduleAppointment | null>(null);
 
   const today = new Date();
-  const dayStart = new Date(`${fmtDate(today, "yyyy-MM-dd")}T00:00:00`).toISOString();
-  const dayEnd = new Date(`${fmtDate(today, "yyyy-MM-dd")}T23:59:59`).toISOString();
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 }).toISOString();
-  const weekEnd = endOfWeek(today, { weekStartsOn: 1 }).toISOString();
+  const todayKey = fmtDate(today, "yyyy-MM-dd");
 
-  const { data: todays = [], isLoading } = usePTAppointments({ fromIso: dayStart, toIso: dayEnd });
-  const { data: weekAppts = [] } = usePTAppointments({ fromIso: weekStart, toIso: weekEnd });
+  const { data: dash, isLoading } = usePTDashboard();
+  const todays = (dash?.todaySessions ?? []) as PTScheduleAppointment[];
   const trainerMap = usePTTrainerMap();
-  const { data: people = {} } = usePTPeople(todays.map((a) => a.user_id));
+  const peopleIds = useMemo(() => {
+    const ids = todays.map((a) => a.user_id);
+    (dash?.expiringPasses ?? []).forEach((p: any) => ids.push(p.user_id));
+    (dash?.reassessments ?? []).forEach((p: any) => ids.push(p.user_id));
+    return ids;
+  }, [todays, dash]);
+  const { data: people = {} } = usePTPeople(peopleIds);
   const { data: tasks = [] } = usePTTasks();
   const { create, toggle, remove } = usePTTaskMutations();
+  const { data: alerts = [] } = usePTAlerts();
+  const resolveAlert = useResolvePTAlert();
 
-  const { data: stats } = useQuery({
-    queryKey: ["pt-dashboard-stats"],
+  const { data: money } = useQuery({
+    queryKey: ["pt-dashboard", "money"],
     queryFn: async () => {
-      const [{ data: passes }, { data: unpaid }] = await Promise.all([
-        (supabase as any).from("pt_passes").select("user_id, sessions_remaining, status").eq("status", "active"),
-        (supabase as any).from("pt_appointments").select("amount_due_cents").eq("payment_status", "unpaid"),
-      ]);
-      const activeClients = new Set((passes ?? []).filter((p: any) => p.sessions_remaining > 0).map((p: any) => p.user_id)).size;
-      const sessionsBanked = (passes ?? []).reduce((s: number, p: any) => s + (p.sessions_remaining || 0), 0);
-      const outstanding = (unpaid ?? []).reduce((s: number, r: any) => s + (r.amount_due_cents || 0), 0);
-      const lowBalance = (passes ?? []).filter((p: any) => p.sessions_remaining > 0 && p.sessions_remaining <= 2).length;
-      return { activeClients, sessionsBanked, outstanding, lowBalance };
+      const { data } = await (supabase as any)
+        .from("pt_appointments")
+        .select("amount_due_cents")
+        .eq("payment_status", "unpaid");
+      return { outstanding: (data ?? []).reduce((s: number, r: any) => s + (r.amount_due_cents || 0), 0) };
     },
   });
 
-  const completedThisWeek = weekAppts.filter((a) => a.status === "completed").length;
-
-  async function markStatus(id: string, status: string, extra: Record<string, any> = {}) {
-    const { error } = await (supabase as any).from("pt_appointments").update({ status, ...extra }).eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Updated");
-    qc.invalidateQueries({ queryKey: ["pt-appointments"] });
-  }
+  const completedToday = todays.filter((a) => a.status === "completed").length;
+  const completedThisWeek = (dash?.weekSessions ?? []).filter((a: any) => a.status === "completed").length;
+  const lowBalance = (dash?.passes ?? []).filter((p: any) => p.sessions_remaining > 0 && p.sessions_remaining <= 2);
 
   const recentCheckIns = useMemo(
     () => todays.filter((a) => a.checked_in_at).sort((a, b) => (b.checked_in_at! > a.checked_in_at! ? 1 : -1)).slice(0, 6),
-    [todays]
+    [todays],
   );
+
+  const kpis = [
+    { label: "Today's sessions", value: todays.filter((a) => ptLifecycle(a) !== "cancelled").length, hint: `${completedToday} completed`, icon: CalendarDays, tone: undefined, to: "/admin/pt/schedule" },
+    { label: "Active clients", value: dash?.activeClientIds.length ?? 0, hint: "With sessions remaining", icon: Users, tone: "gold" as const, to: "/admin/pt/clients" },
+    { label: "Sessions banked", value: dash?.sessionsBanked ?? 0, hint: `${lowBalance.length} low balance`, icon: TrendingUp, tone: undefined, to: "/admin/pt/packages" },
+    { label: "Completed this week", value: completedThisWeek, hint: "Mon–Sun", icon: Check, tone: "green" as const, to: "/admin/pt/reports" },
+    { label: "Outstanding", value: formatCents(money?.outstanding ?? 0), hint: "Unpaid sessions", icon: DollarSign, tone: (money?.outstanding ?? 0) > 0 ? ("red" as const) : ("green" as const), to: "/admin/personal-training/payments" },
+    { label: "Package usage", value: `${dash?.packageUsagePct ?? 0}%`, hint: "Of sold sessions used", icon: Package, tone: undefined, to: "/admin/pt/packages" },
+    { label: "New leads (30d)", value: dash?.newLeads.length ?? 0, hint: "Prospects to convert", icon: UserPlus, tone: "gold" as const, to: "/admin/pt/clients" },
+    { label: "Cancels / no-shows", value: `${dash?.cancellationsThisWeek ?? 0} / ${dash?.noShowsThisWeek ?? 0}`, hint: "This week", icon: XCircle, tone: (dash?.noShowsThisWeek ?? 0) > 0 ? ("red" as const) : undefined, to: "/admin/pt/reports" },
+  ];
 
   return (
     <PTShell>
@@ -84,14 +96,12 @@ export default function PTDashboard() {
         }
       />
 
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-5 mb-6">
-        <PTKpiCard label="Today's sessions" value={todays.filter((a) => a.status !== "cancelled").length}
-          hint={`${todays.filter((a) => a.status === "completed").length} completed`} icon={CalendarDays} />
-        <PTKpiCard label="Active clients" value={stats?.activeClients ?? 0} hint="With sessions remaining" icon={Users} tone="gold" />
-        <PTKpiCard label="Sessions banked" value={stats?.sessionsBanked ?? 0} hint={`${stats?.lowBalance ?? 0} low balance`} icon={TrendingUp} />
-        <PTKpiCard label="Completed this week" value={completedThisWeek} hint="Mon–Sun" icon={Check} tone="green" />
-        <PTKpiCard label="Outstanding" value={formatCents(stats?.outstanding ?? 0)} hint="Unpaid sessions" icon={DollarSign}
-          tone={(stats?.outstanding ?? 0) > 0 ? "red" : "green"} />
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+        {kpis.map((k) => (
+          <button key={k.label} className="text-left" onClick={() => navigate(k.to)}>
+            <PTKpiCard label={k.label} value={k.value} hint={k.hint} icon={k.icon} tone={k.tone} />
+          </button>
+        ))}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
@@ -109,6 +119,7 @@ export default function PTDashboard() {
               <ul className="divide-y divide-pt-line/70">
                 {todays.map((a) => {
                   const p = people[a.user_id];
+                  const life = ptLifecycle(a);
                   return (
                     <li key={a.id} className="flex items-start gap-4 px-4 py-3 hover:bg-pt-beige/30 transition-colors">
                       <div className="w-20 shrink-0 pt-0.5">
@@ -120,7 +131,7 @@ export default function PTDashboard() {
                       <div className="min-w-0 flex-1">
                         <button
                           className="font-medium text-[15px] hover:text-pt-gold text-left truncate block"
-                          onClick={() => navigate(`/admin/pt/clients/${a.user_id}`)}
+                          onClick={() => setSelected(a)}
                         >
                           {p?.name ?? "Client"}
                         </button>
@@ -128,29 +139,19 @@ export default function PTDashboard() {
                           {PT_FORMAT_LABEL[a.format]} · {a.instructor_id ? trainerMap[a.instructor_id] ?? "Trainer" : "Unassigned"}
                         </div>
                         <div className="flex items-center gap-2 mt-1.5">
-                          <PTStatus status={a.status} />
-                          {a.payment_status && a.payment_status !== "pass" && <PTStatus status={a.payment_status} />}
+                          <PTBadge tone={PT_LIFECYCLE_STYLE[life].badge}>{PT_LIFECYCLE_LABEL[life]}</PTBadge>
                           {a.payment_status === "unpaid" && a.amount_due_cents ? (
                             <span className="text-[11px] text-pt-red">{formatCents(a.amount_due_cents)} owed</span>
                           ) : null}
                         </div>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-1.5 shrink-0">
-                        {a.status === "scheduled" && !a.checked_in_at && (
-                          <button className={ptButtonClass("outline")} onClick={() => markStatus(a.id, "scheduled", { checked_in_at: new Date().toISOString() })}>
-                            Check in
-                          </button>
-                        )}
-                        {a.status === "scheduled" && (
-                          <button className={ptButtonClass()} onClick={() => markStatus(a.id, "completed", { completed_at: new Date().toISOString() })}>
-                            Complete
-                          </button>
-                        )}
-                        {a.status !== "scheduled" && (
-                          <Link className={ptButtonClass("ghost")} to={`/admin/pt/clients/${a.user_id}`}>
-                            Profile <ArrowRight className="h-3.5 w-3.5" />
-                          </Link>
-                        )}
+                        <button className={ptButtonClass("outline")} onClick={() => setSelected(a)}>
+                          Manage
+                        </button>
+                        <Link className={ptButtonClass("ghost")} to={`/admin/pt/clients/${a.user_id}`}>
+                          Profile <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
                       </div>
                     </li>
                   );
@@ -170,7 +171,7 @@ export default function PTDashboard() {
                 <div className="px-4 pb-4"><PTEmpty>Nothing outstanding.</PTEmpty></div>
               ) : (
                 <ul className="divide-y divide-pt-line/70">
-                  {tasks.slice(0, 12).map((t) => (
+                  {tasks.slice(0, 10).map((t) => (
                     <li key={t.id} className="flex items-start gap-2 px-4 py-2.5 group">
                       <button
                         className="mt-0.5 h-4 w-4 rounded border border-pt-line hover:border-pt-gold grid place-items-center shrink-0"
@@ -208,6 +209,88 @@ export default function PTDashboard() {
           </div>
 
           <div>
+            <PTSectionTitle>Client alerts</PTSectionTitle>
+            <PTCard className="p-0">
+              {alerts.length === 0 ? (
+                <div className="p-4"><PTEmpty>No open alerts.</PTEmpty></div>
+              ) : (
+                <ul className="divide-y divide-pt-line/70">
+                  {alerts.slice(0, 6).map((al: any) => (
+                    <li key={al.id} className="px-4 py-2.5 flex items-start gap-2">
+                      <AlertTriangle className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${al.severity === "high" ? "text-pt-red" : "text-pt-amber"}`} />
+                      <div className="min-w-0 flex-1">
+                        <button
+                          className="text-[13px] text-left hover:text-pt-gold truncate block w-full"
+                          onClick={() => navigate(`/admin/pt/clients/${al.client_user_id}`)}
+                        >
+                          {al.message}
+                        </button>
+                        <div className="text-[11px] text-pt-muted capitalize">{String(al.alert_type).replace(/_/g, " ")}</div>
+                      </div>
+                      <button className="text-[11px] text-pt-muted hover:text-pt-green" onClick={() => resolveAlert.mutate(al.id)}>
+                        resolve
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PTCard>
+          </div>
+
+          <div>
+            <PTSectionTitle>Packages expiring soon</PTSectionTitle>
+            <PTCard className="p-0">
+              {(dash?.expiringPasses ?? []).length === 0 ? (
+                <div className="p-4"><PTEmpty>Nothing expiring in 30 days.</PTEmpty></div>
+              ) : (
+                <ul className="divide-y divide-pt-line/70">
+                  {(dash?.expiringPasses ?? []).slice(0, 6).map((p: any) => (
+                    <li key={p.id} className="px-4 py-2.5 flex items-center justify-between gap-2">
+                      <button
+                        className="min-w-0 text-left hover:text-pt-gold"
+                        onClick={() => navigate(`/admin/pt/clients/${p.user_id}`)}
+                      >
+                        <div className="text-[13px] truncate">{people[p.user_id]?.name ?? "Client"}</div>
+                        <div className="text-[11px] text-pt-muted truncate">{p.pack_name}</div>
+                      </button>
+                      <div className="text-right shrink-0">
+                        <div className="text-[11px] text-pt-amber">{fmtDate(new Date(`${p.expires_at}T12:00:00`), "MMM d")}</div>
+                        <div className="text-[11px] text-pt-muted">{p.sessions_remaining} left</div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PTCard>
+          </div>
+
+          <div>
+            <PTSectionTitle>Reassessments due</PTSectionTitle>
+            <PTCard className="p-0">
+              {(dash?.reassessments ?? []).length === 0 ? (
+                <div className="p-4"><PTEmpty>None in the next 14 days.</PTEmpty></div>
+              ) : (
+                <ul className="divide-y divide-pt-line/70">
+                  {(dash?.reassessments ?? []).slice(0, 6).map((p: any) => (
+                    <li key={p.id} className="px-4 py-2.5 flex items-center justify-between gap-2">
+                      <button
+                        className="min-w-0 text-left hover:text-pt-gold"
+                        onClick={() => navigate(`/admin/pt/clients/${p.user_id}`)}
+                      >
+                        <div className="text-[13px] truncate">{people[p.user_id]?.name ?? "Client"}</div>
+                        <div className="text-[11px] text-pt-muted truncate">{p.name}</div>
+                      </button>
+                      <span className="text-[11px] text-pt-muted shrink-0">
+                        {fmtDate(new Date(`${p.reassessment_date}T12:00:00`), "MMM d")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PTCard>
+          </div>
+
+          <div>
             <PTSectionTitle>Recent check-ins</PTSectionTitle>
             <PTCard className="p-0">
               {recentCheckIns.length === 0 ? (
@@ -231,6 +314,30 @@ export default function PTDashboard() {
           </div>
 
           <div>
+            <PTSectionTitle>New leads</PTSectionTitle>
+            <PTCard className="p-0">
+              {(dash?.newLeads ?? []).length === 0 ? (
+                <div className="p-4"><PTEmpty>No new prospects in 30 days.</PTEmpty></div>
+              ) : (
+                <ul className="divide-y divide-pt-line/70">
+                  {(dash?.newLeads ?? []).slice(0, 6).map((l: any) => (
+                    <li key={l.user_id} className="px-4 py-2.5 flex items-center justify-between gap-2">
+                      <button
+                        className="min-w-0 text-left hover:text-pt-gold"
+                        onClick={() => navigate(`/admin/pt/clients/${l.user_id}`)}
+                      >
+                        <div className="text-[13px] truncate">{l.full_name ?? l.email ?? "Prospect"}</div>
+                        <div className="text-[11px] text-pt-muted truncate">{l.email ?? ""}</div>
+                      </button>
+                      <PTBadge tone="gold"><Sparkles className="h-3 w-3" />{fmtDate(parseISO(l.created_at), "MMM d")}</PTBadge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </PTCard>
+          </div>
+
+          <div>
             <PTSectionTitle>Quick actions</PTSectionTitle>
             <PTCard className="grid grid-cols-2 gap-2">
               <button className={ptButtonClass("outline")} onClick={() => setBookOpen(true)}>Book session</button>
@@ -242,9 +349,16 @@ export default function PTDashboard() {
         </div>
       </div>
 
+      <PTAppointmentDrawer
+        appointment={selected}
+        open={!!selected}
+        onOpenChange={(v) => !v && setSelected(null)}
+      />
+
       <BookPTSessionDialog
         open={bookOpen}
         onOpenChange={setBookOpen}
+        presetDate={todayKey}
         onBooked={() => qc.invalidateQueries({ queryKey: ["pt-appointments"] })}
         onSellPack={() => { setBookOpen(false); setSellOpen(true); }}
       />
