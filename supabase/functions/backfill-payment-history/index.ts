@@ -345,8 +345,11 @@ serve(async (req) => {
           processed: invoicesProcessed,
           arrearsUpserted,
         },
+        unmatchedCustomers: Array.from(unmatchedCustomers).slice(0, 50),
+        unmatchedCustomerCount: unmatchedCustomers.size,
         errors: errors.slice(0, 25),
         errorCount: errors.length,
+
       }),
       { status: 200, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } },
     );
