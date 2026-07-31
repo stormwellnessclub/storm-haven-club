@@ -123,7 +123,13 @@ serve(async (req) => {
           const paused = !!dues.pause_collection;
           snap.collection_paused = paused;
           snap.resumes_at = ts(dues.pause_collection?.resumes_at ?? null);
-          snap.next_billing_at = ts((dues as unknown as { current_period_end?: number }).current_period_end ?? null);
+          // Newer API versions carry the period on the subscription item.
+          const periodEnd =
+            (dues as unknown as { current_period_end?: number }).current_period_end ??
+            (dues.items?.data?.[0] as unknown as { current_period_end?: number } | undefined)
+              ?.current_period_end ??
+            null;
+          snap.next_billing_at = ts(periodEnd);
           snap.cancel_at_period_end = !!dues.cancel_at_period_end;
           snap.canceled_at = ts(dues.canceled_at);
 
