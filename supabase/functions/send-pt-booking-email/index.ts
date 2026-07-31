@@ -110,9 +110,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { appointment_id, type } = await req.json();
+    const { appointment_id, type, recap, homework } = await req.json();
     if (!appointment_id) throw new Error("appointment_id required");
-    const kind: "confirmation" | "cancellation" = type === "cancellation" ? "cancellation" : "confirmation";
+    const kind: "confirmation" | "cancellation" | "session_recap" =
+      type === "cancellation" ? "cancellation" : type === "session_recap" ? "session_recap" : "confirmation";
+    if (kind === "session_recap" && !String(recap ?? "").trim()) throw new Error("recap text required");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
