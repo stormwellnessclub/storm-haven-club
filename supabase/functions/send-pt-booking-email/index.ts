@@ -167,11 +167,15 @@ serve(async (req) => {
 
     const subject = kind === "confirmation"
       ? "Your Personal Training session is booked"
-      : "Your Personal Training session was cancelled";
+      : kind === "session_recap"
+        ? "Your Personal Training session recap"
+        : "Your Personal Training session was cancelled";
 
     const html = kind === "confirmation"
       ? buildConfirmation({ name, formatLabel, trainerName, startsAt: appt.starts_at, durationMinutes: appt.duration_minutes, sessionsRemaining })
-      : buildCancellation({ name, formatLabel, trainerName, startsAt: appt.starts_at, sessionRefunded: appt.status === "cancelled" });
+      : kind === "session_recap"
+        ? buildRecap({ name, formatLabel, trainerName, startsAt: appt.starts_at, recap: String(recap ?? ""), homework: String(homework ?? "") })
+        : buildCancellation({ name, formatLabel, trainerName, startsAt: appt.starts_at, sessionRefunded: appt.status === "cancelled" });
 
     const { error: sendErr } = await resend.emails.send({
       from: FROM, to: [email], subject, html,
