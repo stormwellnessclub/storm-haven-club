@@ -78,6 +78,10 @@ export function usePTReportData(filters: PTReportFilters) {
           .limit(3000),
       ]);
 
+      // A failed read must not silently render as "zero sessions" in a report.
+      const failed = [appts, passes, adjustments, usage, programs, tests, notes].find((r: any) => r?.error);
+      if (failed) throw (failed as any).error;
+
       return {
         appointments: appts.data ?? [],
         passes: passes.data ?? [],
