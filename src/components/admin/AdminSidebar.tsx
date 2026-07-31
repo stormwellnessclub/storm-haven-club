@@ -113,6 +113,7 @@ const departments: DepartmentSection[] = [
       { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake },
       { title: "Agreements", url: "/admin/agreements", icon: FileText },
       { title: "Signature Certificates", url: "/admin/signature-certificates", icon: FileText },
+      { title: "Membership Health", url: "/admin/membership-health", icon: Activity },
     ],
   },
   {
