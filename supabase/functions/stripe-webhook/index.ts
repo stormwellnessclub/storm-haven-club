@@ -773,6 +773,29 @@ serve(async (req) => {
           
           logStep("Checkout completed", { sessionId: session.id, type: metadata.type });
 
+          if (metadata.type === 'pt_session_payment' && metadata.appointment_id) {
+            try {
+              await supabase
+                .from('pt_appointments')
+                .update({
+                  payment_status: 'paid',
+                  payment_method: 'stripe_link',
+                  paid_at: new Date().toISOString(),
+                  stripe_payment_intent_id: (session.payment_intent as string) || null,
+                })
+                .eq('id', metadata.appointment_id);
+              logStep("PT session marked paid", { appointmentId: metadata.appointment_id });
+            } catch (e) {
+              logError(e, "PT_SESSION_PAYMENT");
+            }
+            return new Response(JSON.stringify({ received: true }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            });
+          }
+
+
+
           if (metadata.type === 'membership_activation') {
             // Handle membership activation
             const memberId = metadata.member_id;
