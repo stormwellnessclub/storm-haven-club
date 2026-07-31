@@ -96,6 +96,18 @@ export default function PTDashboard() {
         }
       />
 
+      {isError && (
+        <PTAlert
+          tone="danger"
+          title="Today's data could not be loaded"
+          action={<button className={ptButtonClass("outline")} onClick={() => refetch()}>Retry</button>}
+        >
+          {(error as any)?.message ?? "These counts are not accurate right now — retry before acting on them."}
+        </PTAlert>
+      )}
+
+
+
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
         {kpis.map((k) => (
           <button key={k.label} className="text-left" onClick={() => navigate(k.to)}>
