@@ -1,0 +1,1 @@
+ALTER TABLE public.pt_session_notes ADD COLUMN IF NOT EXISTS client_recap text;

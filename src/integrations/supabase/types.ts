@@ -8308,6 +8308,7 @@ export type Database = {
       pt_session_notes: {
         Row: {
           appointment_id: string | null
+          client_recap: string | null
           created_at: string
           created_by: string | null
           energy_level: number | null
@@ -8333,6 +8334,7 @@ export type Database = {
         }
         Insert: {
           appointment_id?: string | null
+          client_recap?: string | null
           created_at?: string
           created_by?: string | null
           energy_level?: number | null
@@ -8358,6 +8360,7 @@ export type Database = {
         }
         Update: {
           appointment_id?: string | null
+          client_recap?: string | null
           created_at?: string
           created_by?: string | null
           energy_level?: number | null
@@ -12469,6 +12472,10 @@ export type Database = {
           p_location_id?: string
           p_starts_at: string
         }
+        Returns: Json
+      }
+      pt_complete_session: {
+        Args: { p_appointment_id: string; p_deduct?: boolean; p_note?: Json }
         Returns: Json
       }
       pt_complete_task: {
