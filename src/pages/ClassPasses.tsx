@@ -21,6 +21,7 @@ import { useUserCredits } from "@/hooks/useUserCredits";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
 import { GuestCheckoutSheet } from "@/components/class-passes/GuestCheckoutSheet";
 import { useClassPassPricing, findPrice } from "@/hooks/useClassPassPricing";
+import { useLiveClassPassSales, saleForPricing, applyDiscount, discountLabel } from "@/hooks/usePromotions";
 
 const PENDING_PURCHASE_KEY = "pendingClassPassPurchase";
 
@@ -511,6 +512,7 @@ export default function ClassPasses() {
           passType,
           isMember,
           // Pass clean URLs — backend appends ?session_id={CHECKOUT_SESSION_ID}
+          promoCode: promoCode.trim() || undefined,
           successUrl: `${origin}/class-passes`,
           cancelUrl: `${origin}/class-passes?purchase=cancelled`,
         },
@@ -653,6 +655,8 @@ export default function ClassPasses() {
         loadingPass={loadingPass}
         isMember={isMember}
         user={user}
+        promoCode={promoCode}
+        setPromoCode={setPromoCode}
       />
 
       {/* Show inline waiver signing prompt when needed */}
