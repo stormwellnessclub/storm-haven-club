@@ -38,7 +38,7 @@ export function MembershipBreakdownCard() {
         if (status === "cancelled" || status === "canceled") { b.cancelled++; continue; }
         if (status !== "active") continue;
         b.totalActiveStatus++;
-        if (sub === "past_due" || status === "past_due") b.pastDue++;
+        if (sub === "past_due") b.pastDue++;
         else if (sub === "sponsored") b.sponsored++;
         else if (sub === "active" || sub === "trialing") b.paying++;
         else b.noSubscription++;
