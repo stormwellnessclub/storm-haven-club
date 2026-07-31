@@ -476,9 +476,17 @@ export default function NonMemberDetail() {
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/admin/non-member-accounts")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Back
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSellPT(true)}>
+              <DollarSign className="h-4 w-4 mr-2" /> Sell PT Pack
+            </Button>
+            <Button size="sm" onClick={() => setShowBookPT(true)}>
+              <Dumbbell className="h-4 w-4 mr-2" /> Book PT Session
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/non-member-accounts")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+          </div>
         </div>
 
         {/* Tabbed Layout */}
