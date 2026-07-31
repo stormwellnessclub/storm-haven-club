@@ -6821,6 +6821,9 @@ export type Database = {
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          pre_session_note: string | null
+          pre_session_note_updated_at: string | null
+          prep_checklist: Json
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -6860,6 +6863,9 @@ export type Database = {
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          pre_session_note?: string | null
+          pre_session_note_updated_at?: string | null
+          prep_checklist?: Json
           session_type_id?: string | null
           started_at?: string | null
           starts_at: string
@@ -6899,6 +6905,9 @@ export type Database = {
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          pre_session_note?: string | null
+          pre_session_note_updated_at?: string | null
+          prep_checklist?: Json
           session_type_id?: string | null
           started_at?: string | null
           starts_at?: string
@@ -11387,6 +11396,9 @@ export type Database = {
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          pre_session_note: string | null
+          pre_session_note_updated_at: string | null
+          prep_checklist: Json
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -11466,6 +11478,9 @@ export type Database = {
               payment_method: string | null
               payment_note: string | null
               payment_status: string
+              pre_session_note: string | null
+              pre_session_note_updated_at: string | null
+              prep_checklist: Json
               session_type_id: string | null
               started_at: string | null
               starts_at: string
@@ -11524,6 +11539,9 @@ export type Database = {
               payment_method: string | null
               payment_note: string | null
               payment_status: string
+              pre_session_note: string | null
+              pre_session_note_updated_at: string | null
+              prep_checklist: Json
               session_type_id: string | null
               started_at: string | null
               starts_at: string
@@ -11599,6 +11617,9 @@ export type Database = {
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          pre_session_note: string | null
+          pre_session_note_updated_at: string | null
+          prep_checklist: Json
           session_type_id: string | null
           started_at: string | null
           starts_at: string
