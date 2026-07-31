@@ -54,8 +54,11 @@ export function SpaCompletionDialog({
   const [customTip, setCustomTip] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
+  const [sendReceipt, setSendReceipt] = useState(true);
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
+  const { data: allAddons = [] } = useSpaAddons();
 
   // Pre-populate fields when appointment changes — in useEffect, not during render
   useEffect(() => {
@@ -63,12 +66,28 @@ export function SpaCompletionDialog({
     setPaymentMethod(appointment.payment_method || "card");
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
+    setSendReceipt(true);
+
+    const existingAddons = (appointment as any).addons;
+    setSelectedAddons(
+      Array.isArray(existingAddons)
+        ? existingAddons.map((a: any) => ({
+            id: String(a.id),
+            name: String(a.name),
+            price: Number(a.price) || 0,
+          }))
+        : []
+    );
 
     const existingTip = (appointment as any).tip_amount;
     if (existingTip && existingTip > 0) {
       const svcPrice = appointment.member_price ?? appointment.service_price ?? 0;
+      const addonSum = Array.isArray(existingAddons)
+        ? existingAddons.reduce((s: number, a: any) => s + (Number(a.price) || 0), 0)
+        : 0;
+      const base = svcPrice + addonSum;
       const matchedPreset = TIP_PRESETS.find(
-        (t) => Math.abs(svcPrice * t.value - existingTip) < 0.01
+        (t) => Math.abs(base * t.value - existingTip) < 0.01
       );
       if (matchedPreset) {
         setTipPreset(matchedPreset.value);
@@ -86,12 +105,34 @@ export function SpaCompletionDialog({
   if (!appointment) return null;
 
   const servicePrice = appointment.member_price ?? appointment.service_price ?? 0;
+  const addonsTotal =
+    Math.round(selectedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
+  const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
   const tipAmount =
     tipPreset !== null
-      ? Math.round(servicePrice * tipPreset * 100) / 100
+      ? Math.round(subtotal * tipPreset * 100) / 100
       : customTip
       ? parseFloat(customTip) || 0
       : 0;
+  const totalAmount = Math.round((subtotal + tipAmount) * 100) / 100;
+
+  const category = (appointment as any).service_category || "";
+  const availableAddons = allAddons.filter(
+    (a) =>
+      a.is_active &&
+      (!a.applicable_categories ||
+        a.applicable_categories.length === 0 ||
+        a.applicable_categories.includes(category))
+  );
+
+  const toggleAddon = (addon: { id: string; name: string; price: number }) => {
+    setSelectedAddons((prev) =>
+      prev.some((a) => a.id === addon.id)
+        ? prev.filter((a) => a.id !== addon.id)
+        : [...prev, { id: addon.id, name: addon.name, price: Number(addon.price) || 0 }]
+    );
+  };
+
   const totalAmount = servicePrice + tipAmount;
 
   const customer = appointment.customer ?? null;
