@@ -8095,6 +8095,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_saved_views: {
+        Row: {
+          created_at: string
+          filters: Json
+          id: string
+          is_shared: boolean
+          name: string
+          owner_id: string
+          scope: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_shared?: boolean
+          name: string
+          owner_id: string
+          scope?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          filters?: Json
+          id?: string
+          is_shared?: boolean
+          name?: string
+          owner_id?: string
+          scope?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pt_session_notes: {
         Row: {
           appointment_id: string | null
