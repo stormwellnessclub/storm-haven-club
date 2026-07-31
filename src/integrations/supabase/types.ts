@@ -6811,6 +6811,7 @@ export type Database = {
           instructor_id: string | null
           internal_notes: string | null
           is_waitlist: boolean
+          live_state: Json
           location_id: string | null
           no_show_at: string | null
           notes: string | null
@@ -6853,6 +6854,7 @@ export type Database = {
           instructor_id?: string | null
           internal_notes?: string | null
           is_waitlist?: boolean
+          live_state?: Json
           location_id?: string | null
           no_show_at?: string | null
           notes?: string | null
@@ -6895,6 +6897,7 @@ export type Database = {
           instructor_id?: string | null
           internal_notes?: string | null
           is_waitlist?: boolean
+          live_state?: Json
           location_id?: string | null
           no_show_at?: string | null
           notes?: string | null
@@ -8222,6 +8225,86 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_session_exercises: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          cues: string | null
+          display_order: number
+          exercise: string
+          exercise_id: string | null
+          id: string
+          media_url: string | null
+          modification: string | null
+          notes: string | null
+          planned_load: string | null
+          planned_reps: string | null
+          planned_sets: number | null
+          program_exercise_id: string | null
+          rest: string | null
+          skip_reason: string | null
+          status: string
+          substituted_from: string | null
+          tempo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          cues?: string | null
+          display_order?: number
+          exercise: string
+          exercise_id?: string | null
+          id?: string
+          media_url?: string | null
+          modification?: string | null
+          notes?: string | null
+          planned_load?: string | null
+          planned_reps?: string | null
+          planned_sets?: number | null
+          program_exercise_id?: string | null
+          rest?: string | null
+          skip_reason?: string | null
+          status?: string
+          substituted_from?: string | null
+          tempo?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          cues?: string | null
+          display_order?: number
+          exercise?: string
+          exercise_id?: string | null
+          id?: string
+          media_url?: string | null
+          modification?: string | null
+          notes?: string | null
+          planned_load?: string | null
+          planned_reps?: string | null
+          planned_sets?: number | null
+          program_exercise_id?: string | null
+          rest?: string | null
+          skip_reason?: string | null
+          status?: string
+          substituted_from?: string | null
+          tempo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_session_exercises_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_session_notes: {
         Row: {
           appointment_id: string | null
@@ -8325,6 +8408,84 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_session_sets: {
+        Row: {
+          appointment_id: string
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          distance: number | null
+          distance_unit: string | null
+          duration_seconds: number | null
+          id: string
+          is_pr: boolean
+          notes: string | null
+          pain_flag: boolean
+          reps: number | null
+          rpe: number | null
+          session_exercise_id: string
+          set_number: number
+          updated_at: string
+          user_id: string
+          weight_lbs: number | null
+        }
+        Insert: {
+          appointment_id: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          distance?: number | null
+          distance_unit?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_pr?: boolean
+          notes?: string | null
+          pain_flag?: boolean
+          reps?: number | null
+          rpe?: number | null
+          session_exercise_id: string
+          set_number: number
+          updated_at?: string
+          user_id: string
+          weight_lbs?: number | null
+        }
+        Update: {
+          appointment_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          distance?: number | null
+          distance_unit?: string | null
+          duration_seconds?: number | null
+          id?: string
+          is_pr?: boolean
+          notes?: string | null
+          pain_flag?: boolean
+          reps?: number | null
+          rpe?: number | null
+          session_exercise_id?: string
+          set_number?: number
+          updated_at?: string
+          user_id?: string
+          weight_lbs?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_session_sets_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_sets_session_exercise_id_fkey"
+            columns: ["session_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_exercises"
             referencedColumns: ["id"]
           },
         ]
@@ -11386,6 +11547,7 @@ export type Database = {
           instructor_id: string | null
           internal_notes: string | null
           is_waitlist: boolean
+          live_state: Json
           location_id: string | null
           no_show_at: string | null
           notes: string | null
@@ -11468,6 +11630,7 @@ export type Database = {
               instructor_id: string | null
               internal_notes: string | null
               is_waitlist: boolean
+              live_state: Json
               location_id: string | null
               no_show_at: string | null
               notes: string | null
@@ -11529,6 +11692,7 @@ export type Database = {
               instructor_id: string | null
               internal_notes: string | null
               is_waitlist: boolean
+              live_state: Json
               location_id: string | null
               no_show_at: string | null
               notes: string | null
@@ -11607,6 +11771,7 @@ export type Database = {
           instructor_id: string | null
           internal_notes: string | null
           is_waitlist: boolean
+          live_state: Json
           location_id: string | null
           no_show_at: string | null
           notes: string | null
