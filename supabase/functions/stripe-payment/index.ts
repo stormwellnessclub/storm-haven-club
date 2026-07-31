@@ -854,7 +854,7 @@ serve(async (req) => {
       }
 
       case 'create_class_pass_checkout': {
-        const { category, passType, successUrl, cancelUrl } = body;
+        const { category, passType, successUrl, cancelUrl, promoCode } = body;
 
         if (!category || !passType || !successUrl || !cancelUrl) {
           throw new Error("Missing required fields for class pass checkout");
@@ -878,16 +878,20 @@ serve(async (req) => {
 
         // Prefer DB-managed price (admin-editable). Fallback to hardcoded map.
         let priceId: string | undefined;
+        let pricingRowId: string | null = null;
         try {
           const { data: priceRow } = await supabase
             .from('class_pricing')
-            .select('stripe_price_id')
+            .select('id, stripe_price_id')
             .eq('category', dbCategory)
             .eq('pass_type', dbPassType)
             .eq('audience', audience)
             .eq('is_active', true)
             .maybeSingle();
-          if (priceRow?.stripe_price_id) priceId = priceRow.stripe_price_id;
+          if (priceRow?.stripe_price_id) {
+            priceId = priceRow.stripe_price_id;
+            pricingRowId = priceRow.id;
+          }
         } catch (_e) { /* fall through */ }
         if (!priceId) {
           priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
@@ -913,9 +917,17 @@ serve(async (req) => {
           }
         }
 
-        // Add processing fee line item
         const classPassPrice = await stripe.prices.retrieve(priceId);
-        const classPassFeeItem = await createProcessingFeeLineItem(stripe, classPassPrice.unit_amount || 0);
+        const classPassBaseCents = classPassPrice.unit_amount || 0;
+
+        // Apply a live sale or a typed promo code (server-side validated)
+        const classPassPromo = await resolveClassPassPromotion(
+          supabase, stripe, pricingRowId, classPassBaseCents, promoCode,
+        );
+        const classPassNetCents = classPassPromo ? classPassPromo.netCents : classPassBaseCents;
+
+        // Processing fee is calculated on the discounted amount
+        const classPassFeeItem = await createProcessingFeeLineItem(stripe, classPassNetCents);
         const classPassLineItems: { price: string; quantity: number }[] = [{ price: priceId, quantity: 1 }];
         if (classPassFeeItem) classPassLineItems.push(classPassFeeItem);
 
@@ -923,6 +935,7 @@ serve(async (req) => {
           customer: customerId,
           line_items: classPassLineItems,
           mode: 'payment',
+          ...(classPassPromo ? { discounts: [{ coupon: classPassPromo.couponId }] } : {}),
           payment_intent_data: {
             setup_future_usage: 'off_session',
           },
@@ -934,10 +947,29 @@ serve(async (req) => {
             category,
             pass_type: passType,
             is_member: String(isVerifiedMember),
+            promotion_id: classPassPromo?.promotionId ?? '',
           },
         });
 
-        logStep("Class pass checkout created", { sessionId: session.id, url: session.url });
+        logStep("Class pass checkout created", { sessionId: session.id, url: session.url, promotion: classPassPromo?.name });
+
+        if (classPassPromo) {
+          try {
+            await supabase.from('promotion_redemptions').insert({
+              promotion_id: classPassPromo.promotionId,
+              user_id: user?.id ?? null,
+              email: user.email,
+              stripe_session_id: session.id,
+              pricing_id: pricingRowId,
+              original_cents: classPassBaseCents,
+              discount_cents: classPassPromo.discountCents,
+              final_cents: classPassNetCents,
+            });
+            await supabase.rpc('increment_promotion_redemption', { _promotion_id: classPassPromo.promotionId });
+          } catch (e) {
+            logStep("promotion redemption log failed (non-fatal)", { error: (e as any)?.message });
+          }
+        }
 
         // Track pending checkout for abandoned-cart recovery (best-effort, never blocks)
         try {
@@ -950,12 +982,13 @@ serve(async (req) => {
             category,
             pass_type: passType,
             is_member: isVerifiedMember,
-            amount_cents: classPassPrice.unit_amount || 0,
+            amount_cents: classPassNetCents,
             status: 'pending',
           });
         } catch (e) {
           logStep("pending_class_pass_checkouts insert failed (non-fatal)", { error: (e as any)?.message });
         }
+
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),
