@@ -353,7 +353,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     >
                       <div className="font-medium">{u.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {u.email} {u.isMember && "· Member"}
+                        {u.email} {u.isMember ? "· Member" : u.isNonMember ? "· Non-member" : ""}
                       </div>
                     </button>
                   ))}
