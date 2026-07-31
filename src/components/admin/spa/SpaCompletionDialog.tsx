@@ -174,10 +174,13 @@ export function SpaCompletionDialog({
           return;
         }
 
+        const addonDesc = selectedAddons.length
+          ? ` + ${selectedAddons.map((a) => a.name).join(", ")}`
+          : "";
         const chargeBody: Record<string, any> = {
           action: "charge_saved_card",
           amount: amountCents,
-          description: `Spa: ${appointment.service_name}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
+          description: `Spa: ${appointment.service_name}${addonDesc}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
           payment_type: "spa_service",
         };
         if (isMemberCharge) {
@@ -205,6 +208,8 @@ export function SpaCompletionDialog({
         amount_paid: totalAmount,
         payment_method: paymentMethod,
         tip_amount: tipAmount,
+        addons: selectedAddons,
+        addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
       };
 
@@ -227,6 +232,47 @@ export function SpaCompletionDialog({
 
       if (updateError) throw updateError;
 
+      // Itemized receipt email
+      const recipientEmail =
+        customer?.email || appointment.member?.email || appointment.user?.email || null;
+
+      if (sendReceipt && recipientEmail && paymentMethod !== "no_charge" && totalAmount > 0) {
+        try {
+          const { error: emailError } = await supabase.functions.invoke("send-email", {
+            body: {
+              type: "spa_receipt",
+              to: recipientEmail,
+              data: {
+                name: memberName,
+                serviceName: appointment.service_name,
+                durationMinutes: appointment.duration_minutes,
+                servicePrice: servicePrice.toFixed(2),
+                addons: selectedAddons.map((a) => ({
+                  name: a.name,
+                  price: a.price.toFixed(2),
+                })),
+                subtotal: subtotal.toFixed(2),
+                tip: tipAmount.toFixed(2),
+                amount: totalAmount.toFixed(2),
+                paymentMethod,
+                cardLabel:
+                  paymentMethod === "card" && cardSource?.card_last4
+                    ? `${cardSource?.card_brand || "Card"} •••• ${cardSource.card_last4}`
+                    : null,
+                therapistName: appointment.staff?.full_name || null,
+                appointmentDate: appointment.appointment_date,
+                appointmentTime: appointment.appointment_time,
+              },
+            },
+          });
+          if (emailError) throw emailError;
+          toast.success("Receipt emailed");
+        } catch (e: any) {
+          console.error("Spa receipt email failed:", e);
+          toast.error("Payment saved, but the receipt email failed to send");
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
 
@@ -236,6 +282,7 @@ export function SpaCompletionDialog({
           : "Appointment completed"
       );
       onOpenChange(false);
+
     } catch (err: any) {
       console.error("SpaCompletionDialog error:", err);
       toast.error(err.message || "Failed to process");
