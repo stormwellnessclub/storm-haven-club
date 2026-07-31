@@ -201,6 +201,116 @@ async function createProcessingFeeLineItem(stripe: Stripe, baseAmountCents: numb
   return { price: price.id, quantity: 1 };
 }
 
+// ---------------------------------------------------------------------------
+// Class pass promotions (sales + promo codes)
+// ---------------------------------------------------------------------------
+type ResolvedPromotion = {
+  promotionId: string;
+  name: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  couponId: string;
+  discountCents: number;
+  netCents: number;
+};
+
+/**
+ * Resolves the live automatic sale (or a typed promo code) for a class pass tier
+ * and returns a Stripe coupon that can be attached to the checkout session.
+ * Throws with a friendly message when a typed code is not usable.
+ */
+async function resolveClassPassPromotion(
+  supabase: any,
+  stripe: Stripe,
+  pricingId: string | null,
+  baseAmountCents: number,
+  code?: string | null,
+): Promise<ResolvedPromotion | null> {
+  if (!pricingId || baseAmountCents <= 0) {
+    if (code) throw new Error('Promo code not valid for this purchase');
+    return null;
+  }
+
+  const { data, error } = await supabase.rpc('resolve_class_pass_promotion', {
+    _pricing_id: pricingId,
+    _code: code ?? null,
+  });
+  if (error) {
+    if (code) throw new Error('Could not validate promo code');
+    return null;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const reason = row?.reason ?? 'none';
+
+  if (reason !== 'ok') {
+    if (!code) return null;
+    const messages: Record<string, string> = {
+      invalid_code: 'That promo code does not exist',
+      not_active: 'That promo code is not active',
+      not_started: 'That promo code is not active yet',
+      expired: 'That promo code has expired',
+      not_applicable: 'That promo code does not apply to this pass',
+      limit_reached: 'That promo code has reached its redemption limit',
+      none: 'That promo code is not valid',
+    };
+    throw new Error(messages[reason] ?? 'That promo code is not valid');
+  }
+
+  const discountType = row.discount_type as 'percent' | 'fixed';
+  const discountValue = Number(row.discount_value);
+  const discountCents = discountType === 'percent'
+    ? Math.min(baseAmountCents, Math.round((baseAmountCents * discountValue) / 100))
+    : Math.min(baseAmountCents, Math.round(discountValue * 100));
+
+  if (discountCents <= 0) return null;
+
+  // Reuse a cached coupon when possible, otherwise create one for this sale.
+  const { data: promoRow } = await supabase
+    .from('promotions')
+    .select('stripe_coupon_id')
+    .eq('id', row.promotion_id)
+    .maybeSingle();
+
+  let couponId: string | null = promoRow?.stripe_coupon_id ?? null;
+  if (couponId) {
+    try {
+      const existing = await stripe.coupons.retrieve(couponId);
+      const stale = discountType === 'percent'
+        ? Number(existing.percent_off ?? 0) !== discountValue
+        : Number(existing.amount_off ?? 0) !== Math.round(discountValue * 100);
+      if (!existing.valid || stale) couponId = null;
+    } catch (_e) {
+      couponId = null;
+    }
+  }
+
+  if (!couponId) {
+    const coupon = await stripe.coupons.create({
+      name: String(row.name).slice(0, 40),
+      duration: 'once',
+      ...(discountType === 'percent'
+        ? { percent_off: discountValue }
+        : { amount_off: Math.round(discountValue * 100), currency: 'usd' }),
+      metadata: { promotion_id: row.promotion_id, scope: 'class_pass' },
+    });
+    couponId = coupon.id;
+    await supabase.from('promotions').update({ stripe_coupon_id: couponId }).eq('id', row.promotion_id);
+  }
+
+  return {
+    promotionId: row.promotion_id,
+    name: row.name,
+    discountType,
+    discountValue,
+    couponId: couponId!,
+    discountCents,
+    netCents: Math.max(0, baseAmountCents - discountCents),
+  };
+}
+
+
+
 // Get or create a recurring processing fee price for subscription items
 async function getOrCreateRecurringProcessingFeePrice(
   stripe: Stripe,
