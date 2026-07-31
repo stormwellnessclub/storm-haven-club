@@ -29,6 +29,7 @@ import {
   MessageSquare,
   Mail,
   Snowflake,
+  Activity,
   ScanLine,
   BarChart3,
   TrendingUp,
