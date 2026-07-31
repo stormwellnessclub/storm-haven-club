@@ -123,13 +123,13 @@ export default function PTReports() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         <PTKpiCard label="Sessions completed" value={kpis.completed} icon={CalendarCheck} />
         <PTKpiCard label="Revenue" value={formatCents(kpis.revenue)} icon={DollarSign} tone="gold" />
-        <PTKpiCard label="No-show rate" value={`${kpis.noShowRate}%`} icon={UserX} tone={kpis.noShowRate > 10 ? "red" : "neutral"} />
+        <PTKpiCard label="No-show rate" value={`${kpis.noShowRate}%`} icon={UserX} tone={kpis.noShowRate > 10 ? "red" : "default"} />
         <PTKpiCard label="Unpaid sessions" value={formatCents(kpis.outstanding)} tone="amber" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <div>
-          <PTSectionTitle icon={BarChart3}>Sessions by month</PTSectionTitle>
+          <PTSectionTitle>Sessions by month</PTSectionTitle>
           <PTCard padded={false}>
             <PTTable
               columns={monthColumns}
@@ -141,7 +141,7 @@ export default function PTReports() {
           </PTCard>
         </div>
         <div>
-          <PTSectionTitle icon={Users}>Trainer performance</PTSectionTitle>
+          <PTSectionTitle>Trainer performance</PTSectionTitle>
           <PTCard padded={false}>
             <PTTable
               columns={trainerColumns}
