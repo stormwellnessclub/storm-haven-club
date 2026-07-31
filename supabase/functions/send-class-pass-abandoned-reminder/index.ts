@@ -2,6 +2,7 @@
 // Triggered by process-abandoned-class-pass-checkouts cron.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -36,6 +37,9 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
   try {
     const { to, name, product_kind, reminder_step }: Body = await req.json();
     if (!to || !product_kind || !reminder_step) throw new Error("missing fields");
