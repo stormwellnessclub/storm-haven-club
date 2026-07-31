@@ -15,12 +15,12 @@ export function PTQuickAddSheet({ open, onOpenChange }: Props) {
   const access = usePTMobileAccess();
 
   const actions = [
-    { key: "book", label: "Book Session", icon: CalendarPlus, to: "/admin/pt/m/quick/book", allowed: access.canBookSessions },
-    { key: "note", label: "Add Session Note", icon: NotebookPen, to: "/admin/pt/m/quick/note", allowed: access.canWriteNotes },
-    { key: "progress", label: "Record Progress", icon: LineChart, to: "/admin/pt/m/quick/progress", allowed: access.canRecordProgress },
-    { key: "task", label: "Create Task", icon: ListChecks, to: "/admin/pt/m/quick/task", allowed: access.canCreateTasks },
-    { key: "message", label: "Message Client", icon: MessageSquare, to: "/admin/pt/m/quick/message", allowed: access.canMessageClients },
-    { key: "package", label: "Assign Package", icon: Package, to: "/admin/pt/m/quick/package", allowed: access.canAssignPackages },
+    { key: "book", label: "Book Session", icon: CalendarPlus, to: "/admin/pt/schedule", allowed: access.canBookSessions },
+    { key: "note", label: "Add Session Note", icon: NotebookPen, to: "/admin/pt/session-notes", allowed: access.canWriteNotes },
+    { key: "progress", label: "Record Progress", icon: LineChart, to: "/admin/pt/progress", allowed: access.canRecordProgress },
+    { key: "task", label: "Create Task", icon: ListChecks, to: "/admin/pt/tasks", allowed: access.canCreateTasks },
+    { key: "message", label: "Message Client", icon: MessageSquare, to: "/admin/pt/messages", allowed: access.canMessageClients },
+    { key: "package", label: "Assign Package", icon: Package, to: "/admin/pt/packages", allowed: access.canAssignPackages },
   ].filter((a) => a.allowed);
 
   return (
