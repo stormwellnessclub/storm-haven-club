@@ -644,6 +644,20 @@ export default function NonMemberDetail() {
                       <p className="text-xs text-muted-foreground">
                         {profile.card_last4 ? "Send a secure link so they can update their card." : "Send a secure link so they can add a card on file."}
                       </p>
+                      {latestCardAttempt && (
+                        <p className="text-xs">
+                          <span className="text-muted-foreground">
+                            Link sent {format(new Date(latestCardAttempt.created_at), "MMM d, yyyy h:mm a")} ·{" "}
+                          </span>
+                          {latestCardAttempt.status === "completed" ? (
+                            <span className="text-green-600 font-medium">
+                              completed{latestCardAttempt.completed_at ? ` ${format(new Date(latestCardAttempt.completed_at), "MMM d")}` : ""}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 font-medium">not completed yet</span>
+                          )}
+                        </p>
+                      )}
                       <div className="flex gap-2">
                         <Button
                           variant="outline" size="sm" className="flex-1"
