@@ -56,7 +56,7 @@ export default function PTTasks() {
       render: (t) => (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); toggle.mutate({ id: t.id, done: !t.completed_at }); }}
+          onClick={(e) => { e.stopPropagation(); toggle.mutate(t); }}
           className={`h-5 w-5 rounded-md border grid place-items-center transition-colors ${
             t.completed_at ? "bg-pt-green border-pt-green text-white" : "border-pt-line hover:border-pt-gold"
           }`}
