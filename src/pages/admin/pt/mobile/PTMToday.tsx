@@ -80,7 +80,7 @@ function TimelineRow({ a, onOpen }: { a: PTMTodayAppointment; onOpen: () => void
 export default function PTMToday() {
   const navigate = useNavigate();
   const { isAdmin } = usePTMobileAccess();
-  const { data, isLoading, refetch, isRefetching } = usePTMToday({ isAdmin });
+  const { data, isLoading, isError, error, refetch, isRefetching } = usePTMToday({ isAdmin });
   const [pullPx, setPullPx] = useState(0);
   const startY = useRef<number | null>(null);
 
@@ -149,6 +149,19 @@ export default function PTMToday() {
 
         {isLoading ? (
           <PTMListSkeleton rows={4} />
+        ) : isError ? (
+          <PTMEmpty
+            title="Couldn't load today's schedule"
+            description={(error as any)?.message ?? "Check your connection and try again — this is not an empty day."}
+            action={
+              <button
+                onClick={() => refetch()}
+                className="min-h-[44px] rounded-full border border-pt-line px-5 text-sm text-pt-ink"
+              >
+                Try again
+              </button>
+            }
+          />
         ) : (
           <>
             {/* Up next / active */}

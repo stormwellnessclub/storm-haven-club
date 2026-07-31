@@ -40,6 +40,8 @@ export function PTAppointmentDrawer({
   const [internalNote, setInternalNote] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmComplete, setConfirmComplete] = useState(false);
+  const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [pendingConflict, setPendingConflict] = useState<{ payload: any; summary: string } | null>(null);
 
@@ -201,14 +203,14 @@ export function PTAppointmentDrawer({
                 <button
                   className={ptButtonClass("primary")}
                   disabled={terminal}
-                  onClick={() => actions.completeSession(a.id)}
+                  onClick={() => setConfirmComplete(true)}
                 >
                   Complete session
                 </button>
                 <button
                   className={ptButtonClass("outline")}
                   disabled={terminal}
-                  onClick={() => actions.markNoShow(a.id)}
+                  onClick={() => setConfirmNoShow(true)}
                 >
                   <UserX className="h-4 w-4" /> Mark no-show
                 </button>
@@ -277,16 +279,20 @@ export function PTAppointmentDrawer({
             {/* Notes */}
             <section className="rounded-xl border border-pt-line bg-white p-4 space-y-3">
               <div className="pt-eyebrow flex items-center gap-1.5"><StickyNote className="h-3.5 w-3.5" /> Notes</div>
+              <label htmlFor="pt-appt-note" className="sr-only">Client-facing note</label>
               <Textarea
+                id="pt-appt-note"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Client-facing note"
                 className="bg-white border-pt-line min-h-[70px]"
               />
+              <label htmlFor="pt-appt-internal-note" className="sr-only">Internal staff note (not visible to the client)</label>
               <Textarea
+                id="pt-appt-internal-note"
                 value={internalNote}
                 onChange={(e) => setInternalNote(e.target.value)}
-                placeholder="Internal staff note"
+                placeholder="Internal staff note — never shown to the client"
                 className="bg-white border-pt-line min-h-[70px]"
               />
               <div className="grid grid-cols-2 gap-2">
@@ -328,6 +334,34 @@ export function PTAppointmentDrawer({
           className="bg-white border-pt-line"
         />
       </PTConfirmDialog>
+
+      <PTConfirmDialog
+        open={confirmComplete}
+        onOpenChange={setConfirmComplete}
+        title="Complete this session?"
+        description={
+          a.package_deducted
+            ? "A package credit was already used for this session, so no further credit will be deducted."
+            : activePass
+              ? `This will mark the session complete and deduct 1 credit from ${activePass.pack_name}.`
+              : "This client has no active package, so no credit will be deducted."
+        }
+        confirmLabel="Complete session"
+        onConfirm={async () => {
+          setConfirmComplete(false);
+          await actions.completeSession(a.id, !a.package_deducted && !!activePass);
+        }}
+      />
+
+      <PTConfirmDialog
+        open={confirmNoShow}
+        onOpenChange={setConfirmNoShow}
+        title="Mark this client as a no-show?"
+        description="No-shows keep the package credit consumed. You can restore the credit manually afterwards."
+        confirmLabel="Mark no-show"
+        destructive
+        onConfirm={() => { setConfirmNoShow(false); actions.markNoShow(a.id); }}
+      />
 
       <PTConfirmDialog
         open={!!pendingConflict}

@@ -195,8 +195,21 @@ export function usePTAppointmentActions() {
   const startSession = (id: string) =>
     patch(id, { started_at: new Date().toISOString(), checked_in_at: new Date().toISOString() }, "Session started");
 
-  const completeSession = (id: string) =>
-    patch(id, { status: "completed", completed_at: new Date().toISOString() }, "Session completed");
+  /**
+   * Completing goes through the atomic RPC so package deduction, session notes
+   * and the appointment status all move together (and never double-deduct).
+   */
+  const completeSession = async (id: string, deduct = false) => {
+    const { error } = await (supabase as any).rpc("pt_complete_session", {
+      p_appointment_id: id,
+      p_note: {},
+      p_deduct: deduct,
+    });
+    if (error) { toast.error(error.message); return false; }
+    toast.success("Session completed");
+    invalidate();
+    return true;
+  };
 
   const markNoShow = (id: string) =>
     patch(id, { status: "no_show", no_show_at: new Date().toISOString() }, "Marked as no-show");
@@ -212,12 +225,29 @@ export function usePTAppointmentActions() {
   const addNote = (id: string, notes: string, internal: boolean) =>
     patch(id, internal ? { internal_notes: notes } : { notes }, "Note saved");
 
-  const setPackageDeducted = (id: string, deducted: boolean) =>
-    patch(
-      id,
-      { package_deducted: deducted, package_deducted_at: deducted ? new Date().toISOString() : null },
-      deducted ? "Package credit deducted" : "Package credit restored",
+  /** Moves the real package balance, not just the flag on the appointment. */
+  const setPackageDeducted = async (id: string, deducted: boolean) => {
+    const { data, error } = await (supabase as any).rpc("pt_set_package_deduction", {
+      p_appointment_id: id,
+      p_deduct: deducted,
+    });
+    if (error) {
+      toast.error(
+        error.message?.includes("NO_SESSIONS")
+          ? "This client has no package session available to deduct."
+          : error.message ?? "Could not update the package credit",
+      );
+      return false;
+    }
+    const remaining = (data as any)?.sessions_remaining;
+    toast.success(
+      `${deducted ? "Package credit deducted" : "Package credit restored"}${
+        typeof remaining === "number" ? ` · ${remaining} left` : ""
+      }`,
     );
+    invalidate();
+    return true;
+  };
 
   const cancel = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string | null }) => {

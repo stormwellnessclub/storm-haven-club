@@ -23,12 +23,13 @@ export function usePTDashboard() {
   return useQuery({
     queryKey: ["pt-dashboard", fmtDate(new Date(), "yyyy-MM-dd")],
     refetchInterval: 60_000,
+    staleTime: 30_000,
     queryFn: async (): Promise<PTDashboardData> => {
       const today = new Date();
       const weekStart = startOfWeek(today, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
 
-      const [{ data: week }, { data: passes }, { data: leads }, { data: programs }] = await Promise.all([
+      const [weekRes, passesRes, leadsRes, programsRes] = await Promise.all([
         (supabase as any)
           .from("pt_appointments")
           .select("*")
@@ -52,6 +53,15 @@ export function usePTDashboard() {
           .lte("reassessment_date", fmtDate(addDays(today, 14), "yyyy-MM-dd"))
           .order("reassessment_date", { ascending: true }),
       ]);
+
+      // Surface read failures instead of rendering an empty dashboard.
+      const failure = [weekRes, passesRes, leadsRes, programsRes].find((r: any) => r?.error);
+      if (failure) throw failure.error;
+
+      const week = weekRes.data;
+      const passes = passesRes.data;
+      const leads = leadsRes.data;
+      const programs = programsRes.data;
 
       const weekSessions = week ?? [];
       const todayKey = fmtDate(today, "yyyy-MM-dd");

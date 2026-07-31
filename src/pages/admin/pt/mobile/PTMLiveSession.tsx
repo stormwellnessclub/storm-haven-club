@@ -6,6 +6,8 @@ import {
   Undo2, Repeat, SkipForward, ListChecks, ShieldAlert, Camera, StickyNote,
   Trophy, WifiOff, AlertTriangle, Copy, MessageSquare, ArrowUp, ArrowDown, X, Loader2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/imageCompress";
 import { PTMobileShell } from "@/components/admin/pt/mobile/PTMobileShell";
 import {
   PTMCard, PTMBadge, PTMLabel, PTMError, PTMListSkeleton, PTMStickyActions, ptmButtonClass, PTMSectionTitle,
@@ -93,6 +95,36 @@ export default function PTMLiveSession() {
   const [confirmExit, setConfirmExit] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  /** Real upload: compress, push to the progress-photo bucket, record the row. */
+  const attachPhoto = async (file: File) => {
+    if (!appt?.user_id || uploadingPhoto) return;
+    setUploadingPhoto(true);
+    try {
+      const compressed = await compressImage(file);
+      const { data: auth } = await supabase.auth.getUser();
+      const path = `${appt.user_id}/${Date.now()}-${compressed.name.replace(/[^\w.-]/g, "_")}`;
+      const { error: upErr } = await supabase.storage
+        .from("pt-progress-photos")
+        .upload(path, compressed, { upsert: false, contentType: compressed.type });
+      if (upErr) throw upErr;
+      const { error } = await (supabase as any).from("pt_progress_photos").insert({
+        user_id: appt.user_id,
+        storage_path: path,
+        taken_on: new Date().toISOString().slice(0, 10),
+        notes: "Captured during live session",
+        created_by: auth?.user?.id ?? null,
+      });
+      if (error) throw error;
+      setMoreOpen(false);
+      toast.success("Photo saved to this client's progress photos");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not upload the photo");
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   // Seed today's plan once, then auto-start the clock.
   useEffect(() => {
@@ -168,6 +200,8 @@ export default function PTMLiveSession() {
       title="Live Session"
       back
       onBack={() => setConfirmExit(true)}
+      /* Hide the tab bar so a stray tap can't drop out of a live session. */
+      hideNav
       headerAccessory={
         <div className="space-y-2 px-4 pb-3">
           <PTMStageIndicator stage="live" />
@@ -525,10 +559,11 @@ export default function PTMLiveSession() {
           <button className={cn(ptmButtonClass("outline"), "text-pt-red")} onClick={() => { setMoreOpen(false); setNoteText(""); setNoteSheet("pain"); }}>
             <AlertTriangle className="h-4 w-4" /> Add pain alert
           </button>
-          <label className={cn(ptmButtonClass("outline"), "cursor-pointer")}>
-            <Camera className="h-4 w-4" /> Attach photo
+          <label className={cn(ptmButtonClass("outline"), "cursor-pointer", uploadingPhoto && "opacity-60")}>
+            <Camera className="h-4 w-4" /> {uploadingPhoto ? "Uploading photo…" : "Attach photo"}
             <input type="file" accept="image/*" capture="environment" className="hidden"
-                   onChange={() => { setMoreOpen(false); toast.info("Photo attached to this session's notes at check-out."); }} />
+                   disabled={uploadingPhoto}
+                   onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) attachPhoto(f); }} />
           </label>
           <button className={ptmButtonClass("outline")} onClick={() => { setMoreOpen(false); setListOpen(true); }}>
             <ListChecks className="h-4 w-4" /> Full workout

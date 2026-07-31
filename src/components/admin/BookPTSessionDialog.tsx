@@ -57,6 +57,7 @@ export function BookPTSessionDialog({
   const [paymentMode, setPaymentMode] = useState<"package" | "unpaid">("package");
   const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [conflict, setConflict] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -163,8 +164,10 @@ export function BookPTSessionDialog({
   const selectedPass = formatPasses.find((p) => p.id === passId);
   const unpaidMode = paymentMode === "unpaid";
 
-  async function submit() {
+  async function submit(force = false) {
     setErr(null);
+    if (submitting) return;
+    if (!force) setConflict(null);
     if (!userId) return toast.error("Pick a customer");
     if (!unpaidMode && !selectedPass) {
       setErr("No active sessions for this format. Sell a pack first, or bill this session later.");
@@ -190,11 +193,13 @@ export function BookPTSessionDialog({
         p_pass_id: unpaidMode ? null : selectedPass?.id ?? null,
         p_unpaid: unpaidMode,
         p_rate_cents: unpaidMode ? rateCents : 0,
+        p_location_id: null,
+        p_force: force,
       });
       if (error) throw error;
       const appt = Array.isArray(data) ? data[0] : data;
+      setConflict(null);
       toast.success(unpaidMode ? "Session booked · marked unpaid" : "Session booked · 1 deducted");
-
 
       // Fire confirmation email (non-blocking)
       supabase.functions.invoke("send-pt-booking-email", {
@@ -210,7 +215,9 @@ export function BookPTSessionDialog({
     } catch (e: any) {
       const msg = e?.message ?? "Booking failed";
       if (msg.includes("NO_SESSIONS")) setErr("No active sessions for this customer. Choose Bill later or sell a package.");
-      else setErr(msg);
+      else if (msg.includes("CONFLICT")) {
+        setConflict("That trainer is already booked at this time. Pick another slot, or book anyway to double-book on purpose.");
+      } else setErr(msg);
     } finally {
       setSubmitting(false);
     }
@@ -387,14 +394,25 @@ export function BookPTSessionDialog({
               <AlertCircle className="h-4 w-4 mt-0.5" /><div>{err}</div>
             </div>
           )}
+
+          {conflict && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+              <div className="space-y-2">
+                <div>{conflict}</div>
+                <Button size="sm" variant="outline" disabled={submitting} onClick={() => submit(true)}>
+                  Book anyway
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={submitting || !userId || (!unpaidMode && !selectedPass)}>
+          <Button onClick={() => submit(false)} disabled={submitting || !userId || (!unpaidMode && !selectedPass)}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {unpaidMode ? "Book & Bill Later" : "Book & Deduct"}
-
           </Button>
         </DialogFooter>
       </DialogContent>
