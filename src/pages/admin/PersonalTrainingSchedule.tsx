@@ -18,6 +18,7 @@ interface Appt {
   id: string; user_id: string; instructor_id: string | null;
   format: PtFormat; starts_at: string; ends_at: string; duration_minutes: number;
   status: string; notes: string | null;
+  payment_status?: string; amount_due_cents?: number;
 }
 
 interface Person { name: string; email: string; }
@@ -171,9 +172,15 @@ export default function PersonalTrainingSchedule() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {a.payment_status === "unpaid" && (
+                      <Badge variant="destructive" className="text-[10px]">
+                        Unpaid ${(((a.amount_due_cents ?? 0)) / 100).toFixed(0)}
+                      </Badge>
+                    )}
                     <Badge variant={a.status === "scheduled" ? "default" : a.status === "completed" ? "secondary" : "outline"} className="capitalize text-[10px]">
                       {a.status.replace("_", " ")}
                     </Badge>
+
                     {a.status === "scheduled" && (
                       <>
                         <Select value="" onValueChange={(v) => v && setStatus(a, v)}>

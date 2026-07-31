@@ -53,6 +53,8 @@ export function BookPTSessionDialog({
   const [duration, setDuration] = useState<number>(60);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [unpaidMode, setUnpaidMode] = useState(false);
+  const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -129,8 +131,13 @@ export function BookPTSessionDialog({
   async function submit() {
     setErr(null);
     if (!userId) return toast.error("Pick a customer");
-    if (!selectedPass) {
-      setErr("No active sessions for this format. Sell a pack first.");
+    if (!unpaidMode && !selectedPass) {
+      setErr("No active sessions for this format. Sell a pack first, or bill this session later.");
+      return;
+    }
+    const rateCents = Math.round(parseFloat(rate || "0") * 100);
+    if (unpaidMode && rateCents <= 0) {
+      setErr("Enter the session rate so it can be collected later.");
       return;
     }
     const startsAtLocal = new Date(`${date}T${time}:00`);
@@ -145,11 +152,14 @@ export function BookPTSessionDialog({
         p_duration_minutes: duration,
         p_instructor_id: instructorId || null,
         p_notes: notes || null,
-        p_pass_id: selectedPass.id,
+        p_pass_id: unpaidMode ? null : selectedPass!.id,
+        p_unpaid: unpaidMode,
+        p_rate_cents: unpaidMode ? rateCents : 0,
       });
       if (error) throw error;
       const appt = Array.isArray(data) ? data[0] : data;
-      toast.success("Session booked · 1 deducted");
+      toast.success(unpaidMode ? "Session booked · marked unpaid" : "Session booked · 1 deducted");
+
 
       // Fire confirmation email (non-blocking)
       supabase.functions.invoke("send-pt-booking-email", {
@@ -248,8 +258,8 @@ export function BookPTSessionDialog({
             </div>
             <div className="space-y-2">
               <Label>Pack to deduct</Label>
-              <Select value={passId} onValueChange={setPassId} disabled={formatPasses.length === 0}>
-                <SelectTrigger><SelectValue placeholder={formatPasses.length === 0 ? "No active passes" : "Pick pack"} /></SelectTrigger>
+              <Select value={passId} onValueChange={setPassId} disabled={unpaidMode || formatPasses.length === 0}>
+                <SelectTrigger><SelectValue placeholder={unpaidMode ? "Billed later" : formatPasses.length === 0 ? "No active passes" : "Pick pack"} /></SelectTrigger>
                 <SelectContent>
                   {formatPasses.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
@@ -258,8 +268,40 @@ export function BookPTSessionDialog({
                   ))}
                 </SelectContent>
               </Select>
+
             </div>
           </div>
+
+          {/* Bill later (no pack) */}
+          <div className="rounded-md border px-3 py-2 space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={unpaidMode}
+                onChange={(e) => setUnpaidMode(e.target.checked)}
+              />
+              Book without a pack — track as unpaid
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Session is recorded and shows up under PT Session Payments so you can charge their card or send a payment link later.
+            </p>
+            {unpaidMode && (
+              <div className="space-y-1">
+                <Label className="text-xs">Session rate ($)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g. 90.00"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+
 
           {/* Trainer */}
           <div className="space-y-2">
@@ -309,9 +351,10 @@ export function BookPTSessionDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={submitting || !userId || !selectedPass}>
+          <Button onClick={submit} disabled={submitting || !userId || (!unpaidMode && !selectedPass)}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Book & Deduct
+            {unpaidMode ? "Book & Bill Later" : "Book & Deduct"}
+
           </Button>
         </DialogFooter>
       </DialogContent>

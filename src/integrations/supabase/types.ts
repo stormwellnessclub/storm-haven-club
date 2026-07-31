@@ -6555,6 +6555,7 @@ export type Database = {
       }
       pt_appointments: {
         Row: {
+          amount_due_cents: number
           booked_by_admin_id: string | null
           cancel_reason: string | null
           cancelled_at: string | null
@@ -6567,14 +6568,20 @@ export type Database = {
           id: string
           instructor_id: string | null
           notes: string | null
+          paid_at: string | null
           pass_id: string | null
+          payment_method: string | null
+          payment_note: string | null
+          payment_status: string
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
+          stripe_payment_intent_id: string | null
           updated_at: string
           usage_id: string | null
           user_id: string
         }
         Insert: {
+          amount_due_cents?: number
           booked_by_admin_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -6587,14 +6594,20 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           notes?: string | null
+          paid_at?: string | null
           pass_id?: string | null
+          payment_method?: string | null
+          payment_note?: string | null
+          payment_status?: string
           starts_at: string
           status?: Database["public"]["Enums"]["pt_appointment_status"]
+          stripe_payment_intent_id?: string | null
           updated_at?: string
           usage_id?: string | null
           user_id: string
         }
         Update: {
+          amount_due_cents?: number
           booked_by_admin_id?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
@@ -6607,9 +6620,14 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           notes?: string | null
+          paid_at?: string | null
           pass_id?: string | null
+          payment_method?: string | null
+          payment_note?: string | null
+          payment_status?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["pt_appointment_status"]
+          stripe_payment_intent_id?: string | null
           updated_at?: string
           usage_id?: string | null
           user_id?: string
@@ -9653,6 +9671,48 @@ export type Database = {
         Args: { _instructor_id: string }
         Returns: undefined
       }
+      admin_set_pt_session_payment: {
+        Args: {
+          p_amount_cents?: number
+          p_appointment_id: string
+          p_note?: string
+          p_payment_method?: string
+          p_payment_status: string
+          p_stripe_payment_intent_id?: string
+        }
+        Returns: {
+          amount_due_cents: number
+          booked_by_admin_id: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          confirmation_email_sent_at: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          instructor_id: string | null
+          notes: string | null
+          paid_at: string | null
+          pass_id: string | null
+          payment_method: string | null
+          payment_note: string | null
+          payment_status: string
+          starts_at: string
+          status: Database["public"]["Enums"]["pt_appointment_status"]
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          usage_id: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_set_staff_pin: {
         Args: { _pin: string; _staff_user_id: string }
         Returns: undefined
@@ -9675,43 +9735,95 @@ export type Database = {
         Args: { _referred_member_id: string; _referring_member_id: string }
         Returns: undefined
       }
-      book_pt_appointment: {
-        Args: {
-          p_duration_minutes?: number
-          p_format: Database["public"]["Enums"]["pt_format"]
-          p_instructor_id?: string
-          p_notes?: string
-          p_pass_id?: string
-          p_starts_at: string
-          p_user_id: string
-        }
-        Returns: {
-          booked_by_admin_id: string | null
-          cancel_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
-          confirmation_email_sent_at: string | null
-          created_at: string
-          duration_minutes: number
-          ends_at: string
-          format: Database["public"]["Enums"]["pt_format"]
-          id: string
-          instructor_id: string | null
-          notes: string | null
-          pass_id: string | null
-          starts_at: string
-          status: Database["public"]["Enums"]["pt_appointment_status"]
-          updated_at: string
-          usage_id: string | null
-          user_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "pt_appointments"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      book_pt_appointment:
+        | {
+            Args: {
+              p_duration_minutes?: number
+              p_format: Database["public"]["Enums"]["pt_format"]
+              p_instructor_id?: string
+              p_notes?: string
+              p_pass_id?: string
+              p_starts_at: string
+              p_user_id: string
+            }
+            Returns: {
+              amount_due_cents: number
+              booked_by_admin_id: string | null
+              cancel_reason: string | null
+              cancelled_at: string | null
+              cancelled_by: string | null
+              confirmation_email_sent_at: string | null
+              created_at: string
+              duration_minutes: number
+              ends_at: string
+              format: Database["public"]["Enums"]["pt_format"]
+              id: string
+              instructor_id: string | null
+              notes: string | null
+              paid_at: string | null
+              pass_id: string | null
+              payment_method: string | null
+              payment_note: string | null
+              payment_status: string
+              starts_at: string
+              status: Database["public"]["Enums"]["pt_appointment_status"]
+              stripe_payment_intent_id: string | null
+              updated_at: string
+              usage_id: string | null
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "pt_appointments"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_duration_minutes?: number
+              p_format: Database["public"]["Enums"]["pt_format"]
+              p_instructor_id?: string
+              p_notes?: string
+              p_pass_id?: string
+              p_rate_cents?: number
+              p_starts_at: string
+              p_unpaid?: boolean
+              p_user_id: string
+            }
+            Returns: {
+              amount_due_cents: number
+              booked_by_admin_id: string | null
+              cancel_reason: string | null
+              cancelled_at: string | null
+              cancelled_by: string | null
+              confirmation_email_sent_at: string | null
+              created_at: string
+              duration_minutes: number
+              ends_at: string
+              format: Database["public"]["Enums"]["pt_format"]
+              id: string
+              instructor_id: string | null
+              notes: string | null
+              paid_at: string | null
+              pass_id: string | null
+              payment_method: string | null
+              payment_note: string | null
+              payment_status: string
+              starts_at: string
+              status: Database["public"]["Enums"]["pt_appointment_status"]
+              stripe_payment_intent_id: string | null
+              updated_at: string
+              usage_id: string | null
+              user_id: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "pt_appointments"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       book_wellness_appointment: {
         Args: {
           p_appointment_date: string
@@ -9742,6 +9854,7 @@ export type Database = {
       cancel_pt_appointment: {
         Args: { p_appointment_id: string; p_reason?: string }
         Returns: {
+          amount_due_cents: number
           booked_by_admin_id: string | null
           cancel_reason: string | null
           cancelled_at: string | null
@@ -9754,9 +9867,14 @@ export type Database = {
           id: string
           instructor_id: string | null
           notes: string | null
+          paid_at: string | null
           pass_id: string | null
+          payment_method: string | null
+          payment_note: string | null
+          payment_status: string
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
+          stripe_payment_intent_id: string | null
           updated_at: string
           usage_id: string | null
           user_id: string

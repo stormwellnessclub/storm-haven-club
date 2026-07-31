@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import {
+  DollarSign,
   LayoutDashboard,
   Users,
   UsersRound,
@@ -149,6 +150,7 @@ const departments: DepartmentSection[] = [
       { title: "PT Schedule", url: "/admin/personal-training/schedule", icon: Calendar },
       { title: "PT Customers & Passes", url: "/admin/personal-training/passes", icon: Ticket },
       { title: "PT Packs & Pricing", url: "/admin/personal-training/packs", icon: ClipboardList },
+      { title: "PT Session Payments", url: "/admin/personal-training/payments", icon: DollarSign },
     ],
   },
   {
