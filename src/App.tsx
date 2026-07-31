@@ -215,6 +215,7 @@ import PTMToday from "@/pages/admin/pt/mobile/PTMToday";
 import PTMClients from "@/pages/admin/pt/mobile/PTMClients";
 import PTMProgress from "@/pages/admin/pt/mobile/PTMProgress";
 import PTMMore from "@/pages/admin/pt/mobile/PTMMore";
+import PTMNextSession from "@/pages/admin/pt/mobile/PTMNextSession";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
 import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
