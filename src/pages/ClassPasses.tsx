@@ -21,6 +21,7 @@ import { useUserCredits } from "@/hooks/useUserCredits";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
 import { GuestCheckoutSheet } from "@/components/class-passes/GuestCheckoutSheet";
 import { useClassPassPricing, findPrice } from "@/hooks/useClassPassPricing";
+import { useLiveClassPassSales, saleForPricing, applyDiscount, discountLabel } from "@/hooks/usePromotions";
 
 const PENDING_PURCHASE_KEY = "pendingClassPassPurchase";
 
@@ -118,24 +119,65 @@ function InlineWaiverPrompt({
 }
 
 // Extracted pricing tables component
-function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
+function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user, promoCode, setPromoCode }: {
   onPurchase: (category: 'pilatesCycling', passType: 'single' | 'tenPack') => void;
   loadingPass: string | null;
   isMember: boolean;
   user: any;
+  promoCode: string;
+  setPromoCode: (v: string) => void;
 }) {
   const { data: pricingRows } = useClassPassPricing();
-  const classPassPricing: PricingTier[] = (() => {
+  const { data: liveSales } = useLiveClassPassSales();
+
+  const rowIds = (() => {
     const single = findPrice(pricingRows, 'pilates_cycling', 'single', 'member');
     const singleNM = findPrice(pricingRows, 'pilates_cycling', 'single', 'non_member');
     const tenPack = findPrice(pricingRows, 'pilates_cycling', '10_pack', 'member');
     const tenPackNM = findPrice(pricingRows, 'pilates_cycling', '10_pack', 'non_member');
+    return { single, singleNM, tenPack, tenPackNM };
+  })();
+
+  const classPassPricing: (PricingTier & {
+    memberSalePrice?: number | null;
+    nonMemberSalePrice?: number | null;
+  })[] = (() => {
+    const { single, singleNM, tenPack, tenPackNM } = rowIds;
     if (!single || !singleNM || !tenPack || !tenPackNM) return FALLBACK_CLASS_PASS_PRICING;
+    const salePrice = (row: { id: string; price_cents: number }) => {
+      const sale = saleForPricing(liveSales, row.id);
+      if (!sale) return null;
+      const cents = applyDiscount(row.price_cents, sale);
+      return cents === row.price_cents ? null : cents / 100;
+    };
     return [
-      { type: single.row.label, passType: 'single', memberPrice: single.dollars, nonMemberPrice: singleNM.dollars },
-      { type: tenPack.row.label, passType: 'tenPack', memberPrice: tenPack.dollars, nonMemberPrice: tenPackNM.dollars },
+      {
+        type: single.row.label, passType: 'single',
+        memberPrice: single.dollars, nonMemberPrice: singleNM.dollars,
+        memberSalePrice: salePrice(single.row), nonMemberSalePrice: salePrice(singleNM.row),
+      },
+      {
+        type: tenPack.row.label, passType: 'tenPack',
+        memberPrice: tenPack.dollars, nonMemberPrice: tenPackNM.dollars,
+        memberSalePrice: salePrice(tenPack.row), nonMemberSalePrice: salePrice(tenPackNM.row),
+      },
     ];
   })();
+
+  const activeSale = (liveSales ?? [])[0] ?? null;
+  const anyOnSale = classPassPricing.some((t) => t.memberSalePrice != null || t.nonMemberSalePrice != null);
+
+  const Price = ({ base, sale, highlight }: { base: number; sale?: number | null; highlight: boolean }) => (
+    sale != null ? (
+      <span className="inline-flex flex-col items-center leading-tight">
+        <span className="text-sm text-muted-foreground line-through">${base}</span>
+        <span className="text-2xl font-light text-gold">${sale.toFixed(2).replace(/\.00$/, "")}</span>
+      </span>
+    ) : (
+      <span className={`text-2xl font-light ${highlight ? 'text-gold' : ''}`}>${base}</span>
+    )
+  );
+
   const PurchaseButton = ({ 
     category, 
     passType, 
@@ -176,6 +218,19 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
             title="Class Pass"
             subtitle="Valid for all studio classes."
           />
+
+          {anyOnSale && activeSale && (
+            <div className="max-w-4xl mx-auto mb-6 rounded-lg border border-gold/40 bg-gold/10 px-5 py-4 text-center">
+              <p className="text-sm uppercase tracking-[0.2em] text-gold">Limited time</p>
+              <p className="font-serif text-xl mt-1">{activeSale.name}</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {discountLabel(activeSale)} · ends{" "}
+                {new Date(activeSale.ends_at).toLocaleDateString("en-US", {
+                  timeZone: "America/Detroit", weekday: "long", month: "long", day: "numeric",
+                })}
+              </p>
+            </div>
+          )}
           
           <div className="max-w-4xl mx-auto">
             <div className="card-luxury overflow-hidden">
@@ -197,28 +252,43 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user }: {
                 >
                   <div className="font-medium">{tier.type}</div>
                   <div className="text-center">
-                    <span className={`text-2xl font-light ${isMember ? 'text-gold' : ''}`}>
-                      ${tier.memberPrice}
-                    </span>
+                    <Price base={tier.memberPrice} sale={tier.memberSalePrice} highlight={isMember} />
                   </div>
                   <div className="text-center">
-                    <span className={`text-2xl font-light ${!isMember && user ? 'text-gold' : ''}`}>
-                      ${tier.nonMemberPrice}
-                    </span>
+                    <Price base={tier.nonMemberPrice} sale={tier.nonMemberSalePrice} highlight={!isMember && !!user} />
                   </div>
                   <div className="text-center">
                     <PurchaseButton
                       category="pilatesCycling"
                       passType={tier.passType}
-                      price={user && isMember ? tier.memberPrice : tier.nonMemberPrice}
+                      price={
+                        user && isMember
+                          ? (tier.memberSalePrice ?? tier.memberPrice)
+                          : (tier.nonMemberSalePrice ?? tier.nonMemberPrice)
+                      }
                     />
                   </div>
                 </div>
               ))}
             </div>
+
+            <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2">
+              <label className="text-sm text-muted-foreground" htmlFor="class-pass-promo">
+                Have a promo code?
+              </label>
+              <input
+                id="class-pass-promo"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                placeholder="ENTER CODE"
+                className="h-10 w-full sm:w-48 rounded-md border border-border bg-background px-3 text-sm tracking-widest uppercase"
+              />
+              <span className="text-xs text-muted-foreground">Applied at checkout</span>
+            </div>
           </div>
         </div>
       </section>
+
 
       {/* Pass Information */}
       <section className="py-16 bg-background">
@@ -318,6 +388,7 @@ export default function ClassPasses() {
   const { data: singleClassAgreements } = useAgreements("single_class_pass");
   const { data: classPackageAgreements } = useAgreements("class_package");
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
     title: string;
@@ -442,6 +513,7 @@ export default function ClassPasses() {
           passType,
           isMember,
           // Pass clean URLs — backend appends ?session_id={CHECKOUT_SESSION_ID}
+          promoCode: promoCode.trim() || undefined,
           successUrl: `${origin}/class-passes`,
           cancelUrl: `${origin}/class-passes?purchase=cancelled`,
         },
@@ -584,6 +656,8 @@ export default function ClassPasses() {
         loadingPass={loadingPass}
         isMember={isMember}
         user={user}
+        promoCode={promoCode}
+        setPromoCode={setPromoCode}
       />
 
       {/* Show inline waiver signing prompt when needed */}

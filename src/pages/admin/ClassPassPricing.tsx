@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Tag, RefreshCcw } from "lucide-react";
 import type { ClassPricingRow } from "@/hooks/useClassPassPricing";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SalesPromosTab } from "@/components/admin/promotions/SalesPromosTab";
 
 const CATEGORY_LABEL: Record<string, string> = {
   pilates_cycling: "Pilates & Cycling",
@@ -127,12 +129,10 @@ export default function ClassPassPricing() {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <Tag className="h-6 w-6" /> Class Pass Pricing
+              <Tag className="h-6 w-6" /> Class Passes
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Edit member and non-member prices for single classes and 10-packs.
-              Saving creates a new Stripe price automatically — existing purchases
-              are not affected.
+              Manage everyday pricing, plus sales and promo codes.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -140,32 +140,49 @@ export default function ClassPassPricing() {
           </Button>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {grouped.map(([key, rows]) => {
-              const [category, passType] = key.split("::");
-              return (
-                <Card key={key}>
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      {CATEGORY_LABEL[category] ?? category} — {PASS_TYPE_LABEL[passType] ?? passType}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {rows.map((r) => (
-                      <PriceRow key={r.id} row={r} onSaved={onSaved} />
-                    ))}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+        <Tabs defaultValue="pricing">
+          <TabsList>
+            <TabsTrigger value="pricing">Pricing</TabsTrigger>
+            <TabsTrigger value="sales">Sales &amp; Promos</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pricing" className="mt-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Saving creates a new Stripe price automatically — existing purchases are not affected.
+            </p>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {grouped.map(([key, rows]) => {
+                  const [category, passType] = key.split("::");
+                  return (
+                    <Card key={key}>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          {CATEGORY_LABEL[category] ?? category} — {PASS_TYPE_LABEL[passType] ?? passType}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {rows.map((r) => (
+                          <PriceRow key={r.id} row={r} onSaved={onSaved} />
+                        ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="sales" className="mt-4">
+            <SalesPromosTab tiers={data ?? []} />
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminLayout>
   );
 }
+

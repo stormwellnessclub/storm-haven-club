@@ -201,6 +201,116 @@ async function createProcessingFeeLineItem(stripe: Stripe, baseAmountCents: numb
   return { price: price.id, quantity: 1 };
 }
 
+// ---------------------------------------------------------------------------
+// Class pass promotions (sales + promo codes)
+// ---------------------------------------------------------------------------
+type ResolvedPromotion = {
+  promotionId: string;
+  name: string;
+  discountType: 'percent' | 'fixed';
+  discountValue: number;
+  couponId: string;
+  discountCents: number;
+  netCents: number;
+};
+
+/**
+ * Resolves the live automatic sale (or a typed promo code) for a class pass tier
+ * and returns a Stripe coupon that can be attached to the checkout session.
+ * Throws with a friendly message when a typed code is not usable.
+ */
+async function resolveClassPassPromotion(
+  supabase: any,
+  stripe: Stripe,
+  pricingId: string | null,
+  baseAmountCents: number,
+  code?: string | null,
+): Promise<ResolvedPromotion | null> {
+  if (!pricingId || baseAmountCents <= 0) {
+    if (code) throw new Error('Promo code not valid for this purchase');
+    return null;
+  }
+
+  const { data, error } = await supabase.rpc('resolve_class_pass_promotion', {
+    _pricing_id: pricingId,
+    _code: code ?? null,
+  });
+  if (error) {
+    if (code) throw new Error('Could not validate promo code');
+    return null;
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  const reason = row?.reason ?? 'none';
+
+  if (reason !== 'ok') {
+    if (!code) return null;
+    const messages: Record<string, string> = {
+      invalid_code: 'That promo code does not exist',
+      not_active: 'That promo code is not active',
+      not_started: 'That promo code is not active yet',
+      expired: 'That promo code has expired',
+      not_applicable: 'That promo code does not apply to this pass',
+      limit_reached: 'That promo code has reached its redemption limit',
+      none: 'That promo code is not valid',
+    };
+    throw new Error(messages[reason] ?? 'That promo code is not valid');
+  }
+
+  const discountType = row.discount_type as 'percent' | 'fixed';
+  const discountValue = Number(row.discount_value);
+  const discountCents = discountType === 'percent'
+    ? Math.min(baseAmountCents, Math.round((baseAmountCents * discountValue) / 100))
+    : Math.min(baseAmountCents, Math.round(discountValue * 100));
+
+  if (discountCents <= 0) return null;
+
+  // Reuse a cached coupon when possible, otherwise create one for this sale.
+  const { data: promoRow } = await supabase
+    .from('promotions')
+    .select('stripe_coupon_id')
+    .eq('id', row.promotion_id)
+    .maybeSingle();
+
+  let couponId: string | null = promoRow?.stripe_coupon_id ?? null;
+  if (couponId) {
+    try {
+      const existing = await stripe.coupons.retrieve(couponId);
+      const stale = discountType === 'percent'
+        ? Number(existing.percent_off ?? 0) !== discountValue
+        : Number(existing.amount_off ?? 0) !== Math.round(discountValue * 100);
+      if (!existing.valid || stale) couponId = null;
+    } catch (_e) {
+      couponId = null;
+    }
+  }
+
+  if (!couponId) {
+    const coupon = await stripe.coupons.create({
+      name: String(row.name).slice(0, 40),
+      duration: 'once',
+      ...(discountType === 'percent'
+        ? { percent_off: discountValue }
+        : { amount_off: Math.round(discountValue * 100), currency: 'usd' }),
+      metadata: { promotion_id: row.promotion_id, scope: 'class_pass' },
+    });
+    couponId = coupon.id;
+    await supabase.from('promotions').update({ stripe_coupon_id: couponId }).eq('id', row.promotion_id);
+  }
+
+  return {
+    promotionId: row.promotion_id,
+    name: row.name,
+    discountType,
+    discountValue,
+    couponId: couponId!,
+    discountCents,
+    netCents: Math.max(0, baseAmountCents - discountCents),
+  };
+}
+
+
+
 // Get or create a recurring processing fee price for subscription items
 async function getOrCreateRecurringProcessingFeePrice(
   stripe: Stripe,
@@ -744,7 +854,7 @@ serve(async (req) => {
       }
 
       case 'create_class_pass_checkout': {
-        const { category, passType, successUrl, cancelUrl } = body;
+        const { category, passType, successUrl, cancelUrl, promoCode } = body;
 
         if (!category || !passType || !successUrl || !cancelUrl) {
           throw new Error("Missing required fields for class pass checkout");
@@ -768,16 +878,20 @@ serve(async (req) => {
 
         // Prefer DB-managed price (admin-editable). Fallback to hardcoded map.
         let priceId: string | undefined;
+        let pricingRowId: string | null = null;
         try {
           const { data: priceRow } = await supabase
             .from('class_pricing')
-            .select('stripe_price_id')
+            .select('id, stripe_price_id')
             .eq('category', dbCategory)
             .eq('pass_type', dbPassType)
             .eq('audience', audience)
             .eq('is_active', true)
             .maybeSingle();
-          if (priceRow?.stripe_price_id) priceId = priceRow.stripe_price_id;
+          if (priceRow?.stripe_price_id) {
+            priceId = priceRow.stripe_price_id;
+            pricingRowId = priceRow.id;
+          }
         } catch (_e) { /* fall through */ }
         if (!priceId) {
           priceId = (STRIPE_PRODUCTS.classPasses as any)[category as string]?.[passType as string]?.[memberStatus];
@@ -803,9 +917,17 @@ serve(async (req) => {
           }
         }
 
-        // Add processing fee line item
         const classPassPrice = await stripe.prices.retrieve(priceId);
-        const classPassFeeItem = await createProcessingFeeLineItem(stripe, classPassPrice.unit_amount || 0);
+        const classPassBaseCents = classPassPrice.unit_amount || 0;
+
+        // Apply a live sale or a typed promo code (server-side validated)
+        const classPassPromo = await resolveClassPassPromotion(
+          supabase, stripe, pricingRowId, classPassBaseCents, promoCode,
+        );
+        const classPassNetCents = classPassPromo ? classPassPromo.netCents : classPassBaseCents;
+
+        // Processing fee is calculated on the discounted amount
+        const classPassFeeItem = await createProcessingFeeLineItem(stripe, classPassNetCents);
         const classPassLineItems: { price: string; quantity: number }[] = [{ price: priceId, quantity: 1 }];
         if (classPassFeeItem) classPassLineItems.push(classPassFeeItem);
 
@@ -813,6 +935,7 @@ serve(async (req) => {
           customer: customerId,
           line_items: classPassLineItems,
           mode: 'payment',
+          ...(classPassPromo ? { discounts: [{ coupon: classPassPromo.couponId }] } : {}),
           payment_intent_data: {
             setup_future_usage: 'off_session',
           },
@@ -824,10 +947,29 @@ serve(async (req) => {
             category,
             pass_type: passType,
             is_member: String(isVerifiedMember),
+            promotion_id: classPassPromo?.promotionId ?? '',
           },
         });
 
-        logStep("Class pass checkout created", { sessionId: session.id, url: session.url });
+        logStep("Class pass checkout created", { sessionId: session.id, url: session.url, promotion: classPassPromo?.name });
+
+        if (classPassPromo) {
+          try {
+            await supabase.from('promotion_redemptions').insert({
+              promotion_id: classPassPromo.promotionId,
+              user_id: user?.id ?? null,
+              email: user.email,
+              stripe_session_id: session.id,
+              pricing_id: pricingRowId,
+              original_cents: classPassBaseCents,
+              discount_cents: classPassPromo.discountCents,
+              final_cents: classPassNetCents,
+            });
+            await supabase.rpc('increment_promotion_redemption', { _promotion_id: classPassPromo.promotionId });
+          } catch (e) {
+            logStep("promotion redemption log failed (non-fatal)", { error: (e as any)?.message });
+          }
+        }
 
         // Track pending checkout for abandoned-cart recovery (best-effort, never blocks)
         try {
@@ -840,12 +982,13 @@ serve(async (req) => {
             category,
             pass_type: passType,
             is_member: isVerifiedMember,
-            amount_cents: classPassPrice.unit_amount || 0,
+            amount_cents: classPassNetCents,
             status: 'pending',
           });
         } catch (e) {
           logStep("pending_class_pass_checkouts insert failed (non-fatal)", { error: (e as any)?.message });
         }
+
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url }),
@@ -2839,17 +2982,22 @@ serve(async (req) => {
         const dbPassType2 = passType === 'tenPack' ? '10_pack' : (passType as string);
         const audience2 = isMember ? 'member' : 'non_member';
         let priceId: string | undefined;
+        let pricingRowId2: string | null = null;
         try {
           const { data: priceRow2 } = await supabase
             .from('class_pricing')
-            .select('stripe_price_id')
+            .select('id, stripe_price_id')
             .eq('category', dbCategory2)
             .eq('pass_type', dbPassType2)
             .eq('audience', audience2)
             .eq('is_active', true)
             .maybeSingle();
-          if (priceRow2?.stripe_price_id) priceId = priceRow2.stripe_price_id;
+          if (priceRow2?.stripe_price_id) {
+            priceId = priceRow2.stripe_price_id;
+            pricingRowId2 = priceRow2.id;
+          }
         } catch (_e) { /* fall through */ }
+
         if (!priceId) {
           const passConfig = (STRIPE_PRODUCTS.classPasses as any)[passCategory];
           priceId = passConfig?.[passType as string]?.[isMember ? 'member' : 'nonMember'];
@@ -2881,10 +3029,22 @@ serve(async (req) => {
           customerId = newCustomer.id;
         }
 
+        // Apply any live automatic sale (or a staff-entered promo code)
+        let adminPassPromo: ResolvedPromotion | null = null;
+        try {
+          const adminPassPrice = await stripe.prices.retrieve(priceId);
+          adminPassPromo = await resolveClassPassPromotion(
+            supabase, stripe, pricingRowId2, adminPassPrice.unit_amount || 0, body.promoCode,
+          );
+        } catch (e) {
+          if (body.promoCode) throw e;
+        }
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           line_items: [{ price: priceId, quantity: 1 }],
           mode: 'payment',
+          ...(adminPassPromo ? { discounts: [{ coupon: adminPassPromo.couponId }] } : {}),
           success_url: successUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member/credits?purchase=success`,
           cancel_url: cancelUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/class-passes?purchase=cancelled`,
           metadata: {
@@ -2893,8 +3053,26 @@ serve(async (req) => {
             category: passCategory,
             pass_type: passType,
             is_member: String(isMember),
+            promotion_id: adminPassPromo?.promotionId ?? '',
           },
         });
+
+        if (adminPassPromo) {
+          try {
+            await supabase.from('promotion_redemptions').insert({
+              promotion_id: adminPassPromo.promotionId,
+              user_id: userId,
+              email: profile.email,
+              stripe_session_id: session.id,
+              pricing_id: pricingRowId2,
+              original_cents: adminPassPromo.netCents + adminPassPromo.discountCents,
+              discount_cents: adminPassPromo.discountCents,
+              final_cents: adminPassPromo.netCents,
+            });
+            await supabase.rpc('increment_promotion_redemption', { _promotion_id: adminPassPromo.promotionId });
+          } catch (_e) { /* non-fatal */ }
+        }
+
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url, success: true }),
