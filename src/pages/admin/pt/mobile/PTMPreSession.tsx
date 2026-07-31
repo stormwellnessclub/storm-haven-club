@@ -143,7 +143,9 @@ export default function PTMPreSession() {
             )}
           </div>
         ) : (
-          <PTMAlert tone="warning" title="No active package" description="This session is not covered by a package." />
+          <PTMAlert tone="warning" title="No active package">
+            This session is not covered by a package.
+          </PTMAlert>
         )}
 
         {/* Preparation checklist */}
@@ -288,8 +290,9 @@ export default function PTMPreSession() {
           <PTMAlert
             tone="warning"
             title={`${missingRequired.length} required step${missingRequired.length === 1 ? "" : "s"} outstanding`}
-            description={missingRequired.map((i) => i.label).join(" · ")}
-          />
+          >
+            {missingRequired.map((i) => i.label).join(" · ")}
+          </PTMAlert>
         )}
       </div>
 
