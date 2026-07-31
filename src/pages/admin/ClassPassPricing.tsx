@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, Tag, RefreshCcw } from "lucide-react";
 import type { ClassPricingRow } from "@/hooks/useClassPassPricing";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SalesPromosTab } from "@/components/admin/promotions/SalesPromosTab";
 
 const CATEGORY_LABEL: Record<string, string> = {
   pilates_cycling: "Pilates & Cycling",
