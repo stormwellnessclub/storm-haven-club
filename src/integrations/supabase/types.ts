@@ -1095,6 +1095,39 @@ export type Database = {
           },
         ]
       }
+      cancellation_notice_templates: {
+        Row: {
+          body_html: string
+          created_at: string
+          display_name: string
+          id: string
+          subject: string
+          template_key: string
+          updated_at: string
+          updated_by_email: string | null
+        }
+        Insert: {
+          body_html: string
+          created_at?: string
+          display_name: string
+          id?: string
+          subject: string
+          template_key: string
+          updated_at?: string
+          updated_by_email?: string | null
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          subject?: string
+          template_key?: string
+          updated_at?: string
+          updated_by_email?: string | null
+        }
+        Relationships: []
+      }
       card_expiry_notices: {
         Row: {
           card_last4: string | null

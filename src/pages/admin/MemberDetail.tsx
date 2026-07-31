@@ -37,6 +37,8 @@ import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
 import { SellEventTicketDialog } from "@/components/admin/SellEventTicketDialog";
+import { CancellationNoticeDialog } from "@/components/admin/CancellationNoticeDialog";
+
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
@@ -251,6 +253,8 @@ export default function MemberDetail() {
 
   // Cancellation email state
   const [isSendingCancellationEmail, setIsSendingCancellationEmail] = useState(false);
+  const [showCancellationNoticeDialog, setShowCancellationNoticeDialog] = useState(false);
+
 
   // Cancel membership state
   const [showCancelMembershipDialog, setShowCancelMembershipDialog] = useState(false);
@@ -997,8 +1001,8 @@ export default function MemberDetail() {
     if (!member) return;
     setIsCancelingMembership(true);
     try {
-      // 1. Cancel Stripe subscription if exists
-      if (member.stripe_subscription_id) {
+      // 1. Cancel Stripe subscriptions (dues AND annual/initiation fee) if any exist
+      if (member.stripe_subscription_id || (member as any).annual_fee_subscription_id || (member as any).stripe_customer_id) {
         const { data, error } = await supabase.functions.invoke('stripe-payment', {
           body: {
             action: 'deactivate_member',
@@ -1008,6 +1012,7 @@ export default function MemberDetail() {
         if (error) throw error;
         if (data?.error) console.warn("Stripe deactivation warning:", data.error);
       }
+
 
       // 2. Update member status to cancelled
       const { error: updateError } = await supabase
@@ -1271,8 +1276,9 @@ export default function MemberDetail() {
                     icon={<Mail className="h-4 w-4 mr-2" />}
                     variant="outline"
                     isLoading={isSendingCancellationEmail}
-                    tooltip="Sends a branded cancellation confirmation email to the member"
-                    onClick={sendCancellationEmail}
+                    tooltip="Preview and edit the cancellation notice before sending it"
+                    onClick={() => setShowCancellationNoticeDialog(true)}
+
                     disabled={!member.email}
                   />
                   {(member as any).cancellation_email_sent_at && (
@@ -3032,7 +3038,24 @@ export default function MemberDetail() {
         }}
       />
     )}
+
+    <CancellationNoticeDialog
+      open={showCancellationNoticeDialog}
+      onOpenChange={setShowCancellationNoticeDialog}
+      targets={member ? [{
+        id: member.id,
+        first_name: member.first_name,
+        last_name: member.last_name,
+        email: member.email,
+        membership_type: (member as any).membership_type ?? null,
+        annual_fee_paid_at: (member as any).annual_fee_paid_at ?? null,
+        annual_fee_subscription_id: (member as any).annual_fee_subscription_id ?? null,
+        stripe_subscription_id: (member as any).stripe_subscription_id ?? null,
+      }] : []}
+      onSent={() => queryClient.invalidateQueries({ queryKey: ["admin-member", id] })}
+    />
     </>
+
   );
 }
 

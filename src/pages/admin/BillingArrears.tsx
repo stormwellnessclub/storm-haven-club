@@ -30,6 +30,8 @@ import { DunningTimeline } from "@/components/admin/DunningTimeline";
 import { BulkChargeDialog } from "@/components/admin/BulkChargeDialog";
 import { BulkSmsDialog } from "@/components/admin/BulkSmsDialog";
 import { BulkOutreachDialog } from "@/components/admin/BulkOutreachDialog";
+import { CancellationNoticeDialog } from "@/components/admin/CancellationNoticeDialog";
+
 
 function DunningBadge({ row }: { row: ArrearsRow }) {
   if (!row.dunning_status) return <span className="text-muted-foreground">—</span>;
@@ -333,6 +335,8 @@ export default function BillingArrears() {
   const [bulkChargeOpen, setBulkChargeOpen] = useState(false);
   const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
   const [bulkOutreachOpen, setBulkOutreachOpen] = useState(false);
+  const [cancelNoticeOpen, setCancelNoticeOpen] = useState(false);
+
 
   const filters = useMemo(() => ({
     search: search || undefined,
@@ -468,6 +472,10 @@ export default function BillingArrears() {
                 <Button size="sm" variant="outline" onClick={() => setBulkOutreachOpen(true)}>
                   <MessageSquarePlus className="h-4 w-4 mr-1" /> Log outreach
                 </Button>
+                <Button size="sm" variant="outline" onClick={() => setCancelNoticeOpen(true)}>
+                  <Mail className="h-4 w-4 mr-1" /> Cancellation notice
+                </Button>
+
                 <Button size="sm" variant="ghost" onClick={clearSelection}>
                   <X className="h-4 w-4 mr-1" /> Clear
                 </Button>
@@ -641,6 +649,21 @@ export default function BillingArrears() {
         onOpenChange={setBulkOutreachOpen}
         targets={selectedRows}
       />
+      <CancellationNoticeDialog
+        open={cancelNoticeOpen}
+        onOpenChange={setCancelNoticeOpen}
+        targets={selectedRows.map(r => ({
+          id: r.member_id,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          email: r.email,
+          membership_type: r.membership_type,
+          stripe_subscription_id: r.stripe_subscription_id,
+          amountOwed: (r.outstanding_cents || 0) / 100,
+        }))}
+        onSent={() => refetch()}
+      />
+
     </AdminLayout>
   );
 }
