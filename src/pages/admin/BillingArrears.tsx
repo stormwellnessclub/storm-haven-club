@@ -549,7 +549,7 @@ export default function BillingArrears() {
                           )}
                         </TableCell>
                         <TableCell>{r.membership_type || "—"}</TableCell>
-                        <TableCell>{statusBadge(r.member_status)}</TableCell>
+                        <TableCell>{statusBadge(r.member_status, (r.outstanding_cents ?? 0) > 0)}</TableCell>
                         <TableCell className="text-right">
                           {r.months_behind >= 2 ? (
                             <Badge variant="destructive">{r.months_behind}</Badge>
