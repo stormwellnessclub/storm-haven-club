@@ -291,17 +291,12 @@ export default function Auth() {
       }
     }
 
-    // The front desk service account has no human password — it is unlocked
-    // with the front desk PIN. Send staff to the right screen instead of
-    // failing with "Invalid credentials".
+    // Staff service account: silently route to the unlisted PIN screen.
     if (email.trim().toLowerCase() === "frontdesk@stormwellnessclub.com") {
-      toast({
-        title: "Front desk uses a PIN",
-        description: "This account can't be signed into with a password. Taking you to the front desk unlock screen.",
-      });
       navigate("/front-desk-login", { replace: true });
       return;
     }
+
 
     setIsLoading(true);
 
