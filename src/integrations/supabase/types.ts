@@ -6327,6 +6327,199 @@ export type Database = {
         }
         Relationships: []
       }
+      promotion_email_jobs: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          error_message: string | null
+          failed_count: number
+          id: string
+          kind: string
+          promotion_id: string
+          scheduled_for: string
+          sent_at: string | null
+          sent_count: number
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          body: string
+          created_at?: string
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          kind: string
+          promotion_id: string
+          scheduled_for: string
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          subject: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          error_message?: string | null
+          failed_count?: number
+          id?: string
+          kind?: string
+          promotion_id?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          sent_count?: number
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_email_jobs_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotion_redemptions: {
+        Row: {
+          created_at: string
+          discount_cents: number | null
+          email: string | null
+          final_cents: number | null
+          id: string
+          original_cents: number | null
+          pricing_id: string | null
+          promotion_id: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_cents?: number | null
+          email?: string | null
+          final_cents?: number | null
+          id?: string
+          original_cents?: number | null
+          pricing_id?: string | null
+          promotion_id: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_cents?: number | null
+          email?: string | null
+          final_cents?: number | null
+          id?: string
+          original_cents?: number | null
+          pricing_id?: string | null
+          promotion_id?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promotion_redemptions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promotions: {
+        Row: {
+          applies_to_all: boolean
+          auto_apply: boolean
+          created_at: string
+          created_by: string | null
+          default_audience: string
+          description: string | null
+          discount_type: string
+          discount_value: number
+          ends_at: string
+          id: string
+          max_redemptions: number | null
+          name: string
+          once_per_customer: boolean
+          pricing_ids: string[]
+          promo_code: string | null
+          redemption_count: number
+          remind_3_days_before_end: boolean
+          remind_last_day: boolean
+          remind_on_launch: boolean
+          scope_type: string
+          starts_at: string
+          status: string
+          stripe_coupon_id: string | null
+          stripe_promotion_code_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          applies_to_all?: boolean
+          auto_apply?: boolean
+          created_at?: string
+          created_by?: string | null
+          default_audience?: string
+          description?: string | null
+          discount_type: string
+          discount_value: number
+          ends_at: string
+          id?: string
+          max_redemptions?: number | null
+          name: string
+          once_per_customer?: boolean
+          pricing_ids?: string[]
+          promo_code?: string | null
+          redemption_count?: number
+          remind_3_days_before_end?: boolean
+          remind_last_day?: boolean
+          remind_on_launch?: boolean
+          scope_type?: string
+          starts_at: string
+          status?: string
+          stripe_coupon_id?: string | null
+          stripe_promotion_code_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          applies_to_all?: boolean
+          auto_apply?: boolean
+          created_at?: string
+          created_by?: string | null
+          default_audience?: string
+          description?: string | null
+          discount_type?: string
+          discount_value?: number
+          ends_at?: string
+          id?: string
+          max_redemptions?: number | null
+          name?: string
+          once_per_customer?: boolean
+          pricing_ids?: string[]
+          promo_code?: string | null
+          redemption_count?: number
+          remind_3_days_before_end?: boolean
+          remind_last_day?: boolean
+          remind_on_launch?: boolean
+          scope_type?: string
+          starts_at?: string
+          status?: string
+          stripe_coupon_id?: string | null
+          stripe_promotion_code_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pt_appointments: {
         Row: {
           booked_by_admin_id: string | null
@@ -10240,6 +10433,17 @@ export type Database = {
       reschedule_gift_card: {
         Args: { p_gift_card_id: string; p_new_time: string }
         Returns: Json
+      }
+      resolve_class_pass_promotion: {
+        Args: { _code?: string; _pricing_id: string }
+        Returns: {
+          discount_type: string
+          discount_value: number
+          name: string
+          promo_code: string
+          promotion_id: string
+          reason: string
+        }[]
       }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       staff_book_wellness_appointment: {
