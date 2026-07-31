@@ -7602,8 +7602,8 @@ serve(async (req) => {
             user_id: targetUserId,
             initiated_by: user.id,
           },
-          success_url: `${origin}/portal/payment-methods?card_added=1`,
-          cancel_url: `${origin}/portal/payment-methods?card_added=cancelled`,
+          success_url: `${origin}/card-added`,
+          cancel_url: `${origin}/card-added?status=cancelled`,
         });
 
         try {
