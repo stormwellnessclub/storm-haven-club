@@ -201,6 +201,8 @@ import PTPortalSchedule from "@/pages/admin/pt/PTSchedule";
 import PTPortalClients from "@/pages/admin/pt/PTClients";
 import PTPortalClientDetail from "@/pages/admin/pt/PTClientDetail";
 import PTPortalPrograms from "@/pages/admin/pt/PTPrograms";
+import PTPortalLibrary from "@/pages/admin/pt/PTLibrary";
+import PTPortalReassessments from "@/pages/admin/pt/PTReassessments";
 import PTPortalSessionNotes from "@/pages/admin/pt/PTSessionNotes";
 import PTPortalProgress from "@/pages/admin/pt/PTProgress";
 import PTPortalPackages from "@/pages/admin/pt/PTPackages";
