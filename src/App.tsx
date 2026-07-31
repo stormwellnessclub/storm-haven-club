@@ -469,6 +469,8 @@ const App = () => (
               <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients/:userId" element={<ProtectedAdminRoute><PTPortalClientDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/programs" element={<ProtectedAdminRoute><PTPortalPrograms /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/library" element={<ProtectedAdminRoute><PTPortalLibrary /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/reassessments" element={<ProtectedAdminRoute><PTPortalReassessments /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/session-notes" element={<ProtectedAdminRoute><PTPortalSessionNotes /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/progress" element={<ProtectedAdminRoute><PTPortalProgress /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/packages" element={<ProtectedAdminRoute><PTPortalPackages /></ProtectedAdminRoute>} />
