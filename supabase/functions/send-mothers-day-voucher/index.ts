@@ -195,6 +195,13 @@ serve(async (req) => {
     if (override_email && !only) {
       throw new Error("override_email requires 'only' to be set");
     }
+    // Redirecting a voucher code to an arbitrary address is a staff-only action.
+    if (override_email && _auth.kind === "cron") {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const overrideTo = override_email?.trim().toLowerCase() || null;
 
     const sends: Array<{
