@@ -15,9 +15,9 @@ export default function PTTrainers() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("instructors")
-        .select("id, name, email, phone, specialties, employment_status, schedule_color, is_active, can_train_pt")
-        .order("name", { ascending: true });
-      return data ?? [];
+        .select("id, first_name, last_name, email, phone, specialties, employment_status, schedule_color, is_active, is_public_pt")
+        .order("first_name", { ascending: true });
+      return (data ?? []).map((t: any) => ({ ...t, name: `${t.first_name ?? ""} ${t.last_name ?? ""}`.trim() }));
     },
   });
 
@@ -27,7 +27,7 @@ export default function PTTrainers() {
       const { data } = await (supabase as any)
         .from("pt_appointments")
         .select("instructor_id")
-        .gte("session_date", new Date().toISOString().slice(0, 10))
+        .gte("starts_at", new Date().toISOString())
         .eq("status", "scheduled");
       const counts: Record<string, number> = {};
       (data ?? []).forEach((r: any) => {
@@ -87,7 +87,7 @@ export default function PTTrainers() {
       align: "right",
       render: (t) => (
         <div className="flex justify-end gap-1">
-          {t.can_train_pt && <PTBadge tone="gold">PT</PTBadge>}
+          {t.is_public_pt && <PTBadge tone="gold">PT</PTBadge>}
           <PTBadge tone={t.is_active ? "green" : "neutral"}>{t.is_active ? "Active" : "Inactive"}</PTBadge>
         </div>
       ),

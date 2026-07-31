@@ -13,7 +13,7 @@ export default function PTSettings() {
     queryKey: ["pt-settings-locations"],
     queryFn: async () => {
       const { data } = await (supabase as any)
-        .from("pt_locations").select("id, name, description, is_active").order("name");
+        .from("pt_locations").select("id, name, address, is_active").order("display_order");
       return data ?? [];
     },
   });
@@ -31,7 +31,7 @@ export default function PTSettings() {
 
   const locationColumns: PTColumn<any>[] = [
     { key: "n", header: "Location", render: (r) => r.name },
-    { key: "d", header: "Notes", render: (r) => <span className="text-pt-muted">{r.description || "—"}</span> },
+    { key: "d", header: "Notes", render: (r) => <span className="text-pt-muted">{r.address || "—"}</span> },
     { key: "s", header: "", align: "right", render: (r) => <PTBadge tone={r.is_active ? "green" : "neutral"}>{r.is_active ? "Active" : "Inactive"}</PTBadge> },
   ];
 

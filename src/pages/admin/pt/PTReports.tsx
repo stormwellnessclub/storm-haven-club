@@ -17,8 +17,8 @@ export default function PTReports() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("pt_appointments")
-        .select("id, instructor_id, session_date, status, payment_status, price_cents")
-        .gte("session_date", sinceDate)
+        .select("id, instructor_id, starts_at, status, payment_status, amount_due_cents")
+        .gte("starts_at", since.toISOString())
         .limit(2000);
       return data ?? [];
     },
@@ -57,21 +57,21 @@ export default function PTReports() {
     const packageRevenue = passes.reduce((s: number, p: any) => s + (p.price_cents_charged || 0), 0);
     const sessionRevenue = appts
       .filter((a: any) => a.payment_status === "paid")
-      .reduce((s: number, a: any) => s + (a.price_cents || 0), 0);
+      .reduce((s: number, a: any) => s + (a.amount_due_cents || 0), 0);
     const unpaid = appts.filter((a: any) => a.payment_status === "unpaid");
     return {
       completed: completed.length,
       noShowRate: appts.length ? Math.round((noShows.length / appts.length) * 100) : 0,
       cancelled: cancelled.length,
       revenue: packageRevenue + sessionRevenue,
-      outstanding: unpaid.reduce((s: number, a: any) => s + (a.price_cents || 0), 0),
+      outstanding: unpaid.reduce((s: number, a: any) => s + (a.amount_due_cents || 0), 0),
     };
   }, [appts, passes]);
 
   const byMonth = useMemo(() => {
     const map = new Map<string, { month: string; completed: number; noShow: number; cancelled: number }>();
     appts.forEach((a: any) => {
-      const key = a.session_date.slice(0, 7);
+      const key = a.starts_at.slice(0, 7);
       const row = map.get(key) ?? { month: key, completed: 0, noShow: 0, cancelled: 0 };
       if (a.status === "completed") row.completed += 1;
       if (a.status === "no_show") row.noShow += 1;

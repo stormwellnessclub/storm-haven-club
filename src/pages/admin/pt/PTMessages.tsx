@@ -26,14 +26,14 @@ export default function PTMessages() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("pt_communications")
-        .select("id, user_id, channel, direction, subject, body, delivery_status, created_at")
+        .select("id, client_user_id, channel, direction, subject, body, delivery_status, created_at")
         .order("created_at", { ascending: false })
         .limit(200);
       return data ?? [];
     },
   });
 
-  const { data: people = {} } = usePTPeople(rows.map((r: any) => r.user_id));
+  const { data: people = {} } = usePTPeople(rows.map((r: any) => r.client_user_id));
 
   const filtered = useMemo(
     () => (tab === "all" ? rows : rows.filter((r: any) => r.channel === tab)),
@@ -51,7 +51,7 @@ export default function PTMessages() {
       },
     },
     { key: "when", header: "Sent", render: (r) => fmtDate(new Date(r.created_at), "MMM d, h:mm a") },
-    { key: "client", header: "Client", render: (r) => (r.user_id ? people[r.user_id]?.name ?? "—" : "—") },
+    { key: "client", header: "Client", render: (r) => (r.client_user_id ? people[r.client_user_id]?.name ?? "—" : "—") },
     {
       key: "message",
       header: "Message",
@@ -100,7 +100,7 @@ export default function PTMessages() {
           rows={filtered}
           loading={isLoading}
           getRowKey={(r) => r.id}
-          onRowClick={(r) => r.user_id && navigate(`/admin/pt/clients/${r.user_id}`)}
+          onRowClick={(r) => r.client_user_id && navigate(`/admin/pt/clients/${r.client_user_id}`)}
           empty={
             <PTEmptyState
               icon={MessageSquare}
