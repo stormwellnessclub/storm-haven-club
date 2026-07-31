@@ -44,7 +44,7 @@ const daysSince = (d?: string | null) =>
   d ? Math.floor((Date.now() - new Date(d).getTime()) / 86400000) : null;
 
 export default function MembershipHealth() {
-  const { roles, isLoading: rolesLoading } = useUserRoles();
+  const { roles, loading: rolesLoading } = useUserRoles();
   const { data, isLoading } = useMembershipHealth();
   const sync = useSyncMembershipTruth();
   const [bucket, setBucket] = useState<HealthBucket | "all">("all");
