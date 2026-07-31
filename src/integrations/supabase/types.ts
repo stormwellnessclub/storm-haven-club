@@ -10236,6 +10236,10 @@ export type Database = {
         Args: { _source_label: string; rows: Json }
         Returns: Json
       }
+      increment_promotion_redemption: {
+        Args: { _promotion_id: string }
+        Returns: undefined
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
