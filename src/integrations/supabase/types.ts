@@ -4165,6 +4165,115 @@ export type Database = {
           },
         ]
       }
+      member_billing_snapshot: {
+        Row: {
+          amount_due_cents: number | null
+          annual_status: string | null
+          annual_subscription_id: string | null
+          anomalies: string[]
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          card_brand: string | null
+          card_exp_month: number | null
+          card_exp_year: number | null
+          card_last4: string | null
+          collection_paused: boolean
+          created_at: string
+          dues_status: string | null
+          dues_subscription_id: string | null
+          effective_status: string | null
+          last_failed_amount_cents: number | null
+          last_failed_at: string | null
+          last_paid_amount_cents: number | null
+          last_paid_at: string | null
+          member_id: string
+          next_billing_at: string | null
+          resumes_at: string | null
+          stripe_customer_id: string | null
+          sync_error: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          amount_due_cents?: number | null
+          annual_status?: string | null
+          annual_subscription_id?: string | null
+          anomalies?: string[]
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
+          collection_paused?: boolean
+          created_at?: string
+          dues_status?: string | null
+          dues_subscription_id?: string | null
+          effective_status?: string | null
+          last_failed_amount_cents?: number | null
+          last_failed_at?: string | null
+          last_paid_amount_cents?: number | null
+          last_paid_at?: string | null
+          member_id: string
+          next_billing_at?: string | null
+          resumes_at?: string | null
+          stripe_customer_id?: string | null
+          sync_error?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_due_cents?: number | null
+          annual_status?: string | null
+          annual_subscription_id?: string | null
+          anomalies?: string[]
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          card_brand?: string | null
+          card_exp_month?: number | null
+          card_exp_year?: number | null
+          card_last4?: string | null
+          collection_paused?: boolean
+          created_at?: string
+          dues_status?: string | null
+          dues_subscription_id?: string | null
+          effective_status?: string | null
+          last_failed_amount_cents?: number | null
+          last_failed_at?: string | null
+          last_paid_amount_cents?: number | null
+          last_paid_at?: string | null
+          member_id?: string
+          next_billing_at?: string | null
+          resumes_at?: string | null
+          stripe_customer_id?: string | null
+          sync_error?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_billing_snapshot_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_billing_snapshot_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_billing_snapshot_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       member_credits: {
         Row: {
           created_at: string
