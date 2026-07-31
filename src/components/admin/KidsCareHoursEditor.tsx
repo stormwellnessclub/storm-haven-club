@@ -9,7 +9,7 @@ import { Loader2, Plus, Trash2, Save, Copy, UserRound } from "lucide-react";
 import { format, getMonth, getYear } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
-  useKidsCareHourSlotsForDate,
+  useKidsCareHourSlotsStaff,
   useKidsCareHourSlotsForMonth,
   useSaveKidsCareHourSlots,
   useCopyKidsCareHourSlots,
@@ -31,7 +31,7 @@ export function KidsCareHoursEditor() {
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  const { data: savedSlots, isLoading } = useKidsCareHourSlotsForDate(selectedDate);
+  const { data: savedSlots, isLoading } = useKidsCareHourSlotsStaff(selectedDate);
   const { data: monthSlots } = useKidsCareHourSlotsForMonth(
     getYear(calendarMonth),
     getMonth(calendarMonth) + 1

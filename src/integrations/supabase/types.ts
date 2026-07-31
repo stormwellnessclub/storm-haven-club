@@ -12045,6 +12045,27 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_kids_care_hour_slots_staff: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          close_time: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          label: string | null
+          notes: string | null
+          open_time: string
+          slot_date: string
+          staff_name: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "kids_care_hour_slots"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_member_arrears_summary: {
         Args: { p_member_id: string }
         Returns: Json
@@ -12087,6 +12108,42 @@ export type Database = {
           scheduled_send_at: string
           status: string
         }[]
+      }
+      get_my_instructor_profile: {
+        Args: never
+        Returns: {
+          bio: string | null
+          can_edit_others_appointments: boolean
+          can_self_book: boolean
+          created_at: string
+          default_location_id: string | null
+          default_per_class_rate: number
+          email: string
+          employment_status: string
+          first_name: string
+          hourly_rate: number
+          id: string
+          invited_at: string | null
+          is_active: boolean
+          is_master: boolean
+          is_public_pt: boolean
+          last_login_at: string | null
+          last_name: string
+          pay_type: Database["public"]["Enums"]["instructor_pay_type"]
+          phone: string | null
+          photo_url: string | null
+          portal_enabled: boolean
+          schedule_color: string | null
+          specialties: string[] | null
+          updated_at: string
+          user_id: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "instructors"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       get_next_waitlist_position: {
         Args: { p_session_id: string }

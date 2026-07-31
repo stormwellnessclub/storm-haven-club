@@ -3,6 +3,7 @@
 // and annual fee (14 day + 3 day). Idempotent via payment_renewal_reminders.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +71,9 @@ function formatChargeDate(iso: string): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,

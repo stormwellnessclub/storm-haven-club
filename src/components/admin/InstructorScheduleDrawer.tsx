@@ -37,13 +37,10 @@ export function InstructorScheduleDrawer({
     queryKey: ["instructor-drawer", instructorId],
     enabled: !!instructorId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, email, bio, is_active, is_master")
-        .eq("id", instructorId!)
-        .maybeSingle();
+      // Email is staff-only; served through the SECURITY DEFINER staff RPC.
+      const { data, error } = await (supabase as any).rpc("get_instructors_with_contact");
       if (error) throw error;
-      return data;
+      return ((data ?? []) as any[]).find((i) => i.id === instructorId) ?? null;
     },
   });
 

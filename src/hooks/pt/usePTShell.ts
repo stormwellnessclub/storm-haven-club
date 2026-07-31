@@ -56,9 +56,7 @@ export function usePTGlobalSearch(term: string) {
         supabase.from("non_member_profiles").select("user_id, first_name, last_name, email").or(
           `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`
         ).limit(6),
-        supabase.from("instructors").select("id, first_name, last_name, email, is_active").or(
-          `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`
-        ).limit(5),
+        (supabase as any).rpc("get_instructors_with_contact"),
         (supabase as any).from("pt_programs").select("id, name, user_id, goal, status").ilike("name", like).limit(5),
         (supabase as any).from("pt_packs").select("id, name, sessions, format").ilike("name", like).limit(5),
         (supabase as any).from("pt_passes").select("id, user_id, pack_name, sessions_remaining, status").ilike("pack_name", like).limit(5),
@@ -86,7 +84,15 @@ export function usePTGlobalSearch(term: string) {
           to: `/admin/pt/clients/${m.user_id}`,
         });
       });
-      (trainers.data ?? []).forEach((t: any) => {
+      const needle = q.toLowerCase();
+      ((trainers.data ?? []) as any[])
+        .filter((t: any) =>
+          [t.first_name, t.last_name, t.email]
+            .filter(Boolean)
+            .some((v: string) => String(v).toLowerCase().includes(needle)),
+        )
+        .slice(0, 5)
+        .forEach((t: any) => {
         results.push({
           id: `trainer-${t.id}`,
           group: "Trainers",

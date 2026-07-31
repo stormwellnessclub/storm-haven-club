@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,6 +154,9 @@ interface SendResult {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
   try {
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     const supabase = createClient(
@@ -190,6 +194,13 @@ serve(async (req) => {
 
     if (override_email && !only) {
       throw new Error("override_email requires 'only' to be set");
+    }
+    // Redirecting a voucher code to an arbitrary address is a staff-only action.
+    if (override_email && _auth.kind === "cron") {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     const overrideTo = override_email?.trim().toLowerCase() || null;
 

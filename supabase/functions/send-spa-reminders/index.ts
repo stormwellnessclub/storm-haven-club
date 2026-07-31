@@ -3,6 +3,7 @@
 //
 // Triggered by pg_cron (every 5–15 min). Operates in America/Detroit timezone.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -217,6 +218,9 @@ async function processWindow(admin: any, window: Window) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
 
   try {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);

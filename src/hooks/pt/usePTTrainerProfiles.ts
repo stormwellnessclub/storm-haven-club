@@ -43,10 +43,8 @@ export function usePTTrainerProfiles() {
     queryFn: async (): Promise<PTTrainerProfile[]> => {
       const nowIso = new Date().toISOString();
       const [instructors, appts, notes, links, passes] = await Promise.all([
-        (supabase as any)
-          .from("instructors")
-          .select("id, user_id, first_name, last_name, email, phone, bio, photo_url, specialties, is_active, is_public_pt, is_master, employment_status, schedule_color, default_location_id")
-          .order("first_name"),
+        // Contact + pay columns are staff-only; fetched via SECURITY DEFINER RPC.
+        (supabase as any).rpc("get_instructors_with_contact"),
         (supabase as any)
           .from("pt_appointments")
           .select("id, instructor_id, user_id, starts_at, status")
