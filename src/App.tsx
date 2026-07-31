@@ -218,6 +218,7 @@ import PTMMore from "@/pages/admin/pt/mobile/PTMMore";
 import PTMNextSession from "@/pages/admin/pt/mobile/PTMNextSession";
 import PTMActionList from "@/pages/admin/pt/mobile/PTMActionList";
 import PTMPreSession from "@/pages/admin/pt/mobile/PTMPreSession";
+import PTMPostSession from "@/pages/admin/pt/mobile/PTMPostSession";
 import PTMLiveSession from "@/pages/admin/pt/mobile/PTMLiveSession";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
