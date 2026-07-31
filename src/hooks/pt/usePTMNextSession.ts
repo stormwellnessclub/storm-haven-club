@@ -112,8 +112,8 @@ export function usePTMNextSession(appointmentId?: string) {
       let trainer: PTMNextSessionData["trainer"] = null;
       if (appt.instructor_id) {
         const { data: t } = await (supabase as any)
-          .from("instructors").select("id, name").eq("id", appt.instructor_id).maybeSingle();
-        if (t) trainer = { id: t.id, name: t.name };
+          .from("instructors").select("id, first_name, last_name").eq("id", appt.instructor_id).maybeSingle();
+        if (t) trainer = { id: t.id, name: [t.first_name, t.last_name].filter(Boolean).join(" ") || "Trainer" };
       }
 
       const name =
