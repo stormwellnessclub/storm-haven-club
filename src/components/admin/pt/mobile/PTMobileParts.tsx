@@ -224,8 +224,12 @@ export function PTMAppointmentSummary({
   photoUrl?: string | null;
   onClick?: () => void;
 }) {
+  // Must match STATUS_TONE in PTPrimitives: cancellations are neutral, no-shows are red.
   const tone =
-    status === "completed" ? "green" : status === "cancelled" || status === "no_show" ? "red" : status === "in_progress" ? "gold" : "neutral";
+    status === "completed" ? "green"
+      : status === "no_show" ? "red"
+      : status === "in_progress" ? "gold"
+      : "neutral";
   const Comp: any = onClick ? "button" : "div";
   return (
     <Comp
