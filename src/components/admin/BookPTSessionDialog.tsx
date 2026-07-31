@@ -258,8 +258,8 @@ export function BookPTSessionDialog({
             </div>
             <div className="space-y-2">
               <Label>Pack to deduct</Label>
-              <Select value={passId} onValueChange={setPassId} disabled={formatPasses.length === 0}>
-                <SelectTrigger><SelectValue placeholder={formatPasses.length === 0 ? "No active passes" : "Pick pack"} /></SelectTrigger>
+              <Select value={passId} onValueChange={setPassId} disabled={unpaidMode || formatPasses.length === 0}>
+                <SelectTrigger><SelectValue placeholder={unpaidMode ? "Billed later" : formatPasses.length === 0 ? "No active passes" : "Pick pack"} /></SelectTrigger>
                 <SelectContent>
                   {formatPasses.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
@@ -268,6 +268,7 @@ export function BookPTSessionDialog({
                   ))}
                 </SelectContent>
               </Select>
+
             </div>
           </div>
 
