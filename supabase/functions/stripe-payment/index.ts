@@ -2982,17 +2982,22 @@ serve(async (req) => {
         const dbPassType2 = passType === 'tenPack' ? '10_pack' : (passType as string);
         const audience2 = isMember ? 'member' : 'non_member';
         let priceId: string | undefined;
+        let pricingRowId2: string | null = null;
         try {
           const { data: priceRow2 } = await supabase
             .from('class_pricing')
-            .select('stripe_price_id')
+            .select('id, stripe_price_id')
             .eq('category', dbCategory2)
             .eq('pass_type', dbPassType2)
             .eq('audience', audience2)
             .eq('is_active', true)
             .maybeSingle();
-          if (priceRow2?.stripe_price_id) priceId = priceRow2.stripe_price_id;
+          if (priceRow2?.stripe_price_id) {
+            priceId = priceRow2.stripe_price_id;
+            pricingRowId2 = priceRow2.id;
+          }
         } catch (_e) { /* fall through */ }
+
         if (!priceId) {
           const passConfig = (STRIPE_PRODUCTS.classPasses as any)[passCategory];
           priceId = passConfig?.[passType as string]?.[isMember ? 'member' : 'nonMember'];
