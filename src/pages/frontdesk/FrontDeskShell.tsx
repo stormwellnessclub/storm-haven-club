@@ -20,7 +20,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 
 const SHIFT_KEY = "frontdeskActiveShift";
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 interface ShiftState {
   shiftId: string;

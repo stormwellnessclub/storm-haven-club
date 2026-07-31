@@ -174,7 +174,6 @@ import {
   InstructorMessages,
   InstructorDocuments,
 } from "./pages/instructor/Stubs";
-import FrontDeskLogin from "./pages/FrontDeskLogin";
 import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -294,7 +293,7 @@ const App = () => (
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
               <Route path="/front-desk" element={<FrontDeskKiosk />} />
-              <Route path="/front-desk-login" element={<FrontDeskLogin />} />
+              <Route path="/front-desk-login" element={<Navigate to="/auth" replace />} />
               <Route path="/kiosk" element={<KioskReception />} />
               <Route path="/kiosk/reception" element={<KioskReception />} />
               <Route path="/kiosk/cafe" element={<KioskCafe />} />
