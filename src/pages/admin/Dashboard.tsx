@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { MembershipBreakdownCard } from "@/components/admin/MembershipBreakdownCard";
+
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
