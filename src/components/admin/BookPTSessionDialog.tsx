@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Loader2, Calendar } from "lucide-react";
 import { toast } from "sonner";
@@ -53,7 +54,7 @@ export function BookPTSessionDialog({
   const [duration, setDuration] = useState<number>(60);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [unpaidMode, setUnpaidMode] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<"package" | "unpaid">("package");
   const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
@@ -62,10 +63,16 @@ export function BookPTSessionDialog({
       setUserId(presetUserId);
       setUserLabel(presetUserName);
       if (presetDate) setDate(presetDate);
+      setPaymentMode("package");
+      setRate("");
+      setErr(null);
     }
   }, [open, presetUserId, presetUserName, presetDate]);
 
-  useEffect(() => { setDuration(DEFAULT_DURATION[format]); }, [format]);
+  useEffect(() => {
+    setDuration(DEFAULT_DURATION[format]);
+    setRate("");
+  }, [format]);
 
   // Customer search
   const { data: users = [] } = useQuery({
@@ -106,6 +113,21 @@ export function BookPTSessionDialog({
 
   const formatPasses = useMemo(() => passes.filter((p) => p.format === format), [passes, format]);
 
+  const { data: singleSessionRates = [] } = useQuery({
+    queryKey: ["pt-single-session-rates"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("pt_packs")
+        .select("format, price_cents")
+        .eq("is_active", true)
+        .eq("sessions", 1)
+        .order("price_cents", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Array<{ format: PtFormat; price_cents: number }>;
+    },
+  });
+
+  const defaultRateCents = singleSessionRates.find((pack) => pack.format === format)?.price_cents ?? 0;
+
   useEffect(() => {
     if (formatPasses.length > 0 && !formatPasses.find((p) => p.id === passId)) {
       setPassId(formatPasses[0].id);
@@ -113,6 +135,18 @@ export function BookPTSessionDialog({
       setPassId("");
     }
   }, [formatPasses, passId]);
+
+  useEffect(() => {
+    if (!userId || passesLoading) return;
+    setPaymentMode(formatPasses.length === 0 ? "unpaid" : "package");
+    setErr(null);
+  }, [userId, format, formatPasses.length, passesLoading]);
+
+  useEffect(() => {
+    if (paymentMode === "unpaid" && !rate && defaultRateCents > 0) {
+      setRate((defaultRateCents / 100).toFixed(2));
+    }
+  }, [paymentMode, rate, defaultRateCents]);
 
   // Instructors
   const { data: instructors = [] } = useQuery({
@@ -127,6 +161,7 @@ export function BookPTSessionDialog({
   });
 
   const selectedPass = formatPasses.find((p) => p.id === passId);
+  const unpaidMode = paymentMode === "unpaid";
 
   async function submit() {
     setErr(null);
@@ -174,7 +209,7 @@ export function BookPTSessionDialog({
       onOpenChange(false);
     } catch (e: any) {
       const msg = e?.message ?? "Booking failed";
-      if (msg.includes("NO_SESSIONS")) setErr("No active sessions for this customer. Sell a pack first.");
+      if (msg.includes("NO_SESSIONS")) setErr("No active sessions for this customer. Choose Bill later or sell a package.");
       else setErr(msg);
     } finally {
       setSubmitting(false);
@@ -243,7 +278,7 @@ export function BookPTSessionDialog({
             </div>
           )}
 
-          {/* Format + Pass */}
+          {/* Format */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Format</Label>
@@ -272,20 +307,25 @@ export function BookPTSessionDialog({
             </div>
           </div>
 
-          {/* Bill later (no pack) */}
+          {/* Payment handling */}
           <div className="rounded-md border px-3 py-2 space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={unpaidMode}
-                onChange={(e) => setUnpaidMode(e.target.checked)}
-              />
-              Book without a pack — track as unpaid
-            </label>
-            <p className="text-xs text-muted-foreground">
-              Session is recorded and shows up under PT Session Payments so you can charge their card or send a payment link later.
-            </p>
+            <Label>Payment</Label>
+            <RadioGroup value={paymentMode} onValueChange={(value) => setPaymentMode(value as "package" | "unpaid")}>
+              <label className={`flex items-start gap-3 rounded-md border p-3 ${formatPasses.length === 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                <RadioGroupItem value="package" disabled={formatPasses.length === 0} className="mt-0.5" />
+                <span>
+                  <span className="block text-sm font-medium">Use active package</span>
+                  <span className="block text-xs text-muted-foreground">Deduct one session from the selected package.</span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                <RadioGroupItem value="unpaid" className="mt-0.5" />
+                <span>
+                  <span className="block text-sm font-medium">Bill later / unpaid</span>
+                  <span className="block text-xs text-muted-foreground">Book now, then charge a card, send a payment link, record cash, or comp it from PT Session Payments.</span>
+                </span>
+              </label>
+            </RadioGroup>
             {unpaidMode && (
               <div className="space-y-1">
                 <Label className="text-xs">Session rate ($)</Label>
@@ -293,7 +333,7 @@ export function BookPTSessionDialog({
                   type="number"
                   min={0}
                   step="0.01"
-                  placeholder="e.g. 90.00"
+                  placeholder="Enter session rate"
                   value={rate}
                   onChange={(e) => setRate(e.target.value)}
                 />
