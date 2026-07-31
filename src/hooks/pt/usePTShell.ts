@@ -84,7 +84,15 @@ export function usePTGlobalSearch(term: string) {
           to: `/admin/pt/clients/${m.user_id}`,
         });
       });
-      (trainers.data ?? []).forEach((t: any) => {
+      const needle = q.toLowerCase();
+      ((trainers.data ?? []) as any[])
+        .filter((t: any) =>
+          [t.first_name, t.last_name, t.email]
+            .filter(Boolean)
+            .some((v: string) => String(v).toLowerCase().includes(needle)),
+        )
+        .slice(0, 5)
+        .forEach((t: any) => {
         results.push({
           id: `trainer-${t.id}`,
           group: "Trainers",
