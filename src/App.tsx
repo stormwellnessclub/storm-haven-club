@@ -483,7 +483,7 @@ const App = () => (
               <Route path="/admin/pt/m/next" element={<ProtectedAdminRoute><PTMNextSession /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/session/:appointmentId" element={<ProtectedAdminRoute><PTMNextSession /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/session/:appointmentId/live" element={<ProtectedAdminRoute><PTMLiveSession /></ProtectedAdminRoute>} />
-              <Route path="/admin/pt/m/session/:appointmentId/post" element={<ProtectedAdminRoute><PTMNextSession /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/session/:appointmentId/post" element={<ProtectedAdminRoute><PTMPostSession /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/session/:appointmentId/pre" element={<ProtectedAdminRoute><PTMPreSession /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/schedule" element={<ProtectedAdminRoute><PTPortalSchedule /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
