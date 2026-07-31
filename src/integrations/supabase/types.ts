@@ -7403,28 +7403,49 @@ export type Database = {
       }
       pt_exercise_library: {
         Row: {
+          category: string | null
           created_at: string
+          cues: string | null
+          default_reps: string | null
+          default_rest: string | null
+          default_sets: number | null
+          default_tempo: string | null
           equipment: string | null
           id: string
           is_active: boolean
+          media_url: string | null
           muscle_group: string | null
           name: string
           notes: string | null
         }
         Insert: {
+          category?: string | null
           created_at?: string
+          cues?: string | null
+          default_reps?: string | null
+          default_rest?: string | null
+          default_sets?: number | null
+          default_tempo?: string | null
           equipment?: string | null
           id?: string
           is_active?: boolean
+          media_url?: string | null
           muscle_group?: string | null
           name: string
           notes?: string | null
         }
         Update: {
+          category?: string | null
           created_at?: string
+          cues?: string | null
+          default_reps?: string | null
+          default_rest?: string | null
+          default_sets?: number | null
+          default_tempo?: string | null
           equipment?: string | null
           id?: string
           is_active?: boolean
+          media_url?: string | null
           muscle_group?: string | null
           name?: string
           notes?: string | null
@@ -7812,9 +7833,13 @@ export type Database = {
           day_type: string
           display_order: number
           focus: string | null
+          homework: string | null
           id: string
           label: string
+          notes: string | null
+          phase: string | null
           program_id: string
+          week_number: number
           weekday: number | null
         }
         Insert: {
@@ -7822,9 +7847,13 @@ export type Database = {
           day_type?: string
           display_order?: number
           focus?: string | null
+          homework?: string | null
           id?: string
           label: string
+          notes?: string | null
+          phase?: string | null
           program_id: string
+          week_number?: number
           weekday?: number | null
         }
         Update: {
@@ -7832,9 +7861,13 @@ export type Database = {
           day_type?: string
           display_order?: number
           focus?: string | null
+          homework?: string | null
           id?: string
           label?: string
+          notes?: string | null
+          phase?: string | null
           program_id?: string
+          week_number?: number
           weekday?: number | null
         }
         Relationships: [
@@ -7860,7 +7893,9 @@ export type Database = {
           id: string
           is_pr: boolean
           load: string | null
+          media_url: string | null
           modification: string | null
+          notes: string | null
           previous_result: string | null
           reps: string | null
           rest: string | null
@@ -7882,7 +7917,9 @@ export type Database = {
           id?: string
           is_pr?: boolean
           load?: string | null
+          media_url?: string | null
           modification?: string | null
+          notes?: string | null
           previous_result?: string | null
           reps?: string | null
           rest?: string | null
@@ -7904,7 +7941,9 @@ export type Database = {
           id?: string
           is_pr?: boolean
           load?: string | null
+          media_url?: string | null
           modification?: string | null
+          notes?: string | null
           previous_result?: string | null
           reps?: string | null
           rest?: string | null
@@ -7935,6 +7974,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          description: string | null
           end_date: string | null
           focus_today: string | null
           goal: string | null
@@ -7945,10 +7985,12 @@ export type Database = {
           name: string
           next_reassessment: string | null
           phase: string | null
+          phases: Json
           sessions_per_week: number | null
           start_date: string | null
           status: string
           template_id: string | null
+          template_name: string | null
           updated_at: string
           user_id: string | null
           weekly_split: Json
@@ -7956,6 +7998,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          description?: string | null
           end_date?: string | null
           focus_today?: string | null
           goal?: string | null
@@ -7966,10 +8009,12 @@ export type Database = {
           name: string
           next_reassessment?: string | null
           phase?: string | null
+          phases?: Json
           sessions_per_week?: number | null
           start_date?: string | null
           status?: string
           template_id?: string | null
+          template_name?: string | null
           updated_at?: string
           user_id?: string | null
           weekly_split?: Json
@@ -7977,6 +8022,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          description?: string | null
           end_date?: string | null
           focus_today?: string | null
           goal?: string | null
@@ -7987,10 +8033,12 @@ export type Database = {
           name?: string
           next_reassessment?: string | null
           phase?: string | null
+          phases?: Json
           sessions_per_week?: number | null
           start_date?: string | null
           status?: string
           template_id?: string | null
+          template_name?: string | null
           updated_at?: string
           user_id?: string | null
           weekly_split?: Json
@@ -8062,34 +8110,55 @@ export type Database = {
       pt_prs: {
         Row: {
           achieved_on: string
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           created_by: string | null
           exercise: string
           id: string
           notes: string | null
+          previous_reps: number | null
+          previous_weight_lbs: number | null
+          program_exercise_id: string | null
           reps: number | null
+          source: string
+          status: string
           user_id: string
           weight_lbs: number | null
         }
         Insert: {
           achieved_on?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           exercise: string
           id?: string
           notes?: string | null
+          previous_reps?: number | null
+          previous_weight_lbs?: number | null
+          program_exercise_id?: string | null
           reps?: number | null
+          source?: string
+          status?: string
           user_id: string
           weight_lbs?: number | null
         }
         Update: {
           achieved_on?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           created_by?: string | null
           exercise?: string
           id?: string
           notes?: string | null
+          previous_reps?: number | null
+          previous_weight_lbs?: number | null
+          program_exercise_id?: string | null
           reps?: number | null
+          source?: string
+          status?: string
           user_id?: string
           weight_lbs?: number | null
         }
@@ -8144,7 +8213,9 @@ export type Database = {
           next_focus: string | null
           objective: string | null
           observations: string | null
+          pain_discomfort: string | null
           private_note: string | null
+          program_id: string | null
           rpe: number | null
           session_date: string
           subjective: string | null
@@ -8167,7 +8238,9 @@ export type Database = {
           next_focus?: string | null
           objective?: string | null
           observations?: string | null
+          pain_discomfort?: string | null
           private_note?: string | null
+          program_id?: string | null
           rpe?: number | null
           session_date?: string
           subjective?: string | null
@@ -8190,7 +8263,9 @@ export type Database = {
           next_focus?: string | null
           objective?: string | null
           observations?: string | null
+          pain_discomfort?: string | null
           private_note?: string | null
+          program_id?: string | null
           rpe?: number | null
           session_date?: string
           subjective?: string | null
