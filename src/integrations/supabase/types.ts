@@ -7446,6 +7446,8 @@ export type Database = {
       }
       spa_appointments: {
         Row: {
+          addons: Json
+          addons_total: number
           amount_paid: number | null
           appointment_date: string
           appointment_time: string
@@ -7482,6 +7484,8 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          addons?: Json
+          addons_total?: number
           amount_paid?: number | null
           appointment_date: string
           appointment_time: string
@@ -7518,6 +7522,8 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          addons?: Json
+          addons_total?: number
           amount_paid?: number | null
           appointment_date?: string
           appointment_time?: string
