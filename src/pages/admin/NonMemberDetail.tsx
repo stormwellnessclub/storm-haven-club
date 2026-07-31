@@ -51,6 +51,8 @@ export default function NonMemberDetail() {
   const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showChargeSelector, setShowChargeSelector] = useState(false);
   const [showGrantDialog, setShowGrantDialog] = useState(false);
+  const [showBookPT, setShowBookPT] = useState(false);
+  const [showSellPT, setShowSellPT] = useState(false);
 
   // Add package state
   const [showAddPackage, setShowAddPackage] = useState(false);
