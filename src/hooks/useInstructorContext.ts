@@ -59,13 +59,11 @@ export function useInstructorContext() {
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
-        .from("instructors")
-        .select("id,first_name,last_name,email,photo_url,pay_type,default_per_class_rate,hourly_rate")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      // Contact/pay columns are not readable directly; use the self-scoped RPC.
+      const { data } = await (supabase as any).rpc("get_my_instructor_profile");
+      const row = Array.isArray(data) ? data[0] : data;
       if (!cancelled) {
-        setOwnInstructor((data as InstructorContextRow) ?? null);
+        setOwnInstructor((row as InstructorContextRow) ?? null);
       }
     })();
     return () => {
