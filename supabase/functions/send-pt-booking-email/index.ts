@@ -80,6 +80,30 @@ function buildCancellation(opts: {
   </div>`;
 }
 
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+
+function buildRecap(opts: {
+  name: string; formatLabel: string; trainerName: string;
+  startsAt: string; recap: string; homework: string;
+}) {
+  return `
+  <div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;">
+    <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #c9a86a;padding:36px;border-radius:6px;">
+      <p style="letter-spacing:.4em;font-size:11px;color:#a17e3a;margin:0 0 6px;">STORM WELLNESS CLUB</p>
+      <h1 style="font-family:Georgia,serif;color:#a17e3a;font-size:24px;margin:0 0 14px;">Your session recap</h1>
+      <p style="margin:0 0 14px;">Hi ${opts.name}, here's a recap of your ${opts.formatLabel} session with ${opts.trainerName} on ${fmtDateTime(opts.startsAt)}.</p>
+      <div style="background:#fef6e6;border-left:3px solid #c9a86a;padding:14px 16px;margin:18px 0;font-size:14px;color:#5b4a2c;">${esc(opts.recap)}</div>
+      ${opts.homework ? `<h2 style="font-size:16px;color:#a17e3a;margin:22px 0 8px;">Homework</h2><p style="margin:0 0 14px;font-size:14px;">${esc(opts.homework)}</p>` : ""}
+      <p style="text-align:center;margin:24px 0 0;">
+        <a href="${SITE}/portal/passes" style="background:#a17e3a;color:#fff;padding:12px 28px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">Book Your Next Session</a>
+      </p>
+      <p style="font-size:12px;color:#8a7a5a;margin:28px 0 0;text-align:center;">Storm Wellness Club, Livonia, MI.</p>
+    </div>
+  </div>`;
+}
+
+
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 serve(async (req) => {
