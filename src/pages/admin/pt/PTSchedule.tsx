@@ -126,9 +126,9 @@ export default function PTSchedule() {
       />
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <button className={ptButtonClass("outline")} onClick={() => step(-1)}><ChevronLeft className="h-4 w-4" /></button>
+        <button className={ptButtonClass("outline")} onClick={() => step(-1)} aria-label="Previous day"><ChevronLeft className="h-4 w-4" /></button>
         <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-40 h-9 bg-white border-pt-line" />
-        <button className={ptButtonClass("outline")} onClick={() => step(1)}><ChevronRight className="h-4 w-4" /></button>
+        <button className={ptButtonClass("outline")} onClick={() => step(1)} aria-label="Next day"><ChevronRight className="h-4 w-4" /></button>
         <button className={ptButtonClass("outline")} onClick={() => setDate(fmtDate(new Date(), "yyyy-MM-dd"))}>Today</button>
 
         <div className="flex rounded-lg border border-pt-line overflow-hidden ml-1">
