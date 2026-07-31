@@ -3365,9 +3365,13 @@ export type Database = {
       instructors: {
         Row: {
           bio: string | null
+          can_edit_others_appointments: boolean
+          can_self_book: boolean
           created_at: string
+          default_location_id: string | null
           default_per_class_rate: number
           email: string
+          employment_status: string
           first_name: string
           hourly_rate: number
           id: string
@@ -3381,15 +3385,20 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           portal_enabled: boolean
+          schedule_color: string | null
           specialties: string[] | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
           bio?: string | null
+          can_edit_others_appointments?: boolean
+          can_self_book?: boolean
           created_at?: string
+          default_location_id?: string | null
           default_per_class_rate?: number
           email: string
+          employment_status?: string
           first_name: string
           hourly_rate?: number
           id?: string
@@ -3403,15 +3412,20 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           portal_enabled?: boolean
+          schedule_color?: string | null
           specialties?: string[] | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           bio?: string | null
+          can_edit_others_appointments?: boolean
+          can_self_book?: boolean
           created_at?: string
+          default_location_id?: string | null
           default_per_class_rate?: number
           email?: string
+          employment_status?: string
           first_name?: string
           hourly_rate?: number
           id?: string
@@ -3425,11 +3439,20 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           portal_enabled?: boolean
+          schedule_color?: string | null
           specialties?: string[] | null
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "instructors_default_location_id_fkey"
+            columns: ["default_location_id"]
+            isOneToOne: false
+            referencedRelation: "pt_locations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       kids_care_bookings: {
         Row: {
@@ -6692,6 +6715,82 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_alerts: {
+        Row: {
+          alert_type: string
+          assigned_to: string | null
+          client_user_id: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          instructor_id: string | null
+          is_resolved: boolean
+          message: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          assigned_to?: string | null
+          client_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          instructor_id?: string | null
+          is_resolved?: boolean
+          message: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          assigned_to?: string | null
+          client_user_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          instructor_id?: string | null
+          is_resolved?: boolean
+          message?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_alerts_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_alerts_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_alerts_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_appointments: {
         Row: {
           amount_due_cents: number
@@ -6702,25 +6801,35 @@ export type Database = {
           checked_in_at: string | null
           completed_at: string | null
           confirmation_email_sent_at: string | null
+          confirmation_status: string
+          confirmed_at: string | null
           created_at: string
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
           id: string
           instructor_id: string | null
+          internal_notes: string | null
           is_waitlist: boolean
+          location_id: string | null
+          no_show_at: string | null
           notes: string | null
+          package_deducted: boolean
+          package_deducted_at: string | null
           paid_at: string | null
           pass_id: string | null
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          session_type_id: string | null
+          started_at: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
           updated_at: string
           usage_id: string | null
           user_id: string
+          waitlist_position: number | null
         }
         Insert: {
           amount_due_cents?: number
@@ -6731,25 +6840,35 @@ export type Database = {
           checked_in_at?: string | null
           completed_at?: string | null
           confirmation_email_sent_at?: string | null
+          confirmation_status?: string
+          confirmed_at?: string | null
           created_at?: string
           duration_minutes?: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
           id?: string
           instructor_id?: string | null
+          internal_notes?: string | null
           is_waitlist?: boolean
+          location_id?: string | null
+          no_show_at?: string | null
           notes?: string | null
+          package_deducted?: boolean
+          package_deducted_at?: string | null
           paid_at?: string | null
           pass_id?: string | null
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          session_type_id?: string | null
+          started_at?: string | null
           starts_at: string
           status?: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id?: string | null
           updated_at?: string
           usage_id?: string | null
           user_id: string
+          waitlist_position?: number | null
         }
         Update: {
           amount_due_cents?: number
@@ -6760,25 +6879,35 @@ export type Database = {
           checked_in_at?: string | null
           completed_at?: string | null
           confirmation_email_sent_at?: string | null
+          confirmation_status?: string
+          confirmed_at?: string | null
           created_at?: string
           duration_minutes?: number
           ends_at?: string
           format?: Database["public"]["Enums"]["pt_format"]
           id?: string
           instructor_id?: string | null
+          internal_notes?: string | null
           is_waitlist?: boolean
+          location_id?: string | null
+          no_show_at?: string | null
           notes?: string | null
+          package_deducted?: boolean
+          package_deducted_at?: string | null
           paid_at?: string | null
           pass_id?: string | null
           payment_method?: string | null
           payment_note?: string | null
           payment_status?: string
+          session_type_id?: string | null
+          started_at?: string | null
           starts_at?: string
           status?: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id?: string | null
           updated_at?: string
           usage_id?: string | null
           user_id?: string
+          waitlist_position?: number | null
         }
         Relationships: [
           {
@@ -6803,10 +6932,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pt_appointments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "pt_locations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pt_appointments_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
             referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_appointments_session_type_id_fkey"
+            columns: ["session_type_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_types"
             referencedColumns: ["id"]
           },
           {
@@ -6818,17 +6961,59 @@ export type Database = {
           },
         ]
       }
+      pt_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          changed_fields: string[] | null
+          client_user_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          changed_fields?: string[] | null
+          client_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          changed_fields?: string[] | null
+          client_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       pt_body_metrics: {
         Row: {
           arms_in: number | null
           body_fat_pct: number | null
+          calves_in: number | null
           chest_in: number | null
           created_at: string
           created_by: string | null
+          extra: Json
           hips_in: number | null
           id: string
           measured_on: string
           muscle_mass_lbs: number | null
+          neck_in: number | null
           notes: string | null
           thighs_in: number | null
           user_id: string
@@ -6838,13 +7023,16 @@ export type Database = {
         Insert: {
           arms_in?: number | null
           body_fat_pct?: number | null
+          calves_in?: number | null
           chest_in?: number | null
           created_at?: string
           created_by?: string | null
+          extra?: Json
           hips_in?: number | null
           id?: string
           measured_on?: string
           muscle_mass_lbs?: number | null
+          neck_in?: number | null
           notes?: string | null
           thighs_in?: number | null
           user_id: string
@@ -6854,13 +7042,16 @@ export type Database = {
         Update: {
           arms_in?: number | null
           body_fat_pct?: number | null
+          calves_in?: number | null
           chest_in?: number | null
           created_at?: string
           created_by?: string | null
+          extra?: Json
           hips_in?: number | null
           id?: string
           measured_on?: string
           muscle_mass_lbs?: number | null
+          neck_in?: number | null
           notes?: string | null
           thighs_in?: number | null
           user_id?: string
@@ -6871,51 +7062,142 @@ export type Database = {
       }
       pt_client_profiles: {
         Row: {
+          body_fat_pct: number | null
+          communication_prefs: Json
           created_at: string
           date_of_birth: string | null
+          default_location_id: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
+          full_name: string | null
           gender: string | null
           goals: Json
           height: string | null
+          height_inches: number | null
           id: string
+          injuries: Json
           internal_notes: string | null
+          medical_clearance_required: boolean
+          medical_notes: string | null
+          member_id: string | null
+          parq_completed_at: string | null
+          parq_expires_at: string | null
+          parq_status: string
+          phone: string | null
           preferences: Json
           primary_trainer_id: string | null
           restrictions: Json
           status: string
+          tags: string[]
+          training_preferences: Json
           updated_at: string
+          updated_by: string | null
           user_id: string
+          weight_lbs: number | null
         }
         Insert: {
+          body_fat_pct?: number | null
+          communication_prefs?: Json
           created_at?: string
           date_of_birth?: string | null
+          default_location_id?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          full_name?: string | null
           gender?: string | null
           goals?: Json
           height?: string | null
+          height_inches?: number | null
           id?: string
+          injuries?: Json
           internal_notes?: string | null
+          medical_clearance_required?: boolean
+          medical_notes?: string | null
+          member_id?: string | null
+          parq_completed_at?: string | null
+          parq_expires_at?: string | null
+          parq_status?: string
+          phone?: string | null
           preferences?: Json
           primary_trainer_id?: string | null
           restrictions?: Json
           status?: string
+          tags?: string[]
+          training_preferences?: Json
           updated_at?: string
+          updated_by?: string | null
           user_id: string
+          weight_lbs?: number | null
         }
         Update: {
+          body_fat_pct?: number | null
+          communication_prefs?: Json
           created_at?: string
           date_of_birth?: string | null
+          default_location_id?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          full_name?: string | null
           gender?: string | null
           goals?: Json
           height?: string | null
+          height_inches?: number | null
           id?: string
+          injuries?: Json
           internal_notes?: string | null
+          medical_clearance_required?: boolean
+          medical_notes?: string | null
+          member_id?: string | null
+          parq_completed_at?: string | null
+          parq_expires_at?: string | null
+          parq_status?: string
+          phone?: string | null
           preferences?: Json
           primary_trainer_id?: string | null
           restrictions?: Json
           status?: string
+          tags?: string[]
+          training_preferences?: Json
           updated_at?: string
+          updated_by?: string | null
           user_id?: string
+          weight_lbs?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pt_client_profiles_default_location_id_fkey"
+            columns: ["default_location_id"]
+            isOneToOne: false
+            referencedRelation: "pt_locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_profiles_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pt_client_profiles_primary_trainer_id_fkey"
             columns: ["primary_trainer_id"]
@@ -6938,6 +7220,186 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pt_client_trainers: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          client_user_id: string
+          ended_at: string | null
+          id: string
+          instructor_id: string
+          relationship: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          client_user_id: string
+          ended_at?: string | null
+          id?: string
+          instructor_id: string
+          relationship?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          client_user_id?: string
+          ended_at?: string | null
+          id?: string
+          instructor_id?: string
+          relationship?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_client_trainers_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_trainers_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_trainers_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_communications: {
+        Row: {
+          appointment_id: string | null
+          body: string | null
+          channel: string
+          client_user_id: string
+          created_at: string
+          created_by: string | null
+          delivery_status: string
+          direction: string
+          error_message: string | null
+          id: string
+          instructor_id: string | null
+          provider_message_id: string | null
+          sent_at: string | null
+          subject: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          body?: string | null
+          channel: string
+          client_user_id: string
+          created_at?: string
+          created_by?: string | null
+          delivery_status?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          instructor_id?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          subject?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          body?: string | null
+          channel?: string
+          client_user_id?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_status?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          instructor_id?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_communications_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_communications_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_communications_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_communications_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_documents: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          doc_type: string
+          expires_at: string | null
+          external_url: string | null
+          form_data: Json | null
+          id: string
+          status: string
+          storage_path: string | null
+          title: string
+          updated_at: string
+          uploaded_by: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          doc_type: string
+          expires_at?: string | null
+          external_url?: string | null
+          form_data?: Json | null
+          id?: string
+          status?: string
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          uploaded_by?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          doc_type?: string
+          expires_at?: string | null
+          external_url?: string | null
+          form_data?: Json | null
+          id?: string
+          status?: string
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       pt_exercise_library: {
         Row: {
@@ -6966,6 +7428,84 @@ export type Database = {
           muscle_group?: string | null
           name?: string
           notes?: string | null
+        }
+        Relationships: []
+      }
+      pt_locations: {
+        Row: {
+          address: string | null
+          code: string | null
+          color: string | null
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code?: string | null
+          color?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string | null
+          color?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pt_milestones: {
+        Row: {
+          achieved_on: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_achieved: boolean
+          milestone_type: string | null
+          target_date: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          achieved_on?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_achieved?: boolean
+          milestone_type?: string | null
+          target_date?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          achieved_on?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_achieved?: boolean
+          milestone_type?: string | null
+          target_date?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -7075,6 +7615,59 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_pass_adjustments: {
+        Row: {
+          adjustment_type: string
+          created_at: string
+          created_by: string | null
+          delta_sessions: number
+          expires_at_after: string | null
+          expires_at_before: string | null
+          id: string
+          pass_id: string
+          reason: string
+          sessions_after: number | null
+          sessions_before: number | null
+          user_id: string
+        }
+        Insert: {
+          adjustment_type?: string
+          created_at?: string
+          created_by?: string | null
+          delta_sessions: number
+          expires_at_after?: string | null
+          expires_at_before?: string | null
+          id?: string
+          pass_id: string
+          reason: string
+          sessions_after?: number | null
+          sessions_before?: number | null
+          user_id: string
+        }
+        Update: {
+          adjustment_type?: string
+          created_at?: string
+          created_by?: string | null
+          delta_sessions?: number
+          expires_at_after?: string | null
+          expires_at_before?: string | null
+          id?: string
+          pass_id?: string
+          reason?: string
+          sessions_after?: number | null
+          sessions_before?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_pass_adjustments_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_passes: {
         Row: {
           activated_at: string
@@ -7091,6 +7684,8 @@ export type Database = {
           payment_plan_subscription_id: string | null
           payment_plan_total_installments: number | null
           price_cents_charged: number
+          purchased_at: string
+          session_type_id: string | null
           sessions_remaining: number
           sessions_total: number
           sold_by_admin_id: string | null
@@ -7114,6 +7709,8 @@ export type Database = {
           payment_plan_subscription_id?: string | null
           payment_plan_total_installments?: number | null
           price_cents_charged?: number
+          purchased_at?: string
+          session_type_id?: string | null
           sessions_remaining: number
           sessions_total: number
           sold_by_admin_id?: string | null
@@ -7137,6 +7734,8 @@ export type Database = {
           payment_plan_subscription_id?: string | null
           payment_plan_total_installments?: number | null
           price_cents_charged?: number
+          purchased_at?: string
+          session_type_id?: string | null
           sessions_remaining?: number
           sessions_total?: number
           sold_by_admin_id?: string | null
@@ -7153,7 +7752,59 @@ export type Database = {
             referencedRelation: "pt_packs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pt_passes_session_type_id_fkey"
+            columns: ["session_type_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_types"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      pt_performance_tests: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_reassessment: boolean
+          notes: string | null
+          result_text: string | null
+          test_name: string
+          tested_on: string
+          unit: string | null
+          user_id: string
+          value: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_reassessment?: boolean
+          notes?: string | null
+          result_text?: string | null
+          test_name: string
+          tested_on?: string
+          unit?: string | null
+          user_id: string
+          value?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_reassessment?: boolean
+          notes?: string | null
+          result_text?: string | null
+          test_name?: string
+          tested_on?: string
+          unit?: string | null
+          user_id?: string
+          value?: number | null
+        }
+        Relationships: []
       }
       pt_program_days: {
         Row: {
@@ -7198,45 +7849,66 @@ export type Database = {
       }
       pt_program_exercises: {
         Row: {
+          completed_at: string | null
+          completed_result: string | null
           created_at: string
           cues: string | null
           day_id: string
           display_order: number
           exercise: string
+          exercise_id: string | null
           id: string
+          is_pr: boolean
           load: string | null
+          modification: string | null
+          previous_result: string | null
           reps: string | null
           rest: string | null
+          rpe: number | null
           sets: number | null
           substitution: string | null
           superset_group: string | null
           tempo: string | null
         }
         Insert: {
+          completed_at?: string | null
+          completed_result?: string | null
           created_at?: string
           cues?: string | null
           day_id: string
           display_order?: number
           exercise: string
+          exercise_id?: string | null
           id?: string
+          is_pr?: boolean
           load?: string | null
+          modification?: string | null
+          previous_result?: string | null
           reps?: string | null
           rest?: string | null
+          rpe?: number | null
           sets?: number | null
           substitution?: string | null
           superset_group?: string | null
           tempo?: string | null
         }
         Update: {
+          completed_at?: string | null
+          completed_result?: string | null
           created_at?: string
           cues?: string | null
           day_id?: string
           display_order?: number
           exercise?: string
+          exercise_id?: string | null
           id?: string
+          is_pr?: boolean
           load?: string | null
+          modification?: string | null
+          previous_result?: string | null
           reps?: string | null
           rest?: string | null
+          rpe?: number | null
           sets?: number | null
           substitution?: string | null
           superset_group?: string | null
@@ -7250,12 +7922,20 @@ export type Database = {
             referencedRelation: "pt_program_days"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pt_program_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "pt_exercise_library"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pt_programs: {
         Row: {
           created_at: string
           created_by: string | null
+          end_date: string | null
           focus_today: string | null
           goal: string | null
           id: string
@@ -7264,15 +7944,19 @@ export type Database = {
           length_weeks: number | null
           name: string
           next_reassessment: string | null
+          phase: string | null
           sessions_per_week: number | null
           start_date: string | null
           status: string
+          template_id: string | null
           updated_at: string
           user_id: string | null
+          weekly_split: Json
         }
         Insert: {
           created_at?: string
           created_by?: string | null
+          end_date?: string | null
           focus_today?: string | null
           goal?: string | null
           id?: string
@@ -7281,15 +7965,19 @@ export type Database = {
           length_weeks?: number | null
           name: string
           next_reassessment?: string | null
+          phase?: string | null
           sessions_per_week?: number | null
           start_date?: string | null
           status?: string
+          template_id?: string | null
           updated_at?: string
           user_id?: string | null
+          weekly_split?: Json
         }
         Update: {
           created_at?: string
           created_by?: string | null
+          end_date?: string | null
           focus_today?: string | null
           goal?: string | null
           id?: string
@@ -7298,11 +7986,14 @@ export type Database = {
           length_weeks?: number | null
           name?: string
           next_reassessment?: string | null
+          phase?: string | null
           sessions_per_week?: number | null
           start_date?: string | null
           status?: string
+          template_id?: string | null
           updated_at?: string
           user_id?: string | null
+          weekly_split?: Json
         }
         Relationships: [
           {
@@ -7326,7 +8017,47 @@ export type Database = {
             referencedRelation: "public_instructors_view"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pt_programs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "pt_programs"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      pt_progress_photos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          pose: string | null
+          storage_path: string
+          taken_on: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          pose?: string | null
+          storage_path: string
+          taken_on?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          pose?: string | null
+          storage_path?: string
+          taken_on?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       pt_prs: {
         Row: {
@@ -7370,6 +8101,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           energy_level: number | null
+          exercise_log: Json
           homework: string | null
           id: string
           instructor_id: string | null
@@ -7379,10 +8111,12 @@ export type Database = {
           next_focus: string | null
           objective: string | null
           observations: string | null
+          private_note: string | null
           rpe: number | null
           session_date: string
           subjective: string | null
           updated_at: string
+          updated_by: string | null
           user_id: string
         }
         Insert: {
@@ -7390,6 +8124,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           energy_level?: number | null
+          exercise_log?: Json
           homework?: string | null
           id?: string
           instructor_id?: string | null
@@ -7399,10 +8134,12 @@ export type Database = {
           next_focus?: string | null
           objective?: string | null
           observations?: string | null
+          private_note?: string | null
           rpe?: number | null
           session_date?: string
           subjective?: string | null
           updated_at?: string
+          updated_by?: string | null
           user_id: string
         }
         Update: {
@@ -7410,6 +8147,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           energy_level?: number | null
+          exercise_log?: Json
           homework?: string | null
           id?: string
           instructor_id?: string | null
@@ -7419,10 +8157,12 @@ export type Database = {
           next_focus?: string | null
           objective?: string | null
           observations?: string | null
+          private_note?: string | null
           rpe?: number | null
           session_date?: string
           subjective?: string | null
           updated_at?: string
+          updated_by?: string | null
           user_id?: string
         }
         Relationships: [
@@ -7452,6 +8192,71 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_session_types: {
+        Row: {
+          capacity: number
+          code: string | null
+          color: string | null
+          created_at: string
+          default_location_id: string | null
+          default_price_cents: number
+          description: string | null
+          display_order: number
+          duration_minutes: number
+          format: Database["public"]["Enums"]["pt_format"] | null
+          id: string
+          is_active: boolean
+          name: string
+          required_format: Database["public"]["Enums"]["pt_format"] | null
+          requires_package: boolean
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number
+          code?: string | null
+          color?: string | null
+          created_at?: string
+          default_location_id?: string | null
+          default_price_cents?: number
+          description?: string | null
+          display_order?: number
+          duration_minutes?: number
+          format?: Database["public"]["Enums"]["pt_format"] | null
+          id?: string
+          is_active?: boolean
+          name: string
+          required_format?: Database["public"]["Enums"]["pt_format"] | null
+          requires_package?: boolean
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          code?: string | null
+          color?: string | null
+          created_at?: string
+          default_location_id?: string | null
+          default_price_cents?: number
+          description?: string | null
+          display_order?: number
+          duration_minutes?: number
+          format?: Database["public"]["Enums"]["pt_format"] | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          required_format?: Database["public"]["Enums"]["pt_format"] | null
+          requires_package?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_session_types_default_location_id_fkey"
+            columns: ["default_location_id"]
+            isOneToOne: false
+            referencedRelation: "pt_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -7493,6 +8298,7 @@ export type Database = {
       }
       pt_tasks: {
         Row: {
+          appointment_id: string | null
           assigned_to: string | null
           client_user_id: string | null
           completed_at: string | null
@@ -7503,11 +8309,13 @@ export type Database = {
           id: string
           instructor_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
+          status: string
           task_type: string
           title: string
           updated_at: string
         }
         Insert: {
+          appointment_id?: string | null
           assigned_to?: string | null
           client_user_id?: string | null
           completed_at?: string | null
@@ -7518,11 +8326,13 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          status?: string
           task_type?: string
           title: string
           updated_at?: string
         }
         Update: {
+          appointment_id?: string | null
           assigned_to?: string | null
           client_user_id?: string | null
           completed_at?: string | null
@@ -7533,11 +8343,19 @@ export type Database = {
           id?: string
           instructor_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          status?: string
           task_type?: string
           title?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pt_tasks_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pt_tasks_instructor_id_fkey"
             columns: ["instructor_id"]
@@ -7649,6 +8467,53 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_trainer_locations: {
+        Row: {
+          created_at: string
+          instructor_id: string
+          location_id: string
+        }
+        Insert: {
+          created_at?: string
+          instructor_id: string
+          location_id: string
+        }
+        Update: {
+          created_at?: string
+          instructor_id?: string
+          location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_trainer_locations_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_locations_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_locations_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_locations_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "pt_locations"
             referencedColumns: ["id"]
           },
         ]
@@ -10359,25 +11224,35 @@ export type Database = {
           checked_in_at: string | null
           completed_at: string | null
           confirmation_email_sent_at: string | null
+          confirmation_status: string
+          confirmed_at: string | null
           created_at: string
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
           id: string
           instructor_id: string | null
+          internal_notes: string | null
           is_waitlist: boolean
+          location_id: string | null
+          no_show_at: string | null
           notes: string | null
+          package_deducted: boolean
+          package_deducted_at: string | null
           paid_at: string | null
           pass_id: string | null
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          session_type_id: string | null
+          started_at: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
           updated_at: string
           usage_id: string | null
           user_id: string
+          waitlist_position: number | null
         }
         SetofOptions: {
           from: "*"
@@ -10428,25 +11303,35 @@ export type Database = {
               checked_in_at: string | null
               completed_at: string | null
               confirmation_email_sent_at: string | null
+              confirmation_status: string
+              confirmed_at: string | null
               created_at: string
               duration_minutes: number
               ends_at: string
               format: Database["public"]["Enums"]["pt_format"]
               id: string
               instructor_id: string | null
+              internal_notes: string | null
               is_waitlist: boolean
+              location_id: string | null
+              no_show_at: string | null
               notes: string | null
+              package_deducted: boolean
+              package_deducted_at: string | null
               paid_at: string | null
               pass_id: string | null
               payment_method: string | null
               payment_note: string | null
               payment_status: string
+              session_type_id: string | null
+              started_at: string | null
               starts_at: string
               status: Database["public"]["Enums"]["pt_appointment_status"]
               stripe_payment_intent_id: string | null
               updated_at: string
               usage_id: string | null
               user_id: string
+              waitlist_position: number | null
             }
             SetofOptions: {
               from: "*"
@@ -10476,25 +11361,35 @@ export type Database = {
               checked_in_at: string | null
               completed_at: string | null
               confirmation_email_sent_at: string | null
+              confirmation_status: string
+              confirmed_at: string | null
               created_at: string
               duration_minutes: number
               ends_at: string
               format: Database["public"]["Enums"]["pt_format"]
               id: string
               instructor_id: string | null
+              internal_notes: string | null
               is_waitlist: boolean
+              location_id: string | null
+              no_show_at: string | null
               notes: string | null
+              package_deducted: boolean
+              package_deducted_at: string | null
               paid_at: string | null
               pass_id: string | null
               payment_method: string | null
               payment_note: string | null
               payment_status: string
+              session_type_id: string | null
+              started_at: string | null
               starts_at: string
               status: Database["public"]["Enums"]["pt_appointment_status"]
               stripe_payment_intent_id: string | null
               updated_at: string
               usage_id: string | null
               user_id: string
+              waitlist_position: number | null
             }
             SetofOptions: {
               from: "*"
@@ -10541,25 +11436,35 @@ export type Database = {
           checked_in_at: string | null
           completed_at: string | null
           confirmation_email_sent_at: string | null
+          confirmation_status: string
+          confirmed_at: string | null
           created_at: string
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
           id: string
           instructor_id: string | null
+          internal_notes: string | null
           is_waitlist: boolean
+          location_id: string | null
+          no_show_at: string | null
           notes: string | null
+          package_deducted: boolean
+          package_deducted_at: string | null
           paid_at: string | null
           pass_id: string | null
           payment_method: string | null
           payment_note: string | null
           payment_status: string
+          session_type_id: string | null
+          started_at: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
           updated_at: string
           usage_id: string | null
           user_id: string
+          waitlist_position: number | null
         }
         SetofOptions: {
           from: "*"
@@ -10835,9 +11740,13 @@ export type Database = {
         Args: never
         Returns: {
           bio: string | null
+          can_edit_others_appointments: boolean
+          can_self_book: boolean
           created_at: string
+          default_location_id: string | null
           default_per_class_rate: number
           email: string
+          employment_status: string
           first_name: string
           hourly_rate: number
           id: string
@@ -10851,6 +11760,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           portal_enabled: boolean
+          schedule_color: string | null
           specialties: string[] | null
           updated_at: string
           user_id: string | null
@@ -11204,8 +12114,18 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_can_coach_client: {
+        Args: { _client: string; _uid: string }
+        Returns: boolean
+      }
+      pt_can_view_client: {
+        Args: { _client: string; _uid: string }
+        Returns: boolean
+      }
+      pt_is_desk: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
+      pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       recompute_marketing_contact_segment: {
         Args: { _email: string }
         Returns: undefined
