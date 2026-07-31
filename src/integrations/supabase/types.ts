@@ -12122,10 +12122,31 @@ export type Database = {
         Args: { _client: string; _uid: string }
         Returns: boolean
       }
+      pt_check_appointment_conflict: {
+        Args: {
+          p_ends_at: string
+          p_exclude_id?: string
+          p_instructor_id?: string
+          p_location_id?: string
+          p_starts_at: string
+        }
+        Returns: Json
+      }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
+      pt_reschedule_appointment: {
+        Args: {
+          p_appointment_id: string
+          p_duration_minutes?: number
+          p_force?: boolean
+          p_instructor_id?: string
+          p_location_id?: string
+          p_starts_at?: string
+        }
+        Returns: Json
+      }
       recompute_marketing_contact_segment: {
         Args: { _email: string }
         Returns: undefined
