@@ -216,6 +216,7 @@ import PTMClients from "@/pages/admin/pt/mobile/PTMClients";
 import PTMProgress from "@/pages/admin/pt/mobile/PTMProgress";
 import PTMMore from "@/pages/admin/pt/mobile/PTMMore";
 import PTMNextSession from "@/pages/admin/pt/mobile/PTMNextSession";
+import PTMActionList from "@/pages/admin/pt/mobile/PTMActionList";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
 import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
@@ -471,6 +472,8 @@ const App = () => (
               <Route path="/admin/personal-training/payments" element={<ProtectedAdminRoute><AdminPersonalTrainingUnpaid /></ProtectedAdminRoute>} />
               <Route path="/admin/pt" element={<ProtectedAdminRoute><PTPortalDashboard /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m" element={<ProtectedAdminRoute><PTMToday /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/today" element={<ProtectedAdminRoute><PTMToday /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/list/:listKey" element={<ProtectedAdminRoute><PTMActionList /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/clients" element={<ProtectedAdminRoute><PTMClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/progress" element={<ProtectedAdminRoute><PTMProgress /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/more" element={<ProtectedAdminRoute><PTMMore /></ProtectedAdminRoute>} />
