@@ -33,7 +33,7 @@ function NumField({
       <div className="mt-1 flex items-center gap-1">
         <button
           type="button"
-          className="h-10 w-9 shrink-0 rounded-l-xl border border-pt-line bg-pt-beige text-[18px] text-pt-ink active:bg-pt-line"
+          className="h-11 w-11 shrink-0 rounded-l-xl border border-pt-line bg-pt-beige text-[18px] text-pt-ink active:bg-pt-line"
           onClick={() => onChange(Math.max(0, (value ?? 0) - step))}
         >
           −
@@ -42,11 +42,11 @@ function NumField({
           inputMode="decimal"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-          className="h-10 w-full min-w-0 border-y border-pt-line bg-white px-1 text-center text-[16px] font-semibold text-pt-ink outline-none focus:border-pt-gold"
+          className="h-11 w-full min-w-0 border-y border-pt-line bg-white px-1 text-center text-[16px] font-semibold text-pt-ink outline-none focus:border-pt-gold"
         />
         <button
           type="button"
-          className="h-10 w-9 shrink-0 rounded-r-xl border border-pt-line bg-pt-beige text-[18px] text-pt-ink active:bg-pt-line"
+          className="h-11 w-11 shrink-0 rounded-r-xl border border-pt-line bg-pt-beige text-[18px] text-pt-ink active:bg-pt-line"
           onClick={() => onChange((value ?? 0) + step)}
         >
           +
@@ -376,7 +376,7 @@ export default function PTMLiveSession() {
                           </button>
                         )}
                         <button
-                          className="rounded-full p-2 text-pt-muted active:bg-pt-beige"
+                          className="flex h-11 w-11 items-center justify-center rounded-full text-pt-muted active:bg-pt-beige"
                           onClick={() => setRemoveSet(s)}
                           aria-label={`Remove set ${s.set_number}`}
                         >
@@ -384,7 +384,7 @@ export default function PTMLiveSession() {
                         </button>
                         <button
                           className={cn(
-                            "flex h-10 w-10 items-center justify-center rounded-full",
+                            "flex h-11 w-11 items-center justify-center rounded-full",
                             s.completed ? "bg-pt-beige text-pt-muted" : "bg-pt-gold text-pt-noir",
                           )}
                           aria-label={s.completed ? "Undo set" : "Complete set"}
