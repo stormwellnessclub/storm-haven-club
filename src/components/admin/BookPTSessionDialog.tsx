@@ -28,6 +28,7 @@ interface UserOption {
   email: string;
   name: string;
   isMember: boolean;
+  isNonMember?: boolean;
 }
 
 const DEFAULT_DURATION: Record<PtFormat, number> = {
