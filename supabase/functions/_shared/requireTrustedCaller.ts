@@ -27,6 +27,13 @@ export async function requireTrustedCaller(
     }),
   });
 
+  // Internal maintenance token (scheduled/ops invocations that cannot present a JWT).
+  const internalToken = Deno.env.get("INTERNAL_TASK_TOKEN") ?? "";
+  const presentedInternal = req.headers.get("x-internal-token") ?? "";
+  if (internalToken && presentedInternal && presentedInternal === internalToken) {
+    return { ok: true, kind: "cron", userId: null };
+  }
+
   const raw = req.headers.get("Authorization") ?? req.headers.get("authorization");
   if (!raw) return deny(401);
   const token = raw.trim().replace(/^Bearer\s+/i, "").trim();
