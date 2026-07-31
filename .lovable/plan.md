@@ -1,54 +1,52 @@
-# Past-due tracking is broken — fix the pipeline, not just Summer
+# Full billing truth audit — rebuild the ledger from Stripe
 
-## Answering your three questions
+## You're right, the review was too shallow
 
-**1. Why did we miss Summer since July 9?**
-Because the two tables that record payments and misses both stopped being written:
+I was reading local status flags. Those flags are unreliable, and I can prove it two ways:
 
-- newest row in `billing_arrears`: **June 7, 2026**
-- newest row in `payment_attempts`: **June 7, 2026**
+- `billing_arrears` and `payment_attempts` both stopped receiving rows on **June 7, 2026**. Almost two months of invoices, failures and payments were never recorded. Any "$0 owed" in our database means "no data", not "paid".
+- Looking someone up by flag misses whole categories. **Kinda Turaani-Imam** is `status = active` with `subscription_status = canceled` — she never appeared in my past-due list because she isn't flagged past due, yet she's an active member with no live subscription. **Kaitlin Mault** is marked cancelled with a Stripe customer still attached.
 
-Nothing has been ingested from Stripe in almost two months. Her July 9 failure never landed anywhere the system looks, so no flag, no banner, no arrears row. The only reason she shows `past_due` at all is a status column someone/something set directly.
-
-**2. Why is she still blocked after you charged her?**
-Check-in hard-blocks on `members.status = 'past_due'` and `subscription_status = 'past_due'`. Both are still set on her record. Collecting the money didn't touch them, because the collection path has no step that clears them.
-
-**3. How many people are past due?**
-11 members carry some past-due marking today:
-
-| Owes money (dunning row + balance) | Amount |
-|---|---|
-| Sherene Albosaraj (pending activation) | $750.00 |
-| Jeree Spicer (cancelled) | $515.10 |
-| Ayah Boussi (cancelled) | $412.58 |
-| Mariam Alsheeblawy | $400.00 |
-
-| Flagged past_due, $0 recorded owing — **unverified** |
-|---|
-| Summer Daoud, Mariam Atwi, Randa Turaani, Rama Alhoussaini, Alyssa Maley, Aujenique Willis (frozen), zeinab barakat |
-
-The second group shows $0 owed **only because the ledger stopped updating in June**. That is not proof they paid. I am not going to clear them on that basis.
+So the correct scope is not "the 11 flagged people." It is all **197 members** (119 active, 69 cancelled, 5 frozen, 2 pending, 2 past due), reconciled against Stripe one by one.
 
 ## The plan
 
-### 1. Unblock Summer only
-You confirmed you collected her balance in person. Set her `status` and `subscription_status` back to `active`. One member, done by hand, no sweep.
+### 1. Fix the ingestion stall first
+Find why writes to `billing_arrears` / `payment_attempts` stopped on June 7 — inspect Stripe webhook delivery failures and gaps in `processed_webhook_events`. Nothing downstream is trustworthy until new invoices are landing again.
 
-### 2. Restore the ingestion pipeline (the actual bug)
-Find and fix why `billing_arrears` / `payment_attempts` stopped writing on June 7 — check the Stripe webhook endpoint's recent delivery failures and the `processed_webhook_events` table for the gap. Then backfill every invoice from June 7 to today so the ledger is whole again.
+### 2. Full Stripe reconciliation for every member
+For each of the 197 members with a Stripe customer, pull the complete invoice history and compute, from Stripe rather than from our tables:
 
-### 3. Verify the other 6, then act individually
-Once the backfill runs, each of those members will have real numbers. I'll show you a list — who genuinely owes what — and you decide who gets cleared and who gets collected from. No automatic clearing of anyone.
+- every unpaid, open, or uncollectible invoice, with amount and age
+- every failed charge and its decline reason
+- the true subscription state (active, past_due, unpaid, canceled, paused, none)
+- whether an active/frozen member has any live subscription at all
+- card on file and its expiry
 
-### 4. Make collection clear the block going forward
-Add a step to every money-collection path (manual charge, member retry, `invoice.payment_succeeded` webhook) that clears the past-due status **only** when the member has zero unpaid arrears and no active dunning row against a ledger that is actually current. Gate it on ledger freshness so it can never fire off stale data the way a blanket sweep would.
+Write all of it back into `billing_arrears` and `payment_attempts` so history is complete from account creation to today, not just post-June-7.
 
-### 5. Alert on ledger staleness
-Add a check that raises a visible admin warning if no new payment row has been written in 72 hours. This is what would have caught the June 7 stall in June instead of you catching it in August.
+### 3. Produce the "who owes us" report
+One page listing every member with a real outstanding balance, sourced from Stripe, sorted by amount. Columns: member, status, amount owed, oldest unpaid invoice date, days outstanding, last successful payment, card on file, subscription state. Includes the categories flag-based checks miss:
+
+- active member, no subscription in Stripe (Kinda's case)
+- active member, subscription canceled or unpaid
+- cancelled member with an unpaid balance still open (Jeree, Ayah)
+- frozen member whose dues were never actually paused (Aujenique — flagged for your review, not auto-touched)
+- pending activation with an unpaid initiation fee (Sherene)
+
+You review that list and decide per person. Nothing gets cleared automatically.
+
+### 4. Unblock Summer
+Separately and by hand, since you confirmed you collected from her: set her status back to active so she can check in.
+
+### 5. Stop it happening again
+- Every collection path clears past-due status only when the ledger is current and the balance is genuinely zero.
+- A staleness alarm fires if no payment row has been written in 72 hours.
+- Membership Health gains an "active member, no live subscription" tile so Kinda-type gaps surface on their own.
 
 ## Technical notes
 
-- Diagnose the stall via Stripe webhook delivery logs plus `processed_webhook_events` gaps; likely a signature/auth regression around June 7.
-- Backfill through the existing `backfill-payment-history` path, extended to write `billing_arrears` rows as well as `payment_attempts`.
-- New `clear_member_past_due(uuid)` SECURITY DEFINER function with a freshness guard (`max(created_at) from payment_attempts > now() - interval '72 hours'`), granted to `service_role` and staff roles.
-- Staleness alert surfaced on the Membership Health page and in `payment_tracking_health_log`.
+- Extend `sync-membership-truth` into a full reconciliation: paginate `invoices.list` per customer with no date cap, upsert `billing_arrears` keyed on `stripe_invoice_id`, upsert `payment_attempts` keyed on charge/intent id. Batch across invocations to stay inside the function timeout.
+- Reconcile all members with a `stripe_customer_id` regardless of local status, so cancelled members with open balances are included.
+- Report page reads the rebuilt ledger, not live Stripe, so it loads fast.
+- Freshness guard on `clear_member_past_due(uuid)`; staleness alarm written to `payment_tracking_health_log`.
