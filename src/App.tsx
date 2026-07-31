@@ -446,6 +446,7 @@ const App = () => (
               <Route path="/admin/personal-training/passes" element={<ProtectedAdminRoute><AdminPersonalTrainingPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/personal-training/schedule" element={<ProtectedAdminRoute><AdminPersonalTrainingSchedule /></ProtectedAdminRoute>} />
               <Route path="/admin/personal-training/trainers" element={<ProtectedAdminRoute><AdminPersonalTrainingTrainers /></ProtectedAdminRoute>} />
+              <Route path="/admin/personal-training/payments" element={<ProtectedAdminRoute><AdminPersonalTrainingUnpaid /></ProtectedAdminRoute>} />
               
               
               <Route path="*" element={<NotFound />} />
