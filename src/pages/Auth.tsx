@@ -689,12 +689,20 @@ export default function Auth() {
               <br />
               <span className="text-accent">Waivers and membership agreements will be required for booking.</span>
             </p>
-            <p className="text-muted-foreground text-xs pt-2">
-              Front desk mode?{" "}
-              <Link to="/front-desk-login" className="text-accent hover:underline">
-                Unlock here
-              </Link>
-            </p>
+            <div className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate("/front-desk-login")}
+              >
+                Front desk mode — unlock with PIN
+              </Button>
+              <p className="text-muted-foreground text-[11px] mt-2">
+                Front desk staff sign in with the shared PIN, not an email and password.
+              </p>
+            </div>
+
           </div>
         </div>
       </div>
