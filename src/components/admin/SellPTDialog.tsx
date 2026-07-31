@@ -33,6 +33,7 @@ interface UserOption {
   email: string;
   name: string;
   isMember: boolean;
+  isNonMember?: boolean;
 }
 
 interface SavedCard {
