@@ -7649,6 +7649,7 @@ export type Database = {
           reason: string
           sessions_after: number | null
           sessions_before: number | null
+          transfer_pass_id: string | null
           user_id: string
         }
         Insert: {
@@ -7663,6 +7664,7 @@ export type Database = {
           reason: string
           sessions_after?: number | null
           sessions_before?: number | null
+          transfer_pass_id?: string | null
           user_id: string
         }
         Update: {
@@ -7677,12 +7679,20 @@ export type Database = {
           reason?: string
           sessions_after?: number | null
           sessions_before?: number | null
+          transfer_pass_id?: string | null
           user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "pt_pass_adjustments_pass_id_fkey"
             columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_pass_adjustments_transfer_pass_id_fkey"
+            columns: ["transfer_pass_id"]
             isOneToOne: false
             referencedRelation: "pt_passes"
             referencedColumns: ["id"]
@@ -7706,6 +7716,8 @@ export type Database = {
           payment_plan_total_installments: number | null
           price_cents_charged: number
           purchased_at: string
+          renewal_reminder_count: number
+          renewal_reminder_sent_at: string | null
           session_type_id: string | null
           sessions_remaining: number
           sessions_total: number
@@ -7731,6 +7743,8 @@ export type Database = {
           payment_plan_total_installments?: number | null
           price_cents_charged?: number
           purchased_at?: string
+          renewal_reminder_count?: number
+          renewal_reminder_sent_at?: string | null
           session_type_id?: string | null
           sessions_remaining: number
           sessions_total: number
@@ -7756,6 +7770,8 @@ export type Database = {
           payment_plan_total_installments?: number | null
           price_cents_charged?: number
           purchased_at?: string
+          renewal_reminder_count?: number
+          renewal_reminder_sent_at?: string | null
           session_type_id?: string | null
           sessions_remaining?: number
           sessions_total?: number
@@ -8416,7 +8432,11 @@ export type Database = {
           due_at: string | null
           id: string
           instructor_id: string | null
+          parent_task_id: string | null
           priority: Database["public"]["Enums"]["task_priority"]
+          recurrence: string
+          recurrence_interval: number
+          recurrence_until: string | null
           status: string
           task_type: string
           title: string
@@ -8433,7 +8453,11 @@ export type Database = {
           due_at?: string | null
           id?: string
           instructor_id?: string | null
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: string
+          recurrence_interval?: number
+          recurrence_until?: string | null
           status?: string
           task_type?: string
           title: string
@@ -8450,7 +8474,11 @@ export type Database = {
           due_at?: string | null
           id?: string
           instructor_id?: string | null
+          parent_task_id?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence?: string
+          recurrence_interval?: number
+          recurrence_until?: string | null
           status?: string
           task_type?: string
           title?: string
@@ -8483,6 +8511,13 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_tasks_parent_task_id_fkey"
+            columns: ["parent_task_id"]
+            isOneToOne: false
+            referencedRelation: "pt_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -12222,6 +12257,16 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_adjust_pass_balance: {
+        Args: {
+          p_adjustment_type?: string
+          p_delta: number
+          p_new_expires_at?: string
+          p_pass_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       pt_can_coach_client: {
         Args: { _client: string; _uid: string }
         Returns: boolean
@@ -12240,9 +12285,17 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_complete_task: {
+        Args: { p_completed?: boolean; p_task_id: string }
+        Returns: Json
+      }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
+      pt_log_renewal_reminder: {
+        Args: { p_note?: string; p_pass_id: string }
+        Returns: Json
+      }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       pt_reschedule_appointment: {
         Args: {
@@ -12252,6 +12305,15 @@ export type Database = {
           p_instructor_id?: string
           p_location_id?: string
           p_starts_at?: string
+        }
+        Returns: Json
+      }
+      pt_transfer_pass_sessions: {
+        Args: {
+          p_from_pass_id: string
+          p_reason: string
+          p_sessions: number
+          p_to_pass_id: string
         }
         Returns: Json
       }
