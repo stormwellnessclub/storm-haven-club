@@ -9,7 +9,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { PT_FORMAT_LABEL, formatCents } from "@/lib/ptFormat";
 import {
-  PTShell, PTPageHeader, PTKpiCard, PTCard, PTSectionTitle, PTBadge, PTEmpty, ptButtonClass,
+  PTShell, PTPageHeader, PTKpiCard, PTCard, PTSectionTitle, PTBadge, PTEmpty, ptButtonClass, PTAlert,
 } from "@/components/admin/pt/PTUI";
 import { usePTPeople, usePTTrainerMap, usePTTasks, usePTTaskMutations } from "@/hooks/pt/usePTPortal";
 import {
@@ -33,7 +33,7 @@ export default function PTDashboard() {
   const today = new Date();
   const todayKey = fmtDate(today, "yyyy-MM-dd");
 
-  const { data: dash, isLoading } = usePTDashboard();
+  const { data: dash, isLoading, isError, error, refetch } = usePTDashboard();
   const todays = (dash?.todaySessions ?? []) as PTScheduleAppointment[];
   const trainerMap = usePTTrainerMap();
   const peopleIds = useMemo(() => {
