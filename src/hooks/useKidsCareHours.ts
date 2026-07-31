@@ -34,6 +34,7 @@ function useKidsCareHourSlotsRealtime() {
         { event: "*", schema: "public", table: "kids_care_hour_slots" },
         () => {
           queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-staff"] });
           queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
           queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
         }
@@ -202,6 +203,7 @@ export function useSaveKidsCareHourSlots() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-staff"] });
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
       toast.success("Kids Care hours saved");
@@ -222,9 +224,10 @@ export function useCopyKidsCareHourSlots() {
       if (!user) throw new Error("Not authenticated");
 
       // Fetch source slots
-      const { data: sourceSlots, error: fetchError } = await (supabase.from as any)("kids_care_hour_slots")
-        .select("open_time, close_time, label, notes, staff_name")
-        .eq("slot_date", sourceDate);
+      const { data: sourceSlots, error: fetchError } = await (supabase as any).rpc(
+        "get_kids_care_hour_slots_staff",
+        { p_start: sourceDate, p_end: sourceDate },
+      );
       if (fetchError) throw fetchError;
       if (!sourceSlots || sourceSlots.length === 0) throw new Error("No slots to copy from source date");
 
@@ -247,6 +250,7 @@ export function useCopyKidsCareHourSlots() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-staff"] });
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-month"] });
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots-upcoming"] });
       toast.success("Hours copied to selected dates");
