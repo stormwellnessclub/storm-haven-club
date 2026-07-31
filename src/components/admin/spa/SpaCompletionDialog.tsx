@@ -133,7 +133,7 @@ export function SpaCompletionDialog({
     );
   };
 
-  const totalAmount = servicePrice + tipAmount;
+
 
   const customer = appointment.customer ?? null;
   const memberName = customer
