@@ -106,17 +106,53 @@ serve(async (req) => {
 
     log("Starting backfill", { startTs, endTs, dryRun: !!body.dryRun });
 
-    // Build customer→member map
+    // Build member lookup maps.
+    // Matching on stripe_customer_id alone silently drops invoices for members
+    // who ended up with a second Stripe customer (their subscription lives on a
+    // different customer id than the one stored on the member row), so we also
+    // resolve by subscription id and by email.
     const { data: members, error: memberErr } = await supabase
       .from("members")
-      .select("id, stripe_customer_id")
-      .not("stripe_customer_id", "is", null);
+      .select("id, email, stripe_customer_id, stripe_subscription_id, annual_fee_subscription_id");
     if (memberErr) throw memberErr;
     const customerToMember = new Map<string, string>();
+    const subToMember = new Map<string, string>();
+    const emailToMember = new Map<string, string>();
     for (const m of members || []) {
       if (m.stripe_customer_id) customerToMember.set(m.stripe_customer_id, m.id);
+      if (m.stripe_subscription_id) subToMember.set(m.stripe_subscription_id, m.id);
+      if (m.annual_fee_subscription_id) subToMember.set(m.annual_fee_subscription_id, m.id);
+      if (m.email) emailToMember.set(m.email.trim().toLowerCase(), m.id);
     }
-    log("Member map built", { count: customerToMember.size });
+
+    const unmatchedCustomers = new Set<string>();
+    const resolveMember = (
+      customerId?: string | null,
+      subscriptionId?: string | null,
+      email?: string | null,
+    ): string | null => {
+      if (customerId) {
+        const byCustomer = customerToMember.get(customerId);
+        if (byCustomer) return byCustomer;
+      }
+      if (subscriptionId) {
+        const bySub = subToMember.get(subscriptionId);
+        if (bySub) return bySub;
+      }
+      if (email) {
+        const byEmail = emailToMember.get(email.trim().toLowerCase());
+        if (byEmail) return byEmail;
+      }
+      if (customerId) unmatchedCustomers.add(customerId);
+      return null;
+    };
+
+    log("Member map built", {
+      customers: customerToMember.size,
+      subscriptions: subToMember.size,
+      emails: emailToMember.size,
+    });
+
 
     let chargesProcessed = 0;
     let chargesInserted = 0;
