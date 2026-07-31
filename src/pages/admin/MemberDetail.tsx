@@ -37,6 +37,8 @@ import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
 import { SellEventTicketDialog } from "@/components/admin/SellEventTicketDialog";
+import { CancellationNoticeDialog } from "@/components/admin/CancellationNoticeDialog";
+
 import { useLastUndoableAction } from "@/hooks/useAdminRefunds";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useAdminMemberBillingHealth } from "@/hooks/useAdminMemberBillingHealth";
