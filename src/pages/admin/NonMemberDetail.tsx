@@ -962,6 +962,96 @@ export default function NonMemberDetail() {
                 </Card>
               )}
 
+              {/* Personal Training */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Dumbbell className="h-4 w-4" />
+                      Personal Training ({ptPasses.length} pack{ptPasses.length === 1 ? "" : "s"})
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setShowSellPT(true)}>
+                        <Plus className="h-3 w-3 mr-1" /> Sell Pack
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setShowBookPT(true)}>
+                        <Calendar className="h-3 w-3 mr-1" /> Book Session
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {ptPassesLoading ? (
+                    <Skeleton className="h-16 w-full" />
+                  ) : ptPasses.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No PT packs. Sell a pack before booking a session.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {ptPasses.map((pass: any) => (
+                        <div key={pass.id} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium">
+                              {pass.pack_name || PT_FORMAT_LABEL[pass.format as keyof typeof PT_FORMAT_LABEL] || pass.format}
+                            </p>
+                            <Badge variant={pass.status === "active" ? "default" : "secondary"} className="text-xs">
+                              {pass.status}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {pass.sessions_remaining} of {pass.sessions_total} sessions left
+                            {pass.expires_at ? ` · expires ${format(new Date(pass.expires_at), "MMM d, yyyy")}` : ""}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Appointments</p>
+                    {ptApptsLoading ? (
+                      <Skeleton className="h-12 w-full" />
+                    ) : ptAppointments.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No PT appointments yet</p>
+                    ) : (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Format</TableHead>
+                            <TableHead>Trainer</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ptAppointments.map((appt: any) => (
+                            <TableRow key={appt.id}>
+                              <TableCell className="text-sm">
+                                {format(new Date(appt.starts_at), "MMM d, yyyy · h:mm a")}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {PT_FORMAT_LABEL[appt.format as keyof typeof PT_FORMAT_LABEL] || appt.format}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {appt.instructors
+                                  ? `${appt.instructors.first_name ?? ""} ${appt.instructors.last_name ?? ""}`.trim() || "—"
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant={appt.status === "scheduled" ? "default" : "secondary"} className="text-xs">
+                                  {appt.status}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Sell Guest Pass */}
               <NonMemberGuestPassSaleCard
                 userId={userId!}
