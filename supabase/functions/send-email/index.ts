@@ -69,7 +69,7 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'pos_charge_receipt' | 'pos_charge_failed' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'pos_charge_receipt' | 'spa_receipt' | 'pos_charge_failed' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
   to: string;
   data: Record<string, any>;
 }
@@ -1033,6 +1033,98 @@ serve(async (req) => {
         `;
         break;
       }
+
+      case 'spa_receipt': {
+        const apptWhen = data.appointmentDate
+          ? new Date(`${data.appointmentDate}T${data.appointmentTime || '00:00:00'}`).toLocaleString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: 'numeric', minute: '2-digit',
+            })
+          : new Date().toLocaleString('en-US', { timeZone: 'America/Detroit' });
+
+        const addonRows = Array.isArray(data.addons) && data.addons.length
+          ? data.addons.map((a: any) => `
+              <tr>
+                <td style="padding: 6px 0; color: #1C170F;">${a.name}</td>
+                <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${a.price}</td>
+              </tr>`).join('')
+          : '';
+
+        const payLabel = data.cardLabel
+          ? data.cardLabel
+          : data.paymentMethod === 'cash'
+          ? 'Cash'
+          : data.paymentMethod === 'card'
+          ? 'Card on file'
+          : 'Other';
+
+        subject = `Your spa receipt from Storm Wellness Club — $${data.amount}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Spa Receipt</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Hi ${data.name},
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Thank you for visiting the spa at Storm Wellness Club. Here's your itemized receipt.
+              </p>
+
+              <div style="background: #DEDACE; border: 1px solid #C1B19C; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <table style="width: 100%; border-collapse: collapse; font-family: Georgia, serif;">
+                  <tr>
+                    <td style="padding: 6px 0; color: #1C170F;">
+                      ${data.serviceName}${data.durationMinutes ? ` — ${data.durationMinutes} min` : ''}
+                    </td>
+                    <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.servicePrice}</td>
+                  </tr>
+                  ${addonRows}
+                  <tr><td colspan="2" style="border-top: 1px solid #C1B19C; padding-top: 8px;"></td></tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #88766B;">Subtotal</td>
+                    <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.subtotal}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 6px 0; color: #88766B;">Tip</td>
+                    <td style="padding: 6px 0; text-align: right; color: #1C170F;">$${data.tip || '0.00'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 10px 0 4px; color: #1C170F; font-weight: 700;">Total Charged</td>
+                    <td style="padding: 10px 0 4px; text-align: right; font-weight: 700; font-size: 18px; color: #1C170F;">$${data.amount}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Date</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${apptWhen}</td>
+                  </tr>
+                  ${data.therapistName ? `
+                    <tr>
+                      <td style="padding: 8px 0; color: #88766B;">Therapist</td>
+                      <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${data.therapistName}</td>
+                    </tr>` : ''}
+                  <tr>
+                    <td style="padding: 8px 0; color: #88766B;">Payment Method</td>
+                    <td style="padding: 8px 0; font-weight: 600; text-align: right; color: #1C170F;">${payLabel}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <p style="font-size: 14px; color: #6b7280; margin-bottom: 20px;">
+                Please keep this email as your receipt. If anything looks off, reply to this email and we'll take care of it.
+              </p>
+
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Thank you,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
+          </div>
+        `;
+        break;
+      }
+
+
 
       case 'pos_charge_failed': {
         const attemptedAt = data.attemptedAt

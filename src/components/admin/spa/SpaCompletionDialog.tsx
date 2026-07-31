@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2, CreditCard, DollarSign, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
+import { useSpaAddons } from "@/hooks/useSpaManagement";
+
+interface SelectedAddon {
+  id: string;
+  name: string;
+  price: number;
+}
 
 interface SpaCompletionDialogProps {
   open: boolean;
@@ -46,8 +54,11 @@ export function SpaCompletionDialog({
   const [customTip, setCustomTip] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
+  const [sendReceipt, setSendReceipt] = useState(true);
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
+  const { data: allAddons = [] } = useSpaAddons();
 
   // Pre-populate fields when appointment changes — in useEffect, not during render
   useEffect(() => {
@@ -55,12 +66,28 @@ export function SpaCompletionDialog({
     setPaymentMethod(appointment.payment_method || "card");
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
+    setSendReceipt(true);
+
+    const existingAddons = (appointment as any).addons;
+    setSelectedAddons(
+      Array.isArray(existingAddons)
+        ? existingAddons.map((a: any) => ({
+            id: String(a.id),
+            name: String(a.name),
+            price: Number(a.price) || 0,
+          }))
+        : []
+    );
 
     const existingTip = (appointment as any).tip_amount;
     if (existingTip && existingTip > 0) {
       const svcPrice = appointment.member_price ?? appointment.service_price ?? 0;
+      const addonSum = Array.isArray(existingAddons)
+        ? existingAddons.reduce((s: number, a: any) => s + (Number(a.price) || 0), 0)
+        : 0;
+      const base = svcPrice + addonSum;
       const matchedPreset = TIP_PRESETS.find(
-        (t) => Math.abs(svcPrice * t.value - existingTip) < 0.01
+        (t) => Math.abs(base * t.value - existingTip) < 0.01
       );
       if (matchedPreset) {
         setTipPreset(matchedPreset.value);
@@ -78,13 +105,35 @@ export function SpaCompletionDialog({
   if (!appointment) return null;
 
   const servicePrice = appointment.member_price ?? appointment.service_price ?? 0;
+  const addonsTotal =
+    Math.round(selectedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
+  const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
   const tipAmount =
     tipPreset !== null
-      ? Math.round(servicePrice * tipPreset * 100) / 100
+      ? Math.round(subtotal * tipPreset * 100) / 100
       : customTip
       ? parseFloat(customTip) || 0
       : 0;
-  const totalAmount = servicePrice + tipAmount;
+  const totalAmount = Math.round((subtotal + tipAmount) * 100) / 100;
+
+  const category = (appointment as any).service_category || "";
+  const availableAddons = allAddons.filter(
+    (a) =>
+      a.is_active &&
+      (!a.applicable_categories ||
+        a.applicable_categories.length === 0 ||
+        a.applicable_categories.includes(category))
+  );
+
+  const toggleAddon = (addon: { id: string; name: string; price: number }) => {
+    setSelectedAddons((prev) =>
+      prev.some((a) => a.id === addon.id)
+        ? prev.filter((a) => a.id !== addon.id)
+        : [...prev, { id: addon.id, name: addon.name, price: Number(addon.price) || 0 }]
+    );
+  };
+
+
 
   const customer = appointment.customer ?? null;
   const memberName = customer
@@ -125,10 +174,13 @@ export function SpaCompletionDialog({
           return;
         }
 
+        const addonDesc = selectedAddons.length
+          ? ` + ${selectedAddons.map((a) => a.name).join(", ")}`
+          : "";
         const chargeBody: Record<string, any> = {
           action: "charge_saved_card",
           amount: amountCents,
-          description: `Spa: ${appointment.service_name}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
+          description: `Spa: ${appointment.service_name}${addonDesc}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
           payment_type: "spa_service",
         };
         if (isMemberCharge) {
@@ -156,6 +208,8 @@ export function SpaCompletionDialog({
         amount_paid: totalAmount,
         payment_method: paymentMethod,
         tip_amount: tipAmount,
+        addons: selectedAddons,
+        addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
       };
 
@@ -178,6 +232,47 @@ export function SpaCompletionDialog({
 
       if (updateError) throw updateError;
 
+      // Itemized receipt email
+      const recipientEmail =
+        customer?.email || appointment.member?.email || appointment.user?.email || null;
+
+      if (sendReceipt && recipientEmail && paymentMethod !== "no_charge" && totalAmount > 0) {
+        try {
+          const { error: emailError } = await supabase.functions.invoke("send-email", {
+            body: {
+              type: "spa_receipt",
+              to: recipientEmail,
+              data: {
+                name: memberName,
+                serviceName: appointment.service_name,
+                durationMinutes: appointment.duration_minutes,
+                servicePrice: servicePrice.toFixed(2),
+                addons: selectedAddons.map((a) => ({
+                  name: a.name,
+                  price: a.price.toFixed(2),
+                })),
+                subtotal: subtotal.toFixed(2),
+                tip: tipAmount.toFixed(2),
+                amount: totalAmount.toFixed(2),
+                paymentMethod,
+                cardLabel:
+                  paymentMethod === "card" && cardSource?.card_last4
+                    ? `${cardSource?.card_brand || "Card"} •••• ${cardSource.card_last4}`
+                    : null,
+                therapistName: appointment.staff?.full_name || null,
+                appointmentDate: appointment.appointment_date,
+                appointmentTime: appointment.appointment_time,
+              },
+            },
+          });
+          if (emailError) throw emailError;
+          toast.success("Receipt emailed");
+        } catch (e: any) {
+          console.error("Spa receipt email failed:", e);
+          toast.error("Payment saved, but the receipt email failed to send");
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
 
@@ -187,6 +282,7 @@ export function SpaCompletionDialog({
           : "Appointment completed"
       );
       onOpenChange(false);
+
     } catch (err: any) {
       console.error("SpaCompletionDialog error:", err);
       toast.error(err.message || "Failed to process");
@@ -238,10 +334,37 @@ export function SpaCompletionDialog({
             <p className="text-sm font-semibold">${servicePrice.toFixed(2)}</p>
           </div>
 
+          {/* Add-ons */}
+          {availableAddons.length > 0 && (
+            <div className="space-y-2">
+              <Label className="font-medium">Add-Ons</Label>
+              <div className="space-y-2 rounded-lg border p-3">
+                {availableAddons.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`addon-${a.id}`}
+                        checked={selectedAddons.some((s) => s.id === a.id)}
+                        onCheckedChange={() => toggleAddon(a)}
+                      />
+                      <Label htmlFor={`addon-${a.id}`} className="font-normal cursor-pointer">
+                        {a.name}
+                      </Label>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      ${Number(a.price).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Intake form summary */}
           <div className="p-3 rounded-lg border bg-muted/20">
             <IntakeFormSummary intake={intake} />
           </div>
+
 
           {/* Payment method */}
           <div className="space-y-2">
@@ -321,13 +444,52 @@ export function SpaCompletionDialog({
             />
           </div>
 
-          {/* Total */}
+          {/* Breakdown */}
           {paymentMethod !== "no_charge" && (
-            <div className="flex justify-between items-center p-3 rounded-lg bg-primary/5 border">
-              <span className="font-medium">Total</span>
-              <span className="text-lg font-bold">${totalAmount.toFixed(2)}</span>
+            <div className="p-3 rounded-lg bg-primary/5 border space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{appointment.service_name}</span>
+                <span>${servicePrice.toFixed(2)}</span>
+              </div>
+              {selectedAddons.map((a) => (
+                <div key={a.id} className="flex justify-between">
+                  <span className="text-muted-foreground">{a.name}</span>
+                  <span>${a.price.toFixed(2)}</span>
+                </div>
+              ))}
+              {addonsTotal > 0 && (
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+              )}
+              {tipAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tip</span>
+                  <span>${tipAmount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center border-t pt-2">
+                <span className="font-medium">Total</span>
+                <span className="text-lg font-bold">${totalAmount.toFixed(2)}</span>
+              </div>
             </div>
           )}
+
+          {/* Receipt email */}
+          {paymentMethod !== "no_charge" && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="send-receipt"
+                checked={sendReceipt}
+                onCheckedChange={(v) => setSendReceipt(v === true)}
+              />
+              <Label htmlFor="send-receipt" className="font-normal cursor-pointer">
+                Email an itemized receipt
+              </Label>
+            </div>
+          )}
+
 
           {paymentMethod === "card" && !hasCardOnFile && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
