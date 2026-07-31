@@ -1,42 +1,54 @@
-# Fix: Summer Daoud still blocked at check-in after paying
+# Past-due tracking is broken — fix the pipeline, not just Summer
 
-## What the database actually shows
+## Answering your three questions
 
-For Summer Daoud (summerd1410@gmail.com):
+**1. Why did we miss Summer since July 9?**
+Because the two tables that record payments and misses both stopped being written:
 
-- `members.status` = `past_due`
-- `members.subscription_status` = `past_due`
-- `payment_past_due` = false
-- Zero unpaid rows in `billing_arrears` (all rows are `paid`)
-- Zero rows in `payment_dunning_state`
+- newest row in `billing_arrears`: **June 7, 2026**
+- newest row in `payment_attempts`: **June 7, 2026**
 
-So the money side is clean — the payment you took cleared the arrears and the dunning flag, but the two status columns were never flipped back. The check-in rule hard-blocks on both `members.status = 'past_due'` and `subscription_status = 'past_due'`, which is why the scanner still refuses her.
+Nothing has been ingested from Stripe in almost two months. Her July 9 failure never landed anywhere the system looks, so no flag, no banner, no arrears row. The only reason she shows `past_due` at all is a status column someone/something set directly.
 
-That means this is not a one-off: any member you collect from manually will stay locked out until someone edits their status by hand.
+**2. Why is she still blocked after you charged her?**
+Check-in hard-blocks on `members.status = 'past_due'` and `subscription_status = 'past_due'`. Both are still set on her record. Collecting the money didn't touch them, because the collection path has no step that clears them.
 
-## Fix
+**3. How many people are past due?**
+11 members carry some past-due marking today:
 
-### 1. Clear Summer now
-Set her `status` back to `active` and `subscription_status` to `active` so she can check in today.
+| Owes money (dunning row + balance) | Amount |
+|---|---|
+| Sherene Albosaraj (pending activation) | $750.00 |
+| Jeree Spicer (cancelled) | $515.10 |
+| Ayah Boussi (cancelled) | $412.58 |
+| Mariam Alsheeblawy | $400.00 |
 
-### 2. Make payment collection clear the block automatically
-Add a `clear_member_past_due(member_id)` database routine that, when a member has no unpaid `billing_arrears` and no active dunning row:
-- flips `members.status` from `past_due` to `active`
-- flips `subscription_status` from `past_due`/`unpaid` to `active`
-- sets `payment_past_due` = false
-- writes an entry to `admin_action_log` so there's a trail
+| Flagged past_due, $0 recorded owing — **unverified** |
+|---|
+| Summer Daoud, Mariam Atwi, Randa Turaani, Rama Alhoussaini, Alyssa Maley, Aujenique Willis (frozen), zeinab barakat |
 
-Call it at the end of every path that collects money against a member: the manual charge / arrears payment flow, the member self-serve retry, and the Stripe `invoice.payment_succeeded` webhook.
+The second group shows $0 owed **only because the ledger stopped updating in June**. That is not proof they paid. I am not going to clear them on that basis.
 
-### 3. Catch drift on a schedule
-Extend the existing membership-truth sync so it also repairs this mismatch: if a member is marked `past_due` locally but has no unpaid arrears, no dunning row, and a live subscription, it clears the block instead of only rewriting `subscription_status`. This is what catches anyone already stuck in the same state as Summer.
+## The plan
 
-### 4. Sweep existing members
-One pass over all members currently flagged `past_due` with no unpaid arrears and no dunning, clearing them the same way. I'll list who gets cleared before applying it.
+### 1. Unblock Summer only
+You confirmed you collected her balance in person. Set her `status` and `subscription_status` back to `active`. One member, done by hand, no sweep.
+
+### 2. Restore the ingestion pipeline (the actual bug)
+Find and fix why `billing_arrears` / `payment_attempts` stopped writing on June 7 — check the Stripe webhook endpoint's recent delivery failures and the `processed_webhook_events` table for the gap. Then backfill every invoice from June 7 to today so the ledger is whole again.
+
+### 3. Verify the other 6, then act individually
+Once the backfill runs, each of those members will have real numbers. I'll show you a list — who genuinely owes what — and you decide who gets cleared and who gets collected from. No automatic clearing of anyone.
+
+### 4. Make collection clear the block going forward
+Add a step to every money-collection path (manual charge, member retry, `invoice.payment_succeeded` webhook) that clears the past-due status **only** when the member has zero unpaid arrears and no active dunning row against a ledger that is actually current. Gate it on ledger freshness so it can never fire off stale data the way a blanket sweep would.
+
+### 5. Alert on ledger staleness
+Add a check that raises a visible admin warning if no new payment row has been written in 72 hours. This is what would have caught the June 7 stall in June instead of you catching it in August.
 
 ## Technical notes
 
-- New `SECURITY DEFINER` function `public.clear_member_past_due(uuid)`, granted to `service_role` and staff roles only.
-- Hook points: `charge-member-arrears`, `retry-my-payment`, `stripe-webhook` (`invoice.payment_succeeded`), and the manual-charge completion path.
-- `sync-membership-truth` gains a past-due reconciliation branch alongside its existing `statusFixes` logic.
-- No schema changes to `members`; only status values and a new function.
+- Diagnose the stall via Stripe webhook delivery logs plus `processed_webhook_events` gaps; likely a signature/auth regression around June 7.
+- Backfill through the existing `backfill-payment-history` path, extended to write `billing_arrears` rows as well as `payment_attempts`.
+- New `clear_member_past_due(uuid)` SECURITY DEFINER function with a freshness guard (`max(created_at) from payment_attempts > now() - interval '72 hours'`), granted to `service_role` and staff roles.
+- Staleness alert surfaced on the Membership Health page and in `payment_tracking_health_log`.
