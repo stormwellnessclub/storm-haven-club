@@ -201,6 +201,14 @@ import PTPortalSchedule from "@/pages/admin/pt/PTSchedule";
 import PTPortalClients from "@/pages/admin/pt/PTClients";
 import PTPortalClientDetail from "@/pages/admin/pt/PTClientDetail";
 import PTPortalPrograms from "@/pages/admin/pt/PTPrograms";
+import PTPortalSessionNotes from "@/pages/admin/pt/PTSessionNotes";
+import PTPortalProgress from "@/pages/admin/pt/PTProgress";
+import PTPortalPackages from "@/pages/admin/pt/PTPackages";
+import PTPortalTrainers from "@/pages/admin/pt/PTTrainers";
+import PTPortalTasks from "@/pages/admin/pt/PTTasks";
+import PTPortalMessages from "@/pages/admin/pt/PTMessages";
+import PTPortalReports from "@/pages/admin/pt/PTReports";
+import PTPortalSettings from "@/pages/admin/pt/PTSettings";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
 import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
@@ -459,6 +467,14 @@ const App = () => (
               <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients/:userId" element={<ProtectedAdminRoute><PTPortalClientDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/programs" element={<ProtectedAdminRoute><PTPortalPrograms /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/session-notes" element={<ProtectedAdminRoute><PTPortalSessionNotes /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/progress" element={<ProtectedAdminRoute><PTPortalProgress /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/packages" element={<ProtectedAdminRoute><PTPortalPackages /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/trainers" element={<ProtectedAdminRoute><PTPortalTrainers /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/tasks" element={<ProtectedAdminRoute><PTPortalTasks /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/messages" element={<ProtectedAdminRoute><PTPortalMessages /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/reports" element={<ProtectedAdminRoute><PTPortalReports /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/settings" element={<ProtectedAdminRoute><PTPortalSettings /></ProtectedAdminRoute>} />
               
               
               <Route path="*" element={<NotFound />} />
