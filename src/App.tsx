@@ -392,6 +392,7 @@ const App = () => (
               <Route path="/admin/payments/failed-history" element={<ProtectedAdminRoute><FailedPaymentsHistory /></ProtectedAdminRoute>} />
               <Route path="/admin/billing-emails" element={<ProtectedAdminRoute><BillingEmailLog /></ProtectedAdminRoute>} />
               <Route path="/admin/billing-arrears" element={<ProtectedAdminRoute><BillingArrears /></ProtectedAdminRoute>} />
+              <Route path="/admin/membership-health" element={<ProtectedAdminRoute><MembershipHealth /></ProtectedAdminRoute>} />
               <Route path="/admin/revenue-analytics" element={<ProtectedAdminRoute><RevenueAnalytics /></ProtectedAdminRoute>} />
               <Route path="/admin/guest-passes" element={<ProtectedAdminRoute><GuestPasses /></ProtectedAdminRoute>} />
               <Route path="/admin/guests" element={<ProtectedAdminRoute><GuestManagement /></ProtectedAdminRoute>} />
