@@ -196,6 +196,11 @@ import PortalGiftCards from "@/pages/portal/GiftCards";
 import GiftCardStore from "@/pages/GiftCardStore";
 import AdminGiftCardHub from "@/pages/admin/GiftCardHub";
 
+import PTPortalDashboard from "@/pages/admin/pt/PTDashboard";
+import PTPortalSchedule from "@/pages/admin/pt/PTSchedule";
+import PTPortalClients from "@/pages/admin/pt/PTClients";
+import PTPortalClientDetail from "@/pages/admin/pt/PTClientDetail";
+import PTPortalPrograms from "@/pages/admin/pt/PTPrograms";
 import PersonalTrainingOverview from "@/pages/personal-training/Overview";
 import PTOneOnOne from "@/pages/personal-training/OneOnOne";
 import PTPrivatePilates from "@/pages/personal-training/PrivatePilates";
@@ -449,6 +454,11 @@ const App = () => (
               <Route path="/admin/personal-training/schedule" element={<ProtectedAdminRoute><AdminPersonalTrainingSchedule /></ProtectedAdminRoute>} />
               <Route path="/admin/personal-training/trainers" element={<ProtectedAdminRoute><AdminPersonalTrainingTrainers /></ProtectedAdminRoute>} />
               <Route path="/admin/personal-training/payments" element={<ProtectedAdminRoute><AdminPersonalTrainingUnpaid /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt" element={<ProtectedAdminRoute><PTPortalDashboard /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/schedule" element={<ProtectedAdminRoute><PTPortalSchedule /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/clients/:userId" element={<ProtectedAdminRoute><PTPortalClientDetail /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/programs" element={<ProtectedAdminRoute><PTPortalPrograms /></ProtectedAdminRoute>} />
               
               
               <Route path="*" element={<NotFound />} />
