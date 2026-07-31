@@ -413,7 +413,7 @@ export default function PTClientDetail() {
                       ? ("red" as const)
                       : a.status === "completed"
                         ? ("green" as const)
-                        : ("neutral" as const),
+                        : ("default" as const),
                 }))}
               />
             </PTCard>
