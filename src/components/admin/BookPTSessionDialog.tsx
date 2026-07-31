@@ -272,6 +272,37 @@ export function BookPTSessionDialog({
             </div>
           </div>
 
+          {/* Bill later (no pack) */}
+          <div className="rounded-md border px-3 py-2 space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={unpaidMode}
+                onChange={(e) => setUnpaidMode(e.target.checked)}
+              />
+              Book without a pack — track as unpaid
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Session is recorded and shows up under PT Session Payments so you can charge their card or send a payment link later.
+            </p>
+            {unpaidMode && (
+              <div className="space-y-1">
+                <Label className="text-xs">Session rate ($)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  placeholder="e.g. 90.00"
+                  value={rate}
+                  onChange={(e) => setRate(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+
+
+
           {/* Trainer */}
           <div className="space-y-2">
             <Label>Trainer (optional)</Label>
