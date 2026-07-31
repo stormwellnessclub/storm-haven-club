@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   PTShell, PTPageHeader, PTCard, PTSectionTitle, PTBadge, PTStatus, PTEmptyState, PTModal,
-  ptButtonClass, PTDropdown,
+  ptButtonClass, PTDropdown, PTConfirmDialog,
 } from "@/components/admin/pt/PTUI";
 import { PTWorkspaceNav } from "@/components/admin/pt/PTWorkspaceNav";
 import { PTWorkoutEditor } from "@/components/admin/pt/PTWorkoutEditor";
@@ -32,6 +32,9 @@ export default function PTPrograms() {
   const [phaseOpen, setPhaseOpen] = useState(false);
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
   const [dragDayId, setDragDayId] = useState<string | null>(null);
+  // Destructive actions must always be confirmed before they run.
+  const [confirmDeleteProgram, setConfirmDeleteProgram] = useState(false);
+  const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
 
   const { data: programs = [], isLoading } = usePTProgramList();
