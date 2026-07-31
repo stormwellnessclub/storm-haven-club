@@ -83,7 +83,7 @@ export default function PTTrainers() {
             >
               <Download className="h-4 w-4" /> Export
             </button>
-            <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/availability")}>
+            <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/trainers")}>
               <CalendarClock className="h-4 w-4" /> Manage availability
             </button>
           </>

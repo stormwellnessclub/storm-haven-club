@@ -45,7 +45,7 @@ export default function PTSettings() {
 
   const links = [
     { label: "Package catalog & pricing", description: "Create, price and archive PT packages.", to: "/admin/personal-training/packs", icon: Package },
-    { label: "Trainer availability", description: "Set weekly working hours and time off.", to: "/admin/personal-training/availability", icon: CalendarClock },
+    { label: "Trainer availability", description: "Set weekly working hours and time off.", to: "/admin/personal-training/trainers", icon: CalendarClock },
     { label: "Unpaid session payments", description: "Charge or invoice sessions billed later.", to: "/admin/personal-training/unpaid", icon: FileText },
   ];
 
