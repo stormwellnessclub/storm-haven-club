@@ -33,6 +33,17 @@ export function PTTopBar({
 
   const iconBtn = "relative grid place-items-center h-9 w-9 rounded-lg text-pt-muted hover:text-pt-ink hover:bg-pt-beige/60 transition-colors";
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <>
       <header className="sticky top-0 z-30 h-16 border-b border-pt-line bg-pt-cream/85 backdrop-blur">
