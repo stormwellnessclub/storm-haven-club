@@ -178,7 +178,8 @@ serve(async (req) => {
       for (const ch of list.data) {
         chargesProcessed++;
         const customerId = typeof ch.customer === "string" ? ch.customer : ch.customer?.id;
-        const memberId = customerId ? customerToMember.get(customerId) : null;
+        const memberId = resolveMember(customerId, null, ch.billing_details?.email ?? ch.receipt_email ?? null);
+
         if (!memberId) {
           chargesSkipped++;
           continue;
