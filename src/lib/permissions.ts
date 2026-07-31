@@ -34,6 +34,10 @@ export const ROLE_DESCRIPTIONS: Record<AppRole, string> = {
 // Patterns with :param segments match any value in that position
 export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin': ['super_admin', 'admin', 'manager', 'front_desk', 'spa_staff', 'class_instructor', 'cafe_staff', 'childcare_staff'],
+  '/admin/pt/m': ['super_admin', 'admin', 'manager', 'class_instructor'],
+  '/admin/pt/m/clients': ['super_admin', 'admin', 'manager', 'class_instructor'],
+  '/admin/pt/m/progress': ['super_admin', 'admin', 'manager', 'class_instructor'],
+  '/admin/pt/m/more': ['super_admin', 'admin', 'manager', 'class_instructor'],
   '/admin/dashboard': ['super_admin', 'admin', 'manager'],
   '/admin/check-in': ['super_admin', 'admin', 'manager', 'front_desk'],
   '/admin/check-in-history': ['super_admin', 'admin', 'manager', 'front_desk'],
