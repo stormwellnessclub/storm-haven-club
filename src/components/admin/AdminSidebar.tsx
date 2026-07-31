@@ -148,6 +148,9 @@ const departments: DepartmentSection[] = [
     label: 'Personal Training',
     roles: ['super_admin', 'admin', 'manager', 'front_desk'],
     items: [
+      { title: "PT Portal", url: "/admin/pt", icon: Dumbbell },
+      { title: "PT Clients", url: "/admin/pt/clients", icon: Users },
+      { title: "PT Programs", url: "/admin/pt/programs", icon: ClipboardList },
       { title: "Training Requests", url: "/admin/training-requests", icon: Dumbbell },
       { title: "PT Schedule", url: "/admin/personal-training/schedule", icon: Calendar },
       { title: "PT Customers & Passes", url: "/admin/personal-training/passes", icon: Ticket },

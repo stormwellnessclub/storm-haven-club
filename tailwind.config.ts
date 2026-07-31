@@ -111,7 +111,18 @@ export default {
   			'cafe-terracotta': 'hsl(var(--cafe-terracotta))',
   			'cafe-terracotta-deep': 'hsl(var(--cafe-terracotta-deep))',
   			'cafe-burgundy': 'hsl(var(--cafe-burgundy))',
-  			'cafe-line': 'hsl(var(--cafe-line))'
+  			'cafe-line': 'hsl(var(--cafe-line))',
+  			'pt-noir': 'hsl(var(--pt-noir))',
+  			'pt-noir-soft': 'hsl(var(--pt-noir-soft))',
+  			'pt-cream': 'hsl(var(--pt-cream))',
+  			'pt-beige': 'hsl(var(--pt-beige))',
+  			'pt-line': 'hsl(var(--pt-line))',
+  			'pt-muted': 'hsl(var(--pt-muted))',
+  			'pt-ink': 'hsl(var(--pt-ink))',
+  			'pt-gold': 'hsl(var(--pt-gold))',
+  			'pt-green': 'hsl(var(--pt-green))',
+  			'pt-amber': 'hsl(var(--pt-amber))',
+  			'pt-red': 'hsl(var(--pt-red))'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

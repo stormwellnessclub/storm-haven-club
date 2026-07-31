@@ -928,3 +928,44 @@
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }
+
+/* ========================================
+   PERSONAL TRAINING PORTAL — Noir / Cream / Gold
+   ======================================== */
+:root {
+  --pt-noir: 30 16% 12%;          /* #211C17 */
+  --pt-noir-soft: 30 20% 16%;     /* #302820 */
+  --pt-cream: 36 39% 95%;         /* #F7F3ED */
+  --pt-beige: 35 33% 86%;         /* #E8DED0 */
+  --pt-line: 33 24% 78%;          /* #D4C8BA */
+  --pt-muted: 27 10% 40%;         /* #71675D */
+  --pt-ink: 30 16% 12%;           /* #211C17 */
+  --pt-gold: 35 33% 54%;          /* #B3915F */
+  --pt-green: 163 65% 25%;        /* #176B50 */
+  --pt-amber: 38 65% 47%;         /* #C88B2A */
+  --pt-red: 4 46% 51%;            /* #B94C45 */
+  --pt-shadow: 0 1px 2px hsl(30 16% 12% / 0.05), 0 8px 24px hsl(30 16% 12% / 0.06);
+}
+
+.pt-portal {
+  background-color: hsl(var(--pt-cream));
+  color: hsl(var(--pt-ink));
+}
+.pt-portal .pt-serif {
+  font-family: 'Cormorant Garamond', 'Bodoni Moda', Georgia, serif;
+  letter-spacing: 0.01em;
+}
+.pt-portal .pt-eyebrow {
+  font-size: 0.6875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: hsl(var(--pt-muted));
+}
+.pt-portal .pt-card {
+  background-color: #fff;
+  border: 1px solid hsl(var(--pt-line));
+  border-radius: 0.75rem;
+  box-shadow: var(--pt-shadow);
+}
+.pt-portal .pt-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.pt-portal .pt-scroll::-webkit-scrollbar-thumb { background: hsl(var(--pt-line)); border-radius: 99px; }
