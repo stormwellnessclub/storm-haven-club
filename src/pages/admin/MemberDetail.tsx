@@ -1271,8 +1271,9 @@ export default function MemberDetail() {
                     icon={<Mail className="h-4 w-4 mr-2" />}
                     variant="outline"
                     isLoading={isSendingCancellationEmail}
-                    tooltip="Sends a branded cancellation confirmation email to the member"
-                    onClick={sendCancellationEmail}
+                    tooltip="Preview and edit the cancellation notice before sending it"
+                    onClick={() => setShowCancellationNoticeDialog(true)}
+
                     disabled={!member.email}
                   />
                   {(member as any).cancellation_email_sent_at && (
