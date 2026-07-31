@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Phone, MessageSquare, CalendarPlus, NotebookPen, LineChart, Layers,
-  Package, ListChecks, MoreHorizontal, Mail, ShieldAlert, Target, Clock,
+  Package, ListChecks, MoreHorizontal, Mail, Target, Clock,
   FileText, History, Users, Activity, Lock,
 } from "lucide-react";
 import { PTMobileShell } from "@/components/admin/pt/mobile/PTMobileShell";
@@ -18,7 +18,6 @@ import {
   usePTMClientSummary, usePTMLazySection, usePTMClientActions,
   ptmFormatDate, ptmFormatDateTime, ptmDaysUntil,
 } from "@/hooks/pt/usePTMClientProfile";
-import { ptmToast } from "@/components/admin/pt/mobile/ptmToast";
 import { cn } from "@/lib/utils";
 
 type SheetKey =
