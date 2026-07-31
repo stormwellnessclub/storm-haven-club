@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getInvoiceSubscriptionId, getLinePriceId } from "../_shared/stripeInvoice.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,7 +124,7 @@ serve(async (req) => {
           ? new Date(inv.next_payment_attempt * 1000).toISOString()
           : null,
         last_failure_message: lastFailureMessage,
-        subscription_id: subscription?.id || (typeof inv.subscription === 'string' ? inv.subscription : null),
+        subscription_id: subscription?.id || getInvoiceSubscriptionId(inv),
         subscription_status: subscription?.status || null,
         hosted_invoice_url: inv.hosted_invoice_url || null,
         period_start: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,

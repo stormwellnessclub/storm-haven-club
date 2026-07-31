@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { getInvoiceSubscriptionId, getLinePriceId } from "../_shared/stripeInvoice.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ const GUEST_PASS_PRICE_IDS = new Set(["price_1SxATYLyZrsSqLhs6vDu1QWg"]);
 function classifyInvoice(inv: Stripe.Invoice): string {
   const lines = inv.lines?.data ?? [];
   for (const line of lines) {
-    const priceId = line.price?.id;
+    const priceId = getLinePriceId(line);
     if (!priceId) continue;
     if (ANNUAL_FEE_PRICE_IDS.has(priceId)) return "annual_fee";
     if (CLASS_PASS_PRICE_IDS.has(priceId)) return "class_pass";
@@ -55,7 +56,7 @@ function classifyInvoice(inv: Stripe.Invoice): string {
   // Amount-based fallback for known kids-care subscription price ($75 + processing fee = $77.55)
   if ((inv.amount_due ?? 0) === 7755) return "kids_care";
   // Subscription invoices default to membership dues; otherwise other.
-  if (inv.subscription) return "membership_dues";
+  if (getInvoiceSubscriptionId(inv)) return "membership_dues";
   return "other";
 }
 
@@ -277,7 +278,7 @@ serve(async (req) => {
               amount_due_cents: inv.amount_due ?? 0,
               amount_paid_cents: inv.amount_paid ?? 0,
               currency: inv.currency || "usd",
-              stripe_subscription_id: typeof inv.subscription === "string" ? inv.subscription : null,
+              stripe_subscription_id: getInvoiceSubscriptionId(inv),
               status: isPaid ? "paid" : "unpaid",
               attempt_count: inv.attempt_count ?? 0,
               paid_at: isPaid && inv.status_transitions?.paid_at
