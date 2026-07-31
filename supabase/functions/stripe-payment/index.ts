@@ -3029,10 +3029,22 @@ serve(async (req) => {
           customerId = newCustomer.id;
         }
 
+        // Apply any live automatic sale (or a staff-entered promo code)
+        let adminPassPromo: ResolvedPromotion | null = null;
+        try {
+          const adminPassPrice = await stripe.prices.retrieve(priceId);
+          adminPassPromo = await resolveClassPassPromotion(
+            supabase, stripe, pricingRowId2, adminPassPrice.unit_amount || 0, body.promoCode,
+          );
+        } catch (e) {
+          if (body.promoCode) throw e;
+        }
+
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
           line_items: [{ price: priceId, quantity: 1 }],
           mode: 'payment',
+          ...(adminPassPromo ? { discounts: [{ coupon: adminPassPromo.couponId }] } : {}),
           success_url: successUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/member/credits?purchase=success`,
           cancel_url: cancelUrl || `${Deno.env.get('SITE_URL') || 'http://localhost:5173'}/class-passes?purchase=cancelled`,
           metadata: {
@@ -3041,8 +3053,26 @@ serve(async (req) => {
             category: passCategory,
             pass_type: passType,
             is_member: String(isMember),
+            promotion_id: adminPassPromo?.promotionId ?? '',
           },
         });
+
+        if (adminPassPromo) {
+          try {
+            await supabase.from('promotion_redemptions').insert({
+              promotion_id: adminPassPromo.promotionId,
+              user_id: userId,
+              email: profile.email,
+              stripe_session_id: session.id,
+              pricing_id: pricingRowId2,
+              original_cents: adminPassPromo.netCents + adminPassPromo.discountCents,
+              discount_cents: adminPassPromo.discountCents,
+              final_cents: adminPassPromo.netCents,
+            });
+            await supabase.rpc('increment_promotion_redemption', { _promotion_id: adminPassPromo.promotionId });
+          } catch (_e) { /* non-fatal */ }
+        }
+
 
         return new Response(
           JSON.stringify({ sessionId: session.id, url: session.url, success: true }),
