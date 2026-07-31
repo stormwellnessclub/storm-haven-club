@@ -45,6 +45,7 @@ export function PTWorkoutEditor({
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [dragId, setDragId] = useState<string | null>(null);
   const [picker, setPicker] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<PTProgramExercise | null>(null);
 
   const sorted = useMemo(
     () => [...exercises].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)),
