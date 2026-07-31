@@ -22,9 +22,14 @@ serve(async (req) => {
     return new Response(null, { headers: CORS_HEADERS, status: 204 });
   }
 
-  // Allow cron/service-role calls; otherwise require a super admin JWT.
-  const authCheck = await requireStaff(req, ["super_admin"]);
-  if (!authCheck.ok) return authCheck.response;
+  // Scheduled runs authenticate with a shared cron secret; interactive runs
+  // must present a super-admin JWT.
+  const cronSecret = Deno.env.get("MEMBERSHIP_SYNC_CRON_SECRET");
+  const isCron = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
+  if (!isCron) {
+    const authCheck = await requireStaff(req, ["super_admin"]);
+    if (!authCheck.ok) return authCheck.response;
+  }
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
