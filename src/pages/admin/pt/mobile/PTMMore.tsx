@@ -81,7 +81,7 @@ export default function PTMMore() {
         { label: "Preferences", icon: SlidersHorizontal, to: "/admin/pt/settings", allowed: true },
         { label: "Notifications", icon: Bell, to: "/admin/pt/settings?tab=notifications", allowed: true },
         { label: "Account", icon: UserCircle, to: "/admin/settings", allowed: access.isAdmin },
-        { label: "Help and Support", icon: LifeBuoy, to: "/support", allowed: true },
+        { label: "Help and Support", hint: "Email the Storm operations team", icon: LifeBuoy, allowed: true, onClick: () => { window.location.href = "mailto:info@stormwellnessclub.com?subject=PT%20Portal%20Support"; } },
         { label: "Open desktop portal", icon: Monitor, to: "/admin/pt", allowed: true },
         { label: "Sign Out", icon: LogOut, allowed: true, danger: true, onClick: () => setSignOutOpen(true) },
       ])}
