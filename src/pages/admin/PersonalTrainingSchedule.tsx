@@ -18,6 +18,7 @@ interface Appt {
   id: string; user_id: string; instructor_id: string | null;
   format: PtFormat; starts_at: string; ends_at: string; duration_minutes: number;
   status: string; notes: string | null;
+  payment_status?: string; amount_due_cents?: number;
 }
 
 interface Person { name: string; email: string; }
