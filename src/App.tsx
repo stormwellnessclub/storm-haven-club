@@ -201,6 +201,8 @@ import PTPortalSchedule from "@/pages/admin/pt/PTSchedule";
 import PTPortalClients from "@/pages/admin/pt/PTClients";
 import PTPortalClientDetail from "@/pages/admin/pt/PTClientDetail";
 import PTPortalPrograms from "@/pages/admin/pt/PTPrograms";
+import PTPortalLibrary from "@/pages/admin/pt/PTLibrary";
+import PTPortalReassessments from "@/pages/admin/pt/PTReassessments";
 import PTPortalSessionNotes from "@/pages/admin/pt/PTSessionNotes";
 import PTPortalProgress from "@/pages/admin/pt/PTProgress";
 import PTPortalPackages from "@/pages/admin/pt/PTPackages";
@@ -467,6 +469,8 @@ const App = () => (
               <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients/:userId" element={<ProtectedAdminRoute><PTPortalClientDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/programs" element={<ProtectedAdminRoute><PTPortalPrograms /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/library" element={<ProtectedAdminRoute><PTPortalLibrary /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/reassessments" element={<ProtectedAdminRoute><PTPortalReassessments /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/session-notes" element={<ProtectedAdminRoute><PTPortalSessionNotes /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/progress" element={<ProtectedAdminRoute><PTPortalProgress /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/packages" element={<ProtectedAdminRoute><PTPortalPackages /></ProtectedAdminRoute>} />

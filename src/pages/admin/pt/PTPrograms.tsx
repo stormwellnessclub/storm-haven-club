@@ -1,82 +1,166 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, ChevronUp, ChevronDown, Save, Copy } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  Plus, Copy, Trash2, Save, Printer, Download, Share2, Layers, GripVertical, FileStack,
+} from "lucide-react";
 import { toast } from "sonner";
-import { PTShell, PTPageHeader, PTCard, PTEmpty, PTSectionTitle, ptButtonClass, PTStatus } from "@/components/admin/pt/PTUI";
-import { usePTClients, usePTPeople, usePTTrainers } from "@/hooks/pt/usePTPortal";
+import { cn } from "@/lib/utils";
+import {
+  PTShell, PTPageHeader, PTCard, PTSectionTitle, PTBadge, PTStatus, PTEmptyState, PTModal,
+  ptButtonClass, PTDropdown,
+} from "@/components/admin/pt/PTUI";
+import { PTWorkspaceNav } from "@/components/admin/pt/PTWorkspaceNav";
+import { PTWorkoutEditor } from "@/components/admin/pt/PTWorkoutEditor";
+import { usePTPeople, usePTTrainers } from "@/hooks/pt/usePTPortal";
+import { usePTClientDirectory } from "@/hooks/pt/usePTClientDirectory";
+import {
+  usePTProgramList, usePTProgramDetail, usePTProgramMutations, usePTExerciseLibrary,
+  PT_DAY_PRESETS, type PTProgramPhase,
+} from "@/hooks/pt/usePTProgramBuilder";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function PTPrograms() {
-  const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
-  const clientParam = params.get("client") ?? undefined;
-  const programParam = params.get("program") ?? undefined;
-  const [selected, setSelected] = useState<string | undefined>(programParam);
+  const [selected, setSelected] = useState<string | undefined>(params.get("program") ?? undefined);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [phaseOpen, setPhaseOpen] = useState(false);
+  const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  const [dragDayId, setDragDayId] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
-  const { data: clientData } = usePTClients();
-  const { data: people = {} } = usePTPeople(clientData?.ids ?? []);
+  const { data: programs = [], isLoading } = usePTProgramList();
+  const { data: detail } = usePTProgramDetail(selected);
+  const { data: library = [] } = usePTExerciseLibrary();
+  const { data: directory = [] } = usePTClientDirectory();
   const { data: trainers = [] } = usePTTrainers();
+  const { data: people = {} } = usePTPeople(programs.map((p: any) => p.user_id).filter(Boolean));
+  const m = usePTProgramMutations(selected);
 
-  const { data: programs = [], isLoading } = useQuery({
-    queryKey: ["pt-programs-all"],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("pt_programs").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const visible = useMemo(
+    () => programs.filter((p: any) => (showTemplates ? p.is_template : !p.is_template)),
+    [programs, showTemplates],
+  );
 
   useEffect(() => {
-    if (!selected && programs.length) setSelected(programs[0].id);
-  }, [programs, selected]);
+    if (!selected && visible.length) setSelected(visible[0].id);
+  }, [visible, selected]);
 
-  const current = programs.find((p: any) => p.id === selected);
+  const program = detail?.program;
+  const days = detail?.days ?? [];
+  const exercises = detail?.exercises ?? [];
+  const activeDay = days.find((d) => d.id === activeDayId) ?? days[0];
 
-  async function createProgram() {
-    const { data: auth } = await supabase.auth.getUser();
-    const { data, error } = await (supabase as any).from("pt_programs").insert({
-      name: "New program",
-      user_id: clientParam ?? null,
-      status: "active",
-      created_by: auth?.user?.id ?? null,
-    }).select("id").single();
-    if (error) return toast.error(error.message);
-    toast.success("Program created");
-    qc.invalidateQueries({ queryKey: ["pt-programs-all"] });
-    setSelected(data.id);
-    setParams({ program: data.id });
+  useEffect(() => {
+    if (days.length && !days.some((d) => d.id === activeDayId)) setActiveDayId(days[0].id);
+  }, [days, activeDayId]);
+
+  const phases: PTProgramPhase[] = Array.isArray(program?.phases) ? program.phases : [];
+  const weeks = Math.max(1, program?.length_weeks ?? 1);
+
+  const select = (id: string) => { setSelected(id); setParams({ program: id }); };
+
+  function handleDayDrop(targetId: string) {
+    if (!dragDayId || dragDayId === targetId) return;
+    const ordered = [...days];
+    const from = ordered.findIndex((d) => d.id === dragDayId);
+    const to = ordered.findIndex((d) => d.id === targetId);
+    const [moved] = ordered.splice(from, 1);
+    moved.week_number = ordered[to]?.week_number ?? moved.week_number;
+    ordered.splice(to, 0, moved);
+    m.reorderDays.mutate(ordered.map((d, i) => ({ id: d.id, display_order: i, week_number: d.week_number })));
+    setDragDayId(null);
+  }
+
+  function programText() {
+    const lines = [`${program?.name ?? "Program"}`, program?.goal ? `Goal: ${program.goal}` : "", ""];
+    days.forEach((d) => {
+      lines.push(`Week ${d.week_number} — ${d.label}${d.focus ? ` (${d.focus})` : ""}`);
+      exercises.filter((e) => e.day_id === d.id)
+        .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0))
+        .forEach((e, i) => {
+          lines.push(`  ${i + 1}. ${e.exercise} — ${e.sets ?? "-"} x ${e.reps ?? "-"}${e.load ? ` @ ${e.load}` : ""}${e.rest ? ` · rest ${e.rest}` : ""}${e.superset_group ? ` [SS ${e.superset_group}]` : ""}`);
+          if (e.cues) lines.push(`     cues: ${e.cues}`);
+        });
+      if (d.homework) lines.push(`  Homework: ${d.homework}`);
+      lines.push("");
+    });
+    return lines.filter((l) => l !== undefined).join("\n");
+  }
+
+  function exportProgram() {
+    const blob = new Blob([programText()], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(program?.name ?? "program").replace(/\s+/g, "-").toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function shareRecap() {
+    await navigator.clipboard.writeText(programText());
+    toast.success("Client recap copied to clipboard");
+  }
+
+  function printProgram() {
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<pre style="font-family:ui-monospace,monospace;font-size:12px;white-space:pre-wrap">${programText().replace(/</g, "&lt;")}</pre>`);
+    win.document.close();
+    win.print();
   }
 
   return (
     <PTShell>
       <PTPageHeader
-        eyebrow="Personal Training"
-        title="Programs & Progress"
-        subtitle="Build training blocks, order the work, and assign them to clients."
-        actions={<button className={ptButtonClass()} onClick={createProgram}><Plus className="h-4 w-4" /> New program</button>}
+        eyebrow="Programs & Progress"
+        title="Program Builder"
+        subtitle="Build training blocks, phase them, and assign them to clients."
+        actions={
+          <>
+            <button className={ptButtonClass("outline")} onClick={() => setShowTemplates(!showTemplates)}>
+              <FileStack className="h-4 w-4 mr-1.5" />{showTemplates ? "Show programs" : "Show templates"}
+            </button>
+            <button className={ptButtonClass("primary")} onClick={() => setNewOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />New program
+            </button>
+          </>
+        }
       />
+      <PTWorkspaceNav />
 
-      <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
+      <div className="grid gap-5 lg:grid-cols-[290px_1fr]">
+        {/* ------------------------------------------------------- list */}
         <div>
-          <PTSectionTitle>Programs</PTSectionTitle>
-          <PTCard className="p-0">
-            {isLoading ? <div className="p-4 text-sm text-pt-muted">Loading…</div>
-              : programs.length === 0 ? <div className="p-4"><PTEmpty>No programs yet.</PTEmpty></div> : (
+          <PTSectionTitle>{showTemplates ? "Templates" : "Programs"}</PTSectionTitle>
+          <PTCard padded={false}>
+            {isLoading ? (
+              <div className="p-4 text-[13px] text-pt-muted">Loading…</div>
+            ) : visible.length === 0 ? (
+              <div className="p-4">
+                <PTEmptyState title={showTemplates ? "No templates saved" : "No programs yet"}
+                  description="Create one from scratch or save an existing program as a template." />
+              </div>
+            ) : (
               <ul className="divide-y divide-pt-line/70 max-h-[70vh] overflow-y-auto pt-scroll">
-                {programs.map((p: any) => (
+                {visible.map((p: any) => (
                   <li key={p.id}>
                     <button
-                      onClick={() => { setSelected(p.id); setParams({ program: p.id }); }}
-                      className={`w-full text-left px-4 py-3 hover:bg-pt-beige/40 ${selected === p.id ? "bg-pt-beige/60" : ""}`}
+                      onClick={() => select(p.id)}
+                      className={cn("w-full text-left px-4 py-3 hover:bg-pt-beige/40 transition-colors",
+                        selected === p.id && "bg-pt-beige/60")}
                     >
-                      <div className="text-[13px] font-medium truncate">{p.name}</div>
+                      <div className="text-[13px] font-medium text-pt-ink truncate">{p.name}</div>
                       <div className="text-[11px] text-pt-muted truncate">
                         {p.is_template ? "Template" : p.user_id ? people[p.user_id]?.name ?? "Client" : "Unassigned"}
+                        {p.length_weeks ? ` · ${p.length_weeks} wk` : ""}
+                        {p.sessions_per_week ? ` · ${p.sessions_per_week}x/wk` : ""}
                       </div>
                     </button>
                   </li>
@@ -86,335 +170,381 @@ export default function PTPrograms() {
           </PTCard>
         </div>
 
-        {current ? (
-          <ProgramEditor
-            key={current.id}
-            program={current}
-            clients={(clientData?.ids ?? []).map((id) => ({ id, name: people[id]?.name ?? id.slice(0, 8) }))}
-            trainers={trainers}
-            onChanged={() => qc.invalidateQueries({ queryKey: ["pt-programs-all"] })}
-            onDeleted={() => { setSelected(undefined); qc.invalidateQueries({ queryKey: ["pt-programs-all"] }); }}
-          />
+        {/* ---------------------------------------------------- builder */}
+        {!program ? (
+          <PTEmptyState icon={Layers} title="Select a program" description="Pick a program on the left or create a new one." />
         ) : (
-          <PTEmpty>Select or create a program.</PTEmpty>
+          <div className="space-y-4" ref={printRef}>
+            <PTCard>
+              <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                <div className="min-w-0">
+                  <Input
+                    defaultValue={program.name}
+                    key={`name-${program.id}`}
+                    onBlur={(e) => e.target.value !== program.name && m.updateProgram.mutate({ id: program.id, patch: { name: e.target.value } })}
+                    className="h-9 bg-white border-pt-line text-[15px] font-medium"
+                  />
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <PTStatus status={program.status ?? "active"} />
+                    {program.is_template && <PTBadge tone="gold">Template</PTBadge>}
+                    {program.user_id
+                      ? <PTBadge tone="green">{people[program.user_id]?.name ?? "Assigned"}</PTBadge>
+                      : <PTBadge>Unassigned</PTBadge>}
+                    {phases.map((ph) => <PTBadge key={ph.name} tone="noir">{ph.name} · {ph.weeks}wk</PTBadge>)}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className={ptButtonClass("outline")} onClick={() => setAssignOpen(true)}>Assign to client</button>
+                  <PTDropdown
+                    label="Program actions"
+                    trigger={<button className={ptButtonClass("ghost")}>Actions</button>}
+                    items={[
+                      { label: "Duplicate program", icon: Copy, onSelect: () => m.duplicateProgram.mutate({ sourceId: program.id }, { onSuccess: (id) => select(id) }) },
+                      { label: "Save as template", icon: Save, onSelect: () => m.duplicateProgram.mutate({ sourceId: program.id, name: `${program.name} template`, asTemplate: true }) },
+                      { label: "Manage phases", icon: Layers, onSelect: () => setPhaseOpen(true) },
+                      { label: "Print program", icon: Printer, onSelect: printProgram, separatorBefore: true },
+                      { label: "Export program", icon: Download, onSelect: exportProgram },
+                      { label: "Share client recap", icon: Share2, onSelect: shareRecap },
+                      { label: "Delete program", icon: Trash2, destructive: true, separatorBefore: true,
+                        onSelect: () => m.deleteProgram.mutate(program.id, { onSuccess: () => setSelected(undefined) }) },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <label className="block">
+                  <span className="pt-eyebrow">Goal</span>
+                  <Input defaultValue={program.goal ?? ""} key={`goal-${program.id}`}
+                    onBlur={(e) => m.updateProgram.mutate({ id: program.id, patch: { goal: e.target.value || null } })}
+                    className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                </label>
+                <label className="block">
+                  <span className="pt-eyebrow">Start date</span>
+                  <Input type="date" defaultValue={program.start_date ?? ""} key={`sd-${program.id}`}
+                    onBlur={(e) => m.updateProgram.mutate({ id: program.id, patch: { start_date: e.target.value || null } })}
+                    className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                </label>
+                <label className="block">
+                  <span className="pt-eyebrow">Length (weeks)</span>
+                  <Input type="number" min={1} defaultValue={program.length_weeks ?? 4} key={`lw-${program.id}`}
+                    onBlur={(e) => m.updateProgram.mutate({ id: program.id, patch: { length_weeks: Number(e.target.value) || 1 } })}
+                    className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                </label>
+                <label className="block">
+                  <span className="pt-eyebrow">Sessions / week</span>
+                  <Input type="number" min={1} defaultValue={program.sessions_per_week ?? 3} key={`spw-${program.id}`}
+                    onBlur={(e) => m.updateProgram.mutate({ id: program.id, patch: { sessions_per_week: Number(e.target.value) || 1 } })}
+                    className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                </label>
+                <label className="block">
+                  <span className="pt-eyebrow">Next reassessment</span>
+                  <Input type="date" defaultValue={program.next_reassessment ?? ""} key={`nr-${program.id}`}
+                    onBlur={(e) => m.updateProgram.mutate({ id: program.id, patch: { next_reassessment: e.target.value || null } })}
+                    className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                </label>
+              </div>
+            </PTCard>
+
+            {/* weekly workout cards */}
+            <PTCard>
+              <PTSectionTitle
+                action={
+                  <Select value="" onValueChange={(v) => {
+                    const preset = PT_DAY_PRESETS.find((p) => p.label === v);
+                    if (!preset) return;
+                    m.addDay.mutate({
+                      program_id: program.id, label: preset.label, focus: preset.focus || null,
+                      day_type: preset.day_type, week_number: 1, display_order: days.length,
+                    }, { onSuccess: (id) => setActiveDayId(id) });
+                  }}>
+                    <SelectTrigger className="h-8 w-56 bg-white border-pt-line text-[13px]">
+                      <SelectValue placeholder="Add workout day" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border-pt-line z-50">
+                      {PT_DAY_PRESETS.map((p) => <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                }
+              >
+                Weekly workouts
+              </PTSectionTitle>
+
+              {days.length === 0 ? (
+                <PTEmptyState title="No workout days yet" description="Add lower body, push, pull, conditioning or recovery days." />
+              ) : (
+                Array.from({ length: weeks }, (_, w) => w + 1).map((week) => {
+                  const weekDays = days.filter((d) => d.week_number === week);
+                  if (!weekDays.length && week !== 1) return null;
+                  return (
+                    <div key={week} className="mb-4 last:mb-0">
+                      <div className="pt-eyebrow mb-2">Week {week}</div>
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {weekDays.map((d) => {
+                          const count = exercises.filter((e) => e.day_id === d.id).length;
+                          const recovery = d.day_type === "recovery";
+                          return (
+                            <button
+                              key={d.id}
+                              draggable
+                              onDragStart={() => setDragDayId(d.id)}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={() => handleDayDrop(d.id)}
+                              onClick={() => setActiveDayId(d.id)}
+                              className={cn(
+                                "text-left rounded-xl border p-3 transition-colors",
+                                activeDay?.id === d.id ? "border-pt-gold bg-pt-gold/5" : "border-pt-line hover:bg-pt-beige/40",
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                <GripVertical className="h-3.5 w-3.5 text-pt-muted" />
+                                <span className="text-[13px] font-medium text-pt-ink truncate">{d.label}</span>
+                                {recovery && <PTBadge tone="green">Recovery</PTBadge>}
+                              </div>
+                              <div className="text-[11px] text-pt-muted mt-1 truncate">{d.focus || "No focus set"}</div>
+                              <div className="text-[11px] text-pt-muted mt-1">{count} exercise{count === 1 ? "" : "s"}</div>
+                            </button>
+                          );
+                        })}
+                        <button
+                          onClick={() => m.addDay.mutate({
+                            program_id: program.id, label: "Custom Day", day_type: "custom",
+                            week_number: week, display_order: days.length,
+                          }, { onSuccess: (id) => setActiveDayId(id) })}
+                          className="rounded-xl border border-dashed border-pt-line p-3 text-[13px] text-pt-muted hover:text-pt-ink hover:bg-pt-beige/30"
+                        >
+                          <Plus className="h-4 w-4 mx-auto mb-1" /> Add day to week {week}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </PTCard>
+
+            {/* workout editor */}
+            {activeDay && (
+              <PTCard>
+                <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+                  <div className="grid gap-2 sm:grid-cols-3 flex-1">
+                    <label className="block">
+                      <span className="pt-eyebrow">Workout name</span>
+                      <Input key={`dl-${activeDay.id}`} defaultValue={activeDay.label}
+                        onBlur={(e) => e.target.value !== activeDay.label && m.updateDay.mutate({ id: activeDay.id, patch: { label: e.target.value } })}
+                        className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                    </label>
+                    <label className="block">
+                      <span className="pt-eyebrow">Focus</span>
+                      <Input key={`df-${activeDay.id}`} defaultValue={activeDay.focus ?? ""}
+                        onBlur={(e) => m.updateDay.mutate({ id: activeDay.id, patch: { focus: e.target.value || null } })}
+                        className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                    </label>
+                    <label className="block">
+                      <span className="pt-eyebrow">Week</span>
+                      <Input key={`dw-${activeDay.id}`} type="number" min={1} defaultValue={activeDay.week_number}
+                        onBlur={(e) => m.updateDay.mutate({ id: activeDay.id, patch: { week_number: Number(e.target.value) || 1 } })}
+                        className="h-8 bg-white border-pt-line text-[13px] mt-0.5" />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className={ptButtonClass("ghost")} onClick={() => m.duplicateDay.mutate(activeDay.id)}>
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />Duplicate workout
+                    </button>
+                    <button className={ptButtonClass("ghost")} onClick={() => m.deleteDay.mutate(activeDay.id)}>
+                      <Trash2 className="h-3.5 w-3.5 mr-1.5 text-pt-red" />Remove day
+                    </button>
+                  </div>
+                </div>
+
+                <PTWorkoutEditor
+                  day={activeDay}
+                  exercises={exercises.filter((e) => e.day_id === activeDay.id)}
+                  library={library}
+                  onAddExercise={(input) => m.addExercise.mutate(input as any)}
+                  onUpdateExercise={(id, patch) => m.updateExercise.mutate({ id, patch })}
+                  onDeleteExercise={(id) => m.deleteExercise.mutate(id)}
+                  onDuplicateExercise={(id) => m.duplicateExercise.mutate(id)}
+                  onReorder={(ordered) => m.reorderExercises.mutate(ordered)}
+                />
+
+                <div className="grid gap-2 sm:grid-cols-2 mt-4">
+                  <label className="block">
+                    <span className="pt-eyebrow">Homework</span>
+                    <Textarea key={`dh-${activeDay.id}`} defaultValue={activeDay.homework ?? ""}
+                      onBlur={(e) => m.updateDay.mutate({ id: activeDay.id, patch: { homework: e.target.value || null } })}
+                      className="bg-white border-pt-line text-[13px] mt-0.5 min-h-20" />
+                  </label>
+                  <label className="block">
+                    <span className="pt-eyebrow">Workout notes</span>
+                    <Textarea key={`dn-${activeDay.id}`} defaultValue={activeDay.notes ?? ""}
+                      onBlur={(e) => m.updateDay.mutate({ id: activeDay.id, patch: { notes: e.target.value || null } })}
+                      className="bg-white border-pt-line text-[13px] mt-0.5 min-h-20" />
+                  </label>
+                </div>
+              </PTCard>
+            )}
+          </div>
         )}
       </div>
+
+      <NewProgramModal
+        open={newOpen} onOpenChange={setNewOpen}
+        templates={programs.filter((p: any) => p.is_template)}
+        clients={directory}
+        trainers={trainers}
+        onCreate={(input) => {
+          if (input.templateId) {
+            m.duplicateProgram.mutate(
+              { sourceId: input.templateId, name: input.name, userId: input.userId },
+              { onSuccess: (id) => { select(id); setNewOpen(false); } },
+            );
+          } else {
+            m.createProgram.mutate(
+              {
+                name: input.name, user_id: input.userId ?? null, instructor_id: input.trainerId ?? null,
+                length_weeks: input.lengthWeeks, sessions_per_week: input.perWeek, is_template: input.asTemplate,
+              },
+              { onSuccess: (id) => { select(id); setNewOpen(false); } },
+            );
+          }
+        }}
+      />
+
+      <PTModal
+        open={assignOpen} onOpenChange={setAssignOpen} title="Assign program to client"
+        description="Assigning copies this program so the original stays reusable."
+      >
+        <div className="max-h-80 overflow-y-auto pt-scroll divide-y divide-pt-line/70">
+          {directory.map((c) => (
+            <button
+              key={c.userId}
+              className="w-full text-left px-2 py-2.5 hover:bg-pt-beige/40 text-[13px]"
+              onClick={() => {
+                if (!program) return;
+                if (program.is_template) {
+                  m.duplicateProgram.mutate({ sourceId: program.id, name: `${program.name} — ${c.name}`, userId: c.userId },
+                    { onSuccess: (id) => { select(id); setAssignOpen(false); } });
+                } else {
+                  m.updateProgram.mutate({ id: program.id, patch: { user_id: c.userId } },
+                    { onSuccess: () => setAssignOpen(false) });
+                }
+              }}
+            >
+              {c.name} <span className="text-pt-muted">{c.email}</span>
+            </button>
+          ))}
+        </div>
+      </PTModal>
+
+      <PhaseModal
+        open={phaseOpen} onOpenChange={setPhaseOpen} phases={phases}
+        onSave={(next) => program && m.updateProgram.mutate({ id: program.id, patch: { phases: next } }, { onSuccess: () => setPhaseOpen(false) })}
+      />
     </PTShell>
   );
 }
 
-function ProgramEditor({
-  program, clients, trainers, onChanged, onDeleted,
-}: {
-  program: any;
-  clients: { id: string; name: string }[];
-  trainers: { id: string; name: string }[];
-  onChanged: () => void;
-  onDeleted: () => void;
+/* ------------------------------------------------------------- modals */
+
+function NewProgramModal({ open, onOpenChange, templates, clients, trainers, onCreate }: {
+  open: boolean; onOpenChange: (v: boolean) => void; templates: any[]; clients: any[]; trainers: any[];
+  onCreate: (input: { name: string; templateId?: string | null; userId?: string | null; trainerId?: string | null; lengthWeeks: number; perWeek: number; asTemplate: boolean }) => void;
 }) {
-  const qc = useQueryClient();
-  const [meta, setMeta] = useState({
-    name: program.name ?? "",
-    goal: program.goal ?? "",
-    length_weeks: program.length_weeks?.toString() ?? "",
-    sessions_per_week: program.sessions_per_week?.toString() ?? "",
-    focus_today: program.focus_today ?? "",
-    user_id: program.user_id ?? "none",
-    instructor_id: program.instructor_id ?? "none",
-    status: program.status ?? "active",
-    is_template: !!program.is_template,
-  });
-
-  const { data: days = [] } = useQuery({
-    queryKey: ["pt-program-days", program.id],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("pt_program_days").select("*").eq("program_id", program.id).order("display_order");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const dayIds = useMemo(() => days.map((d: any) => d.id), [days]);
-  const { data: exercises = [] } = useQuery({
-    queryKey: ["pt-program-exercises", dayIds],
-    enabled: dayIds.length > 0,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("pt_program_exercises").select("*").in("day_id", dayIds).order("display_order");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-
-  const refreshDays = () => {
-    qc.invalidateQueries({ queryKey: ["pt-program-days", program.id] });
-    qc.invalidateQueries({ queryKey: ["pt-program-exercises"] });
-  };
-
-  async function saveMeta() {
-    const { error } = await (supabase as any).from("pt_programs").update({
-      name: meta.name,
-      goal: meta.goal || null,
-      length_weeks: meta.length_weeks ? Number(meta.length_weeks) : null,
-      sessions_per_week: meta.sessions_per_week ? Number(meta.sessions_per_week) : null,
-      focus_today: meta.focus_today || null,
-      user_id: meta.user_id === "none" ? null : meta.user_id,
-      instructor_id: meta.instructor_id === "none" ? null : meta.instructor_id,
-      status: meta.status,
-      is_template: meta.is_template,
-    }).eq("id", program.id);
-    if (error) return toast.error(error.message);
-    toast.success("Program saved");
-    onChanged();
-  }
-
-  async function deleteProgram() {
-    if (!window.confirm("Delete this program and all of its days?")) return;
-    const { error } = await (supabase as any).from("pt_programs").delete().eq("id", program.id);
-    if (error) return toast.error(error.message);
-    toast.success("Program deleted");
-    onDeleted();
-  }
-
-  async function duplicateProgram() {
-    const { data: auth } = await supabase.auth.getUser();
-    const { data: newProg, error } = await (supabase as any).from("pt_programs").insert({
-      ...{ ...program, id: undefined, created_at: undefined, updated_at: undefined },
-      name: `${program.name} (copy)`,
-      created_by: auth?.user?.id ?? null,
-    }).select("id").single();
-    if (error) return toast.error(error.message);
-    for (const d of days) {
-      const { data: newDay } = await (supabase as any).from("pt_program_days").insert({
-        program_id: newProg.id, label: d.label, weekday: d.weekday, focus: d.focus,
-        day_type: d.day_type, display_order: d.display_order,
-      }).select("id").single();
-      const dayEx = exercises.filter((e: any) => e.day_id === d.id);
-      if (dayEx.length && newDay) {
-        await (supabase as any).from("pt_program_exercises").insert(
-          dayEx.map((e: any) => ({ ...e, id: undefined, created_at: undefined, day_id: newDay.id }))
-        );
-      }
-    }
-    toast.success("Program duplicated");
-    onChanged();
-  }
-
-  async function addDay() {
-    const { error } = await (supabase as any).from("pt_program_days").insert({
-      program_id: program.id,
-      label: `Day ${days.length + 1}`,
-      display_order: days.length,
-    });
-    if (error) return toast.error(error.message);
-    refreshDays();
-  }
-
+  const [form, setForm] = useState({ name: "", templateId: "scratch", userId: "none", trainerId: "none", lengthWeeks: 4, perWeek: 3, asTemplate: false });
   return (
-    <div className="space-y-5">
-      <PTCard className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className="pt-eyebrow">Program name</label>
-            <Input value={meta.name} onChange={(e) => setMeta({ ...meta, name: e.target.value })} className="mt-1 bg-white border-pt-line" />
-          </div>
-          <div>
-            <label className="pt-eyebrow">Goal</label>
-            <Input value={meta.goal} onChange={(e) => setMeta({ ...meta, goal: e.target.value })} className="mt-1 bg-white border-pt-line" />
-          </div>
-          <div>
-            <label className="pt-eyebrow">Client</label>
-            <Select value={meta.user_id} onValueChange={(v) => setMeta({ ...meta, user_id: v })}>
-              <SelectTrigger className="mt-1 bg-white border-pt-line"><SelectValue /></SelectTrigger>
-              <SelectContent className="max-h-72">
-                <SelectItem value="none">Unassigned / template</SelectItem>
-                {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="pt-eyebrow">Trainer</label>
-            <Select value={meta.instructor_id} onValueChange={(v) => setMeta({ ...meta, instructor_id: v })}>
-              <SelectTrigger className="mt-1 bg-white border-pt-line"><SelectValue /></SelectTrigger>
-              <SelectContent>
+    <PTModal
+      open={open} onOpenChange={onOpenChange} title="New program"
+      footer={<>
+        <button className={ptButtonClass("ghost")} onClick={() => onOpenChange(false)}>Cancel</button>
+        <button className={ptButtonClass("primary")} disabled={!form.name.trim()}
+          onClick={() => onCreate({
+            name: form.name.trim(),
+            templateId: form.templateId === "scratch" ? null : form.templateId,
+            userId: form.userId === "none" ? null : form.userId,
+            trainerId: form.trainerId === "none" ? null : form.trainerId,
+            lengthWeeks: form.lengthWeeks, perWeek: form.perWeek, asTemplate: form.asTemplate,
+          })}>Create</button>
+      </>}
+    >
+      <div className="space-y-3">
+        <div><Label className="pt-eyebrow">Program name</Label>
+          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-white border-pt-line" /></div>
+        <div><Label className="pt-eyebrow">Start from</Label>
+          <Select value={form.templateId} onValueChange={(v) => setForm({ ...form, templateId: v })}>
+            <SelectTrigger className="bg-white border-pt-line"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-white border-pt-line z-50">
+              <SelectItem value="scratch">Blank program</SelectItem>
+              {templates.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><Label className="pt-eyebrow">Client</Label>
+            <Select value={form.userId} onValueChange={(v) => setForm({ ...form, userId: v })}>
+              <SelectTrigger className="bg-white border-pt-line"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-white border-pt-line z-50 max-h-72">
                 <SelectItem value="none">Unassigned</SelectItem>
-                {trainers.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+                {clients.map((c: any) => <SelectItem key={c.userId} value={c.userId}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="pt-eyebrow">Weeks</label>
-              <Input type="number" value={meta.length_weeks} onChange={(e) => setMeta({ ...meta, length_weeks: e.target.value })}
-                className="mt-1 bg-white border-pt-line" />
-            </div>
-            <div>
-              <label className="pt-eyebrow">Sessions / week</label>
-              <Input type="number" value={meta.sessions_per_week} onChange={(e) => setMeta({ ...meta, sessions_per_week: e.target.value })}
-                className="mt-1 bg-white border-pt-line" />
-            </div>
+          <div><Label className="pt-eyebrow">Trainer</Label>
+            <Select value={form.trainerId} onValueChange={(v) => setForm({ ...form, trainerId: v })}>
+              <SelectTrigger className="bg-white border-pt-line"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-white border-pt-line z-50">
+                <SelectItem value="none">Unassigned</SelectItem>
+                {trainers.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
+          <div><Label className="pt-eyebrow">Length (weeks)</Label>
+            <Input type="number" min={1} value={form.lengthWeeks} onChange={(e) => setForm({ ...form, lengthWeeks: Number(e.target.value) })} className="bg-white border-pt-line" /></div>
+          <div><Label className="pt-eyebrow">Sessions / week</Label>
+            <Input type="number" min={1} value={form.perWeek} onChange={(e) => setForm({ ...form, perWeek: Number(e.target.value) })} className="bg-white border-pt-line" /></div>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border border-pt-line px-3 py-2.5">
           <div>
-            <label className="pt-eyebrow">Status</label>
-            <Select value={meta.status} onValueChange={(v) => setMeta({ ...meta, status: v })}>
-              <SelectTrigger className="mt-1 bg-white border-pt-line"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="paused">Paused</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="text-[13px] text-pt-ink">Save as reusable template</div>
+            <div className="text-xs text-pt-muted">Templates stay unassigned and can be copied to any client.</div>
           </div>
+          <Switch checked={form.asTemplate} onCheckedChange={(v) => setForm({ ...form, asTemplate: v })} />
         </div>
-        <div>
-          <label className="pt-eyebrow">Focus / coaching notes</label>
-          <Textarea rows={2} value={meta.focus_today} onChange={(e) => setMeta({ ...meta, focus_today: e.target.value })}
-            className="mt-1 bg-white border-pt-line" />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button className={ptButtonClass()} onClick={saveMeta}><Save className="h-4 w-4" /> Save</button>
-          <button className={ptButtonClass("outline")} onClick={duplicateProgram}><Copy className="h-4 w-4" /> Duplicate</button>
-          <label className="flex items-center gap-2 text-[13px] text-pt-muted ml-2">
-            <input type="checkbox" checked={meta.is_template} onChange={(e) => setMeta({ ...meta, is_template: e.target.checked })} />
-            Save as reusable template
-          </label>
-          <button className={`${ptButtonClass("ghost")} ml-auto text-pt-red`} onClick={deleteProgram}>
-            <Trash2 className="h-4 w-4" /> Delete
-          </button>
-        </div>
-      </PTCard>
-
-      <div>
-        <PTSectionTitle action={<button className={ptButtonClass("outline")} onClick={addDay}><Plus className="h-4 w-4" /> Add day</button>}>
-          Training days
-        </PTSectionTitle>
-        {days.length === 0 ? <PTEmpty>No days yet — add the first one.</PTEmpty> : (
-          <div className="space-y-4">
-            {days.map((d: any) => (
-              <DayCard
-                key={d.id}
-                day={d}
-                exercises={exercises.filter((e: any) => e.day_id === d.id)}
-                onChanged={refreshDays}
-              />
-            ))}
-          </div>
-        )}
       </div>
-    </div>
+    </PTModal>
   );
 }
 
-function DayCard({ day, exercises, onChanged }: { day: any; exercises: any[]; onChanged: () => void }) {
-  const [label, setLabel] = useState(day.label);
-  const [focus, setFocus] = useState(day.focus ?? "");
-
-  async function saveDay() {
-    const { error } = await (supabase as any).from("pt_program_days").update({ label, focus: focus || null }).eq("id", day.id);
-    if (error) return toast.error(error.message);
-    toast.success("Day saved");
-    onChanged();
-  }
-
-  async function deleteDay() {
-    if (!window.confirm("Delete this day?")) return;
-    const { error } = await (supabase as any).from("pt_program_days").delete().eq("id", day.id);
-    if (error) return toast.error(error.message);
-    onChanged();
-  }
-
-  async function addExercise() {
-    const { error } = await (supabase as any).from("pt_program_exercises").insert({
-      day_id: day.id, exercise: "New exercise", sets: 3, reps: "10", display_order: exercises.length,
-    });
-    if (error) return toast.error(error.message);
-    onChanged();
-  }
-
-  async function updateExercise(id: string, patch: Record<string, any>) {
-    const { error } = await (supabase as any).from("pt_program_exercises").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
-  }
-
-  async function removeExercise(id: string) {
-    const { error } = await (supabase as any).from("pt_program_exercises").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    onChanged();
-  }
-
-  async function move(index: number, dir: -1 | 1) {
-    const target = index + dir;
-    if (target < 0 || target >= exercises.length) return;
-    const a = exercises[index], b = exercises[target];
-    await Promise.all([
-      (supabase as any).from("pt_program_exercises").update({ display_order: b.display_order }).eq("id", a.id),
-      (supabase as any).from("pt_program_exercises").update({ display_order: a.display_order }).eq("id", b.id),
-    ]);
-    onChanged();
-  }
-
+function PhaseModal({ open, onOpenChange, phases, onSave }: {
+  open: boolean; onOpenChange: (v: boolean) => void; phases: PTProgramPhase[]; onSave: (p: PTProgramPhase[]) => void;
+}) {
+  const [list, setList] = useState<PTProgramPhase[]>(phases.length ? phases : [{ name: "Foundation", weeks: 4, focus: "" }]);
+  useEffect(() => { if (open) setList(phases.length ? phases : [{ name: "Foundation", weeks: 4, focus: "" }]); }, [open, phases]);
   return (
-    <PTCard className="p-0 overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-pt-line/70 bg-pt-beige/25">
-        <Input value={label} onChange={(e) => setLabel(e.target.value)} className="h-8 w-40 bg-white border-pt-line" />
-        <Input value={focus} placeholder="Focus (e.g. lower body)" onChange={(e) => setFocus(e.target.value)}
-          className="h-8 w-56 bg-white border-pt-line" />
-        <button className={ptButtonClass("outline")} onClick={saveDay}>Save</button>
-        <button className={ptButtonClass("outline")} onClick={addExercise}><Plus className="h-4 w-4" /> Exercise</button>
-        <button className={`${ptButtonClass("ghost")} ml-auto text-pt-red`} onClick={deleteDay}><Trash2 className="h-4 w-4" /></button>
+    <PTModal
+      open={open} onOpenChange={onOpenChange} title="Training phases"
+      footer={<>
+        <button className={ptButtonClass("ghost")} onClick={() => onOpenChange(false)}>Cancel</button>
+        <button className={ptButtonClass("primary")} onClick={() => onSave(list.filter((p) => p.name.trim()))}>Save phases</button>
+      </>}
+    >
+      <div className="space-y-2">
+        {list.map((p, i) => (
+          <div key={i} className="grid grid-cols-[2fr_80px_2fr_auto] gap-2 items-end">
+            <label className="block"><span className="pt-eyebrow">Phase</span>
+              <Input value={p.name} onChange={(e) => setList(list.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} className="h-8 bg-white border-pt-line text-[13px]" /></label>
+            <label className="block"><span className="pt-eyebrow">Weeks</span>
+              <Input type="number" min={1} value={p.weeks} onChange={(e) => setList(list.map((x, j) => j === i ? { ...x, weeks: Number(e.target.value) } : x))} className="h-8 bg-white border-pt-line text-[13px]" /></label>
+            <label className="block"><span className="pt-eyebrow">Focus</span>
+              <Input value={p.focus ?? ""} onChange={(e) => setList(list.map((x, j) => j === i ? { ...x, focus: e.target.value } : x))} className="h-8 bg-white border-pt-line text-[13px]" /></label>
+            <button className={ptButtonClass("ghost")} onClick={() => setList(list.filter((_, j) => j !== i))} aria-label="Remove phase">
+              <Trash2 className="h-3.5 w-3.5 text-pt-red" />
+            </button>
+          </div>
+        ))}
+        <button className={ptButtonClass("outline")} onClick={() => setList([...list, { name: "", weeks: 4, focus: "" }])}>
+          <Plus className="h-4 w-4 mr-1.5" />Add phase
+        </button>
       </div>
-
-      {exercises.length === 0 ? (
-        <div className="p-4"><PTEmpty>No exercises in this day.</PTEmpty></div>
-      ) : (
-        <div className="overflow-x-auto pt-scroll">
-          <table className="w-full text-sm min-w-[820px]">
-            <thead>
-              <tr className="text-left border-b border-pt-line/70">
-                {["", "Exercise", "Sets", "Reps", "Load", "Tempo", "Rest", "Cues", ""].map((h, i) => (
-                  <th key={i} className="px-2 py-2 pt-eyebrow font-normal">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-pt-line/50">
-              {exercises.map((e: any, i: number) => (
-                <tr key={e.id}>
-                  <td className="px-2 py-1.5">
-                    <div className="flex flex-col">
-                      <button className="text-pt-muted hover:text-pt-ink" onClick={() => move(i, -1)}><ChevronUp className="h-3 w-3" /></button>
-                      <button className="text-pt-muted hover:text-pt-ink" onClick={() => move(i, 1)}><ChevronDown className="h-3 w-3" /></button>
-                    </div>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <Input defaultValue={e.exercise} onBlur={(ev) => updateExercise(e.id, { exercise: ev.target.value })}
-                      className="h-8 bg-white border-pt-line min-w-[180px]" />
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <Input type="number" defaultValue={e.sets ?? ""} onBlur={(ev) => updateExercise(e.id, { sets: ev.target.value ? Number(ev.target.value) : null })}
-                      className="h-8 w-16 bg-white border-pt-line" />
-                  </td>
-                  {(["reps", "load", "tempo", "rest"] as const).map((f) => (
-                    <td key={f} className="px-2 py-1.5">
-                      <Input defaultValue={e[f] ?? ""} onBlur={(ev) => updateExercise(e.id, { [f]: ev.target.value || null })}
-                        className="h-8 w-20 bg-white border-pt-line" />
-                    </td>
-                  ))}
-                  <td className="px-2 py-1.5">
-                    <Input defaultValue={e.cues ?? ""} onBlur={(ev) => updateExercise(e.id, { cues: ev.target.value || null })}
-                      className="h-8 bg-white border-pt-line min-w-[160px]" />
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <button className="text-pt-muted hover:text-pt-red" onClick={() => removeExercise(e.id)}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </PTCard>
+    </PTModal>
   );
 }
