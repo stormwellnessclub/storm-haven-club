@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import {
+  DollarSign,
   LayoutDashboard,
   Users,
   UsersRound,
