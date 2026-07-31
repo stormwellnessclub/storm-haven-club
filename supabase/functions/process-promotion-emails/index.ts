@@ -140,8 +140,8 @@ async function loadRecipients(supabase: any, audience: string): Promise<Recipien
   try {
     const { data: unsub } = await supabase
       .from("marketing_contacts")
-      .select("email, unsubscribed")
-      .eq("unsubscribed", true);
+      .select("email, unsubscribed_at, opted_in_email")
+      .or("unsubscribed_at.not.is.null,opted_in_email.eq.false");
     for (const u of unsub ?? []) {
       const e = String(u.email || "").trim().toLowerCase();
       if (e) out.delete(e);
