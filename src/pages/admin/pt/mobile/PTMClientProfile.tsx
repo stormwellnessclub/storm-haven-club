@@ -580,7 +580,7 @@ function MessageSheet({ open, onClose, client }: { open: boolean; onClose: () =>
         </div>
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={4}
           placeholder="What was communicated?"
-          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         <button className={ptmButtonClass("primary")} disabled={!body.trim() || logCommunication.isPending}
           onClick={() => logCommunication.mutate({ channel, body }, { onSuccess: () => { setBody(""); onClose(); } })}>
           Log message
@@ -613,10 +613,10 @@ function NoteSheet({
     <PTMSheet open={open} onOpenChange={(v) => !v && onClose()} title="Add note">
       <div className="space-y-3">
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={5} placeholder="Observation…"
-          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         {!privateNote && (
           <input value={nextFocus} onChange={(e) => setNextFocus(e.target.value)} placeholder="Next-session focus (optional)"
-            className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+            className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         )}
         {canPrivate && (
           <label className="flex items-center gap-2 text-[13px] text-pt-ink">
@@ -644,12 +644,12 @@ function ProgressSheet({ open, onClose, userId }: { open: boolean; onClose: () =
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" placeholder="Weight (lb)"
-            className="rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+            className="rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
           <input value={bf} onChange={(e) => setBf(e.target.value)} inputMode="decimal" placeholder="Body fat %"
-            className="rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+            className="rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         </div>
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Notes (optional)"
-          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         <button className={ptmButtonClass("primary")} disabled={(!weight && !bf && !notes.trim()) || recordProgress.isPending}
           onClick={() =>
             recordProgress.mutate(
@@ -677,9 +677,9 @@ function TaskSheet({ open, onClose, userId }: { open: boolean; onClose: () => vo
     <PTMSheet open={open} onOpenChange={(v) => !v && onClose()} title="Create follow-up task">
       <div className="space-y-3">
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title"
-          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         <input type="date" value={due} onChange={(e) => setDue(e.target.value)}
-          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none" />
+          className="w-full rounded-xl border border-pt-line bg-pt-cream p-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold" />
         <button className={ptmButtonClass("primary")} disabled={!title.trim() || createTask.isPending}
           onClick={() =>
             createTask.mutate(

@@ -34,7 +34,7 @@ export default function PTMClients() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, email, phone"
-          className="min-h-[48px] w-full rounded-xl border border-pt-line bg-pt-cream pl-9 pr-3 text-[15px] text-pt-ink outline-none"
+          className="min-h-[48px] w-full rounded-xl border border-pt-line bg-pt-cream pl-9 pr-3 text-[15px] text-pt-ink outline-none focus:border-pt-gold focus-visible:ring-1 focus-visible:ring-pt-gold"
         />
       </div>
 
