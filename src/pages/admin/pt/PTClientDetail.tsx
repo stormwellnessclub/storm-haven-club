@@ -189,7 +189,7 @@ export default function PTClientDetail() {
         </div>
       )}
 
-      <PTTabs
+      <PTTabs<Tab>
         tabs={TABS.map((t) => ({
           value: t,
           label: t,
