@@ -333,6 +333,8 @@ export default function BillingArrears() {
   const [bulkChargeOpen, setBulkChargeOpen] = useState(false);
   const [bulkSmsOpen, setBulkSmsOpen] = useState(false);
   const [bulkOutreachOpen, setBulkOutreachOpen] = useState(false);
+  const [cancelNoticeOpen, setCancelNoticeOpen] = useState(false);
+
 
   const filters = useMemo(() => ({
     search: search || undefined,
