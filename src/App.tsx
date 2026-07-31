@@ -467,6 +467,14 @@ const App = () => (
               <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients/:userId" element={<ProtectedAdminRoute><PTPortalClientDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/programs" element={<ProtectedAdminRoute><PTPortalPrograms /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/notes" element={<ProtectedAdminRoute><PTPortalSessionNotes /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/progress" element={<ProtectedAdminRoute><PTPortalProgress /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/packages" element={<ProtectedAdminRoute><PTPortalPackages /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/trainers" element={<ProtectedAdminRoute><PTPortalTrainers /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/tasks" element={<ProtectedAdminRoute><PTPortalTasks /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/messages" element={<ProtectedAdminRoute><PTPortalMessages /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/reports" element={<ProtectedAdminRoute><PTPortalReports /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/settings" element={<ProtectedAdminRoute><PTPortalSettings /></ProtectedAdminRoute>} />
               
               
               <Route path="*" element={<NotFound />} />
