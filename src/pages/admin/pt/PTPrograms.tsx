@@ -443,6 +443,32 @@ export default function PTPrograms() {
         open={phaseOpen} onOpenChange={setPhaseOpen} phases={phases}
         onSave={(next) => program && m.updateProgram.mutate({ id: program.id, patch: { phases: next } }, { onSuccess: () => setPhaseOpen(false) })}
       />
+
+      <PTConfirmDialog
+        open={confirmDeleteProgram}
+        onOpenChange={setConfirmDeleteProgram}
+        title="Delete this program?"
+        description={`"${program?.name ?? "This program"}" and all of its workout days and exercises will be permanently removed. This cannot be undone.`}
+        confirmLabel="Delete program"
+        destructive
+        onConfirm={() => {
+          setConfirmDeleteProgram(false);
+          if (program) m.deleteProgram.mutate(program.id, { onSuccess: () => setSelected(undefined) });
+        }}
+      />
+
+      <PTConfirmDialog
+        open={confirmDeleteDay}
+        onOpenChange={setConfirmDeleteDay}
+        title="Remove this workout day?"
+        description="The day and every exercise programmed on it will be deleted. This cannot be undone."
+        confirmLabel="Remove day"
+        destructive
+        onConfirm={() => {
+          setConfirmDeleteDay(false);
+          if (activeDayId) m.deleteDay.mutate(activeDayId);
+        }}
+      />
     </PTShell>
   );
 }
