@@ -184,7 +184,7 @@ export default function PTClients() {
               ),
             },
             { key: "phone", header: "Phone", render: (r) => <span className="text-pt-muted">{r.phone ?? "—"}</span> },
-            { key: "trainer", header: "Trainer", render: (r) => r.primaryTrainerId ? (trainerMap[r.primaryTrainerId]?.name ?? "—") : <span className="text-pt-muted">Unassigned</span> },
+            { key: "trainer", header: "Trainer", render: (r) => r.primaryTrainerId ? (trainerMap[r.primaryTrainerId] ?? "—") : <span className="text-pt-muted">Unassigned</span> },
             {
               key: "membership", header: "Membership",
               render: (r) => <PTBadge tone={r.isMember ? "green" : "neutral"}>{r.isMember ? r.membershipStatus : "Non-member"}</PTBadge>,
