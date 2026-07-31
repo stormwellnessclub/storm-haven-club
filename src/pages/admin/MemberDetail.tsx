@@ -3035,7 +3035,24 @@ export default function MemberDetail() {
         }}
       />
     )}
+
+    <CancellationNoticeDialog
+      open={showCancellationNoticeDialog}
+      onOpenChange={setShowCancellationNoticeDialog}
+      targets={member ? [{
+        id: member.id,
+        first_name: member.first_name,
+        last_name: member.last_name,
+        email: member.email,
+        membership_type: (member as any).membership_type ?? null,
+        annual_fee_paid_at: (member as any).annual_fee_paid_at ?? null,
+        annual_fee_subscription_id: (member as any).annual_fee_subscription_id ?? null,
+        stripe_subscription_id: (member as any).stripe_subscription_id ?? null,
+      }] : []}
+      onSent={() => queryClient.invalidateQueries({ queryKey: ["admin-member", id] })}
+    />
     </>
+
   );
 }
 
