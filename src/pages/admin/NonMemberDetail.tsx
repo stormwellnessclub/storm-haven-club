@@ -24,13 +24,16 @@ import {
 import {
   ArrowLeft, Edit2, X, Check, CreditCard, RefreshCw, ShieldCheck, ShieldX,
   Package, Calendar, Loader2, Mail, Phone, User, Pencil, DollarSign, Clock,
-  Plus, Zap, Gift,
+  Plus, Zap, Gift, Dumbbell,
 } from "lucide-react";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { EditClassPassDialog } from "@/components/admin/EditClassPassDialog";
 import { EditCreditDialog } from "@/components/admin/EditCreditDialog";
 import { ChargeItemSelector } from "@/components/admin/ChargeItemSelector";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
+import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
+import { SellPTDialog } from "@/components/admin/SellPTDialog";
+import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { NonMemberGuestPassSaleCard } from "@/components/admin/NonMemberGuestPassSaleCard";
 
