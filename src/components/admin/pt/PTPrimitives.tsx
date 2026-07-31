@@ -292,7 +292,7 @@ export function PTModal({
 
 export function PTConfirmDialog({
   open, onOpenChange, title, description, confirmLabel = "Confirm", cancelLabel = "Cancel",
-  onConfirm, destructive,
+  onConfirm, destructive, children,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -302,6 +302,7 @@ export function PTConfirmDialog({
   cancelLabel?: string;
   onConfirm: () => void | Promise<void>;
   destructive?: boolean;
+  children?: React.ReactNode;
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -310,6 +311,8 @@ export function PTConfirmDialog({
           <AlertDialogTitle className="pt-serif text-xl text-pt-ink">{title}</AlertDialogTitle>
           {description && <AlertDialogDescription className="text-pt-muted">{description}</AlertDialogDescription>}
         </AlertDialogHeader>
+        {children}
+
         <AlertDialogFooter>
           <AlertDialogCancel className="border-pt-line bg-white text-pt-ink hover:bg-pt-beige/50">
             {cancelLabel}
