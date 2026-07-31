@@ -473,6 +473,9 @@ const App = () => (
               <Route path="/admin/pt/m/clients" element={<ProtectedAdminRoute><PTMClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/progress" element={<ProtectedAdminRoute><PTMProgress /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/more" element={<ProtectedAdminRoute><PTMMore /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/next" element={<ProtectedAdminRoute><PTMNextSession /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/session/:appointmentId" element={<ProtectedAdminRoute><PTMNextSession /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/session/:appointmentId/pre" element={<ProtectedAdminRoute><PTMNextSession /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/schedule" element={<ProtectedAdminRoute><PTPortalSchedule /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients" element={<ProtectedAdminRoute><PTPortalClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/clients/:userId" element={<ProtectedAdminRoute><PTPortalClientDetail /></ProtectedAdminRoute>} />
