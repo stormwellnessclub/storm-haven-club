@@ -1001,8 +1001,8 @@ export default function MemberDetail() {
     if (!member) return;
     setIsCancelingMembership(true);
     try {
-      // 1. Cancel Stripe subscription if exists
-      if (member.stripe_subscription_id) {
+      // 1. Cancel Stripe subscriptions (dues AND annual/initiation fee) if any exist
+      if (member.stripe_subscription_id || (member as any).annual_fee_subscription_id || (member as any).stripe_customer_id) {
         const { data, error } = await supabase.functions.invoke('stripe-payment', {
           body: {
             action: 'deactivate_member',
@@ -1012,6 +1012,7 @@ export default function MemberDetail() {
         if (error) throw error;
         if (data?.error) console.warn("Stripe deactivation warning:", data.error);
       }
+
 
       // 2. Update member status to cancelled
       const { error: updateError } = await supabase
