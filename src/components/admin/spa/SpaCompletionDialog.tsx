@@ -444,13 +444,52 @@ export function SpaCompletionDialog({
             />
           </div>
 
-          {/* Total */}
+          {/* Breakdown */}
           {paymentMethod !== "no_charge" && (
-            <div className="flex justify-between items-center p-3 rounded-lg bg-primary/5 border">
-              <span className="font-medium">Total</span>
-              <span className="text-lg font-bold">${totalAmount.toFixed(2)}</span>
+            <div className="p-3 rounded-lg bg-primary/5 border space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{appointment.service_name}</span>
+                <span>${servicePrice.toFixed(2)}</span>
+              </div>
+              {selectedAddons.map((a) => (
+                <div key={a.id} className="flex justify-between">
+                  <span className="text-muted-foreground">{a.name}</span>
+                  <span>${a.price.toFixed(2)}</span>
+                </div>
+              ))}
+              {addonsTotal > 0 && (
+                <div className="flex justify-between border-t pt-1">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span>${subtotal.toFixed(2)}</span>
+                </div>
+              )}
+              {tipAmount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Tip</span>
+                  <span>${tipAmount.toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center border-t pt-2">
+                <span className="font-medium">Total</span>
+                <span className="text-lg font-bold">${totalAmount.toFixed(2)}</span>
+              </div>
             </div>
           )}
+
+          {/* Receipt email */}
+          {paymentMethod !== "no_charge" && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="send-receipt"
+                checked={sendReceipt}
+                onCheckedChange={(v) => setSendReceipt(v === true)}
+              />
+              <Label htmlFor="send-receipt" className="font-normal cursor-pointer">
+                Email an itemized receipt
+              </Label>
+            </div>
+          )}
+
 
           {paymentMethod === "card" && !hasCardOnFile && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
