@@ -3358,6 +3358,74 @@ serve(async (req) => {
         throw new Error(`Unknown email type: ${type}`);
     }
 
+    // ---- Editable cancellation notices -------------------------------------
+    // The three cancellation variants can be overridden by admin-editable
+    // templates stored in public.cancellation_notice_templates, and by a
+    // one-off custom body/subject passed from the admin preview dialog.
+    const CANCELLATION_TYPES = new Set([
+      'membership_cancelled',
+      'incomplete_membership_cancelled',
+      'application_cancelled',
+    ]);
+    if (CANCELLATION_TYPES.has(type)) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const admin = createClient(supabaseUrl, supabaseServiceKey);
+
+        let bodyTemplate: string | null = data?.customBodyHtml ? String(data.customBodyHtml) : null;
+        let subjectTemplate: string | null = data?.customSubject ? String(data.customSubject) : null;
+
+        if (!bodyTemplate || !subjectTemplate) {
+          const { data: tpl } = await admin
+            .from('cancellation_notice_templates')
+            .select('subject, body_html')
+            .eq('template_key', type)
+            .maybeSingle();
+          if (tpl) {
+            bodyTemplate = bodyTemplate ?? tpl.body_html;
+            subjectTemplate = subjectTemplate ?? tpl.subject;
+          }
+        }
+
+        if (bodyTemplate) {
+          const amountOwed = Number(data?.amountOwed ?? 0);
+          const amountOwedBlock = amountOwed > 0
+            ? `Our records show an outstanding balance of <strong>$${amountOwed.toFixed(2)}</strong> on your account. Please contact us to settle this balance.`
+            : '';
+          const extraMessage = data?.extraMessage ? String(data.extraMessage) : '';
+          const vars: Record<string, string> = {
+            name: String(data?.name ?? ''),
+            membershipTier: String(data?.membershipTier ?? ''),
+            cancellationDate: String(data?.cancellationDate ?? ''),
+            reason: String(data?.reason ?? ''),
+            amountOwed: amountOwed > 0 ? `$${amountOwed.toFixed(2)}` : '',
+            amountOwedBlock,
+            extraMessage,
+          };
+          const fill = (tplStr: string) =>
+            tplStr.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key) => vars[key] ?? '')
+              // drop paragraphs that ended up empty after substitution
+              .replace(/<p[^>]*>\s*<\/p>/g, '');
+
+          subject = fill(subjectTemplate ?? subject);
+          html = `
+            <div style="${emailStyles.container}">
+              ${getEmailHeader()}
+              <div style="${emailStyles.content}; font-size: 16px; line-height: 1.8; color: #374151;">
+                ${fill(bodyTemplate)}
+              </div>
+              ${getReceiptFooter()}
+            </div>
+          `;
+        }
+      } catch (tplErr) {
+        console.warn('Cancellation template override failed, using built-in copy:', tplErr);
+      }
+    }
+
+
+
     // Use named sender for application emails
     const senderAddress = type === 'application_submitted'
       ? 'Storm Wellness Club <membership@stormwellnessclub.com>'
