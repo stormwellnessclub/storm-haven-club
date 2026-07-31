@@ -187,7 +187,7 @@ export function BookPTSessionDialog({
         p_duration_minutes: duration,
         p_instructor_id: instructorId || null,
         p_notes: notes || null,
-        p_pass_id: unpaidMode ? null : selectedPass!.id,
+        p_pass_id: unpaidMode ? null : selectedPass?.id ?? null,
         p_unpaid: unpaidMode,
         p_rate_cents: unpaidMode ? rateCents : 0,
       });
