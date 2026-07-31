@@ -53,6 +53,8 @@ export function BookPTSessionDialog({
   const [duration, setDuration] = useState<number>(60);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [unpaidMode, setUnpaidMode] = useState(false);
+  const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
