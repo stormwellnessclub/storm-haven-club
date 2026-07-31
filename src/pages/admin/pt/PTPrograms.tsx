@@ -209,7 +209,7 @@ export default function PTPrograms() {
                       { label: "Export program", icon: Download, onSelect: exportProgram },
                       { label: "Share client recap", icon: Share2, onSelect: shareRecap },
                       { label: "Delete program", icon: Trash2, destructive: true, separatorBefore: true,
-                        onSelect: () => m.deleteProgram.mutate(program.id, { onSuccess: () => setSelected(undefined) }) },
+                        onSelect: () => setConfirmDeleteProgram(true) },
                     ]}
                   />
                 </div>
