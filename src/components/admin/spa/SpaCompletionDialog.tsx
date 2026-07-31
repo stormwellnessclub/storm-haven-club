@@ -334,10 +334,37 @@ export function SpaCompletionDialog({
             <p className="text-sm font-semibold">${servicePrice.toFixed(2)}</p>
           </div>
 
+          {/* Add-ons */}
+          {availableAddons.length > 0 && (
+            <div className="space-y-2">
+              <Label className="font-medium">Add-Ons</Label>
+              <div className="space-y-2 rounded-lg border p-3">
+                {availableAddons.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`addon-${a.id}`}
+                        checked={selectedAddons.some((s) => s.id === a.id)}
+                        onCheckedChange={() => toggleAddon(a)}
+                      />
+                      <Label htmlFor={`addon-${a.id}`} className="font-normal cursor-pointer">
+                        {a.name}
+                      </Label>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      ${Number(a.price).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Intake form summary */}
           <div className="p-3 rounded-lg border bg-muted/20">
             <IntakeFormSummary intake={intake} />
           </div>
+
 
           {/* Payment method */}
           <div className="space-y-2">
