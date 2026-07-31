@@ -6662,6 +6662,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          detail: string | null
+          id: string
+          metadata: Json
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          metadata?: Json
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          detail?: string | null
+          id?: string
+          metadata?: Json
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       pt_appointments: {
         Row: {
           amount_due_cents: number
@@ -6669,6 +6699,8 @@ export type Database = {
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          checked_in_at: string | null
+          completed_at: string | null
           confirmation_email_sent_at: string | null
           created_at: string
           duration_minutes: number
@@ -6676,6 +6708,7 @@ export type Database = {
           format: Database["public"]["Enums"]["pt_format"]
           id: string
           instructor_id: string | null
+          is_waitlist: boolean
           notes: string | null
           paid_at: string | null
           pass_id: string | null
@@ -6695,6 +6728,8 @@ export type Database = {
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          checked_in_at?: string | null
+          completed_at?: string | null
           confirmation_email_sent_at?: string | null
           created_at?: string
           duration_minutes?: number
@@ -6702,6 +6737,7 @@ export type Database = {
           format: Database["public"]["Enums"]["pt_format"]
           id?: string
           instructor_id?: string | null
+          is_waitlist?: boolean
           notes?: string | null
           paid_at?: string | null
           pass_id?: string | null
@@ -6721,6 +6757,8 @@ export type Database = {
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
+          checked_in_at?: string | null
+          completed_at?: string | null
           confirmation_email_sent_at?: string | null
           created_at?: string
           duration_minutes?: number
@@ -6728,6 +6766,7 @@ export type Database = {
           format?: Database["public"]["Enums"]["pt_format"]
           id?: string
           instructor_id?: string | null
+          is_waitlist?: boolean
           notes?: string | null
           paid_at?: string | null
           pass_id?: string | null
@@ -6778,6 +6817,157 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pt_body_metrics: {
+        Row: {
+          arms_in: number | null
+          body_fat_pct: number | null
+          chest_in: number | null
+          created_at: string
+          created_by: string | null
+          hips_in: number | null
+          id: string
+          measured_on: string
+          muscle_mass_lbs: number | null
+          notes: string | null
+          thighs_in: number | null
+          user_id: string
+          waist_in: number | null
+          weight_lbs: number | null
+        }
+        Insert: {
+          arms_in?: number | null
+          body_fat_pct?: number | null
+          chest_in?: number | null
+          created_at?: string
+          created_by?: string | null
+          hips_in?: number | null
+          id?: string
+          measured_on?: string
+          muscle_mass_lbs?: number | null
+          notes?: string | null
+          thighs_in?: number | null
+          user_id: string
+          waist_in?: number | null
+          weight_lbs?: number | null
+        }
+        Update: {
+          arms_in?: number | null
+          body_fat_pct?: number | null
+          chest_in?: number | null
+          created_at?: string
+          created_by?: string | null
+          hips_in?: number | null
+          id?: string
+          measured_on?: string
+          muscle_mass_lbs?: number | null
+          notes?: string | null
+          thighs_in?: number | null
+          user_id?: string
+          waist_in?: number | null
+          weight_lbs?: number | null
+        }
+        Relationships: []
+      }
+      pt_client_profiles: {
+        Row: {
+          created_at: string
+          date_of_birth: string | null
+          gender: string | null
+          goals: Json
+          height: string | null
+          id: string
+          internal_notes: string | null
+          preferences: Json
+          primary_trainer_id: string | null
+          restrictions: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date_of_birth?: string | null
+          gender?: string | null
+          goals?: Json
+          height?: string | null
+          id?: string
+          internal_notes?: string | null
+          preferences?: Json
+          primary_trainer_id?: string | null
+          restrictions?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date_of_birth?: string | null
+          gender?: string | null
+          goals?: Json
+          height?: string | null
+          id?: string
+          internal_notes?: string | null
+          preferences?: Json
+          primary_trainer_id?: string | null
+          restrictions?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_client_profiles_primary_trainer_id_fkey"
+            columns: ["primary_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_profiles_primary_trainer_id_fkey"
+            columns: ["primary_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_client_profiles_primary_trainer_id_fkey"
+            columns: ["primary_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_exercise_library: {
+        Row: {
+          created_at: string
+          equipment: string | null
+          id: string
+          is_active: boolean
+          muscle_group: string | null
+          name: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          equipment?: string | null
+          id?: string
+          is_active?: boolean
+          muscle_group?: string | null
+          name: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          equipment?: string | null
+          id?: string
+          is_active?: boolean
+          muscle_group?: string | null
+          name?: string
+          notes?: string | null
+        }
+        Relationships: []
       }
       pt_notes: {
         Row: {
@@ -6965,6 +7155,307 @@ export type Database = {
           },
         ]
       }
+      pt_program_days: {
+        Row: {
+          created_at: string
+          day_type: string
+          display_order: number
+          focus: string | null
+          id: string
+          label: string
+          program_id: string
+          weekday: number | null
+        }
+        Insert: {
+          created_at?: string
+          day_type?: string
+          display_order?: number
+          focus?: string | null
+          id?: string
+          label: string
+          program_id: string
+          weekday?: number | null
+        }
+        Update: {
+          created_at?: string
+          day_type?: string
+          display_order?: number
+          focus?: string | null
+          id?: string
+          label?: string
+          program_id?: string
+          weekday?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_program_days_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "pt_programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_program_exercises: {
+        Row: {
+          created_at: string
+          cues: string | null
+          day_id: string
+          display_order: number
+          exercise: string
+          id: string
+          load: string | null
+          reps: string | null
+          rest: string | null
+          sets: number | null
+          substitution: string | null
+          superset_group: string | null
+          tempo: string | null
+        }
+        Insert: {
+          created_at?: string
+          cues?: string | null
+          day_id: string
+          display_order?: number
+          exercise: string
+          id?: string
+          load?: string | null
+          reps?: string | null
+          rest?: string | null
+          sets?: number | null
+          substitution?: string | null
+          superset_group?: string | null
+          tempo?: string | null
+        }
+        Update: {
+          created_at?: string
+          cues?: string | null
+          day_id?: string
+          display_order?: number
+          exercise?: string
+          id?: string
+          load?: string | null
+          reps?: string | null
+          rest?: string | null
+          sets?: number | null
+          substitution?: string | null
+          superset_group?: string | null
+          tempo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_program_exercises_day_id_fkey"
+            columns: ["day_id"]
+            isOneToOne: false
+            referencedRelation: "pt_program_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_programs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          focus_today: string | null
+          goal: string | null
+          id: string
+          instructor_id: string | null
+          is_template: boolean
+          length_weeks: number | null
+          name: string
+          next_reassessment: string | null
+          sessions_per_week: number | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          focus_today?: string | null
+          goal?: string | null
+          id?: string
+          instructor_id?: string | null
+          is_template?: boolean
+          length_weeks?: number | null
+          name: string
+          next_reassessment?: string | null
+          sessions_per_week?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          focus_today?: string | null
+          goal?: string | null
+          id?: string
+          instructor_id?: string | null
+          is_template?: boolean
+          length_weeks?: number | null
+          name?: string
+          next_reassessment?: string | null
+          sessions_per_week?: number | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_programs_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_programs_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_programs_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_prs: {
+        Row: {
+          achieved_on: string
+          created_at: string
+          created_by: string | null
+          exercise: string
+          id: string
+          notes: string | null
+          reps: number | null
+          user_id: string
+          weight_lbs: number | null
+        }
+        Insert: {
+          achieved_on?: string
+          created_at?: string
+          created_by?: string | null
+          exercise: string
+          id?: string
+          notes?: string | null
+          reps?: number | null
+          user_id: string
+          weight_lbs?: number | null
+        }
+        Update: {
+          achieved_on?: string
+          created_at?: string
+          created_by?: string | null
+          exercise?: string
+          id?: string
+          notes?: string | null
+          reps?: number | null
+          user_id?: string
+          weight_lbs?: number | null
+        }
+        Relationships: []
+      }
+      pt_session_notes: {
+        Row: {
+          appointment_id: string | null
+          created_at: string
+          created_by: string | null
+          energy_level: number | null
+          homework: string | null
+          id: string
+          instructor_id: string | null
+          is_draft: boolean
+          mobility_issues: string | null
+          modifications: string | null
+          next_focus: string | null
+          objective: string | null
+          observations: string | null
+          rpe: number | null
+          session_date: string
+          subjective: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          energy_level?: number | null
+          homework?: string | null
+          id?: string
+          instructor_id?: string | null
+          is_draft?: boolean
+          mobility_issues?: string | null
+          modifications?: string | null
+          next_focus?: string | null
+          objective?: string | null
+          observations?: string | null
+          rpe?: number | null
+          session_date?: string
+          subjective?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          energy_level?: number | null
+          homework?: string | null
+          id?: string
+          instructor_id?: string | null
+          is_draft?: boolean
+          mobility_issues?: string | null
+          modifications?: string | null
+          next_focus?: string | null
+          objective?: string | null
+          observations?: string | null
+          rpe?: number | null
+          session_date?: string
+          subjective?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_session_notes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_notes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_notes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_notes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_session_usage: {
         Row: {
           created_at: string
@@ -6996,6 +7487,76 @@ export type Database = {
             columns: ["pass_id"]
             isOneToOne: false
             referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_tasks: {
+        Row: {
+          assigned_to: string | null
+          client_user_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          detail: string | null
+          due_at: string | null
+          id: string
+          instructor_id: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_user_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          detail?: string | null
+          due_at?: string | null
+          id?: string
+          instructor_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          task_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          client_user_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          detail?: string | null
+          due_at?: string | null
+          id?: string
+          instructor_id?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_tasks_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_tasks_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_tasks_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
             referencedColumns: ["id"]
           },
         ]
@@ -9795,6 +10356,8 @@ export type Database = {
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          checked_in_at: string | null
+          completed_at: string | null
           confirmation_email_sent_at: string | null
           created_at: string
           duration_minutes: number
@@ -9802,6 +10365,7 @@ export type Database = {
           format: Database["public"]["Enums"]["pt_format"]
           id: string
           instructor_id: string | null
+          is_waitlist: boolean
           notes: string | null
           paid_at: string | null
           pass_id: string | null
@@ -9861,6 +10425,8 @@ export type Database = {
               cancel_reason: string | null
               cancelled_at: string | null
               cancelled_by: string | null
+              checked_in_at: string | null
+              completed_at: string | null
               confirmation_email_sent_at: string | null
               created_at: string
               duration_minutes: number
@@ -9868,6 +10434,7 @@ export type Database = {
               format: Database["public"]["Enums"]["pt_format"]
               id: string
               instructor_id: string | null
+              is_waitlist: boolean
               notes: string | null
               paid_at: string | null
               pass_id: string | null
@@ -9906,6 +10473,8 @@ export type Database = {
               cancel_reason: string | null
               cancelled_at: string | null
               cancelled_by: string | null
+              checked_in_at: string | null
+              completed_at: string | null
               confirmation_email_sent_at: string | null
               created_at: string
               duration_minutes: number
@@ -9913,6 +10482,7 @@ export type Database = {
               format: Database["public"]["Enums"]["pt_format"]
               id: string
               instructor_id: string | null
+              is_waitlist: boolean
               notes: string | null
               paid_at: string | null
               pass_id: string | null
@@ -9968,6 +10538,8 @@ export type Database = {
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
+          checked_in_at: string | null
+          completed_at: string | null
           confirmation_email_sent_at: string | null
           created_at: string
           duration_minutes: number
@@ -9975,6 +10547,7 @@ export type Database = {
           format: Database["public"]["Enums"]["pt_format"]
           id: string
           instructor_id: string | null
+          is_waitlist: boolean
           notes: string | null
           paid_at: string | null
           pass_id: string | null
@@ -10631,6 +11204,8 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_is_staff: { Args: { _uid: string }; Returns: boolean }
+      pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
       recompute_marketing_contact_segment: {
         Args: { _email: string }
         Returns: undefined
