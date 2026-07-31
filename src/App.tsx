@@ -94,6 +94,7 @@ import PaymentTracking from "./pages/admin/PaymentTracking";
 import FailedPaymentsHistory from "./pages/admin/FailedPaymentsHistory";
 import BillingEmailLog from "./pages/admin/BillingEmailLog";
 import BillingArrears from "./pages/admin/BillingArrears";
+import MembershipHealth from "./pages/admin/MembershipHealth";
 import RevenueAnalytics from "./pages/admin/RevenueAnalytics";
 import Settings from "./pages/admin/Settings";
 import GuestPasses from "./pages/admin/GuestPasses";
