@@ -160,6 +160,7 @@ import FrontDeskCafePage from "./pages/frontdesk/Cafe";
 import FrontDeskClassRosterPage from "./pages/frontdesk/ClassRoster";
 import FrontDeskMessagesPage from "./pages/frontdesk/Messages";
 import FrontDeskEventsPage from "./pages/frontdesk/Events";
+import { ProtectedFrontDeskRoute } from "./components/frontdesk/ProtectedFrontDeskRoute";
 import { ProtectedInstructorRoute } from "./components/instructor/ProtectedInstructorRoute";
 import InstructorToday from "./pages/instructor/Today";
 import {
@@ -173,7 +174,6 @@ import {
   InstructorMessages,
   InstructorDocuments,
 } from "./pages/instructor/Stubs";
-import FrontDeskLogin from "./pages/FrontDeskLogin";
 import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -293,7 +293,7 @@ const App = () => (
               <Route path="/merch" element={<Merch />} />
               <Route path="/shop" element={<Merch />} />
               <Route path="/front-desk" element={<FrontDeskKiosk />} />
-              <Route path="/front-desk-login" element={<FrontDeskLogin />} />
+              <Route path="/front-desk-login" element={<Navigate to="/auth" replace />} />
               <Route path="/kiosk" element={<KioskReception />} />
               <Route path="/kiosk/reception" element={<KioskReception />} />
               <Route path="/kiosk/cafe" element={<KioskCafe />} />
@@ -301,18 +301,18 @@ const App = () => (
               <Route path="/kiosk/classes" element={<KioskClasses />} />
 
               {/* Front Desk staff dashboard — walled off from /admin */}
-              <Route path="/frontdesk" element={<FrontDeskReception />} />
-              <Route path="/frontdesk/pos" element={<FrontDeskPOSPage />} />
-              <Route path="/frontdesk/schedule" element={<FrontDeskSchedule />} />
-              <Route path="/frontdesk/shift" element={<FrontDeskShiftPage />} />
-              <Route path="/frontdesk/members" element={<FrontDeskMembersPage />} />
-              <Route path="/frontdesk/non-members" element={<FrontDeskNonMembersPage />} />
-              <Route path="/frontdesk/guest-passes" element={<FrontDeskGuestPassesPage />} />
-              <Route path="/frontdesk/spa" element={<FrontDeskSpaPage />} />
-              <Route path="/frontdesk/cafe" element={<FrontDeskCafePage />} />
-              <Route path="/frontdesk/class-roster/:sessionId" element={<FrontDeskClassRosterPage />} />
-              <Route path="/frontdesk/messages" element={<FrontDeskMessagesPage />} />
-              <Route path="/frontdesk/events" element={<FrontDeskEventsPage />} />
+              <Route path="/frontdesk" element={<ProtectedFrontDeskRoute><FrontDeskReception /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/pos" element={<ProtectedFrontDeskRoute><FrontDeskPOSPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/schedule" element={<ProtectedFrontDeskRoute><FrontDeskSchedule /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/shift" element={<ProtectedFrontDeskRoute><FrontDeskShiftPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/members" element={<ProtectedFrontDeskRoute><FrontDeskMembersPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/non-members" element={<ProtectedFrontDeskRoute><FrontDeskNonMembersPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/guest-passes" element={<ProtectedFrontDeskRoute><FrontDeskGuestPassesPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/spa" element={<ProtectedFrontDeskRoute><FrontDeskSpaPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/cafe" element={<ProtectedFrontDeskRoute><FrontDeskCafePage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/class-roster/:sessionId" element={<ProtectedFrontDeskRoute><FrontDeskClassRosterPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/messages" element={<ProtectedFrontDeskRoute><FrontDeskMessagesPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/events" element={<ProtectedFrontDeskRoute><FrontDeskEventsPage /></ProtectedFrontDeskRoute>} />
 
               {/* Instructor Portal */}
               <Route path="/instructor-login" element={<InstructorLogin />} />

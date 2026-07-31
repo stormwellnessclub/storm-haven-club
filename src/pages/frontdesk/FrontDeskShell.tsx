@@ -1,29 +1,25 @@
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { ReactNode, useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
 import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import { NoIndex } from "@/components/seo/NoIndex";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import {
-  UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut, Lock,
+  UserCheck, ShoppingBag, GraduationCap, ClipboardList, LogOut,
   Users, UserSearch, Ticket, Sparkles, UtensilsCrossed, Menu, MessageCircle,
 } from "lucide-react";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { format, formatDistanceStrict } from "date-fns";
-import { FRONTDESK_BYPASS_SHIFT_ID } from "./ClockInGate";
-import { ClockOutPrompt } from "./ClockOutPrompt";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
 import { SupportAlertBanner } from "@/components/frontdesk/SupportAlertBanner";
 import { cn } from "@/lib/utils";
-import { getKioskPin } from "@/lib/kiosk";
+import { useAuth } from "@/contexts/AuthContext";
 
 
 const SHIFT_KEY = "frontdeskActiveShift";
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 interface ShiftState {
   shiftId: string;
@@ -49,34 +45,19 @@ const TABS = [
 /**
  * /frontdesk shell — dedicated experience for front-desk staff.
  *
- * Gate:
- *  1. Shared kiosk PIN (device gate) — reuses tab-local `kioskUnlocked` sessionStorage.
- *
- * Front desk mode is intentionally NOT tied to the browser auth session. That
- * lets an admin open /admin in another tab without inheriting front-desk auth,
- * and lets admin logout leave this front desk tab open.
+ * Access is tied to the authenticated staff session and enforced by the
+ * ProtectedFrontDeskRoute wrapper.
  *
  * NEVER links into /admin. That's the whole point of this shell.
  */
 export function FrontDeskShell({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const { data: supportNotif } = useAdminSupportNotifications();
   const messagesBadge = (supportNotif?.openCount || 0) + (supportNotif?.unreadCount || 0);
-  const [deviceUnlocked, setDeviceUnlocked] = useState(false);
   const [shift, setShift] = useState<ShiftState | null>(null);
   const [now, setNow] = useState(() => new Date());
-  const [clockOutOpen, setClockOutOpen] = useState(false);
-
-  // ── Device gate (shared with /kiosk/*)
-  useEffect(() => {
-    // Require the PIN itself to be cached — staff actions (charges) present it
-    // to edge functions since there's no Supabase session in front desk mode.
-    if (sessionStorage.getItem("kioskUnlocked") === "true" && getKioskPin()) {
-      setDeviceUnlocked(true);
-    } else {
-      sessionStorage.removeItem("kioskUnlocked");
-    }
-  }, []);
 
 
   // ── Shift restore
@@ -93,53 +74,22 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, []);
 
-  // ── Idle detector — after 30 min no user input, prompt clock-out
-  const lastActivity = useRef<number>(Date.now());
+  // Use the authenticated staff identity for operational attribution.
   useEffect(() => {
-    const bump = () => (lastActivity.current = Date.now());
-    const events = ["mousemove", "keydown", "touchstart", "pointerdown"];
-    events.forEach((e) => window.addEventListener(e, bump, { passive: true }));
-    const id = setInterval(() => {
-      if (!shift) return;
-      if (shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID) return;
-      if (Date.now() - lastActivity.current > IDLE_TIMEOUT_MS) {
-        setClockOutOpen(true);
-      }
-    }, 60_000);
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, bump));
-      clearInterval(id);
-    };
-  }, [shift]);
-
-  const handleClockedIn = useCallback((payload: ShiftState) => {
-    sessionStorage.setItem(SHIFT_KEY, JSON.stringify(payload));
-    setShift(payload);
-  }, []);
-
-  const handleClockedOut = useCallback(() => {
-    sessionStorage.removeItem(SHIFT_KEY);
-    setShift(null);
-  }, []);
-
-  const handleLockDevice = () => {
-    sessionStorage.removeItem("kioskUnlocked");
-    setDeviceUnlocked(false);
-  };
-
-  // Personal staff clock-in is disabled until staff PINs are ready. Auto-create
-  // a tab-local bypass shift after the device PIN so the old clock-in box never
-  // blocks front desk mode.
-  useEffect(() => {
-    if (deviceUnlocked && !shift) {
-      handleClockedIn({
-        shiftId: FRONTDESK_BYPASS_SHIFT_ID,
-        staffUserId: "unassigned",
-        staffName: "Unassigned (bypass)",
+    if (user && !shift) {
+      const staffName = [user.user_metadata?.first_name, user.user_metadata?.last_name]
+        .filter(Boolean)
+        .join(" ") || user.email || "Front Desk";
+      const authenticatedShift = {
+        shiftId: `auth:${user.id}`,
+        staffUserId: user.id,
+        staffName,
         clockInAt: new Date().toISOString(),
-      });
+      };
+      sessionStorage.setItem(SHIFT_KEY, JSON.stringify(authenticatedShift));
+      setShift(authenticatedShift);
     }
-  }, [deviceUnlocked, shift, handleClockedIn]);
+  }, [user, shift]);
 
   const shiftDuration = useMemo(() => {
     if (!shift) return "";
@@ -149,16 +99,6 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
       return "";
     }
   }, [shift, now]);
-
-  // ── Gate 1: device PIN
-  if (!deviceUnlocked) {
-    return (
-      <>
-        <NoIndex />
-        <KioskPinGate onUnlock={() => setDeviceUnlocked(true)} />
-      </>
-    );
-  }
 
   if (!shift) {
     return <NoIndex />;
@@ -188,49 +128,24 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              {shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID ? (
-                <Badge
-                  variant="outline"
-                  className="gap-1.5 border-amber-500 bg-amber-50 text-amber-900"
-                  title="No Staff PIN was used — shift hours aren't being recorded."
-                >
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="font-medium">Tracking off</span>
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <span className="font-medium">{shift.staffName}</span>
-                  <span className="text-muted-foreground">· {shiftDuration}</span>
-                </Badge>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                className="gap-1.5 h-8 px-2.5"
-                onClick={() => {
-                  if (shift.shiftId === FRONTDESK_BYPASS_SHIFT_ID) {
-                    sessionStorage.removeItem(SHIFT_KEY);
-                    setShift(null);
-                  } else {
-                    setClockOutOpen(true);
-                  }
-                }}
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="text-xs">End Shift</span>
-              </Button>
+              <Badge variant="secondary" className="gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="font-medium">{shift.staffName}</span>
+                <span className="text-muted-foreground">· {shiftDuration}</span>
+              </Badge>
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 className="gap-1.5 h-8 px-2.5"
-                onClick={handleLockDevice}
-                title="Lock the device (returns to shared PIN)"
+                onClick={async () => {
+                  sessionStorage.removeItem(SHIFT_KEY);
+                  await signOut();
+                  navigate("/auth", { replace: true });
+                }}
               >
-                <Lock className="h-3.5 w-3.5" />
-                <span className="text-xs hidden sm:inline">Lock</span>
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="text-xs">Sign out</span>
               </Button>
             </div>
           </div>
@@ -306,12 +221,6 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <ClockOutPrompt
-        open={clockOutOpen}
-        onOpenChange={setClockOutOpen}
-        staffName={shift.staffName}
-        onClockedOut={handleClockedOut}
-      />
     </>
   );
 }

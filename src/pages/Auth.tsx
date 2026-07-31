@@ -291,13 +291,6 @@ export default function Auth() {
       }
     }
 
-    // Staff service account: silently route to the unlisted PIN screen.
-    if (email.trim().toLowerCase() === "frontdesk@stormwellnessclub.com") {
-      navigate("/front-desk-login", { replace: true });
-      return;
-    }
-
-
     setIsLoading(true);
 
     try {
