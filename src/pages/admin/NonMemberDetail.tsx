@@ -1292,6 +1292,30 @@ export default function NonMemberDetail() {
         }}
       />
     )}
+
+    <BookPTSessionDialog
+      open={showBookPT}
+      onOpenChange={setShowBookPT}
+      presetUserId={userId!}
+      presetUserName={`${fullName}${profile.email ? ` (${profile.email})` : ""}`}
+      onSellPack={() => { setShowBookPT(false); setShowSellPT(true); }}
+      onBooked={() => {
+        queryClient.invalidateQueries({ queryKey: ["admin-nonmember-pt-passes", userId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-nonmember-pt-appointments", userId] });
+      }}
+    />
+
+    <SellPTDialog
+      open={showSellPT}
+      onOpenChange={(open) => {
+        setShowSellPT(open);
+        if (!open) {
+          queryClient.invalidateQueries({ queryKey: ["admin-nonmember-pt-passes", userId] });
+        }
+      }}
+      presetUserId={userId!}
+      presetUserName={`${fullName}${profile.email ? ` (${profile.email})` : ""}`}
+    />
     </>
   );
 }
