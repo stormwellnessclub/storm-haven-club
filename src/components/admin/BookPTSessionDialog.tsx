@@ -129,8 +129,13 @@ export function BookPTSessionDialog({
   async function submit() {
     setErr(null);
     if (!userId) return toast.error("Pick a customer");
-    if (!selectedPass) {
-      setErr("No active sessions for this format. Sell a pack first.");
+    if (!unpaidMode && !selectedPass) {
+      setErr("No active sessions for this format. Sell a pack first, or bill this session later.");
+      return;
+    }
+    const rateCents = Math.round(parseFloat(rate || "0") * 100);
+    if (unpaidMode && rateCents <= 0) {
+      setErr("Enter the session rate so it can be collected later.");
       return;
     }
     const startsAtLocal = new Date(`${date}T${time}:00`);
@@ -145,11 +150,14 @@ export function BookPTSessionDialog({
         p_duration_minutes: duration,
         p_instructor_id: instructorId || null,
         p_notes: notes || null,
-        p_pass_id: selectedPass.id,
+        p_pass_id: unpaidMode ? null : selectedPass!.id,
+        p_unpaid: unpaidMode,
+        p_rate_cents: unpaidMode ? rateCents : 0,
       });
       if (error) throw error;
       const appt = Array.isArray(data) ? data[0] : data;
-      toast.success("Session booked · 1 deducted");
+      toast.success(unpaidMode ? "Session booked · marked unpaid" : "Session booked · 1 deducted");
+
 
       // Fire confirmation email (non-blocking)
       supabase.functions.invoke("send-pt-booking-email", {
