@@ -291,6 +291,18 @@ export default function Auth() {
       }
     }
 
+    // The front desk service account has no human password — it is unlocked
+    // with the front desk PIN. Send staff to the right screen instead of
+    // failing with "Invalid credentials".
+    if (email.trim().toLowerCase() === "frontdesk@stormwellnessclub.com") {
+      toast({
+        title: "Front desk uses a PIN",
+        description: "This account can't be signed into with a password. Taking you to the front desk unlock screen.",
+      });
+      navigate("/front-desk-login", { replace: true });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -677,12 +689,20 @@ export default function Auth() {
               <br />
               <span className="text-accent">Waivers and membership agreements will be required for booking.</span>
             </p>
-            <p className="text-muted-foreground text-xs pt-2">
-              Front desk mode?{" "}
-              <Link to="/front-desk-login" className="text-accent hover:underline">
-                Unlock here
-              </Link>
-            </p>
+            <div className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate("/front-desk-login")}
+              >
+                Front desk mode — unlock with PIN
+              </Button>
+              <p className="text-muted-foreground text-[11px] mt-2">
+                Front desk staff sign in with the shared PIN, not an email and password.
+              </p>
+            </div>
+
           </div>
         </div>
       </div>
