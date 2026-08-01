@@ -307,6 +307,7 @@ const App = () => (
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/sms-terms" element={<Navigate to="/terms#sms" replace />} />
+              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
               <Route path="/sms-opt-in-proof" element={<SmsOptInProof />} />
               <Route path="/card-added" element={<CardAdded />} />
               <Route path="/faq" element={<FAQ />} />
