@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Trash2, Plus, FileDown, Download } from "lucide-react";
+import { Loader2, Trash2, Plus, FileDown, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { downloadCsv } from "@/lib/ptExport";
 import { useSpaTherapists } from "@/hooks/useSpaManagement";
 import {
@@ -65,13 +65,24 @@ const fmtTime = (t: string) => {
   return `${h12}:${m} ${ampm}`;
 };
 
+/** Bi-weekly pay cycle anchored to Mon Jul 13 2026 (period = 14 days). */
+const PAY_CYCLE_ANCHOR = new Date(2026, 6, 13);
+const payPeriod = (offset: number) => {
+  const days = Math.floor(
+    (startOfDay(new Date()).getTime() - PAY_CYCLE_ANCHOR.getTime()) / 86400000
+  );
+  const idx = Math.floor(days / 14) + offset;
+  const start = addDays(PAY_CYCLE_ANCHOR, idx * 14);
+  return { start, end: addDays(start, 13) };
+};
+
 export function SpaPayrollTab() {
   const { data: therapists, isLoading: therapistsLoading } = useSpaTherapists();
   const [therapistId, setTherapistId] = useState<string>("");
-  const [startDate, setStartDate] = useState(format(addDays(startOfDay(new Date()), -14), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(startOfDay(new Date()), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(format(payPeriod(0).start, "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState(format(payPeriod(0).end, "yyyy-MM-dd"));
 
-  const { data: payroll, isLoading, refetch, isFetching } = useQuery({
+  const { data: payroll, isLoading, refetch, isFetching, error } = useQuery({
     queryKey: ["therapist-payroll", therapistId, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_therapist_payroll", {
@@ -174,6 +185,15 @@ export function SpaPayrollTab() {
     setStartDate(format(addDays(end, -days), "yyyy-MM-dd"));
     setEndDate(format(end, "yyyy-MM-dd"));
   };
+
+  const [periodOffset, setPeriodOffset] = useState(0);
+  const applyPeriod = (offset: number) => {
+    const { start, end } = payPeriod(offset);
+    setPeriodOffset(offset);
+    setStartDate(format(start, "yyyy-MM-dd"));
+    setEndDate(format(end, "yyyy-MM-dd"));
+  };
+
 
   const updateTip = (idx: number, patch: Partial<PayrollTipRow>) =>
     setTips(rows => rows.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
@@ -310,11 +330,16 @@ export function SpaPayrollTab() {
               <Input type="number" step="0.01" value={hourlyRate} onChange={e => setHourlyRate(parseFloat(e.target.value) || 0)} />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setQuickRange(13)}>Last 2 weeks</Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              setStartDate("2026-04-20"); setEndDate("2026-05-02");
-            }}>April 20 – May 2</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => applyPeriod(periodOffset - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant={periodOffset === 0 ? "default" : "outline"} onClick={() => applyPeriod(0)}>This pay period</Button>
+            <Button size="sm" variant={periodOffset === -1 ? "default" : "outline"} onClick={() => applyPeriod(-1)}>Previous pay period</Button>
+            <Button size="sm" variant="outline" onClick={() => applyPeriod(periodOffset + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setQuickRange(13)}>Last 14 days</Button>
             <Button size="sm" variant="outline" onClick={() => refetch()} disabled={!therapistId}>Refresh from DB</Button>
             <div className="ml-auto flex gap-2">
               <Button size="sm" onClick={handleDownload} disabled={!canDownload}>
@@ -327,6 +352,14 @@ export function SpaPayrollTab() {
           </div>
         </CardContent>
       </Card>
+
+      {error ? (
+        <Card className="border-destructive">
+          <CardContent className="py-6 text-destructive text-sm">
+            Could not load payroll: {(error as Error).message}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {therapistsLoading || isLoading || isFetching ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
