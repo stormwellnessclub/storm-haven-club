@@ -105,6 +105,14 @@ export default function Auth() {
 
     setRoutingError(null);
 
+    // OAuth consent hand-off always wins: send the user back to the consent screen
+    // regardless of role so connecting an MCP client doesn't bounce to the dashboard.
+    const consentRedirect = new URLSearchParams(window.location.search).get("redirect");
+    if (consentRedirect && consentRedirect.startsWith("/.lovable/oauth/consent")) {
+      window.location.href = consentRedirect;
+      return;
+    }
+
     if (hasAnyStaffRole()) {
       setShowWaiverStep(false);
 
