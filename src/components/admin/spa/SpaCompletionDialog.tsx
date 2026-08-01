@@ -53,6 +53,7 @@ export function SpaCompletionDialog({
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [tipPreset, setTipPreset] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState("");
+  const [tipMethod, setTipMethod] = useState("card");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
