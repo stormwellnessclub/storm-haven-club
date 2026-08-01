@@ -66,6 +66,10 @@ export function SpaCompletionDialog({
   useEffect(() => {
     if (!appointment) return;
     setPaymentMethod(appointment.payment_method || "card");
+    setTipMethod(
+      (appointment as any).tip_payment_method ||
+        (appointment.payment_method === "cash" ? "cash" : "card")
+    );
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
     setSendReceipt(true);
