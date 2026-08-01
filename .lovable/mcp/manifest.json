@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "sdk_version": "0.26.1",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://cqzmrdzwgsujgbjqpoxh.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "storm-wellness-hub",
+      "version": "0.1.0",
+      "title": "Storm Wellness Hub"
+    },
+    "tools": [
+      {
+        "name": "get_my_membership",
+        "title": "Get my membership",
+        "description": "Get the signed-in member's Storm Wellness Club membership status, tier, billing dates and past-due flag.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_credits",
+        "title": "List my credits",
+        "description": "List the signed-in member's remaining wellness and class credits for the current billing cycle, with expiry dates.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_class_bookings",
+        "title": "List my class bookings",
+        "description": "List the signed-in member's class bookings with session date, time and class name. Defaults to upcoming bookings.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "include_past": {
+              "type": "boolean",
+              "description": "Include bookings for sessions that already happened. Defaults to false."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum bookings to return. Defaults to 20, max 100."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_upcoming_classes",
+        "title": "List upcoming classes",
+        "description": "List upcoming Storm Wellness Club class sessions with date, time, class name and remaining spots. Booking opens 4 weeks out.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "days_ahead": {
+              "type": "integer",
+              "description": "How many days ahead to look. Defaults to 14, max 28."
+            },
+            "category": {
+              "type": "string",
+              "description": "Optional class category filter, e.g. pilates or cycling."
+            },
+            "only_available": {
+              "type": "boolean",
+              "description": "Only return sessions with open spots. Defaults to false."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_my_spa_appointments",
+        "title": "List my spa appointments",
+        "description": "List the signed-in member's spa and recovery appointments with service, date, time and status. Defaults to upcoming.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "include_past": {
+              "type": "boolean",
+              "description": "Include past appointments. Defaults to false."
+            },
+            "limit": {
+              "type": "integer",
+              "description": "Maximum appointments to return. Defaults to 20, max 100."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_spa_services",
+        "title": "List spa services",
+        "description": "List active Storm Wellness Club spa and recovery services with duration, standard price and member price.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "category": {
+              "type": "string",
+              "description": "Optional category filter, e.g. massage or recovery."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
