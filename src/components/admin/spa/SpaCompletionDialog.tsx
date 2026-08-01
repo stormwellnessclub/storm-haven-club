@@ -216,6 +216,7 @@ export function SpaCompletionDialog({
         amount_paid: totalAmount,
         payment_method: paymentMethod,
         tip_amount: tipAmount,
+        tip_payment_method: tipAmount > 0 ? tipMethod : null,
         addons: selectedAddons,
         addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
