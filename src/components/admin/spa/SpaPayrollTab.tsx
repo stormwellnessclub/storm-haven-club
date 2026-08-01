@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Trash2, Plus, FileDown } from "lucide-react";
+import { Loader2, Trash2, Plus, FileDown, Download } from "lucide-react";
+import { downloadCsv } from "@/lib/ptExport";
 import { useSpaTherapists } from "@/hooks/useSpaManagement";
 import {
   downloadPayrollPdf,
@@ -199,6 +200,75 @@ export function SpaPayrollTab() {
     toast.success("Pay summary downloaded");
   };
 
+  const therapistName = therapists?.find(x => x.id === therapistId)?.full_name ?? "";
+  const canDownload = !!payroll && !!therapistName;
+
+  const handleDownloadCsv = () => {
+    if (!canDownload) return;
+    const rows: Record<string, unknown>[] = [];
+    massages.forEach(m => {
+      const tip = tips.find(t => t.date === m.date && t.customer === m.customer);
+      rows.push({
+        Section: "Massage",
+        Date: m.date,
+        Time: m.time,
+        Client: m.customer,
+        Service: m.service,
+        Minutes: m.durationMinutes,
+        Hours: (m.durationMinutes / 60).toFixed(2),
+        Amount: "",
+        TipAmount: tip ? tip.amount.toFixed(2) : "",
+        TipPaidBy: tip ? TIP_METHOD_LABELS[tip.method] : "",
+      });
+    });
+    serviceRows.forEach(r => {
+      rows.push({
+        Section: "Service Hours",
+        Date: "", Time: "", Client: "",
+        Service: r.label,
+        Minutes: "",
+        Hours: r.hours.toFixed(2),
+        Amount: (r.hours * hourlyRate).toFixed(2),
+        TipAmount: "", TipPaidBy: "",
+      });
+    });
+    rows.push({
+      Section: "Prep / Turnover", Date: "", Time: "", Client: "",
+      Service: `${prepSessions} sessions`, Minutes: "",
+      Hours: prepHours.toFixed(2), Amount: totals.prepPay.toFixed(2),
+      TipAmount: "", TipPaidBy: "",
+    });
+    tips.forEach(t => {
+      rows.push({
+        Section: "Tip", Date: t.date ?? "", Time: "", Client: t.customer,
+        Service: t.service ?? "", Minutes: "", Hours: "", Amount: "",
+        TipAmount: t.amount.toFixed(2), TipPaidBy: TIP_METHOD_LABELS[t.method],
+      });
+    });
+    totals.byMethod.forEach(x => {
+      rows.push({
+        Section: "Tip Subtotal", Date: "", Time: "", Client: "",
+        Service: TIP_METHOD_LABELS[x.method], Minutes: "", Hours: "", Amount: "",
+        TipAmount: x.total.toFixed(2), TipPaidBy: TIP_METHOD_LABELS[x.method],
+      });
+    });
+    rows.push({
+      Section: "TOTAL TO PAY", Date: startDate, Time: "", Client: therapistName,
+      Service: `Rate $${hourlyRate.toFixed(2)}/hr`, Minutes: "",
+      Hours: totals.totalHours.toFixed(2), Amount: totals.total.toFixed(2),
+      TipAmount: totals.payoutTotal.toFixed(2), TipPaidBy: "Owed",
+    });
+
+    downloadCsv(
+      `payroll-${therapistName.replace(/\s+/g, "_")}_${startDate}_to_${endDate}.csv`,
+      rows,
+      ["Section", "Date", "Time", "Client", "Service", "Minutes", "Hours", "Amount", "TipAmount", "TipPaidBy"]
+    );
+    toast.success("CSV downloaded");
+  };
+
+
+
   const updateServiceRow = (idx: number, patch: Partial<PayrollServiceRow>) => {
     setServiceRows(rows => rows.map((r, i) => {
       if (i !== idx) return r;
@@ -246,6 +316,14 @@ export function SpaPayrollTab() {
               setStartDate("2026-04-20"); setEndDate("2026-05-02");
             }}>April 20 – May 2</Button>
             <Button size="sm" variant="outline" onClick={() => refetch()} disabled={!therapistId}>Refresh from DB</Button>
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" onClick={handleDownload} disabled={!canDownload}>
+                <FileDown className="h-4 w-4 mr-1" />Download PDF
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDownloadCsv} disabled={!canDownload}>
+                <Download className="h-4 w-4 mr-1" />Export CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -434,9 +512,14 @@ export function SpaPayrollTab() {
                   </p>
                 )}
               </div>
-              <Button className="mt-4 w-full" size="lg" onClick={handleDownload}>
-                <FileDown className="h-4 w-4 mr-2" />Generate PDF
-              </Button>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Button className="flex-1" size="lg" onClick={handleDownload}>
+                  <FileDown className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button className="flex-1" size="lg" variant="outline" onClick={handleDownloadCsv}>
+                  <Download className="h-4 w-4 mr-2" />Export CSV
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </>
