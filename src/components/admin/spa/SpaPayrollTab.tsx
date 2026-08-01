@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Trash2, Plus, FileDown, Download } from "lucide-react";
+import { Loader2, Trash2, Plus, FileDown, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { downloadCsv } from "@/lib/ptExport";
 import { useSpaTherapists } from "@/hooks/useSpaManagement";
 import {
