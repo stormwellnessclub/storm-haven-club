@@ -409,19 +409,10 @@ function TodaysKidsCare() {
 }
 
 // ─── Main Front Desk Page ───────────────────────────────────────────
+// Access is enforced by ProtectedFrontDeskRoute (authenticated staff session +
+// front_desk/manager/admin role). No PIN gate here.
 export default function FrontDeskPage() {
-  const [isUnlocked, setIsUnlocked] = useState(
-    () => sessionStorage.getItem("kioskUnlocked") === "true"
-  );
 
-  if (!isUnlocked) {
-    return (
-      <>
-        <NoIndex />
-        <KioskPinGate onUnlock={() => setIsUnlocked(true)} />
-      </>
-    );
-  }
 
   return (
     <>
