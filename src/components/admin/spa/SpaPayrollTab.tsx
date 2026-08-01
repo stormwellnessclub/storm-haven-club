@@ -186,6 +186,15 @@ export function SpaPayrollTab() {
     setEndDate(format(end, "yyyy-MM-dd"));
   };
 
+  const [periodOffset, setPeriodOffset] = useState(0);
+  const applyPeriod = (offset: number) => {
+    const { start, end } = payPeriod(offset);
+    setPeriodOffset(offset);
+    setStartDate(format(start, "yyyy-MM-dd"));
+    setEndDate(format(end, "yyyy-MM-dd"));
+  };
+
+
   const updateTip = (idx: number, patch: Partial<PayrollTipRow>) =>
     setTips(rows => rows.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
 
