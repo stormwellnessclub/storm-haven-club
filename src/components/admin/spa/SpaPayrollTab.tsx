@@ -512,9 +512,14 @@ export function SpaPayrollTab() {
                   </p>
                 )}
               </div>
-              <Button className="mt-4 w-full" size="lg" onClick={handleDownload}>
-                <FileDown className="h-4 w-4 mr-2" />Generate PDF
-              </Button>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <Button className="flex-1" size="lg" onClick={handleDownload}>
+                  <FileDown className="h-4 w-4 mr-2" />Download PDF
+                </Button>
+                <Button className="flex-1" size="lg" variant="outline" onClick={handleDownloadCsv}>
+                  <Download className="h-4 w-4 mr-2" />Export CSV
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </>
