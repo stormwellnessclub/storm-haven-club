@@ -200,6 +200,75 @@ export function SpaPayrollTab() {
     toast.success("Pay summary downloaded");
   };
 
+  const therapistName = therapists?.find(x => x.id === therapistId)?.full_name ?? "";
+  const canDownload = !!payroll && !!therapistName;
+
+  const handleDownloadCsv = () => {
+    if (!canDownload) return;
+    const rows: Record<string, unknown>[] = [];
+    massages.forEach(m => {
+      const tip = tips.find(t => t.date === m.date && t.customer === m.customer);
+      rows.push({
+        Section: "Massage",
+        Date: m.date,
+        Time: m.time,
+        Client: m.customer,
+        Service: m.service,
+        Minutes: m.durationMinutes,
+        Hours: (m.durationMinutes / 60).toFixed(2),
+        Amount: "",
+        TipAmount: tip ? tip.amount.toFixed(2) : "",
+        TipPaidBy: tip ? TIP_METHOD_LABELS[tip.method] : "",
+      });
+    });
+    serviceRows.forEach(r => {
+      rows.push({
+        Section: "Service Hours",
+        Date: "", Time: "", Client: "",
+        Service: r.label,
+        Minutes: "",
+        Hours: r.hours.toFixed(2),
+        Amount: (r.hours * hourlyRate).toFixed(2),
+        TipAmount: "", TipPaidBy: "",
+      });
+    });
+    rows.push({
+      Section: "Prep / Turnover", Date: "", Time: "", Client: "",
+      Service: `${prepSessions} sessions`, Minutes: "",
+      Hours: prepHours.toFixed(2), Amount: totals.prepPay.toFixed(2),
+      TipAmount: "", TipPaidBy: "",
+    });
+    tips.forEach(t => {
+      rows.push({
+        Section: "Tip", Date: t.date ?? "", Time: "", Client: t.customer,
+        Service: t.service ?? "", Minutes: "", Hours: "", Amount: "",
+        TipAmount: t.amount.toFixed(2), TipPaidBy: TIP_METHOD_LABELS[t.method],
+      });
+    });
+    totals.byMethod.forEach(x => {
+      rows.push({
+        Section: "Tip Subtotal", Date: "", Time: "", Client: "",
+        Service: TIP_METHOD_LABELS[x.method], Minutes: "", Hours: "", Amount: "",
+        TipAmount: x.total.toFixed(2), TipPaidBy: TIP_METHOD_LABELS[x.method],
+      });
+    });
+    rows.push({
+      Section: "TOTAL TO PAY", Date: startDate, Time: "", Client: therapistName,
+      Service: `Rate $${hourlyRate.toFixed(2)}/hr`, Minutes: "",
+      Hours: totals.totalHours.toFixed(2), Amount: totals.total.toFixed(2),
+      TipAmount: totals.payoutTotal.toFixed(2), TipPaidBy: "Owed",
+    });
+
+    downloadCsv(
+      `payroll-${therapistName.replace(/\s+/g, "_")}_${startDate}_to_${endDate}.csv`,
+      rows,
+      ["Section", "Date", "Time", "Client", "Service", "Minutes", "Hours", "Amount", "TipAmount", "TipPaidBy"]
+    );
+    toast.success("CSV downloaded");
+  };
+
+
+
   const updateServiceRow = (idx: number, patch: Partial<PayrollServiceRow>) => {
     setServiceRows(rows => rows.map((r, i) => {
       if (i !== idx) return r;
