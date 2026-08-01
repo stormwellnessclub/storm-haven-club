@@ -330,11 +330,16 @@ export function SpaPayrollTab() {
               <Input type="number" step="0.01" value={hourlyRate} onChange={e => setHourlyRate(parseFloat(e.target.value) || 0)} />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={() => setQuickRange(13)}>Last 2 weeks</Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              setStartDate("2026-04-20"); setEndDate("2026-05-02");
-            }}>April 20 – May 2</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => applyPeriod(periodOffset - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant={periodOffset === 0 ? "default" : "outline"} onClick={() => applyPeriod(0)}>This pay period</Button>
+            <Button size="sm" variant={periodOffset === -1 ? "default" : "outline"} onClick={() => applyPeriod(-1)}>Previous pay period</Button>
+            <Button size="sm" variant="outline" onClick={() => applyPeriod(periodOffset + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setQuickRange(13)}>Last 14 days</Button>
             <Button size="sm" variant="outline" onClick={() => refetch()} disabled={!therapistId}>Refresh from DB</Button>
             <div className="ml-auto flex gap-2">
               <Button size="sm" onClick={handleDownload} disabled={!canDownload}>
@@ -347,6 +352,14 @@ export function SpaPayrollTab() {
           </div>
         </CardContent>
       </Card>
+
+      {error ? (
+        <Card className="border-destructive">
+          <CardContent className="py-6 text-destructive text-sm">
+            Could not load payroll: {(error as Error).message}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {therapistsLoading || isLoading || isFetching ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
