@@ -10,7 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Trash2, Plus, FileDown } from "lucide-react";
 import { useSpaTherapists } from "@/hooks/useSpaManagement";
-import { downloadPayrollPdf, type PayrollTipRow, type PayrollServiceRow } from "@/lib/spaPayrollPdf";
+import {
+  downloadPayrollPdf,
+  isPayoutTip,
+  TIP_METHOD_LABELS,
+  type PayrollTipRow,
+  type PayrollServiceRow,
+  type PayrollMassageRow,
+  type TipMethod,
+} from "@/lib/spaPayrollPdf";
 import { toast } from "sonner";
 
 interface PayrollAppointment {
@@ -21,6 +29,7 @@ interface PayrollAppointment {
   duration_minutes: number;
   status: string;
   tip_amount: number | null;
+  tip_payment_method: string | null;
   payment_method: string | null;
   amount_paid: number | null;
   customer_name: string;
@@ -34,6 +43,26 @@ interface PayrollData {
   end_date: string;
   appointments: PayrollAppointment[];
 }
+
+const TIP_METHODS: TipMethod[] = ["card", "cash", "clover", "other"];
+
+const inferMethod = (a: PayrollAppointment): TipMethod => {
+  const m = (a.tip_payment_method || "").toLowerCase();
+  if (TIP_METHODS.includes(m as TipMethod)) return m as TipMethod;
+  const pm = (a.payment_method || "").toLowerCase();
+  if (pm === "cash") return "cash";
+  if (pm.includes("clover")) return "clover";
+  if (pm === "card" || pm === "stripe") return "card";
+  return "other";
+};
+
+const fmtTime = (t: string) => {
+  const [h, m] = t.split(":");
+  const hh = parseInt(h, 10);
+  const ampm = hh >= 12 ? "PM" : "AM";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return `${h12}:${m} ${ampm}`;
+};
 
 export function SpaPayrollTab() {
   const { data: therapists, isLoading: therapistsLoading } = useSpaTherapists();
@@ -56,9 +85,9 @@ export function SpaPayrollTab() {
   });
 
   // Editable state
+  const [massages, setMassages] = useState<PayrollMassageRow[]>([]);
   const [serviceRows, setServiceRows] = useState<PayrollServiceRow[]>([]);
-  const [ccTips, setCcTips] = useState<PayrollTipRow[]>([]);
-  const [cashTips, setCashTips] = useState<PayrollTipRow[]>([]);
+  const [tips, setTips] = useState<PayrollTipRow[]>([]);
   const [hourlyRate, setHourlyRate] = useState<number>(26);
   const [prepSessions, setPrepSessions] = useState<number>(0);
   const [prepHours, setPrepHours] = useState<number>(0);
@@ -68,6 +97,14 @@ export function SpaPayrollTab() {
     if (!payroll) return;
     setHourlyRate(Number(payroll.hourly_rate) || 26);
     const appts = payroll.appointments || [];
+
+    setMassages(appts.map(a => ({
+      date: a.appointment_date,
+      time: a.appointment_time,
+      customer: a.customer_name,
+      service: a.service_name,
+      durationMinutes: a.duration_minutes,
+    })));
 
     // Group by duration bucket
     const buckets = new Map<number, PayrollAppointment[]>();
@@ -95,27 +132,41 @@ export function SpaPayrollTab() {
     setPrepSessions(appts.length);
     setPrepHours(appts.length * 0.25);
 
-    // CC tips: payment_method === 'card' (include zero tips so admin can edit)
-    const cc = appts
-      .filter(a => (a.payment_method === "card" || a.payment_method === "stripe"))
-      .map(a => ({ customer: a.customer_name, amount: Number(a.tip_amount) || 0 }));
-    setCcTips(cc);
-
-    // Cash tips
-    const cash = appts
-      .filter(a => a.payment_method === "cash" && Number(a.tip_amount) > 0)
-      .map(a => ({ customer: a.customer_name, amount: Number(a.tip_amount) || 0 }));
-    setCashTips(cash);
+    setTips(
+      appts
+        .filter(a => Number(a.tip_amount) > 0)
+        .map(a => ({
+          customer: a.customer_name,
+          amount: Number(a.tip_amount) || 0,
+          method: inferMethod(a),
+          date: a.appointment_date,
+          service: a.service_name,
+        }))
+    );
   }, [payroll]);
 
   const totals = useMemo(() => {
     const serviceTotal = serviceRows.reduce((s, r) => s + r.pay, 0);
     const prepPay = prepHours * hourlyRate;
-    const ccTotal = ccTips.reduce((s, t) => s + t.amount, 0);
+    const payoutTips = tips.filter(t => isPayoutTip(t.method));
+    const cashTips = tips.filter(t => t.method === "cash");
+    const payoutTotal = payoutTips.reduce((s, t) => s + t.amount, 0);
     const cashTotal = cashTips.reduce((s, t) => s + t.amount, 0);
+    const byMethod = TIP_METHODS.map(m => ({
+      method: m,
+      total: tips.filter(t => t.method === m).reduce((s, t) => s + t.amount, 0),
+    })).filter(x => x.total > 0);
     const totalHours = serviceRows.reduce((s, r) => s + r.hours, 0) + prepHours;
-    return { serviceTotal, prepPay, ccTotal, cashTotal, total: serviceTotal + prepPay + ccTotal, totalHours };
-  }, [serviceRows, prepHours, hourlyRate, ccTips, cashTips]);
+    return {
+      serviceTotal,
+      prepPay,
+      payoutTotal,
+      cashTotal,
+      byMethod,
+      total: serviceTotal + prepPay + payoutTotal,
+      totalHours,
+    };
+  }, [serviceRows, prepHours, hourlyRate, tips]);
 
   const setQuickRange = (days: number) => {
     const end = startOfDay(new Date());
@@ -123,9 +174,11 @@ export function SpaPayrollTab() {
     setEndDate(format(end, "yyyy-MM-dd"));
   };
 
+  const updateTip = (idx: number, patch: Partial<PayrollTipRow>) =>
+    setTips(rows => rows.map((x, j) => (j === idx ? { ...x, ...patch } : x)));
+
   const handleDownload = () => {
-    if (!payroll) return;
-    if (!therapists) return;
+    if (!payroll || !therapists) return;
     const t = therapists.find(x => x.id === therapistId);
     if (!t) return;
 
@@ -137,11 +190,11 @@ export function SpaPayrollTab() {
       startDate: new Date(startDate + "T00:00:00"),
       endDate: new Date(endDate + "T00:00:00"),
       hourlyRate,
+      massages,
       serviceRows: recalcRows,
       prepSessions,
       prepHours,
-      ccTips,
-      cashTips,
+      tips,
     });
     toast.success("Pay summary downloaded");
   };
@@ -203,6 +256,38 @@ export function SpaPayrollTab() {
         <Card><CardContent className="py-12 text-center text-muted-foreground">Select a therapist to begin.</CardContent></Card>
       ) : !payroll ? null : (
         <>
+          <Card>
+            <CardHeader><CardTitle>Massages Performed</CardTitle></CardHeader>
+            <CardContent>
+              {massages.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No completed massages in this period.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead>Service</TableHead>
+                      <TableHead>Length</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {massages.map((m, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{format(new Date(`${m.date}T00:00:00`), "EEE M/d/yy")}</TableCell>
+                        <TableCell>{fmtTime(m.time)}</TableCell>
+                        <TableCell className="font-medium">{m.customer}</TableCell>
+                        <TableCell>{m.service}</TableCell>
+                        <TableCell>{m.durationMinutes} min</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle>Service Hours</CardTitle></CardHeader>
             <CardContent>
@@ -267,81 +352,67 @@ export function SpaPayrollTab() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle>Credit Card Tips (To Be Paid Out)</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Tips</CardTitle></CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Customer</TableHead>
-                    <TableHead>CC Tip</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ccTips.map((t, i) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Input value={t.customer} onChange={e => setCcTips(rows => rows.map((x, j) => j === i ? { ...x, customer: e.target.value } : x))} />
-                      </TableCell>
-                      <TableCell>
-                        <Input type="number" step="0.01" className="w-28" value={t.amount} onChange={e => setCcTips(rows => rows.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
-                      </TableCell>
-                      <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => setCcTips(rows => rows.filter((_, j) => j !== i))}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell className="text-right font-bold">CC Tips Subtotal</TableCell>
-                    <TableCell colSpan={2} className="font-bold">${totals.ccTotal.toFixed(2)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-              <Button size="sm" variant="outline" className="mt-2" onClick={() => setCcTips(r => [...r, { customer: "", amount: 0 }])}>
-                <Plus className="h-4 w-4 mr-1" />Add Tip
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle>Cash Tips (Already Received)</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Customer</TableHead>
+                    <TableHead>Date</TableHead>
                     <TableHead>Amount</TableHead>
+                    <TableHead>Paid by</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cashTips.map((t, i) => (
+                  {tips.map((t, i) => (
                     <TableRow key={i}>
                       <TableCell>
-                        <Input value={t.customer} onChange={e => setCashTips(rows => rows.map((x, j) => j === i ? { ...x, customer: e.target.value } : x))} />
+                        <Input value={t.customer} onChange={e => updateTip(i, { customer: e.target.value })} />
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                        {t.date ? format(new Date(`${t.date}T00:00:00`), "M/d/yy") : "—"}
                       </TableCell>
                       <TableCell>
-                        <Input type="number" step="0.01" className="w-28" value={t.amount} onChange={e => setCashTips(rows => rows.map((x, j) => j === i ? { ...x, amount: parseFloat(e.target.value) || 0 } : x))} />
+                        <Input type="number" step="0.01" className="w-28" value={t.amount} onChange={e => updateTip(i, { amount: parseFloat(e.target.value) || 0 })} />
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => setCashTips(rows => rows.filter((_, j) => j !== i))}>
+                        <Select value={t.method} onValueChange={(v) => updateTip(i, { method: v as TipMethod })}>
+                          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {TIP_METHODS.map(m => (
+                              <SelectItem key={m} value={m}>{TIP_METHOD_LABELS[m]}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button size="icon" variant="ghost" onClick={() => setTips(rows => rows.filter((_, j) => j !== i))}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))}
-                  {cashTips.length > 0 && (
+                  {totals.byMethod.map(x => (
+                    <TableRow key={x.method}>
+                      <TableCell colSpan={2} className="text-right font-medium">{TIP_METHOD_LABELS[x.method]} tips subtotal</TableCell>
+                      <TableCell colSpan={3} className="font-medium">${x.total.toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow>
+                    <TableCell colSpan={2} className="text-right font-bold">Tips owed in payout</TableCell>
+                    <TableCell colSpan={3} className="font-bold">${totals.payoutTotal.toFixed(2)}</TableCell>
+                  </TableRow>
+                  {totals.cashTotal > 0 && (
                     <TableRow>
-                      <TableCell className="text-right font-bold">Cash Tips Total</TableCell>
-                      <TableCell colSpan={2} className="font-bold">${totals.cashTotal.toFixed(2)}</TableCell>
+                      <TableCell colSpan={2} className="text-right text-muted-foreground">Cash tips already received</TableCell>
+                      <TableCell colSpan={3} className="text-muted-foreground">${totals.cashTotal.toFixed(2)}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
-              <Button size="sm" variant="outline" className="mt-2" onClick={() => setCashTips(r => [...r, { customer: "", amount: 0 }])}>
-                <Plus className="h-4 w-4 mr-1" />Add Cash Tip
+              <Button size="sm" variant="outline" className="mt-2" onClick={() => setTips(r => [...r, { customer: "", amount: 0, method: "card" }])}>
+                <Plus className="h-4 w-4 mr-1" />Add Tip
               </Button>
             </CardContent>
           </Card>
@@ -350,13 +421,18 @@ export function SpaPayrollTab() {
             <CardHeader><CardTitle>Total Pay Summary</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="flex justify-between"><span>Service Hours ({totals.totalHours - prepHours} hrs)</span><span>${totals.serviceTotal.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Service Hours ({(totals.totalHours - prepHours).toFixed(2)} hrs)</span><span>${totals.serviceTotal.toFixed(2)}</span></div>
                 <div className="flex justify-between"><span>Prep/Turnover ({prepHours.toFixed(2)} hrs)</span><span>${totals.prepPay.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span>Credit Card Tips</span><span>${totals.ccTotal.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span>Tips to be paid out</span><span>${totals.payoutTotal.toFixed(2)}</span></div>
                 <div className="flex justify-between border-t pt-2 text-lg font-bold bg-blue-50 dark:bg-blue-950/30 px-3 py-2 rounded">
                   <span>TOTAL TO PAY ({totals.totalHours.toFixed(2)} hrs)</span>
                   <span>${totals.total.toFixed(2)}</span>
                 </div>
+                {totals.cashTotal > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Cash tips of ${totals.cashTotal.toFixed(2)} were received directly and are not included above.
+                  </p>
+                )}
               </div>
               <Button className="mt-4 w-full" size="lg" onClick={handleDownload}>
                 <FileDown className="h-4 w-4 mr-2" />Generate PDF

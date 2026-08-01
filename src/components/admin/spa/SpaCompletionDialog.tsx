@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, CreditCard, DollarSign, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -52,6 +53,7 @@ export function SpaCompletionDialog({
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [tipPreset, setTipPreset] = useState<number | null>(null);
   const [customTip, setCustomTip] = useState("");
+  const [tipMethod, setTipMethod] = useState("card");
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
@@ -64,6 +66,10 @@ export function SpaCompletionDialog({
   useEffect(() => {
     if (!appointment) return;
     setPaymentMethod(appointment.payment_method || "card");
+    setTipMethod(
+      (appointment as any).tip_payment_method ||
+        (appointment.payment_method === "cash" ? "cash" : "card")
+    );
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
     setSendReceipt(true);
@@ -210,6 +216,7 @@ export function SpaCompletionDialog({
         amount_paid: totalAmount,
         payment_method: paymentMethod,
         tip_amount: tipAmount,
+        tip_payment_method: tipAmount > 0 ? tipMethod : null,
         addons: selectedAddons,
         addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
@@ -428,10 +435,25 @@ export function SpaCompletionDialog({
                 />
               </div>
               {tipAmount > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Tip: ${tipAmount.toFixed(2)}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Tip: ${tipAmount.toFixed(2)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Tip paid by</Label>
+                    <Select value={tipMethod} onValueChange={setTipMethod}>
+                      <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="clover">Clover</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               )}
+
             </div>
           )}
 

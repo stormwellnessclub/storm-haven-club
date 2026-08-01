@@ -9575,6 +9575,7 @@ export type Database = {
           staff_notes: string | null
           status: string
           tip_amount: number | null
+          tip_payment_method: string | null
           updated_at: string
           user_id: string | null
         }
@@ -9613,6 +9614,7 @@ export type Database = {
           staff_notes?: string | null
           status?: string
           tip_amount?: number | null
+          tip_payment_method?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -9651,6 +9653,7 @@ export type Database = {
           staff_notes?: string | null
           status?: string
           tip_amount?: number | null
+          tip_payment_method?: string | null
           updated_at?: string
           user_id?: string | null
         }
