@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
 import { useKioskSearch, KioskSearchResult, KioskVisitorType } from "@/hooks/useKioskSearch";
 import { useKioskAttendance, KioskAttendanceType } from "@/hooks/useKioskAttendance";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
