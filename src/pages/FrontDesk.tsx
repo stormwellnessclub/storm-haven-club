@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
 import { useKioskSearch, KioskSearchResult, KioskVisitorType } from "@/hooks/useKioskSearch";
 import { useKioskAttendance, KioskAttendanceType } from "@/hooks/useKioskAttendance";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
@@ -409,19 +408,10 @@ function TodaysKidsCare() {
 }
 
 // ─── Main Front Desk Page ───────────────────────────────────────────
+// Access is enforced by ProtectedFrontDeskRoute (authenticated staff session +
+// front_desk/manager/admin role). No PIN gate here.
 export default function FrontDeskPage() {
-  const [isUnlocked, setIsUnlocked] = useState(
-    () => sessionStorage.getItem("kioskUnlocked") === "true"
-  );
 
-  if (!isUnlocked) {
-    return (
-      <>
-        <NoIndex />
-        <KioskPinGate onUnlock={() => setIsUnlocked(true)} />
-      </>
-    );
-  }
 
   return (
     <>
