@@ -1,41 +1,57 @@
-# Summer Daoud: what happened, and stopping the "charged again" confusion
+# Full Code Audit Export (read-only)
 
-## What actually happened (verified in Stripe and the ledger)
+Package the platform exactly as it exists today into one downloadable ZIP for an external auditor. No code is changed, refactored, or deleted — this is documentation and packaging only.
 
-Only one dues charge exists on her account:
+## Deliverable
 
-- **Jul 31, 9:55pm UTC — $206.29** (`pi_3TzOOn…`), "Monthly membership dues - Silver (includes $6.29 processing fee)", note *"past due July 9th"*. Initiated from the admin charge screen by a staff login.
+`/mnt/documents/storm-wellness-club-full-code-audit-export.zip`
 
-Everything I did afterwards was bookkeeping, not money movement:
+Top level of the ZIP:
 
-- **11:10pm** — re-ran the invoice/charge backfill, importing her existing Stripe history into `payment_attempts` and `billing_arrears`.
-- **11:58pm** — allocated the $206.29 to her oldest open dues invoice `in_1TrKpr…` (service period **Jun 9 – Jul 9**), stamped the resolution note, cleared `payment_past_due`, set her back to `active`.
-- **4:21am Aug 1** — marked `in_1TrKpr…` **paid out of band** in Stripe so it would stop retrying (it was on attempt 4). Out of band never touches a card, and Stripe's charge list confirms no second dues charge.
+```text
+README_AUDIT_EXPORT.md
+SYSTEM_INVENTORY.md
+DATABASE_INVENTORY.md
+STRIPE_INVENTORY.md
+KNOWN_ISSUES.md
+FILE_MANIFEST.md
+ENVIRONMENT_VARIABLES.md
+src/                      (900 files: pages, components, hooks, lib, contexts, integrations)
+supabase/functions/       (88 edge functions)
+supabase/migrations/      (424 migration files)
+supabase/schema/          (generated schema dump: tables, views, functions, triggers, enums, RLS, grants)
+public/                   (static assets, robots.txt, llms.txt, agreement PDFs)
+config files              (package.json, lockfile, tsconfig*, vite, tailwind, postcss, eslint, components.json, supabase/config.toml)
+.env.example              (variable NAMES only)
+docs/                     (the ~25 existing root-level .md notes, moved under docs/ for tidiness)
+```
 
-**The real exposure:** her subscription period is still **Jun 9 – Jul 10** because the cycle froze while the invoice was unpaid. Now that it's settled, Stripe will generate the **Jul 10 – Aug 9** invoice and auto-charge her card. That is a genuine unbilled month, but it will land with no warning and look like a duplicate to her and to the front desk.
+## What goes into each audit document
 
-## What to build
+**README_AUDIT_EXPORT.md** — framework (React 18 + Vite 5 + TS + Tailwind), architecture overview, database/auth/payments/hosting providers, deployment process, local-run instructions, and an explicit list of what cannot be included (live secrets, Stripe dashboard config, Supabase auth provider settings, cron schedules stored in the DB, storage bucket contents).
 
-### 1. Catch-up billing warning
-When a dues invoice is settled out of band, check whether the subscription period end is already in the past. If it is, surface a clear banner on the member's billing panel: *"Cycle behind — Stripe will issue the Jul 10 – Aug 9 invoice on settlement. Next auto-charge $200."* with the date and amount, so nobody is surprised.
+**SYSTEM_INVENTORY.md** — every route pulled from the router: public, member portal, admin, front desk, kiosk, instructor, PT portal, mobile-specific. Per route: purpose, main files, tables touched, edge functions/RPCs called, roles allowed, and a status flag (complete / partial / legacy / duplicated / unused).
 
-### 2. Show the settlement trail on the member profile
-The member billing panel currently shows charges, not how they were applied. Add a line under each resolved arrears row: which invoice it paid, which service period that invoice covers, who collected it, and the note. So "why was she charged" is answerable from the screen instead of from Stripe.
+**DATABASE_INVENTORY.md** — all ~180 tables. Per table: purpose, key columns, PK/FK relationships, RLS policies, which features use it, and an active/legacy/duplicate/unused flag. Plus enums, views, DB functions and triggers.
 
-### 3. Label invoices by service period, not creation date
-An invoice created Jun 9 covering Jun 9 – Jul 9 currently reads as a June charge in some views and a July past-due in others. Standardise every billing surface (arrears report, member profile, receipts) on **service period**, displayed as "Jun 9 – Jul 9".
+**STRIPE_INVENTORY.md** — every Stripe-touching file and edge function; each webhook event handled mapped to its handler; checkout, subscription (dues + annual fee dual-sub), invoice, failed-payment/dunning, refund, freeze, cancellation and reconciliation flows; every product/service mapped to Stripe; and the specific points where app records and Stripe records can drift.
 
-### 4. Decide Summer's next cycle
-Options, pick one and I'll apply it:
-- let the Jul 10 – Aug 9 invoice bill normally (default)
-- realign her billing anchor so dues land on a fixed day going forward
-- hold collection with a resume date while you talk to her
+**KNOWN_ISSUES.md** — documented, not fixed: TODOs, placeholder/mock code, dead routes, duplicate components and tables, legacy systems still live, UI without backend wiring, missing error/loading/permission handling, webhook gaps, reporting inconsistencies, hard-coded values, security concerns.
 
-Default if you say nothing: **let it bill normally**, with the warning banner from item 1 in place first so the front desk sees it coming.
+**FILE_MANIFEST.md** — complete folder/file tree with a short purpose line per major folder.
 
-## Technical notes
+**ENVIRONMENT_VARIABLES.md** — every env var name referenced in frontend and edge-function code, its purpose, the files using it, and whether it is needed in dev, prod or both. Names only.
 
-- Extend `settle_membership_dues_payment` to return the subscription's `current_period_end`; when it is in the past, write a `catch_up_billing_due` flag plus expected amount/date onto `member_billing_snapshot`.
-- Surface that flag in `useAdminMemberBillingHealth` / the member billing panel and on `/admin/billing-arrears`.
-- Add `period_start`/`period_end` formatting helper in `src/lib/billingTerminology.ts` and use it wherever an invoice or arrears row is rendered.
-- No changes to charging logic — nothing in this plan initiates a payment.
+## Technical approach
+
+- Schema, RLS policies, grants, functions, triggers, enums and FK relationships are read out of the live database with read-only queries and written to `supabase/schema/*.sql|.md`. No data rows are exported.
+- Inventories are generated by scanning the router, the `supabase/functions` directory, and the migration history — then reviewed for accuracy rather than guessed at.
+- The existing generated `src/integrations/supabase/types.ts` is included as-is.
+
+## Exclusions applied
+
+`node_modules`, build output, caches, `.env` with real values, any keys/tokens/secrets, and all member, payment and health data. Only the anon/publishable key (already public in client code) remains where it exists in source.
+
+## One size note
+
+`src/` currently measures 237 MB, almost entirely images, video and PDFs under `src/assets`. Plan: include all code plus the agreement PDFs, and replace heavy media binaries with a `MEDIA_ASSETS.md` listing filename, size and where each is used, keeping the ZIP in a downloadable range. Say the word if you want the raw media included instead.
