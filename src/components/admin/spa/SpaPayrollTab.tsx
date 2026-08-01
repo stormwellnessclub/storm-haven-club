@@ -65,13 +65,24 @@ const fmtTime = (t: string) => {
   return `${h12}:${m} ${ampm}`;
 };
 
+/** Bi-weekly pay cycle anchored to Mon Jul 13 2026 (period = 14 days). */
+const PAY_CYCLE_ANCHOR = new Date(2026, 6, 13);
+const payPeriod = (offset: number) => {
+  const days = Math.floor(
+    (startOfDay(new Date()).getTime() - PAY_CYCLE_ANCHOR.getTime()) / 86400000
+  );
+  const idx = Math.floor(days / 14) + offset;
+  const start = addDays(PAY_CYCLE_ANCHOR, idx * 14);
+  return { start, end: addDays(start, 13) };
+};
+
 export function SpaPayrollTab() {
   const { data: therapists, isLoading: therapistsLoading } = useSpaTherapists();
   const [therapistId, setTherapistId] = useState<string>("");
-  const [startDate, setStartDate] = useState(format(addDays(startOfDay(new Date()), -14), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(startOfDay(new Date()), "yyyy-MM-dd"));
+  const [startDate, setStartDate] = useState(format(payPeriod(0).start, "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState(format(payPeriod(0).end, "yyyy-MM-dd"));
 
-  const { data: payroll, isLoading, refetch, isFetching } = useQuery({
+  const { data: payroll, isLoading, refetch, isFetching, error } = useQuery({
     queryKey: ["therapist-payroll", therapistId, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_therapist_payroll", {
