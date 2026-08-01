@@ -428,10 +428,25 @@ export function SpaCompletionDialog({
                 />
               </div>
               {tipAmount > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Tip: ${tipAmount.toFixed(2)}
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Tip: ${tipAmount.toFixed(2)}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm">Tip paid by</Label>
+                    <Select value={tipMethod} onValueChange={setTipMethod}>
+                      <SelectTrigger className="w-36 h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="card">Card</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="clover">Clover</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               )}
+
             </div>
           )}
 
