@@ -316,6 +316,14 @@ export function SpaPayrollTab() {
               setStartDate("2026-04-20"); setEndDate("2026-05-02");
             }}>April 20 – May 2</Button>
             <Button size="sm" variant="outline" onClick={() => refetch()} disabled={!therapistId}>Refresh from DB</Button>
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" onClick={handleDownload} disabled={!canDownload}>
+                <FileDown className="h-4 w-4 mr-1" />Download PDF
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleDownloadCsv} disabled={!canDownload}>
+                <Download className="h-4 w-4 mr-1" />Export CSV
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
