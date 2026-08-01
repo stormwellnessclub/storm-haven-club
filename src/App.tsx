@@ -77,6 +77,7 @@ import CardAdded from "./pages/CardAdded";
 import FAQ from "./pages/FAQ";
 import GuestPass from "./pages/GuestPass";
 import NotFound from "./pages/NotFound";
+import OAuthConsent from "./pages/OAuthConsent";
 import RecoveryGuide from "./pages/RecoveryGuide";
 import MilestoneMockup from "./pages/mockup/MilestoneMockup";
 import Dashboard from "./pages/admin/Dashboard";
