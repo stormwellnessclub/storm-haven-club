@@ -4,11 +4,11 @@
 
 Teresa Tyler, 3 completed massages (1 cancelled 7/25 excluded):
 
-| Date | Time | Service | Length | Sale paid | Tip |
-|---|---|---|---|---|---|
-| 7/18 | 10:00 AM | Storm Signature Massage | 90 min | Card | $0 |
-| 7/23 | 12:00 PM | Deep Relief Massage | 60 min | Card | $0 |
-| 7/25 | 5:30 PM | Lymph & Flow Massage | 90 min | Card | $40 |
+| Date | Time | Client | Service | Length | Sale paid | Tip |
+|---|---|---|---|---|---|---|
+| 7/18 | 10:00 AM | Carly Mouhajer | Storm Signature Massage | 90 min | Card | $0 |
+| 7/23 | 12:00 PM | Kayla Pettigrew (non-member) | Deep Relief Massage | 60 min | Card | $0 |
+| 7/25 | 5:30 PM | Wafa Beydoun | Lymph & Flow Massage | 90 min | Card | $40 |
 
 At $26/hr: 4.0 service hours ($104) + 0.75 prep hours ($19.50) + $40 card tips = **$163.50 total**.
 
