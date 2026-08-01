@@ -116,14 +116,16 @@ export function SpaCompletionDialog({
       : 0;
   const totalAmount = Math.round((subtotal + tipAmount) * 100) / 100;
 
-  const category = (appointment as any).service_category || "";
-  const availableAddons = allAddons.filter(
-    (a) =>
-      a.is_active &&
-      (!a.applicable_categories ||
-        a.applicable_categories.length === 0 ||
-        a.applicable_categories.includes(category))
-  );
+  const category = String((appointment as any).service_category || "").trim().toLowerCase();
+  const serviceName = String(appointment.service_name || "").toLowerCase();
+  const availableAddons = allAddons.filter((a) => {
+    if (!a.is_active) return false;
+    const cats = (a.applicable_categories || []).map((c) =>
+      String(c).trim().toLowerCase()
+    );
+    if (cats.length === 0) return true;
+    return cats.some((c) => c === category || (!!c && serviceName.includes(c)));
+  });
 
   const toggleAddon = (addon: { id: string; name: string; price: number }) => {
     setSelectedAddons((prev) =>
