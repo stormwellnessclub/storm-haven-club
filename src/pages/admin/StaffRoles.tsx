@@ -14,6 +14,7 @@ import { AppRole, ROLE_LABELS } from "@/lib/permissions";
 import { InviteStaffDialog } from "@/components/admin/InviteStaffDialog";
 import { AddPlaceholderStaffDialog } from "@/components/admin/AddPlaceholderStaffDialog";
 import { PendingInvitesTab } from "@/components/admin/PendingInvitesTab";
+import { FrontDeskLoginCard } from "@/components/admin/FrontDeskLoginCard";
 import { format } from "date-fns";
 
 interface StaffMember {
@@ -155,6 +156,8 @@ export default function StaffRoles() {
             </Button>
           </div>
         </div>
+
+        <FrontDeskLoginCard />
 
         <Tabs defaultValue="active" className="w-full">
           <TabsList>
