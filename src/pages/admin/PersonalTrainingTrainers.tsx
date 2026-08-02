@@ -15,12 +15,17 @@ import {
 } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Loader2, Plus, Trash2, Users, StickyNote, Eye, EyeOff, Calendar, Ban, Sparkles,
+  MoreVertical, Pencil, Power, PowerOff, UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format as fmtDate, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
 import { PT_FORMAT_LABEL, PT_FORMATS, PtFormat } from "@/lib/ptFormat";
+import { TrainerFormDialog, TrainerFormValues } from "@/components/admin/pt/TrainerFormDialog";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -29,11 +34,26 @@ interface Instructor {
   first_name: string;
   last_name: string;
   email: string | null;
+  phone?: string | null;
+  bio?: string | null;
+  photo_url?: string | null;
+  specialties?: string[] | null;
+  pay_type?: string | null;
+  hourly_rate?: number | null;
+  default_per_class_rate?: number | null;
+  is_master?: boolean;
   is_active: boolean;
   is_public_pt: boolean;
 }
-interface Availability { id: string; instructor_id: string; weekday: number; start_time: string; end_time: string; }
-interface Override { id: string; instructor_id: string; date: string; kind: "block" | "extra"; start_time: string | null; end_time: string | null; note: string | null; }
+interface Availability {
+  id: string; instructor_id: string; weekday: number; start_time: string; end_time: string;
+  effective_start: string | null; effective_end: string | null; is_public: boolean; label: string | null;
+}
+interface Override {
+  id: string; instructor_id: string; date: string; end_date: string | null; kind: "block" | "extra";
+  start_time: string | null; end_time: string | null; note: string | null;
+  is_public: boolean; is_public_reason: boolean;
+}
 interface FormatRow { instructor_id: string; format: PtFormat; }
 interface Note { id: string; scope: "shared" | "trainer"; instructor_id: string | null; body: string; created_by: string | null; created_at: string; updated_at: string; }
 
