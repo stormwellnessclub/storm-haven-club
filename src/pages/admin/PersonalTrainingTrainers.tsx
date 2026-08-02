@@ -60,18 +60,26 @@ interface Note { id: string; scope: "shared" | "trainer"; instructor_id: string 
 export default function PersonalTrainingTrainers() {
   const qc = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formInitial, setFormInitial] = useState<Partial<TrainerFormValues> | null>(null);
 
-  const { data: instructors = [], isLoading } = useQuery({
+  const { data: allInstructors = [], isLoading } = useQuery({
     queryKey: ["pt-trainers-list"],
     queryFn: async () => {
       // Email is staff-only; served through the SECURITY DEFINER staff RPC.
       const { data, error } = await (supabase as any).rpc("get_instructors_with_contact");
       if (error) throw error;
       return ((data ?? []) as any[])
-        .filter((i) => i.is_active)
         .sort((a, b) => String(a.first_name).localeCompare(String(b.first_name))) as Instructor[];
     },
   });
+
+  const instructors = useMemo(
+    () => allInstructors.filter((i) => showInactive || i.is_active),
+    [allInstructors, showInactive],
+  );
+  const inactiveCount = allInstructors.filter((i) => !i.is_active).length;
 
   const { data: packs = [] } = useQuery({
     queryKey: ["pt-packs-visibility-summary"],
@@ -83,14 +91,53 @@ export default function PersonalTrainingTrainers() {
 
   const publicPackCount = packs.filter((p) => p.is_public && p.is_active).length;
   const hiddenPackCount = packs.filter((p) => !p.is_public && p.is_active).length;
-  const publicTrainerCount = instructors.filter((i) => i.is_public_pt).length;
-  const hiddenTrainerCount = instructors.filter((i) => !i.is_public_pt).length;
+  const publicTrainerCount = allInstructors.filter((i) => i.is_active && i.is_public_pt).length;
+  const hiddenTrainerCount = allInstructors.filter((i) => i.is_active && !i.is_public_pt).length;
 
   async function toggleTrainerPublic(t: Instructor, next: boolean) {
     const { error } = await supabase.from("instructors").update({ is_public_pt: next } as any).eq("id", t.id);
     if (error) return toast.error(error.message);
     toast.success(next ? "Trainer is now public" : "Trainer hidden from public");
     qc.invalidateQueries({ queryKey: ["pt-trainers-list"] });
+  }
+
+  async function setActive(t: Instructor, next: boolean) {
+    if (!next && !confirm(`Deactivate ${t.first_name} ${t.last_name}? They'll be removed from booking and the public site, but all history stays.`)) return;
+    const { error } = await supabase.from("instructors")
+      .update({ is_active: next, ...(next ? {} : { is_public_pt: false }) } as any).eq("id", t.id);
+    if (error) return toast.error(error.message);
+    toast.success(next ? "Trainer reactivated" : "Trainer deactivated");
+    qc.invalidateQueries({ queryKey: ["pt-trainers-list"] });
+  }
+
+  async function deleteTrainer(t: Instructor) {
+    if (!confirm(`Permanently delete ${t.first_name} ${t.last_name}? This cannot be undone and is only allowed if they have no history.`)) return;
+    const { data, error } = await (supabase as any).rpc("admin_delete_trainer", { _instructor_id: t.id });
+    if (error) return toast.error(error.message);
+    if (data && data.success === false) return toast.error(data.message ?? "Cannot delete this trainer");
+    toast.success("Trainer deleted");
+    if (selectedId === t.id) setSelectedId(null);
+    qc.invalidateQueries({ queryKey: ["pt-trainers-list"] });
+  }
+
+  function openAdd() { setFormInitial(null); setFormOpen(true); }
+  function openEdit(t: Instructor) {
+    setFormInitial({
+      id: t.id,
+      first_name: t.first_name ?? "",
+      last_name: t.last_name ?? "",
+      email: t.email ?? "",
+      phone: t.phone ?? "",
+      bio: t.bio ?? "",
+      photo_url: t.photo_url ?? "",
+      specialties: (t.specialties ?? []).join(", "),
+      is_public_pt: !!t.is_public_pt,
+      is_master: !!t.is_master,
+      pay_type: (t.pay_type as any) ?? "hourly",
+      hourly_rate: String(t.hourly_rate ?? 0),
+      default_per_class_rate: String(t.default_per_class_rate ?? 0),
+    });
+    setFormOpen(true);
   }
 
   const selected = instructors.find((i) => i.id === selectedId) ?? null;
