@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
   if (!gate.ok) return gate.response;
 
   try {
-    const { password } = await req.json().catch(() => ({}));
+    const { password, userId: targetUserId } = await req.json().catch(() => ({}));
     if (typeof password !== "string" || password.length < 8) {
       return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), {
         status: 400,
@@ -34,6 +34,26 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { persistSession: false } },
     );
+
+    // Targeted staff account: set the password for that specific user.
+    if (typeof targetUserId === "string" && targetUserId.length > 0) {
+      const { data: roleRows } = await admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", targetUserId);
+      if (!roleRows || roleRows.length === 0) {
+        return new Response(JSON.stringify({ error: "That account is not a staff member" }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
+      const { error: updErr } = await admin.auth.admin.updateUserById(targetUserId, {
+        password,
+        email_confirm: true,
+      });
+      if (updErr) throw updErr;
+      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
 
     // Find or create the shared front desk account.
     let userId: string | null = null;
