@@ -100,7 +100,7 @@ export async function playNotificationChime() {
   }
   try {
     const audio = new Audio(chimeDataUri);
-    audio.volume = 0.7;
+    audio.volume = 1.0;
     await audio.play();
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
