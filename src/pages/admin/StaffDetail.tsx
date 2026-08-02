@@ -14,6 +14,8 @@ import { AppRole, ROLE_LABELS } from "@/lib/permissions";
 import { StaffProfileCard } from "@/components/admin/StaffProfileCard";
 import { StaffRolesCard } from "@/components/admin/StaffRolesCard";
 import { StaffActivityLog } from "@/components/admin/StaffActivityLog";
+import { StaffPasswordCard } from "@/components/admin/StaffPasswordCard";
+
 
 interface StaffProfile {
   userId: string;
