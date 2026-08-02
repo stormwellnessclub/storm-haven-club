@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, KeyRound, Trash2, ShieldCheck, Search } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { FrontDeskLoginCard } from "@/components/admin/FrontDeskLoginCard";
 
 interface RosterRow {
   user_id: string;
@@ -172,6 +173,8 @@ export default function StaffPins() {
           />
         </div>
       </div>
+
+      <FrontDeskLoginCard />
 
       <Card>
         <CardHeader>
