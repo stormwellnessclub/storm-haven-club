@@ -23,10 +23,10 @@ Deno.serve(async (req) => {
   try {
     const { password, userId: targetUserId } = await req.json().catch(() => ({}));
     if (typeof password !== "string" || password.length < 8) {
-      return new Response(JSON.stringify({ error: "Password must be at least 8 characters" }), {
-        status: 400,
-        headers: corsHeaders,
-      });
+      return new Response(
+        JSON.stringify({ success: false, error: "Password must be at least 8 characters" }),
+        { headers: corsHeaders },
+      );
     }
 
     const admin = createClient(
@@ -42,10 +42,10 @@ Deno.serve(async (req) => {
         .select("role")
         .eq("user_id", targetUserId);
       if (!roleRows || roleRows.length === 0) {
-        return new Response(JSON.stringify({ error: "That account is not a staff member" }), {
-          status: 400,
-          headers: corsHeaders,
-        });
+        return new Response(
+          JSON.stringify({ success: false, error: "That account is not a staff member" }),
+          { headers: corsHeaders },
+        );
       }
       const { error: updErr } = await admin.auth.admin.updateUserById(targetUserId, {
         password,
@@ -87,8 +87,13 @@ Deno.serve(async (req) => {
       headers: corsHeaders,
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500,
+    const raw = (e as Error).message || "Could not update the password";
+    const friendly = /weak|pwned|easy to guess/i.test(raw)
+      ? "That password is too common / has appeared in a data breach. Pick a longer, unique one (e.g. 3 random words + a number)."
+      : raw;
+    // Return 200 so the client can read the real message instead of a generic
+    // "Edge Function returned a non-2xx status code".
+    return new Response(JSON.stringify({ success: false, error: friendly }), {
       headers: corsHeaders,
     });
   }
