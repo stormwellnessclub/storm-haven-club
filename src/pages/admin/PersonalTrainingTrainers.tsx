@@ -154,7 +154,8 @@ export default function PersonalTrainingTrainers() {
               Availability, formats, notes, and per-trainer public visibility.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={openAdd}><UserPlus className="h-4 w-4 mr-1" />Add trainer</Button>
             <Button variant="outline" asChild><Link to="/admin/personal-training/schedule">Schedule</Link></Button>
             <Button variant="outline" asChild><Link to="/admin/personal-training/passes">Customers &amp; Packs</Link></Button>
             <Button variant="outline" asChild><Link to="/admin/personal-training/packs">Packs &amp; Pricing</Link></Button>
@@ -177,23 +178,31 @@ export default function PersonalTrainingTrainers() {
 
           {/* Trainer list */}
           <section className="lg:col-span-2 order-1 lg:order-2">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
               <h2 className="font-serif text-xl">Trainers</h2>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="show-inactive" className="text-xs text-muted-foreground">
+                  Show inactive{inactiveCount ? ` (${inactiveCount})` : ""}
+                </Label>
+                <Switch id="show-inactive" checked={showInactive} onCheckedChange={setShowInactive} />
+              </div>
             </div>
 
             {isLoading ? (
               <div className="flex justify-center py-20"><Loader2 className="h-5 w-5 animate-spin" /></div>
             ) : instructors.length === 0 ? (
               <div className="border border-dashed rounded-lg py-16 text-center text-sm text-muted-foreground">
-                No active instructors. Add trainers in Admin → Instructors.
+                No trainers yet. Use “Add trainer” to create one.
               </div>
             ) : (
               <div className="border rounded-lg bg-card divide-y">
                 {instructors.map((t) => (
-                  <div key={t.id} className="px-4 py-3 flex items-center gap-3">
+                  <div key={t.id} className={`px-4 py-3 flex items-center gap-3 ${t.is_active ? "" : "opacity-60"}`}>
                     <button onClick={() => setSelectedId(t.id)} className="flex-1 min-w-0 text-left hover:opacity-80">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium">{t.first_name} {t.last_name}</span>
+                        {!t.is_active && <Badge variant="outline" className="text-[10px]">Inactive</Badge>}
+                        {t.is_master && <Badge variant="secondary" className="text-[10px]">Master</Badge>}
                         {t.is_public_pt ? (
                           <Badge variant="secondary" className="text-[10px] gap-1"><Eye className="h-3 w-3" /> Public</Badge>
                         ) : (
@@ -203,9 +212,35 @@ export default function PersonalTrainingTrainers() {
                       {t.email && <div className="text-xs text-muted-foreground truncate">{t.email}</div>}
                     </button>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Label htmlFor={`pub-${t.id}`} className="text-xs text-muted-foreground">Public</Label>
-                      <Switch id={`pub-${t.id}`} checked={t.is_public_pt} onCheckedChange={(v) => toggleTrainerPublic(t, v)} />
+                      <Label htmlFor={`pub-${t.id}`} className="text-xs text-muted-foreground hidden sm:inline">Public</Label>
+                      <Switch id={`pub-${t.id}`} checked={t.is_public_pt} disabled={!t.is_active}
+                        onCheckedChange={(v) => toggleTrainerPublic(t, v)} />
                       <Button size="sm" variant="ghost" onClick={() => setSelectedId(t.id)}>Manage</Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost" aria-label={`Actions for ${t.first_name} ${t.last_name}`}>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(t)}>
+                            <Pencil className="h-3.5 w-3.5 mr-2" /> Edit profile
+                          </DropdownMenuItem>
+                          {t.is_active ? (
+                            <DropdownMenuItem onClick={() => setActive(t, false)}>
+                              <PowerOff className="h-3.5 w-3.5 mr-2" /> Deactivate
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem onClick={() => setActive(t, true)}>
+                              <Power className="h-3.5 w-3.5 mr-2" /> Reactivate
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => deleteTrainer(t)}>
+                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete permanently
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 ))}
@@ -214,6 +249,8 @@ export default function PersonalTrainingTrainers() {
           </section>
         </div>
       </div>
+
+      <TrainerFormDialog open={formOpen} onOpenChange={setFormOpen} initial={formInitial} />
 
       <TrainerDetailSheet
         trainer={selected}
