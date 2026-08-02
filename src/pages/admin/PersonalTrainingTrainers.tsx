@@ -368,7 +368,7 @@ function TrainerDetailSheet({
             <Tabs defaultValue="availability" className="mt-4">
               <TabsList className="grid grid-cols-4 w-full">
                 <TabsTrigger value="availability"><Calendar className="h-3.5 w-3.5 mr-1" />Availability</TabsTrigger>
-                <TabsTrigger value="overrides"><Ban className="h-3.5 w-3.5 mr-1" />Overrides</TabsTrigger>
+                <TabsTrigger value="overrides"><Ban className="h-3.5 w-3.5 mr-1" />Time off</TabsTrigger>
                 <TabsTrigger value="formats">Formats</TabsTrigger>
                 <TabsTrigger value="notes"><StickyNote className="h-3.5 w-3.5 mr-1" />Notes</TabsTrigger>
               </TabsList>
