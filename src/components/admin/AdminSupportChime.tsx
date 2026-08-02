@@ -12,13 +12,13 @@ let chimeDataUri: string | null = null;
 function generateChimeWav(): string {
   const sampleRate = 44100;
   const tones: Array<{ freq: number; duration: number; volume: number }> = [
-    { freq: 660, duration: 0.15, volume: 0.4 },
-    { freq: 880, duration: 0.15, volume: 0.35 },
-    { freq: 1047, duration: 0.25, volume: 0.3 },
+    { freq: 660, duration: 0.18, volume: 0.98 },
+    { freq: 880, duration: 0.18, volume: 0.95 },
+    { freq: 1047, duration: 0.3, volume: 0.9 },
     // gap
-    { freq: 660, duration: 0.15, volume: 0.2 },
-    { freq: 880, duration: 0.15, volume: 0.18 },
-    { freq: 1047, duration: 0.25, volume: 0.15 },
+    { freq: 660, duration: 0.18, volume: 0.9 },
+    { freq: 880, duration: 0.18, volume: 0.88 },
+    { freq: 1047, duration: 0.3, volume: 0.85 },
   ];
 
   const gapSamples = Math.floor(sampleRate * 0.02);
@@ -27,11 +27,18 @@ function generateChimeWav(): string {
 
   tones.forEach((tone, i) => {
     const n = Math.floor(sampleRate * tone.duration);
+    const attack = Math.floor(sampleRate * 0.004);
     const samples: number[] = [];
     for (let j = 0; j < n; j++) {
       const t = j / sampleRate;
-      const env = tone.volume * (1 - j / n);
-      samples.push(env * Math.sin(2 * Math.PI * tone.freq * t));
+      // short attack ramp (prevents clicks) + linear decay
+      const ramp = j < attack ? j / attack : 1;
+      const env = tone.volume * ramp * (1 - j / n);
+      // fundamental + harmonic for a brighter, more audible chime
+      const wave =
+        0.75 * Math.sin(2 * Math.PI * tone.freq * t) +
+        0.25 * Math.sin(2 * Math.PI * tone.freq * 2 * t);
+      samples.push(env * wave);
     }
     segments.push(samples);
     if (i === 2) {
@@ -93,7 +100,7 @@ export async function playNotificationChime() {
   }
   try {
     const audio = new Audio(chimeDataUri);
-    audio.volume = 0.7;
+    audio.volume = 1.0;
     await audio.play();
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
