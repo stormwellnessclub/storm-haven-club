@@ -7,11 +7,14 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Building, Bell, Shield, CreditCard, Users, Loader2, Monitor, KeyRound, FileText } from "lucide-react";
 import { resolvePdfUrl } from "@/lib/pdfAssets";
+import { FrontDeskLoginCard } from "@/components/admin/FrontDeskLoginCard";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export default function Settings() {
+  const navigate = useNavigate();
   const [kioskPin, setKioskPin] = useState("");
   const [isSavingPin, setIsSavingPin] = useState(false);
   const [stripeStatus, setStripeStatus] = useState<"loading" | "connected" | "disconnected">("loading");
@@ -148,6 +151,8 @@ export default function Settings() {
         </Card>
 
         {/* Staff Management */}
+        <FrontDeskLoginCard />
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -164,14 +169,14 @@ export default function Settings() {
                 <p className="font-medium">Admin Users</p>
                 <p className="text-sm text-muted-foreground">2 active admins</p>
               </div>
-              <Button variant="outline">Manage</Button>
+              <Button variant="outline" onClick={() => navigate("/admin/staff-roles")}>Manage</Button>
             </div>
             <div className="flex items-center justify-between p-4 border rounded-lg">
               <div>
                 <p className="font-medium">Staff Users</p>
                 <p className="text-sm text-muted-foreground">8 active staff members</p>
               </div>
-              <Button variant="outline">Manage</Button>
+              <Button variant="outline" onClick={() => navigate("/admin/staff-roles")}>Manage</Button>
             </div>
             <Button>
               <Users className="h-4 w-4 mr-2" />
