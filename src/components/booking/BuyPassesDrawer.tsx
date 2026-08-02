@@ -19,9 +19,10 @@ interface BuyPassesDrawerProps {
   returnPath: string;
 }
 
-const pricing = [
-  { type: "Single Class", passType: "single" as const, memberPrice: 25, nonMemberPrice: 30, note: "Valid 1 week" },
-  { type: "10 Class Pack", passType: "tenPack" as const, memberPrice: 170, nonMemberPrice: 285, note: "Valid 2 months" },
+/** Fallback tiers used only if the pricing table can't be read. */
+const FALLBACK_TIERS = [
+  { pass_type: "single", label: "Single Class", classes_included: 1, member: 2500, non_member: 3000 },
+  { pass_type: "10_pack", label: "10 Class Pack", classes_included: 10, member: 17000, non_member: 28500 },
 ];
 
 /**
