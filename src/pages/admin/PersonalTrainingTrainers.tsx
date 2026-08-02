@@ -390,6 +390,10 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
   const [weekday, setWeekday] = useState(1);
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("12:00");
+  const [effStart, setEffStart] = useState("");
+  const [effEnd, setEffEnd] = useState("");
+  const [label, setLabel] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -405,17 +409,27 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
 
   async function add() {
     if (end <= start) return toast.error("End time must be after start");
+    if (effStart && effEnd && effEnd < effStart) return toast.error("End date must be on or after start date");
     setSaving(true);
     try {
       const { error } = await (supabase as any).from("pt_trainer_availability").insert({
         instructor_id: trainer.id, weekday, start_time: start, end_time: end,
+        effective_start: effStart || null, effective_end: effEnd || null,
+        is_public: isPublic, label: label.trim() || null,
       });
       if (error) throw error;
+      setLabel("");
       qc.invalidateQueries({ queryKey: ["pt-availability", trainer.id] });
     } catch (e: any) { toast.error(e?.message ?? "Failed"); } finally { setSaving(false); }
   }
   async function remove(id: string) {
     const { error } = await (supabase as any).from("pt_trainer_availability").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["pt-availability", trainer.id] });
+  }
+  async function togglePublic(a: Availability, next: boolean) {
+    const { error } = await (supabase as any).from("pt_trainer_availability")
+      .update({ is_public: next }).eq("id", a.id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["pt-availability", trainer.id] });
   }
@@ -426,11 +440,18 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
     return m;
   }, [rows]);
 
+  const today = fmtDate(new Date(), "yyyy-MM-dd");
+  function status(a: Availability): "active" | "scheduled" | "ended" {
+    if (a.effective_end && a.effective_end < today) return "ended";
+    if (a.effective_start && a.effective_start > today) return "scheduled";
+    return "active";
+  }
+
   return (
     <div className="space-y-4">
-      <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+      <div className="border rounded-md p-3 space-y-3 bg-muted/30">
         <div className="text-xs font-medium">Add weekly window</div>
-        <div className="grid grid-cols-4 gap-2 items-end">
+        <div className="grid grid-cols-3 gap-2 items-end">
           <div>
             <Label className="text-xs">Day</Label>
             <Select value={String(weekday)} onValueChange={(v) => setWeekday(parseInt(v, 10))}>
@@ -442,7 +463,31 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
           </div>
           <div><Label className="text-xs">Start</Label><Input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></div>
           <div><Label className="text-xs">End</Label><Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
-          <Button size="sm" onClick={add} disabled={saving}><Plus className="h-3 w-3 mr-1" />Add</Button>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">Starts on (optional)</Label>
+            <Input type="date" value={effStart} onChange={(e) => setEffStart(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Ends on (optional)</Label>
+            <Input type="date" value={effEnd} onChange={(e) => setEffEnd(e.target.value)} />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Leave dates empty for an ongoing weekly window.</p>
+        <div>
+          <Label className="text-xs">Label (optional)</Label>
+          <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Summer hours" />
+        </div>
+        <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-background">
+          <div>
+            <div className="text-sm font-medium">Visible to public</div>
+            <div className="text-[11px] text-muted-foreground">Off = staff can still book clients into it.</div>
+          </div>
+          <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+        </div>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={add} disabled={saving}><Plus className="h-3 w-3 mr-1" />Add window</Button>
         </div>
       </div>
 
@@ -452,12 +497,41 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
           {WEEKDAYS.map((d, i) => (grouped[i] ?? []).length === 0 ? null : (
             <div key={i} className="px-3 py-2">
               <div className="text-xs font-medium text-muted-foreground mb-1">{d}</div>
-              {(grouped[i] ?? []).map((a) => (
-                <div key={a.id} className="flex items-center justify-between text-sm py-1">
-                  <span className="tabular-nums">{a.start_time.slice(0, 5)} – {a.end_time.slice(0, 5)}</span>
-                  <Button size="sm" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-3 w-3" /></Button>
-                </div>
-              ))}
+              {(grouped[i] ?? []).map((a) => {
+                const st = status(a);
+                return (
+                  <div key={a.id} className={`flex items-center gap-2 text-sm py-1 ${st === "ended" ? "opacity-50" : ""}`}>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="tabular-nums">{a.start_time.slice(0, 5)} – {a.end_time.slice(0, 5)}</span>
+                        {a.is_public ? (
+                          <Badge variant="secondary" className="text-[10px] gap-1"><Eye className="h-3 w-3" />Public</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] gap-1"><EyeOff className="h-3 w-3" />Internal</Badge>
+                        )}
+                        {st === "scheduled" && <Badge variant="outline" className="text-[10px]">Scheduled</Badge>}
+                        {st === "ended" && <Badge variant="outline" className="text-[10px]">Ended</Badge>}
+                      </div>
+                      {(a.effective_start || a.effective_end || a.label) && (
+                        <div className="text-[11px] text-muted-foreground">
+                          {a.label && <span>{a.label}</span>}
+                          {a.label && (a.effective_start || a.effective_end) && " · "}
+                          {(a.effective_start || a.effective_end) && (
+                            <span>
+                              {a.effective_start ? fmtDate(parseISO(a.effective_start), "MMM d, yyyy") : "Always"}
+                              {" – "}
+                              {a.effective_end ? fmtDate(parseISO(a.effective_end), "MMM d, yyyy") : "ongoing"}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <Switch checked={a.is_public} onCheckedChange={(v) => togglePublic(a, v)}
+                      aria-label="Visible to public" />
+                    <Button size="sm" variant="ghost" onClick={() => remove(a.id)}><Trash2 className="h-3 w-3" /></Button>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -466,14 +540,18 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
   );
 }
 
-/* Overrides */
+/* Time off & blocks */
 function OverridesEditor({ trainer }: { trainer: Instructor }) {
   const qc = useQueryClient();
   const [date, setDate] = useState(fmtDate(new Date(), "yyyy-MM-dd"));
+  const [endDate, setEndDate] = useState("");
   const [kind, setKind] = useState<"block" | "extra">("block");
+  const [allDay, setAllDay] = useState(true);
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("12:00");
   const [note, setNote] = useState("");
+  const [publicReason, setPublicReason] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
@@ -487,13 +565,22 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
   });
 
   async function add() {
+    if (endDate && endDate < date) return toast.error("End date must be on or after the start date");
+    const timed = kind === "extra" || !allDay;
+    if (timed && end <= start) return toast.error("End time must be after start");
     setSaving(true);
     try {
-      const payload: any = { instructor_id: trainer.id, date, kind, note: note.trim() || null };
-      if (kind === "extra") {
-        if (end <= start) return toast.error("End time must be after start");
-        payload.start_time = start; payload.end_time = end;
-      }
+      const payload: any = {
+        instructor_id: trainer.id,
+        date,
+        end_date: endDate || null,
+        kind,
+        note: note.trim() || null,
+        is_public: kind === "extra" ? isPublic : true,
+        is_public_reason: kind === "block" ? publicReason : false,
+        start_time: timed ? start : null,
+        end_time: timed ? end : null,
+      };
       const { error } = await (supabase as any).from("pt_trainer_overrides").insert(payload);
       if (error) throw error;
       setNote("");
@@ -505,16 +592,18 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["pt-overrides", trainer.id] });
   }
+  async function toggleReason(o: Override, next: boolean) {
+    const { error } = await (supabase as any).from("pt_trainer_overrides")
+      .update({ is_public_reason: next }).eq("id", o.id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["pt-overrides", trainer.id] });
+  }
 
   return (
     <div className="space-y-4">
-      <div className="border rounded-md p-3 space-y-2 bg-muted/30">
-        <div className="text-xs font-medium">Add override (time off or extra window)</div>
+      <div className="border rounded-md p-3 space-y-3 bg-muted/30">
+        <div className="text-xs font-medium">Add time off or an extra window</div>
         <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label className="text-xs">Date</Label>
-            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
           <div>
             <Label className="text-xs">Kind</Label>
             <Select value={kind} onValueChange={(v) => setKind(v as any)}>
@@ -525,39 +614,90 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
               </SelectContent>
             </Select>
           </div>
+          {kind === "block" && (
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-sm border rounded-md px-3 py-2 w-full bg-background cursor-pointer">
+                <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(!!v)} />
+                All day
+              </label>
+            </div>
+          )}
         </div>
-        {kind === "extra" && (
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label className="text-xs">From date</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">To date (optional)</Label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        {(kind === "extra" || !allDay) && (
           <div className="grid grid-cols-2 gap-2">
             <div><Label className="text-xs">Start</Label><Input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></div>
             <div><Label className="text-xs">End</Label><Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           </div>
         )}
         <div>
-          <Label className="text-xs">Note (optional)</Label>
+          <Label className="text-xs">{kind === "block" ? "Reason (optional)" : "Note (optional)"}</Label>
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Vacation" />
         </div>
+        {kind === "block" ? (
+          <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-background">
+            <div>
+              <div className="text-sm font-medium">Show reason publicly</div>
+              <div className="text-[11px] text-muted-foreground">Off = booking page just says “Unavailable”.</div>
+            </div>
+            <Switch checked={publicReason} onCheckedChange={setPublicReason} />
+          </div>
+        ) : (
+          <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-background">
+            <div>
+              <div className="text-sm font-medium">Visible to public</div>
+              <div className="text-[11px] text-muted-foreground">Off = internal-only extra hours.</div>
+            </div>
+            <Switch checked={isPublic} onCheckedChange={setIsPublic} />
+          </div>
+        )}
         <div className="flex justify-end">
-          <Button size="sm" onClick={add} disabled={saving}><Plus className="h-3 w-3 mr-1" />Add override</Button>
+          <Button size="sm" onClick={add} disabled={saving}><Plus className="h-3 w-3 mr-1" />Add</Button>
         </div>
       </div>
 
       {isLoading ? <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin" /></div> :
-        rows.length === 0 ? <div className="text-sm text-muted-foreground text-center py-4">No overrides.</div> :
+        rows.length === 0 ? <div className="text-sm text-muted-foreground text-center py-4">No time off or extra windows.</div> :
         <div className="border rounded-md divide-y">
           {rows.map((o) => (
             <div key={o.id} className="px-3 py-2 flex items-center gap-2">
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium">
-                  {fmtDate(parseISO(o.date), "EEE, MMM d, yyyy")}
-                  <Badge variant={o.kind === "block" ? "destructive" : "secondary"} className="ml-2 text-[10px]">
+                <div className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                  <span>
+                    {fmtDate(parseISO(o.date), "EEE, MMM d, yyyy")}
+                    {o.end_date && o.end_date !== o.date && ` – ${fmtDate(parseISO(o.end_date), "EEE, MMM d, yyyy")}`}
+                  </span>
+                  <Badge variant={o.kind === "block" ? "destructive" : "secondary"} className="text-[10px]">
                     {o.kind === "block" ? "Blocked" : "Extra"}
                   </Badge>
+                  {o.kind === "extra" && !o.is_public && (
+                    <Badge variant="outline" className="text-[10px] gap-1"><EyeOff className="h-3 w-3" />Internal</Badge>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {o.kind === "extra" && o.start_time && o.end_time && `${o.start_time.slice(0, 5)} – ${o.end_time.slice(0, 5)}`}
+                  {o.start_time && o.end_time
+                    ? `${o.start_time.slice(0, 5)} – ${o.end_time.slice(0, 5)}`
+                    : o.kind === "block" ? "All day" : ""}
                   {o.note && ` · ${o.note}`}
+                  {o.kind === "block" && o.note && (o.is_public_reason ? " (shown publicly)" : " (internal)")}
                 </div>
               </div>
+              {o.kind === "block" && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Label className="text-[10px] text-muted-foreground hidden sm:inline">Public reason</Label>
+                  <Switch checked={o.is_public_reason} onCheckedChange={(v) => toggleReason(o, v)}
+                    aria-label="Show reason publicly" />
+                </div>
+              )}
               <Button size="sm" variant="ghost" onClick={() => remove(o.id)}><Trash2 className="h-3 w-3" /></Button>
             </div>
           ))}
