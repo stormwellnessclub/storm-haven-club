@@ -264,6 +264,8 @@ export default function StaffDetail() {
               currentRoles={roles}
               onRolesUpdated={fetchStaffData}
             />
+            <StaffPasswordCard userId={profile.userId} email={profile.email} />
+
           </div>
           <StaffActivityLog userId={profile.userId} />
         </div>
