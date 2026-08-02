@@ -27,11 +27,18 @@ function generateChimeWav(): string {
 
   tones.forEach((tone, i) => {
     const n = Math.floor(sampleRate * tone.duration);
+    const attack = Math.floor(sampleRate * 0.004);
     const samples: number[] = [];
     for (let j = 0; j < n; j++) {
       const t = j / sampleRate;
-      const env = tone.volume * (1 - j / n);
-      samples.push(env * Math.sin(2 * Math.PI * tone.freq * t));
+      // short attack ramp (prevents clicks) + linear decay
+      const ramp = j < attack ? j / attack : 1;
+      const env = tone.volume * ramp * (1 - j / n);
+      // fundamental + harmonic for a brighter, more audible chime
+      const wave =
+        0.75 * Math.sin(2 * Math.PI * tone.freq * t) +
+        0.25 * Math.sin(2 * Math.PI * tone.freq * 2 * t);
+      samples.push(env * wave);
     }
     segments.push(samples);
     if (i === 2) {
