@@ -1055,7 +1055,7 @@ serve(async (req) => {
                   user_id: userId,
                   member_id: memberId,
                   category: config.category,
-                  pass_type: passType === 'tenPack' ? '10-pack' : 'single',
+                  pass_type: passTypeLabel,
                   classes_total: config.classes,
                   classes_remaining: config.classes,
                   price_paid: session.amount_total ? session.amount_total / 100 : 0,
