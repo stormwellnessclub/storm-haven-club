@@ -8704,27 +8704,39 @@ export type Database = {
       pt_trainer_availability: {
         Row: {
           created_at: string
+          effective_end: string | null
+          effective_start: string | null
           end_time: string
           id: string
           instructor_id: string
+          is_public: boolean
+          label: string | null
           start_time: string
           updated_at: string
           weekday: number
         }
         Insert: {
           created_at?: string
+          effective_end?: string | null
+          effective_start?: string | null
           end_time: string
           id?: string
           instructor_id: string
+          is_public?: boolean
+          label?: string | null
           start_time: string
           updated_at?: string
           weekday: number
         }
         Update: {
           created_at?: string
+          effective_end?: string | null
+          effective_start?: string | null
           end_time?: string
           id?: string
           instructor_id?: string
+          is_public?: boolean
+          label?: string | null
           start_time?: string
           updated_at?: string
           weekday?: number
@@ -8844,9 +8856,12 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          end_date: string | null
           end_time: string | null
           id: string
           instructor_id: string
+          is_public: boolean
+          is_public_reason: boolean
           kind: string
           note: string | null
           start_time: string | null
@@ -8855,9 +8870,12 @@ export type Database = {
         Insert: {
           created_at?: string
           date: string
+          end_date?: string | null
           end_time?: string | null
           id?: string
           instructor_id: string
+          is_public?: boolean
+          is_public_reason?: boolean
           kind: string
           note?: string | null
           start_time?: string | null
@@ -8866,9 +8884,12 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string
+          end_date?: string | null
           end_time?: string | null
           id?: string
           instructor_id?: string
+          is_public?: boolean
+          is_public_reason?: boolean
           kind?: string
           note?: string | null
           start_time?: string | null
@@ -11455,6 +11476,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_trainer: { Args: { _instructor_id: string }; Returns: Json }
       admin_get_instructor_context: {
         Args: { _instructor_id: string }
         Returns: {
@@ -12199,6 +12221,27 @@ export type Database = {
           last_name: string
           photo_url: string
           specialties: string[]
+        }[]
+      }
+      get_public_trainer_availability: {
+        Args: { _from: string; _instructor_id: string; _to: string }
+        Returns: {
+          day: string
+          end_time: string
+          label: string
+          start_time: string
+          weekday: number
+        }[]
+      }
+      get_public_trainer_blocks: {
+        Args: { _from: string; _instructor_id: string; _to: string }
+        Returns: {
+          end_date: string
+          end_time: string
+          id: string
+          reason: string
+          start_date: string
+          start_time: string
         }[]
       }
       get_scheduled_functions_config: {
