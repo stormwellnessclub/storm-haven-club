@@ -173,6 +173,8 @@ export default function StaffPins() {
         </div>
       </div>
 
+      <FrontDeskLoginCard />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Eligible staff</CardTitle>
