@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
+import { useClassPassPricing } from "@/hooks/useClassPassPricing";
 
 interface BuyPassesDrawerProps {
   open: boolean;
@@ -47,12 +48,15 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
   const profileHook = useUserProfile();
   const nonMemberHook = useNonMemberProfile();
 
+  const { data: pricingRows } = useClassPassPricing();
+
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
     title: string;
-    pending: { passType: "single" | "tenPack" };
+    pending: { passType: string; classes: number };
   } | null>(null);
+
 
   // Reset waiver state when drawer closes
   useEffect(() => {
