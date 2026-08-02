@@ -3113,6 +3113,7 @@ serve(async (req) => {
             user_id: userId,
             category: passCategory,
             pass_type: passType,
+            pricing_id: pricingRowId2 ?? '',
             is_member: String(isMember),
             promotion_id: adminPassPromo?.promotionId ?? '',
           },
