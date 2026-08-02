@@ -54,8 +54,9 @@ Deno.serve(async (req) => {
 
     if (existing) {
       userId = existing.id;
-      // Keep the password in sync with the stored secret.
-      await admin.auth.admin.updateUserById(userId, { password, email_confirm: true });
+      // Do NOT rewrite the password here — admins may have set a real one so
+      // front desk staff can sign in normally with email + password.
+      await admin.auth.admin.updateUserById(userId, { email_confirm: true });
     } else {
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email: FRONTDESK_EMAIL,
@@ -73,10 +74,19 @@ Deno.serve(async (req) => {
       { onConflict: "user_id,role" },
     );
 
-    const authClient = createClient(url, anonKey, { auth: { persistSession: false } });
-    const { data: signIn, error: signInErr } = await authClient.auth.signInWithPassword({
+    // Mint a session without needing the account password.
+    const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
+      type: "magiclink",
       email: FRONTDESK_EMAIL,
-      password,
+    });
+    if (linkErr || !link?.properties?.hashed_token) {
+      throw new Error(linkErr?.message || "Could not create front desk session");
+    }
+
+    const authClient = createClient(url, anonKey, { auth: { persistSession: false } });
+    const { data: signIn, error: signInErr } = await authClient.auth.verifyOtp({
+      type: "magiclink",
+      token_hash: link.properties.hashed_token,
     });
     if (signInErr || !signIn?.session) throw new Error(signInErr?.message || "Sign-in failed");
 
