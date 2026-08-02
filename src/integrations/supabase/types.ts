@@ -1656,7 +1656,9 @@ export type Database = {
         Row: {
           audience: string
           category: Database["public"]["Enums"]["class_category"]
+          classes_included: number
           created_at: string
+          display_order: number
           id: string
           is_active: boolean
           label: string
@@ -1668,7 +1670,9 @@ export type Database = {
         Insert: {
           audience: string
           category: Database["public"]["Enums"]["class_category"]
+          classes_included?: number
           created_at?: string
+          display_order?: number
           id?: string
           is_active?: boolean
           label: string
@@ -1680,7 +1684,9 @@ export type Database = {
         Update: {
           audience?: string
           category?: Database["public"]["Enums"]["class_category"]
+          classes_included?: number
           created_at?: string
+          display_order?: number
           id?: string
           is_active?: boolean
           label?: string

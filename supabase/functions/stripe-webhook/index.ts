@@ -994,6 +994,34 @@ serve(async (req) => {
               config = defaultConfig[mappedCategory as keyof typeof defaultConfig] || defaultConfig.aerobics;
             }
 
+            // Admin-managed pricing tier (supports custom packs like 5-pack) —
+            // the DB row is the source of truth for how many classes are granted.
+            let passTypeLabel = passType === 'tenPack' || passType === '10_pack' ? '10-pack' : 'single';
+            if (metadata.pricing_id) {
+              try {
+                const { data: tier } = await supabase
+                  .from('class_pricing')
+                  .select('category, pass_type, classes_included')
+                  .eq('id', metadata.pricing_id)
+                  .maybeSingle();
+                if (tier) {
+                  const classes = Number(tier.classes_included) || config.classes;
+                  config = {
+                    category: tier.category,
+                    classes,
+                    validityDays: classes > 1 ? 60 : 7,
+                  };
+                  passTypeLabel = tier.pass_type === '10_pack'
+                    ? '10-pack'
+                    : tier.pass_type === 'single'
+                      ? 'single'
+                      : tier.pass_type;
+                }
+              } catch (e) {
+                logStep("class_pricing tier lookup failed (using defaults)", { error: (e as any)?.message });
+              }
+            }
+
             // Get member ID if user is a member
             let memberId: string | null = null;
             if (isMember) {
@@ -1027,7 +1055,7 @@ serve(async (req) => {
                   user_id: userId,
                   member_id: memberId,
                   category: config.category,
-                  pass_type: passType === 'tenPack' ? '10-pack' : 'single',
+                  pass_type: passTypeLabel,
                   classes_total: config.classes,
                   classes_remaining: config.classes,
                   price_paid: session.amount_total ? session.amount_total / 100 : 0,

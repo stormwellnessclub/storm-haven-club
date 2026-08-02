@@ -3,14 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type ClassPricingRow = {
   id: string;
-  category: "pilates_cycling" | "other";
-  pass_type: "single" | "10_pack";
+  category: string;
+  pass_type: string;
   audience: "member" | "non_member";
   label: string;
   price_cents: number;
+  classes_included: number;
+  display_order: number;
   stripe_price_id: string;
   is_active: boolean;
 };
+
+const SELECT =
+  "id, category, pass_type, audience, label, price_cents, classes_included, display_order, stripe_price_id, is_active";
 
 export function useClassPassPricing() {
   return useQuery({
@@ -18,10 +23,12 @@ export function useClassPassPricing() {
     queryFn: async (): Promise<ClassPricingRow[]> => {
       const { data, error } = await supabase
         .from("class_pricing")
-        .select("id, category, pass_type, audience, label, price_cents, stripe_price_id, is_active")
-        .eq("is_active", true);
+        .select(SELECT)
+        .eq("is_active", true)
+        .order("display_order")
+        .order("classes_included");
       if (error) throw error;
-      return (data ?? []) as ClassPricingRow[];
+      return (data ?? []) as unknown as ClassPricingRow[];
     },
     staleTime: 60_000,
   });

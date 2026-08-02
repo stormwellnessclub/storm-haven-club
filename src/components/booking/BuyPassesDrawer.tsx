@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { SimpleAgreementCard, DocumentInfo } from "@/components/SimpleAgreementCard";
+import { useClassPassPricing } from "@/hooks/useClassPassPricing";
 
 interface BuyPassesDrawerProps {
   open: boolean;
@@ -19,9 +20,10 @@ interface BuyPassesDrawerProps {
   returnPath: string;
 }
 
-const pricing = [
-  { type: "Single Class", passType: "single" as const, memberPrice: 25, nonMemberPrice: 30, note: "Valid 1 week" },
-  { type: "10 Class Pack", passType: "tenPack" as const, memberPrice: 170, nonMemberPrice: 285, note: "Valid 2 months" },
+/** Fallback tiers used only if the pricing table can't be read. */
+const FALLBACK_TIERS = [
+  { pass_type: "single", label: "Single Class", classes_included: 1, member: 2500, non_member: 3000 },
+  { pass_type: "10_pack", label: "10 Class Pack", classes_included: 10, member: 17000, non_member: 28500 },
 ];
 
 /**
@@ -46,12 +48,15 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
   const profileHook = useUserProfile();
   const nonMemberHook = useNonMemberProfile();
 
+  const { data: pricingRows } = useClassPassPricing();
+
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
     title: string;
-    pending: { passType: "single" | "tenPack" };
+    pending: { passType: string; classes: number };
   } | null>(null);
+
 
   // Reset waiver state when drawer closes
   useEffect(() => {
@@ -71,22 +76,41 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
   const needsSingleAgreement = hasSingleAgreementConfigured && !singleAgreementSigned;
   const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !classPackageAgreementSigned;
 
-  const handlePurchase = async (passType: "single" | "tenPack") => {
+  const audience = membership?.status === "active" ? "member" : "non_member";
+  const tiers = (pricingRows ?? [])
+    .filter((r) => r.category === "pilates_cycling" && r.audience === audience)
+    .sort((a, b) => a.display_order - b.display_order || a.classes_included - b.classes_included);
+
+  const displayTiers = tiers.length
+    ? tiers.map((r) => ({
+        passType: r.pass_type,
+        label: r.label,
+        classes: r.classes_included,
+        cents: r.price_cents,
+      }))
+    : FALLBACK_TIERS.map((t) => ({
+        passType: t.pass_type,
+        label: t.label,
+        classes: t.classes_included,
+        cents: audience === "member" ? t.member : t.non_member,
+      }));
+
+  const handlePurchase = async (passType: string, classes: number) => {
     if (!user) {
       toast.error("Please sign in to purchase class passes");
       return;
     }
 
     if (!hasLiabilityWaiver) {
-      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pending: { passType } });
+      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pending: { passType, classes } });
       return;
     }
-    if (passType === "single" && needsSingleAgreement) {
-      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pending: { passType } });
+    if (classes <= 1 && needsSingleAgreement) {
+      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pending: { passType, classes } });
       return;
     }
-    if (passType === "tenPack" && needsClassPackageAgreement) {
-      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pending: { passType } });
+    if (classes > 1 && needsClassPackageAgreement) {
+      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pending: { passType, classes } });
       return;
     }
 
@@ -167,7 +191,7 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
           toast.success(`${title} signed!`);
           setShowWaiverFor(null);
           // Resume the pending purchase
-          setTimeout(() => handlePurchase(pending.passType), 300);
+          setTimeout(() => handlePurchase(pending.passType, pending.classes), 300);
         },
       });
     };
@@ -210,8 +234,7 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
           <div className="mt-4">{renderWaiverPrompt()}</div>
         ) : (
           <div className="mt-5 space-y-3">
-            {pricing.map((tier) => {
-              const price = isMember ? tier.memberPrice : tier.nonMemberPrice;
+            {displayTiers.map((tier) => {
               const key = `pilatesCycling-${tier.passType}`;
               const isLoading = loadingPass === key;
               const disabled = loadingPass !== null;
@@ -221,20 +244,27 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
                   className="rounded-lg border border-border bg-card p-4 flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0">
-                    <div className="font-medium">{tier.type}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{tier.note}</div>
+                    <div className="font-medium">{tier.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {tier.classes} class{tier.classes === 1 ? "" : "es"} ·{" "}
+                      {tier.classes > 1 ? "Valid 2 months" : "Valid 1 week"}
+                    </div>
                     {isMember && (
                       <div className="text-[11px] text-gold mt-1 flex items-center gap-1">
                         <Check className="w-3 h-3" /> Member price
                       </div>
                     )}
                   </div>
-                  <Button onClick={() => handlePurchase(tier.passType)} disabled={disabled} className="min-w-[110px]">
+                  <Button
+                    onClick={() => handlePurchase(tier.passType, tier.classes)}
+                    disabled={disabled}
+                    className="min-w-[110px]"
+                  >
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <>
-                        <ShoppingCart className="h-4 w-4 mr-1.5" />${price}
+                        <ShoppingCart className="h-4 w-4 mr-1.5" />${(tier.cents / 100).toFixed(0)}
                       </>
                     )}
                   </Button>
