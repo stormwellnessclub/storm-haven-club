@@ -76,22 +76,41 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
   const needsSingleAgreement = hasSingleAgreementConfigured && !singleAgreementSigned;
   const needsClassPackageAgreement = hasClassPackageAgreementConfigured && !classPackageAgreementSigned;
 
-  const handlePurchase = async (passType: "single" | "tenPack") => {
+  const audience = membership?.status === "active" ? "member" : "non_member";
+  const tiers = (pricingRows ?? [])
+    .filter((r) => r.category === "pilates_cycling" && r.audience === audience)
+    .sort((a, b) => a.display_order - b.display_order || a.classes_included - b.classes_included);
+
+  const displayTiers = tiers.length
+    ? tiers.map((r) => ({
+        passType: r.pass_type,
+        label: r.label,
+        classes: r.classes_included,
+        cents: r.price_cents,
+      }))
+    : FALLBACK_TIERS.map((t) => ({
+        passType: t.pass_type,
+        label: t.label,
+        classes: t.classes_included,
+        cents: audience === "member" ? t.member : t.non_member,
+      }));
+
+  const handlePurchase = async (passType: string, classes: number) => {
     if (!user) {
       toast.error("Please sign in to purchase class passes");
       return;
     }
 
     if (!hasLiabilityWaiver) {
-      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pending: { passType } });
+      setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pending: { passType, classes } });
       return;
     }
-    if (passType === "single" && needsSingleAgreement) {
-      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pending: { passType } });
+    if (classes <= 1 && needsSingleAgreement) {
+      setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pending: { passType, classes } });
       return;
     }
-    if (passType === "tenPack" && needsClassPackageAgreement) {
-      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pending: { passType } });
+    if (classes > 1 && needsClassPackageAgreement) {
+      setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pending: { passType, classes } });
       return;
     }
 
