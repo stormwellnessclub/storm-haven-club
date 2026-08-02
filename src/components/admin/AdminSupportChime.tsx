@@ -12,13 +12,13 @@ let chimeDataUri: string | null = null;
 function generateChimeWav(): string {
   const sampleRate = 44100;
   const tones: Array<{ freq: number; duration: number; volume: number }> = [
-    { freq: 660, duration: 0.15, volume: 0.4 },
-    { freq: 880, duration: 0.15, volume: 0.35 },
-    { freq: 1047, duration: 0.25, volume: 0.3 },
+    { freq: 660, duration: 0.18, volume: 0.98 },
+    { freq: 880, duration: 0.18, volume: 0.95 },
+    { freq: 1047, duration: 0.3, volume: 0.9 },
     // gap
-    { freq: 660, duration: 0.15, volume: 0.2 },
-    { freq: 880, duration: 0.15, volume: 0.18 },
-    { freq: 1047, duration: 0.25, volume: 0.15 },
+    { freq: 660, duration: 0.18, volume: 0.9 },
+    { freq: 880, duration: 0.18, volume: 0.88 },
+    { freq: 1047, duration: 0.3, volume: 0.85 },
   ];
 
   const gapSamples = Math.floor(sampleRate * 0.02);
