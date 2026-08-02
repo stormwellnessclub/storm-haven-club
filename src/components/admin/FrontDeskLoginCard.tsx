@@ -45,7 +45,7 @@ export function FrontDeskLoginCard() {
   };
 
   return (
-    <Card>
+    <Card className="border-2 border-primary">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <LogIn className="h-4 w-4" />
