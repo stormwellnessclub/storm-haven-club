@@ -140,11 +140,15 @@ export function parsePreferredTimes(raw: string | null | undefined): ParsedPrefe
   // Group words
   if (/\bweek\s?days?\b|\bweek days\b/.test(lower)) WEEKDAYS.forEach((d) => days.add(d));
   if (/\bweek\s?ends?\b/.test(lower)) WEEKEND.forEach((d) => days.add(d));
-  if (/\bevery ?day\b|\bany ?day\b|\bdaily\b|\ball week\b/.test(lower))
+  if (
+    /\bevery ?day\b|\bany ?day\b|\bdaily\b|\ball week\b|^any(?:time| time)?$|\bflexible\b|\bopen\b/.test(
+      lower
+    )
+  )
     [0, 1, 2, 3, 4, 5, 6].forEach((d) => days.add(d));
 
-  // Compact letter lists
-  if (days.size === 0) parseLetterList(lower).forEach((d) => days.add(d));
+  // Compact letter lists ("M,W,F" / "W F mornings")
+  parseLetterList(lower).forEach((d) => days.add(d));
 
   // Times
   const chips: string[] = [];
@@ -157,7 +161,8 @@ export function parsePreferredTimes(raw: string | null | undefined): ParsedPrefe
   };
 
   const TIME_RE =
-    /\b(after|before|around|from|starting)?\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/gi;
+    /\b(after|before|around|from|starting)?\s*(\d{1,4})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/gi;
+
   let tm: RegExpExecArray | null;
   while ((tm = TIME_RE.exec(lower)) !== null) {
     const prefix = tm[1];
