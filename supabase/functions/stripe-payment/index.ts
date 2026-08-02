@@ -946,6 +946,7 @@ serve(async (req) => {
             user_id: user?.id ?? null,
             category,
             pass_type: passType,
+            pricing_id: pricingRowId ?? '',
             is_member: String(isVerifiedMember),
             promotion_id: classPassPromo?.promotionId ?? '',
           },
