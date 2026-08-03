@@ -736,6 +736,35 @@ export default function TrainingRequestsAdmin() {
             </div>
           </div>
         )}
+
+        {/* Print-only clean list */}
+        <div id="print-area" className="hidden print:block">
+          <h1 style={{ fontSize: "14pt", fontWeight: 600, marginBottom: 2 }}>
+            {titleForExport}
+          </h1>
+          <p style={{ fontSize: "9pt", marginBottom: 10 }}>
+            {rangeLabel} · {exportRows.length} request{exportRows.length === 1 ? "" : "s"} ·
+            Printed {format(new Date(), "MMM d, yyyy h:mm a")}
+          </p>
+          <table>
+            <thead>
+              <tr>
+                {EXPORT_HEADERS.map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {exportRows.map((r, i) => (
+                <tr key={i}>
+                  {EXPORT_HEADERS.map((h) => (
+                    <td key={h}>{(r as Record<string, string>)[h] || "—"}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </AdminLayout>
   );
