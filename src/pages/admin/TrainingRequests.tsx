@@ -125,14 +125,21 @@ export default function TrainingRequestsAdmin() {
     });
   }, [rows, serviceFilter, statusFilter, rangeFilter]);
 
-  const parsedRows = useMemo(
-    () =>
-      filtered.map((r) => ({
-        row: r,
-        parsed: parsePreferredTimes(r.preferred_times),
-      })),
-    [filtered]
-  );
+  const parsedRows = useMemo(() => {
+    const mapped = filtered.map((r) => ({
+      row: r,
+      parsed: parsePreferredTimes(r.preferred_times),
+    }));
+    const dir = sortDir === "asc" ? 1 : -1;
+    return mapped.sort((a, b) => {
+      if (sortKey === "client") {
+        return a.row.full_name.localeCompare(b.row.full_name) * dir;
+      }
+      return (
+        (new Date(a.row.created_at).getTime() - new Date(b.row.created_at).getTime()) * dir
+      );
+    });
+  }, [filtered, sortKey, sortDir]);
 
   /** day index -> list of { name, bucketLabel } */
   const grouped = useMemo(() => {
