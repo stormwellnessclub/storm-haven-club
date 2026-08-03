@@ -178,17 +178,85 @@ export function BookPTSessionDialog({
 
   const selectedPass = formatPasses.find((p) => p.id === passId);
   const unpaidMode = paymentMode === "unpaid";
+  const isGroup = format === "semi_private";
+
+  const slotStartIso = useMemo(() => {
+    const d = new Date(`${date}T${time}:00`);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }, [date, time]);
+  const slotEndIso = useMemo(
+    () => (slotStartIso ? new Date(new Date(slotStartIso).getTime() + duration * 60000).toISOString() : null),
+    [slotStartIso, duration],
+  );
+
+  const { data: occupancy } = useQuery({
+    queryKey: ["pt-group-occupancy", slotStartIso, slotEndIso, instructorId, format],
+    enabled: open && isGroup && !!slotStartIso && !!slotEndIso,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("pt_group_slot_occupancy", {
+        p_starts_at: slotStartIso,
+        p_ends_at: slotEndIso,
+        p_instructor_id: instructorId || null,
+        p_format: "semi_private",
+      });
+      if (error) throw error;
+      return data as { capacity: number; booked: number; attendees: { name: string }[] };
+    },
+  });
+
+  const attendees = useMemo(() => {
+    const primary = userId ? [{ id: userId, label: userLabel ?? "Client" }] : [];
+    if (!isGroup) return primary;
+    return [...primary, ...extras.map((e) => ({ id: e.id, label: `${e.name}` }))];
+  }, [userId, userLabel, extras, isGroup]);
+
+  const seatsLeft = occupancy ? Math.max(occupancy.capacity - occupancy.booked, 0) : null;
+
+  async function bookOne(attendeeId: string, startsAtIso: string, force: boolean, rateCents: number) {
+    let passIdToUse: string | null = null;
+    if (!unpaidMode) {
+      if (attendeeId === userId) {
+        passIdToUse = selectedPass?.id ?? null;
+      } else {
+        const today = fmtDate(new Date(), "yyyy-MM-dd");
+        const { data } = await (supabase as any).from("pt_passes")
+          .select("id").eq("user_id", attendeeId).eq("format", format)
+          .eq("status", "active").gt("sessions_remaining", 0).gte("expires_at", today)
+          .order("expires_at", { ascending: true }).limit(1);
+        passIdToUse = data?.[0]?.id ?? null;
+      }
+    }
+    const asUnpaid = unpaidMode || !passIdToUse;
+    if (asUnpaid && rateCents <= 0) throw new Error("RATE_REQUIRED");
+
+    const { data, error } = await (supabase as any).rpc("book_pt_appointment", {
+      p_user_id: attendeeId,
+      p_format: format,
+      p_starts_at: startsAtIso,
+      p_duration_minutes: duration,
+      p_instructor_id: instructorId || null,
+      p_notes: notes || null,
+      p_pass_id: asUnpaid ? null : passIdToUse,
+      p_unpaid: asUnpaid,
+      p_rate_cents: asUnpaid ? rateCents : 0,
+      p_location_id: null,
+      p_force: force,
+    });
+    if (error) throw error;
+    return Array.isArray(data) ? data[0] : data;
+  }
 
   async function submit(force = false) {
     setErr(null);
     if (submitting) return;
     if (!force) setConflict(null);
     if (!userId) return toast.error("Pick a customer");
-    if (!unpaidMode && !selectedPass) {
+    if (!unpaidMode && !selectedPass && !isGroup) {
       setErr("No active sessions for this format. Sell a pack first, or bill this session later.");
       return;
     }
-    const rateCents = Math.round(parseFloat(rate || "0") * 100);
+    const enteredCents = Math.round(parseFloat(rate || "0") * 100);
+    const rateCents = enteredCents > 0 ? enteredCents : defaultRateCents;
     if (unpaidMode && rateCents <= 0) {
       setErr("Enter the session rate so it can be collected later.");
       return;
@@ -197,46 +265,60 @@ export function BookPTSessionDialog({
     if (isNaN(startsAtLocal.getTime())) return toast.error("Invalid date/time");
 
     setSubmitting(true);
+    const booked: any[] = [];
+    const bookedIds: string[] = [];
+    const failures: string[] = [];
     try {
-      const { data, error } = await (supabase as any).rpc("book_pt_appointment", {
-        p_user_id: userId,
-        p_format: format,
-        p_starts_at: startsAtLocal.toISOString(),
-        p_duration_minutes: duration,
-        p_instructor_id: instructorId || null,
-        p_notes: notes || null,
-        p_pass_id: unpaidMode ? null : selectedPass?.id ?? null,
-        p_unpaid: unpaidMode,
-        p_rate_cents: unpaidMode ? rateCents : 0,
-        p_location_id: null,
-        p_force: force,
-      });
-      if (error) throw error;
-      const appt = Array.isArray(data) ? data[0] : data;
-      setConflict(null);
-      toast.success(unpaidMode ? "Session booked · marked unpaid" : "Session booked · 1 deducted");
+      for (const a of attendees) {
+        try {
+          const appt = await bookOne(a.id, startsAtLocal.toISOString(), force, rateCents);
+          booked.push(appt);
+          bookedIds.push(a.id);
+        } catch (e: any) {
+          const msg = e?.message ?? "Booking failed";
+          if (msg.includes("GROUP_FULL")) failures.push(`${a.label}: semi-private session is full`);
+          else if (msg.includes("ALREADY_BOOKED")) failures.push(`${a.label}: already booked at that time`);
+          else if (msg.includes("NO_SESSIONS")) failures.push(`${a.label}: no active sessions`);
+          else if (msg.includes("RATE_REQUIRED")) failures.push(`${a.label}: no package — enter a session rate`);
+          else if (msg.includes("CONFLICT")) {
+            setConflict("That trainer is already booked at this time. Pick another slot, or book anyway to double-book on purpose.");
+            failures.push(`${a.label}: trainer conflict`);
+          } else failures.push(`${a.label}: ${msg}`);
+        }
+      }
 
-      // Fire confirmation email (non-blocking)
-      supabase.functions.invoke("send-pt-booking-email", {
-        body: { appointment_id: appt.id, type: "confirmation" },
-      }).catch(() => {});
+      booked.forEach((appt) => {
+        supabase.functions.invoke("send-pt-booking-email", {
+          body: { appointment_id: appt.id, type: "confirmation" },
+        }).catch(() => {});
+      });
+
+      if (booked.length > 0) {
+        setConflict(failures.length ? conflict : null);
+        toast.success(
+          booked.length === 1
+            ? unpaidMode ? "Session booked · marked unpaid" : "Session booked"
+            : `${booked.length} clients booked into this session`,
+        );
+      }
+      if (failures.length > 0) setErr(failures.join(" · "));
 
       qc.invalidateQueries({ queryKey: ["pt-appointments"] });
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-appointments"] });
-      onBooked?.();
-      onOpenChange(false);
-    } catch (e: any) {
-      const msg = e?.message ?? "Booking failed";
-      if (msg.includes("NO_SESSIONS")) setErr("No active sessions for this customer. Choose Bill later or sell a package.");
-      else if (msg.includes("CONFLICT")) {
-        setConflict("That trainer is already booked at this time. Pick another slot, or book anyway to double-book on purpose.");
-      } else setErr(msg);
+      qc.invalidateQueries({ queryKey: ["pt-group-occupancy"] });
+
+      if (booked.length > 0) {
+        setExtras((prev) => prev.filter((e) => !bookedIds.includes(e.id)));
+        onBooked?.();
+        if (failures.length === 0) onOpenChange(false);
+      }
     } finally {
       setSubmitting(false);
     }
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
