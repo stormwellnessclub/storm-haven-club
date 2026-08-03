@@ -176,25 +176,76 @@ export default function TrainingRequestsAdmin() {
   const rangeLabel =
     RANGE_OPTIONS.find((o) => o.value === rangeFilter)?.label ?? "All time";
 
+  const EXPORT_HEADERS = [
+    "Client",
+    "Member",
+    "Phone",
+    "Email",
+    "Service",
+    "Requested days",
+    "Time frame",
+    "Original wording",
+    "Submitted",
+    "Status",
+  ];
+
+  const exportRows = useMemo(
+    () =>
+      parsedRows.map(({ row, parsed }) => ({
+        Client: row.full_name,
+        Member: row.is_member ? "Yes" : "No",
+        Phone: row.phone ?? "",
+        Email: row.email ?? "",
+        Service: SERVICE_LABEL[row.service] ?? row.service,
+        "Requested days": formatDays(parsed.days),
+        "Time frame": parsed.timeChips.join(" / "),
+        "Original wording": (row.preferred_times ?? "").replace(/\s+/g, " ").trim(),
+        Submitted: format(new Date(row.created_at), "yyyy-MM-dd"),
+        Status: row.status,
+      })),
+    [parsedRows]
+  );
+
   function exportCsv() {
-    if (!parsedRows.length) return toast.error("Nothing to export");
-    const data = parsedRows.map(({ row, parsed }) => ({
-      Client: row.full_name,
-      Service: SERVICE_LABEL[row.service] ?? row.service,
-      Member: row.is_member ? "Yes" : "No",
-      Email: row.email,
-      Phone: row.phone,
-      "Requested days": formatDays(parsed.days),
-      "Time frame": parsed.timeChips.join(" / "),
-      "Original request": row.preferred_times ?? "",
-      Status: row.status,
-      Submitted: format(new Date(row.created_at), "yyyy-MM-dd h:mm a"),
-    }));
+    if (!exportRows.length) return toast.error("Nothing to export");
     downloadCsv(
       `training-requests-${format(new Date(), "yyyy-MM-dd")}.csv`,
-      data
+      exportRows,
+      EXPORT_HEADERS
     );
     toast.success("CSV downloaded");
+  }
+
+  async function copyRows() {
+    if (!exportRows.length) return toast.error("Nothing to copy");
+    const tsv = [
+      EXPORT_HEADERS.join("\t"),
+      ...exportRows.map((r) =>
+        EXPORT_HEADERS.map((h) =>
+          String((r as Record<string, string>)[h] ?? "").replace(/[\t\n\r]+/g, " ")
+        ).join("\t")
+      ),
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(tsv);
+      toast.success(`${exportRows.length} rows copied — paste into a spreadsheet`);
+    } catch {
+      toast.error("Clipboard blocked by the browser — use Export CSV instead");
+    }
+  }
+
+  function printList() {
+    if (!exportRows.length) return toast.error("Nothing to print");
+    document.body.classList.add("printing-area");
+    const cleanup = () => {
+      document.body.classList.remove("printing-area");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 1000);
+    }, 50);
   }
 
   function exportPdf() {
