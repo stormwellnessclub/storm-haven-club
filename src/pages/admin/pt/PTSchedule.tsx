@@ -273,13 +273,21 @@ export default function PTSchedule() {
                       const loc = a.location_id ? locationMap[a.location_id] : undefined;
                       const st = a.session_type_id ? sessionTypeMap[a.session_type_id] : undefined;
                       const tall = a.duration_minutes >= 45;
+                      const slot = laneMap[a.id] ?? { lane: 0, lanes: 1 };
+                      const widthPct = 100 / Math.max(slot.lanes, 1);
                       return (
                         <button
                           key={a.id}
                           onClick={() => setSelected(a)}
-                          className={`absolute left-1 right-1 rounded-lg pl-2.5 pr-2 py-1.5 text-left overflow-hidden border shadow-sm transition hover:shadow-md ${style.card}`}
-                          style={{ top: offsetFor(a.starts_at), height: Math.max(a.duration_minutes * PX_PER_MIN - 4, 36) }}
+                          className={`absolute rounded-lg pl-2.5 pr-2 py-1.5 text-left overflow-hidden border shadow-sm transition hover:shadow-md hover:z-10 ${style.card}`}
+                          style={{
+                            top: offsetFor(a.starts_at),
+                            height: Math.max(a.duration_minutes * PX_PER_MIN - 4, 36),
+                            left: `calc(${slot.lane * widthPct}% + 4px)`,
+                            width: `calc(${widthPct}% - 8px)`,
+                          }}
                         >
+
                           <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${style.bar}`} />
                           <div className="flex items-start justify-between gap-1">
                             <span className="text-[12px] font-medium truncate">{p?.name ?? "Client"}</span>
