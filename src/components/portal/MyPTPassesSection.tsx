@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dumbbell, Calendar, X } from "lucide-react";
 import { format as fmtDate, parseISO, differenceInDays, differenceInHours } from "date-fns";
-import { PT_FORMAT_LABEL, PtPass } from "@/lib/ptFormat";
+import { PT_FORMAT_LABEL, PtPass, memberCancelOutcomeMessage } from "@/lib/ptFormat";
 import { toast } from "sonner";
 
 interface Appt {
