@@ -83,23 +83,16 @@ export function BookPTSessionDialog({
   const { data: users = [] } = useQuery({
     queryKey: ["pt-book-user-search", search],
     enabled: !userId && search.length >= 2,
-    queryFn: async (): Promise<UserOption[]> => {
-      const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
-        supabase.from("profiles").select("user_id, email, full_name")
-          .or(`email.ilike.%${search}%,full_name.ilike.%${search}%`).limit(10),
-        supabase.from("members").select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`).limit(10),
-        supabase.from("non_member_profiles").select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`).limit(10),
-      ]);
-      const list: UserOption[] = [
-        ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: p.full_name ?? p.email, isMember: false })),
-        ...(nonMembers ?? []).map((n: any) => ({ id: n.user_id, email: n.email, name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email, isMember: false, isNonMember: true })),
-        ...(members ?? []).map((m: any) => ({ id: m.user_id, email: m.email, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, isMember: true })),
-      ].filter((u) => u.id);
-      return Array.from(new Map(list.map((u) => [u.id, u])).values());
-    },
+    queryFn: () => searchPeople(search),
   });
+
+  // Additional attendees search (semi-private groups)
+  const { data: extraResults = [] } = useQuery({
+    queryKey: ["pt-book-user-search", extraSearch],
+    enabled: format === "semi_private" && extraSearch.length >= 2,
+    queryFn: () => searchPeople(extraSearch),
+  });
+
 
   // Customer's active passes
   const { data: passes = [], isLoading: passesLoading } = useQuery({
