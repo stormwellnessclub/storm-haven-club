@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dumbbell, X } from "lucide-react";
 import { format as fmtDate, parseISO, differenceInHours } from "date-fns";
-import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
+import { PT_FORMAT_LABEL, memberCancelOutcomeMessage } from "@/lib/ptFormat";
 import { toast } from "sonner";
 
 interface Appt {
