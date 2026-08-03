@@ -82,15 +82,17 @@ export default function PersonalTrainingSchedule() {
   async function cancelAppt(a: Appt) {
     const reason = window.prompt("Cancellation reason (optional)") ?? "";
     if (reason === null) return;
-    const { error } = await (supabase as any).rpc("cancel_pt_appointment", {
+    const { data, error } = await (supabase as any).rpc("cancel_pt_appointment", {
       p_appointment_id: a.id, p_reason: reason || null,
     });
     if (error) return toast.error(error.message);
-    toast.success("Cancelled · session restored");
+    const row = Array.isArray(data) ? data[0] : data;
+    toast.success(cancelOutcomeMessage(row?.cancel_credit_outcome));
     supabase.functions.invoke("send-pt-booking-email", { body: { appointment_id: a.id, type: "cancellation" } }).catch(() => {});
     qc.invalidateQueries({ queryKey: ["pt-appointments"] });
     qc.invalidateQueries({ queryKey: ["pt-passes"] });
   }
+
 
   async function setStatus(a: Appt, status: string) {
     const { error } = await (supabase as any).from("pt_appointments").update({ status }).eq("id", a.id);
