@@ -240,6 +240,8 @@ export default function PTSchedule() {
 
             {columns.map((col) => {
               const colAppts = appts.filter(col.match);
+              const laneMap = layoutColumn(colAppts);
+
               const bookDate = view === "week" ? col.key : date;
               return (
                 <div key={col.key} className="flex-1 min-w-[210px] border-r border-pt-line/40 last:border-r-0">
