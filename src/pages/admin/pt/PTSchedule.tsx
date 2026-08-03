@@ -108,6 +108,40 @@ export default function PTSchedule() {
     return (d.getHours() * 60 + d.getMinutes() - START_HOUR * 60) * PX_PER_MIN;
   }
 
+  /**
+   * Side-by-side layout for overlapping sessions (semi-private groups book one
+   * appointment per attendee in the same slot — they must all stay visible).
+   */
+  function layoutColumn(list: PTScheduleAppointment[]) {
+    const sorted = [...list].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+    const lanes: Record<string, { lane: number; lanes: number }> = {};
+    let cluster: PTScheduleAppointment[] = [];
+    let clusterEnd = 0;
+    const flush = () => {
+      const laneEnds: number[] = [];
+      cluster.forEach((a) => {
+        const start = new Date(a.starts_at).getTime();
+        const end = new Date(a.ends_at ?? a.starts_at).getTime() || start + a.duration_minutes * 60000;
+        let lane = laneEnds.findIndex((e) => e <= start);
+        if (lane === -1) { lane = laneEnds.length; laneEnds.push(end); } else { laneEnds[lane] = end; }
+        lanes[a.id] = { lane, lanes: 0 };
+      });
+      cluster.forEach((a) => { lanes[a.id].lanes = laneEnds.length; });
+      cluster = [];
+    };
+    sorted.forEach((a) => {
+      const start = new Date(a.starts_at).getTime();
+      const end = new Date(a.ends_at ?? a.starts_at).getTime() || start + a.duration_minutes * 60000;
+      if (cluster.length && start >= clusterEnd) flush();
+      cluster.push(a);
+      clusterEnd = cluster.length === 1 ? end : Math.max(clusterEnd, end);
+    });
+    if (cluster.length) flush();
+    return lanes;
+  }
+
+
+
   function step(dir: number) {
     setDate(fmtDate(addDays(anchor, weekMode ? dir * 7 : dir), "yyyy-MM-dd"));
   }
