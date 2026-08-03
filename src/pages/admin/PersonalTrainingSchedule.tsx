@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { format as fmtDate, addDays, parseISO } from "date-fns";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
-import { PT_FORMAT_LABEL, PtFormat } from "@/lib/ptFormat";
+import { PT_FORMAT_LABEL, PtFormat, cancelOutcomeMessage } from "@/lib/ptFormat";
 import { Link } from "react-router-dom";
 
 interface Appt {
