@@ -574,9 +574,11 @@ export function BookPTSessionDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={() => submit(false)} disabled={submitting || !userId || (!unpaidMode && !selectedPass)}>
+          <Button onClick={() => submit(false)} disabled={submitting || !userId || (!unpaidMode && !selectedPass && !isGroup)}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {unpaidMode ? "Book & Bill Later" : "Book & Deduct"}
+            {attendees.length > 1
+              ? `Book ${attendees.length} clients`
+              : unpaidMode ? "Book & Bill Later" : "Book & Deduct"}
           </Button>
         </DialogFooter>
       </DialogContent>
