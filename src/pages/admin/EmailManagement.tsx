@@ -173,7 +173,16 @@ export default function EmailManagement() {
       const conversation = conversationsWithProfiles?.find(c => c.id === conversationId);
       if (conversation?.profile?.email) {
         try {
+          // Make sure we send a fresh access token — an expired/refreshing
+          // session makes the client fall back to the anon key and the
+          // edge function rejects it as unauthorized.
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+
           const { error: emailError } = await supabase.functions.invoke("send-email", {
+            ...(accessToken
+              ? { headers: { Authorization: `Bearer ${accessToken}` } }
+              : {}),
             body: {
               type: "staff_reply",
               to: conversation.profile.email,
