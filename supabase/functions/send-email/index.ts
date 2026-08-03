@@ -39,16 +39,15 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-    const { data, error } = await authClient.auth.getUser(token);
-    if (error || !data?.user) {
-      return { ok: false, status: 401, error: 'Unauthorized' };
-    }
     const admin = createClient(supabaseUrl, serviceKey);
+    // Verify the caller's JWT with the service client (works with both legacy
+    // HS256 secrets and the new asymmetric signing keys).
+    const { data, error } = await admin.auth.getUser(token);
+    if (error || !data?.user) {
+      console.warn('send-email auth: token verification failed', error?.message);
+      return { ok: false, status: 401, error: 'Session expired — please sign in again and retry.' };
+    }
     const { data: roles } = await admin
       .from('user_roles')
       .select('role')
@@ -59,10 +58,12 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
     ]);
     const isStaff = (roles ?? []).some((r: any) => STAFF_ROLES.has(r.role));
     if (!isStaff) {
+      console.warn('send-email auth: no staff role for user', data.user.id);
       return { ok: false, status: 403, error: 'Staff role required' };
     }
     return { ok: true };
-  } catch (_e) {
+  } catch (e) {
+    console.warn('send-email auth: unexpected error', String(e));
     return { ok: false, status: 401, error: 'Unauthorized' };
   }
 }
