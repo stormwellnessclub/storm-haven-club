@@ -22,7 +22,18 @@ import {
 import { TRAINING_SERVICES } from "@/components/personal-training/TrainingRequestForm";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
-import { Mail, Phone, Loader2, FileDown, Download, List, Rows3 } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  Loader2,
+  FileDown,
+  Download,
+  List,
+  Rows3,
+  Printer,
+  Copy,
+  ArrowUpDown,
+} from "lucide-react";
 import { downloadCsv } from "@/lib/ptExport";
 import {
   parsePreferredTimes,
@@ -78,6 +89,16 @@ export default function TrainingRequestsAdmin() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [rangeFilter, setRangeFilter] = useState<string>("all");
   const [view, setView] = useState<"cards" | "log">("log");
+  const [sortKey, setSortKey] = useState<"submitted" | "client">("submitted");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: "submitted" | "client") {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir(key === "client" ? "asc" : "desc");
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -114,14 +135,21 @@ export default function TrainingRequestsAdmin() {
     });
   }, [rows, serviceFilter, statusFilter, rangeFilter]);
 
-  const parsedRows = useMemo(
-    () =>
-      filtered.map((r) => ({
-        row: r,
-        parsed: parsePreferredTimes(r.preferred_times),
-      })),
-    [filtered]
-  );
+  const parsedRows = useMemo(() => {
+    const mapped = filtered.map((r) => ({
+      row: r,
+      parsed: parsePreferredTimes(r.preferred_times),
+    }));
+    const dir = sortDir === "asc" ? 1 : -1;
+    return mapped.sort((a, b) => {
+      if (sortKey === "client") {
+        return a.row.full_name.localeCompare(b.row.full_name) * dir;
+      }
+      return (
+        (new Date(a.row.created_at).getTime() - new Date(b.row.created_at).getTime()) * dir
+      );
+    });
+  }, [filtered, sortKey, sortDir]);
 
   /** day index -> list of { name, bucketLabel } */
   const grouped = useMemo(() => {
@@ -148,25 +176,76 @@ export default function TrainingRequestsAdmin() {
   const rangeLabel =
     RANGE_OPTIONS.find((o) => o.value === rangeFilter)?.label ?? "All time";
 
+  const EXPORT_HEADERS = [
+    "Client",
+    "Member",
+    "Phone",
+    "Email",
+    "Service",
+    "Requested days",
+    "Time frame",
+    "Original wording",
+    "Submitted",
+    "Status",
+  ];
+
+  const exportRows = useMemo(
+    () =>
+      parsedRows.map(({ row, parsed }) => ({
+        Client: row.full_name,
+        Member: row.is_member ? "Yes" : "No",
+        Phone: row.phone ?? "",
+        Email: row.email ?? "",
+        Service: SERVICE_LABEL[row.service] ?? row.service,
+        "Requested days": formatDays(parsed.days),
+        "Time frame": parsed.timeChips.join(" / "),
+        "Original wording": (row.preferred_times ?? "").replace(/\s+/g, " ").trim(),
+        Submitted: format(new Date(row.created_at), "yyyy-MM-dd"),
+        Status: row.status,
+      })),
+    [parsedRows]
+  );
+
   function exportCsv() {
-    if (!parsedRows.length) return toast.error("Nothing to export");
-    const data = parsedRows.map(({ row, parsed }) => ({
-      Client: row.full_name,
-      Service: SERVICE_LABEL[row.service] ?? row.service,
-      Member: row.is_member ? "Yes" : "No",
-      Email: row.email,
-      Phone: row.phone,
-      "Requested days": formatDays(parsed.days),
-      "Time frame": parsed.timeChips.join(" / "),
-      "Original request": row.preferred_times ?? "",
-      Status: row.status,
-      Submitted: format(new Date(row.created_at), "yyyy-MM-dd h:mm a"),
-    }));
+    if (!exportRows.length) return toast.error("Nothing to export");
     downloadCsv(
       `training-requests-${format(new Date(), "yyyy-MM-dd")}.csv`,
-      data
+      exportRows,
+      EXPORT_HEADERS
     );
     toast.success("CSV downloaded");
+  }
+
+  async function copyRows() {
+    if (!exportRows.length) return toast.error("Nothing to copy");
+    const tsv = [
+      EXPORT_HEADERS.join("\t"),
+      ...exportRows.map((r) =>
+        EXPORT_HEADERS.map((h) =>
+          String((r as Record<string, string>)[h] ?? "").replace(/[\t\n\r]+/g, " ")
+        ).join("\t")
+      ),
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(tsv);
+      toast.success(`${exportRows.length} rows copied — paste into a spreadsheet`);
+    } catch {
+      toast.error("Clipboard blocked by the browser — use Export CSV instead");
+    }
+  }
+
+  function printList() {
+    if (!exportRows.length) return toast.error("Nothing to print");
+    document.body.classList.add("printing-area");
+    const cleanup = () => {
+      document.body.classList.remove("printing-area");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 1000);
+    }, 50);
   }
 
   function exportPdf() {
@@ -291,7 +370,13 @@ export default function TrainingRequestsAdmin() {
               Inquiries submitted from the Personal Training pages.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={printList}>
+              <Printer className="h-4 w-4 mr-2" /> Print
+            </Button>
+            <Button variant="outline" size="sm" onClick={copyRows}>
+              <Copy className="h-4 w-4 mr-2" /> Copy rows
+            </Button>
             <Button variant="outline" size="sm" onClick={exportPdf}>
               <FileDown className="h-4 w-4 mr-2" /> Download PDF
             </Button>
@@ -377,13 +462,32 @@ export default function TrainingRequestsAdmin() {
             <div className="space-y-4 min-w-0">
               {view === "log" ? (
                 <div className="border border-border rounded-lg bg-card overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[1100px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Client</TableHead>
-                        <TableHead className="w-[150px]">Requested days</TableHead>
-                        <TableHead className="w-[170px]">Time frame</TableHead>
-                        <TableHead className="w-[110px]">Submitted</TableHead>
+                        <TableHead className="w-[160px]">
+                          <button
+                            className="inline-flex items-center gap-1 hover:text-foreground"
+                            onClick={() => toggleSort("client")}
+                          >
+                            Client <ArrowUpDown className="h-3 w-3" />
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[70px]">Member</TableHead>
+                        <TableHead className="w-[120px]">Phone</TableHead>
+                        <TableHead className="w-[180px]">Email</TableHead>
+                        <TableHead className="w-[130px]">Service</TableHead>
+                        <TableHead className="w-[140px]">Requested days</TableHead>
+                        <TableHead className="w-[160px]">Time frame</TableHead>
+                        <TableHead className="w-[220px]">Original wording</TableHead>
+                        <TableHead className="w-[110px]">
+                          <button
+                            className="inline-flex items-center gap-1 hover:text-foreground"
+                            onClick={() => toggleSort("submitted")}
+                          >
+                            Submitted <ArrowUpDown className="h-3 w-3" />
+                          </button>
+                        </TableHead>
                         <TableHead className="w-[100px]">Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -394,23 +498,18 @@ export default function TrainingRequestsAdmin() {
                           className="cursor-pointer"
                           onClick={() => setSelected(row)}
                         >
-                          <TableCell className="align-top">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{row.full_name}</span>
-                              {row.is_member && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  Member
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {SERVICE_LABEL[row.service] ?? row.service}
-                            </div>
-                            {row.preferred_times && (
-                              <div className="text-xs text-muted-foreground/80 italic mt-1 max-w-[380px]">
-                                “{row.preferred_times}”
-                              </div>
-                            )}
+                          <TableCell className="align-top font-medium">
+                            {row.full_name}
+                          </TableCell>
+                          <TableCell className="align-top text-sm">
+                            {row.is_member ? "Yes" : "No"}
+                          </TableCell>
+                          <TableCell className="align-top text-xs">{row.phone}</TableCell>
+                          <TableCell className="align-top text-xs break-all">
+                            {row.email}
+                          </TableCell>
+                          <TableCell className="align-top text-xs">
+                            {SERVICE_LABEL[row.service] ?? row.service}
                           </TableCell>
                           <TableCell className="align-top text-sm">
                             {formatDays(parsed.days)}
@@ -433,6 +532,9 @@ export default function TrainingRequestsAdmin() {
                                 Unparsed
                               </Badge>
                             )}
+                          </TableCell>
+                          <TableCell className="align-top text-xs text-muted-foreground italic">
+                            {row.preferred_times ? `“${row.preferred_times}”` : "—"}
                           </TableCell>
                           <TableCell className="align-top text-xs text-muted-foreground">
                             {format(new Date(row.created_at), "MMM d, yyyy")}
@@ -634,6 +736,35 @@ export default function TrainingRequestsAdmin() {
             </div>
           </div>
         )}
+
+        {/* Print-only clean list */}
+        <div id="print-area" className="hidden print:block">
+          <h1 style={{ fontSize: "14pt", fontWeight: 600, marginBottom: 2 }}>
+            {titleForExport}
+          </h1>
+          <p style={{ fontSize: "9pt", marginBottom: 10 }}>
+            {rangeLabel} · {exportRows.length} request{exportRows.length === 1 ? "" : "s"} ·
+            Printed {format(new Date(), "MMM d, yyyy h:mm a")}
+          </p>
+          <table>
+            <thead>
+              <tr>
+                {EXPORT_HEADERS.map((h) => (
+                  <th key={h}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {exportRows.map((r, i) => (
+                <tr key={i}>
+                  {EXPORT_HEADERS.map((h) => (
+                    <td key={h}>{(r as Record<string, string>)[h] || "—"}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </AdminLayout>
   );
