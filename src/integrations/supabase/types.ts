@@ -12514,22 +12514,43 @@ export type Database = {
         Args: { _client: string; _uid: string }
         Returns: boolean
       }
-      pt_check_appointment_conflict: {
-        Args: {
-          p_ends_at: string
-          p_exclude_id?: string
-          p_instructor_id?: string
-          p_location_id?: string
-          p_starts_at: string
-        }
-        Returns: Json
-      }
+      pt_check_appointment_conflict:
+        | {
+            Args: {
+              p_ends_at: string
+              p_exclude_id?: string
+              p_instructor_id?: string
+              p_location_id?: string
+              p_starts_at: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_ends_at: string
+              p_exclude_id?: string
+              p_format?: Database["public"]["Enums"]["pt_format"]
+              p_instructor_id?: string
+              p_location_id?: string
+              p_starts_at: string
+            }
+            Returns: Json
+          }
       pt_complete_session: {
         Args: { p_appointment_id: string; p_deduct?: boolean; p_note?: Json }
         Returns: Json
       }
       pt_complete_task: {
         Args: { p_completed?: boolean; p_task_id: string }
+        Returns: Json
+      }
+      pt_group_slot_occupancy: {
+        Args: {
+          p_ends_at: string
+          p_format?: Database["public"]["Enums"]["pt_format"]
+          p_instructor_id?: string
+          p_starts_at: string
+        }
         Returns: Json
       }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
