@@ -58,6 +58,8 @@ export function BookPTSessionDialog({
   const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
+  const [extras, setExtras] = useState<UserOption[]>([]);
+  const [extraSearch, setExtraSearch] = useState("");
 
   useEffect(() => {
     if (open) {
