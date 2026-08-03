@@ -430,20 +430,87 @@ export function BookPTSessionDialog({
                 </span>
               </label>
             </RadioGroup>
-            {unpaidMode && (
+            {(unpaidMode || (isGroup && extras.length > 0)) && (
               <div className="space-y-1">
-                <Label className="text-xs">Session rate ($)</Label>
+                <Label className="text-xs">
+                  {unpaidMode ? "Session rate ($)" : "Rate for attendees without a package ($)"}
+                </Label>
                 <Input
                   type="number"
                   min={0}
                   step="0.01"
-                  placeholder="Enter session rate"
+                  placeholder={defaultRateCents ? (defaultRateCents / 100).toFixed(2) : "Enter session rate"}
                   value={rate}
                   onChange={(e) => setRate(e.target.value)}
                 />
               </div>
             )}
           </div>
+
+          {/* Semi-private group */}
+          {isGroup && (
+            <div className="rounded-md border px-3 py-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Group attendees</Label>
+                {occupancy && (
+                  <Badge variant={seatsLeft === 0 ? "destructive" : "secondary"} className="text-[10px]">
+                    {occupancy.booked} of {occupancy.capacity} booked
+                    {seatsLeft !== null && seatsLeft > 0 ? ` · ${seatsLeft} open` : " · full"}
+                  </Badge>
+                )}
+              </div>
+
+              {occupancy && occupancy.attendees.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  Already in this slot: {occupancy.attendees.map((a) => a.name).join(", ")}
+                </div>
+              )}
+
+              {extras.length > 0 && (
+                <div className="space-y-1">
+                  {extras.map((e) => (
+                    <div key={e.id} className="flex items-center justify-between rounded-md border px-2 py-1.5 text-sm">
+                      <span className="truncate">{e.name} <span className="text-xs text-muted-foreground">{e.email}</span></span>
+                      <Button variant="ghost" size="sm" onClick={() => setExtras((prev) => prev.filter((x) => x.id !== e.id))}>
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Input
+                placeholder="Add another client by name or email…"
+                value={extraSearch}
+                onChange={(ev) => setExtraSearch(ev.target.value)}
+              />
+              {extraSearch.length >= 2 && extraResults.length > 0 && (
+                <div className="border rounded-md max-h-40 overflow-y-auto">
+                  {extraResults
+                    .filter((u) => u.id !== userId && !extras.some((e) => e.id === u.id))
+                    .map((u) => (
+                      <button
+                        key={u.id}
+                        onClick={() => { setExtras((prev) => [...prev, u]); setExtraSearch(""); }}
+                        className="w-full text-left px-3 py-2 hover:bg-muted text-sm border-b last:border-0"
+                      >
+                        <div className="font-medium">{u.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {u.email} {u.isMember ? "· Member" : u.isNonMember ? "· Non-member" : ""}
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Each attendee gets their own appointment. Anyone with an active semi-private package is deducted a
+                session; anyone without one is booked as unpaid at the rate above.
+              </p>
+            </div>
+          )}
+
+
 
 
 
