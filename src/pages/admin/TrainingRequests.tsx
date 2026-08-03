@@ -89,6 +89,16 @@ export default function TrainingRequestsAdmin() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [rangeFilter, setRangeFilter] = useState<string>("all");
   const [view, setView] = useState<"cards" | "log">("log");
+  const [sortKey, setSortKey] = useState<"submitted" | "client">("submitted");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function toggleSort(key: "submitted" | "client") {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSortKey(key);
+      setSortDir(key === "client" ? "asc" : "desc");
+    }
+  }
 
   async function load() {
     setLoading(true);
