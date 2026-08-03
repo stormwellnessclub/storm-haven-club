@@ -22,7 +22,18 @@ import {
 import { TRAINING_SERVICES } from "@/components/personal-training/TrainingRequestForm";
 import { toast } from "sonner";
 import { format, subDays } from "date-fns";
-import { Mail, Phone, Loader2, FileDown, Download, List, Rows3 } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  Loader2,
+  FileDown,
+  Download,
+  List,
+  Rows3,
+  Printer,
+  Copy,
+  ArrowUpDown,
+} from "lucide-react";
 import { downloadCsv } from "@/lib/ptExport";
 import {
   parsePreferredTimes,
