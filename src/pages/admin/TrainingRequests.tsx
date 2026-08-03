@@ -370,7 +370,13 @@ export default function TrainingRequestsAdmin() {
               Inquiries submitted from the Personal Training pages.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={printList}>
+              <Printer className="h-4 w-4 mr-2" /> Print
+            </Button>
+            <Button variant="outline" size="sm" onClick={copyRows}>
+              <Copy className="h-4 w-4 mr-2" /> Copy rows
+            </Button>
             <Button variant="outline" size="sm" onClick={exportPdf}>
               <FileDown className="h-4 w-4 mr-2" /> Download PDF
             </Button>
