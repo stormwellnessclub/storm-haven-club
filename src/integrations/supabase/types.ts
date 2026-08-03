@@ -6801,6 +6801,7 @@ export type Database = {
         Row: {
           amount_due_cents: number
           booked_by_admin_id: string | null
+          cancel_credit_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -6844,6 +6845,7 @@ export type Database = {
         Insert: {
           amount_due_cents?: number
           booked_by_admin_id?: string | null
+          cancel_credit_outcome?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -6887,6 +6889,7 @@ export type Database = {
         Update: {
           amount_due_cents?: number
           booked_by_admin_id?: string | null
+          cancel_credit_outcome?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -11565,6 +11568,7 @@ export type Database = {
         Returns: {
           amount_due_cents: number
           booked_by_admin_id: string | null
+          cancel_credit_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -11651,6 +11655,7 @@ export type Database = {
         Returns: {
           amount_due_cents: number
           booked_by_admin_id: string | null
+          cancel_credit_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -11730,6 +11735,7 @@ export type Database = {
         Returns: {
           amount_due_cents: number
           booked_by_admin_id: string | null
+          cancel_credit_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
