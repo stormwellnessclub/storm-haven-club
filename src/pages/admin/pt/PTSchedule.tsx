@@ -108,6 +108,40 @@ export default function PTSchedule() {
     return (d.getHours() * 60 + d.getMinutes() - START_HOUR * 60) * PX_PER_MIN;
   }
 
+  /**
+   * Side-by-side layout for overlapping sessions (semi-private groups book one
+   * appointment per attendee in the same slot — they must all stay visible).
+   */
+  function layoutColumn(list: PTScheduleAppointment[]) {
+    const sorted = [...list].sort((a, b) => a.starts_at.localeCompare(b.starts_at));
+    const lanes: Record<string, { lane: number; lanes: number }> = {};
+    let cluster: PTScheduleAppointment[] = [];
+    let clusterEnd = 0;
+    const flush = () => {
+      const laneEnds: number[] = [];
+      cluster.forEach((a) => {
+        const start = new Date(a.starts_at).getTime();
+        const end = new Date(a.ends_at ?? a.starts_at).getTime() || start + a.duration_minutes * 60000;
+        let lane = laneEnds.findIndex((e) => e <= start);
+        if (lane === -1) { lane = laneEnds.length; laneEnds.push(end); } else { laneEnds[lane] = end; }
+        lanes[a.id] = { lane, lanes: 0 };
+      });
+      cluster.forEach((a) => { lanes[a.id].lanes = laneEnds.length; });
+      cluster = [];
+    };
+    sorted.forEach((a) => {
+      const start = new Date(a.starts_at).getTime();
+      const end = new Date(a.ends_at ?? a.starts_at).getTime() || start + a.duration_minutes * 60000;
+      if (cluster.length && start >= clusterEnd) flush();
+      cluster.push(a);
+      clusterEnd = cluster.length === 1 ? end : Math.max(clusterEnd, end);
+    });
+    if (cluster.length) flush();
+    return lanes;
+  }
+
+
+
   function step(dir: number) {
     setDate(fmtDate(addDays(anchor, weekMode ? dir * 7 : dir), "yyyy-MM-dd"));
   }
@@ -206,6 +240,8 @@ export default function PTSchedule() {
 
             {columns.map((col) => {
               const colAppts = appts.filter(col.match);
+              const laneMap = layoutColumn(colAppts);
+
               const bookDate = view === "week" ? col.key : date;
               return (
                 <div key={col.key} className="flex-1 min-w-[210px] border-r border-pt-line/40 last:border-r-0">
@@ -237,13 +273,21 @@ export default function PTSchedule() {
                       const loc = a.location_id ? locationMap[a.location_id] : undefined;
                       const st = a.session_type_id ? sessionTypeMap[a.session_type_id] : undefined;
                       const tall = a.duration_minutes >= 45;
+                      const slot = laneMap[a.id] ?? { lane: 0, lanes: 1 };
+                      const widthPct = 100 / Math.max(slot.lanes, 1);
                       return (
                         <button
                           key={a.id}
                           onClick={() => setSelected(a)}
-                          className={`absolute left-1 right-1 rounded-lg pl-2.5 pr-2 py-1.5 text-left overflow-hidden border shadow-sm transition hover:shadow-md ${style.card}`}
-                          style={{ top: offsetFor(a.starts_at), height: Math.max(a.duration_minutes * PX_PER_MIN - 4, 36) }}
+                          className={`absolute rounded-lg pl-2.5 pr-2 py-1.5 text-left overflow-hidden border shadow-sm transition hover:shadow-md hover:z-10 ${style.card}`}
+                          style={{
+                            top: offsetFor(a.starts_at),
+                            height: Math.max(a.duration_minutes * PX_PER_MIN - 4, 36),
+                            left: `calc(${slot.lane * widthPct}% + 4px)`,
+                            width: `calc(${widthPct}% - 8px)`,
+                          }}
                         >
+
                           <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${style.bar}`} />
                           <div className="flex items-start justify-between gap-1">
                             <span className="text-[12px] font-medium truncate">{p?.name ?? "Client"}</span>
