@@ -55,17 +55,19 @@ export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: bool
     const hoursOut = differenceInHours(parseISO(a.starts_at), new Date());
     const warn = hoursOut < 24
       ? "This is less than 24 hours away. Cancelling now will forfeit this session from your pack. Continue?"
-      : "Cancel this session? It will be returned to your pack.";
+      : "Cancel this session? If it was booked from a pack, it will be returned.";
     if (!window.confirm(warn)) return;
-    const { error } = await (supabase as any).rpc("cancel_pt_appointment", {
+    const { data, error } = await (supabase as any).rpc("cancel_pt_appointment", {
       p_appointment_id: a.id, p_reason: "Cancelled by member",
     });
     if (error) return toast.error(error.message);
-    toast.success(hoursOut < 24 ? "Cancelled (session forfeited)" : "Cancelled · session returned");
+    const row = Array.isArray(data) ? data[0] : data;
+    toast.success(memberCancelOutcomeMessage(row?.cancel_credit_outcome));
     supabase.functions.invoke("send-pt-booking-email", { body: { appointment_id: a.id, type: "cancellation" } }).catch(() => {});
     qc.invalidateQueries({ queryKey: ["upcoming-pt-appointments"] });
     qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
   }
+
 
   return (
     <Card>
