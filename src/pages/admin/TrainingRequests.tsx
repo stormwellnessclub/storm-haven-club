@@ -462,13 +462,32 @@ export default function TrainingRequestsAdmin() {
             <div className="space-y-4 min-w-0">
               {view === "log" ? (
                 <div className="border border-border rounded-lg bg-card overflow-x-auto">
-                  <Table>
+                  <Table className="min-w-[1100px]">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Client</TableHead>
-                        <TableHead className="w-[150px]">Requested days</TableHead>
-                        <TableHead className="w-[170px]">Time frame</TableHead>
-                        <TableHead className="w-[110px]">Submitted</TableHead>
+                        <TableHead className="w-[160px]">
+                          <button
+                            className="inline-flex items-center gap-1 hover:text-foreground"
+                            onClick={() => toggleSort("client")}
+                          >
+                            Client <ArrowUpDown className="h-3 w-3" />
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[70px]">Member</TableHead>
+                        <TableHead className="w-[120px]">Phone</TableHead>
+                        <TableHead className="w-[180px]">Email</TableHead>
+                        <TableHead className="w-[130px]">Service</TableHead>
+                        <TableHead className="w-[140px]">Requested days</TableHead>
+                        <TableHead className="w-[160px]">Time frame</TableHead>
+                        <TableHead className="w-[220px]">Original wording</TableHead>
+                        <TableHead className="w-[110px]">
+                          <button
+                            className="inline-flex items-center gap-1 hover:text-foreground"
+                            onClick={() => toggleSort("submitted")}
+                          >
+                            Submitted <ArrowUpDown className="h-3 w-3" />
+                          </button>
+                        </TableHead>
                         <TableHead className="w-[100px]">Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -479,23 +498,18 @@ export default function TrainingRequestsAdmin() {
                           className="cursor-pointer"
                           onClick={() => setSelected(row)}
                         >
-                          <TableCell className="align-top">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{row.full_name}</span>
-                              {row.is_member && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  Member
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {SERVICE_LABEL[row.service] ?? row.service}
-                            </div>
-                            {row.preferred_times && (
-                              <div className="text-xs text-muted-foreground/80 italic mt-1 max-w-[380px]">
-                                “{row.preferred_times}”
-                              </div>
-                            )}
+                          <TableCell className="align-top font-medium">
+                            {row.full_name}
+                          </TableCell>
+                          <TableCell className="align-top text-sm">
+                            {row.is_member ? "Yes" : "No"}
+                          </TableCell>
+                          <TableCell className="align-top text-xs">{row.phone}</TableCell>
+                          <TableCell className="align-top text-xs break-all">
+                            {row.email}
+                          </TableCell>
+                          <TableCell className="align-top text-xs">
+                            {SERVICE_LABEL[row.service] ?? row.service}
                           </TableCell>
                           <TableCell className="align-top text-sm">
                             {formatDays(parsed.days)}
@@ -518,6 +532,9 @@ export default function TrainingRequestsAdmin() {
                                 Unparsed
                               </Badge>
                             )}
+                          </TableCell>
+                          <TableCell className="align-top text-xs text-muted-foreground italic">
+                            {row.preferred_times ? `“${row.preferred_times}”` : "—"}
                           </TableCell>
                           <TableCell className="align-top text-xs text-muted-foreground">
                             {format(new Date(row.created_at), "MMM d, yyyy")}
