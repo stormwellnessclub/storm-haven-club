@@ -69,6 +69,8 @@ export function BookPTSessionDialog({
       setPaymentMode("package");
       setRate("");
       setErr(null);
+      setExtras([]);
+      setExtraSearch("");
     }
   }, [open, presetUserId, presetUserName, presetDate]);
 
