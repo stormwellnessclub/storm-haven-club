@@ -251,17 +251,20 @@ export function usePTAppointmentActions() {
 
   const cancel = useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string | null }) => {
-      const { error } = await (supabase as any).rpc("cancel_pt_appointment", {
+      const { data, error } = await (supabase as any).rpc("cancel_pt_appointment", {
         p_appointment_id: id, p_reason: reason,
       });
       if (error) throw error;
       supabase.functions
         .invoke("send-pt-booking-email", { body: { appointment_id: id, type: "cancellation" } })
         .catch(() => {});
+      const row = Array.isArray(data) ? data[0] : data;
+      return row?.cancel_credit_outcome as string | undefined;
     },
-    onSuccess: () => { toast.success("Session cancelled · credit restored"); invalidate(); },
+    onSuccess: (outcome) => { toast.success(cancelOutcomeMessage(outcome)); invalidate(); },
     onError: (e: any) => toast.error(e?.message ?? "Could not cancel"),
   });
+
 
   const sendConfirmation = useMutation({
     mutationFn: async (id: string) => {
