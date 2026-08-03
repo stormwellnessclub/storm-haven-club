@@ -65,3 +65,31 @@ export function perSessionPrice(pack: Pick<PtPack, "price_cents" | "sessions">):
   if (pack.sessions <= 1 || pack.price_cents === 0) return "";
   return `${formatCents(Math.round(pack.price_cents / pack.sessions))}/session`;
 }
+
+/** Truthful toast copy for a PT cancellation, based on what the RPC actually did. */
+export function cancelOutcomeMessage(outcome?: string | null): string {
+  switch (outcome) {
+    case "credited":
+      return "Cancelled — session credited back to their package";
+    case "late_no_credit":
+      return "Late cancel — session kept, no credit";
+    case "no_credit":
+      return "Cancelled — nothing to credit (was unpaid)";
+    default:
+      return "Cancelled";
+  }
+}
+
+/** Member-facing version of the same message. */
+export function memberCancelOutcomeMessage(outcome?: string | null): string {
+  switch (outcome) {
+    case "credited":
+      return "Cancelled — session returned to your pack";
+    case "late_no_credit":
+      return "Cancelled — inside 24 hours, session forfeited";
+    case "no_credit":
+      return "Cancelled — no package session to return";
+    default:
+      return "Cancelled";
+  }
+}
