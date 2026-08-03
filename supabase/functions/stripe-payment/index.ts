@@ -34,7 +34,7 @@ async function sendPosChargeReceipt(opts: {
     if (!opts.recipientEmail) return;
     await opts.supabase.functions.invoke("send-email", {
       body: {
-        template: "pos_charge_receipt",
+        type: "pos_charge_receipt",
         to: opts.recipientEmail,
         data: {
           name: opts.recipientName || "there",
