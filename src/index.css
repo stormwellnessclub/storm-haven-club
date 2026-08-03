@@ -969,3 +969,52 @@
 }
 .pt-portal .pt-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
 .pt-portal .pt-scroll::-webkit-scrollbar-thumb { background: hsl(var(--pt-line)); border-radius: 99px; }
+
+/* ---- Print: isolate a designated print area (e.g. admin log tables) ---- */
+@media print {
+  body.printing-area * {
+    visibility: hidden !important;
+  }
+  body.printing-area #print-area,
+  body.printing-area #print-area * {
+    visibility: visible !important;
+  }
+  body.printing-area #print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    color: #000;
+    background: #fff;
+  }
+  #print-area table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+  #print-area thead {
+    display: table-header-group;
+  }
+  #print-area tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #print-area th,
+  #print-area td {
+    border: 1px solid #999;
+    padding: 4px 6px;
+    text-align: left;
+    vertical-align: top;
+    color: #000;
+  }
+  #print-area th {
+    background: #eee !important;
+    font-weight: 600;
+  }
+  @page {
+    size: landscape;
+    margin: 0.4in;
+  }
+}
