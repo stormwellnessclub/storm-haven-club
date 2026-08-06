@@ -48,7 +48,20 @@ export function MultiImageUploader({
     const toUpload = files.slice(0, room);
     setUploading(true);
     try {
-      const results = await Promise.allSettled(toUpload.map(upload));
+      // Existing records are attached by the upload function itself. Run those
+      // sequentially so simultaneous uploads cannot overwrite each other's URL list.
+      const results: PromiseSettledResult<string>[] = uploadPersists
+        ? []
+        : await Promise.allSettled(toUpload.map(upload));
+      if (uploadPersists) {
+        for (const file of toUpload) {
+          try {
+            results.push({ status: "fulfilled", value: await upload(file) });
+          } catch (reason) {
+            results.push({ status: "rejected", reason });
+          }
+        }
+      }
       const newUrls: string[] = [];
       const failedMsgs: string[] = [];
       results.forEach((r) => {
