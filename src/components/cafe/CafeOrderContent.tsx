@@ -847,11 +847,11 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
           <div className="container mx-auto px-6 py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <h1 className="font-cafe-serif text-3xl md:text-[36px] leading-none tracking-tight text-cafe-terracotta uppercase">
-                Storm Café
+                {section === "shop" ? "Storm Shop" : "Storm Café"}
               </h1>
               <div className="hidden md:block h-6 w-px bg-cafe-terracotta/30" />
               <span className="font-cafe-mono text-[10px] tracking-[0.25em] uppercase text-cafe-terracotta/80">
-                Est. 2024 · Livonia MI
+                {section === "shop" ? "Skincare · Supplements · Essentials" : "Est. 2024 · Livonia MI"}
               </span>
             </div>
           </div>
