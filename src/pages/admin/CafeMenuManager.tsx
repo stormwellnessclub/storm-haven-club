@@ -579,6 +579,10 @@ function ItemEditDialog({
             label="Images"
             value={form.image_urls || []}
             onChange={(urls) => setForm((f) => ({ ...f, image_urls: urls, image_url: urls[0] ?? null }))}
+            onPersist={async (urls) => {
+              if (!item) return;
+              await onSave({ image_urls: urls, image_url: urls[0] ?? null });
+            }}
             upload={uploadCafeMenuImage}
             maxImages={8}
           />

@@ -8,6 +8,8 @@ interface MultiImageUploaderProps {
   label?: string;
   value: string[];
   onChange: (urls: string[]) => void;
+  /** Persists the complete URL list for an existing record. */
+  onPersist?: (urls: string[]) => Promise<void>;
   /** Uploads a single file and returns the public URL */
   upload: (file: File) => Promise<string>;
   maxImages?: number;
@@ -24,6 +26,7 @@ export function MultiImageUploader({
   label = "Images",
   value,
   onChange,
+  onPersist,
   upload,
   maxImages = 8,
   thumbSize = "md",
@@ -53,13 +56,21 @@ export function MultiImageUploader({
           failedMsgs.push(msg);
         }
       });
-      if (newUrls.length) onChange([...value, ...newUrls]);
+      if (newUrls.length) {
+        const nextUrls = [...value, ...newUrls];
+        onChange(nextUrls);
+        if (onPersist) await onPersist(nextUrls);
+      }
       if (failedMsgs.length) {
         toast.error(
           `${failedMsgs.length} image${failedMsgs.length > 1 ? "s" : ""} failed: ${failedMsgs[0]}`,
         );
       } else {
-        toast.success(`${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded`);
+        toast.success(
+          onPersist
+            ? `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded and saved`
+            : `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} ready — save the item to keep ${newUrls.length > 1 ? "them" : "it"}`,
+        );
       }
       if (files.length > room) toast.message(`Only added ${room} of ${files.length} (max ${maxImages})`);
     } finally {
@@ -68,20 +79,34 @@ export function MultiImageUploader({
     }
   };
 
-  const remove = (idx: number) => onChange(value.filter((_, i) => i !== idx));
+  const applyChange = async (next: string[]) => {
+    onChange(next);
+    if (!onPersist) return;
+    setUploading(true);
+    try {
+      await onPersist(next);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not save image changes";
+      toast.error(message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = (idx: number) => void applyChange(value.filter((_, i) => i !== idx));
   const move = (idx: number, dir: -1 | 1) => {
     const next = [...value];
     const target = idx + dir;
     if (target < 0 || target >= next.length) return;
     [next[idx], next[target]] = [next[target], next[idx]];
-    onChange(next);
+    void applyChange(next);
   };
   const makePrimary = (idx: number) => {
     if (idx === 0) return;
     const next = [...value];
     const [picked] = next.splice(idx, 1);
     next.unshift(picked);
-    onChange(next);
+    void applyChange(next);
   };
 
   const dim = thumbSize === "sm" ? "h-16 w-16" : "h-20 w-20";
