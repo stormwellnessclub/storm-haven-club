@@ -91,8 +91,15 @@ export function useUpdateMerchProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<MerchProduct> & { id: string }) => {
-      const { error } = await supabase.from("merch_products").update({ ...updates, updated_at: new Date().toISOString() } as any).eq("id", id);
+      const { data, error } = await supabase
+        .from("merch_products")
+        .update({ ...updates, updated_at: new Date().toISOString() } as any)
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Save blocked: your account doesn't have permission to edit Storm Shop products.");
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["merch-products"] });

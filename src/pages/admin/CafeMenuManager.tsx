@@ -430,6 +430,14 @@ export default function CafeMenuManager() {
           toast.success("Item updated");
           setEditingItem(null);
         }}
+        onPersistImages={async (urls) => {
+          if (!editingItem) return;
+          await updateItem.mutateAsync({
+            id: editingItem.id,
+            image_urls: urls,
+            image_url: urls[0] ?? null,
+          });
+        }}
       />
 
       {/* Add Item Dialog */}
@@ -468,11 +476,13 @@ function ItemEditDialog({
   open,
   onClose,
   onSave,
+  onPersistImages,
 }: {
   item: CafeMenuItem | null;
   open: boolean;
   onClose: () => void;
   onSave: (updates: Partial<CafeMenuItem>) => Promise<void>;
+  onPersistImages: (urls: string[]) => Promise<void>;
 }) {
   const [form, setForm] = useState<Partial<CafeMenuItem>>({});
   const [saving, setSaving] = useState(false);
@@ -579,6 +589,7 @@ function ItemEditDialog({
             label="Images"
             value={form.image_urls || []}
             onChange={(urls) => setForm((f) => ({ ...f, image_urls: urls, image_url: urls[0] ?? null }))}
+            onPersist={onPersistImages}
             upload={uploadCafeMenuImage}
             maxImages={8}
           />

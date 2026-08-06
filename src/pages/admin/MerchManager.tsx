@@ -353,6 +353,9 @@ export default function MerchManager() {
                 label="Product Images"
                 value={imageUrls}
                 onChange={setImageUrls}
+                onPersist={editingProduct ? async (urls) => {
+                  await updateProduct.mutateAsync({ id: editingProduct.id, image_urls: urls });
+                } : undefined}
                 upload={uploadMerchImage}
                 maxImages={8}
               />
