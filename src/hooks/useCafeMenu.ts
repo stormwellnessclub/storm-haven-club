@@ -272,31 +272,7 @@ export function calculateTax(subtotal: number): number {
 
 // Upload image to cafe-menu-images bucket
 export async function uploadCafeMenuImage(file: File): Promise<string> {
-  const rawExt = file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "";
-  const ext = /^[a-z0-9]{1,5}$/.test(rawExt) ? rawExt : (file.type.split("/")[1] || "jpg");
-  const uuid =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const fileName = `${uuid}.${ext}`;
-  const { error } = await supabase.storage
-    .from("cafe-menu-images")
-    .upload(fileName, file, {
-      upsert: true,
-      contentType: file.type || undefined,
-      cacheControl: "3600",
-    });
-  if (error) {
-    console.error("[uploadCafeMenuImage] failed", {
-      message: error.message,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
-    throw new Error(error.message || "Upload failed");
-  }
-  const { data: urlData } = supabase.storage
-    .from("cafe-menu-images")
-    .getPublicUrl(fileName);
-  return urlData.publicUrl;
+  const { uploadImageToBucket } = await import("@/lib/uploadImage");
+  return uploadImageToBucket("cafe-menu-images", file);
 }
+
