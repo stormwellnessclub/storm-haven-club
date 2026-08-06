@@ -238,10 +238,14 @@ export function useUpdateCafeMenuItem() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
-      const { error } = await (supabase.from as any)("cafe_menu_items")
+      const { data, error } = await (supabase.from as any)("cafe_menu_items")
         .update(updates)
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Save blocked: your account doesn't have permission to edit menu items.");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cafe_menu_items"] });
