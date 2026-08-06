@@ -107,15 +107,20 @@ Deno.serve(async (req) => {
       const updates = targetType === 'cafe_menu_item'
         ? { image_urls: nextUrls, image_url: nextUrls[0] }
         : { image_urls: nextUrls, updated_at: new Date().toISOString() };
-      const { error: attachErr } = await supabase.from(table).update(updates).eq('id', targetId);
-      if (attachErr) {
+      const { data: attachedRows, error: attachErr } = await supabase
+        .from(table)
+        .update(updates)
+        .eq('id', targetId)
+        .select('id');
+      if (attachErr || !attachedRows?.length) {
         await supabase.storage.from(bucket).remove([path]);
-        console.error('[upload-image] attachment error', attachErr.message);
-        return jsonResponse({ error: `The image could not be attached to the item: ${attachErr.message}` }, 500);
+        const reason = attachErr?.message ?? 'No item was updated';
+        console.error('[upload-image] attachment error', reason);
+        return jsonResponse({ error: `The image could not be attached to the item: ${reason}` }, 500);
       }
     }
 
-    return jsonResponse({ url: urlData.publicUrl, path });
+    return jsonResponse({ url: urlData.publicUrl, path, attached: Boolean(targetType) });
   } catch (e) {
     console.error('[upload-image] error', e);
     return jsonResponse({ error: (e as Error).message }, 500);

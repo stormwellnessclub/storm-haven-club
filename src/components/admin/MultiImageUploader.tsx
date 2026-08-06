@@ -85,6 +85,10 @@ export function MultiImageUploader({
           }
         }
       }
+      if (!newUrls.length && !failedMsgs.length) {
+        toast.error("No images were uploaded");
+        return;
+      }
       if (failedMsgs.length) {
         toast.error(
           `${failedMsgs.length} image${failedMsgs.length > 1 ? "s" : ""} failed: ${failedMsgs[0]}`,

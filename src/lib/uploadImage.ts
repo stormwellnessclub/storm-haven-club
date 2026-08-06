@@ -63,6 +63,9 @@ export async function uploadImageToBucket(
   if (!data?.url || typeof data.url !== "string") {
     throw new Error("The image uploaded, but no image URL was returned.");
   }
+  if (target && data.attached !== true) {
+    throw new Error("The file uploaded, but it was not saved to the item. Please try again.");
+  }
 
   return data.url;
 }
