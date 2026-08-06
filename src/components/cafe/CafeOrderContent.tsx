@@ -287,14 +287,16 @@ function InlineAddCardForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
 interface CafeOrderContentProps {
   variant: "public" | "member" | "nonmember";
   showHero?: boolean;
+  /** Which menu section to sell from. "cafe" = food & drink, "shop" = retail goods. */
+  section?: "cafe" | "shop";
 }
 
-export function CafeOrderContent({ variant, showHero = false }: CafeOrderContentProps) {
+export function CafeOrderContent({ variant, showHero = false, section = "cafe" }: CafeOrderContentProps) {
   useCafeMenuRealtime("cafe-menu-customer");
   const { user } = useAuth();
   const navigate = useNavigate();
   const createOrder = useCreateCafeOrder();
-  const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories('cafe');
+  const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories(section);
   const { data: menuItems = [], isLoading: itemsLoading } = useCafeMenuItems();
   const { data: addons = [] } = useCafeMenuAddons();
 
