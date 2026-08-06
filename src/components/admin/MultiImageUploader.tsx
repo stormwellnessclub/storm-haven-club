@@ -59,7 +59,15 @@ export function MultiImageUploader({
       if (newUrls.length) {
         const nextUrls = [...value, ...newUrls];
         onChange(nextUrls);
-        if (onPersist) await onPersist(nextUrls);
+        if (onPersist) {
+          try {
+            await onPersist(nextUrls);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "The file uploaded but could not be attached to this item.";
+            toast.error(message);
+            return;
+          }
+        }
       }
       if (failedMsgs.length) {
         toast.error(
