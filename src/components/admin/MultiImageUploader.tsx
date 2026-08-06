@@ -10,6 +10,8 @@ interface MultiImageUploaderProps {
   onChange: (urls: string[]) => void;
   /** Persists the complete URL list for an existing record. */
   onPersist?: (urls: string[]) => Promise<void>;
+  /** The upload call itself attaches new images to an existing record. */
+  uploadPersists?: boolean;
   /** Uploads a single file and returns the public URL */
   upload: (file: File) => Promise<string>;
   maxImages?: number;
@@ -27,6 +29,7 @@ export function MultiImageUploader({
   value,
   onChange,
   onPersist,
+  uploadPersists = false,
   upload,
   maxImages = 8,
   thumbSize = "md",
@@ -59,7 +62,7 @@ export function MultiImageUploader({
       if (newUrls.length) {
         const nextUrls = [...value, ...newUrls];
         onChange(nextUrls);
-        if (onPersist) {
+        if (onPersist && !uploadPersists) {
           try {
             await onPersist(nextUrls);
           } catch (error) {
@@ -75,7 +78,7 @@ export function MultiImageUploader({
         );
       } else {
         toast.success(
-          onPersist
+          onPersist || uploadPersists
             ? `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded and saved`
             : `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} ready — save the item to keep ${newUrls.length > 1 ? "them" : "it"}`,
         );

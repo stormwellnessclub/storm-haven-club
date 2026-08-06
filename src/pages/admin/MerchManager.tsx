@@ -356,7 +356,11 @@ export default function MerchManager() {
                 onPersist={editingProduct ? async (urls) => {
                   await updateProduct.mutateAsync({ id: editingProduct.id, image_urls: urls });
                 } : undefined}
-                upload={uploadMerchImage}
+                upload={editingProduct ? (file) =>
+                  import("@/lib/uploadImage").then(({ uploadImageToBucket }) =>
+                    uploadImageToBucket("merch-images", file, { type: "merch_product", id: editingProduct.id }),
+                  ) : uploadMerchImage}
+                uploadPersists={Boolean(editingProduct)}
                 maxImages={8}
               />
 
