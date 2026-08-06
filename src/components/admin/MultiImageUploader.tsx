@@ -10,6 +10,8 @@ interface MultiImageUploaderProps {
   onChange: (urls: string[]) => void;
   /** Persists the complete URL list for an existing record. */
   onPersist?: (urls: string[]) => Promise<void>;
+  /** The upload call itself attaches new images to an existing record. */
+  uploadPersists?: boolean;
   /** Uploads a single file and returns the public URL */
   upload: (file: File) => Promise<string>;
   maxImages?: number;
@@ -27,6 +29,7 @@ export function MultiImageUploader({
   value,
   onChange,
   onPersist,
+  uploadPersists = false,
   upload,
   maxImages = 8,
   thumbSize = "md",
@@ -45,7 +48,20 @@ export function MultiImageUploader({
     const toUpload = files.slice(0, room);
     setUploading(true);
     try {
-      const results = await Promise.allSettled(toUpload.map(upload));
+      // Existing records are attached by the upload function itself. Run those
+      // sequentially so simultaneous uploads cannot overwrite each other's URL list.
+      const results: PromiseSettledResult<string>[] = uploadPersists
+        ? []
+        : await Promise.allSettled(toUpload.map(upload));
+      if (uploadPersists) {
+        for (const file of toUpload) {
+          try {
+            results.push({ status: "fulfilled", value: await upload(file) });
+          } catch (reason) {
+            results.push({ status: "rejected", reason });
+          }
+        }
+      }
       const newUrls: string[] = [];
       const failedMsgs: string[] = [];
       results.forEach((r) => {
@@ -59,7 +75,7 @@ export function MultiImageUploader({
       if (newUrls.length) {
         const nextUrls = [...value, ...newUrls];
         onChange(nextUrls);
-        if (onPersist) {
+        if (onPersist && !uploadPersists) {
           try {
             await onPersist(nextUrls);
           } catch (error) {
@@ -75,7 +91,7 @@ export function MultiImageUploader({
         );
       } else {
         toast.success(
-          onPersist
+          onPersist || uploadPersists
             ? `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded and saved`
             : `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} ready — save the item to keep ${newUrls.length > 1 ? "them" : "it"}`,
         );

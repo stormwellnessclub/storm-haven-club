@@ -6,12 +6,24 @@ import { compressImage } from "@/lib/imageCompress";
  * staff-verified). Images are compressed client-side first so phone photos
  * don't blow past request limits.
  */
-export async function uploadImageToBucket(bucket: string, file: File): Promise<string> {
+export type ImageAttachmentTarget =
+  | { type: "cafe_menu_item"; id: string }
+  | { type: "merch_product"; id: string };
+
+export async function uploadImageToBucket(
+  bucket: string,
+  file: File,
+  target?: ImageAttachmentTarget,
+): Promise<string> {
   const prepared = await compressImage(file, { maxDimension: 1800, quality: 0.85 });
 
   const form = new FormData();
   form.append("file", prepared, prepared.name);
   form.append("bucket", bucket);
+  if (target) {
+    form.append("targetType", target.type);
+    form.append("targetId", target.id);
+  }
 
   // Use the existing session. Do NOT force a refresh here: refresh tokens rotate,
   // so parallel/repeat uploads would race and invalidate the staff session.

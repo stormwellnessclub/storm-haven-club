@@ -590,7 +590,13 @@ function ItemEditDialog({
             value={form.image_urls || []}
             onChange={(urls) => setForm((f) => ({ ...f, image_urls: urls, image_url: urls[0] ?? null }))}
             onPersist={onPersistImages}
-            upload={uploadCafeMenuImage}
+            upload={(file) => {
+              if (!item) throw new Error("This menu item is no longer available.");
+              return import("@/lib/uploadImage").then(({ uploadImageToBucket }) =>
+                uploadImageToBucket("cafe-menu-images", file, { type: "cafe_menu_item", id: item.id }),
+              );
+            }}
+            uploadPersists
             maxImages={8}
           />
           <div className="flex justify-end gap-2 pt-2">
