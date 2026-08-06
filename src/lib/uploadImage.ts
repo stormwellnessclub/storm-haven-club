@@ -13,12 +13,20 @@ export async function uploadImageToBucket(bucket: string, file: File): Promise<s
   form.append("file", prepared, prepared.name);
   form.append("bucket", bucket);
 
-  // Refresh before uploading so a stale admin tab never sends an expired token.
-  const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession();
-  const token = sessionData.session?.access_token;
-  if (sessionError || !token) {
+  // Use the existing session. Do NOT force a refresh here: refresh tokens rotate,
+  // so parallel/repeat uploads would race and invalidate the staff session.
+  const { data: sessionData } = await supabase.auth.getSession();
+  let session = sessionData.session;
+  const expiresAt = session?.expires_at ?? 0;
+  if (session && expiresAt * 1000 - Date.now() < 60_000) {
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    session = refreshed.session ?? session;
+  }
+  const token = session?.access_token;
+  if (!token) {
     throw new Error("Your login has expired. Please sign in again before uploading an image.");
   }
+
 
   const { data, error } = await supabase.functions.invoke("upload-image", {
     body: form,
