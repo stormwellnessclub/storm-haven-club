@@ -359,12 +359,11 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
     }
   }, [resolvedMode, paymentMethod]);
 
-  // Scope public cafe page strictly to cafe-section items (categories are already filtered to section='cafe')
+  // Scope every variant strictly to the active section's categories
   const cafeCategoryIds = new Set(categories.map((c) => c.id));
-  const sectionScopedItems =
-    variant === "public"
-      ? menuItems.filter((i) => i.category_id && cafeCategoryIds.has(i.category_id))
-      : menuItems;
+  const sectionScopedItems = menuItems.filter(
+    (i) => i.category_id && cafeCategoryIds.has(i.category_id),
+  );
   const filteredItems = selectedCategoryId
     ? sectionScopedItems.filter((item) => item.category_id === selectedCategoryId)
     : sectionScopedItems;
