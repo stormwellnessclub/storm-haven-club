@@ -144,6 +144,7 @@ import MothersDayAdmin from "./pages/admin/MothersDayAdmin";
 import MothersDayClassPacks from "./pages/admin/MothersDayClassPacks";
 import AbandonedClassPassCheckouts from "./pages/admin/AbandonedClassPassCheckouts";
 import Merch from "./pages/Merch";
+import StormShop from "./pages/StormShop";
 import DesignSystem from "./pages/DesignSystem";
 import SiteAudit from "./pages/SiteAudit";
 import GuestFeedback from "./pages/GuestFeedback";
