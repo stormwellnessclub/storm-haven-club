@@ -287,14 +287,16 @@ function InlineAddCardForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
 interface CafeOrderContentProps {
   variant: "public" | "member" | "nonmember";
   showHero?: boolean;
+  /** Which menu section to sell from. "cafe" = food & drink, "shop" = retail goods. */
+  section?: "cafe" | "shop";
 }
 
-export function CafeOrderContent({ variant, showHero = false }: CafeOrderContentProps) {
+export function CafeOrderContent({ variant, showHero = false, section = "cafe" }: CafeOrderContentProps) {
   useCafeMenuRealtime("cafe-menu-customer");
   const { user } = useAuth();
   const navigate = useNavigate();
   const createOrder = useCreateCafeOrder();
-  const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories('cafe');
+  const { data: categories = [], isLoading: catLoading } = useCafeMenuCategories(section);
   const { data: menuItems = [], isLoading: itemsLoading } = useCafeMenuItems();
   const { data: addons = [] } = useCafeMenuAddons();
 
@@ -357,12 +359,11 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
     }
   }, [resolvedMode, paymentMethod]);
 
-  // Scope public cafe page strictly to cafe-section items (categories are already filtered to section='cafe')
+  // Scope every variant strictly to the active section's categories
   const cafeCategoryIds = new Set(categories.map((c) => c.id));
-  const sectionScopedItems =
-    variant === "public"
-      ? menuItems.filter((i) => i.category_id && cafeCategoryIds.has(i.category_id))
-      : menuItems;
+  const sectionScopedItems = menuItems.filter(
+    (i) => i.category_id && cafeCategoryIds.has(i.category_id),
+  );
   const filteredItems = selectedCategoryId
     ? sectionScopedItems.filter((item) => item.category_id === selectedCategoryId)
     : sectionScopedItems;
@@ -650,20 +651,29 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
   // 4 intent tabs → sub-rail → items grid → sticky cart (desktop)
   // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
   // ──────────────────────────────────────────────────────────────
-  const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
-    { id: "eat", label: "Cafe Bites", categoryNames: ["Cafe Bites"] },
-    {
-      id: "smoothies",
-      label: "Smoothies",
-      categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
-    },
-    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
-    {
-      id: "energy",
-      label: "Energy & Hydration",
-      categoryNames: ["Cold Pressed Juice", "Energy Drinks", "Amino Acid Slushie", "Refreshers", "Water"],
-    },
-  ];
+  const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] =
+    section === "shop"
+      ? [{ id: "shop", label: "Storm Shop", categoryNames: categories.map((c) => c.name) }]
+      : [
+          { id: "eat", label: "Cafe Bites", categoryNames: ["Cafe Bites"] },
+          {
+            id: "smoothies",
+            label: "Smoothies",
+            categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
+          },
+          { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
+          {
+            id: "energy",
+            label: "Energy & Hydration",
+            categoryNames: [
+              "Cold Pressed Juice",
+              "Energy Drinks",
+              "Amino Acid Slushie",
+              "Refreshers",
+              "Water",
+            ],
+          },
+        ];
   const displayCategoryName = (name: string) => name;
 
   // Which intent groups actually have categories that exist + have items
@@ -837,11 +847,11 @@ export function CafeOrderContent({ variant, showHero = false }: CafeOrderContent
           <div className="container mx-auto px-6 py-10 flex flex-col md:flex-row md:items-end md:justify-between gap-6">
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <h1 className="font-cafe-serif text-3xl md:text-[36px] leading-none tracking-tight text-cafe-terracotta uppercase">
-                Storm Café
+                {section === "shop" ? "Storm Shop" : "Storm Café"}
               </h1>
               <div className="hidden md:block h-6 w-px bg-cafe-terracotta/30" />
               <span className="font-cafe-mono text-[10px] tracking-[0.25em] uppercase text-cafe-terracotta/80">
-                Est. 2024 · Livonia MI
+                {section === "shop" ? "Skincare · Supplements · Essentials" : "Est. 2024 · Livonia MI"}
               </span>
             </div>
           </div>

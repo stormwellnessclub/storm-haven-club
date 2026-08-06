@@ -22,13 +22,10 @@ import { MultiImageUploader } from "@/components/admin/MultiImageUploader";
 import { toast } from "sonner";
 
 async function uploadMerchImage(file: File): Promise<string> {
-  const ext = file.name.split(".").pop();
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-  const { error } = await supabase.storage.from("merch-images").upload(path, file);
-  if (error) throw error;
-  const { data } = supabase.storage.from("merch-images").getPublicUrl(path);
-  return data.publicUrl;
+  const { uploadImageToBucket } = await import("@/lib/uploadImage");
+  return uploadImageToBucket("merch-images", file);
 }
+
 
 const DEFAULT_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 const DEFAULT_COLORS = ["Black", "White", "Gray", "Navy", "Red", "Blue", "Green", "Pink", "Purple", "Tan", "Brown", "Camo", "Olive"];
