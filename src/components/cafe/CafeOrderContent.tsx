@@ -651,20 +651,29 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
   // 4 intent tabs → sub-rail → items grid → sticky cart (desktop)
   // 4 intent tabs → sub-pills → single-column → sticky bottom bar (mobile)
   // ──────────────────────────────────────────────────────────────
-  const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] = [
-    { id: "eat", label: "Cafe Bites", categoryNames: ["Cafe Bites"] },
-    {
-      id: "smoothies",
-      label: "Smoothies",
-      categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
-    },
-    { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
-    {
-      id: "energy",
-      label: "Energy & Hydration",
-      categoryNames: ["Cold Pressed Juice", "Energy Drinks", "Amino Acid Slushie", "Refreshers", "Water"],
-    },
-  ];
+  const INTENT_GROUPS: { id: string; label: string; categoryNames: string[] }[] =
+    section === "shop"
+      ? [{ id: "shop", label: "Storm Shop", categoryNames: categories.map((c) => c.name) }]
+      : [
+          { id: "eat", label: "Cafe Bites", categoryNames: ["Cafe Bites"] },
+          {
+            id: "smoothies",
+            label: "Smoothies",
+            categoryNames: ["Smoothies", "Functional Smoothie", "Protein Smoothie"],
+          },
+          { id: "coffee", label: "Coffee Bar", categoryNames: ["Coffee & Lattes", "Matcha"] },
+          {
+            id: "energy",
+            label: "Energy & Hydration",
+            categoryNames: [
+              "Cold Pressed Juice",
+              "Energy Drinks",
+              "Amino Acid Slushie",
+              "Refreshers",
+              "Water",
+            ],
+          },
+        ];
   const displayCategoryName = (name: string) => name;
 
   // Which intent groups actually have categories that exist + have items
