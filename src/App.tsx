@@ -318,8 +318,9 @@ const App = () => (
               <Route path="/review/spa/:token" element={<SpaReview />} />
               <Route path="/design-system" element={<DesignSystem />} />
               <Route path="/site-audit" element={<SiteAudit />} />
-              <Route path="/merch" element={<Merch />} />
-              <Route path="/shop" element={<Merch />} />
+              <Route path="/merch" element={<StormShop />} />
+              <Route path="/shop" element={<StormShop />} />
+
               <Route path="/front-desk" element={<FrontDeskKiosk />} />
               <Route path="/front-desk-login" element={<Navigate to="/auth" replace />} />
               <Route path="/kiosk" element={<KioskReception />} />
