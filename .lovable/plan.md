@@ -1,45 +1,27 @@
-# Café reviews: make them work, and make the name optional
+# Fix Café and Storm Shop image uploads
 
-## What's wrong today
+## Confirmed diagnosis
 
-Two confirmed problems in the café review system:
+- Both Café and Storm Shop already call the shared `uploadImageToBucket` helper.
+- That helper first calls the protected `upload-image` backend function, but if that request fails it silently retries a direct browser-to-storage upload.
+- The visible `new row violates row-level security policy` message comes from that fallback, not from the intended staff-verified upload path.
+- The live storage policies allow Café uploads for approved Café/admin roles and merchandise uploads for admin/manager roles. The buckets exist and are public for image delivery.
+- The deployed backend function responds and correctly rejects requests without a signed-in session. A signed-in end-to-end upload is not yet verified.
 
-1. **Nobody but staff can read reviews.** The two public review views (`cafe_reviews_public`, `cafe_item_rating_summary`) run with the permissions of the person viewing them, and the only read rule on the underlying `cafe_reviews` table is "staff only". So for a normal member or a walk-in guest, every item shows zero reviews and no star rating — even when reviews exist.
+## Implementation
 
-2. **Posting a review fails.** After saving a review the app immediately asks the database to read the new row back. Since customers have no read access (problem 1), the save is rejected and the customer sees an error — so it looks like reviews can't be left at all.
+1. Harden the shared upload helper so it refreshes/validates the current staff session before invoking the backend function.
+2. Remove the direct storage fallback that masks the real failure with an RLS error.
+3. Preserve client-side compression and send the authenticated request to the existing staff-verified upload function for both Café and Storm Shop.
+4. Return the backend's specific error to the UI so expired login, missing role, invalid file, and storage failures are distinguishable.
+5. Review the backend function's service-client setup and upload response handling; adjust only if needed for the authenticated request.
+6. Deploy the updated upload function if its code changes.
 
-3. **The name is forced.** Both the form and a database rule reject a review with a blank name ("A display name is required to submit a café review"). You want it optional.
+## Verification
 
-## The fix
+- Upload a real image from the Café editor while signed in as an allowed staff user; confirm the file is stored and the menu item receives its URL.
+- Upload a real image from Storm Shop while signed in as an admin/manager; confirm the product receives its URL.
+- Confirm a signed-out request is denied cleanly and never attempts the direct RLS-scoped fallback.
+- Confirm unsupported roles cannot upload.
 
-### 1. Let customers read approved reviews (database)
-
-- Add a read rule on `cafe_reviews` so anyone (signed in or not) can read reviews that are **approved**. Pending/rejected reviews stay staff-only.
-- Keep reviewer email and the reviewer's account ID private: revoke read access on just those two fields for public roles, so the public views keep working while personal contact info stays staff-only.
-
-### 2. Make the name optional (database + form)
-
-- Change the database rule so a blank name is saved as **"Anonymous"** instead of throwing an error.
-- Remove the "Add a name — even a first name works" check in the review form and relabel the field "Your name (optional)".
-
-### 3. Stop the save from failing (app)
-
-- The review save no longer asks for the saved row back, so posting works even before the read rule is evaluated.
-- Show the real database message if a save does fail, instead of a generic error.
-
-## Result
-
-- Star ratings and review lists appear for members, non-members, and walk-in guests on the café page and the Storm Shop page.
-- "Write a review" works for guests and signed-in customers.
-- Leaving the name blank posts as "Anonymous"; typing a name still shows the name.
-
-## Technical notes
-
-- Migration:
-  - `CREATE POLICY` on `public.cafe_reviews` for `SELECT` to `anon, authenticated` with `USING (moderation_status = 'approved')`.
-  - `GRANT SELECT ON public.cafe_reviews TO anon` (authenticated already has it), then `REVOKE SELECT (reviewer_email, reviewer_user_id) ON public.cafe_reviews FROM anon, authenticated` so the previously-flagged reviewer-email exposure does not come back.
-  - Replace `public.cafe_reviews_before_write()` so it sets `NEW.reviewer_display_name := COALESCE(NULLIF(TRIM(...), ''), 'Anonymous')` instead of raising. Column stays `NOT NULL`.
-  - Views stay `security_invoker=on` (no SECURITY DEFINER views).
-- `src/hooks/useCafeReviews.ts`: drop `.select("id").single()` from the insert in `useSubmitCafeReview`; keep query invalidation.
-- `src/components/cafe/CafeReviewForm.tsx`: remove the blank-name guard, send `displayName` as-is (may be empty), update the placeholder and helper copy.
-- No change to moderation, photo upload, or the post-pickup review prompt.
+Authenticated path: **UNVERIFIED** until a signed-in browser upload is executed.
