@@ -31,15 +31,20 @@ function generateChimeWav(): string {
     const samples: number[] = [];
     for (let j = 0; j < n; j++) {
       const t = j / sampleRate;
-      // short attack ramp (prevents clicks) + linear decay
+      // short attack ramp (prevents clicks) + slower decay that holds level longer
       const ramp = j < attack ? j / attack : 1;
-      const env = tone.volume * ramp * (1 - j / n);
-      // fundamental + harmonic for a brighter, more audible chime
+      const decay = 0.35 + 0.65 * (1 - j / n); // never drops below 35% until the end
+      const env = tone.volume * ramp * decay;
+      // fundamental + harmonics for a brighter, more audible chime
       const wave =
-        0.75 * Math.sin(2 * Math.PI * tone.freq * t) +
-        0.25 * Math.sin(2 * Math.PI * tone.freq * 2 * t);
-      samples.push(env * wave);
+        0.7 * Math.sin(2 * Math.PI * tone.freq * t) +
+        0.3 * Math.sin(2 * Math.PI * tone.freq * 2 * t) +
+        0.12 * Math.sin(2 * Math.PI * tone.freq * 3 * t);
+      // soft clip (tanh-style) to raise perceived loudness without harsh distortion
+      const driven = Math.tanh(env * wave * 2.2);
+      samples.push(driven);
     }
+
     segments.push(samples);
     if (i === 2) {
       segments.push(new Array(bigGapSamples).fill(0));
@@ -93,11 +98,57 @@ try {
   console.warn("Failed to generate chime WAV:", e);
 }
 
+// Shared WebAudio context so we can amplify beyond the 1.0 ceiling of <audio>
+let sharedCtx: AudioContext | null = null;
+let decodedChime: AudioBuffer | null = null;
+
+/** Extra loudness multiplier — HTMLAudio caps at 1.0, WebAudio gain does not. */
+const CHIME_GAIN = 4.5;
+
+async function playViaWebAudio(): Promise<boolean> {
+  try {
+    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx || !chimeDataUri) return false;
+    if (!sharedCtx) sharedCtx = new Ctx();
+    if (sharedCtx!.state === "suspended") await sharedCtx!.resume();
+
+    if (!decodedChime) {
+      const res = await fetch(chimeDataUri);
+      const arr = await res.arrayBuffer();
+      decodedChime = await sharedCtx!.decodeAudioData(arr);
+    }
+
+    const src = sharedCtx!.createBufferSource();
+    src.buffer = decodedChime;
+
+    // Compressor keeps the boosted signal loud but clean
+    const comp = sharedCtx!.createDynamicsCompressor();
+    comp.threshold.value = -18;
+    comp.knee.value = 12;
+    comp.ratio.value = 8;
+    comp.attack.value = 0.002;
+    comp.release.value = 0.2;
+
+    const gain = sharedCtx!.createGain();
+    gain.gain.value = CHIME_GAIN;
+
+    src.connect(comp);
+    comp.connect(gain);
+    gain.connect(sharedCtx!.destination);
+    src.start(0);
+    return true;
+  } catch (err) {
+    console.warn("WebAudio chime failed, falling back:", err);
+    return false;
+  }
+}
+
 export async function playNotificationChime() {
   if (!chimeDataUri) {
     console.warn("Chime data URI not available");
     return;
   }
+  if (await playViaWebAudio()) return;
   try {
     const audio = new Audio(chimeDataUri);
     audio.volume = 1.0;
@@ -106,6 +157,7 @@ export async function playNotificationChime() {
     console.warn("Failed to play notification chime:", err);
   }
 }
+
 
 // ── Mute helpers ────────────────────────────────────────────────────
 const MUTE_KEY = "admin-chime-muted";
