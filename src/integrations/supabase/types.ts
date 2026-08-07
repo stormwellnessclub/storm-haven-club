@@ -2293,6 +2293,9 @@ export type Database = {
       }
       email_conversations: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledged_by_name: string | null
           category: string
           created_at: string
           id: string
@@ -2303,6 +2306,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_by_name?: string | null
           category?: string
           created_at?: string
           id?: string
@@ -2313,6 +2319,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_by_name?: string | null
           category?: string
           created_at?: string
           id?: string
@@ -12383,6 +12392,14 @@ export type Database = {
         }
         Returns: Json
       }
+      kiosk_acknowledge_conversation: {
+        Args: {
+          p_acknowledged?: boolean
+          p_conversation_id: string
+          p_staff_name?: string
+        }
+        Returns: undefined
+      }
       kiosk_adjust_member_credits: {
         Args: { p_credit_id: string; p_delta: number; p_reason?: string }
         Returns: Json
@@ -12421,6 +12438,7 @@ export type Database = {
         Args: never
         Returns: {
           open_count: number
+          unacknowledged_count: number
           unread_count: number
         }[]
       }
