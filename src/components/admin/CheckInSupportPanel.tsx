@@ -285,6 +285,7 @@ export function CheckInSupportPanel() {
                     variant="concierge"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
@@ -326,6 +327,7 @@ export function CheckInSupportPanel() {
                     variant="support"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
@@ -367,6 +369,7 @@ export function CheckInSupportPanel() {
                     variant="support"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
@@ -407,6 +410,7 @@ export function CheckInSupportPanel() {
                     variant="support"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
