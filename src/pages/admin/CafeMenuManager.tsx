@@ -362,17 +362,18 @@ export default function CafeMenuManager() {
                   <Input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={newAddonPrice}
                     onChange={(e) => setNewAddonPrice(e.target.value)}
-                    placeholder="Price"
-                    className="max-w-[120px]"
+                    placeholder="Price (0 = free)"
+                    className="max-w-[140px]"
                   />
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const price = parseFloat(newAddonPrice);
-                      if (!newAddonName.trim() || isNaN(price) || price <= 0) {
-                        toast.error("Name and valid price required");
+                      const price = newAddonPrice.trim() === "" ? 0 : parseFloat(newAddonPrice);
+                      if (!newAddonName.trim() || isNaN(price) || price < 0) {
+                        toast.error("Name required, and price must be 0 or more");
                         return;
                       }
                       await addAddon.mutateAsync({ name: newAddonName.trim(), price, category_id: selectedCategory.id });
