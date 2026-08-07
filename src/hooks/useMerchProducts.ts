@@ -113,13 +113,14 @@ export function useUpdateMerchProduct() {
           .single();
         if (verifyError) throw verifyError;
         const savedUrls = Array.isArray(verified?.image_urls) ? verified.image_urls : [];
-        if (updates.image_urls.some((url) => !savedUrls.includes(url))) {
+        if (savedUrls.length !== updates.image_urls.length ||
+          updates.image_urls.some((url, index) => savedUrls[index] !== url)) {
           throw new Error("The product saved, but its image did not persist.");
         }
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["merch-products"] });
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["merch-products"] });
       toast.success("Product updated");
     },
     onError: (e: any) => toast.error(e.message),

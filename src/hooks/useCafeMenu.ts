@@ -258,14 +258,15 @@ export function useUpdateCafeMenuItem() {
           .single();
         if (verifyError) throw verifyError;
         const savedUrls = Array.isArray(verified?.image_urls) ? verified.image_urls : [];
-        if (updates.image_urls.some((url: string) => !savedUrls.includes(url)) ||
+        if (savedUrls.length !== updates.image_urls.length ||
+          updates.image_urls.some((url: string, index: number) => savedUrls[index] !== url) ||
           (updates.image_urls[0] ?? null) !== (verified?.image_url ?? null)) {
           throw new Error("The menu item saved, but its primary image did not persist.");
         }
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["cafe_menu_items"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["cafe_menu_items"] });
     },
   });
 }
