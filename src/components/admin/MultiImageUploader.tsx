@@ -79,6 +79,7 @@ export function MultiImageUploader({
           try {
             await onPersist(nextUrls);
           } catch (error) {
+            onChange(value);
             const message = error instanceof Error ? error.message : "The file uploaded but could not be attached to this item.";
             toast.error(message);
             return;
@@ -114,6 +115,7 @@ export function MultiImageUploader({
     try {
       await onPersist(next);
     } catch (error) {
+      onChange(value);
       const message = error instanceof Error ? error.message : "Could not save image changes";
       toast.error(message);
     } finally {

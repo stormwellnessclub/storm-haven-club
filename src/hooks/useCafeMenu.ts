@@ -204,13 +204,18 @@ export function useAddCafeMenuItem() {
         .select()
         .single();
       if (error) throw error;
+      const requestedUrls = item.image_urls ?? [];
+      const savedUrls = Array.isArray(data?.image_urls) ? data.image_urls : [];
+      if (requestedUrls.length > 0 && requestedUrls.some((url) => !savedUrls.includes(url))) {
+        throw new Error("The item was created, but its image was not saved. Reopen the item and try the image again.");
+      }
       return data as CafeMenuItem;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cafe_menu_items"] });
       toast.success("Item added");
     },
-    onError: () => toast.error("Failed to add item"),
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Failed to add item"),
   });
 }
 
@@ -245,6 +250,18 @@ export function useUpdateCafeMenuItem() {
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error("Save blocked: your account doesn't have permission to edit menu items.");
+      }
+      if (Array.isArray(updates.image_urls)) {
+        const { data: verified, error: verifyError } = await (supabase.from as any)("cafe_menu_items")
+          .select("image_url, image_urls")
+          .eq("id", id)
+          .single();
+        if (verifyError) throw verifyError;
+        const savedUrls = Array.isArray(verified?.image_urls) ? verified.image_urls : [];
+        if (updates.image_urls.some((url: string) => !savedUrls.includes(url)) ||
+          (updates.image_urls[0] ?? null) !== (verified?.image_url ?? null)) {
+          throw new Error("The menu item saved, but its primary image did not persist.");
+        }
       }
     },
     onSuccess: () => {
