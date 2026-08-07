@@ -402,6 +402,15 @@ export const REPORTS: ReportDefinition[] = [
     defaultDateRange: 'last30days',
   },
   {
+    id: 'instructor-sessions',
+    name: 'Instructor Sessions',
+    description: 'Classes actually taught (attended only), with export',
+    category: 'classes',
+    icon: UserCheck,
+    filters: [],
+    defaultDateRange: 'last30days',
+  },
+  {
     id: 'instructor-performance',
     name: 'Instructor Performance',
     description: 'Sessions taught and average attendance',
