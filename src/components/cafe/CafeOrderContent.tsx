@@ -39,6 +39,7 @@ import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js"
 import { CafeRatingBadge } from "@/components/cafe/CafeRatingBadge";
 import { CafeItemReviews } from "@/components/cafe/CafeItemReviews";
 import { CafeReviewPrompt } from "@/components/cafe/CafeReviewPrompt";
+import { getPrimaryItemImage } from "@/lib/itemImage";
 
 interface CartAddon {
   id: string;
@@ -1054,7 +1055,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                             minPrice === maxPrice
                               ? `$${minPrice.toFixed(2)}`
                               : `From $${minPrice.toFixed(2)}`;
-                          const groupImage = g.items.find((i) => i.image_url)?.image_url || null;
+                          const groupImage = g.items.map(getPrimaryItemImage).find(Boolean) || null;
                           return (
                             <article
                               key={g.key}
@@ -1132,9 +1133,9 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                               <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
                                 {idx3}
                               </span>
-                              {item.image_url ? (
+                              {getPrimaryItemImage(item) ? (
                                 <img
-                                  src={item.image_url}
+                                  src={getPrimaryItemImage(item) ?? ""}
                                   alt={name}
                                   loading="lazy"
                                   className="w-full h-full object-cover"
@@ -1528,10 +1529,10 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                   </DialogDescription>
                 </DialogHeader>
 
-                {detailItem.image_url && (
+                {getPrimaryItemImage(detailItem) && (
                   <div className="aspect-[4/3] w-full overflow-hidden border border-cafe-line/60 bg-cafe-stone">
                     <img
-                      src={detailItem.image_url}
+                      src={getPrimaryItemImage(detailItem) ?? ""}
                       alt={name}
                       className="w-full h-full object-cover"
                     />

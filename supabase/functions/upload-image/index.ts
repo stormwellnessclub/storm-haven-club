@@ -4,6 +4,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.2';
 const ALLOWED_BUCKETS = ['cafe-menu-images', 'merch-images', 'equipment-images'];
 const STAFF_ROLES = ['super_admin', 'admin', 'manager', 'cafe_staff', 'front_desk'];
 const SHOP_ROLES = ['super_admin', 'admin', 'manager'];
+const RESPONSE_VERSION = 'upload-image-v3';
 
 const jsonResponse = (body: Record<string, unknown>, status = 200) => new Response(
   JSON.stringify(body),
@@ -13,6 +14,7 @@ const jsonResponse = (body: Record<string, unknown>, status = 200) => new Respon
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const requestId = crypto.randomUUID();
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -22,12 +24,12 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization') ?? '';
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-    if (!token) return jsonResponse({ error: 'Not authenticated' }, 401);
+    if (!token) return jsonResponse({ error: 'Not authenticated', requestId }, 401);
 
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     const user = userData?.user;
     if (userErr || !user) {
-      return jsonResponse({ error: 'Your login has expired. Please sign in again.' }, 401);
+      return jsonResponse({ error: 'Your login has expired. Please sign in again.', requestId }, 401);
     }
 
     const { data: roles } = await supabase
@@ -37,7 +39,7 @@ Deno.serve(async (req) => {
     const roleNames = (roles ?? []).map((r: { role: string }) => r.role);
     const isStaff = roleNames.some((role: string) => STAFF_ROLES.includes(role));
     if (!isStaff) {
-      return jsonResponse({ error: 'Staff access is required to upload images.' }, 403);
+      return jsonResponse({ error: 'Staff access is required to upload images.', requestId }, 403);
     }
 
     const form = await req.formData();
@@ -45,32 +47,40 @@ Deno.serve(async (req) => {
     const bucket = String(form.get('bucket') ?? '');
     const targetType = String(form.get('targetType') ?? '');
     const targetId = String(form.get('targetId') ?? '');
+    console.info('[upload-image] request', JSON.stringify({
+      requestId,
+      version: RESPONSE_VERSION,
+      bucket,
+      targetType: targetType || null,
+      targetId: targetId || null,
+      userId: user.id,
+    }));
     if (!(file instanceof File)) {
-      return jsonResponse({ error: 'Choose an image to upload.' }, 400);
+      return jsonResponse({ error: 'Choose an image to upload.', requestId }, 400);
     }
     if (!ALLOWED_BUCKETS.includes(bucket)) {
-      return jsonResponse({ error: 'This image destination is not allowed.' }, 400);
+      return jsonResponse({ error: 'This image destination is not allowed.', requestId }, 400);
     }
     if (targetType && !targetId) {
-      return jsonResponse({ error: 'The item to attach this image to is missing.' }, 400);
+      return jsonResponse({ error: 'The item to attach this image to is missing.', requestId }, 400);
     }
     if (targetType === 'cafe_menu_item' && bucket !== 'cafe-menu-images') {
-      return jsonResponse({ error: 'The image destination does not match this menu item.' }, 400);
+      return jsonResponse({ error: 'The image destination does not match this menu item.', requestId }, 400);
     }
     if (targetType === 'merch_product' && bucket !== 'merch-images') {
-      return jsonResponse({ error: 'The image destination does not match this product.' }, 400);
+      return jsonResponse({ error: 'The image destination does not match this product.', requestId }, 400);
     }
     if (targetType === 'merch_product' && !roleNames.some((role: string) => SHOP_ROLES.includes(role))) {
-      return jsonResponse({ error: 'Admin or manager access is required to edit shop products.' }, 403);
+      return jsonResponse({ error: 'Admin or manager access is required to edit shop products.', requestId }, 403);
     }
     if (targetType && !['cafe_menu_item', 'merch_product'].includes(targetType)) {
-      return jsonResponse({ error: 'This image attachment type is not allowed.' }, 400);
+      return jsonResponse({ error: 'This image attachment type is not allowed.', requestId }, 400);
     }
     if (!file.type.startsWith('image/')) {
-      return jsonResponse({ error: 'Only image files can be uploaded.' }, 400);
+      return jsonResponse({ error: 'Only image files can be uploaded.', requestId }, 400);
     }
     if (file.size > 15 * 1024 * 1024) {
-      return jsonResponse({ error: 'The image is too large. The maximum is 15 MB.' }, 400);
+      return jsonResponse({ error: 'The image is too large. The maximum is 15 MB.', requestId }, 400);
     }
 
     const rawExt = (file.name.split('.').pop() ?? '').toLowerCase();
@@ -85,7 +95,7 @@ Deno.serve(async (req) => {
     });
     if (upErr) {
       console.error('[upload-image] storage error', upErr.message);
-      return jsonResponse({ error: `Storage upload failed: ${upErr.message}` }, 500);
+      return jsonResponse({ error: `Storage upload failed: ${upErr.message}`, requestId }, 500);
     }
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path);
@@ -99,7 +109,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (readErr || !record) {
         await supabase.storage.from(bucket).remove([path]);
-        return jsonResponse({ error: 'The image uploaded, but the item could not be found.' }, 404);
+        return jsonResponse({ error: 'The image uploaded, but the item could not be found.', requestId }, 404);
       }
 
       const currentUrls = Array.isArray(record.image_urls) ? record.image_urls : [];
@@ -116,13 +126,46 @@ Deno.serve(async (req) => {
         await supabase.storage.from(bucket).remove([path]);
         const reason = attachErr?.message ?? 'No item was updated';
         console.error('[upload-image] attachment error', reason);
-        return jsonResponse({ error: `The image could not be attached to the item: ${reason}` }, 500);
+        return jsonResponse({ error: `The image could not be attached to the item: ${reason}`, requestId }, 500);
+      }
+
+      const { data: verifiedRecord, error: verifyErr } = await supabase
+        .from(table)
+        .select('id, image_urls')
+        .eq('id', targetId)
+        .maybeSingle();
+      const verifiedUrls = Array.isArray(verifiedRecord?.image_urls) ? verifiedRecord.image_urls : [];
+      if (verifyErr || verifiedRecord?.id !== targetId || !verifiedUrls.includes(urlData.publicUrl)) {
+        await supabase.storage.from(bucket).remove([path]);
+        console.error('[upload-image] read-back verification failed', JSON.stringify({ requestId, targetType, targetId }));
+        return jsonResponse({
+          error: 'The file uploaded, but the saved item did not contain the image. Nothing was changed.',
+          requestId,
+        }, 500);
       }
     }
 
-    return jsonResponse({ url: urlData.publicUrl, path, attached: Boolean(targetType) });
+    console.info('[upload-image] confirmed', JSON.stringify({
+      requestId,
+      version: RESPONSE_VERSION,
+      targetType: targetType || null,
+      targetId: targetId || null,
+      path,
+      attached: Boolean(targetType),
+    }));
+    return jsonResponse({
+      version: RESPONSE_VERSION,
+      requestId,
+      url: urlData.publicUrl,
+      persistedUrl: urlData.publicUrl,
+      path,
+      targetType: targetType || null,
+      targetId: targetId || null,
+      attached: Boolean(targetType),
+      verified: Boolean(targetType),
+    });
   } catch (e) {
-    console.error('[upload-image] error', e);
-    return jsonResponse({ error: (e as Error).message }, 500);
+    console.error('[upload-image] error', requestId, e);
+    return jsonResponse({ error: (e as Error).message, requestId }, 500);
   }
 });

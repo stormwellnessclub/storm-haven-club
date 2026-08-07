@@ -39,6 +39,7 @@ import {
   type CafeMenuSection,
 } from "@/hooks/useCafeMenu";
 import { MultiImageUploader } from "@/components/admin/MultiImageUploader";
+import { getPrimaryItemImage } from "@/lib/itemImage";
 
 import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
 
@@ -272,8 +273,8 @@ export default function CafeMenuManager() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {item.image_url ? (
-                            <img src={item.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                          {getPrimaryItemImage(item) ? (
+                            <img src={getPrimaryItemImage(item) ?? ""} alt="" className="h-8 w-8 rounded object-cover" />
                           ) : (
                             <div className="h-8 w-8 rounded bg-muted flex items-center justify-center">
                               <ImageIcon className="h-4 w-4 text-muted-foreground" />
@@ -497,8 +498,8 @@ function ItemEditDialog({
         size: item.size,
         description: item.description,
         price: item.price,
-        image_url: item.image_url,
-        image_urls: item.image_urls || (item.image_url ? [item.image_url] : []),
+        image_url: getPrimaryItemImage(item),
+        image_urls: item.image_urls?.length ? item.image_urls : (item.image_url ? [item.image_url] : []),
         stock_quantity: item.stock_quantity,
         is_seasonal: item.is_seasonal,
         seasonal_label: item.seasonal_label,

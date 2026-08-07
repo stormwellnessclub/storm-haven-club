@@ -10,6 +10,19 @@ export type ImageAttachmentTarget =
   | { type: "cafe_menu_item"; id: string }
   | { type: "merch_product"; id: string };
 
+type UploadImageResponse = {
+  version?: string;
+  requestId?: string;
+  url?: string;
+  persistedUrl?: string;
+  targetType?: string | null;
+  targetId?: string | null;
+  attached?: boolean;
+  verified?: boolean;
+};
+
+const EXPECTED_RESPONSE_VERSION = "upload-image-v3";
+
 export async function uploadImageToBucket(
   bucket: string,
   file: File,
@@ -60,12 +73,22 @@ export async function uploadImageToBucket(
     throw new Error(message);
   }
 
-  if (!data?.url || typeof data.url !== "string") {
+  const response = data as UploadImageResponse | null;
+  if (response?.version !== EXPECTED_RESPONSE_VERSION) {
+    throw new Error("The image service is out of date and did not confirm the save. Please refresh the app and try again.");
+  }
+  if (!response.url || typeof response.url !== "string") {
     throw new Error("The image uploaded, but no image URL was returned.");
   }
-  if (target && data.attached !== true) {
-    throw new Error("The file uploaded, but it was not saved to the item. Please try again.");
+  if (target && (
+    response.attached !== true ||
+    response.verified !== true ||
+    response.targetType !== target.type ||
+    response.targetId !== target.id ||
+    response.persistedUrl !== response.url
+  )) {
+    throw new Error(`The file uploaded, but the item save was not verified${response.requestId ? ` (${response.requestId})` : ""}.`);
   }
 
-  return data.url;
+  return response.url;
 }
