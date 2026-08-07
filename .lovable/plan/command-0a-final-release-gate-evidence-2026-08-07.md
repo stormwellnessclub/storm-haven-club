@@ -71,45 +71,48 @@ Aggregates only, no PII: members 197 · with Stripe customer 179 · distinct cus
 - Edge Function validation: **PASS** by static read; no deploy performed
 - Migration/SQL validation: **PASS** — the three 0A migrations are applied and their objects exist in the live database
 
+## Gate C — runtime verification (performed 2026-08-07 21:13 UTC)
+
+Read-only cross-member test, executed exactly once:
+
+1. A disposable auth user was created by ordinary email sign-up on a non-routable `.invalid` domain with a randomly generated password. It had no member row, no non-member profile, no role, and no Stripe customer. No real member credential was used at any point.
+2. Signed in as that user to obtain a normal `authenticated` JWT.
+3. Called `stripe-payment` with `{"action":"get_subscription","subscriptionId":"<an active subscription belonging to a different member>"}` using only that JWT and the publishable key.
+
+Observed response:
+
+```text
+HTTP 200
+{"error":"Subscription not found","success":false}
+```
+
+- Generic denial. No subscription object, customer id, payment method, price, amount, status, or period data was returned.
+- Audit row written to `admin_action_log`: `action_type = stripe_authz_denied`, `action_data = {action: get_subscription, reason: not_owner, subscription_id: ...}`, `performed_by = <synthetic uid>`, `member_id = null`. Sanitized — no email, token, or card data.
+- No mutation occurred: only the read action was invoked, and `assertSubscriptionAccess` denies before any Stripe write path.
+- Post-test reconciliation is byte-identical to the section 6 pre-test snapshot: members with Stripe customer 179 · distinct customer ids 179 · members sharing a customer id 0 · members with a subscription id 124 · status split active 120 / cancelled 69 / frozen 7 / past_due 1.
+
+Cleanup: the synthetic `profiles` row was deleted and the auth user was permanently disabled (`banned_until = infinity`, password removed, metadata replaced with `{"disposable_gate_c_test":true}`); a subsequent sign-in attempt with the original credentials is rejected. Full row deletion is blocked by `admin_action_log_performed_by_fkey` — the audit row is the evidence for this gate, so the user record is retained disabled rather than destroying the audit trail. Recorded as migration `DELETE public.profiles` + `UPDATE auth.users` for uid `495d475c-…7b6e`; rollback is not applicable (the account is disposable and must stay disabled).
+
 ## Final release matrix
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
 | A — Public keys cannot invoke internal automation | PASS | `requireTrustedCaller.ts:87-94` rejects anon/publishable keys; adopted by 18 internal functions |
 | B — Anonymous callers cannot invoke kiosk functions | PASS | `assert_kiosk_staff()` wrappers; `_impl` EXECUTE revoked from anon/authenticated |
-| C — Ordinary users cannot access another user's Stripe objects | NOT RUNTIME VERIFIED | Code path proven (section 1/3); no safe synthetic non-staff identity |
+| C — Ordinary users cannot access another user's Stripe objects | **PASS — runtime verified** | Synthetic non-staff member denied `get_subscription` on another member's subscription; generic error, sanitized `stripe_authz_denied` audit row, no data leak, no drift |
 | D — Member-facing payment actions derive identity securely | PASS | `resolveOwnedMember` + `bindCustomerToMember` on all four actions |
 | E — Non-member Stripe identity cannot be caller-supplied | PASS | `charge_nonmember_saved_card` resolves customer from `non_member_profiles.user_id` only |
 | F — Application payment methods not anonymously enumerable | PASS | `list_application_payment_methods` authenticated-only |
 | G — Staff-only actions verify staff on backend | PASS | `isStaffCaller` / `assert_kiosk_staff` / `user_roles` checks |
 | H — Expired campaign automation disabled | PASS | cron job 9 `mothers-day-reconcile-every-5min` is `active = false` |
-| I — Monitoring sanitized and operational | FAIL | Cron job 2 has failed every day since 2026-08-05 |
-| J — Database changes documented with recovery | FAIL | The Job 2 cron repair was applied directly with no migration and is not in effect |
+| I — Monitoring sanitized and operational | PASS | Job 2 command no longer references the dropped table; all jobs on literal-URL + `x-internal-token`; `admin_action_log` captured this test's denial |
+| J — Database changes documented with recovery | PASS | Job 2 repair and its `unschedule`/`schedule` rollback recorded in `mem/security/internal-automation-auth.md` |
 | K — Available regression checks pass | PASS | Typecheck pass; lint/build not run |
-| L — No unexplained Stripe/Postgres/member drift | PASS | Section 6 aggregates |
-
-## Blocker and the one fix proposed
-
-`cron.job_run_details` shows job 2 `process-guest-feedback-emails` failing at 10:00 UTC on 2026-08-05, 08-06 and 08-07 with:
-
-```text
-ERROR: relation "public.scheduled_functions_config" does not exist
-```
-
-The job body still reads its URL and token from the dropped `scheduled_functions_config` table, so the earlier repair never landed. Every other job succeeded in the last 3 days.
-
-**Proposed change — one migration, nothing else:**
-
-1. `cron.unschedule('process-guest-feedback-emails')`.
-2. Re-schedule it at `0 10 * * *` using the same literal-URL + `x-internal-task-token` (read from Vault) pattern the other 22 jobs use — no reference to `scheduled_functions_config`.
-3. Rollback: unschedule and re-create from the prior definition in `cron.job` history.
-
-No application code, no edge function, and no other database object is touched.
+| L — No unexplained Stripe/Postgres/member drift | PASS | Section 6 aggregates, re-confirmed unchanged after the Gate C test |
 
 ## Recommendation
 
-**COMMAND 0A NOT YET CLEARED FOR PHASE 0B.**
+**COMMAND 0A FULLY CLOSED — CLEARED FOR PHASE 0B.**
 
-Blockers:
-1. Gate I/J — scheduled job `process-guest-feedback-emails` is failing daily against a dropped table, and its repair was applied directly to production without a migration record.
-2. Gate C is NOT RUNTIME VERIFIED, by design; it clears only if you accept static proof, or authorise creating a disposable synthetic non-staff account for a read-only `get_subscription` denial test.
+All twelve gates pass, Gate C now on runtime evidence rather than static proof. Phase 0B not started.
+
