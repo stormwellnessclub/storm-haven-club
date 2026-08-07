@@ -1,0 +1,1 @@
+- [Internal Automation Auth](mem://security/internal-automation-auth) — Cron uses x-internal-token; anon keys never trusted; Stripe subscription ownership checks

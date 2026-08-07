@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,13 +19,8 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-  const authHeader = req.headers.get('Authorization') ?? '';
-  if (authHeader !== `Bearer ${supabaseServiceKey}` && authHeader !== `Bearer ${anonKey}`) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 

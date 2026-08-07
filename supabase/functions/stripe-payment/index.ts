@@ -442,8 +442,36 @@ interface PaymentRequest {
   [key: string]: any;
 }
 
+// Command 0A: never log raw request bodies, tokens, PII or full Stripe objects.
+const SENSITIVE_LOG_KEYS = new Set([
+  'authorization', 'apikey', 'token', 'access_token', 'refresh_token', 'password',
+  'client_secret', 'clientsecret', 'pin', 'x-kiosk-pin', 'card', 'number', 'cvc',
+  'email', 'phone', 'address', 'ssn', 'dob', 'date_of_birth', 'body', 'payload',
+]);
+
+const redactForLog = (value: unknown, depth = 0): unknown => {
+  if (value === null || value === undefined) return value;
+  if (depth > 2) return '[truncated]';
+  if (Array.isArray(value)) return value.slice(0, 10).map((v) => redactForLog(v, depth + 1));
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (SENSITIVE_LOG_KEYS.has(k.toLowerCase())) { out[k] = '[redacted]'; continue; }
+      out[k] = redactForLog(v, depth + 1);
+    }
+    return out;
+  }
+  if (typeof value === 'string') return value.length > 120 ? `${value.slice(0, 120)}…` : value;
+  return value;
+};
+
 const logStep = (step: string, details?: unknown) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  let detailsStr = '';
+  try {
+    detailsStr = details ? ` - ${JSON.stringify(redactForLog(details))}` : '';
+  } catch {
+    detailsStr = ' - [unserializable]';
+  }
   console.log(`[STRIPE-PAYMENT] ${step}${detailsStr}`);
 };
 
@@ -569,90 +597,9 @@ serve(async (req) => {
       );
     }
 
-    // Handle unauthenticated action: list_application_payment_methods
-    // This allows applicants to fetch their card details after saving without needing auth.
-    // SECURITY: The stripeCustomerId must be bound to a real membership_applications row
-    // (created by our own create_application_setup flow) — this prevents card metadata
-    // enumeration by callers who guess arbitrary Stripe customer IDs.
-    if (action === 'list_application_payment_methods') {
-      const { stripeCustomerId: appCustomerId } = body;
-
-      if (!appCustomerId) {
-        return new Response(
-          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-
-      // Verify the customer ID is tied to an application we know about.
-      const supabaseAdmin = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      const { data: appRow } = await supabaseAdmin
-        .from('membership_applications')
-        .select('id')
-        .eq('stripe_customer_id', appCustomerId)
-        .maybeSingle();
-
-      if (!appRow) {
-        logStep("list_application_payment_methods rejected: customer not tied to any application", { stripeCustomerId: appCustomerId });
-        return new Response(
-          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-
-      logStep("Listing payment methods for application (unauthenticated)", { stripeCustomerId: appCustomerId });
-
-      try {
-        // Get customer to find default payment method
-        const appCustomer = await stripe.customers.retrieve(appCustomerId);
-        const appDefaultPaymentMethodId = !appCustomer.deleted 
-          ? appCustomer.invoice_settings?.default_payment_method as string | null
-          : null;
-
-        // List payment methods
-        const appPaymentMethods = await stripe.paymentMethods.list({
-          customer: appCustomerId,
-          type: 'card',
-        });
-
-        const appFormattedMethods = appPaymentMethods.data.map((pm: { 
-          id: string; 
-          card?: { brand?: string; last4?: string; exp_month?: number; exp_year?: number };
-          metadata?: Record<string, string>;
-        }) => ({
-          id: pm.id,
-          brand: pm.card?.brand,
-          last4: pm.card?.last4,
-          expMonth: pm.card?.exp_month,
-          expYear: pm.card?.exp_year,
-          nickname: pm.metadata?.nickname || null,
-          isDefault: pm.id === appDefaultPaymentMethodId,
-        }));
-
-        logStep("Application payment methods listed (unauthenticated)", { 
-          stripeCustomerId: appCustomerId, 
-          count: appFormattedMethods.length 
-        });
-
-        return new Response(
-          JSON.stringify({ 
-            paymentMethods: appFormattedMethods, 
-            hasPaymentMethod: appFormattedMethods.length > 0,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      } catch (stripeErr: any) {
-        logStep("Error listing application payment methods (unauthenticated)", { error: stripeErr.message });
-        return new Response(
-          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, error: stripeErr.message }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-        );
-      }
-    }
-
+    // Command 0A: `list_application_payment_methods` is NO LONGER an unauthenticated
+    // action. Card metadata is only returned to staff or to the authenticated owner of
+    // the application. See the authenticated case handler below.
 
     // All other actions require authentication.
     // Exception: the PIN-gated front desk / kiosk has no Supabase session. It may
@@ -731,6 +678,91 @@ serve(async (req) => {
     };
 
 
+    // ── Command 0A: Stripe object-level ownership containment ───────────────
+    const auditPrivileged = async (
+      actionType: string,
+      data: Record<string, unknown>,
+      memberId: string | null = null,
+    ) => {
+      try {
+        await supabase.from('admin_action_log').insert({
+          member_id: memberId,
+          action_type: actionType,
+          action_data: data,
+          performed_by: user?.id ?? null,
+          can_undo: false,
+        });
+      } catch (e) {
+        console.error('[stripe-payment] audit log insert failed');
+      }
+    };
+
+    const isStaffCaller = async (roles: string[] = ['super_admin', 'admin', 'manager']) => {
+      try { await assertStaff(roles); return true; } catch { return false; }
+    };
+
+    // Every Stripe customer the authenticated caller legitimately owns.
+    const callerStripeCustomerIds = async (): Promise<string[]> => {
+      if (!user?.id) return [];
+      const ids = new Set<string>();
+      const { data: memberRows } = await supabase
+        .from('members')
+        .select('stripe_customer_id')
+        .eq('user_id', user.id);
+      for (const r of memberRows ?? []) if (r?.stripe_customer_id) ids.add(r.stripe_customer_id);
+      const { data: nmRows } = await supabase
+        .from('non_member_profiles')
+        .select('stripe_customer_id')
+        .eq('user_id', user.id);
+      for (const r of nmRows ?? []) if (r?.stripe_customer_id) ids.add(r.stripe_customer_id);
+      if (user.email) {
+        const { data: emailMembers } = await supabase
+          .from('members')
+          .select('stripe_customer_id')
+          .ilike('email', user.email);
+        for (const r of emailMembers ?? []) if (r?.stripe_customer_id) ids.add(r.stripe_customer_id);
+      }
+      return Array.from(ids);
+    };
+
+    // Resolves + authorizes a subscription. Fails closed with a generic message.
+    const assertSubscriptionAccess = async (subscriptionId: unknown, actionName: string) => {
+      if (typeof subscriptionId !== 'string' || !subscriptionId.startsWith('sub_')) {
+        throw new Error("Subscription not found");
+      }
+      let subscription: any;
+      try {
+        subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      } catch {
+        throw new Error("Subscription not found");
+      }
+      const customerId = typeof subscription.customer === 'string'
+        ? subscription.customer
+        : subscription.customer?.id;
+
+      if (await isStaffCaller()) {
+        await auditPrivileged('stripe_subscription_staff_action', {
+          action: actionName,
+          subscription_id: subscriptionId,
+          stripe_customer_id: customerId ?? null,
+        });
+        return { subscription, staff: true };
+      }
+
+      const owned = await callerStripeCustomerIds();
+      if (!customerId || !owned.includes(customerId)) {
+        logStep("DENIED subscription access", { action: actionName, userId: user?.id ?? null });
+        await auditPrivileged('stripe_authz_denied', {
+          action: actionName,
+          subscription_id: subscriptionId,
+          reason: 'not_owner',
+        });
+        throw new Error("Subscription not found");
+      }
+      return { subscription, staff: false };
+    };
+
+
 
     // Get or create Stripe customer
     const getOrCreateCustomer = async (): Promise<string> => {
@@ -748,6 +780,81 @@ serve(async (req) => {
     };
 
     switch (action) {
+      case 'list_application_payment_methods': {
+        // Command 0A: authenticated + ownership-scoped. Staff, or the applicant whose
+        // application email matches the signed-in user, may read card metadata.
+        const { stripeCustomerId: appCustomerId, applicationId: appId } = body;
+        const emptyResult = () => new Response(
+          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+
+        if (!appCustomerId && !appId) return emptyResult();
+
+        let appQuery = supabase
+          .from('membership_applications')
+          .select('id, email, stripe_customer_id');
+        appQuery = appId ? appQuery.eq('id', appId) : appQuery.eq('stripe_customer_id', appCustomerId);
+        const { data: appRow } = await appQuery.maybeSingle();
+
+        if (!appRow?.stripe_customer_id) {
+          logStep("list_application_payment_methods: no matching application");
+          return emptyResult();
+        }
+
+        const staffCaller = await isStaffCaller(['super_admin', 'admin', 'manager', 'front_desk']);
+        const ownerCaller = !!user?.email && !!appRow.email &&
+          user.email.toLowerCase() === String(appRow.email).toLowerCase();
+
+        if (!staffCaller && !ownerCaller) {
+          await auditPrivileged('stripe_authz_denied', {
+            action: 'list_application_payment_methods',
+            application_id: appRow.id,
+            reason: 'not_owner',
+          });
+          return new Response(
+            JSON.stringify({ error: "Not authorized", paymentMethods: [], hasPaymentMethod: false }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+          );
+        }
+
+        try {
+          const appCustomer = await stripe.customers.retrieve(appRow.stripe_customer_id);
+          const appDefaultPaymentMethodId = !appCustomer.deleted
+            ? appCustomer.invoice_settings?.default_payment_method as string | null
+            : null;
+
+          const appPaymentMethods = await stripe.paymentMethods.list({
+            customer: appRow.stripe_customer_id,
+            type: 'card',
+          });
+
+          const appFormattedMethods = appPaymentMethods.data.map((pm: any) => ({
+            id: pm.id,
+            customer: appRow.stripe_customer_id,
+            brand: pm.card?.brand,
+            last4: pm.card?.last4,
+            expMonth: pm.card?.exp_month,
+            expYear: pm.card?.exp_year,
+            card: { brand: pm.card?.brand, last4: pm.card?.last4 },
+            nickname: pm.metadata?.nickname || null,
+            isDefault: pm.id === appDefaultPaymentMethodId,
+          }));
+
+          logStep("Application payment methods listed", { count: appFormattedMethods.length });
+
+          return new Response(
+            JSON.stringify({
+              paymentMethods: appFormattedMethods,
+              hasPaymentMethod: appFormattedMethods.length > 0,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        } catch {
+          return emptyResult();
+        }
+      }
+
       case 'create_activation_checkout': {
         const { tier, gender, isFoundingMember, startDate, memberId, skipAnnualFee, successUrl, cancelUrl } = body;
         
@@ -1662,7 +1769,7 @@ serve(async (req) => {
           throw new Error("Subscription ID required");
         }
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const { subscription } = await assertSubscriptionAccess(subscriptionId, 'get_subscription');
         logStep("Subscription retrieved", { subscriptionId, status: subscription.status });
         
         return new Response(
@@ -1676,6 +1783,7 @@ serve(async (req) => {
         if (!subscriptionId) {
           throw new Error("Subscription ID required");
         }
+        await assertSubscriptionAccess(subscriptionId, 'cancel_subscription');
 
         const subscription = await stripe.subscriptions.cancel(subscriptionId);
         logStep("Subscription cancelled", { subscriptionId });
@@ -3210,6 +3318,7 @@ serve(async (req) => {
       case 'pause_subscription': {
         const { subscriptionId, resumesAt } = body;
         if (!subscriptionId) throw new Error("Missing subscriptionId");
+        await assertSubscriptionAccess(subscriptionId, 'pause_subscription');
 
         const pauseCollection: Record<string, any> = {
           behavior: 'keep_as_draft',
@@ -3234,6 +3343,7 @@ serve(async (req) => {
       case 'resume_subscription': {
         const { subscriptionId } = body;
         if (!subscriptionId) throw new Error("Missing subscriptionId");
+        await assertSubscriptionAccess(subscriptionId, 'resume_subscription');
 
         const subscription = await stripe.subscriptions.update(subscriptionId, {
           pause_collection: null,
@@ -3251,8 +3361,8 @@ serve(async (req) => {
           throw new Error("Missing subscriptionId or billingType");
         }
 
-        // Get current subscription
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        // Get current subscription (ownership/staff enforced)
+        const { subscription } = await assertSubscriptionAccess(subscriptionId, 'update_subscription_billing');
         
         // Update to new billing interval
         const updated = await stripe.subscriptions.update(subscriptionId, {
@@ -7255,7 +7365,8 @@ serve(async (req) => {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        const nmCustId = nmProfile?.stripe_customer_id || body.stripeCustomerId;
+        // Command 0A: never trust a caller-supplied Stripe customer ID here.
+        const nmCustId = nmProfile?.stripe_customer_id;
         if (!nmCustId) {
           return new Response(
             JSON.stringify({ success: false, message: "No Stripe customer ID on file" }),
