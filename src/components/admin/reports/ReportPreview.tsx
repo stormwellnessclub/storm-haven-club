@@ -21,6 +21,7 @@ import { VisitDurationReport } from "./reports/VisitDurationReport";
 import { ClassAttendanceReport } from "./reports/ClassAttendanceReport";
 import { ClassUtilizationReport } from "./reports/ClassUtilizationReport";
 import { InstructorPerformanceReport } from "./reports/InstructorPerformanceReport";
+import { InstructorSessionsReport } from "./reports/InstructorSessionsReport";
 import { NoShowReport } from "./reports/NoShowReport";
 import { GuestPassUsageReport } from "./reports/GuestPassUsageReport";
 import { CreditBalancesReport } from "./reports/CreditBalancesReport";
@@ -144,6 +145,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'class-attendance': ClassAttendanceReport,
     'class-utilization': ClassUtilizationReport,
     'instructor-performance': InstructorPerformanceReport,
+    'instructor-sessions': InstructorSessionsReport,
     'no-show-report': NoShowReport,
     'guest-pass-usage': GuestPassUsageReport,
     'credit-balances': CreditBalancesReport,
