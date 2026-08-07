@@ -187,7 +187,7 @@ export function setIsMuted(val: boolean) {
 }
 
 // ── Component ───────────────────────────────────────────────────────
-const FIVE_MINUTES = 5 * 60 * 1000;
+const REMINDER_INTERVAL = 60 * 1000;
 
 interface Props {
   onStatusChange?: (s: RealtimeStatus) => void;
