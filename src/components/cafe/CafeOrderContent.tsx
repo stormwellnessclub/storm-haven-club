@@ -1231,25 +1231,17 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (isSoldOut) return;
+                                  if (itemAddons.length > 0) {
+                                    setAddonDialogItem(item);
+                                    return;
+                                  }
                                   addItemToCart(item, []);
                                 }}
                                 disabled={isSoldOut}
                                 className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
                               >
-                                Add to Order
+                                {itemAddons.length > 0 ? "Customize & Add" : "Add to Order"}
                               </button>
-                              {itemAddons.length > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAddonDialogItem(item);
-                                  }}
-                                  disabled={isSoldOut}
-                                  className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
-                                >
-                                  Customize
-                                </button>
-                              )}
                             </div>
                           </article>
                         );
