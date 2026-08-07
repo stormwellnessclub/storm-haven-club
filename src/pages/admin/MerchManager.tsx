@@ -64,7 +64,6 @@ export default function MerchManager() {
   const [editingProduct, setEditingProduct] = useState<MerchProduct | null>(null);
   const [form, setForm] = useState<ProductFormData>(emptyForm);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
   const [inventoryDialog, setInventoryDialog] = useState<MerchProduct | null>(null);
   const [inventoryValues, setInventoryValues] = useState<Record<string, number>>({});
   const [customCategory, setCustomCategory] = useState("");
@@ -375,8 +374,8 @@ export default function MerchManager() {
                 </div>
               </div>
 
-              <Button className="w-full" onClick={handleSave} disabled={uploading || createProduct.isPending || updateProduct.isPending}>
-                {(uploading || createProduct.isPending || updateProduct.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button className="w-full" onClick={handleSave} disabled={createProduct.isPending || updateProduct.isPending}>
+                {(createProduct.isPending || updateProduct.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {editingProduct ? "Save Changes" : "Create Product"}
               </Button>
             </div>

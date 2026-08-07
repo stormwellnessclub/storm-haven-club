@@ -77,6 +77,11 @@ export function useCreateMerchProduct() {
     mutationFn: async (product: Partial<MerchProduct>) => {
       const { data, error } = await supabase.from("merch_products").insert(product as any).select().single();
       if (error) throw error;
+      const requestedUrls = product.image_urls ?? [];
+      const savedUrls = Array.isArray(data?.image_urls) ? data.image_urls : [];
+      if (requestedUrls.length > 0 && requestedUrls.some((url) => !savedUrls.includes(url))) {
+        throw new Error("The product was created, but its image was not saved. Reopen the product and try the image again.");
+      }
       return data;
     },
     onSuccess: () => {
@@ -99,6 +104,18 @@ export function useUpdateMerchProduct() {
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error("Save blocked: your account doesn't have permission to edit Storm Shop products.");
+      }
+      if (Array.isArray(updates.image_urls)) {
+        const { data: verified, error: verifyError } = await supabase
+          .from("merch_products")
+          .select("image_urls")
+          .eq("id", id)
+          .single();
+        if (verifyError) throw verifyError;
+        const savedUrls = Array.isArray(verified?.image_urls) ? verified.image_urls : [];
+        if (updates.image_urls.some((url) => !savedUrls.includes(url))) {
+          throw new Error("The product saved, but its image did not persist.");
+        }
       }
     },
     onSuccess: () => {
