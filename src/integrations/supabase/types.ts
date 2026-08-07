@@ -11639,6 +11639,7 @@ export type Database = {
         }
         Returns: Json
       }
+      assert_kiosk_staff: { Args: never; Returns: undefined }
       award_class_milestones: {
         Args: { p_booking_id: string }
         Returns: undefined
@@ -12400,11 +12401,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      kiosk_acknowledge_conversation_impl: {
+        Args: {
+          p_acknowledged?: boolean
+          p_conversation_id: string
+          p_staff_name?: string
+        }
+        Returns: undefined
+      }
       kiosk_adjust_member_credits: {
         Args: { p_credit_id: string; p_delta: number; p_reason?: string }
         Returns: Json
       }
+      kiosk_adjust_member_credits_impl: {
+        Args: { p_credit_id: string; p_delta: number; p_reason?: string }
+        Returns: Json
+      }
       kiosk_cafe_active_orders: { Args: never; Returns: Json }
+      kiosk_cafe_active_orders_impl: { Args: never; Returns: Json }
       kiosk_cafe_notification_counts: {
         Args: never
         Returns: {
@@ -12413,9 +12427,29 @@ export type Database = {
           total_active_count: number
         }[]
       }
+      kiosk_cafe_notification_counts_impl: {
+        Args: never
+        Returns: {
+          pending_count: number
+          preparing_count: number
+          total_active_count: number
+        }[]
+      }
       kiosk_check_in_class: { Args: { p_booking_id: string }; Returns: Json }
+      kiosk_check_in_class_impl: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       kiosk_check_in_guest: { Args: { p_guest_pass_id: string }; Returns: Json }
+      kiosk_check_in_guest_impl: {
+        Args: { p_guest_pass_id: string }
+        Returns: Json
+      }
       kiosk_check_in_kids_care: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
+      kiosk_check_in_kids_care_impl: {
         Args: { p_booking_id: string }
         Returns: Json
       }
@@ -12423,17 +12457,32 @@ export type Database = {
         Args: { p_member_id_text: string }
         Returns: Json
       }
+      kiosk_check_in_member_impl: {
+        Args: { p_member_id_text: string }
+        Returns: Json
+      }
       kiosk_check_in_spa: { Args: { p_spa_id: string }; Returns: Json }
+      kiosk_check_in_spa_impl: { Args: { p_spa_id: string }; Returns: Json }
       kiosk_check_out_kids_care: {
         Args: { p_booking_id: string }
         Returns: Json
       }
+      kiosk_check_out_kids_care_impl: {
+        Args: { p_booking_id: string }
+        Returns: Json
+      }
       kiosk_class_roster: { Args: { p_session_id: string }; Returns: Json }
+      kiosk_class_roster_impl: { Args: { p_session_id: string }; Returns: Json }
       kiosk_kids_care_roster: {
         Args: { p_booking_date: string }
         Returns: Json
       }
+      kiosk_kids_care_roster_impl: {
+        Args: { p_booking_date: string }
+        Returns: Json
+      }
       kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
+      kiosk_search_visitors_impl: { Args: { p_query: string }; Returns: Json }
       kiosk_support_notification_counts: {
         Args: never
         Returns: {
@@ -12442,8 +12491,21 @@ export type Database = {
           unread_count: number
         }[]
       }
+      kiosk_support_notification_counts_impl: {
+        Args: never
+        Returns: {
+          open_count: number
+          unacknowledged_count: number
+          unread_count: number
+        }[]
+      }
       kiosk_todays_attendance: { Args: never; Returns: Json }
+      kiosk_todays_attendance_impl: { Args: never; Returns: Json }
       kiosk_update_cafe_order_status: {
+        Args: { p_new_status: string; p_order_id: string }
+        Returns: undefined
+      }
+      kiosk_update_cafe_order_status_impl: {
         Args: { p_new_status: string; p_order_id: string }
         Returns: undefined
       }

@@ -702,9 +702,31 @@ serve(async (req) => {
     };
 
     // Every Stripe customer the authenticated caller legitimately owns.
+    //
+    // Command 0A verification: ownership follows the IMMUTABLE relationship
+    //   auth.uid() -> members.user_id / non_member_profiles.user_id -> stripe_customer_id
+    // Email equality alone is NEVER proof of ownership (shared / duplicate /
+    // changed emails exist on this platform). The only email use is a narrow
+    // legacy-recovery path for member rows that have never been linked to any
+    // auth user (user_id IS NULL) — and those rows are linked to the caller
+    // first, so access is granted through the immutable relationship.
     const callerStripeCustomerIds = async (): Promise<string[]> => {
       if (!user?.id) return [];
       const ids = new Set<string>();
+
+      // Legacy recovery: adopt unlinked member rows matching the caller email.
+      if (user.email) {
+        const { data: orphanRows } = await supabase
+          .from('members')
+          .select('id')
+          .is('user_id', null)
+          .ilike('email', user.email);
+        for (const r of orphanRows ?? []) {
+          await supabase.from('members').update({ user_id: user.id }).eq('id', r.id).is('user_id', null);
+          logStep("Linked legacy unlinked member row to caller", { memberId: r.id });
+        }
+      }
+
       const { data: memberRows } = await supabase
         .from('members')
         .select('stripe_customer_id')
@@ -715,15 +737,9 @@ serve(async (req) => {
         .select('stripe_customer_id')
         .eq('user_id', user.id);
       for (const r of nmRows ?? []) if (r?.stripe_customer_id) ids.add(r.stripe_customer_id);
-      if (user.email) {
-        const { data: emailMembers } = await supabase
-          .from('members')
-          .select('stripe_customer_id')
-          .ilike('email', user.email);
-        for (const r of emailMembers ?? []) if (r?.stripe_customer_id) ids.add(r.stripe_customer_id);
-      }
       return Array.from(ids);
     };
+
 
     // Resolves + authorizes a subscription. Fails closed with a generic message.
     const assertSubscriptionAccess = async (subscriptionId: unknown, actionName: string) => {
@@ -762,6 +778,79 @@ serve(async (req) => {
       return { subscription, staff: false };
     };
 
+    // ── Command 0A: member-identity containment for payment actions ─────────
+    // Resolves the member row a payment action may act on. A caller-supplied
+    // memberId can NEVER select another user's member record: it must match a
+    // row owned by auth.uid(), unless the caller is staff (audited).
+    const resolveOwnedMember = async (
+      requestedMemberId: unknown,
+      actionName: string,
+    ): Promise<{ id: string; stripe_customer_id: string | null; user_id: string | null; staff: boolean }> => {
+      const wanted = typeof requestedMemberId === 'string' && requestedMemberId ? requestedMemberId : null;
+
+      if (kioskMode || (await isStaffCaller(['super_admin', 'admin', 'manager', 'front_desk']))) {
+        if (!wanted) throw new Error("memberId is required");
+        const { data: staffTarget } = await supabase
+          .from('members')
+          .select('id, stripe_customer_id, user_id')
+          .eq('id', wanted)
+          .maybeSingle();
+        if (!staffTarget) throw new Error("Member not found");
+        await auditPrivileged(
+          'stripe_member_staff_action',
+          { action: actionName, member_id: staffTarget.id },
+          staffTarget.id,
+        );
+        return { ...staffTarget, staff: true };
+      }
+
+      const { data: ownRows } = await supabase
+        .from('members')
+        .select('id, stripe_customer_id, user_id')
+        .eq('user_id', user.id);
+      const own = ownRows ?? [];
+      const match = wanted ? own.find((m) => m.id === wanted) : own[0];
+
+      if (!match) {
+        logStep("DENIED member payment action", { action: actionName, userId: user?.id ?? null });
+        await auditPrivileged('stripe_authz_denied', {
+          action: actionName,
+          reason: wanted ? 'member_not_owned' : 'no_member_for_user',
+        });
+        throw new Error("Member not found");
+      }
+      return { ...match, staff: false };
+    };
+
+    // Binds a Stripe customer to a member row. Never overwrites an existing,
+    // different customer — fails closed and preserves the original binding.
+    const bindCustomerToMember = async (
+      member: { id: string; stripe_customer_id: string | null },
+      customerId: string,
+      actionName: string,
+    ) => {
+      if (member.stripe_customer_id && member.stripe_customer_id !== customerId) {
+        logStep("DENIED customer rebind attempt", { action: actionName, memberId: member.id });
+        await auditPrivileged(
+          'stripe_customer_rebind_blocked',
+          { action: actionName, member_id: member.id },
+          member.id,
+        );
+        throw new Error("Payment profile mismatch. Please contact the club.");
+      }
+      if (member.stripe_customer_id === customerId) return;
+      const { error: bindErr } = await supabase
+        .from('members')
+        .update({ stripe_customer_id: customerId })
+        .eq('id', member.id)
+        .is('stripe_customer_id', null);
+      if (bindErr) {
+        logStep("Warning: failed to bind stripe_customer_id", { memberId: member.id });
+      } else {
+        member.stripe_customer_id = customerId;
+        logStep("Bound stripe_customer_id to member", { memberId: member.id });
+      }
+    };
 
 
     // Get or create Stripe customer
@@ -883,19 +972,11 @@ serve(async (req) => {
         // Get annual fee price (only if not skipping)
         const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
 
-        const customerId = await getOrCreateCustomer();
-        
-        // Save stripe_customer_id to member record
-        const { error: updateError } = await supabase
-          .from('members')
-          .update({ stripe_customer_id: customerId })
-          .eq('id', memberId);
-        
-        if (updateError) {
-          logStep("Warning: Failed to save stripe_customer_id", { error: updateError.message });
-        } else {
-          logStep("Saved stripe_customer_id to member", { memberId, customerId });
-        }
+        // Command 0A: memberId must be owned by the caller (or staff, audited).
+        const ownedMember = await resolveOwnedMember(memberId, 'create_activation_checkout');
+        const customerId = ownedMember.stripe_customer_id ?? await getOrCreateCustomer();
+        await bindCustomerToMember(ownedMember, customerId, 'create_activation_checkout');
+
         
         // Calculate billing anchor date from start date
         const startDateObj = new Date(startDate);
@@ -2751,31 +2832,25 @@ serve(async (req) => {
         const stripeMode = stripeSecretKey.startsWith('sk_test') ? 'test' : 'live';
         logStep("Creating SetupIntent for inline card form", { userId: user.id, memberId, stripeMode });
 
-        const customerId = await getOrCreateCustomer();
-        
-        // Save stripe_customer_id to member record if we have a memberId
+        // Command 0A: a supplied memberId must belong to the caller (or staff).
+        // Non-members simply get their own customer with no member binding.
+        let siMember: { id: string; stripe_customer_id: string | null; user_id: string | null } | null = null;
         if (memberId) {
-          const { error: updateError } = await supabase
-            .from('members')
-            .update({ stripe_customer_id: customerId })
-            .eq('id', memberId);
-          
-          if (updateError) {
-            logStep("Warning: Failed to save stripe_customer_id", { error: updateError.message });
-          } else {
-            logStep("Saved stripe_customer_id to member", { memberId, customerId });
-          }
+          siMember = await resolveOwnedMember(memberId, 'create_setup_intent');
         } else {
-          // Try to update by user_id
-          const { error: updateError } = await supabase
+          const { data: ownRow } = await supabase
             .from('members')
-            .update({ stripe_customer_id: customerId })
-            .eq('user_id', user.id);
-          
-          if (updateError) {
-            logStep("Warning: Failed to save stripe_customer_id by user_id", { error: updateError.message });
-          }
+            .select('id, stripe_customer_id, user_id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          siMember = ownRow ?? null;
         }
+
+        const customerId = siMember?.stripe_customer_id ?? await getOrCreateCustomer();
+        if (siMember) {
+          await bindCustomerToMember(siMember, customerId, 'create_setup_intent');
+        }
+
         
         // Create SetupIntent for saving a card
         const setupIntent = await stripe.setupIntents.create({
@@ -3405,14 +3480,11 @@ serve(async (req) => {
 
         const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
 
-        // Get customer ID
-        const customerId = await getOrCreateCustomer();
+        // Command 0A: memberId must be owned by the caller (or staff, audited).
+        const spiMember = await resolveOwnedMember(memberId, 'create_subscription_payment_intent');
+        const customerId = spiMember.stripe_customer_id ?? await getOrCreateCustomer();
+        await bindCustomerToMember(spiMember, customerId, 'create_subscription_payment_intent');
 
-        // Save stripe_customer_id to member record
-        await supabase
-          .from('members')
-          .update({ stripe_customer_id: customerId })
-          .eq('id', memberId);
 
         // Calculate total amount for payment intent
         const price = await stripe.prices.retrieve(membershipPriceId);
@@ -3482,16 +3554,30 @@ serve(async (req) => {
         // Get annual fee price (only if not skipping)
         const annualFeePriceId = skipAnnualFee ? null : STRIPE_PRODUCTS.annualFee[normalizedGender];
 
-        // Get customer ID from member
-        const { data: memberData } = await supabase
-          .from('members')
-          .select('stripe_customer_id, user_id')
-          .eq('id', memberId)
-          .single();
+        // Command 0A: memberId must be owned by the caller (or staff, audited).
+        const memberData = await resolveOwnedMember(memberId, 'create_subscription_from_payment');
 
         if (!memberData?.stripe_customer_id) {
           throw new Error("Member has no Stripe customer ID");
         }
+
+        // The payment method must belong to that member's Stripe customer.
+        try {
+          const pmCheck = await stripe.paymentMethods.retrieve(paymentMethodId);
+          const pmCustomer = typeof pmCheck.customer === 'string' ? pmCheck.customer : pmCheck.customer?.id;
+          if (pmCustomer !== memberData.stripe_customer_id) {
+            await auditPrivileged('stripe_authz_denied', {
+              action: 'create_subscription_from_payment',
+              reason: 'payment_method_customer_mismatch',
+              member_id: memberData.id,
+            }, memberData.id);
+            throw new Error("Payment profile mismatch. Please contact the club.");
+          }
+        } catch (pmErr: any) {
+          if (String(pmErr?.message || '').includes('Payment profile mismatch')) throw pmErr;
+          throw new Error("Payment method could not be verified");
+        }
+
 
         const startDateObj = new Date(startDate);
         const billingAnchor = Math.floor(startDateObj.getTime() / 1000);
@@ -7463,9 +7549,26 @@ serve(async (req) => {
         const nmCustomerId = nmProfileForCharge.stripe_customer_id;
         const nmCustomerName = `${nmProfileForCharge.first_name || ''} ${nmProfileForCharge.last_name || ''}`.trim() || (user.email || 'Non-member');
 
-        // Determine payment method: prefer caller-provided, else first card on customer
+        // Determine payment method. Command 0A: a caller-supplied payment
+        // method must be attached to THIS profile's Stripe customer.
         let nmPaymentMethodId = nmPmId as string | undefined;
-        if (!nmPaymentMethodId) {
+        if (nmPaymentMethodId) {
+          let nmPmCustomer: string | undefined;
+          try {
+            const nmPm = await stripe.paymentMethods.retrieve(nmPaymentMethodId);
+            nmPmCustomer = typeof nmPm.customer === 'string' ? nmPm.customer : nmPm.customer?.id;
+          } catch {
+            throw new Error("Payment method could not be verified");
+          }
+          if (nmPmCustomer !== nmCustomerId) {
+            logStep("DENIED non-member charge: payment method not owned", { userId: user?.id ?? null });
+            await auditPrivileged('stripe_authz_denied', {
+              action: 'charge_nonmember_saved_card',
+              reason: 'payment_method_customer_mismatch',
+            });
+            throw new Error("Payment profile mismatch. Please contact the club.");
+          }
+        } else {
           const nmPms = await stripe.paymentMethods.list({
             customer: nmCustomerId,
             type: 'card',
@@ -7476,6 +7579,7 @@ serve(async (req) => {
           }
           nmPaymentMethodId = nmPms.data[0].id;
         }
+
 
         // For POS charges, the frontend has already grossed-up the fee into amount.
         const nmIsPos = nmChargeType === 'pos';
