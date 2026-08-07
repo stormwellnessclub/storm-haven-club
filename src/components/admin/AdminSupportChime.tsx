@@ -98,11 +98,57 @@ try {
   console.warn("Failed to generate chime WAV:", e);
 }
 
+// Shared WebAudio context so we can amplify beyond the 1.0 ceiling of <audio>
+let sharedCtx: AudioContext | null = null;
+let decodedChime: AudioBuffer | null = null;
+
+/** Extra loudness multiplier — HTMLAudio caps at 1.0, WebAudio gain does not. */
+const CHIME_GAIN = 4.5;
+
+async function playViaWebAudio(): Promise<boolean> {
+  try {
+    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx || !chimeDataUri) return false;
+    if (!sharedCtx) sharedCtx = new Ctx();
+    if (sharedCtx!.state === "suspended") await sharedCtx!.resume();
+
+    if (!decodedChime) {
+      const res = await fetch(chimeDataUri);
+      const arr = await res.arrayBuffer();
+      decodedChime = await sharedCtx!.decodeAudioData(arr);
+    }
+
+    const src = sharedCtx!.createBufferSource();
+    src.buffer = decodedChime;
+
+    // Compressor keeps the boosted signal loud but clean
+    const comp = sharedCtx!.createDynamicsCompressor();
+    comp.threshold.value = -18;
+    comp.knee.value = 12;
+    comp.ratio.value = 8;
+    comp.attack.value = 0.002;
+    comp.release.value = 0.2;
+
+    const gain = sharedCtx!.createGain();
+    gain.gain.value = CHIME_GAIN;
+
+    src.connect(comp);
+    comp.connect(gain);
+    gain.connect(sharedCtx!.destination);
+    src.start(0);
+    return true;
+  } catch (err) {
+    console.warn("WebAudio chime failed, falling back:", err);
+    return false;
+  }
+}
+
 export async function playNotificationChime() {
   if (!chimeDataUri) {
     console.warn("Chime data URI not available");
     return;
   }
+  if (await playViaWebAudio()) return;
   try {
     const audio = new Audio(chimeDataUri);
     audio.volume = 1.0;
@@ -111,6 +157,7 @@ export async function playNotificationChime() {
     console.warn("Failed to play notification chime:", err);
   }
 }
+
 
 // ── Mute helpers ────────────────────────────────────────────────────
 const MUTE_KEY = "admin-chime-muted";
