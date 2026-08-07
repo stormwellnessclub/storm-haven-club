@@ -73,19 +73,39 @@ function ConversationItem({
   };
 
   return (
-    <div className={`p-3 rounded-lg space-y-2 ${variant === "concierge" ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50" : "bg-secondary/30"}`}>
+    <div className={`p-3 rounded-lg space-y-2 ${conversation.acknowledged_at ? "bg-secondary/20 opacity-80" : variant === "concierge" ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50" : "bg-secondary/30"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate">{memberName}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="font-medium text-sm truncate">{memberName}</p>
+            {conversation.acknowledged_at && (
+              <Badge variant="secondary" className="text-[10px] shrink-0">Received</Badge>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate">{conversation.subject}</p>
           {conversation.latest_message && (
             <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-2 italic">
               "{conversation.latest_message.slice(0, 120)}{conversation.latest_message.length > 120 ? "…" : ""}"
             </p>
           )}
-          <p className="text-xs text-muted-foreground/70 mt-0.5">{timeAgo}</p>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">
+            {timeAgo}
+            {conversation.acknowledged_at && (
+              <> · received by {conversation.acknowledged_by_name || "staff"} {formatDistanceToNow(new Date(conversation.acknowledged_at), { addSuffix: true })}</>
+            )}
+          </p>
         </div>
         <div className="flex gap-1 shrink-0">
+          <Button
+            variant={conversation.acknowledged_at ? "ghost" : "outline"}
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onAcknowledge(conversation.id, !conversation.acknowledged_at)}
+            title={conversation.acknowledged_at ? "Undo received (bell resumes)" : "Mark received (silences reminder bell)"}
+          >
+            <BellOff className="h-3.5 w-3.5 mr-1" />
+            {conversation.acknowledged_at ? "Undo" : "Received"}
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -93,6 +113,7 @@ function ConversationItem({
             title="Reply"
           >
             <Send className="h-3.5 w-3.5" />
+
           </Button>
           {variant === "concierge" ? (
             <Button
