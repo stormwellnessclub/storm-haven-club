@@ -5,6 +5,8 @@ interface SupportNotifications {
   openCount: number;
   unreadCount: number;
   totalActiveCount: number;
+  /** Open/in-progress requests that no staff member has marked "received" yet. */
+  unacknowledgedCount: number;
 }
 
 export function useAdminSupportNotifications() {
