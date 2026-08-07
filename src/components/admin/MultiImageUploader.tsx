@@ -75,7 +75,7 @@ export function MultiImageUploader({
       if (newUrls.length) {
         const nextUrls = [...value, ...newUrls];
         onChange(nextUrls);
-        if (onPersist && !uploadPersists) {
+        if (onPersist) {
           try {
             await onPersist(nextUrls);
           } catch (error) {
@@ -96,7 +96,7 @@ export function MultiImageUploader({
         );
       } else {
         toast.success(
-          onPersist || uploadPersists
+          onPersist
             ? `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} uploaded and saved`
             : `${newUrls.length} image${newUrls.length > 1 ? "s" : ""} ready — save the item to keep ${newUrls.length > 1 ? "them" : "it"}`,
         );

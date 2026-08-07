@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     if (!ALLOWED_BUCKETS.includes(bucket)) {
       return jsonResponse({ error: 'This image destination is not allowed.', requestId }, 400);
     }
-    if (targetType && !targetId) {
+    if ((targetType && !targetId) || (!targetType && targetId)) {
       return jsonResponse({ error: 'The item to attach this image to is missing.', requestId }, 400);
     }
     if (targetType === 'cafe_menu_item' && bucket !== 'cafe-menu-images') {
