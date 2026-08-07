@@ -789,6 +789,11 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                 {item.addons.map((a) => `+ ${a.name}`).join(" · ")}
               </p>
             )}
+            {item.note && (
+              <p className="font-cafe-mono text-[9px] tracking-wide text-cafe-burgundy/70 mt-1 italic">
+                Note: {item.note}
+              </p>
+            )}
             <div className="flex items-center gap-2 mt-2">
               <button
                 onClick={() => updateQuantity(item.key, -1)}
