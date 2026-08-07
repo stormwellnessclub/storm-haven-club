@@ -144,6 +144,25 @@ export function InstructorSessionsReport({ dateRange }: Props) {
     };
   }, [filtered]);
 
+  const byInstructor = useMemo(() => {
+    const map = new Map<
+      string,
+      { name: string; taught: number; attendees: number; capacity: number }
+    >();
+    for (const r of filtered) {
+      if (r.attended === 0) continue;
+      const key = r.instructorId || "unassigned";
+      const entry =
+        map.get(key) ||
+        { name: r.instructorName, taught: 0, attendees: 0, capacity: 0 };
+      entry.taught += 1;
+      entry.attendees += r.attended;
+      entry.capacity += r.capacity;
+      map.set(key, entry);
+    }
+    return Array.from(map.values()).sort((a, b) => b.taught - a.taught);
+  }, [filtered]);
+
   const selectedName =
     instructorId === "all"
       ? "All Instructors"
