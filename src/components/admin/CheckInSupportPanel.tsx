@@ -254,6 +254,26 @@ export function CheckInSupportPanel() {
     [queryClient]
   );
 
+  const handleAcknowledge = useCallback(
+    async (conversationId: string, acknowledged: boolean) => {
+      const staffName = user?.email || "Staff";
+      const { error } = await (supabase.rpc as any)("kiosk_acknowledge_conversation", {
+        p_conversation_id: conversationId,
+        p_staff_name: staffName,
+        p_acknowledged: acknowledged,
+      });
+
+      if (error) {
+        toast.error("Failed to update");
+        return;
+      }
+      toast.success(acknowledged ? "Marked received — reminder silenced" : "Reminder re-enabled");
+      queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+    },
+    [queryClient, user]
+  );
+
   if (!conversations || totalCount === 0) return null;
 
   return (
