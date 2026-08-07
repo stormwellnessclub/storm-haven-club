@@ -8,6 +8,14 @@ const corsHeaders = {
 
 // Validate authorization - accepts service role key, anon key (cron), or admin JWT
 async function validateRequest(req: Request, supabase: any): Promise<boolean> {
+  // Private internal automation token (scheduled jobs).
+  const internalToken = Deno.env.get('INTERNAL_TASK_TOKEN') ?? '';
+  const presentedInternal =
+    req.headers.get('x-internal-task-token') ?? req.headers.get('x-internal-token') ?? '';
+  if (internalToken && presentedInternal) {
+    return presentedInternal === internalToken;
+  }
+
   const authHeader = req.headers.get('Authorization');
   
   if (!authHeader) {
@@ -22,12 +30,7 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
     return true;
   }
 
-  // Check for anon key (cron job calls via pg_net)
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (authHeader === `Bearer ${anonKey}`) {
-    console.log('Authorized via anon key (cron job)');
-    return true;
-  }
+  // PHASE 0A: public anon/publishable keys are NOT trusted here.
 
   // Validate JWT token for admin users
   try {

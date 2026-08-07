@@ -8,6 +8,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -222,15 +223,12 @@ serve(async (req) => {
   const action = body?.action ?? "process";
 
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const isCronCaller = authHeader === `Bearer ${serviceKey}` || authHeader === `Bearer ${anonKey}`;
 
   if (action !== "process") {
     const gate = await requireStaff(req, ["admin", "super_admin"]);
     if (!gate.ok) return gate.response;
-  } else if (!isCronCaller) {
-    const gate = await requireStaff(req, ["admin", "super_admin"]);
+  } else {
+    const gate = await requireTrustedCaller(req, ["admin", "super_admin"]);
     if (!gate.ok) return gate.response;
   }
 

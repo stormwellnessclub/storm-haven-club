@@ -3,6 +3,7 @@
 // CREDITS ARE NEVER GRANTED HERE — this only sends emails.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,14 +15,8 @@ const HOUR = 60 * 60 * 1000;
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const serviceKeyGuard = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const anonKeyGuard = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (authHeader !== `Bearer ${serviceKeyGuard}` && authHeader !== `Bearer ${anonKeyGuard}`) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
 
 
   const supabase = createClient(

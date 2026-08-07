@@ -2,6 +2,7 @@
 // Iterates active payment_dunning_state rows; sends Day 0/1/3/5/7 emails idempotently.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,14 +20,8 @@ const TOUCHPOINTS: Array<{ day: number; type: string }> = [
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const authHeader = req.headers.get("Authorization") ?? "";
-  if (authHeader !== `Bearer ${serviceKey}` && authHeader !== `Bearer ${anonKey}`) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+  const _auth = await requireTrustedCaller(req);
+  if (!_auth.ok) return _auth.response;
 
 
 
