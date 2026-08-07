@@ -35,6 +35,8 @@ interface ConversationWithProfile {
   created_at: string;
   member_name: string;
   latest_message?: string;
+  acknowledged_at?: string | null;
+  acknowledged_by_name?: string | null;
 }
 
 
@@ -43,11 +45,13 @@ function ConversationItem({
   variant,
   onReply,
   onMarkDone,
+  onAcknowledge,
 }: {
   conversation: ConversationWithProfile;
   variant: "concierge" | "support";
   onReply: (id: string, message: string) => void;
   onMarkDone: (id: string) => void;
+  onAcknowledge: (id: string, acknowledged: boolean) => void;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
