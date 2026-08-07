@@ -27,7 +27,13 @@ export function useAdminSupportNotifications() {
           const row = Array.isArray(data) ? data[0] : data;
           const openCount = row?.open_count ?? 0;
           const unreadCount = row?.unread_count ?? 0;
-          return { openCount, unreadCount, totalActiveCount: openCount + unreadCount };
+          const unacknowledgedCount = row?.unacknowledged_count ?? 0;
+          return {
+            openCount,
+            unreadCount,
+            totalActiveCount: openCount + unreadCount,
+            unacknowledgedCount,
+          };
         }
 
         const { count: openCount, error: openError } = await supabase
@@ -39,12 +45,15 @@ export function useAdminSupportNotifications() {
 
         const { data: activeConvos, error: activeError } = await supabase
           .from('email_conversations')
-          .select('id')
+          .select('id, acknowledged_at')
           .in('status', ['open', 'in_progress']);
 
         if (activeError) throw activeError;
 
         const activeIds = (activeConvos || []).map(c => c.id);
+        const unacknowledgedIds = (activeConvos || [])
+          .filter((c: any) => !c.acknowledged_at)
+          .map(c => c.id);
 
         let unreadCount = 0;
         if (activeIds.length > 0) {
@@ -63,6 +72,7 @@ export function useAdminSupportNotifications() {
           openCount: openCount || 0,
           unreadCount,
           totalActiveCount: (openCount || 0) + unreadCount,
+          unacknowledgedCount: unacknowledgedIds.length,
         };
       } catch (error) {
         console.error('Failed to load admin support notifications:', error);
@@ -70,6 +80,7 @@ export function useAdminSupportNotifications() {
           openCount: 0,
           unreadCount: 0,
           totalActiveCount: 0,
+          unacknowledgedCount: 0,
         };
       }
     },
