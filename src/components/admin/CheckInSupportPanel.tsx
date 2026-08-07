@@ -199,6 +199,8 @@ export function CheckInSupportPanel() {
         created_at: c.created_at,
         member_name: profileMap.get(c.user_id) || "Unknown Member",
         latest_message: latestMessageMap.get(c.id),
+        acknowledged_at: (c as any).acknowledged_at ?? null,
+        acknowledged_by_name: (c as any).acknowledged_by_name ?? null,
       })) as ConversationWithProfile[];
     },
     refetchInterval: 15000,
