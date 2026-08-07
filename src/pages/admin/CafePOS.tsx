@@ -254,9 +254,16 @@ export default function CafePOS() {
                     <CardContent className="space-y-3">
                       <div className="space-y-1">
                         {(order.order_items as any[]).map((item: any, idx: number) => (
-                          <div key={idx} className="flex justify-between text-sm">
-                            <span>{item.quantity}x {item.name}</span>
-                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                          <div key={idx} className="space-y-0.5">
+                            <div className="flex justify-between text-sm">
+                              <span>{item.quantity}x {item.name}</span>
+                              <span>${(item.price * item.quantity).toFixed(2)}</span>
+                            </div>
+                            {item.note && (
+                              <p className="text-xs italic text-amber-700 dark:text-amber-400">
+                                Note: {item.note}
+                              </p>
+                            )}
                           </div>
                         ))}
                       </div>

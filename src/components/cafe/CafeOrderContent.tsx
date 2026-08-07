@@ -55,6 +55,7 @@ interface CartItem {
   category: string;
   quantity: number;
   addons: CartAddon[];
+  note?: string;
 }
 
 function getItemDisplayName(item: DbMenuItem): string {
@@ -388,13 +389,13 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
     return addons.filter((a) => a.category_id === item.category_id);
   };
 
-  const buildCartKey = (itemId: string, addonIds: string[]) =>
-    `${itemId}::${[...addonIds].sort().join(",")}`;
+  const buildCartKey = (itemId: string, addonIds: string[], note?: string) =>
+    `${itemId}::${[...addonIds].sort().join(",")}::${note || ""}`;
 
-  const addItemToCart = (item: DbMenuItem, selectedAddons: CartAddon[]) => {
+  const addItemToCart = (item: DbMenuItem, selectedAddons: CartAddon[], note?: string) => {
     const name = getItemDisplayName(item);
     const catName = categories.find((c) => c.id === item.category_id)?.name || "";
-    const key = buildCartKey(item.id, selectedAddons.map((a) => a.id));
+    const key = buildCartKey(item.id, selectedAddons.map((a) => a.id), note);
     setCart((prev) => {
       const existing = prev.find((i) => i.key === key);
       if (existing) {
@@ -402,7 +403,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
       }
       return [
         ...prev,
-        { key, itemId: item.id, name, price: item.price, category: catName, quantity: 1, addons: selectedAddons },
+        { key, itemId: item.id, name, price: item.price, category: catName, quantity: 1, addons: selectedAddons, note },
       ];
     });
     toast.success(`${name} added to order`);
@@ -544,13 +545,15 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
       let paymentIntentId: string | undefined;
       const orderItems = cart.map((item) => {
         const addonsLabel = item.addons.length ? ` (+ ${item.addons.map((a) => a.name).join(", ")})` : "";
+        const noteLabel = item.note ? ` — Note: ${item.note}` : "";
         const unitPrice = item.price + item.addons.reduce((s, a) => s + a.price, 0);
         return {
           id: parseInt(item.itemId.slice(0, 8), 16) || 0,
-          name: `${item.name}${addonsLabel}`,
+          name: `${item.name}${addonsLabel}${noteLabel}`,
           price: unitPrice,
           quantity: item.quantity,
           category: item.category,
+          note: item.note || null,
         };
       });
       const totalAmountCents = Math.round(cartTotal * 100);
@@ -784,6 +787,11 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
             {item.addons.length > 0 && (
               <p className="font-cafe-mono text-[9px] uppercase tracking-widest text-cafe-burgundy/60 mt-1">
                 {item.addons.map((a) => `+ ${a.name}`).join(" · ")}
+              </p>
+            )}
+            {item.note && (
+              <p className="font-cafe-mono text-[9px] tracking-wide text-cafe-burgundy/70 mt-1 italic">
+                Note: {item.note}
               </p>
             )}
             <div className="flex items-center gap-2 mt-2">
@@ -1223,25 +1231,17 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (isSoldOut) return;
+                                  if (itemAddons.length > 0) {
+                                    setAddonDialogItem(item);
+                                    return;
+                                  }
                                   addItemToCart(item, []);
                                 }}
                                 disabled={isSoldOut}
                                 className="bg-[hsl(var(--cafe-terracotta))] hover:bg-[hsl(var(--cafe-terracotta-deep))] disabled:opacity-40 text-white font-cafe-mono text-[10px] tracking-[0.2em] uppercase px-5 py-2.5 transition-colors"
                               >
-                                Add to Order
+                                {itemAddons.length > 0 ? "Customize & Add" : "Add to Order"}
                               </button>
-                              {itemAddons.length > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setAddonDialogItem(item);
-                                  }}
-                                  disabled={isSoldOut}
-                                  className="font-cafe-mono text-[9px] tracking-[0.25em] uppercase text-cafe-burgundy/60 underline underline-offset-4 decoration-cafe-line hover:text-cafe-terracotta disabled:opacity-40"
-                                >
-                                  Customize
-                                </button>
-                              )}
                             </div>
                           </article>
                         );
@@ -1497,11 +1497,14 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
         item={addonDialogItem}
         itemDisplayName={addonDialogItem ? getItemDisplayName(addonDialogItem) : ""}
         addons={addonDialogItem ? getAddonsForItem(addonDialogItem) : []}
-        onConfirm={(selected) => {
+        onConfirm={(selected, note) => {
           if (addonDialogItem) {
             addItemToCart(
               addonDialogItem,
-              selected.map((a) => ({ id: a.id, name: a.name, price: Number(a.price || 0) })),
+              selected
+                .filter((a) => !/^no syrup$/i.test(a.name))
+                .map((a) => ({ id: a.id, name: a.name, price: Number(a.price || 0) })),
+              note,
             );
           }
           setAddonDialogItem(null);
