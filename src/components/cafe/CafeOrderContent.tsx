@@ -1505,11 +1505,14 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
         item={addonDialogItem}
         itemDisplayName={addonDialogItem ? getItemDisplayName(addonDialogItem) : ""}
         addons={addonDialogItem ? getAddonsForItem(addonDialogItem) : []}
-        onConfirm={(selected) => {
+        onConfirm={(selected, note) => {
           if (addonDialogItem) {
             addItemToCart(
               addonDialogItem,
-              selected.map((a) => ({ id: a.id, name: a.name, price: Number(a.price || 0) })),
+              selected
+                .filter((a) => !/^no syrup$/i.test(a.name))
+                .map((a) => ({ id: a.id, name: a.name, price: Number(a.price || 0) })),
+              note,
             );
           }
           setAddonDialogItem(null);
