@@ -362,10 +362,11 @@ export default function CafeMenuManager() {
                   <Input
                     type="number"
                     step="0.01"
+                    min="0"
                     value={newAddonPrice}
                     onChange={(e) => setNewAddonPrice(e.target.value)}
-                    placeholder="Price"
-                    className="max-w-[120px]"
+                    placeholder="Price (0 = free)"
+                    className="max-w-[140px]"
                   />
                   <Button
                     size="sm"
