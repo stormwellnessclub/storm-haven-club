@@ -31,15 +31,20 @@ function generateChimeWav(): string {
     const samples: number[] = [];
     for (let j = 0; j < n; j++) {
       const t = j / sampleRate;
-      // short attack ramp (prevents clicks) + linear decay
+      // short attack ramp (prevents clicks) + slower decay that holds level longer
       const ramp = j < attack ? j / attack : 1;
-      const env = tone.volume * ramp * (1 - j / n);
-      // fundamental + harmonic for a brighter, more audible chime
+      const decay = 0.35 + 0.65 * (1 - j / n); // never drops below 35% until the end
+      const env = tone.volume * ramp * decay;
+      // fundamental + harmonics for a brighter, more audible chime
       const wave =
-        0.75 * Math.sin(2 * Math.PI * tone.freq * t) +
-        0.25 * Math.sin(2 * Math.PI * tone.freq * 2 * t);
-      samples.push(env * wave);
+        0.7 * Math.sin(2 * Math.PI * tone.freq * t) +
+        0.3 * Math.sin(2 * Math.PI * tone.freq * 2 * t) +
+        0.12 * Math.sin(2 * Math.PI * tone.freq * 3 * t);
+      // soft clip (tanh-style) to raise perceived loudness without harsh distortion
+      const driven = Math.tanh(env * wave * 2.2);
+      samples.push(driven);
     }
+
     segments.push(samples);
     if (i === 2) {
       segments.push(new Array(bigGapSamples).fill(0));
