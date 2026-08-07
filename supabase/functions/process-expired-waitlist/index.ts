@@ -120,4 +120,3 @@ serve(async (req) => {
     );
   }
 });
-\nimport { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
