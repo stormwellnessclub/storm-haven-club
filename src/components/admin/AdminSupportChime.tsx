@@ -187,7 +187,7 @@ export function setIsMuted(val: boolean) {
 }
 
 // ── Component ───────────────────────────────────────────────────────
-const FIVE_MINUTES = 5 * 60 * 1000;
+const REMINDER_INTERVAL = 60 * 1000;
 
 interface Props {
   onStatusChange?: (s: RealtimeStatus) => void;
@@ -257,17 +257,16 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     lastSeenOpenRef.current = open;
   }, [notifications?.unreadCount, notifications?.openCount, chimeSafe]);
 
-  // 5-minute recurring reminder while unread messages exist
+  // Recurring reminder while requests are still unacknowledged ("received" silences it)
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     intervalRef.current = setInterval(() => {
-      const unread = notifications?.unreadCount ?? 0;
-      const open = notifications?.openCount ?? 0;
-      if ((unread > 0 || open > 0) && !getIsMuted()) {
+      const unacked = notifications?.unacknowledgedCount ?? 0;
+      if (unacked > 0 && !getIsMuted()) {
         playNotificationChime();
       }
-    }, FIVE_MINUTES);
+    }, REMINDER_INTERVAL);
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [notifications]);

@@ -20,6 +20,7 @@ import {
   MessageCircle,
   GraduationCap,
   Baby,
+  BellOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -35,6 +36,8 @@ interface ConversationWithProfile {
   created_at: string;
   member_name: string;
   latest_message?: string;
+  acknowledged_at?: string | null;
+  acknowledged_by_name?: string | null;
 }
 
 
@@ -43,11 +46,13 @@ function ConversationItem({
   variant,
   onReply,
   onMarkDone,
+  onAcknowledge,
 }: {
   conversation: ConversationWithProfile;
   variant: "concierge" | "support";
   onReply: (id: string, message: string) => void;
   onMarkDone: (id: string) => void;
+  onAcknowledge: (id: string, acknowledged: boolean) => void;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -69,19 +74,39 @@ function ConversationItem({
   };
 
   return (
-    <div className={`p-3 rounded-lg space-y-2 ${variant === "concierge" ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50" : "bg-secondary/30"}`}>
+    <div className={`p-3 rounded-lg space-y-2 ${conversation.acknowledged_at ? "bg-secondary/20 opacity-80" : variant === "concierge" ? "bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50" : "bg-secondary/30"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate">{memberName}</p>
+          <div className="flex items-center gap-2 min-w-0">
+            <p className="font-medium text-sm truncate">{memberName}</p>
+            {conversation.acknowledged_at && (
+              <Badge variant="secondary" className="text-[10px] shrink-0">Received</Badge>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate">{conversation.subject}</p>
           {conversation.latest_message && (
             <p className="text-xs text-muted-foreground/80 mt-1 line-clamp-2 italic">
               "{conversation.latest_message.slice(0, 120)}{conversation.latest_message.length > 120 ? "…" : ""}"
             </p>
           )}
-          <p className="text-xs text-muted-foreground/70 mt-0.5">{timeAgo}</p>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">
+            {timeAgo}
+            {conversation.acknowledged_at && (
+              <> · received by {conversation.acknowledged_by_name || "staff"} {formatDistanceToNow(new Date(conversation.acknowledged_at), { addSuffix: true })}</>
+            )}
+          </p>
         </div>
         <div className="flex gap-1 shrink-0">
+          <Button
+            variant={conversation.acknowledged_at ? "ghost" : "outline"}
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={() => onAcknowledge(conversation.id, !conversation.acknowledged_at)}
+            title={conversation.acknowledged_at ? "Undo received (bell resumes)" : "Mark received (silences reminder bell)"}
+          >
+            <BellOff className="h-3.5 w-3.5 mr-1" />
+            {conversation.acknowledged_at ? "Undo" : "Received"}
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -89,6 +114,7 @@ function ConversationItem({
             title="Reply"
           >
             <Send className="h-3.5 w-3.5" />
+
           </Button>
           {variant === "concierge" ? (
             <Button
@@ -195,6 +221,8 @@ export function CheckInSupportPanel() {
         created_at: c.created_at,
         member_name: profileMap.get(c.user_id) || "Unknown Member",
         latest_message: latestMessageMap.get(c.id),
+        acknowledged_at: (c as any).acknowledged_at ?? null,
+        acknowledged_by_name: (c as any).acknowledged_by_name ?? null,
       })) as ConversationWithProfile[];
     },
     refetchInterval: 15000,
@@ -250,6 +278,26 @@ export function CheckInSupportPanel() {
     [queryClient]
   );
 
+  const handleAcknowledge = useCallback(
+    async (conversationId: string, acknowledged: boolean) => {
+      const staffName = user?.email || "Staff";
+      const { error } = await (supabase.rpc as any)("kiosk_acknowledge_conversation", {
+        p_conversation_id: conversationId,
+        p_staff_name: staffName,
+        p_acknowledged: acknowledged,
+      });
+
+      if (error) {
+        toast.error("Failed to update");
+        return;
+      }
+      toast.success(acknowledged ? "Marked received — reminder silenced" : "Reminder re-enabled");
+      queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+    },
+    [queryClient, user]
+  );
+
   if (!conversations || totalCount === 0) return null;
 
   return (
@@ -285,6 +333,7 @@ export function CheckInSupportPanel() {
                     variant="concierge"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
@@ -326,6 +375,7 @@ export function CheckInSupportPanel() {
                     variant="support"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
@@ -367,6 +417,7 @@ export function CheckInSupportPanel() {
                     variant="support"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
@@ -407,6 +458,7 @@ export function CheckInSupportPanel() {
                     variant="support"
                     onReply={handleReply}
                     onMarkDone={handleMarkDone}
+                    onAcknowledge={handleAcknowledge}
                   />
                 ))
               ) : (
