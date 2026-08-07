@@ -136,6 +136,10 @@ Deno.serve(async (req) => {
         .maybeSingle();
       const verifiedUrls = Array.isArray(verifiedRecord?.image_urls) ? verifiedRecord.image_urls : [];
       if (verifyErr || verifiedRecord?.id !== targetId || !verifiedUrls.includes(urlData.publicUrl)) {
+        const rollback = targetType === 'cafe_menu_item'
+          ? { image_urls: currentUrls, image_url: currentUrls[0] ?? null }
+          : { image_urls: currentUrls, updated_at: new Date().toISOString() };
+        await supabase.from(table).update(rollback).eq('id', targetId);
         await supabase.storage.from(bucket).remove([path]);
         console.error('[upload-image] read-back verification failed', JSON.stringify({ requestId, targetType, targetId }));
         return jsonResponse({
