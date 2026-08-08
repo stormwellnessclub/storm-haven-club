@@ -240,6 +240,10 @@ export default function ClassRoster() {
       return attendees;
     },
     enabled: !!sessionId && !!session,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Per-attendee class stats (first-in-type, total classes, milestones) — shared with kiosk
