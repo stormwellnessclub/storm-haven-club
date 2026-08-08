@@ -435,7 +435,7 @@ export default function ClassRoster() {
 
   // Remove booking mutation with credit/pass refund + cancellation email
   const removeMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
+    mutationFn: async ({ bookingId, cancelType }: { bookingId: string; cancelType: "early" | "late" }) => {
       // Pull everything we need for the email BEFORE we cancel.
       const { data: booking, error: fetchErr } = await supabase
         .from("class_bookings")
@@ -501,7 +501,10 @@ export default function ClassRoster() {
         .update({
           status: "cancelled" as const,
           cancelled_at: new Date().toISOString(),
-          cancellation_reason: "Removed by admin",
+          cancellation_reason:
+            cancelType === "late"
+              ? "Removed by admin [late-cancel]"
+              : "Removed by admin [early-cancel]",
         })
         .eq("id", bookingId);
       if (error) throw error;
@@ -571,7 +574,11 @@ export default function ClassRoster() {
         console.error("Failed to prepare removal email:", err);
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Attendee removed — credit/pass restored, member notified"); },
+    onSuccess: () => {
+      invalidateAll();
+      setRemoveTarget(null);
+      toast.success("Attendee removed — credit/pass restored, member notified");
+    },
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
 
@@ -1553,12 +1560,13 @@ export default function ClassRoster() {
                                 size="sm"
                                 variant="ghost"
                                 className="text-destructive hover:text-destructive"
-                                onClick={() => {
-                                  if (attendee.isCheckedIn) {
-                                    if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
-                                  }
-                                  removeMutation.mutate(attendee.bookingId);
-                                }}
+                                onClick={() =>
+                                  setRemoveTarget({
+                                    bookingId: attendee.bookingId,
+                                    name: attendee.name,
+                                    isCheckedIn: attendee.isCheckedIn,
+                                  })
+                                }
                                 disabled={removeMutation.isPending}
                                 title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
                               >
