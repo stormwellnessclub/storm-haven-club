@@ -26,6 +26,7 @@ interface RawBooking {
   status: string;
   checked_in_at: string | null;
   cancelled_at: string | null;
+  cancellation_reason: string | null;
   walk_in_name: string | null;
   walk_in_email: string | null;
   walk_in_phone: string | null;
@@ -48,8 +49,13 @@ function computeCancelType(
   cancelledAt: string | null,
   sessionDate: string | null,
   startTime: string | null,
+  cancellationReason?: string | null,
 ): "early" | "late" | null {
   if (!cancelledAt) return null;
+  // Explicit admin override wins over the time-based rule.
+  const reason = (cancellationReason || "").toLowerCase();
+  if (reason.includes("[early-cancel]")) return "early";
+  if (reason.includes("[late-cancel]")) return "late";
   if (!sessionDate || !startTime) return "early";
   const start = new Date(`${sessionDate}T${startTime}`).getTime();
   const cancelled = new Date(cancelledAt).getTime();
@@ -57,6 +63,7 @@ function computeCancelType(
   const hoursBefore = (start - cancelled) / (1000 * 60 * 60);
   return hoursBefore < 24 ? "late" : "early";
 }
+
 
 /**
  * Resolves full attendee identity for a list of bookings.
@@ -68,7 +75,7 @@ export async function resolveRosterIdentities(
   const { data: rawBookings, error } = await supabase
     .from("class_bookings")
     .select(
-      "id, user_id, member_id, status, checked_in_at, cancelled_at, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, class_sessions (session_date, start_time), members (id, first_name, last_name, phone, photo_url)"
+      "id, user_id, member_id, status, checked_in_at, cancelled_at, cancellation_reason, walk_in_name, walk_in_email, walk_in_phone, payment_method, is_admin_hold, class_sessions (session_date, start_time), members (id, first_name, last_name, phone, photo_url)"
     )
     .eq("session_id", sessionId)
     .in("status", ["confirmed", "completed", "no_show", "cancelled"]);
@@ -110,7 +117,7 @@ export async function resolveRosterIdentities(
     const isNoShow = b.status === "no_show";
     const isAdminHold = !!b.is_admin_hold;
     const cancelType = isCancelled
-      ? computeCancelType(b.cancelled_at, b.class_sessions?.session_date ?? null, b.class_sessions?.start_time ?? null)
+      ? computeCancelType(b.cancelled_at, b.class_sessions?.session_date ?? null, b.class_sessions?.start_time ?? null, b.cancellation_reason)
       : null;
     const extras = {
       isCancelled,

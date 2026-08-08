@@ -128,6 +128,7 @@ export default function ClassRoster() {
 
   // Move-booking dialog
   const [moveTarget, setMoveTarget] = useState<{ bookingId: string; name: string; email: string | null } | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<{ bookingId: string; name: string; isCheckedIn: boolean } | null>(null);
 
 
   // Hold-slot dialog
@@ -435,7 +436,7 @@ export default function ClassRoster() {
 
   // Remove booking mutation with credit/pass refund + cancellation email
   const removeMutation = useMutation({
-    mutationFn: async (bookingId: string) => {
+    mutationFn: async ({ bookingId, cancelType }: { bookingId: string; cancelType: "early" | "late" }) => {
       // Pull everything we need for the email BEFORE we cancel.
       const { data: booking, error: fetchErr } = await supabase
         .from("class_bookings")
@@ -501,7 +502,10 @@ export default function ClassRoster() {
         .update({
           status: "cancelled" as const,
           cancelled_at: new Date().toISOString(),
-          cancellation_reason: "Removed by admin",
+          cancellation_reason:
+            cancelType === "late"
+              ? "Removed by admin [late-cancel]"
+              : "Removed by admin [early-cancel]",
         })
         .eq("id", bookingId);
       if (error) throw error;
@@ -571,7 +575,11 @@ export default function ClassRoster() {
         console.error("Failed to prepare removal email:", err);
       }
     },
-    onSuccess: () => { invalidateAll(); toast.success("Attendee removed — credit/pass restored, member notified"); },
+    onSuccess: () => {
+      invalidateAll();
+      setRemoveTarget(null);
+      toast.success("Attendee removed — credit/pass restored, member notified");
+    },
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
 
@@ -1553,12 +1561,13 @@ export default function ClassRoster() {
                                 size="sm"
                                 variant="ghost"
                                 className="text-destructive hover:text-destructive"
-                                onClick={() => {
-                                  if (attendee.isCheckedIn) {
-                                    if (!window.confirm("Undo check-in and refund this attendee? Their credit/pass will be returned and they'll be notified.")) return;
-                                  }
-                                  removeMutation.mutate(attendee.bookingId);
-                                }}
+                                onClick={() =>
+                                  setRemoveTarget({
+                                    bookingId: attendee.bookingId,
+                                    name: attendee.name,
+                                    isCheckedIn: attendee.isCheckedIn,
+                                  })
+                                }
                                 disabled={removeMutation.isPending}
                                 title={attendee.isCheckedIn ? "Undo check-in & refund" : "Remove from class"}
                               >
@@ -1819,6 +1828,48 @@ export default function ClassRoster() {
               disabled={convertHoldMutation.isPending || !convertFirst.trim() || !convertLast.trim() || !convertPhone.trim()}
             >
               {convertHoldMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save attendee"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!removeTarget} onOpenChange={(o) => { if (!o) setRemoveTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove {removeTarget?.name} from class</DialogTitle>
+            <DialogDescription>
+              Choose how this cancellation should be recorded. Their credit/pass is returned either way and
+              they'll be notified by email.
+              {removeTarget?.isCheckedIn && " This will also undo their check-in."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <button
+              type="button"
+              disabled={removeMutation.isPending}
+              onClick={() => removeTarget && removeMutation.mutate({ bookingId: removeTarget.bookingId, cancelType: "early" })}
+              className="w-full text-left rounded-lg border p-3 hover:bg-accent transition-colors disabled:opacity-50"
+            >
+              <div className="font-medium">Early cancel</div>
+              <div className="text-xs text-muted-foreground">
+                No penalty. Use this when the club cancels or the spot is released in good standing.
+              </div>
+            </button>
+            <button
+              type="button"
+              disabled={removeMutation.isPending}
+              onClick={() => removeTarget && removeMutation.mutate({ bookingId: removeTarget.bookingId, cancelType: "late" })}
+              className="w-full text-left rounded-lg border border-destructive/40 p-3 hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            >
+              <div className="font-medium text-destructive">Late cancel</div>
+              <div className="text-xs text-muted-foreground">
+                Within 24 hours of class — flagged as a late cancellation on the roster.
+              </div>
+            </button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRemoveTarget(null)} disabled={removeMutation.isPending}>
+              Keep booking
             </Button>
           </DialogFooter>
         </DialogContent>
