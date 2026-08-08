@@ -48,8 +48,13 @@ function computeCancelType(
   cancelledAt: string | null,
   sessionDate: string | null,
   startTime: string | null,
+  cancellationReason?: string | null,
 ): "early" | "late" | null {
   if (!cancelledAt) return null;
+  // Explicit admin override wins over the time-based rule.
+  const reason = (cancellationReason || "").toLowerCase();
+  if (reason.includes("[early-cancel]")) return "early";
+  if (reason.includes("[late-cancel]")) return "late";
   if (!sessionDate || !startTime) return "early";
   const start = new Date(`${sessionDate}T${startTime}`).getTime();
   const cancelled = new Date(cancelledAt).getTime();
@@ -57,6 +62,7 @@ function computeCancelType(
   const hoursBefore = (start - cancelled) / (1000 * 60 * 60);
   return hoursBefore < 24 ? "late" : "early";
 }
+
 
 /**
  * Resolves full attendee identity for a list of bookings.
