@@ -191,11 +191,13 @@ function KioskSupportPanel() {
         }
       }
 
-      return convos.map((c) => ({
+      return convos.map((c: any) => ({
         id: c.id, user_id: c.user_id, subject: c.subject, status: c.status,
         category: c.category, last_message_at: c.last_message_at, created_at: c.created_at,
         member_name: profileMap.get(c.user_id) || "Unknown Member",
         latest_message: latestMessageMap.get(c.id),
+        acknowledged_at: c.acknowledged_at ?? null,
+        acknowledged_by_name: c.acknowledged_by_name ?? null,
       })) as ConversationWithProfile[];
     },
     refetchInterval: 15000,
@@ -220,12 +222,30 @@ function KioskSupportPanel() {
     queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
   }, [queryClient]);
 
+  const handleAcknowledge = useCallback(async (conversationId: string, acknowledged: boolean) => {
+    const { error } = await supabase.rpc("kiosk_acknowledge_conversation", {
+      p_conversation_id: conversationId,
+      p_staff_name: "Front Desk",
+      p_acknowledged: acknowledged,
+    });
+    if (error) { toast.error("Failed to update — ask a manager to sign in"); return; }
+    toast.success(acknowledged ? "Marked received — reminder silenced" : "Reminder re-armed");
+    queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+  }, [queryClient]);
+
   const handleMarkDone = useCallback(async (conversationId: string) => {
-    const { error } = await supabase.from("email_conversations")
-      .update({ status: "resolved" }).eq("id", conversationId);
-    if (error) { toast.error("Failed to resolve"); return; }
+    const { data, error } = await supabase.rpc("kiosk_resolve_conversation", {
+      p_conversation_id: conversationId,
+      p_resolved: true,
+    });
+    if (error || data === false) {
+      toast.error("Couldn't resolve — you may not have permission");
+      return;
+    }
     toast.success("Request resolved");
     queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
   }, [queryClient]);
 
   const renderSection = (title: string, icon: React.ReactNode, items: ConversationWithProfile[], emptyText: string) => (
@@ -238,7 +258,13 @@ function KioskSupportPanel() {
       </CardHeader>
       <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
         {items.length > 0 ? items.map((item) => (
-          <KioskConversationItem key={item.id} conversation={item} onReply={handleReply} onMarkDone={handleMarkDone} />
+          <KioskConversationItem
+            key={item.id}
+            conversation={item}
+            onReply={handleReply}
+            onMarkDone={handleMarkDone}
+            onAcknowledge={handleAcknowledge}
+          />
         )) : (
           <p className="text-sm text-muted-foreground text-center py-8">{emptyText}</p>
         )}
