@@ -56,14 +56,17 @@ interface ConversationWithProfile {
   created_at: string;
   member_name: string;
   latest_message?: string;
+  acknowledged_at?: string | null;
+  acknowledged_by_name?: string | null;
 }
 
 function KioskConversationItem({
-  conversation, onReply, onMarkDone,
+  conversation, onReply, onMarkDone, onAcknowledge,
 }: {
   conversation: ConversationWithProfile;
   onReply: (id: string, message: string) => void;
   onMarkDone: (id: string) => void;
+  onAcknowledge: (id: string, acknowledged: boolean) => void;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -72,6 +75,8 @@ function KioskConversationItem({
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })
     : formatDistanceToNow(new Date(conversation.created_at), { addSuffix: true });
+
+  const acknowledged = !!conversation.acknowledged_at;
 
   const handleSend = async () => {
     if (!replyText.trim()) return;
@@ -83,7 +88,7 @@ function KioskConversationItem({
   };
 
   return (
-    <div className="p-4 rounded-lg bg-secondary/30 border space-y-3">
+    <div className={`p-4 rounded-lg bg-secondary/30 border space-y-3 ${acknowledged ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{conversation.member_name || "Unknown"}</p>
@@ -94,11 +99,35 @@ function KioskConversationItem({
             </p>
           )}
           <p className="text-xs text-muted-foreground/70 mt-1">{timeAgo}</p>
+          {acknowledged && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                Received{conversation.acknowledged_by_name ? ` · ${conversation.acknowledged_by_name}` : ""}
+                {" · "}
+                {formatDistanceToNow(new Date(conversation.acknowledged_at as string), { addSuffix: true })}
+              </Badge>
+              <Button
+                variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                onClick={() => onAcknowledge(conversation.id, false)}
+              >
+                Undo
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={() => setShowReply(!showReply)}>
             <Send className="h-3.5 w-3.5 mr-1" /> Reply
           </Button>
+          {!acknowledged && (
+            <Button
+              variant="outline" size="sm"
+              onClick={() => onAcknowledge(conversation.id, true)}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+            >
+              <BellRing className="h-3.5 w-3.5 mr-1" /> Received
+            </Button>
+          )}
           <Button
             variant="outline" size="sm"
             onClick={() => onMarkDone(conversation.id)}
@@ -123,6 +152,7 @@ function KioskConversationItem({
     </div>
   );
 }
+
 
 function KioskSupportPanel() {
   const queryClient = useQueryClient();
