@@ -127,7 +127,7 @@ export async function playNotificationChime() {
   if (await playViaWebAudio()) return;
   try {
     const audio = new Audio(chimeDataUri);
-    audio.volume = 1.0;
+    audio.volume = 0.6;
     await audio.play();
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
