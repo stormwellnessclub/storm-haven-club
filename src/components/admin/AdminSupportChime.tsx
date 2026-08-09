@@ -87,8 +87,8 @@ try {
 let sharedCtx: AudioContext | null = null;
 let decodedChime: AudioBuffer | null = null;
 
-/** Extra loudness multiplier — HTMLAudio caps at 1.0, WebAudio gain does not. */
-const CHIME_GAIN = 4.5;
+/** Playback level for the chime — kept at a normal, non-startling volume. */
+const CHIME_GAIN = 1.0;
 
 async function playViaWebAudio(): Promise<boolean> {
   try {
@@ -106,19 +106,10 @@ async function playViaWebAudio(): Promise<boolean> {
     const src = sharedCtx!.createBufferSource();
     src.buffer = decodedChime;
 
-    // Compressor keeps the boosted signal loud but clean
-    const comp = sharedCtx!.createDynamicsCompressor();
-    comp.threshold.value = -18;
-    comp.knee.value = 12;
-    comp.ratio.value = 8;
-    comp.attack.value = 0.002;
-    comp.release.value = 0.2;
-
     const gain = sharedCtx!.createGain();
     gain.gain.value = CHIME_GAIN;
 
-    src.connect(comp);
-    comp.connect(gain);
+    src.connect(gain);
     gain.connect(sharedCtx!.destination);
     src.start(0);
     return true;
