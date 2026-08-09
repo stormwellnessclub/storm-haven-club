@@ -419,7 +419,6 @@ function BookOnBehalfDialog({
 
   const bookMutation = useMutation({
     mutationFn: async () => {
-      const kiosk = isKioskMode() || !authUser?.id;
       const target = credits.find((c) => c.credit_type === creditType && c.credits_remaining > 0);
       if (!target) throw new Error("No available credit of this type");
 
@@ -439,43 +438,17 @@ function BookOnBehalfDialog({
         return { kind: "class" as const };
       }
 
-      // red_light / dry_cryo: deduct + audit
-      const prev = target.credits_remaining;
-      const next = prev - 1;
+      // red_light / dry_cryo: deduct + audit via SECURITY DEFINER RPC (front desk safe)
       const reason = `Front desk booked ${CREDIT_TYPE_LABELS[creditType]} session${notes ? ` — ${notes}` : ""}`;
-
-      if (kiosk) {
-        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
-          p_credit_id: target.id,
-          p_delta: -1,
-          p_reason: reason,
-        });
-        if (error) throw error;
-        return { kind: creditType };
-      }
-
-      const { error: updateError } = await supabase
-        .from("member_credits")
-        .update({ credits_remaining: next })
-        .eq("id", target.id);
-      if (updateError) throw updateError;
-
-      const { error: logError } = await supabase.from("credit_adjustments").insert({
-        member_id: memberId,
-        member_credit_id: target.id,
-        credit_type: creditType,
-        adjustment_type: "remove",
-        amount: 1,
-        previous_balance: prev,
-        new_balance: next,
-        reason,
-        adjusted_by: authUser!.id,
+      const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+        p_credit_id: target.id,
+        p_delta: -1,
+        p_reason: reason,
       });
-      if (logError) throw logError;
-
-      if (logError) throw logError;
+      if (error) throw error;
       return { kind: creditType };
     },
+
     onSuccess: () => {
       toast.success(`Booked ${CREDIT_TYPE_LABELS[creditType]} for ${memberName}`);
       onDone();
