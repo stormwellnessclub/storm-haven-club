@@ -11,47 +11,32 @@ let chimeDataUri: string | null = null;
 
 function generateChimeWav(): string {
   const sampleRate = 44100;
+  // Calm two-note bell: pure sine tones, gentle attack, natural decay.
   const tones: Array<{ freq: number; duration: number; volume: number }> = [
-    { freq: 660, duration: 0.18, volume: 0.98 },
-    { freq: 880, duration: 0.18, volume: 0.95 },
-    { freq: 1047, duration: 0.3, volume: 0.9 },
-    // gap
-    { freq: 660, duration: 0.18, volume: 0.9 },
-    { freq: 880, duration: 0.18, volume: 0.88 },
-    { freq: 1047, duration: 0.3, volume: 0.85 },
+    { freq: 784, duration: 0.35, volume: 0.5 },
+    { freq: 1047, duration: 0.6, volume: 0.42 },
   ];
 
-  const gapSamples = Math.floor(sampleRate * 0.02);
-  const bigGapSamples = Math.floor(sampleRate * 0.05);
+  const gapSamples = Math.floor(sampleRate * 0.05);
   const segments: number[][] = [];
 
   tones.forEach((tone, i) => {
     const n = Math.floor(sampleRate * tone.duration);
-    const attack = Math.floor(sampleRate * 0.004);
+    const attack = Math.floor(sampleRate * 0.012);
     const samples: number[] = [];
     for (let j = 0; j < n; j++) {
       const t = j / sampleRate;
-      // short attack ramp (prevents clicks) + slower decay that holds level longer
       const ramp = j < attack ? j / attack : 1;
-      const decay = 0.35 + 0.65 * (1 - j / n); // never drops below 35% until the end
+      // exponential decay to silence — soft bell tail, no harsh sustain
+      const decay = Math.exp(-3.2 * (j / n));
       const env = tone.volume * ramp * decay;
-      // fundamental + harmonics for a brighter, more audible chime
-      const wave =
-        0.7 * Math.sin(2 * Math.PI * tone.freq * t) +
-        0.3 * Math.sin(2 * Math.PI * tone.freq * 2 * t) +
-        0.12 * Math.sin(2 * Math.PI * tone.freq * 3 * t);
-      // soft clip (tanh-style) to raise perceived loudness without harsh distortion
-      const driven = Math.tanh(env * wave * 2.2);
-      samples.push(driven);
+      samples.push(env * Math.sin(2 * Math.PI * tone.freq * t));
     }
 
     segments.push(samples);
-    if (i === 2) {
-      segments.push(new Array(bigGapSamples).fill(0));
-    } else if (i < 5) {
-      segments.push(new Array(gapSamples).fill(0));
-    }
+    if (i === 0) segments.push(new Array(gapSamples).fill(0));
   });
+
 
   const allSamples = segments.flat();
   const numSamples = allSamples.length;
@@ -102,8 +87,8 @@ try {
 let sharedCtx: AudioContext | null = null;
 let decodedChime: AudioBuffer | null = null;
 
-/** Extra loudness multiplier — HTMLAudio caps at 1.0, WebAudio gain does not. */
-const CHIME_GAIN = 4.5;
+/** Playback level for the chime — kept at a normal, non-startling volume. */
+const CHIME_GAIN = 1.0;
 
 async function playViaWebAudio(): Promise<boolean> {
   try {
@@ -121,19 +106,10 @@ async function playViaWebAudio(): Promise<boolean> {
     const src = sharedCtx!.createBufferSource();
     src.buffer = decodedChime;
 
-    // Compressor keeps the boosted signal loud but clean
-    const comp = sharedCtx!.createDynamicsCompressor();
-    comp.threshold.value = -18;
-    comp.knee.value = 12;
-    comp.ratio.value = 8;
-    comp.attack.value = 0.002;
-    comp.release.value = 0.2;
-
     const gain = sharedCtx!.createGain();
     gain.gain.value = CHIME_GAIN;
 
-    src.connect(comp);
-    comp.connect(gain);
+    src.connect(gain);
     gain.connect(sharedCtx!.destination);
     src.start(0);
     return true;
@@ -151,7 +127,7 @@ export async function playNotificationChime() {
   if (await playViaWebAudio()) return;
   try {
     const audio = new Audio(chimeDataUri);
-    audio.volume = 1.0;
+    audio.volume = 0.6;
     await audio.play();
   } catch (err) {
     console.warn("Failed to play notification chime:", err);

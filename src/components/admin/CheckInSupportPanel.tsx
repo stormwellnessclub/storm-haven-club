@@ -262,13 +262,13 @@ export function CheckInSupportPanel() {
 
   const handleMarkDone = useCallback(
     async (conversationId: string) => {
-      const { error } = await supabase
-        .from("email_conversations")
-        .update({ status: "resolved" })
-        .eq("id", conversationId);
+      const { data, error } = await supabase.rpc("kiosk_resolve_conversation", {
+        p_conversation_id: conversationId,
+        p_resolved: true,
+      });
 
-      if (error) {
-        toast.error("Failed to resolve");
+      if (error || data === false) {
+        toast.error("Couldn't resolve — you may not have permission");
         return;
       }
       toast.success("Request resolved");
@@ -277,6 +277,7 @@ export function CheckInSupportPanel() {
     },
     [queryClient]
   );
+
 
   const handleAcknowledge = useCallback(
     async (conversationId: string, acknowledged: boolean) => {

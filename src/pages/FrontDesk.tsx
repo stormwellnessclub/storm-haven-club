@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Search, UserCheck, Clock, CheckCircle2, XCircle, User,
   Calendar, Loader2, Ticket, BookOpen, Sparkles, Ban, Baby,
-  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight, PartyPopper, RefreshCw,
+  GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight, PartyPopper, RefreshCw, BellRing,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -56,14 +56,17 @@ interface ConversationWithProfile {
   created_at: string;
   member_name: string;
   latest_message?: string;
+  acknowledged_at?: string | null;
+  acknowledged_by_name?: string | null;
 }
 
 function KioskConversationItem({
-  conversation, onReply, onMarkDone,
+  conversation, onReply, onMarkDone, onAcknowledge,
 }: {
   conversation: ConversationWithProfile;
   onReply: (id: string, message: string) => void;
   onMarkDone: (id: string) => void;
+  onAcknowledge: (id: string, acknowledged: boolean) => void;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -72,6 +75,8 @@ function KioskConversationItem({
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })
     : formatDistanceToNow(new Date(conversation.created_at), { addSuffix: true });
+
+  const acknowledged = !!conversation.acknowledged_at;
 
   const handleSend = async () => {
     if (!replyText.trim()) return;
@@ -83,7 +88,7 @@ function KioskConversationItem({
   };
 
   return (
-    <div className="p-4 rounded-lg bg-secondary/30 border space-y-3">
+    <div className={`p-4 rounded-lg bg-secondary/30 border space-y-3 ${acknowledged ? "opacity-60" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{conversation.member_name || "Unknown"}</p>
@@ -94,11 +99,35 @@ function KioskConversationItem({
             </p>
           )}
           <p className="text-xs text-muted-foreground/70 mt-1">{timeAgo}</p>
+          {acknowledged && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                Received{conversation.acknowledged_by_name ? ` · ${conversation.acknowledged_by_name}` : ""}
+                {" · "}
+                {formatDistanceToNow(new Date(conversation.acknowledged_at as string), { addSuffix: true })}
+              </Badge>
+              <Button
+                variant="ghost" size="sm" className="h-6 px-2 text-xs"
+                onClick={() => onAcknowledge(conversation.id, false)}
+              >
+                Undo
+              </Button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={() => setShowReply(!showReply)}>
             <Send className="h-3.5 w-3.5 mr-1" /> Reply
           </Button>
+          {!acknowledged && (
+            <Button
+              variant="outline" size="sm"
+              onClick={() => onAcknowledge(conversation.id, true)}
+              className="text-blue-600 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+            >
+              <BellRing className="h-3.5 w-3.5 mr-1" /> Received
+            </Button>
+          )}
           <Button
             variant="outline" size="sm"
             onClick={() => onMarkDone(conversation.id)}
@@ -123,6 +152,7 @@ function KioskConversationItem({
     </div>
   );
 }
+
 
 function KioskSupportPanel() {
   const queryClient = useQueryClient();
@@ -161,11 +191,13 @@ function KioskSupportPanel() {
         }
       }
 
-      return convos.map((c) => ({
+      return convos.map((c: any) => ({
         id: c.id, user_id: c.user_id, subject: c.subject, status: c.status,
         category: c.category, last_message_at: c.last_message_at, created_at: c.created_at,
         member_name: profileMap.get(c.user_id) || "Unknown Member",
         latest_message: latestMessageMap.get(c.id),
+        acknowledged_at: c.acknowledged_at ?? null,
+        acknowledged_by_name: c.acknowledged_by_name ?? null,
       })) as ConversationWithProfile[];
     },
     refetchInterval: 15000,
@@ -190,12 +222,30 @@ function KioskSupportPanel() {
     queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
   }, [queryClient]);
 
+  const handleAcknowledge = useCallback(async (conversationId: string, acknowledged: boolean) => {
+    const { error } = await supabase.rpc("kiosk_acknowledge_conversation", {
+      p_conversation_id: conversationId,
+      p_staff_name: "Front Desk",
+      p_acknowledged: acknowledged,
+    });
+    if (error) { toast.error("Failed to update — ask a manager to sign in"); return; }
+    toast.success(acknowledged ? "Marked received — reminder silenced" : "Reminder re-armed");
+    queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
+  }, [queryClient]);
+
   const handleMarkDone = useCallback(async (conversationId: string) => {
-    const { error } = await supabase.from("email_conversations")
-      .update({ status: "resolved" }).eq("id", conversationId);
-    if (error) { toast.error("Failed to resolve"); return; }
+    const { data, error } = await supabase.rpc("kiosk_resolve_conversation", {
+      p_conversation_id: conversationId,
+      p_resolved: true,
+    });
+    if (error || data === false) {
+      toast.error("Couldn't resolve — you may not have permission");
+      return;
+    }
     toast.success("Request resolved");
     queryClient.invalidateQueries({ queryKey: ["kiosk-support-conversations"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-support-notifications"] });
   }, [queryClient]);
 
   const renderSection = (title: string, icon: React.ReactNode, items: ConversationWithProfile[], emptyText: string) => (
@@ -208,7 +258,13 @@ function KioskSupportPanel() {
       </CardHeader>
       <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
         {items.length > 0 ? items.map((item) => (
-          <KioskConversationItem key={item.id} conversation={item} onReply={handleReply} onMarkDone={handleMarkDone} />
+          <KioskConversationItem
+            key={item.id}
+            conversation={item}
+            onReply={handleReply}
+            onMarkDone={handleMarkDone}
+            onAcknowledge={handleAcknowledge}
+          />
         )) : (
           <p className="text-sm text-muted-foreground text-center py-8">{emptyText}</p>
         )}
