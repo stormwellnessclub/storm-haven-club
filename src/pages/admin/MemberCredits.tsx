@@ -282,7 +282,19 @@ export default function MemberCreditsAdmin() {
       const previousBalance = credit.credits_remaining;
       const newRemaining = Math.max(0, Math.min(credit.credits_total + 10, previousBalance + adjustment));
 
-      // Update the credit balance
+      // Within the pack total: route through the SECURITY DEFINER RPC so front
+      // desk staff (who cannot write member_credits directly) can adjust.
+      if (newRemaining <= credit.credits_total) {
+        const { error: rpcError } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+          p_credit_id: credit.id,
+          p_delta: newRemaining - previousBalance,
+          p_reason: reason || null,
+        });
+        if (rpcError) throw rpcError;
+        return { newRemaining, creditType };
+      }
+
+      // Above the pack total (admin/manager only): direct update + audit log
       const { error: updateError } = await supabase
         .from("member_credits")
         .update({ credits_remaining: newRemaining })
@@ -308,6 +320,7 @@ export default function MemberCreditsAdmin() {
       if (logError) throw logError;
 
       return { newRemaining, creditType };
+
     },
     onSuccess: (data) => {
       toast.success(`${CREDIT_TYPE_LABELS[data.creditType]} adjusted to ${data.newRemaining} credits`);
