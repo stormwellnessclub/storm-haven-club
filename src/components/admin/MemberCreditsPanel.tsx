@@ -104,48 +104,26 @@ export function MemberCreditsPanel({ memberId, userId, memberName }: Props) {
   const adjustMutation = useMutation({
     mutationFn: async () => {
       if (!adjustTarget) throw new Error("No target");
-      const kiosk = isKioskMode() || !authUser?.id;
       const amt = Math.max(1, parseInt(adjustAmount, 10) || 0);
       const delta = adjustMode === "add" ? amt : -amt;
       const prev = adjustTarget.credits_remaining;
       const next = Math.max(0, Math.min(adjustTarget.credits_total, prev + delta));
       if (next === prev) throw new Error("No change");
 
-      // Front desk / kiosk has no auth session — use the SECURITY DEFINER RPC.
-      if (kiosk) {
-        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
-          p_credit_id: adjustTarget.id,
-          p_delta: delta,
-          p_reason:
-            adjustReason ||
-            (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
-        });
-        if (error) throw error;
-        return { prev, next };
-      }
-
-      const { error: updateError } = await supabase
-        .from("member_credits")
-        .update({ credits_remaining: next })
-        .eq("id", adjustTarget.id);
-      if (updateError) throw updateError;
-
-
-      const { error: logError } = await supabase.from("credit_adjustments").insert({
-        member_id: memberId,
-        member_credit_id: adjustTarget.id,
-        credit_type: adjustTarget.credit_type,
-        adjustment_type: adjustMode,
-        amount: amt,
-        previous_balance: prev,
-        new_balance: next,
-        reason: adjustReason || (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
-        adjusted_by: authUser!.id,
-
+      // Always route through the SECURITY DEFINER RPC so front desk staff
+      // (who cannot write to member_credits directly) can adjust credits.
+      const { data, error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+        p_credit_id: adjustTarget.id,
+        p_delta: delta,
+        p_reason:
+          adjustReason ||
+          (adjustMode === "remove" ? "Session used (front desk)" : "Manual adjustment (front desk)"),
       });
-      if (logError) throw logError;
-      return { prev, next };
+      if (error) throw error;
+      const result = (data || {}) as { previous?: number; new?: number };
+      return { prev: result.previous ?? prev, next: result.new ?? next };
     },
+
     onSuccess: ({ prev, next }) => {
       toast.success(
         `${adjustMode === "remove" ? "Removed" : "Added"} ${Math.abs(next - prev)} ${
@@ -441,7 +419,6 @@ function BookOnBehalfDialog({
 
   const bookMutation = useMutation({
     mutationFn: async () => {
-      const kiosk = isKioskMode() || !authUser?.id;
       const target = credits.find((c) => c.credit_type === creditType && c.credits_remaining > 0);
       if (!target) throw new Error("No available credit of this type");
 
@@ -461,43 +438,17 @@ function BookOnBehalfDialog({
         return { kind: "class" as const };
       }
 
-      // red_light / dry_cryo: deduct + audit
-      const prev = target.credits_remaining;
-      const next = prev - 1;
+      // red_light / dry_cryo: deduct + audit via SECURITY DEFINER RPC (front desk safe)
       const reason = `Front desk booked ${CREDIT_TYPE_LABELS[creditType]} session${notes ? ` — ${notes}` : ""}`;
-
-      if (kiosk) {
-        const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
-          p_credit_id: target.id,
-          p_delta: -1,
-          p_reason: reason,
-        });
-        if (error) throw error;
-        return { kind: creditType };
-      }
-
-      const { error: updateError } = await supabase
-        .from("member_credits")
-        .update({ credits_remaining: next })
-        .eq("id", target.id);
-      if (updateError) throw updateError;
-
-      const { error: logError } = await supabase.from("credit_adjustments").insert({
-        member_id: memberId,
-        member_credit_id: target.id,
-        credit_type: creditType,
-        adjustment_type: "remove",
-        amount: 1,
-        previous_balance: prev,
-        new_balance: next,
-        reason,
-        adjusted_by: authUser!.id,
+      const { error } = await (supabase.rpc as any)("kiosk_adjust_member_credits", {
+        p_credit_id: target.id,
+        p_delta: -1,
+        p_reason: reason,
       });
-      if (logError) throw logError;
-
-      if (logError) throw logError;
+      if (error) throw error;
       return { kind: creditType };
     },
+
     onSuccess: () => {
       toast.success(`Booked ${CREDIT_TYPE_LABELS[creditType]} for ${memberName}`);
       onDone();
