@@ -2296,6 +2296,10 @@ serve(async (req) => {
         break;
       }
 
+      // `invoice.paid` is emitted for smart-retry recoveries and out-of-band
+      // payments; it must run the same recovery logic so the past-due block
+      // clears immediately instead of waiting for nightly reconciliation.
+      case 'invoice.paid':
       case 'invoice.payment_succeeded': {
         try {
           const invoice = event.data.object as Stripe.Invoice;
