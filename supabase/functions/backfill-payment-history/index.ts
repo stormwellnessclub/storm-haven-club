@@ -317,8 +317,55 @@ serve(async (req) => {
           errors.push(`invoice ${inv.id}: ${arrErr.message}`);
         } else {
           arrearsUpserted++;
+          // When an invoice turns out to be paid, close any dunning row that is
+          // still open for it and re-evaluate the member's past-due block.
+          // Without this the member stays hard-blocked at check-in after paying.
+          if (isPaid) {
+            try {
+              await supabase
+                .from("payment_dunning_state")
+                .update({
+                  status: "recovered",
+                  recovered_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("member_id", memberId)
+                .eq("stripe_invoice_id", inv.id)
+                .eq("status", "active");
+
+              const { data: activeDunning } = await supabase
+                .from("payment_dunning_state")
+                .select("id")
+                .eq("member_id", memberId)
+                .eq("status", "active")
+                .limit(1);
+              const { data: unpaidArrears } = await supabase
+                .from("billing_arrears")
+                .select("id")
+                .eq("member_id", memberId)
+                .eq("status", "unpaid")
+                .limit(1);
+
+              if (
+                (!activeDunning || activeDunning.length === 0) &&
+                (!unpaidArrears || unpaidArrears.length === 0)
+              ) {
+                await supabase
+                  .from("members")
+                  .update({
+                    payment_past_due: false,
+                    payment_past_due_since: null,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", memberId);
+              }
+            } catch (dunErr) {
+              errors.push(
+                `dunning recovery ${inv.id}: ${dunErr instanceof Error ? dunErr.message : String(dunErr)}`,
+              );
+            }
+          }
         }
-      }
 
       if (!list.has_more) break;
       invStartingAfter = list.data[list.data.length - 1]?.id;
