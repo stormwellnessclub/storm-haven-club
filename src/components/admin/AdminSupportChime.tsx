@@ -90,27 +90,64 @@ let decodedChime: AudioBuffer | null = null;
 /** Playback level for the chime — kept at a normal, non-startling volume. */
 const CHIME_GAIN = 1.0;
 
+function getCtx(): AudioContext | null {
+  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (!Ctx) return null;
+  if (!sharedCtx) sharedCtx = new Ctx();
+  return sharedCtx;
+}
+
+/**
+ * Wake the SHARED audio engine used by the chime. Must be called from a real
+ * user gesture (pointerdown/keydown) — browsers keep new AudioContexts
+ * suspended until then.
+ */
+export async function unlockChimeAudio(): Promise<void> {
+  try {
+    const ctx = getCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") await ctx.resume();
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch (err) {
+    console.warn("unlockChimeAudio failed:", err);
+  }
+}
+
+/** True when the shared audio engine is missing or still blocked by the browser. */
+export function isAudioBlocked(): boolean {
+  if (typeof window === "undefined") return false;
+  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+  if (!Ctx) return false; // no WebAudio — HTMLAudio fallback handles it
+  return !sharedCtx || sharedCtx.state !== "running";
+}
+
 async function playViaWebAudio(): Promise<boolean> {
   try {
-    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx || !chimeDataUri) return false;
-    if (!sharedCtx) sharedCtx = new Ctx();
-    if (sharedCtx!.state === "suspended") await sharedCtx!.resume();
+    const ctx = getCtx();
+    if (!ctx || !chimeDataUri) return false;
+    if (ctx.state === "suspended") await ctx.resume();
+    // A suspended context accepts start() silently — treat it as a failure so
+    // the caller falls back to the HTMLAudio path instead of playing nothing.
+    if (ctx.state !== "running") return false;
 
     if (!decodedChime) {
       const res = await fetch(chimeDataUri);
       const arr = await res.arrayBuffer();
-      decodedChime = await sharedCtx!.decodeAudioData(arr);
+      decodedChime = await ctx.decodeAudioData(arr);
     }
 
-    const src = sharedCtx!.createBufferSource();
+    const src = ctx.createBufferSource();
     src.buffer = decodedChime;
 
-    const gain = sharedCtx!.createGain();
+    const gain = ctx.createGain();
     gain.gain.value = CHIME_GAIN;
 
     src.connect(gain);
-    gain.connect(sharedCtx!.destination);
+    gain.connect(ctx.destination);
     src.start(0);
     return true;
   } catch (err) {
@@ -118,6 +155,7 @@ async function playViaWebAudio(): Promise<boolean> {
     return false;
   }
 }
+
 
 export async function playNotificationChime() {
   if (!chimeDataUri) {
