@@ -47,6 +47,17 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const [muted, setMuted] = useState(getIsMuted);
   const [supportStatus, setSupportStatus] = useState<RealtimeStatus>("idle");
   const [cafeStatus, setCafeStatus] = useState<RealtimeStatus>("idle");
+  const [audioBlocked, setAudioBlocked] = useState(false);
+
+  // Poll the browser audio state so we can prompt for a single unlock tap.
+  useEffect(() => {
+    const check = () => setAudioBlocked(isAudioBlocked());
+    check();
+    const id = setInterval(check, 2000);
+    return () => clearInterval(id);
+  }, []);
+
+
 
   // When embedded inside a kiosk shell, render the page body only.
   // The shell already provides chrome, chimes, and audio unlock.
