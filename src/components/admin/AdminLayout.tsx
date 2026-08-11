@@ -1,14 +1,14 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { Bell, Coffee, User, Volume2, VolumeX, Play } from "lucide-react";
+import { Bell, Coffee, User, Volume2, VolumeX, Play, BellRing } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { useAdminCafeNotifications } from "@/hooks/useAdminCafeNotifications";
-import { AdminSupportChime, getIsMuted, setIsMuted, playNotificationChime } from "./AdminSupportChime";
+import { AdminSupportChime, getIsMuted, setIsMuted, playNotificationChime, unlockChimeAudio, isAudioBlocked } from "./AdminSupportChime";
 import { AdminCafeChime } from "./AdminCafeChime";
 import { AudioUnlocker } from "./AudioUnlocker";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import type { RealtimeStatus } from "@/hooks/useReliableRealtime";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -47,6 +47,17 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const [muted, setMuted] = useState(getIsMuted);
   const [supportStatus, setSupportStatus] = useState<RealtimeStatus>("idle");
   const [cafeStatus, setCafeStatus] = useState<RealtimeStatus>("idle");
+  const [audioBlocked, setAudioBlocked] = useState(false);
+
+  // Poll the browser audio state so we can prompt for a single unlock tap.
+  useEffect(() => {
+    const check = () => setAudioBlocked(isAudioBlocked());
+    check();
+    const id = setInterval(check, 2000);
+    return () => clearInterval(id);
+  }, []);
+
+
 
   // When embedded inside a kiosk shell, render the page body only.
   // The shell already provides chrome, chimes, and audio unlock.
@@ -106,11 +117,29 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {audioBlocked && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 animate-pulse"
+                  onClick={async () => {
+                    await unlockChimeAudio();
+                    setAudioBlocked(isAudioBlocked());
+                    playNotificationChime();
+                  }}
+                  title="Your browser is blocking notification sounds — tap once to enable"
+                >
+                  <BellRing className="h-4 w-4" />
+                  <span className="hidden sm:inline">Enable sound</span>
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
                 className="touch-target"
-                onClick={() => {
+                onClick={async () => {
+                  await unlockChimeAudio();
+                  setAudioBlocked(isAudioBlocked());
                   playNotificationChime();
                   toast.success("Test chime played");
                 }}
@@ -123,10 +152,11 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                 size="icon"
                 className="touch-target"
                 onClick={toggleMute}
-                title={muted ? "Unmute notifications" : "Mute notifications"}
+                title={muted ? "Sound muted — notifications are silent" : "Mute notifications"}
               >
-                {muted ? <VolumeX className="h-5 w-5 text-muted-foreground" /> : <Volume2 className="h-5 w-5" />}
+                {muted ? <VolumeX className="h-5 w-5 text-destructive" /> : <Volume2 className="h-5 w-5" />}
               </Button>
+
               <Button
                 variant="ghost"
                 size="icon"
