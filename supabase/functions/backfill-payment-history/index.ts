@@ -366,6 +366,8 @@ serve(async (req) => {
             }
           }
         }
+      }
+
 
       if (!list.has_more) break;
       invStartingAfter = list.data[list.data.length - 1]?.id;
