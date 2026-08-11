@@ -23,6 +23,7 @@ import { BillingHealthCard } from "@/components/admin/BillingHealthCard";
 import { ArrearsCard } from "@/components/admin/ArrearsCard";
 import { ConfirmedPaymentIssues } from "@/components/admin/MemberDetail/ConfirmedPaymentIssues";
 import { MemberArrearsBanner } from "@/components/admin/MemberArrearsBanner";
+import { StalePastDueBanner } from "@/components/admin/StalePastDueBanner";
 import { SubscriptionCard } from "@/components/admin/SubscriptionCard";
 import { PaymentTimeline } from "@/components/admin/PaymentTimeline";
 import { DunningTimeline } from "@/components/admin/DunningTimeline";
@@ -1564,6 +1565,7 @@ export default function MemberDetail() {
 
         {/* Arrears Banner - Always visible above tabs */}
         <MemberArrearsBanner memberId={id!} />
+        <StalePastDueBanner memberId={id!} />
 
         {/* Tabbed Content */}
         <Tabs defaultValue="profile" className="space-y-4">
