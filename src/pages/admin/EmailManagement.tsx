@@ -223,12 +223,13 @@ export default function EmailManagement() {
   // Update status mutation
   const updateStatus = useMutation({
     mutationFn: async ({ conversationId, status }: { conversationId: string; status: EmailConversation['status'] }) => {
-      const { error } = await supabase
-        .from('email_conversations')
-        .update({ status })
-        .eq('id', conversationId);
+      const { data, error } = await (supabase.rpc as any)('kiosk_set_conversation_status', {
+        p_conversation_id: conversationId,
+        p_status: status,
+      });
 
       if (error) throw error;
+      if (data === false) throw new Error('Status change did not apply');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-email-conversations'] });
