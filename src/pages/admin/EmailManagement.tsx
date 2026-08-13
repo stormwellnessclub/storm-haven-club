@@ -239,6 +239,13 @@ export default function EmailManagement() {
         description: "Conversation status has been updated.",
       });
     },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Couldn't update this conversation. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   // Quick mark as resolved
