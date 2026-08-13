@@ -120,6 +120,17 @@ export function useSendMessage() {
     }) => {
       if (!user) throw new Error('User not authenticated');
 
+      if (senderType === 'staff') {
+        // Staff replies go through the guarded RPC so front_desk (SELECT-only
+        // on email_messages) can reply too. It also bumps status/last_message_at.
+        const { error } = await (supabase.rpc as any)('kiosk_send_staff_reply', {
+          p_conversation_id: conversationId,
+          p_message: message,
+        });
+        if (error) throw error;
+        return;
+      }
+
       const { error } = await supabase
         .from('email_messages')
         .insert({
