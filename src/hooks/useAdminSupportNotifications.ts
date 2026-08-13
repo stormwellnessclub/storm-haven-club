@@ -91,12 +91,11 @@ export function useAdminSupportNotifications() {
 
 export function useMarkMessagesAsRead() {
   return async (conversationId: string) => {
-    const { error } = await supabase
-      .from('email_messages')
-      .update({ is_read: true })
-      .eq('conversation_id', conversationId)
-      .eq('sender_type', 'member')
-      .eq('is_read', false);
+    // Guarded RPC: works for every staff role (including front_desk), which
+    // only has SELECT on email_messages.
+    const { error } = await (supabase.rpc as any)('kiosk_mark_conversation_read', {
+      p_conversation_id: conversationId,
+    });
 
     if (error) {
       console.error('Failed to mark messages as read:', error);
