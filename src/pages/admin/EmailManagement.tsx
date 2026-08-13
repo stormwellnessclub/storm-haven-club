@@ -126,12 +126,11 @@ export default function EmailManagement() {
     const markAsRead = async () => {
       if (!selectedConversation) return;
       
-      const { error } = await supabase
-        .from('email_messages')
-        .update({ is_read: true })
-        .eq('conversation_id', selectedConversation)
-        .eq('sender_type', 'member')
-        .eq('is_read', false);
+      // Routed through the SECURITY DEFINER RPC so front desk staff (who only
+      // have SELECT on email_messages) can clear the unread badge too.
+      const { error } = await (supabase.rpc as any)('kiosk_mark_conversation_read', {
+        p_conversation_id: selectedConversation,
+      });
 
       if (!error) {
         // Invalidate to refresh counts
@@ -148,26 +147,14 @@ export default function EmailManagement() {
     mutationFn: async ({ conversationId, message }: { conversationId: string; message: string }) => {
       if (!user) throw new Error('User not authenticated');
 
-      const { error } = await supabase
-        .from('email_messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_type: 'staff',
-          sender_email: user.email || '',
-          sender_name: 'Storm Wellness Staff',
-          message_body: message,
-        });
+      // RPC insert (also bumps status/last_message_at server-side) so all
+      // staff roles including front_desk can reply.
+      const { error } = await (supabase.rpc as any)('kiosk_send_staff_reply', {
+        p_conversation_id: conversationId,
+        p_message: message,
+      });
 
       if (error) throw error;
-
-      // Update conversation status to in_progress and last_message_at
-      await supabase
-        .from('email_conversations')
-        .update({ 
-          status: 'in_progress',
-          last_message_at: new Date().toISOString() 
-        })
-        .eq('id', conversationId);
 
       // Send actual email via send-email edge function
       const conversation = conversationsWithProfiles?.find(c => c.id === conversationId);
@@ -236,12 +223,13 @@ export default function EmailManagement() {
   // Update status mutation
   const updateStatus = useMutation({
     mutationFn: async ({ conversationId, status }: { conversationId: string; status: EmailConversation['status'] }) => {
-      const { error } = await supabase
-        .from('email_conversations')
-        .update({ status })
-        .eq('id', conversationId);
+      const { data, error } = await (supabase.rpc as any)('kiosk_set_conversation_status', {
+        p_conversation_id: conversationId,
+        p_status: status,
+      });
 
       if (error) throw error;
+      if (data === false) throw new Error('Status change did not apply');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-email-conversations'] });
@@ -249,6 +237,13 @@ export default function EmailManagement() {
       toast({
         title: "Status updated",
         description: "Conversation status has been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Couldn't update this conversation. Please try again.",
+        variant: "destructive",
       });
     },
   });

@@ -12481,12 +12481,24 @@ export type Database = {
         Args: { p_booking_date: string }
         Returns: Json
       }
+      kiosk_mark_conversation_read: {
+        Args: { p_conversation_id: string }
+        Returns: number
+      }
       kiosk_resolve_conversation: {
         Args: { p_conversation_id: string; p_resolved?: boolean }
         Returns: boolean
       }
       kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
       kiosk_search_visitors_impl: { Args: { p_query: string }; Returns: Json }
+      kiosk_send_staff_reply: {
+        Args: { p_conversation_id: string; p_message: string }
+        Returns: string
+      }
+      kiosk_set_conversation_status: {
+        Args: { p_conversation_id: string; p_status: string }
+        Returns: boolean
+      }
       kiosk_support_notification_counts: {
         Args: never
         Returns: {

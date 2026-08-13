@@ -237,21 +237,14 @@ export function CheckInSupportPanel() {
   const handleReply = useCallback(
     async (conversationId: string, message: string) => {
       if (!user) return;
-      const { error } = await supabase.from("email_messages").insert({
-        conversation_id: conversationId,
-        sender_type: "staff",
-        sender_email: user.email || "",
-        sender_name: null,
-        message_body: message,
+      const { error } = await (supabase.rpc as any)("kiosk_send_staff_reply", {
+        p_conversation_id: conversationId,
+        p_message: message,
       });
       if (error) {
         toast.error("Failed to send reply");
         return;
       }
-      await supabase
-        .from("email_conversations")
-        .update({ last_message_at: new Date().toISOString(), status: "in_progress" })
-        .eq("id", conversationId);
 
       toast.success("Reply sent");
       queryClient.invalidateQueries({ queryKey: ["checkin-support-conversations"] });
