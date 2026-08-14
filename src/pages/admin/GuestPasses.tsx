@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, CheckCircle2, XCircle, Mail, BarChart3, CreditCard, UserPlus, Megaphone, Gift } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { guestCheckInPatch } from "@/lib/guestPassStatus";
+import { checkInGuestPass } from "@/lib/guestPassStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
