@@ -281,8 +281,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     );
   }
 
-  const durationMinutes = service.duration_minutes;
+  const durationMinutes = effectiveDuration;
   const cleanupMinutes = service.cleanup_minutes;
+  // Base (pre-discount) price — hourly services multiply by the hours selected
+  const basePrice = isHourly ? Math.round(service.price * hours * 100) / 100 : service.price;
 
   // Treat massage/body services as intake-required even if the DB flag is off.
   const categoryLower = (service.category || "").toLowerCase();
@@ -299,7 +301,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     setIntakeMemberId(memberId);
   };
 
-  let finalPrice = service.price;
+  let finalPrice = basePrice;
   if (membership) {
     const tier = membership.membership_type?.toLowerCase() || "";
     let discount = 0;
@@ -309,7 +311,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     else if (tier.includes("silver")) discount = 0.05;
 
     if (discount > 0) {
-      finalPrice = Math.round(service.price * (1 - discount) * 100) / 100;
+      finalPrice = Math.round(basePrice * (1 - discount) * 100) / 100;
     }
   }
 
