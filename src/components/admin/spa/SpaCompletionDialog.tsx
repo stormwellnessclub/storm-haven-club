@@ -358,7 +358,60 @@ export function SpaCompletionDialog({
           <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
             <p className="font-medium">{memberName}</p>
             <p className="text-sm text-muted-foreground">{appointment.service_name}</p>
-            <p className="text-sm font-semibold">${servicePrice.toFixed(2)}</p>
+            <div className="flex items-center justify-between gap-2">
+              {editingPrice ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    autoFocus
+                    className="h-8 w-24"
+                    value={priceOverride}
+                    placeholder={bookedPrice.toFixed(2)}
+                    onChange={(e) => setPriceOverride(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm font-semibold">
+                  ${servicePrice.toFixed(2)}
+                  {overrideValue !== null && overrideValue !== bookedPrice && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground line-through">
+                      ${bookedPrice.toFixed(2)}
+                    </span>
+                  )}
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => {
+                  if (editingPrice) {
+                    setEditingPrice(false);
+                  } else {
+                    setPriceOverride(bookedPrice.toFixed(2));
+                    setEditingPrice(true);
+                  }
+                }}
+              >
+                {editingPrice ? "Done" : "Adjust price"}
+              </Button>
+            </div>
+            {editingPrice && (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline"
+                onClick={() => {
+                  setPriceOverride("");
+                  setEditingPrice(false);
+                }}
+              >
+                Reset to ${bookedPrice.toFixed(2)}
+              </button>
+            )}
           </div>
 
           {/* Add-ons */}
