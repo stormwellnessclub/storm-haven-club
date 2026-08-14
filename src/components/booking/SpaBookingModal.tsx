@@ -99,6 +99,17 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
 
+  // Hourly-rental services (e.g. Private Outdoor Sauna) — member picks how many hours
+  const isHourly = !!service && /outdoor sauna/i.test(service.name || "");
+  const [hours, setHours] = useState(1);
+  const effectiveDuration = service
+    ? (isHourly ? service.duration_minutes * hours : service.duration_minutes)
+    : 0;
+
+  useEffect(() => {
+    setHours(1);
+  }, [service?.id, open]);
+
   // Mother's Day voucher
   const [voucherInput, setVoucherInput] = useState("");
   const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
@@ -198,10 +209,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }, [user, open, paymentMethod]);
 
-  // Reset selected time whenever date or service changes
+  // Reset selected time whenever date, service, or requested hours change
   useEffect(() => {
     setSelectedTime("");
-  }, [selectedDate, service?.id]);
+  }, [selectedDate, service?.id, hours]);
 
   // Compute available start times for this date/service from availability config,
   // filtering out slots already booked (including 15-min cleanup buffer).
@@ -217,13 +228,13 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       availability,
       service.id,
       selectedDate,
-      service.duration_minutes,
+      effectiveDuration,
       service.cleanup_minutes,
       bookedSlots,
       undefined,
       minStartTime
     );
-  }, [availability, service, selectedDate, bookedSlots, isSameDayEligible]);
+  }, [availability, service, selectedDate, bookedSlots, isSameDayEligible, effectiveDuration]);
 
   const coverageOnDate = useMemo(() => {
     if (!service || !selectedDate) return false;
@@ -238,23 +249,23 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       availability,
       service.id,
       selectedDate,
-      service.duration_minutes,
+      effectiveDuration,
       service.cleanup_minutes
     );
-  }, [availability, service, selectedDate, availableStartTimes]);
+  }, [availability, service, selectedDate, availableStartTimes, effectiveDuration]);
 
   // Window hint for selected date
   const windowHint = useMemo(() => {
     if (!service || !selectedDate) return null;
     const w = getServiceWindowForDate(availability, service.id, selectedDate);
     if (!w) return null;
-    const last = latestStartTime(w.end, service.duration_minutes, service.cleanup_minutes);
+    const last = latestStartTime(w.end, effectiveDuration, service.cleanup_minutes);
     return {
       start: w.start,
       end: w.end,
       latestStart: last,
     };
-  }, [availability, service, selectedDate]);
+  }, [availability, service, selectedDate, effectiveDuration]);
 
   // When no service is selected the booking dialog is hidden, but we still need
   // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
@@ -270,8 +281,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     );
   }
 
-  const durationMinutes = service.duration_minutes;
+  const durationMinutes = effectiveDuration;
   const cleanupMinutes = service.cleanup_minutes;
+  // Base (pre-discount) price — hourly services multiply by the hours selected
+  const basePrice = isHourly ? Math.round(service.price * hours * 100) / 100 : service.price;
 
   // Treat massage/body services as intake-required even if the DB flag is off.
   const categoryLower = (service.category || "").toLowerCase();
@@ -288,7 +301,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     setIntakeMemberId(memberId);
   };
 
-  let finalPrice = service.price;
+  let finalPrice = basePrice;
   if (membership) {
     const tier = membership.membership_type?.toLowerCase() || "";
     let discount = 0;
@@ -298,7 +311,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     else if (tier.includes("silver")) discount = 0.05;
 
     if (discount > 0) {
-      finalPrice = Math.round(service.price * (1 - discount) * 100) / 100;
+      finalPrice = Math.round(basePrice * (1 - discount) * 100) / 100;
     }
   }
 
@@ -365,7 +378,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           serviceId: service.id,
           serviceName: service.name,
           serviceCategory: service.category,
-          servicePrice: service.price,
+          servicePrice: basePrice,
           appointmentDate: selectedDate,
           appointmentTime: selectedTime,
           durationMinutes,
@@ -409,7 +422,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             p_service_id: service.id,
             p_service_name: service.name,
             p_service_category: service.category,
-            p_service_price: service.price,
+            p_service_price: basePrice,
             p_appointment_date: format(selectedDate, "yyyy-MM-dd"),
             p_appointment_time: selectedTime,
             p_duration_minutes: durationMinutes,
@@ -497,7 +510,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           serviceId: service.id,
           serviceName: service.name,
           serviceCategory: service.category,
-          servicePrice: service.price,
+          servicePrice: basePrice,
           appointmentDate: selectedDate,
           appointmentTime: selectedTime,
           durationMinutes,
@@ -680,7 +693,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
         <DialogHeader>
           <DialogTitle>Book {service.name}</DialogTitle>
           <DialogDescription>
-            Select your preferred date and time for this {service.duration_minutes} min service.
+            {isHourly
+              ? `Choose how many hours you'd like, then pick your date and time. $${service.price.toFixed(0)} per hour.`
+              : `Select your preferred date and time for this ${service.duration_minutes} min service.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -696,29 +711,61 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               <div className="text-right">
                 {paymentMethod === "credit" ? (
                   <>
-                    <p className="text-sm text-muted-foreground line-through">${service.price.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
                     <p className="text-lg font-semibold text-accent">FREE</p>
                     <p className="text-xs text-muted-foreground">Using Member Credit</p>
                   </>
-                ) : membership && finalPrice < service.price ? (
+                ) : membership && finalPrice < basePrice ? (
                   <>
-                    <p className="text-sm text-muted-foreground line-through">${service.price.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
                     <p className="text-lg font-semibold text-accent">${finalPrice.toFixed(2)}</p>
                     <p className="text-xs text-muted-foreground">Member Price</p>
                   </>
                 ) : (
-                  <p className="text-lg font-semibold">${service.price.toFixed(2)}</p>
+                  <p className="text-lg font-semibold">${basePrice.toFixed(2)}</p>
+                )}
+                {isHourly && (
+                  <p className="text-xs text-muted-foreground">
+                    ${service.price.toFixed(0)}/hr × {hours} {hours === 1 ? "hour" : "hours"}
+                  </p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {service.duration_minutes} min
+                {effectiveDuration} min
               </span>
               <span className="text-xs">+ {service.cleanup_minutes} min cleanup</span>
             </div>
           </div>
+
+          {/* Hours selector for hourly rentals */}
+          {isHourly && (
+            <div className="space-y-2">
+              <Label>How many hours?</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setHours(h)}
+                    className={cn(
+                      "px-3 py-2 text-sm rounded-md border transition-colors",
+                      hours === h
+                        ? "bg-accent text-accent-foreground border-accent"
+                        : "hover:bg-secondary border-border"
+                    )}
+                  >
+                    {h} {h === 1 ? "hr" : "hrs"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total: ${finalPrice.toFixed(2)} for {effectiveDuration / 60} {effectiveDuration === 60 ? "hour" : "hours"}
+              </p>
+            </div>
+          )}
 
           {/* Liability Waiver */}
           {user && !hasLiabilityWaiver && (
