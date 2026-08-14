@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import { ExternalLink, User, Mail, Phone, Calendar as CalendarIcon, Users, Sparkles, FileText, Pencil, Check, X, CheckCircle2, XCircle, Save, UserCheck, Send, Loader2, Shield } from "lucide-react";
-import { guestCheckInPatch, isGuestPassCheckedIn, guestVisitDateLabel } from "@/lib/guestPassStatus";
+import { checkInGuestPass, isGuestPassCheckedIn, guestVisitDateLabel } from "@/lib/guestPassStatus";
 import { clubTodayDateStr } from "@/lib/clubTime";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -109,19 +109,16 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
   };
 
   const handleCheckIn = async () => {
-    try {
-      const { error } = await (supabase
-        .from('guest_passes' as any)
-        .update(guestCheckInPatch(user?.id))
-        .eq('id', guest.id) as any);
-      if (error) throw error;
-      toast.success(`${guest.guest_name} checked in!`);
-      onRefresh?.();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to check in');
+    const { ok, error } = await checkInGuestPass(supabase, guest.id, user?.id);
+    if (!ok) {
+      toast.error(error || 'Failed to check in');
+      return;
     }
+    toast.success(`${guest.guest_name} checked in!`);
+    onRefresh?.();
+    onOpenChange(false);
   };
+
 
   const handleNoShow = async () => {
     try {

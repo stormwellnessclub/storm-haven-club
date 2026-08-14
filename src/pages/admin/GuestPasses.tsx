@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Ticket, Plus, DollarSign, Loader2, CalendarIcon, Search, Eye, Users, CheckCircle2, XCircle, Mail, BarChart3, CreditCard, UserPlus, Megaphone, Gift } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { guestCheckInPatch } from "@/lib/guestPassStatus";
+import { checkInGuestPass } from "@/lib/guestPassStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -180,18 +180,15 @@ export default function GuestPasses() {
 
   const handleCheckIn = async (pass: GuestPass, e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      const { error } = await (supabase
-        .from('guest_passes' as any)
-        .update(guestCheckInPatch(user?.id))
-        .eq('id', pass.id) as any);
-      if (error) throw error;
-      toast.success(`${pass.guest_name} checked in!`);
-      fetchPasses();
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to check in');
+    const { ok, error } = await checkInGuestPass(supabase, pass.id, user?.id);
+    if (!ok) {
+      toast.error(error || 'Failed to check in');
+      return;
     }
+    toast.success(`${pass.guest_name} checked in!`);
+    fetchPasses();
   };
+
 
   const handleNoShow = async (pass: GuestPass, e: React.MouseEvent) => {
     e.stopPropagation();
