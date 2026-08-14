@@ -99,6 +99,17 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
 
+  // Hourly-rental services (e.g. Private Outdoor Sauna) — member picks how many hours
+  const isHourly = !!service && /outdoor sauna/i.test(service.name || "");
+  const [hours, setHours] = useState(1);
+  const effectiveDuration = service
+    ? (isHourly ? service.duration_minutes * hours : service.duration_minutes)
+    : 0;
+
+  useEffect(() => {
+    setHours(1);
+  }, [service?.id, open]);
+
   // Mother's Day voucher
   const [voucherInput, setVoucherInput] = useState("");
   const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
