@@ -58,6 +58,8 @@ export function SpaCompletionDialog({
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
   const [sendReceipt, setSendReceipt] = useState(true);
+  const [priceOverride, setPriceOverride] = useState<string>("");
+  const [editingPrice, setEditingPrice] = useState(false);
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
   const { data: allAddons = [] } = useSpaAddons();
@@ -73,6 +75,8 @@ export function SpaCompletionDialog({
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
     setSendReceipt(true);
+    setPriceOverride("");
+    setEditingPrice(false);
 
     const existingAddons = (appointment as any).addons;
     setSelectedAddons(
@@ -110,7 +114,12 @@ export function SpaCompletionDialog({
 
   if (!appointment) return null;
 
-  const servicePrice = appointment.member_price ?? appointment.service_price ?? 0;
+  const bookedPrice = appointment.member_price ?? appointment.service_price ?? 0;
+  const overrideValue =
+    priceOverride.trim() !== "" && !isNaN(parseFloat(priceOverride))
+      ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
+      : null;
+  const servicePrice = overrideValue ?? bookedPrice;
   const addonsTotal =
     Math.round(selectedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
   const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
@@ -221,6 +230,15 @@ export function SpaCompletionDialog({
         addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
       };
+
+      // Persist an adjusted service price so records/reports match what was charged
+      if (overrideValue !== null && overrideValue !== bookedPrice) {
+        if (appointment.member_price != null) {
+          updateData.member_price = overrideValue;
+        } else {
+          updateData.service_price = overrideValue;
+        }
+      }
 
       if (paymentIntentId) {
         updateData.payment_intent_id = paymentIntentId;
@@ -340,7 +358,60 @@ export function SpaCompletionDialog({
           <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
             <p className="font-medium">{memberName}</p>
             <p className="text-sm text-muted-foreground">{appointment.service_name}</p>
-            <p className="text-sm font-semibold">${servicePrice.toFixed(2)}</p>
+            <div className="flex items-center justify-between gap-2">
+              {editingPrice ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">$</span>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    autoFocus
+                    className="h-8 w-24"
+                    value={priceOverride}
+                    placeholder={bookedPrice.toFixed(2)}
+                    onChange={(e) => setPriceOverride(e.target.value)}
+                  />
+                </div>
+              ) : (
+                <p className="text-sm font-semibold">
+                  ${servicePrice.toFixed(2)}
+                  {overrideValue !== null && overrideValue !== bookedPrice && (
+                    <span className="ml-2 text-xs font-normal text-muted-foreground line-through">
+                      ${bookedPrice.toFixed(2)}
+                    </span>
+                  )}
+                </p>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => {
+                  if (editingPrice) {
+                    setEditingPrice(false);
+                  } else {
+                    setPriceOverride(bookedPrice.toFixed(2));
+                    setEditingPrice(true);
+                  }
+                }}
+              >
+                {editingPrice ? "Done" : "Adjust price"}
+              </Button>
+            </div>
+            {editingPrice && (
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline"
+                onClick={() => {
+                  setPriceOverride("");
+                  setEditingPrice(false);
+                }}
+              >
+                Reset to ${bookedPrice.toFixed(2)}
+              </button>
+            )}
           </div>
 
           {/* Add-ons */}
