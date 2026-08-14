@@ -58,6 +58,8 @@ export function SpaCompletionDialog({
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
   const [sendReceipt, setSendReceipt] = useState(true);
+  const [priceOverride, setPriceOverride] = useState<string>("");
+  const [editingPrice, setEditingPrice] = useState(false);
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
   const { data: allAddons = [] } = useSpaAddons();
