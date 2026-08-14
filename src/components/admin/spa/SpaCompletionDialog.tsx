@@ -75,6 +75,8 @@ export function SpaCompletionDialog({
     setStaffNotes((appointment as any).staff_notes || "");
     setIsProcessing(false);
     setSendReceipt(true);
+    setPriceOverride("");
+    setEditingPrice(false);
 
     const existingAddons = (appointment as any).addons;
     setSelectedAddons(
