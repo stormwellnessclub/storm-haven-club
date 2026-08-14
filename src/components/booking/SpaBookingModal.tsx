@@ -209,10 +209,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }, [user, open, paymentMethod]);
 
-  // Reset selected time whenever date or service changes
+  // Reset selected time whenever date, service, or requested hours change
   useEffect(() => {
     setSelectedTime("");
-  }, [selectedDate, service?.id]);
+  }, [selectedDate, service?.id, hours]);
 
   // Compute available start times for this date/service from availability config,
   // filtering out slots already booked (including 15-min cleanup buffer).
@@ -228,13 +228,13 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       availability,
       service.id,
       selectedDate,
-      service.duration_minutes,
+      effectiveDuration,
       service.cleanup_minutes,
       bookedSlots,
       undefined,
       minStartTime
     );
-  }, [availability, service, selectedDate, bookedSlots, isSameDayEligible]);
+  }, [availability, service, selectedDate, bookedSlots, isSameDayEligible, effectiveDuration]);
 
   const coverageOnDate = useMemo(() => {
     if (!service || !selectedDate) return false;
@@ -249,23 +249,23 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       availability,
       service.id,
       selectedDate,
-      service.duration_minutes,
+      effectiveDuration,
       service.cleanup_minutes
     );
-  }, [availability, service, selectedDate, availableStartTimes]);
+  }, [availability, service, selectedDate, availableStartTimes, effectiveDuration]);
 
   // Window hint for selected date
   const windowHint = useMemo(() => {
     if (!service || !selectedDate) return null;
     const w = getServiceWindowForDate(availability, service.id, selectedDate);
     if (!w) return null;
-    const last = latestStartTime(w.end, service.duration_minutes, service.cleanup_minutes);
+    const last = latestStartTime(w.end, effectiveDuration, service.cleanup_minutes);
     return {
       start: w.start,
       end: w.end,
       latestStart: last,
     };
-  }, [availability, service, selectedDate]);
+  }, [availability, service, selectedDate, effectiveDuration]);
 
   // When no service is selected the booking dialog is hidden, but we still need
   // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
