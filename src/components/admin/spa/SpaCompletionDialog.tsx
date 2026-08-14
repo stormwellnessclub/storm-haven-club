@@ -231,6 +231,15 @@ export function SpaCompletionDialog({
         updated_at: new Date().toISOString(),
       };
 
+      // Persist an adjusted service price so records/reports match what was charged
+      if (overrideValue !== null && overrideValue !== bookedPrice) {
+        if (appointment.member_price != null) {
+          updateData.member_price = overrideValue;
+        } else {
+          updateData.service_price = overrideValue;
+        }
+      }
+
       if (paymentIntentId) {
         updateData.payment_intent_id = paymentIntentId;
       }
