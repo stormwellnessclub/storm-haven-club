@@ -109,19 +109,16 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
   };
 
   const handleCheckIn = async () => {
-    try {
-      const { error } = await (supabase
-        .from('guest_passes' as any)
-        .update(guestCheckInPatch(user?.id))
-        .eq('id', guest.id) as any);
-      if (error) throw error;
-      toast.success(`${guest.guest_name} checked in!`);
-      onRefresh?.();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast.error(err?.message || 'Failed to check in');
+    const { ok, error } = await checkInGuestPass(supabase, guest.id, user?.id);
+    if (!ok) {
+      toast.error(error || 'Failed to check in');
+      return;
     }
+    toast.success(`${guest.guest_name} checked in!`);
+    onRefresh?.();
+    onOpenChange(false);
   };
+
 
   const handleNoShow = async () => {
     try {

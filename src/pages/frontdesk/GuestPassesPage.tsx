@@ -291,17 +291,15 @@ export default function FrontDeskGuestPassesPage() {
   };
 
   const markUsed = async (pass: GuestPass) => {
-    const { error } = await (supabase
-      .from("guest_passes" as any)
-      .update(guestCheckInPatch(user?.id))
-      .eq("id", pass.id) as any);
-    if (error) {
-      toast.error(error.message || "Failed to check in");
+    const { ok, error } = await checkInGuestPass(supabase, pass.id, user?.id);
+    if (!ok) {
+      toast.error(error || "Failed to check in");
       return;
     }
     toast.success(`${pass.guest_name} checked in`);
     fetchPasses();
   };
+
 
   return (
     <FrontDeskShell>
