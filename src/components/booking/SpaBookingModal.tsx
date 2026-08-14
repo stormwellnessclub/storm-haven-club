@@ -693,7 +693,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
         <DialogHeader>
           <DialogTitle>Book {service.name}</DialogTitle>
           <DialogDescription>
-            Select your preferred date and time for this {service.duration_minutes} min service.
+            {isHourly
+              ? `Choose how many hours you'd like, then pick your date and time. $${service.price.toFixed(0)} per hour.`
+              : `Select your preferred date and time for this ${service.duration_minutes} min service.`}
           </DialogDescription>
         </DialogHeader>
 
@@ -709,29 +711,61 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               <div className="text-right">
                 {paymentMethod === "credit" ? (
                   <>
-                    <p className="text-sm text-muted-foreground line-through">${service.price.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
                     <p className="text-lg font-semibold text-accent">FREE</p>
                     <p className="text-xs text-muted-foreground">Using Member Credit</p>
                   </>
-                ) : membership && finalPrice < service.price ? (
+                ) : membership && finalPrice < basePrice ? (
                   <>
-                    <p className="text-sm text-muted-foreground line-through">${service.price.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
                     <p className="text-lg font-semibold text-accent">${finalPrice.toFixed(2)}</p>
                     <p className="text-xs text-muted-foreground">Member Price</p>
                   </>
                 ) : (
-                  <p className="text-lg font-semibold">${service.price.toFixed(2)}</p>
+                  <p className="text-lg font-semibold">${basePrice.toFixed(2)}</p>
+                )}
+                {isHourly && (
+                  <p className="text-xs text-muted-foreground">
+                    ${service.price.toFixed(0)}/hr × {hours} {hours === 1 ? "hour" : "hours"}
+                  </p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
-                {service.duration_minutes} min
+                {effectiveDuration} min
               </span>
               <span className="text-xs">+ {service.cleanup_minutes} min cleanup</span>
             </div>
           </div>
+
+          {/* Hours selector for hourly rentals */}
+          {isHourly && (
+            <div className="space-y-2">
+              <Label>How many hours?</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setHours(h)}
+                    className={cn(
+                      "px-3 py-2 text-sm rounded-md border transition-colors",
+                      hours === h
+                        ? "bg-accent text-accent-foreground border-accent"
+                        : "hover:bg-secondary border-border"
+                    )}
+                  >
+                    {h} {h === 1 ? "hr" : "hrs"}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total: ${finalPrice.toFixed(2)} for {effectiveDuration / 60} {effectiveDuration === 60 ? "hour" : "hours"}
+              </p>
+            </div>
+          )}
 
           {/* Liability Waiver */}
           {user && !hasLiabilityWaiver && (
