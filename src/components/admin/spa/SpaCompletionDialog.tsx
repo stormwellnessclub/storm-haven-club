@@ -114,7 +114,12 @@ export function SpaCompletionDialog({
 
   if (!appointment) return null;
 
-  const servicePrice = appointment.member_price ?? appointment.service_price ?? 0;
+  const bookedPrice = appointment.member_price ?? appointment.service_price ?? 0;
+  const overrideValue =
+    priceOverride.trim() !== "" && !isNaN(parseFloat(priceOverride))
+      ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
+      : null;
+  const servicePrice = overrideValue ?? bookedPrice;
   const addonsTotal =
     Math.round(selectedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
   const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
