@@ -321,7 +321,7 @@ const App = () => (
               <Route path="/merch" element={<StormShop />} />
               <Route path="/shop" element={<StormShop />} />
 
-              <Route path="/front-desk" element={<FrontDeskKiosk />} />
+              <Route path="/front-desk" element={<Navigate to="/frontdesk" replace />} />
               <Route path="/front-desk-login" element={<Navigate to="/auth" replace />} />
               <Route path="/kiosk" element={<KioskReception />} />
               <Route path="/kiosk/reception" element={<KioskReception />} />
