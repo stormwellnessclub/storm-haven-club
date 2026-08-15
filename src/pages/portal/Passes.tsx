@@ -198,7 +198,7 @@ export default function PortalPasses() {
                       <div>
                         <p className="font-medium">Guest Pass</p>
                         <p className="text-sm text-muted-foreground">
-                          {pass.status === "used" ? "Used" : "Expired"} {pass.used_at ? format(parseISO(pass.used_at), "MMM d, yyyy") : ""}
+                          {(pass.status === "used" || pass.status === "exhausted") ? "Used" : "Expired"} {pass.used_at ? format(parseISO(pass.used_at), "MMM d, yyyy") : ""}
                         </p>
                       </div>
                     </div>
