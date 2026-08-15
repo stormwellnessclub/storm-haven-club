@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send, Clock } from "lucide-react";
 import { useCreateConversation, useSendMessage } from "@/hooks/useEmailConversations";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useToast } from "@/hooks/use-toast";
 import { format, addMinutes, isBefore, parse } from "date-fns";
