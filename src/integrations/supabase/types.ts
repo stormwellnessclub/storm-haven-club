@@ -12586,6 +12586,10 @@ export type Database = {
         Args: { p_booking_id: string; p_target_session_id: string }
         Returns: Json
       }
+      post_concierge_auto_reply: {
+        Args: { p_conversation_id: string; p_message: string }
+        Returns: string
+      }
       preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
       process_member_scan: {
         Args: {
