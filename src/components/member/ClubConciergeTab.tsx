@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CloudRain, Snowflake, Sun, Pencil, Loader2, Send, Clock } from "lucide-react";
 import { useCreateConversation, useSendMessage } from "@/hooks/useEmailConversations";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUserCredits } from "@/hooks/useUserCredits";
 import { useToast } from "@/hooks/use-toast";
 import { format, addMinutes, isBefore, parse } from "date-fns";
@@ -62,6 +64,7 @@ export function ClubConciergeTab() {
   const { toast } = useToast();
   const createConversation = useCreateConversation();
   const sendMessage = useSendMessage();
+  const queryClient = useQueryClient();
   const { data: credits } = useUserCredits();
 
   const [selectedService, setSelectedService] = useState<ConciergeService | null>(null);
@@ -133,12 +136,18 @@ export function ClubConciergeTab() {
         category: 'concierge',
       } as any);
 
-      // Send automatic confirmation reply from "staff"
-      await sendMessage.mutateAsync({
-        conversationId: conversation.id,
-        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${whenStr}.\n\nIf you need to make any changes, just reply to this message.`,
-        senderType: 'staff',
-      });
+      // Courtesy auto-confirmation — never block the request if it fails
+      try {
+        await (supabase.rpc as any)("post_concierge_auto_reply", {
+          p_conversation_id: conversation.id,
+          p_message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${whenStr}.\n\nIf you need to make any changes, just reply to this message.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["email-messages", conversation.id] });
+        queryClient.invalidateQueries({ queryKey: ["email-conversations"] });
+      } catch (e) {
+        console.warn("Concierge auto-reply failed (request still delivered):", e);
+      }
+
 
       toast({
         title: "Request sent",
