@@ -133,12 +133,18 @@ export function ClubConciergeTab() {
         category: 'concierge',
       } as any);
 
-      // Send automatic confirmation reply from "staff"
-      await sendMessage.mutateAsync({
-        conversationId: conversation.id,
-        message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${whenStr}.\n\nIf you need to make any changes, just reply to this message.`,
-        senderType: 'staff',
-      });
+      // Courtesy auto-confirmation — never block the request if it fails
+      try {
+        await (supabase.rpc as any)("post_concierge_auto_reply", {
+          p_conversation_id: conversation.id,
+          p_message: `Thank you for your ${service.title} request! ✨\n\nPlease allow 20–30 minutes for our team to get everything ready for you. We'll have it prepared by your requested time of ${whenStr}.\n\nIf you need to make any changes, just reply to this message.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["email-messages", conversation.id] });
+        queryClient.invalidateQueries({ queryKey: ["email-conversations"] });
+      } catch (e) {
+        console.warn("Concierge auto-reply failed (request still delivered):", e);
+      }
+
 
       toast({
         title: "Request sent",
