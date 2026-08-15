@@ -64,6 +64,7 @@ export function ClubConciergeTab() {
   const { toast } = useToast();
   const createConversation = useCreateConversation();
   const sendMessage = useSendMessage();
+  const queryClient = useQueryClient();
   const { data: credits } = useUserCredits();
 
   const [selectedService, setSelectedService] = useState<ConciergeService | null>(null);
