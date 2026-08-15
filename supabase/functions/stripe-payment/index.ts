@@ -1876,27 +1876,40 @@ serve(async (req) => {
       }
 
       case 'list_payment_methods': {
-        const { memberId } = body;
-        
-        if (!memberId) {
-          throw new Error("Member ID required");
+        const { memberId, stripeCustomerId: requestedCustomerId } = body;
+
+        const emptyResult = () => new Response(
+          JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, defaultPaymentMethodId: null }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+
+        let listCustomerId: string | null = null;
+
+        if (memberId) {
+          await assertOwnerOrStaff(memberId);
+          const { data: memberData, error: memberError } = await supabase
+            .from('members')
+            .select('stripe_customer_id')
+            .eq('id', memberId)
+            .single();
+          if (memberError || !memberData?.stripe_customer_id) return emptyResult();
+          listCustomerId = memberData.stripe_customer_id;
+        } else if (requestedCustomerId) {
+          // Staff (e.g. admin add-card flow) may list a specific customer;
+          // members may only list a customer they own.
+          const staffCaller = await isStaffCaller(['super_admin', 'admin', 'manager', 'front_desk']);
+          const owned = staffCaller ? [requestedCustomerId] : await callerStripeCustomerIds();
+          if (!owned.includes(requestedCustomerId)) return emptyResult();
+          listCustomerId = requestedCustomerId;
+        } else {
+          // No target supplied: fall back to the caller's own Stripe customer
+          // (member or non-member profile). Never throws for guests.
+          const owned = await callerStripeCustomerIds();
+          listCustomerId = owned[0] ?? null;
         }
-        await assertOwnerOrStaff(memberId);
 
-
-        // Get member's stripe_customer_id
-        const { data: memberData, error: memberError } = await supabase
-          .from('members')
-          .select('stripe_customer_id, first_name, last_name')
-          .eq('id', memberId)
-          .single();
-
-        if (memberError || !memberData?.stripe_customer_id) {
-          return new Response(
-            JSON.stringify({ paymentMethods: [], hasPaymentMethod: false, defaultPaymentMethodId: null }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
+        if (!listCustomerId) return emptyResult();
+        const memberData = { stripe_customer_id: listCustomerId };
 
         // Get customer to find default payment method
         const customer = await stripe.customers.retrieve(memberData.stripe_customer_id);
