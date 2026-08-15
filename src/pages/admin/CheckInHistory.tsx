@@ -117,11 +117,12 @@ export default function AdminCheckInHistory() {
         }
       }
 
-      // Fetch guest check-ins (used guest passes)
+      // Fetch guest check-ins. `exhausted` is the canonical completed state;
+      // retain `used` for compatibility with historical records.
       const { data: guestData, error: guestError } = await supabase
         .from("guest_passes")
         .select("id, guest_name, used_at, valid_date, status, guest_email")
-        .eq("status", "used")
+        .in("status", ["used", "exhausted"])
         .not("used_at", "is", null)
         .gte("used_at", startISO)
         .lte("used_at", endISO)

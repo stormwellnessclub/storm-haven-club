@@ -1,10 +1,10 @@
 /**
  * Guest pass check-in helpers.
  *
- * Historically two different strings were written when a guest was checked in:
- * the kiosk RPC writes `used`, the front desk / admin UIs write `exhausted`.
- * Treat both as "checked in" when reading, and always stamp the same fields
- * when writing so a check-in can never end up without a date.
+ * Historically two different strings were read as a guest check-in, but the
+ * guest_passes constraint only permits `exhausted` as the completed state.
+ * Treat legacy `used` values as checked in when reading and always write the
+ * valid canonical state so a check-in cannot fail or lose its date.
  */
 import { clubTodayDateStr } from "@/lib/clubTime";
 
@@ -23,7 +23,7 @@ export function isGuestPassCheckedIn(pass: {
  */
 export function guestCheckInPatch(checkedInBy?: string | null) {
   return {
-    status: "used",
+    status: "exhausted",
     used_at: new Date().toISOString(),
     valid_date: clubTodayDateStr(),
     checked_in_by: checkedInBy ?? null,

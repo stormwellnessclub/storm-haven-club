@@ -33,6 +33,7 @@ import { format } from "date-fns";
 import { useMembersBillingIssues } from "@/hooks/useMembersBillingIssues";
 import { EffectiveStatusBadge, getEffectiveStatus } from "@/components/admin/EffectiveStatusBadge";
 import { CheckInSupportPanel } from "@/components/admin/CheckInSupportPanel";
+import { checkInGuestPass } from "@/lib/guestPassStatus";
 import { useUnifiedCheckInSearch, UnifiedSearchResult, VisitorType } from "@/hooks/useUnifiedCheckInSearch";
 import { useUnifiedAttendance, AttendanceType } from "@/hooks/useUnifiedAttendance";
 import { useMemberScanner, ScanResult } from "@/hooks/useMemberScanner";
@@ -153,11 +154,8 @@ export default function CheckIn() {
     if (!selected || selected.type !== "guest_pass" || !user) return;
     setIsCheckingIn(true);
     try {
-      const { error } = await supabase
-        .from("guest_passes")
-        .update({ status: "used", used_at: new Date().toISOString(), checked_in_by: user.id })
-        .eq("id", selected.data.id);
-      if (error) throw error;
+      const { ok, error } = await checkInGuestPass(supabase, selected.data.id, user.id);
+      if (!ok) throw new Error(error || "Guest check-in failed");
       toast.success(`${selected.data.guest_name} checked in as guest!`);
       refetch();
       setSelected(null);

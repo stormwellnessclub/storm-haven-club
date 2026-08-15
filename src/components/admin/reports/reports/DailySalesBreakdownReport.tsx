@@ -375,7 +375,7 @@ function GuestPassesTab({ dateRange }: { dateRange: Props["dateRange"] }) {
 
   const totalRevenue = data.reduce((s, p) => s + (p.price_paid || 0), 0);
   const passCount = data.length;
-  const usedCount = data.filter((p) => p.status === "used").length;
+  const usedCount = data.filter((p) => p.status === "used" || p.status === "exhausted").length;
 
   return (
     <div className="space-y-6">

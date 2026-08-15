@@ -37,13 +37,13 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
 
       const chartData = [
         { name: 'Pending', value: statusCounts['pending'] || 0, color: 'hsl(45, 93%, 47%)' },
-        { name: 'Used', value: statusCounts['used'] || 0, color: 'hsl(142, 76%, 36%)' },
+        { name: 'Used', value: (statusCounts['used'] || 0) + (statusCounts['exhausted'] || 0), color: 'hsl(142, 76%, 36%)' },
         { name: 'Expired', value: statusCounts['expired'] || 0, color: 'hsl(0, 84%, 60%)' },
         { name: 'Active', value: statusCounts['active'] || 0, color: 'hsl(199, 89%, 48%)' },
       ].filter(d => d.value > 0);
 
       const total = allPasses.length;
-      const used = statusCounts['used'] || 0;
+      const used = (statusCounts['used'] || 0) + (statusCounts['exhausted'] || 0);
       const conversionRate = total > 0 ? (used / total) * 100 : 0;
 
       // Revenue metrics
@@ -94,7 +94,7 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
               <CheckCircle className="h-7 w-7 text-green-500" />
               <div>
                 <p className="text-xs text-muted-foreground">Used</p>
-                <p className="text-xl font-bold">{data?.statusCounts?.['used'] || 0}</p>
+                <p className="text-xl font-bold">{data?.used || 0}</p>
               </div>
             </div>
           </CardContent>
