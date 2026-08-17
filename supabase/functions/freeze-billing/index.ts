@@ -180,15 +180,22 @@ async function runActivations() {
   const today = new Date().toISOString().split("T")[0];
   const { data: due, error } = await supabase
     .from("member_freezes")
-    .select("id, member_id, requested_start_date, actual_start_date")
+    .select("id, member_id, requested_start_date, actual_start_date, fee_paid, freeze_fee_total")
     .eq("status", "approved")
     .or(`actual_start_date.lte.${today},and(actual_start_date.is.null,requested_start_date.lte.${today})`);
   if (error) throw error;
 
   const activated: string[] = [];
+  const skipped_unpaid: string[] = [];
   const failures: { freezeId: string; error: string }[] = [];
   for (const f of due ?? []) {
+    // Only paid (or fee-waived) freezes auto-activate. Unpaid ones wait for staff.
+    if (!f.fee_paid && Number(f.freeze_fee_total ?? 0) > 0) {
+      skipped_unpaid.push(f.id);
+      continue;
+    }
     try {
+
       await activateFreeze(f.id, false);
       activated.push(f.id);
     } catch (e) {
