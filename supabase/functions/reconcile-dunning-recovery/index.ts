@@ -140,6 +140,16 @@ serve(async (req) => {
           .from("payment_dunning_state")
           .update({ status: "recovered", recovered_at: nowIso, updated_at: nowIso })
           .eq("id", row.id);
+
+        // Stale "failed" attempts for a settled invoice keep the member on the
+        // admin failed-payments list long after they've paid.
+        await supabase
+          .from("payment_attempts")
+          .update({ resolved_at: nowIso, resolution_note: `Invoice ${invoice?.status} in Stripe` })
+          .eq("member_id", row.member_id)
+          .eq("stripe_invoice_id", row.stripe_invoice_id)
+          .eq("status", "failed")
+          .is("resolved_at", null);
       }
       outcome.dunning_recovered = true;
       touchedMembers.add(row.member_id);
