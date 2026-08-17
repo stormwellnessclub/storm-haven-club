@@ -1,9 +1,13 @@
+// Must run before any module that touches localStorage (e.g. the Supabase client):
+// gives Front Desk / Kiosk windows their own per-tab auth session.
+import "./lib/tabAuthScope";
 import { createRoot } from "react-dom/client";
 import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "@fontsource/instrument-serif/400.css";
 import "@fontsource/instrument-serif/400-italic.css";
 import "./index.css";
+
 
 const AUTH_SW_CLEANUP_FLAG = "auth-sw-cleanup-v1";
 

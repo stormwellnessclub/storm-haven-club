@@ -325,9 +325,19 @@ export function AdminSidebar() {
                           <SidebarMenuButton
                             asChild
                             isActive={isActive(item.url)}
-                            tooltip={item.title}
+                            tooltip={item.url === "/front-desk" ? "Opens in a new window (keeps you signed into Admin)" : item.title}
                             className={item.highlight && !isActive(item.url) ? "bg-accent/20 hover:bg-accent/30" : ""}
                           >
+                            {item.url === "/front-desk" ? (
+                              <a
+                                href="/frontdesk?scope=frontdesk"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <item.icon className="h-4 w-4" />
+                                <span>{item.title}</span>
+                              </a>
+                            ) : (
                             <NavLink to={item.url} end={item.url === "/admin"}>
                               <item.icon className="h-4 w-4" />
                               <span>{item.title}</span>
@@ -342,9 +352,11 @@ export function AdminSidebar() {
                                 </span>
                               )}
                             </NavLink>
+                            )}
                           </SidebarMenuButton>
                         </SidebarMenuItem>
                       ))}
+
                     </SidebarMenu>
                   </SidebarGroupContent>
                 </CollapsibleContent>
