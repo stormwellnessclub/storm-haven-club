@@ -329,6 +329,16 @@ export const REPORTS: ReportDefinition[] = [
     filters: [],
     defaultDateRange: 'last30days',
   },
+  {
+    id: 'charges-during-freeze',
+    name: 'Charges During Freeze',
+    description: 'Payments taken while a member was frozen — refund review list (PDF export)',
+    category: 'membership',
+    icon: Snowflake,
+    filters: [],
+    defaultDateRange: 'last12months',
+  },
+
   
   // Attendance Reports
   {

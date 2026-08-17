@@ -12,6 +12,7 @@ import { TierDistributionReport } from "./reports/TierDistributionReport";
 import { FoundingMembersReport } from "./reports/FoundingMembersReport";
 import { NewApplicationsReport } from "./reports/NewApplicationsReport";
 import { FreezeHistoryReport } from "./reports/FreezeHistoryReport";
+import { ChargesDuringFreezeReport } from "./reports/ChargesDuringFreezeReport";
 import { PaymentAnalysisReport } from "./reports/PaymentAnalysisReport";
 import { DailyCheckinsReport } from "./reports/DailyCheckinsReport";
 import { PeakHoursReport } from "./reports/PeakHoursReport";
@@ -137,6 +138,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'founding-members': FoundingMembersReport,
     'new-applications': NewApplicationsReport,
     'freeze-history': FreezeHistoryReport,
+    'charges-during-freeze': ChargesDuringFreezeReport,
     'daily-checkins': DailyCheckinsReport,
     'peak-hours': PeakHoursReport,
     'visit-frequency': VisitFrequencyReport,

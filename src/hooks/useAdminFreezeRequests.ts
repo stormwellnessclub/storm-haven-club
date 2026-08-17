@@ -265,88 +265,47 @@ export function useRejectFreezeRequest() {
   });
 }
 
+async function invokeFreezeBilling(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("freeze-billing", { body });
+  if (error) {
+    let detail = error.message;
+    try {
+      const ctx = (error as any)?.context;
+      if (ctx?.text) {
+        const raw = await ctx.text();
+        const parsed = JSON.parse(raw);
+        if (parsed?.error) detail = parsed.error;
+      }
+    } catch {
+      /* keep the original message */
+    }
+    throw new Error(detail);
+  }
+  if (data && (data as any).error) throw new Error((data as any).error);
+  return data as any;
+}
+
 export function useActivateFreeze() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ freezeId, waiveFee = false }: { freezeId: string; waiveFee?: boolean }) => {
-      // Get the freeze request and member data
-      const { data: freezeData, error: fetchError } = await supabase
-        .from("member_freezes")
-        .select("member_id, actual_end_date")
-        .eq("id", freezeId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Get member's subscription ID for pausing
-      const { data: memberData, error: memberFetchError } = await supabase
-        .from("members")
-        .select("stripe_subscription_id, annual_fee_subscription_id")
-        .eq("id", freezeData.member_id)
-        .single();
-
-      if (memberFetchError) throw memberFetchError;
-
-      // Update the freeze status to active
-      const { error: freezeError } = await supabase
-        .from("member_freezes")
-        .update({
-          status: 'active',
-          fee_paid: true,
-          updated_at: new Date().toISOString(),
-          ...(waiveFee ? { freeze_fee_total: 0 } : {}),
-        })
-        .eq("id", freezeId);
-
-      if (freezeError) throw freezeError;
-
-      // Update the member status to frozen
-      const { error: memberError } = await supabase
-        .from("members")
-        .update({
-          status: 'frozen',
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", freezeData.member_id);
-
-      if (memberError) throw memberError;
-
-      // Pause membership dues subscription if it exists.
-      // Annual/initiation fee subscription is intentionally NOT paused during a freeze —
-      // it continues billing on its normal yearly cadence.
-      if (memberData?.stripe_subscription_id) {
-        try {
-          // Tell Stripe when to resume so the dashboard shows a resume date.
-          // Our process-freeze-expirations cron remains the authoritative trigger.
-          const resumesAt = freezeData.actual_end_date
-            ? new Date(`${freezeData.actual_end_date}T23:59:59Z`).toISOString()
-            : undefined;
-
-          const { error: pauseError } = await supabase.functions.invoke("stripe-payment", {
-            body: {
-              action: "pause_subscription",
-              subscriptionId: memberData.stripe_subscription_id,
-              resumesAt,
-            },
-          });
-
-          if (pauseError) {
-            console.error("Failed to pause membership subscription:", pauseError);
-          }
-        } catch (pauseErr) {
-          console.error("Error pausing membership subscription:", pauseErr);
-        }
-      }
-    },
-    onSuccess: () => {
+    mutationFn: async ({ freezeId, waiveFee = false }: { freezeId: string; waiveFee?: boolean }) =>
+      invokeFreezeBilling({ action: "activate", freezeId, waiveFee }),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
-      toast.success("Freeze activated");
+      toast.success(
+        result?.pausedSubscription
+          ? "Freeze activated — billing paused in Stripe (verified)"
+          : "Freeze activated — member has no dues subscription to pause",
+      );
     },
     onError: (error) => {
       console.error("Error activating freeze:", error);
-      toast.error("Failed to activate freeze");
+      toast.error(
+        `Freeze NOT activated — billing is still running: ${error instanceof Error ? error.message : String(error)}`,
+        { duration: 12000 },
+      );
     },
   });
 }
@@ -355,120 +314,53 @@ export function useEndFreezeEarly() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (freezeId: string) => {
-      // Get the freeze request and member data
-      const { data: freezeData, error: fetchError } = await supabase
-        .from("member_freezes")
-        .select("member_id")
-        .eq("id", freezeId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      // Get member's subscription IDs for resuming
-      const { data: memberData, error: memberFetchError } = await supabase
-        .from("members")
-        .select("stripe_subscription_id, annual_fee_subscription_id")
-        .eq("id", freezeData.member_id)
-        .single();
-
-      if (memberFetchError) throw memberFetchError;
-
-      // Mark freeze as completed with today's date
-      const { error: freezeError } = await supabase
-        .from("member_freezes")
-        .update({
-          status: 'completed',
-          actual_end_date: new Date().toISOString().split('T')[0],
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", freezeId);
-
-      if (freezeError) throw freezeError;
-
-      // Set member status back to active
-      const { error: memberError } = await supabase
-        .from("members")
-        .update({
-          status: 'active',
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", freezeData.member_id);
-
-      if (memberError) throw memberError;
-
-      // Resume membership subscription and realign billing anchor
-      if (memberData?.stripe_subscription_id) {
-        try {
-          const { error: resumeError } = await supabase.functions.invoke("stripe-payment", {
-            body: {
-              action: "resume_subscription",
-              subscriptionId: memberData.stripe_subscription_id,
-            },
-          });
-
-          if (resumeError) {
-            console.error("Failed to resume membership subscription:", resumeError);
-          } else {
-            // Realign billing cycle to today (freeze end date)
-            const today = new Date();
-            today.setHours(23, 59, 59, 0);
-            const { error: anchorError } = await supabase.functions.invoke("stripe-payment", {
-              body: {
-                action: "update_billing_anchor",
-                subscriptionId: memberData.stripe_subscription_id,
-                newAnchorDate: today.toISOString(),
-              },
-            });
-            if (anchorError) {
-              console.error("Failed to realign membership billing anchor:", anchorError);
-            }
-          }
-        } catch (resumeErr) {
-          console.error("Error resuming membership subscription:", resumeErr);
-        }
-      }
-
-      // Resume annual fee subscription and realign billing anchor
-      if (memberData?.annual_fee_subscription_id) {
-        try {
-          const { error: resumeError } = await supabase.functions.invoke("stripe-payment", {
-            body: {
-              action: "resume_subscription",
-              subscriptionId: memberData.annual_fee_subscription_id,
-            },
-          });
-
-          if (resumeError) {
-            console.error("Failed to resume annual fee subscription:", resumeError);
-          } else {
-            // Realign billing cycle to today (freeze end date)
-            const today = new Date();
-            today.setHours(23, 59, 59, 0);
-            const { error: anchorError } = await supabase.functions.invoke("stripe-payment", {
-              body: {
-                action: "update_billing_anchor",
-                subscriptionId: memberData.annual_fee_subscription_id,
-                newAnchorDate: today.toISOString(),
-              },
-            });
-            if (anchorError) {
-              console.error("Failed to realign annual fee billing anchor:", anchorError);
-            }
-          }
-        } catch (resumeErr) {
-          console.error("Error resuming annual fee subscription:", resumeErr);
-        }
-      }
-    },
+    mutationFn: async (freezeId: string) => invokeFreezeBilling({ action: "end_early", freezeId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
-      toast.success("Freeze ended early — member reactivated and billing resumed");
+      toast.success("Freeze ended early — member reactivated and billing resumed (verified)");
     },
     onError: (error) => {
       console.error("Error ending freeze early:", error);
-      toast.error("Failed to end freeze early");
+      toast.error(
+        `Failed to end freeze: ${error instanceof Error ? error.message : String(error)}`,
+        { duration: 12000 },
+      );
     },
   });
 }
+
+/** Compares active freezes against live Stripe and (optionally) repairs unpaused billing. */
+export function useFreezeBillingAudit() {
+  return useQuery({
+    queryKey: ["freeze-billing-audit"],
+    queryFn: async () => invokeFreezeBilling({ action: "audit" }),
+    staleTime: 60_000,
+    retry: false,
+  });
+}
+
+export function useRepairFreezeBilling() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => invokeFreezeBilling({ action: "repair" }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["freeze-billing-audit"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
+      const repaired = (result?.mismatches ?? []).filter((m: any) => m.repaired).length;
+      const failed = (result?.mismatches ?? []).filter((m: any) => !m.repaired).length;
+      if (failed > 0) {
+        toast.warning(`Paused ${repaired} subscription(s); ${failed} still need attention`);
+      } else if (repaired > 0) {
+        toast.success(`Paused billing for ${repaired} frozen member(s)`);
+      } else {
+        toast.success("All frozen members are correctly paused in Stripe");
+      }
+    },
+    onError: (error) => {
+      toast.error(`Repair failed: ${error instanceof Error ? error.message : String(error)}`);
+    },
+  });
+}
+
