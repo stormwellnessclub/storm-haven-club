@@ -94,6 +94,7 @@ import {
   useResendFreezePaymentEmail,
   type FreezeRequestWithMember,
 } from "@/hooks/useAdminFreezeRequests";
+import { FreezeBillingDriftBanner } from "@/components/admin/FreezeBillingDriftBanner";
 import {
   AlertDialog,
   AlertDialogAction,
