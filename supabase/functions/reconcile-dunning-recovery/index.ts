@@ -183,39 +183,6 @@ serve(async (req) => {
   }
 });
 
-type Db = ReturnType<typeof createClient>;
+// canClearPastDue / reevaluatePastDue now live in ../_shared/settleInvoiceRecovery.ts
+// so the manual-payment paths reuse exactly the same rules.
 
-/** True when the member has no active dunning rows and no unpaid arrears. */
-async function canClearPastDue(supabase: Db, memberId: string): Promise<boolean> {
-  const { data: activeDunning } = await supabase
-    .from("payment_dunning_state")
-    .select("id")
-    .eq("member_id", memberId)
-    .eq("status", "active")
-    .limit(1);
-  if (activeDunning && activeDunning.length > 0) return false;
-
-  const { data: unpaidArrears } = await supabase
-    .from("billing_arrears")
-    .select("id")
-    .eq("member_id", memberId)
-    .eq("status", "unpaid")
-    .limit(1);
-  return !unpaidArrears || unpaidArrears.length === 0;
-}
-
-/** Clears members.payment_past_due when nothing is owed. Returns whether it cleared. */
-export async function reevaluatePastDue(
-  supabase: Db,
-  memberId: string,
-  nowIso = new Date().toISOString(),
-): Promise<boolean> {
-  const clear = await canClearPastDue(supabase, memberId);
-  if (!clear) return false;
-
-  await supabase
-    .from("members")
-    .update({ payment_past_due: false, payment_past_due_since: null, updated_at: nowIso })
-    .eq("id", memberId);
-  return true;
-}
