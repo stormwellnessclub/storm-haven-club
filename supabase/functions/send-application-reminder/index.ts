@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { requireStaff } from "../_shared/requireStaff.ts";
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,11 +24,12 @@ const emailStyles = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-
-  const _auth = await requireTrustedCaller(req);
-  if (!_auth.ok) return _auth.response;
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Staff-only: this is triggered by an admin clicking "Send Reminder".
+  const auth = await requireStaff(req, ['super_admin', 'admin', 'manager', 'front_desk']);
+  if (!auth.ok) return auth.response;
 
   try {
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
@@ -40,11 +42,25 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const resend = new Resend(resendApiKey);
 
-    const { email, name, cardSetupAttemptId } = await req.json();
+    const body = await req.json().catch(() => null);
+    const email = typeof body?.email === 'string' ? body.email.trim() : '';
+    const name = typeof body?.name === 'string' ? body.name.trim() : '';
+    const cardSetupAttemptId = typeof body?.cardSetupAttemptId === 'string'
+      ? body.cardSetupAttemptId.trim()
+      : null;
 
-    if (!email || !name) {
-      throw new Error('Missing required fields: email, name');
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254;
+    const nameOk = name.length > 0 && name.length <= 120;
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const idOk = cardSetupAttemptId === null || uuidRe.test(cardSetupAttemptId);
+
+    if (!emailOk || !nameOk || !idOk) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid request: email, name, and optional cardSetupAttemptId are required and must be valid.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
     }
+
 
     const firstName = name.split(' ')[0] || name;
 
