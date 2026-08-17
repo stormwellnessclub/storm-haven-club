@@ -27,18 +27,22 @@ Two separate defects produce this:
 
 ### 1. Confirm the failure and see the damage
 - Reproduce the pause call against one real frozen subscription and capture the exact Stripe/authorization error, so the fix targets the real cause rather than a guess.
-- Produce the report you asked for: every dues charge taken on or after a freeze start date, with member, date, amount and invoice, exported to CSV plus shown in Admin → Reports. You decide refunds/credits per member after reviewing it.
+- Produce a **downloadable PDF** (plus CSV) listing every dues charge taken on or after a freeze start date: member, charge date, amount, invoice, freeze window. You keep it for the refund pass. Lives in Admin → Reports as "Charges During Freeze".
 
-### 2. Stop the bleeding today
-- Pause collection in Stripe for all currently frozen members whose billing is still live (8 members, Dalal first — she bills tomorrow), with the resume date set to their freeze end date.
-- Close out Yara Hamed's stale 3/7 freeze that was never completed.
+### 2. Immediate cleanup you asked for
+- Delete Yara Hamed's stale 3/7 freeze request outright.
+- Activate Dalal Elali's freeze now and pause her billing in Stripe before tomorrow's charge.
+- Pause collection in Stripe for the other currently frozen members whose billing is still live (Aujenique, Jerica, Jana, Deana, Susu, Amalie), with resume dates set to each freeze end date.
+- Afifa Seblini: her $30 freeze fee is paid, so her freeze activates automatically on her requested start date once the new job below is live (no charge is due before then).
 
 ### 3. Make freezing trustworthy
 - Freeze activation becomes an all-or-nothing server operation: pause in Stripe first, read the subscription back to prove `pause_collection` is set, and only then mark the member frozen. If Stripe refuses, the freeze is not marked active and staff see a red error explaining why — no more silent success.
 - Same read-back proof on unfreeze/resume.
 
 ### 4. Auto-activate freezes on their start date
-- New nightly job (runs alongside the existing freeze-expiration job) that finds approved freezes whose start date has arrived, pauses billing, and flips them to active — with the same verification and an admin alert on failure.
+- New nightly job (runs alongside the existing freeze-expiration job) that finds **approved** freezes whose start date has arrived, pauses billing, and flips them to active — with the same verification and an admin alert on failure.
+- Pending (not yet approved / fee unpaid) requests are deliberately left alone — they never auto-activate.
+
 
 ### 5. Drift detector so this can't hide again
 - Extend the existing 6-hourly billing sync to flag any mismatch between "frozen in our system" and "still collecting in Stripe" (and the reverse), surfaced as a banner on the Freeze Requests page with a one-click repair.
@@ -48,4 +52,4 @@ Two separate defects produce this:
 - `stripe-payment` `pause_subscription` / `resume_subscription` cases: add subscription read-back verification and return the verified `pause_collection` payload; confirm whether `assertSubscriptionAccess`/`isStaffCaller` is rejecting these calls (service-role invokes from crons are the suspect path).
 - New `process-freeze-activations` edge function + pg_cron entry at 0 7 * * * (paired with `process-freeze-expirations`).
 - `sync-membership-truth`: add a `freeze_billing_mismatch` anomaly using `member_billing_snapshot.collection_paused` vs `member_freezes.status`.
-- Report built from `payment_attempts` / `billing_arrears` joined to `member_freezes` on charge date within `actual_start_date`..`actual_end_date`.
+- Report built from `payment_attempts` / `billing_arrears` joined to `member_freezes` on charge date within `actual_start_date`..`actual_end_date`; PDF via the existing jsPDF pattern used by `src/lib/spaPayrollPdf.ts`.
