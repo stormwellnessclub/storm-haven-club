@@ -156,8 +156,64 @@ serve(async (req) => {
       }
     }
 
+    // ── Second pass: members flagged past due with nothing behind the flag ──
+    // A stale flag can survive with no active dunning row and no unpaid arrears
+    // (e.g. the dunning row was closed but the flag never re-evaluated). Those
+    // members are hard-blocked at check-in with no visible debt, so verify
+    // against Stripe that no invoice is actually open before clearing.
+    let orphanQuery = supabase
+      .from("members")
+      .select("id, first_name, last_name, stripe_customer_id")
+      .eq("payment_past_due", true);
+    if (body.memberId) orphanQuery = orphanQuery.eq("id", body.memberId);
+    const { data: flagged } = await orphanQuery;
+
+    for (const m of flagged ?? []) {
+      if (touchedMembers.has(m.id)) continue;
+      if (!(await canClearPastDue(supabase, m.id))) continue;
+
+      const outcome: Outcome = {
+        member_id: m.id,
+        member_name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim(),
+        stripe_invoice_id: null,
+        invoice_status: null,
+        dunning_recovered: false,
+        past_due_cleared: false,
+        note: "past-due flag with no active dunning row and no unpaid arrears",
+      };
+
+      if (m.stripe_customer_id) {
+        try {
+          const open = await stripe.invoices.list({
+            customer: m.stripe_customer_id,
+            status: "open",
+            limit: 1,
+          });
+          if (open.data.length > 0) {
+            outcome.stripe_invoice_id = open.data[0].id ?? null;
+            outcome.invoice_status = open.data[0].status ?? null;
+            outcome.note = "Stripe still shows an open invoice — block kept";
+            outcomes.push(outcome);
+            continue;
+          }
+        } catch (err) {
+          outcome.note = `stripe lookup failed: ${err instanceof Error ? err.message : String(err)}`;
+          outcomes.push(outcome);
+          continue;
+        }
+      } else {
+        outcome.note += " (no Stripe customer on file)";
+      }
+
+      outcome.past_due_cleared = dryRun
+        ? true
+        : await reevaluatePastDue(supabase, m.id, nowIso);
+      outcomes.push(outcome);
+    }
+
     log("Reconciliation complete", {
       scanned: rows?.length ?? 0,
+      flaggedScanned: flagged?.length ?? 0,
       recovered: outcomes.filter((o) => o.dunning_recovered).length,
       dryRun,
     });
@@ -167,6 +223,7 @@ serve(async (req) => {
         ok: true,
         dryRun,
         scanned: rows?.length ?? 0,
+        flaggedScanned: flagged?.length ?? 0,
         recovered: outcomes.filter((o) => o.dunning_recovered).length,
         cleared: outcomes.filter((o) => o.past_due_cleared).length,
         outcomes,
