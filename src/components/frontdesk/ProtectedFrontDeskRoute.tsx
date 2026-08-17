@@ -27,8 +27,11 @@ export function ProtectedFrontDeskRoute({ children }: { children: ReactNode }) {
   }
 
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    // Keep this window in front-desk auth scope so signing in here does not
+    // replace an Admin session in another window.
+    return <Navigate to="/auth?scope=frontdesk" state={{ from: location }} replace />;
   }
+
 
   if (error && !resolved) {
     return (
