@@ -20,6 +20,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { canClearPastDue, reevaluatePastDue } from "../_shared/settleInvoiceRecovery.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -140,6 +141,16 @@ serve(async (req) => {
           .from("payment_dunning_state")
           .update({ status: "recovered", recovered_at: nowIso, updated_at: nowIso })
           .eq("id", row.id);
+
+        // Stale "failed" attempts for a settled invoice keep the member on the
+        // admin failed-payments list long after they've paid.
+        await supabase
+          .from("payment_attempts")
+          .update({ resolved_at: nowIso, resolution_note: `Invoice ${invoice?.status} in Stripe` })
+          .eq("member_id", row.member_id)
+          .eq("stripe_invoice_id", row.stripe_invoice_id)
+          .eq("status", "failed")
+          .is("resolved_at", null);
       }
       outcome.dunning_recovered = true;
       touchedMembers.add(row.member_id);
@@ -156,8 +167,64 @@ serve(async (req) => {
       }
     }
 
+    // ── Second pass: members flagged past due with nothing behind the flag ──
+    // A stale flag can survive with no active dunning row and no unpaid arrears
+    // (e.g. the dunning row was closed but the flag never re-evaluated). Those
+    // members are hard-blocked at check-in with no visible debt, so verify
+    // against Stripe that no invoice is actually open before clearing.
+    let orphanQuery = supabase
+      .from("members")
+      .select("id, first_name, last_name, stripe_customer_id")
+      .eq("payment_past_due", true);
+    if (body.memberId) orphanQuery = orphanQuery.eq("id", body.memberId);
+    const { data: flagged } = await orphanQuery;
+
+    for (const m of flagged ?? []) {
+      if (touchedMembers.has(m.id)) continue;
+      if (!(await canClearPastDue(supabase, m.id))) continue;
+
+      const outcome: Outcome = {
+        member_id: m.id,
+        member_name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim(),
+        stripe_invoice_id: null,
+        invoice_status: null,
+        dunning_recovered: false,
+        past_due_cleared: false,
+        note: "past-due flag with no active dunning row and no unpaid arrears",
+      };
+
+      if (m.stripe_customer_id) {
+        try {
+          const open = await stripe.invoices.list({
+            customer: m.stripe_customer_id,
+            status: "open",
+            limit: 1,
+          });
+          if (open.data.length > 0) {
+            outcome.stripe_invoice_id = open.data[0].id ?? null;
+            outcome.invoice_status = open.data[0].status ?? null;
+            outcome.note = "Stripe still shows an open invoice — block kept";
+            outcomes.push(outcome);
+            continue;
+          }
+        } catch (err) {
+          outcome.note = `stripe lookup failed: ${err instanceof Error ? err.message : String(err)}`;
+          outcomes.push(outcome);
+          continue;
+        }
+      } else {
+        outcome.note += " (no Stripe customer on file)";
+      }
+
+      outcome.past_due_cleared = dryRun
+        ? true
+        : await reevaluatePastDue(supabase, m.id, nowIso);
+      outcomes.push(outcome);
+    }
+
     log("Reconciliation complete", {
       scanned: rows?.length ?? 0,
+      flaggedScanned: flagged?.length ?? 0,
       recovered: outcomes.filter((o) => o.dunning_recovered).length,
       dryRun,
     });
@@ -167,6 +234,7 @@ serve(async (req) => {
         ok: true,
         dryRun,
         scanned: rows?.length ?? 0,
+        flaggedScanned: flagged?.length ?? 0,
         recovered: outcomes.filter((o) => o.dunning_recovered).length,
         cleared: outcomes.filter((o) => o.past_due_cleared).length,
         outcomes,
@@ -183,39 +251,6 @@ serve(async (req) => {
   }
 });
 
-type Db = ReturnType<typeof createClient>;
+// canClearPastDue / reevaluatePastDue now live in ../_shared/settleInvoiceRecovery.ts
+// so the manual-payment paths reuse exactly the same rules.
 
-/** True when the member has no active dunning rows and no unpaid arrears. */
-async function canClearPastDue(supabase: Db, memberId: string): Promise<boolean> {
-  const { data: activeDunning } = await supabase
-    .from("payment_dunning_state")
-    .select("id")
-    .eq("member_id", memberId)
-    .eq("status", "active")
-    .limit(1);
-  if (activeDunning && activeDunning.length > 0) return false;
-
-  const { data: unpaidArrears } = await supabase
-    .from("billing_arrears")
-    .select("id")
-    .eq("member_id", memberId)
-    .eq("status", "unpaid")
-    .limit(1);
-  return !unpaidArrears || unpaidArrears.length === 0;
-}
-
-/** Clears members.payment_past_due when nothing is owed. Returns whether it cleared. */
-export async function reevaluatePastDue(
-  supabase: Db,
-  memberId: string,
-  nowIso = new Date().toISOString(),
-): Promise<boolean> {
-  const clear = await canClearPastDue(supabase, memberId);
-  if (!clear) return false;
-
-  await supabase
-    .from("members")
-    .update({ payment_past_due: false, payment_past_due_since: null, updated_at: nowIso })
-    .eq("id", memberId);
-  return true;
-}

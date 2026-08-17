@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { settleInvoiceRecovery } from "../_shared/settleInvoiceRecovery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,11 +107,23 @@ serve(async (req) => {
         .eq("member_id", member.id)
         .eq("stripe_invoice_id", paid.id);
 
+      // Close the dunning row + lift the past-due block now; the
+      // invoice.payment_succeeded webhook does not reliably fire for a
+      // manually paid invoice.
+      const settled = await settleInvoiceRecovery(
+        supabase,
+        member.id,
+        paid.id,
+        "Paid via member retry",
+      );
+      log("Recovery settled", settled);
+
       return new Response(
         JSON.stringify({
           success: true,
           invoice_id: paid.id,
           amount_paid_cents: paid.amount_paid ?? paid.amount_due,
+          past_due_cleared: settled.past_due_cleared,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
