@@ -138,6 +138,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'founding-members': FoundingMembersReport,
     'new-applications': NewApplicationsReport,
     'freeze-history': FreezeHistoryReport,
+    'charges-during-freeze': ChargesDuringFreezeReport,
     'daily-checkins': DailyCheckinsReport,
     'peak-hours': PeakHoursReport,
     'visit-frequency': VisitFrequencyReport,
