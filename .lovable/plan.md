@@ -52,4 +52,4 @@ Two separate defects produce this:
 - `stripe-payment` `pause_subscription` / `resume_subscription` cases: add subscription read-back verification and return the verified `pause_collection` payload; confirm whether `assertSubscriptionAccess`/`isStaffCaller` is rejecting these calls (service-role invokes from crons are the suspect path).
 - New `process-freeze-activations` edge function + pg_cron entry at 0 7 * * * (paired with `process-freeze-expirations`).
 - `sync-membership-truth`: add a `freeze_billing_mismatch` anomaly using `member_billing_snapshot.collection_paused` vs `member_freezes.status`.
-- Report built from `payment_attempts` / `billing_arrears` joined to `member_freezes` on charge date within `actual_start_date`..`actual_end_date`.
+- Report built from `payment_attempts` / `billing_arrears` joined to `member_freezes` on charge date within `actual_start_date`..`actual_end_date`; PDF via the existing jsPDF pattern used by `src/lib/spaPayrollPdf.ts`.
