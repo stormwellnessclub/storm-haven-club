@@ -266,6 +266,10 @@ export default function FreezeRequests() {
           )}
         </div>
 
+        <FreezeBillingDriftBanner />
+
+
+
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
