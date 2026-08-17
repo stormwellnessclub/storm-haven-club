@@ -195,14 +195,14 @@ async function runActivations() {
       continue;
     }
     try {
-
       await activateFreeze(f.id, false);
       activated.push(f.id);
     } catch (e) {
       failures.push({ freezeId: f.id, error: e instanceof Error ? e.message : String(e) });
     }
   }
-  return { checked: due?.length ?? 0, activated, failures };
+  return { checked: due?.length ?? 0, activated, skipped_unpaid, failures };
+
 }
 
 /** Compare our freeze state against live Stripe. Optionally repair mismatches. */
