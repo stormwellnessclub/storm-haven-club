@@ -106,25 +106,92 @@ function buildRecap(opts: {
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
+const STAFF_ROLES = [
+  "super_admin",
+  "admin",
+  "manager",
+  "front_desk",
+  "class_instructor",
+];
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const jsonResponse = (body: unknown, status: number) =>
+  new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status,
+  });
+
+/**
+ * Resolves the caller. Returns the service-role sentinel, the authenticated
+ * user's id + staff flag, or null when the request carries no valid credential.
+ */
+async function resolveCaller(
+  req: Request,
+  supabase: ReturnType<typeof createClient>,
+): Promise<{ userId: string | null; isStaff: boolean } | null> {
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  const token = auth.slice(7);
+
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (serviceKey && token === serviceKey) {
+    return { userId: null, isStaff: true };
+  }
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user) return null;
+
+  const { data: roleRows } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userData.user.id)
+    .in("role", STAFF_ROLES);
+
+  return {
+    userId: userData.user.id,
+    isStaff: Boolean(roleRows && roleRows.length > 0),
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } },
+  );
+
+  // SECURITY: this function emails real members with caller-supplied recap text.
+  // Every request must be attributable to staff or to the appointment's own member.
+  const caller = await resolveCaller(req, supabase);
+  if (!caller) return jsonResponse({ error: "Unauthorized" }, 401);
+
   try {
     const { appointment_id, type, recap, homework } = await req.json();
-    if (!appointment_id) throw new Error("appointment_id required");
+    if (typeof appointment_id !== "string" || !UUID_RE.test(appointment_id)) {
+      return jsonResponse({ error: "appointment_id must be a valid UUID" }, 400);
+    }
     const kind: "confirmation" | "cancellation" | "session_recap" =
       type === "cancellation" ? "cancellation" : type === "session_recap" ? "session_recap" : "confirmation";
-    if (kind === "session_recap" && !String(recap ?? "").trim()) throw new Error("recap text required");
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { persistSession: false } },
-    );
+    if (kind === "session_recap" && !String(recap ?? "").trim()) {
+      return jsonResponse({ error: "recap text required" }, 400);
+    }
 
     const { data: appt, error } = await supabase
       .from("pt_appointments").select("*").eq("id", appointment_id).maybeSingle();
     if (error || !appt) throw new Error(error?.message || "appointment not found");
+
+    // Members may only trigger confirmation/cancellation notices for their own
+    // appointment. Recap bodies are free text, so staff-only.
+    if (!caller.isStaff) {
+      if (kind === "session_recap" || appt.user_id !== caller.userId) {
+        return jsonResponse({ error: "Forbidden" }, 403);
+      }
+    }
+
 
     if (kind === "confirmation" && appt.confirmation_email_sent_at) {
       return new Response(JSON.stringify({ success: true, skipped: true }), {
