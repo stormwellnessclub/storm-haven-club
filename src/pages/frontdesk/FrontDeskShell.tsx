@@ -141,7 +141,7 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
                 onClick={async () => {
                   sessionStorage.removeItem(SHIFT_KEY);
                   await signOut();
-                  navigate("/auth", { replace: true });
+                  navigate("/auth?scope=frontdesk", { replace: true });
                 }}
               >
                 <LogOut className="h-3.5 w-3.5" />
