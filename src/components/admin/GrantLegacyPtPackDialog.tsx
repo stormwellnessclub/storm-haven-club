@@ -48,13 +48,13 @@ export function GrantLegacyPtPackDialog({ open, onOpenChange, presetUserId, pres
     enabled: !userId && search.length >= 2,
     queryFn: async (): Promise<UserOption[]> => {
       const [{ data: profiles }, { data: members }] = await Promise.all([
-        supabase.from("profiles").select("user_id, email, full_name")
-          .or(`email.ilike.%${search}%,full_name.ilike.%${search}%`).limit(10),
+        supabase.from("profiles").select("user_id, email, first_name, last_name")
+          .or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`).limit(10),
         supabase.from("members").select("user_id, email, first_name, last_name")
           .or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`).limit(10),
       ]);
       const list: UserOption[] = [
-        ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: p.full_name ?? p.email, isMember: false })),
+        ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email, isMember: false })),
         ...(members ?? []).map((m: any) => ({ id: m.user_id, email: m.email, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, isMember: true })),
       ].filter((u) => u.id);
       return Array.from(new Map(list.map((u) => [u.id, u])).values());

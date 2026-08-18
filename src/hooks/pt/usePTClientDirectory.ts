@@ -71,7 +71,7 @@ export function usePTClientDirectory() {
             .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, join_date")
             .in("user_id", part),
           supabase.from("non_member_profiles").select("user_id, email, first_name, last_name, phone, created_at").in("user_id", part),
-          supabase.from("profiles").select("user_id, email, full_name, phone, created_at").in("user_id", part),
+          supabase.from("profiles").select("user_id, email, first_name, last_name, phone, created_at").in("user_id", part),
         ]);
         members.push(...(m ?? [])); nonMembers.push(...(n ?? [])); authProfiles.push(...(pr ?? []));
       }
@@ -97,7 +97,7 @@ export function usePTClientDirectory() {
         const name =
           (m ? `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() : "") ||
           (nm ? `${nm.first_name ?? ""} ${nm.last_name ?? ""}`.trim() : "") ||
-          prof.full_name || ap?.full_name || m?.email || nm?.email || ap?.email || "Client";
+          [prof.first_name, prof.last_name].filter(Boolean).join(" ") || ap?.full_name || m?.email || nm?.email || ap?.email || "Client";
         const email = m?.email ?? nm?.email ?? prof.email ?? ap?.email ?? "";
         const phone = m?.phone ?? nm?.phone ?? prof.phone ?? ap?.phone ?? null;
 

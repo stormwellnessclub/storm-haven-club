@@ -40,15 +40,15 @@ const DEFAULT_DURATION: Record<PtFormat, number> = {
 
 async function searchPeople(term: string): Promise<UserOption[]> {
   const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
-    supabase.from("profiles").select("user_id, email, full_name")
-      .or(`email.ilike.%${term}%,full_name.ilike.%${term}%`).limit(10),
+    supabase.from("profiles").select("user_id, email, first_name, last_name")
+      .or(`email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`).limit(10),
     supabase.from("members").select("user_id, email, first_name, last_name")
       .or(`email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`).limit(10),
     supabase.from("non_member_profiles").select("user_id, email, first_name, last_name")
       .or(`email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`).limit(10),
   ]);
   const list: UserOption[] = [
-    ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: p.full_name ?? p.email, isMember: false })),
+    ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email, isMember: false })),
     ...(nonMembers ?? []).map((n: any) => ({ id: n.user_id, email: n.email, name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email, isMember: false, isNonMember: true })),
     ...(members ?? []).map((m: any) => ({ id: m.user_id, email: m.email, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, isMember: true })),
   ].filter((u) => u.id);

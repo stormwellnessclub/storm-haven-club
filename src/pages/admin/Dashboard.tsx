@@ -247,14 +247,14 @@ export default function Dashboard() {
           ? supabase.from('members').select('user_id, first_name, last_name').in('user_id', userIds)
           : Promise.resolve({ data: [] as any[] }),
         userIds.length
-          ? supabase.from('profiles').select('user_id, full_name, email').in('user_id', userIds)
+          ? supabase.from('profiles').select('user_id, first_name, last_name, email').in('user_id', userIds)
           : Promise.resolve({ data: [] as any[] }),
         instructorIds.length
           ? supabase.from('instructors').select('id, first_name, last_name').in('id', instructorIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
       const nameMap: Record<string, string> = {};
-      (profiles ?? []).forEach((p: any) => { nameMap[p.user_id] = p.full_name ?? p.email ?? 'Unknown'; });
+      (profiles ?? []).forEach((p: any) => { nameMap[p.user_id] = [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email ?? 'Unknown'; });
       (members ?? []).forEach((m: any) => {
         nameMap[m.user_id] = `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim() || nameMap[m.user_id] || 'Unknown';
       });

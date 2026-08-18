@@ -56,11 +56,11 @@ export default function PersonalTrainingSchedule() {
     enabled: userIds.length > 0,
     queryFn: async (): Promise<Record<string, Person>> => {
       const [{ data: profiles }, { data: members }] = await Promise.all([
-        supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds),
+        supabase.from("profiles").select("user_id, email, first_name, last_name").in("user_id", userIds),
         supabase.from("members").select("user_id, email, first_name, last_name").in("user_id", userIds),
       ]);
       const map: Record<string, Person> = {};
-      (profiles ?? []).forEach((p: any) => { map[p.user_id] = { name: p.full_name ?? p.email, email: p.email }; });
+      (profiles ?? []).forEach((p: any) => { map[p.user_id] = { name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email, email: p.email }; });
       (members ?? []).forEach((m: any) => { map[m.user_id] = { name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, email: m.email }; });
       return map;
     },
