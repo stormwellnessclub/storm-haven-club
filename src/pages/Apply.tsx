@@ -613,6 +613,8 @@ export default function Apply() {
   });
   
   const isHydrated = useRef(false);
+  const submitKeyRef = useRef<string | null>(null);
+
   const formDataRef = useRef(formData);
   
   useEffect(() => {
