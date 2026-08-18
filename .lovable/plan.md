@@ -1,39 +1,46 @@
-# Abandoned Applications: Full Investigation + Fix
+# Make Lost Submissions Provable (No Outreach Emails)
 
-## What I checked (live data, not assumptions)
+## Goal
 
-The "Abandoned Applications" tab is built from `card_setup_attempts` rows that are still `initiated`/`abandoned` and have no linked application, de-duplicated by email, minus anyone who already has an application or member record.
+Stop guessing. From now on, if someone hits Submit on the application and it doesn't come through, we have a record of it. No "finish your application" emails — nothing goes out to applicants as part of this work.
 
-Current numbers:
-- 137 such attempt rows total; 19 have no email captured at all; after removing people who did apply or are members, 39 rows remain (35 unique people).
-- I pulled each of those 39 setup intents directly from Stripe:
-  - 21 = `requires_payment_method` — the person opened the card step and never successfully entered a card. Genuinely abandoned.
-  - 18 = `succeeded` — the card actually saved in Stripe, but there is no application row for them.
-- For all 18 of the card-saved people I checked `email_audit_log`: not one received an `application_submitted` confirmation email. That email is only sent after the application row is inserted, so no application row ever existed for them — nothing was submitted and then lost or deleted.
-- One name on the list is a false positive: "Raseil Arrat / taliarrat@gmail.com" is an existing approved member under `taliaarrat@gmail.com` (one-letter email typo), so the email match missed her.
-- Two rows are `test@example.com` test data.
+## What gets built
 
-## Answer to the question
+### 1. Submit-attempt logging (the real fix)
 
-No application was submitted and silently dropped. On the apply form, the card is step 7 and the six required acknowledgment checkboxes are step 8 — the application row is only written when step 8 is submitted. The 18 card-saved people cleared step 7 and never completed step 8. That is confirmed by the total absence of confirmation emails and of any application rows or status history for them.
+Today the only record of an applicant is the card-setup row, written at step 7. The application row is written at the very end of step 8. If that write fails, nothing anywhere records it.
 
-What is real and worth fixing:
-1. Those 18 rows are still marked `initiated` in our database even though Stripe says the card setup succeeded, so our own records understate how far these people got. The webhook that flips the row to `succeeded` did not take effect for them (Stripe shows the events as fully delivered).
-2. If a submit ever did fail at the last step (bad network, insert error), we would have no server-side record of it — the user just sees a red toast. Today that gap is unproven but unmonitored.
-3. The list mixes three very different groups and includes typo duplicates and test rows.
+Add a small `application_submit_attempts` table and write to it at two points:
+- **Before** the `membership_applications` insert: a `pending` row with name, email, phone, and the full submitted payload.
+- **After**: mark it `succeeded` (with the application id) or `failed` (with the error message).
 
-## Plan
+Written through a small edge function using a service-role client, so a failing insert, an RLS problem, or a dropped session can't also swallow the log. If even the log call fails, the browser retries it once on the next page load from a queued local copy.
 
-1. **Backfill true status.** One-time repair job that reads each open `card_setup_attempts` row from Stripe and sets `succeeded` / `failed` / `abandoned` from the real setup-intent status, storing card brand/last4 where available. Run it, then keep a nightly reconcile so this never drifts again.
-2. **Split the tab into two lists** in Admin -> Applications -> Abandoned:
-   - "Card saved, never submitted" (high intent — these people trusted us with a card and stopped at the acknowledgments)
-   - "Never entered a card"
-   Each row shows the real Stripe status, date, and reminder history. Reminder emails stay available on both, with copy tuned to the group.
-3. **Cleaner matching.** Exclude test emails, and match against applications/members by normalized email plus name so near-miss typos like Raseil Arrat surface as "possible duplicate" rather than as an abandoned lead.
-4. **Close the blind spot on failed submits.** Log any failed `membership_applications` insert to a small `application_submit_failures` table (name, email, error, timestamp) via an edge function, and surface those in the same tab. From then on, "submitted but didn't come through" becomes provable instead of inferred.
-5. **Export.** CSV/PDF export of the card-saved group so staff can call or email them directly.
+Result: "they said they submitted but it never came through" becomes provable, and the payload is there to re-create the application by hand.
+
+### 2. Recover the card-setup status drift
+
+The 18 people whose cards succeeded in Stripe are still marked `initiated` in our records. Add a reconcile edge function that reads each open `card_setup_attempts` row from Stripe and writes back the true status (`succeeded` / `failed` / `abandoned`), plus card brand and last4. Run it once to repair history, then nightly so it never drifts again.
+
+### 3. Split the Abandoned tab into honest groups
+
+Admin -> Applications -> Abandoned becomes three sections:
+- **Failed submits** — from the new log. These are people we know pressed Submit. Staff can view the captured payload and create the application manually.
+- **Card saved, never submitted** — the 18, plus any future ones. Real Stripe status and date shown.
+- **Never entered a card** — true abandons.
+
+Also clean up matching: drop test emails, and match against members/applications on normalized email plus name so near-miss typos (e.g. Raseil Arrat) show as "possible duplicate" instead of a false lead.
+
+### 4. Export
+
+CSV export per group so staff can work the lists by phone at their own pace.
+
+## Explicitly not doing
+
+- No reminder emails, no "finish your application" links, no automated outreach of any kind. Contact stays a manual staff decision.
 
 ## Technical notes
 
-- Repair/reconcile runs as a Stripe-authenticated edge function (`reconcile-card-setup-attempts`) plus a nightly cron, following the existing dunning-reconcile pattern.
-- No change to the apply flow's ordering or validation is included here; if you want the acknowledgments moved before the card step to reduce drop-off, that is a separate change I can add.
+- New table `application_submit_attempts` (id, created_at, status, name, email, phone, payload jsonb, error text, application_id) with staff-only RLS and service-role write.
+- Logging edge function `log-application-submit`; reconcile function `reconcile-card-setup-attempts` + nightly pg_cron, following the existing dunning-reconcile pattern.
+- No change to the apply flow's step order or validation. Moving the acknowledgments ahead of the card step to cut drop-off is a separate change if you want it.
