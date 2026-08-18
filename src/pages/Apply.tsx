@@ -21,6 +21,13 @@ import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { formatSetupError } from "@/lib/stripeErrors";
 import { SmsConsentCheckbox, SMS_DISCLOSURE_VERSION } from "@/components/SmsConsentCheckbox";
+import {
+  newSubmitKey,
+  logSubmitStart,
+  logSubmitResult,
+  flushSubmitLogQueue,
+} from "@/lib/applicationSubmitLog";
+
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -614,7 +621,10 @@ export default function Apply() {
   
   useEffect(() => {
     isHydrated.current = true;
+    // Retry any submit breadcrumb that couldn't be recorded on a prior visit.
+    flushSubmitLogQueue();
   }, []);
+
 
 
   // Autosave draft with debounce
