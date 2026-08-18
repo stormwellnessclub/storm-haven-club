@@ -7,14 +7,16 @@
  *
  * Fix: when a window is opened on a front-desk/kiosk route (or /auth?scope=frontdesk),
  * we mark that tab and transparently redirect ONLY the Supabase auth keys ("sb-*")
- * to sessionStorage, which is per-tab. Every other localStorage key, and every
- * unmarked tab (Admin, member portal, public site), behaves exactly as before.
+ * to sessionStorage, which is per-tab. We also namespace the auth client's
+ * BroadcastChannel so auth events cannot leak between Admin and Front Desk.
+ * Every other localStorage key, and every unmarked tab, behaves as before.
  *
  * This module must be imported before the Supabase client module is evaluated.
  */
 
 const SCOPE_FLAG = "tab-auth-scope";
 const PREFIX = "fdscope::";
+const CHANNEL_PREFIX = "frontdesk::";
 
 function detectFrontDeskTab(): boolean {
   try {
@@ -121,6 +123,27 @@ function installTabScopedAuthStorage() {
   }
 }
 
+function installTabScopedAuthBroadcastChannel() {
+  const NativeBroadcastChannel = window.BroadcastChannel;
+  if (!NativeBroadcastChannel) return;
+
+  class FrontDeskBroadcastChannel extends NativeBroadcastChannel {
+    constructor(name: string) {
+      super(name.startsWith("sb-") ? CHANNEL_PREFIX + name : name);
+    }
+  }
+
+  try {
+    Object.defineProperty(window, "BroadcastChannel", {
+      configurable: true,
+      value: FrontDeskBroadcastChannel,
+    });
+  } catch (error) {
+    console.warn("[tabAuthScope] Could not isolate the auth broadcast channel", error);
+  }
+}
+
 if (detectFrontDeskTab()) {
   installTabScopedAuthStorage();
+  installTabScopedAuthBroadcastChannel();
 }

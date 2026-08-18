@@ -255,7 +255,7 @@ export default function Dashboard() {
           : Promise.resolve({ data: [] as any[] }),
       ]);
       const nameMap: Record<string, string> = {};
-      (profiles ?? []).forEach((p: any) => { nameMap[p.user_id] = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email ?? 'Unknown'; });
+      (profiles ?? []).forEach((p: any) => { nameMap[p.user_id] = [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || 'Unknown'; });
       (members ?? []).forEach((m: any) => {
         nameMap[m.user_id] = `${m.first_name ?? ''} ${m.last_name ?? ''}`.trim() || nameMap[m.user_id] || 'Unknown';
       });

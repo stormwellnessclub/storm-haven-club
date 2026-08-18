@@ -17,6 +17,7 @@ import { StaffWelcome } from "@/components/staff/StaffWelcome";
 import { getDefaultAdminPage } from "@/lib/permissions";
 import { Shield, AlertCircle } from "lucide-react";
 import { NoIndex } from "@/components/seo/NoIndex";
+import { isFrontDeskScopedTab } from "@/lib/tabAuthScope";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -63,6 +64,7 @@ export default function Auth() {
   // Detect staff invite mode
   const searchParams = new URLSearchParams(window.location.search);
   const isStaffInvite = searchParams.get('staff_invite') === 'true';
+  const isFrontDeskScope = searchParams.get("scope") === "frontdesk" || isFrontDeskScopedTab();
 
   // Helper to get safe redirect target from query param or state
   const getRedirectTarget = useCallback(() => {
@@ -121,6 +123,15 @@ export default function Auth() {
         return;
       }
 
+      if (isFrontDeskScope) {
+        const requestedPath = (location.state as { from?: { pathname?: string } })?.from?.pathname;
+        const frontDeskTarget = requestedPath?.startsWith("/frontdesk") || requestedPath?.startsWith("/kiosk")
+          ? requestedPath
+          : "/frontdesk";
+        navigate(frontDeskTarget, { replace: true });
+        return;
+      }
+
       const targetAdminPage = getDefaultAdminPage(roles);
       if (location.pathname !== targetAdminPage) {
         navigate(targetAdminPage, { replace: true });
@@ -140,7 +151,7 @@ export default function Auth() {
     if (profile?.waiver_signed) {
       navigate(getRedirectTarget(), { replace: true });
     }
-  }, [authReady, user, profile, profileLoading, rolesLoading, rolesError, rolesResolved, hasAnyStaffRole, roles, navigate, getRedirectTarget, isStaffInvite, location.pathname]);
+  }, [authReady, user, profile, profileLoading, rolesLoading, rolesError, rolesResolved, hasAnyStaffRole, roles, navigate, getRedirectTarget, isStaffInvite, isFrontDeskScope, location.pathname, location.state]);
 
   useEffect(() => {
     if (!authReady || !user) {
