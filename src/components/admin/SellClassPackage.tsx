@@ -86,7 +86,7 @@ export function SellClassPackage({
         ...(profiles || []).map((p: any) => ({
           id: p.user_id,
           email: p.email,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" "),
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
           isMember: false,
         })),
         ...(members || []).map((m: any) => ({

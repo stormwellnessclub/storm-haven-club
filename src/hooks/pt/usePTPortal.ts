@@ -58,7 +58,7 @@ export function usePTPeople(userIds: string[]) {
       ]);
       const map: Record<string, PTPerson> = {};
       (profiles ?? []).forEach((p: any) => {
-        map[p.user_id] = { user_id: p.user_id, name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email, email: p.email, phone: p.phone ?? null, isMember: false };
+        map[p.user_id] = { user_id: p.user_id, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, email: p.email, phone: p.phone ?? null, isMember: false };
       });
       (nonMembers ?? []).forEach((n: any) => {
         map[n.user_id] = {

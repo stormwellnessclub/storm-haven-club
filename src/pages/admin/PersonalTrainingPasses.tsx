@@ -76,7 +76,7 @@ export default function PersonalTrainingPasses() {
       ]);
       const map: Record<string, UserLite> = {};
       (profiles ?? []).forEach((p: any) => {
-        map[p.user_id] = { id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email, isMember: false };
+        map[p.user_id] = { id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, isMember: false };
       });
       (members ?? []).forEach((m: any) => {
         map[m.user_id] = {

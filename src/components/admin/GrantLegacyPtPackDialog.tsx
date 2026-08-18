@@ -54,7 +54,7 @@ export function GrantLegacyPtPackDialog({ open, onOpenChange, presetUserId, pres
           .or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`).limit(10),
       ]);
       const list: UserOption[] = [
-        ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email, isMember: false })),
+        ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, isMember: false })),
         ...(members ?? []).map((m: any) => ({ id: m.user_id, email: m.email, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, isMember: true })),
       ].filter((u) => u.id);
       return Array.from(new Map(list.map((u) => [u.id, u])).values());

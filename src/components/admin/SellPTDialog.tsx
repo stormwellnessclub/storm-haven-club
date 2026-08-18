@@ -136,7 +136,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         ...(profiles ?? []).map((p: any) => ({
           id: p.user_id,
           email: p.email,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" ") ?? p.email,
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
           isMember: false,
         })),
         ...(nonMembers ?? []).map((n: any) => ({
