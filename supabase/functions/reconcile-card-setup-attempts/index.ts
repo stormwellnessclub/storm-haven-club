@@ -57,21 +57,28 @@ serve(async (req) => {
   try {
     const { data: rows, error } = await supabase
       .from("card_setup_attempts")
-      .select("id, stripe_setup_intent, stripe_customer_id, status, created_at")
-      .in("status", ["initiated", "abandoned"])
+      .select(
+        "id, stripe_setup_intent, stripe_customer_id, status, created_at, metadata",
+      )
       .not("stripe_setup_intent", "is", null)
       .order("created_at", { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (error) throw error;
 
     let updated = 0;
+    let identitiesFilled = 0;
     const outcomes: Array<Record<string, unknown>> = [];
 
     for (const row of rows ?? []) {
+      const meta = (row.metadata ?? {}) as Record<string, unknown>;
+      const needsIdentity = !meta.applicant_email;
+      const isOpen = row.status === "initiated" || row.status === "abandoned";
+      if (!needsIdentity && !isOpen) continue;
+
       let si: Stripe.SetupIntent;
       try {
         si = await stripe.setupIntents.retrieve(row.stripe_setup_intent as string, {
-          expand: ["payment_method"],
+          expand: ["payment_method", "customer"],
         });
       } catch (e) {
         log("setup_intent_fetch_failed", { id: row.id, message: String(e) });
@@ -88,27 +95,53 @@ serve(async (req) => {
         | Stripe.PaymentMethod
         | null;
 
-      const update: Record<string, unknown> = { status: nextStatus };
-      if (nextStatus === "succeeded") {
-        update.completed_at = new Date(si.created * 1000).toISOString();
-        if (pm?.card) {
-          update.card_brand = pm.card.brand;
-          update.card_last4 = pm.card.last4;
+      const update: Record<string, unknown> = {};
+
+      if (isOpen) {
+        update.status = nextStatus;
+        if (nextStatus === "succeeded") {
+          update.completed_at = new Date(si.created * 1000).toISOString();
+          if (pm?.card) {
+            update.card_brand = pm.card.brand;
+            update.card_last4 = pm.card.last4;
+          }
+        }
+        if (si.last_setup_error) {
+          update.decline_code = si.last_setup_error.decline_code ?? si.last_setup_error.code ?? null;
+          update.decline_message = si.last_setup_error.message ?? null;
         }
       }
-      if (si.last_setup_error) {
-        update.decline_code = si.last_setup_error.decline_code ?? si.last_setup_error.code ?? null;
-        update.decline_message = si.last_setup_error.message ?? null;
+
+      // Recover the applicant identity from the Stripe customer when the
+      // attempt row never captured one (these rows were invisible in admin).
+      let filledIdentity = false;
+      if (needsIdentity) {
+        const customer = (typeof si.customer === "object" ? si.customer : null) as
+          | Stripe.Customer
+          | null;
+        const email = customer?.email ?? pm?.billing_details?.email ?? null;
+        const name = customer?.name ?? pm?.billing_details?.name ?? null;
+        if (email || name) {
+          update.metadata = {
+            ...meta,
+            ...(email ? { applicant_email: email } : {}),
+            ...(name ? { applicant_name: name } : {}),
+            identity_source: "stripe_reconcile",
+          };
+          filledIdentity = true;
+        }
       }
 
       outcomes.push({
         id: row.id,
         from: row.status,
-        to: nextStatus,
+        to: isOpen ? nextStatus : row.status,
         stripe_status: si.status,
+        identity_recovered: filledIdentity,
       });
 
-      if (!dryRun && nextStatus !== row.status) {
+      const statusChanged = isOpen && nextStatus !== row.status;
+      if (!dryRun && (statusChanged || filledIdentity)) {
         const { error: upErr } = await supabase
           .from("card_setup_attempts")
           .update(update)
@@ -117,15 +150,24 @@ serve(async (req) => {
           log("update_failed", { id: row.id, message: upErr.message });
           continue;
         }
-        updated++;
+        if (statusChanged) updated++;
+        if (filledIdentity) identitiesFilled++;
       }
     }
 
-    log("done", { scanned: rows?.length ?? 0, updated, dryRun });
+    log("done", { scanned: rows?.length ?? 0, updated, identitiesFilled, dryRun });
     return new Response(
-      JSON.stringify({ success: true, scanned: rows?.length ?? 0, updated, dryRun, outcomes }),
+      JSON.stringify({
+        success: true,
+        scanned: rows?.length ?? 0,
+        updated,
+        identitiesFilled,
+        dryRun,
+        outcomes,
+      }),
       { headers: CORS_HEADERS },
     );
+
   } catch (err) {
     console.error("[RECONCILE-CARD-SETUP] error", err);
     return new Response(JSON.stringify({ error: "Reconcile failed" }), {
