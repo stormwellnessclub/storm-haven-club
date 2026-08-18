@@ -66,8 +66,8 @@ export function SellClassPackage({
       // Search profiles
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("id, email, full_name, user_id")
-        .or(`email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`)
+        .select("id, email, first_name, last_name, user_id")
+        .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
         .limit(10);
 
       if (profilesError) throw profilesError;
@@ -86,7 +86,7 @@ export function SellClassPackage({
         ...(profiles || []).map((p: any) => ({
           id: p.user_id,
           email: p.email,
-          name: p.full_name,
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
           isMember: false,
         })),
         ...(members || []).map((m: any) => ({

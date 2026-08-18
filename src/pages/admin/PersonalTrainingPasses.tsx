@@ -71,12 +71,12 @@ export default function PersonalTrainingPasses() {
     enabled: userIds.length > 0,
     queryFn: async (): Promise<Record<string, UserLite>> => {
       const [{ data: profiles }, { data: members }] = await Promise.all([
-        supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds),
+        supabase.from("profiles").select("user_id, email, first_name, last_name").in("user_id", userIds),
         supabase.from("members").select("user_id, email, first_name, last_name").in("user_id", userIds),
       ]);
       const map: Record<string, UserLite> = {};
       (profiles ?? []).forEach((p: any) => {
-        map[p.user_id] = { id: p.user_id, email: p.email, name: p.full_name ?? p.email, isMember: false };
+        map[p.user_id] = { id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, isMember: false };
       });
       (members ?? []).forEach((m: any) => {
         map[m.user_id] = {

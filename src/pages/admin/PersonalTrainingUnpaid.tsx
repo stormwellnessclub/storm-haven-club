@@ -64,12 +64,12 @@ export default function PersonalTrainingUnpaid() {
     enabled: userIds.length > 0,
     queryFn: async (): Promise<Record<string, Person>> => {
       const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
-        supabase.from("profiles").select("user_id, email, full_name").in("user_id", userIds),
+        supabase.from("profiles").select("user_id, email, first_name, last_name").in("user_id", userIds),
         supabase.from("members").select("user_id, email, first_name, last_name").in("user_id", userIds),
         supabase.from("non_member_profiles").select("user_id, email, first_name, last_name").in("user_id", userIds),
       ]);
       const map: Record<string, Person> = {};
-      (profiles ?? []).forEach((p: any) => { map[p.user_id] = { name: p.full_name ?? p.email, email: p.email, isMember: false }; });
+      (profiles ?? []).forEach((p: any) => { map[p.user_id] = { name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, email: p.email, isMember: false }; });
       (nonMembers ?? []).forEach((n: any) => {
         map[n.user_id] = { name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email, email: n.email, isMember: false };
       });

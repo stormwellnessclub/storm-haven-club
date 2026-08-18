@@ -38,8 +38,8 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
           .limit(10),
         supabase
           .from("profiles")
-          .select("user_id, email, full_name, phone")
-          .or(`email.ilike.%${q}%,full_name.ilike.%${q}%`)
+          .select("user_id, email, first_name, last_name, phone")
+          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
           .limit(10),
         supabase
           .from("non_member_profiles")
@@ -107,7 +107,7 @@ export function PersonSearch({ search, onSearchChange, onSelect }: PersonSearchP
         out.push({
           userId: p.user_id,
           memberId: null,
-          name: p.full_name || p.email || "Unknown",
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email || "Unknown",
           email: p.email || "",
           phone: p.phone || "",
           type: pc > 0 ? "pass_holder" : "account",

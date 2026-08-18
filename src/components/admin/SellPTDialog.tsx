@@ -118,8 +118,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
         supabase
           .from("profiles")
-          .select("user_id, email, full_name")
-          .or(`email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`)
+          .select("user_id, email, first_name, last_name")
+          .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
           .limit(10),
         supabase
           .from("members")
@@ -136,7 +136,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         ...(profiles ?? []).map((p: any) => ({
           id: p.user_id,
           email: p.email,
-          name: p.full_name ?? p.email,
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
           isMember: false,
         })),
         ...(nonMembers ?? []).map((n: any) => ({
