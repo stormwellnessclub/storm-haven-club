@@ -820,14 +820,42 @@ export default function Apply() {
         status: "pending",
       };
 
-      const { error } = await supabase.from("membership_applications").insert(applicationPayload);
+      // Breadcrumb BEFORE the insert so a failed submit is provable afterwards.
+      const submitKey = newSubmitKey(formData.email);
+      submitKeyRef.current = submitKey;
+      await logSubmitStart({
+        clientKey: submitKey,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        payload: applicationPayload,
+      });
+
+      const { data: inserted, error } = await supabase
+        .from("membership_applications")
+        .insert(applicationPayload)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         console.error("Error submitting application:", error);
+        logSubmitResult({
+          clientKey: submitKey,
+          status: "failed",
+          error: error.message || error.code || "Unknown error",
+        });
         toast.error(`Failed to submit application: ${error.message || error.code || 'Unknown error'}`);
         setIsSubmitting(false);
         return;
       }
+
+      logSubmitResult({
+        clientKey: submitKey,
+        status: "succeeded",
+        applicationId: inserted?.id ?? undefined,
+      });
+
 
       // Log SMS consent + send opt-in confirmation SMS (best-effort, non-blocking)
       if (formData.smsConsent) {
