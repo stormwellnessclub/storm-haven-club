@@ -909,9 +909,17 @@ export default function Apply() {
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error submitting application:", error);
+      if (submitKeyRef.current) {
+        logSubmitResult({
+          clientKey: submitKeyRef.current,
+          status: "failed",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       toast.error("There was an error submitting your application. Please try again.");
       setIsSubmitting(false);
     }
+
   };
 
   if (isSubmitted) {
