@@ -326,7 +326,7 @@ export type Database = {
       application_submit_attempts: {
         Row: {
           application_id: string | null
-          client_key: string | null
+          client_key: string
           created_at: string
           email: string | null
           error_message: string | null
@@ -341,7 +341,7 @@ export type Database = {
         }
         Insert: {
           application_id?: string | null
-          client_key?: string | null
+          client_key: string
           created_at?: string
           email?: string | null
           error_message?: string | null
@@ -356,7 +356,7 @@ export type Database = {
         }
         Update: {
           application_id?: string | null
-          client_key?: string | null
+          client_key?: string
           created_at?: string
           email?: string | null
           error_message?: string | null
