@@ -21,6 +21,13 @@ import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { formatSetupError } from "@/lib/stripeErrors";
 import { SmsConsentCheckbox, SMS_DISCLOSURE_VERSION } from "@/components/SmsConsentCheckbox";
+import {
+  newSubmitKey,
+  logSubmitStart,
+  logSubmitResult,
+  flushSubmitLogQueue,
+} from "@/lib/applicationSubmitLog";
+
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
 
@@ -606,6 +613,8 @@ export default function Apply() {
   });
   
   const isHydrated = useRef(false);
+  const submitKeyRef = useRef<string | null>(null);
+
   const formDataRef = useRef(formData);
   
   useEffect(() => {
@@ -614,7 +623,10 @@ export default function Apply() {
   
   useEffect(() => {
     isHydrated.current = true;
+    // Retry any submit breadcrumb that couldn't be recorded on a prior visit.
+    flushSubmitLogQueue();
   }, []);
+
 
 
   // Autosave draft with debounce
@@ -810,14 +822,42 @@ export default function Apply() {
         status: "pending",
       };
 
-      const { error } = await supabase.from("membership_applications").insert(applicationPayload);
+      // Breadcrumb BEFORE the insert so a failed submit is provable afterwards.
+      const submitKey = newSubmitKey(formData.email);
+      submitKeyRef.current = submitKey;
+      await logSubmitStart({
+        clientKey: submitKey,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        payload: applicationPayload,
+      });
+
+      const { data: inserted, error } = await supabase
+        .from("membership_applications")
+        .insert(applicationPayload)
+        .select("id")
+        .maybeSingle();
 
       if (error) {
         console.error("Error submitting application:", error);
+        logSubmitResult({
+          clientKey: submitKey,
+          status: "failed",
+          error: error.message || error.code || "Unknown error",
+        });
         toast.error(`Failed to submit application: ${error.message || error.code || 'Unknown error'}`);
         setIsSubmitting(false);
         return;
       }
+
+      logSubmitResult({
+        clientKey: submitKey,
+        status: "succeeded",
+        applicationId: inserted?.id ?? undefined,
+      });
+
 
       // Log SMS consent + send opt-in confirmation SMS (best-effort, non-blocking)
       if (formData.smsConsent) {
@@ -869,9 +909,17 @@ export default function Apply() {
       setIsSubmitted(true);
     } catch (error) {
       console.error("Error submitting application:", error);
+      if (submitKeyRef.current) {
+        logSubmitResult({
+          clientKey: submitKeyRef.current,
+          status: "failed",
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
       toast.error("There was an error submitting your application. Please try again.");
       setIsSubmitting(false);
     }
+
   };
 
   if (isSubmitted) {

@@ -323,6 +323,54 @@ export type Database = {
           },
         ]
       }
+      application_submit_attempts: {
+        Row: {
+          application_id: string | null
+          client_key: string
+          created_at: string
+          email: string | null
+          error_message: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          payload: Json | null
+          phone: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          client_key: string
+          created_at?: string
+          email?: string | null
+          error_message?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          payload?: Json | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          client_key?: string
+          created_at?: string
+          email?: string | null
+          error_message?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          payload?: Json | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       billing_arrears: {
         Row: {
           amount_due_cents: number
