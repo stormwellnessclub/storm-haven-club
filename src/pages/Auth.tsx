@@ -17,6 +17,7 @@ import { StaffWelcome } from "@/components/staff/StaffWelcome";
 import { getDefaultAdminPage } from "@/lib/permissions";
 import { Shield, AlertCircle } from "lucide-react";
 import { NoIndex } from "@/components/seo/NoIndex";
+import { isFrontDeskScopedTab } from "@/lib/tabAuthScope";
 
 const emailSchema = z.string().email("Please enter a valid email address");
 const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
@@ -63,7 +64,7 @@ export default function Auth() {
   // Detect staff invite mode
   const searchParams = new URLSearchParams(window.location.search);
   const isStaffInvite = searchParams.get('staff_invite') === 'true';
-  const isFrontDeskScope = searchParams.get("scope") === "frontdesk";
+  const isFrontDeskScope = searchParams.get("scope") === "frontdesk" || isFrontDeskScopedTab();
 
   // Helper to get safe redirect target from query param or state
   const getRedirectTarget = useCallback(() => {
