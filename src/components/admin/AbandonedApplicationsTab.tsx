@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,10 +30,13 @@ import {
   Download,
   RefreshCw,
   Eye,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+
+type FilterReason = "none" | "already_applied" | "already_member" | "test_email";
 
 interface AbandonedAttempt {
   id: string;
@@ -50,6 +53,9 @@ interface AbandonedAttempt {
     applicant_name?: string;
   } | null;
   possibleDuplicateOf?: string | null;
+  filterReason: FilterReason;
+  attemptCount: number;
+  attemptDates: string[];
 }
 
 interface SubmitFailure {
@@ -68,6 +74,13 @@ const TEST_EMAIL_PATTERN = /(test@|@example\.com|@test\.com)/i;
 
 const normalizeName = (v?: string | null) =>
   (v || "").toLowerCase().replace(/[^a-z]/g, "");
+
+const REASON_LABEL: Record<FilterReason, string> = {
+  none: "",
+  already_applied: "Already applied",
+  already_member: "Already a member",
+  test_email: "Test record",
+};
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
@@ -89,6 +102,9 @@ export function AbandonedApplicationsTab() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
+  const [showFiltered, setShowFiltered] = useState(false);
+  const [showIncomplete, setShowIncomplete] = useState(false);
+  const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
 
   // ---- Failed / unresolved submit attempts (the provable group) -------------
   const { data: submitFailures = [], isLoading: loadingFailures } = useQuery({
@@ -123,70 +139,106 @@ export function AbandonedApplicationsTab() {
         )
         .is("application_id", null)
         .in("status", ["initiated", "abandoned", "failed", "succeeded"])
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(2000);
 
       if (error) throw error;
 
-      // Deduplicate by email — keep only the most recent attempt per person.
-      const seenEmails = new Set<string>();
-      const deduplicated: AbandonedAttempt[] = [];
+      const rows = (data || []) as any[];
 
-      for (const attempt of (data || []) as any[]) {
+      // Rows with no identity captured at all — previously dropped silently.
+      const incomplete: AbandonedAttempt[] = [];
+      // Group by email, newest first (query is already ordered desc).
+      const byEmail = new Map<string, any[]>();
+
+      for (const attempt of rows) {
         const meta = attempt.metadata as AbandonedAttempt["metadata"];
-        const email = meta?.applicant_email?.toLowerCase();
-        if (!email) continue;
-        if (TEST_EMAIL_PATTERN.test(email)) continue;
-        if (seenEmails.has(email)) continue;
-        seenEmails.add(email);
-        deduplicated.push({
-          ...attempt,
-          metadata: meta,
-          reminder_count: attempt.reminder_count ?? 0,
-        } as AbandonedAttempt);
+        const email = meta?.applicant_email?.toLowerCase().trim();
+        if (!email) {
+          incomplete.push({
+            ...attempt,
+            metadata: meta,
+            reminder_count: attempt.reminder_count ?? 0,
+            filterReason: "none",
+            attemptCount: 1,
+            attemptDates: [attempt.created_at],
+          });
+          continue;
+        }
+        const list = byEmail.get(email);
+        if (list) list.push(attempt);
+        else byEmail.set(email, [attempt]);
       }
-
-      const emails = Array.from(seenEmails);
-      if (emails.length === 0) return { cardSaved: [], noCard: [] };
 
       const [appsRes, membersRes] = await Promise.all([
         supabase.from("membership_applications").select("email, full_name"),
         supabase.from("members").select("email, first_name, last_name"),
       ]);
 
-      const knownEmails = new Set<string>();
+      const appEmails = new Set<string>();
+      const memberEmails = new Set<string>();
       const knownNames = new Map<string, string>();
       for (const row of (appsRes.data || []) as any[]) {
-        if (row.email) knownEmails.add(String(row.email).toLowerCase().trim());
+        if (row.email) appEmails.add(String(row.email).toLowerCase().trim());
         const n = normalizeName(row.full_name);
         if (n) knownNames.set(n, row.email || row.full_name);
       }
       for (const row of (membersRes.data || []) as any[]) {
-        if (row.email) knownEmails.add(String(row.email).toLowerCase().trim());
+        if (row.email) memberEmails.add(String(row.email).toLowerCase().trim());
         const n = normalizeName(`${row.first_name || ""}${row.last_name || ""}`);
         if (n) knownNames.set(n, row.email || `${row.first_name} ${row.last_name}`);
       }
 
-      const remaining: AbandonedAttempt[] = [];
-      for (const a of deduplicated) {
-        const email = a.metadata?.applicant_email?.toLowerCase().trim();
-        if (!email || knownEmails.has(email)) continue;
-        // Near-miss typo detection: same normalized name already on file.
-        const nameKey = normalizeName(a.metadata?.applicant_name);
-        remaining.push({
-          ...a,
-          possibleDuplicateOf: nameKey ? knownNames.get(nameKey) ?? null : null,
+      const all: AbandonedAttempt[] = [];
+      let mergedAttempts = 0;
+
+      for (const [email, list] of byEmail) {
+        const newest = list[0];
+        mergedAttempts += list.length - 1;
+        const meta = newest.metadata as AbandonedAttempt["metadata"];
+
+        let filterReason: FilterReason = "none";
+        if (TEST_EMAIL_PATTERN.test(email)) filterReason = "test_email";
+        else if (memberEmails.has(email)) filterReason = "already_member";
+        else if (appEmails.has(email)) filterReason = "already_applied";
+
+        const nameKey = normalizeName(meta?.applicant_name);
+        all.push({
+          ...newest,
+          metadata: meta,
+          reminder_count: newest.reminder_count ?? 0,
+          filterReason,
+          attemptCount: list.length,
+          attemptDates: list.map((a: any) => a.created_at),
+          possibleDuplicateOf:
+            filterReason === "none" && nameKey ? knownNames.get(nameKey) ?? null : null,
         });
       }
 
+      const visible = all.filter((a) => a.filterReason === "none");
+
       return {
-        cardSaved: remaining.filter((a) => a.status === "succeeded"),
-        noCard: remaining.filter((a) => a.status !== "succeeded"),
+        cardSaved: visible.filter((a) => a.status === "succeeded"),
+        noCard: visible.filter((a) => a.status !== "succeeded"),
+        filtered: all.filter((a) => a.filterReason !== "none"),
+        incomplete,
+        totals: {
+          rows: rows.length,
+          people: all.length + incomplete.length,
+          mergedAttempts,
+          alreadyApplied: all.filter((a) => a.filterReason === "already_applied").length,
+          alreadyMember: all.filter((a) => a.filterReason === "already_member").length,
+          testRows: all.filter((a) => a.filterReason === "test_email").length,
+        },
       };
     },
   });
 
   const cardSaved = grouped?.cardSaved ?? [];
   const noCard = grouped?.noCard ?? [];
+  const filtered = grouped?.filtered ?? [];
+  const incomplete = useMemo(() => grouped?.incomplete ?? [], [grouped]);
+  const totals = grouped?.totals;
 
   const sendReminderMutation = useMutation({
     mutationFn: async ({ id, email, name }: { id: string; email: string; name: string }) => {
@@ -222,7 +274,7 @@ export function AbandonedApplicationsTab() {
   };
 
   const handleBulkSend = async () => {
-    const toSend = [...cardSaved, ...noCard].filter((a) => selectedIds.has(a.id));
+    const toSend = [...cardSaved, ...noCard, ...filtered].filter((a) => selectedIds.has(a.id));
     if (toSend.length === 0) {
       toast.error("No applications selected");
       return;
@@ -262,6 +314,13 @@ export function AbandonedApplicationsTab() {
     setSelectedIds(newSet);
   };
 
+  const toggleAttempts = (id: string) => {
+    const next = new Set(expandedAttempts);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setExpandedAttempts(next);
+  };
+
   const handleReconcile = async () => {
     setIsReconciling(true);
     try {
@@ -271,7 +330,9 @@ export function AbandonedApplicationsTab() {
       );
       if (error) throw error;
       toast.success(
-        `Checked ${data?.scanned ?? 0} card setups with Stripe — ${data?.updated ?? 0} corrected`,
+        `Checked ${data?.scanned ?? 0} card setups with Stripe — ${data?.updated ?? 0} corrected, ${
+          data?.identitiesFilled ?? 0
+        } names recovered`,
       );
       queryClient.invalidateQueries({ queryKey: ["abandoned-applications"] });
     } catch (err: any) {
@@ -287,16 +348,39 @@ export function AbandonedApplicationsTab() {
       return;
     }
     downloadCsv(`${label}-${format(new Date(), "yyyy-MM-dd")}.csv`, [
-      ["Name", "Email", "Date started", "Card", "Status", "Reminders"],
+      [
+        "Name",
+        "Email",
+        "Date started",
+        "Card",
+        "Status",
+        "Attempts",
+        "Reminders",
+        "Filtered because",
+        "Stripe customer",
+      ],
       ...rows.map((a) => [
         a.metadata?.applicant_name || "",
         a.metadata?.applicant_email || "",
         format(new Date(a.created_at), "MMM d, yyyy"),
         a.card_brand ? `${a.card_brand} ****${a.card_last4}` : "",
         a.status,
+        String(a.attemptCount),
         String(a.reminder_count || 0),
+        REASON_LABEL[a.filterReason],
+        a.stripe_customer_id || "",
       ]),
     ]);
+  };
+
+  const exportEverythingShown = () => {
+    const rows = [
+      ...cardSaved,
+      ...noCard,
+      ...(showFiltered ? filtered : []),
+      ...(showIncomplete ? incomplete : []),
+    ];
+    exportGroup(rows, "abandoned-applications-visible");
   };
 
   const exportFailures = () => {
@@ -336,6 +420,7 @@ export function AbandonedApplicationsTab() {
           const name = attempt.metadata?.applicant_name || "Unknown";
           const email = attempt.metadata?.applicant_email || "Unknown";
           const reminderCount = attempt.reminder_count || 0;
+          const expanded = expandedAttempts.has(attempt.id);
 
           return (
             <TableRow key={attempt.id}>
@@ -347,10 +432,31 @@ export function AbandonedApplicationsTab() {
               </TableCell>
               <TableCell className="font-medium">
                 {name}
+                {attempt.filterReason !== "none" && (
+                  <Badge variant="secondary" className="ml-2 text-[10px]">
+                    {REASON_LABEL[attempt.filterReason]}
+                  </Badge>
+                )}
                 {attempt.possibleDuplicateOf && (
                   <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
                     Possible duplicate of {attempt.possibleDuplicateOf}
                   </Badge>
+                )}
+                {attempt.attemptCount > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleAttempts(attempt.id)}
+                    className="ml-2 text-[10px] underline text-muted-foreground"
+                  >
+                    {attempt.attemptCount} attempts
+                  </button>
+                )}
+                {expanded && (
+                  <div className="mt-1 text-[10px] text-muted-foreground space-y-0.5">
+                    {attempt.attemptDates.map((d) => (
+                      <div key={d}>{format(new Date(d), "MMM d, yyyy h:mm a")}</div>
+                    ))}
+                  </div>
                 )}
               </TableCell>
               <TableCell className="text-muted-foreground">{email}</TableCell>
@@ -415,16 +521,52 @@ export function AbandonedApplicationsTab() {
   }
 
   const nothing =
-    submitFailures.length === 0 && cardSaved.length === 0 && noCard.length === 0;
+    submitFailures.length === 0 &&
+    cardSaved.length === 0 &&
+    noCard.length === 0 &&
+    filtered.length === 0 &&
+    incomplete.length === 0;
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-muted-foreground">
-          {submitFailures.length} failed submit{submitFailures.length !== 1 ? "s" : ""} ·{" "}
-          {cardSaved.length} card saved · {noCard.length} never entered a card
-        </p>
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            {submitFailures.length} failed submit{submitFailures.length !== 1 ? "s" : ""} ·{" "}
+            {cardSaved.length} card saved · {noCard.length} never entered a card
+          </p>
+          {totals && (
+            <p className="text-xs text-muted-foreground">
+              {totals.rows} card-setup attempts total ·{" "}
+              {totals.mergedAttempts > 0
+                ? `${totals.mergedAttempts} merged as repeat attempts`
+                : "no repeat attempts"}{" "}
+              ·{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => setShowFiltered((v) => !v)}
+              >
+                {totals.alreadyApplied + totals.alreadyMember + totals.testRows} hidden (
+                {totals.alreadyApplied} already applied, {totals.alreadyMember} already members,{" "}
+                {totals.testRows} test)
+              </button>{" "}
+              ·{" "}
+              <button
+                type="button"
+                className="underline"
+                onClick={() => setShowIncomplete((v) => !v)}
+              >
+                {incomplete.length} with no email captured
+              </button>
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={exportEverythingShown}>
+            <Download className="h-4 w-4 mr-2" />
+            Export what's shown
+          </Button>
           <Button size="sm" variant="outline" onClick={handleReconcile} disabled={isReconciling}>
             {isReconciling ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -550,6 +692,82 @@ export function AbandonedApplicationsTab() {
             </Button>
           </div>
           {renderAttemptTable(noCard, false)}
+        </section>
+      )}
+
+      {/* 4. Hidden: already applied / already a member / test rows */}
+      {showFiltered && filtered.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">
+                Already on file ({filtered.length})
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                These attempts match an existing application or member record, so they are not
+                leads — shown here so nothing is invisible.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(filtered, "already-on-file")}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+          {renderAttemptTable(filtered, true)}
+        </section>
+      )}
+
+      {/* 5. Incomplete records — no email captured on the attempt */}
+      {showIncomplete && incomplete.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                Incomplete record ({incomplete.length})
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                No name or email was captured on these attempts. Use "Re-check with Stripe" to pull
+                the identity from the Stripe customer, or look the customer up directly.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(incomplete, "incomplete-records")}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Stripe customer</TableHead>
+                <TableHead>Card</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Source</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {incomplete.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="text-muted-foreground">
+                    {format(new Date(a.created_at), "MMM d, yyyy")}
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {a.stripe_customer_id || "—"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {a.card_brand ? `${a.card_brand} ****${a.card_last4}` : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">
+                      {a.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-xs">{a.source}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </section>
       )}
 
