@@ -148,7 +148,8 @@ export default function Dashboard() {
           id,
           member_id,
           amount,
-          error_message,
+          failure_message,
+          decline_reason,
           created_at,
           members!inner (
             first_name,
@@ -167,7 +168,7 @@ export default function Dashboard() {
         memberName: `${p.members?.first_name || ''} ${p.members?.last_name || ''}`.trim() || 'Unknown',
         email: p.members?.email,
         amount: p.amount,
-        error: p.error_message,
+        error: p.failure_message || p.decline_reason,
         date: p.created_at,
       }));
     },
