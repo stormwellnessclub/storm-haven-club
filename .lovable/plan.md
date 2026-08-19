@@ -18,16 +18,18 @@ Add an "Issue gift card" action on the Gift Cards hub that doesn't require a mem
 - Recipient name + email, personal message, expiry, send now or scheduled.
 - Payment method "already paid / external" with an optional reference — no card is charged.
 - Live preview panel, and an explicit **Preview → Send** step so nothing goes out until it's approved.
+- The dialog includes an **"Preview email"** view that renders the actual recipient email exactly as it will arrive (subject line, header, message block, card, redemption instructions), not just the card graphic.
 
 ## 3. This specific card
 
-Once the above is in place, I'll fill it in and show you the preview:
+Once the above is in place, I'll fill it in and show you the real email before anything sends — rendered as a file you can open and read end to end:
 - From: Barb Kovach (bjkd@sbcglobal.net)
 - To: Melody Nichols (melodynicholssong@icloud.com)
 - Gift: 3 Ozone Sauna Sessions
 - Message: "Happy Birthday, Dear Melody!!! This gift represents his multiplication of the double portion, including his healing. So happy you are here in the wellness storm. Love you high low always, Barb and Tim."
 - Payment: already collected — recorded as external, no charge
-- Send: immediately after you approve the preview
+- Send: only after you approve the email preview
+
 
 You mentioned you'll add the ozone credits to Melody's account yourself, so the card acts as the gift notification and redemption record rather than auto-granting sessions.
 
