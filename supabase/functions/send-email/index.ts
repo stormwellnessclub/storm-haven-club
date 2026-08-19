@@ -3325,7 +3325,10 @@ serve(async (req) => {
               month: 'long', day: 'numeric', year: 'numeric',
             })
           : null;
-        subject = `Your gift card purchase — $${amountFmt}`;
+        const hideAmountReceipt = data.hideAmount === true || data.hideAmount === 'true';
+        subject = hideAmountReceipt
+          ? `Your gift card purchase${data.serviceLabel ? ` — ${data.serviceLabel}` : ''}`
+          : `Your gift card purchase — $${amountFmt}`;
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
@@ -3336,7 +3339,8 @@ serve(async (req) => {
               </p>
               <div style="border: 1px solid #E6DED2; border-radius: 10px; padding: 20px; margin: 24px 0;">
                 <table style="width: 100%; font-size: 15px; color: #374151;">
-                  <tr><td style="padding: 6px 0; color: #88766B;">Amount</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">$${amountFmt}</td></tr>
+                  ${hideAmountReceipt ? '' : `<tr><td style="padding: 6px 0; color: #88766B;">Amount</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">$${amountFmt}</td></tr>`}
+
                   ${data.serviceLabel ? `<tr><td style="padding: 6px 0; color: #88766B;">Gift</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${data.serviceLabel}</td></tr>` : ''}
                   <tr><td style="padding: 6px 0; color: #88766B;">Recipient</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${data.recipientName || ''}${data.recipientEmail ? ` (${data.recipientEmail})` : ''}</td></tr>
                   <tr><td style="padding: 6px 0; color: #88766B;">Code</td><td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: 700;">${data.code || ''}</td></tr>
