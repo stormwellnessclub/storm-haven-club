@@ -2767,6 +2767,7 @@ export type Database = {
           email_sent_at: string | null
           expires_at: string | null
           first_redeemed_at: string | null
+          hide_amount: boolean
           id: string
           issued_by: string | null
           notes: string | null
@@ -2795,6 +2796,7 @@ export type Database = {
           email_sent_at?: string | null
           expires_at?: string | null
           first_redeemed_at?: string | null
+          hide_amount?: boolean
           id?: string
           issued_by?: string | null
           notes?: string | null
@@ -2823,6 +2825,7 @@ export type Database = {
           email_sent_at?: string | null
           expires_at?: string | null
           first_redeemed_at?: string | null
+          hide_amount?: boolean
           id?: string
           issued_by?: string | null
           notes?: string | null
