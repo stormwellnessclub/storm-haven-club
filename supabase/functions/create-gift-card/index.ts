@@ -59,6 +59,9 @@ serve(async (req) => {
       expiresAt,
       scheduledSendAt,
       notes,
+      serviceLabel,
+      hideAmount,
+      purchaseSource,
     } = body as {
       purchaserMemberId?: string;
       purchaserUserId?: string;
@@ -73,6 +76,9 @@ serve(async (req) => {
       paymentReference?: string;
       expiresAt?: string;
       notes?: string;
+      serviceLabel?: string;
+      hideAmount?: boolean;
+      purchaseSource?: string;
     };
 
     if (!recipientName?.trim()) throw new Error("Recipient name is required");
@@ -109,12 +115,15 @@ serve(async (req) => {
       issued_by: user.id,
       notes: notes?.trim() || null,
       expires_at: expiresAt || null,
+      service_label: serviceLabel?.trim() || null,
+      hide_amount: hideAmount === true,
+      purchase_source: purchaseSource || (purchaserMemberId ? "front_desk" : "admin"),
     };
 
     const { data: card, error: insertErr } = await supabase
       .from("gift_cards")
       .insert(insertPayload)
-      .select("id, code, amount_cents, expires_at, recipient_name, recipient_email, custom_message, purchaser_name, scheduled_send_at, status")
+      .select("id, code, amount_cents, expires_at, recipient_name, recipient_email, custom_message, purchaser_name, purchaser_email, scheduled_send_at, status, service_label, hide_amount")
       .single();
     if (insertErr) throw insertErr;
 
@@ -135,6 +144,8 @@ serve(async (req) => {
               customMessage: card.custom_message || "",
               code: card.code,
               amount: (Number(card.amount_cents) / 100).toFixed(2),
+              serviceLabel: card.service_label || "",
+              hideAmount: card.hide_amount === true,
               expiresAt: card.expires_at,
             },
           },
