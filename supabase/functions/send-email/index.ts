@@ -148,7 +148,7 @@ serve(async (req) => {
   const resend = new Resend(resendApiKey);
 
   try {
-    const { type, to, data }: EmailRequest = await req.json();
+    const { type, to, data, preview }: EmailRequest & { preview?: boolean } = await req.json();
 
     // Authorize: require service-role key or valid JWT, except for whitelisted public types
     const authz = await authorizeRequest(req, type);
