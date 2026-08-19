@@ -3250,7 +3250,11 @@ serve(async (req) => {
             })
           : null;
         const senderName = data.senderName || 'A Storm Wellness Club member';
-        subject = `You've received a $${amountFmt} Storm Wellness Club gift card`;
+        const hideAmount = data.hideAmount === true || data.hideAmount === 'true';
+        subject = hideAmount
+          ? `${data.serviceLabel ? `${data.serviceLabel} — a` : 'A'} Storm Wellness Club gift for you`
+          : `You've received a $${amountFmt} Storm Wellness Club gift card`;
+
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
