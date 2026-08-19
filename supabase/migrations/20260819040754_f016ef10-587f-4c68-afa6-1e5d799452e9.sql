@@ -1,0 +1,1 @@
+ALTER TABLE public.gift_cards ADD COLUMN IF NOT EXISTS hide_amount boolean NOT NULL DEFAULT false;
