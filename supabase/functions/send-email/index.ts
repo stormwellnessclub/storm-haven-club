@@ -3447,8 +3447,16 @@ serve(async (req) => {
     }
 
 
+    // Preview mode: render the email and return it WITHOUT sending anything.
+    if (preview === true) {
+      return new Response(
+        JSON.stringify({ preview: true, subject, html }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
 
     // Use named sender for application emails
+
     const senderAddress = type === 'application_submitted'
       ? 'Storm Wellness Club <membership@stormwellnessclub.com>'
       : 'Storm Wellness Club <admin@stormwellnessclub.com>';
