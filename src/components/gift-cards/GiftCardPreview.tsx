@@ -6,6 +6,8 @@ const TZ = "America/Detroit";
 
 interface Props {
   amountCents: number;
+  serviceLabel?: string | null;
+  hideAmount?: boolean;
   recipientName: string;
   senderName: string;
   customMessage?: string;
@@ -17,6 +19,8 @@ interface Props {
 
 export function GiftCardPreview({
   amountCents,
+  serviceLabel,
+  hideAmount,
   recipientName,
   senderName,
   customMessage,
@@ -49,7 +53,18 @@ export function GiftCardPreview({
             </div>
             <Gift className="h-7 w-7 opacity-90" />
           </div>
-          <div className="relative mt-6 text-4xl font-bold">${amount}</div>
+          {hideAmount ? (
+            <div className="relative mt-6 text-2xl font-semibold leading-snug">
+              {serviceLabel?.trim() || "A Storm Wellness Club Experience"}
+            </div>
+          ) : (
+            <>
+              <div className="relative mt-6 text-4xl font-bold">${amount}</div>
+              {serviceLabel?.trim() && (
+                <div className="relative mt-1 text-sm opacity-90">{serviceLabel.trim()}</div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Body */}
