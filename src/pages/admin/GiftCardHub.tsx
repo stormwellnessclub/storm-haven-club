@@ -28,6 +28,7 @@ type Row = {
   purchase_source: string | null;
   payment_method: string | null;
   service_label: string | null;
+  hide_amount?: boolean | null;
   purchaser_name: string | null;
   purchaser_email: string | null;
   recipient_name: string;
@@ -114,6 +115,7 @@ export default function GiftCardHub() {
             code: row.code,
             amount: (row.amount_cents / 100).toFixed(2),
             serviceLabel: row.service_label || "",
+            hideAmount: (row as any).hide_amount === true,
             expiresAt: row.expires_at,
           },
         },
