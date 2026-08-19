@@ -11588,6 +11588,7 @@ export type Database = {
           email_sent_at: string
           expires_at: string
           first_redeemed_at: string
+          hide_amount: boolean
           id: string
           notes: string
           payment_method: string
