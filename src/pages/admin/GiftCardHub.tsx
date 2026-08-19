@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { IssueGiftCardDialog } from "@/components/admin/IssueGiftCardDialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -59,6 +60,7 @@ export default function GiftCardHub() {
   const [status, setStatus] = useState("all");
   const [source, setSource] = useState("all");
   const [selected, setSelected] = useState<Row | null>(null);
+  const [issueOpen, setIssueOpen] = useState(false);
 
   const { data: rows = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ["admin-gift-cards", search, status, source],
@@ -138,9 +140,14 @@ export default function GiftCardHub() {
               Search, track redemptions, and manage outstanding gift card liability.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCw className={`mr-1 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} /> Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={`mr-1 h-4 w-4 ${isFetching ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            <Button size="sm" onClick={() => setIssueOpen(true)}>
+              <Gift className="mr-1 h-4 w-4" /> Issue Gift Card
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
