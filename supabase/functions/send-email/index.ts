@@ -3275,9 +3275,14 @@ serve(async (req) => {
               ` : ''}
 
               <div style="background: #1C170F; color: #FFF8E7; border-radius: 12px; padding: 28px 24px; margin: 28px 0; text-align: center; font-family: Georgia, serif;">
-                <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Gift Card Value</div>
-                <div style="font-size: 42px; font-weight: 700; margin-bottom: ${data.serviceLabel ? '6px' : '20px'};">$${amountFmt}</div>
-                ${data.serviceLabel ? `<div style="font-size: 15px; color: #C1B19C; margin-bottom: 20px;">${data.serviceLabel}</div>` : ''}
+                ${hideAmount ? `
+                  <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 10px;">Your Gift</div>
+                  <div style="font-size: 28px; font-weight: 700; line-height: 1.3; margin-bottom: 22px;">${data.serviceLabel || 'A Storm Wellness Club Experience'}</div>
+                ` : `
+                  <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Gift Card Value</div>
+                  <div style="font-size: 42px; font-weight: 700; margin-bottom: ${data.serviceLabel ? '6px' : '20px'};">$${amountFmt}</div>
+                  ${data.serviceLabel ? `<div style="font-size: 15px; color: #C1B19C; margin-bottom: 20px;">${data.serviceLabel}</div>` : ''}
+                `}
                 <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Redemption Code</div>
                 <div style="font-size: 22px; font-weight: 700; letter-spacing: 3px; background: #FFF8E7; color: #1C170F; padding: 12px 16px; border-radius: 6px; display: inline-block;">${data.code}</div>
                 ${expiresFmt ? `<div style="font-size: 13px; color: #C1B19C; margin-top: 18px;">Valid through ${expiresFmt}</div>` : ''}
@@ -3285,11 +3290,19 @@ serve(async (req) => {
 
 
               <h3 style="color: #1C170F; font-family: Georgia, serif; margin-top: 30px;">How to redeem</h3>
-              <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
-                <li>Visit us in person and give this code to the front desk at checkout.</li>
-                <li>Use it toward classes, the café, spa services, or shop items.</li>
-                <li>Balance will be applied to your purchase; any remaining balance stays on the card.</li>
-              </ul>
+              ${hideAmount ? `
+                <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
+                  <li>Give this code to the front desk when you come in and we'll take care of the rest.</li>
+                  <li>Call or email us any time to schedule — we'll help you find a time that works.</li>
+                </ul>
+              ` : `
+                <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
+                  <li>Visit us in person and give this code to the front desk at checkout.</li>
+                  <li>Use it toward classes, the café, spa services, or shop items.</li>
+                  <li>Balance will be applied to your purchase; any remaining balance stays on the card.</li>
+                </ul>
+              `}
+
 
               <div style="text-align: center; margin: 32px 0;">
                 <a href="${BASE_URL}" style="${emailStyles.button}">Visit Storm Wellness Club</a>
