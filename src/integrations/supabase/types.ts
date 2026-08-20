@@ -5140,7 +5140,7 @@ export type Database = {
           payment_link_sent_at: string | null
           phone: string
           previous_member: string | null
-          referred_by_member: string
+          referred_by_member: string | null
           services_interested: string[]
           skip_tour_activate_immediately: boolean | null
           state: string
@@ -5190,7 +5190,7 @@ export type Database = {
           payment_link_sent_at?: string | null
           phone: string
           previous_member?: string | null
-          referred_by_member: string
+          referred_by_member?: string | null
           services_interested?: string[]
           skip_tour_activate_immediately?: boolean | null
           state: string
@@ -5240,7 +5240,7 @@ export type Database = {
           payment_link_sent_at?: string | null
           phone?: string
           previous_member?: string | null
-          referred_by_member?: string
+          referred_by_member?: string | null
           services_interested?: string[]
           skip_tour_activate_immediately?: boolean | null
           state?: string
