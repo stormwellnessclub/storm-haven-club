@@ -613,7 +613,7 @@ export function SpaCompletionDialog({
                 <span className="text-muted-foreground">{appointment.service_name}</span>
                 <span>${servicePrice.toFixed(2)}</span>
               </div>
-              {selectedAddons.map((a) => (
+              {chargedAddons.map((a) => (
                 <div key={a.id} className="flex justify-between">
                   <span className="text-muted-foreground">{a.name}</span>
                   <span>${a.price.toFixed(2)}</span>
