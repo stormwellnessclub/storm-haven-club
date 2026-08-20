@@ -27,7 +27,14 @@ interface SelectedAddon {
   id: string;
   name: string;
   price: number;
+  minutes?: number;
+  rate?: number;
 }
+
+/** Synthetic add-on id used for the per-minute extended time upgrade */
+const EXTENDED_TIME_ID = "extended-time";
+const DEFAULT_EXTENDED_RATE = 2;
+
 
 interface SpaCompletionDialogProps {
   open: boolean;
@@ -57,9 +64,14 @@ export function SpaCompletionDialog({
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
+  const [extraMinutes, setExtraMinutes] = useState<string>("");
+  const [extraRate, setExtraRate] = useState<string>(String(DEFAULT_EXTENDED_RATE));
+  /** Extra minutes already saved on this appointment (so duration isn't double-added) */
+  const [savedExtraMinutes, setSavedExtraMinutes] = useState(0);
   const [sendReceipt, setSendReceipt] = useState(true);
   const [priceOverride, setPriceOverride] = useState<string>("");
   const [editingPrice, setEditingPrice] = useState(false);
+
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
   const { data: allAddons = [] } = useSpaAddons();
@@ -79,15 +91,32 @@ export function SpaCompletionDialog({
     setEditingPrice(false);
 
     const existingAddons = (appointment as any).addons;
-    setSelectedAddons(
-      Array.isArray(existingAddons)
-        ? existingAddons.map((a: any) => ({
-            id: String(a.id),
-            name: String(a.name),
-            price: Number(a.price) || 0,
-          }))
-        : []
+    const existingList: any[] = Array.isArray(existingAddons) ? existingAddons : [];
+    const existingExtension = existingList.find(
+      (a: any) => String(a?.id) === EXTENDED_TIME_ID
     );
+    setSelectedAddons(
+      existingList
+        .filter((a: any) => String(a?.id) !== EXTENDED_TIME_ID)
+        .map((a: any) => ({
+          id: String(a.id),
+          name: String(a.name),
+          price: Number(a.price) || 0,
+        }))
+    );
+    if (existingExtension) {
+      const mins = Number(existingExtension.minutes) || 0;
+      setExtraMinutes(mins ? String(mins) : "");
+      setSavedExtraMinutes(mins);
+      setExtraRate(
+        String(Number(existingExtension.rate) || DEFAULT_EXTENDED_RATE)
+      );
+    } else {
+      setExtraMinutes("");
+      setSavedExtraMinutes(0);
+      setExtraRate(String(DEFAULT_EXTENDED_RATE));
+    }
+
 
     const existingTip = (appointment as any).tip_amount;
     if (existingTip && existingTip > 0) {
@@ -120,9 +149,39 @@ export function SpaCompletionDialog({
       ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
       : null;
   const servicePrice = overrideValue ?? bookedPrice;
+
+  // Extended time upgrade (per-minute)
+  const extraMinutesNum = Math.max(0, Math.round(parseFloat(extraMinutes) || 0));
+  const extraRateNum =
+    extraRate.trim() !== "" && !isNaN(parseFloat(extraRate))
+      ? Math.max(0, parseFloat(extraRate))
+      : DEFAULT_EXTENDED_RATE;
+  const extendedCharge =
+    Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+  const extendedEntry: SelectedAddon | null =
+    extraMinutesNum > 0
+      ? {
+          id: EXTENDED_TIME_ID,
+          name: `Extended time (${extraMinutesNum} min)`,
+          price: extendedCharge,
+          minutes: extraMinutesNum,
+          rate: extraRateNum,
+        }
+      : null;
+  const chargedAddons: SelectedAddon[] = extendedEntry
+    ? [...selectedAddons, extendedEntry]
+    : selectedAddons;
+
+  const baseDuration = Math.max(
+    0,
+    (appointment.duration_minutes || 0) - savedExtraMinutes
+  );
+  const totalDuration = baseDuration + extraMinutesNum;
+
   const addonsTotal =
-    Math.round(selectedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
+    Math.round(chargedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
   const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
+
   const tipAmount =
     tipPreset !== null
       ? Math.round(subtotal * tipPreset * 100) / 100
@@ -191,9 +250,10 @@ export function SpaCompletionDialog({
           return;
         }
 
-        const addonDesc = selectedAddons.length
-          ? ` + ${selectedAddons.map((a) => a.name).join(", ")}`
+        const addonDesc = chargedAddons.length
+          ? ` + ${chargedAddons.map((a) => a.name).join(", ")}`
           : "";
+
         const chargeBody: Record<string, any> = {
           action: "charge_saved_card",
           amount: amountCents,
@@ -226,10 +286,16 @@ export function SpaCompletionDialog({
         payment_method: paymentMethod,
         tip_amount: tipAmount,
         tip_payment_method: tipAmount > 0 ? tipMethod : null,
-        addons: selectedAddons,
+        addons: chargedAddons,
         addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
       };
+
+      // Keep the session length in sync with any extended-time upgrade
+      if (totalDuration !== appointment.duration_minutes) {
+        updateData.duration_minutes = totalDuration;
+      }
+
 
       // Persist an adjusted service price so records/reports match what was charged
       if (overrideValue !== null && overrideValue !== bookedPrice) {
@@ -272,12 +338,13 @@ export function SpaCompletionDialog({
               data: {
                 name: memberName,
                 serviceName: appointment.service_name,
-                durationMinutes: appointment.duration_minutes,
+                durationMinutes: totalDuration,
                 servicePrice: servicePrice.toFixed(2),
-                addons: selectedAddons.map((a) => ({
+                addons: chargedAddons.map((a) => ({
                   name: a.name,
                   price: a.price.toFixed(2),
                 })),
+
                 subtotal: subtotal.toFixed(2),
                 tip: tipAmount.toFixed(2),
                 amount: totalAmount.toFixed(2),
@@ -440,6 +507,60 @@ export function SpaCompletionDialog({
             </div>
           )}
 
+          {/* Extended time (per-minute upgrade) */}
+          <div className="space-y-2">
+            <Label className="font-medium">Extended Time</Label>
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Extra minutes</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="5"
+                    className="w-28"
+                    placeholder="0"
+                    value={extraMinutes}
+                    onChange={(e) => setExtraMinutes(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Rate ($/min)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.25"
+                    className="w-24"
+                    value={extraRate}
+                    onChange={(e) => setExtraRate(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-1">
+                  {[15, 30, 45].map((m) => (
+                    <Button
+                      key={m}
+                      type="button"
+                      size="sm"
+                      variant={extraMinutesNum === m ? "default" : "outline"}
+                      onClick={() =>
+                        setExtraMinutes(extraMinutesNum === m ? "" : String(m))
+                      }
+                    >
+                      +{m}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {extraMinutesNum > 0
+                  ? `Extended time — ${extraMinutesNum} min × $${extraRateNum.toFixed(2)} = $${extendedCharge.toFixed(2)} · session ${baseDuration} → ${totalDuration} min`
+                  : `Booked at ${baseDuration} min. Add minutes to upgrade (e.g. 90 → 120 min).`}
+              </p>
+            </div>
+          </div>
+
+
+
           {/* Intake form summary */}
           <div className="p-3 rounded-lg border bg-muted/20">
             <IntakeFormSummary intake={intake} />
@@ -546,7 +667,7 @@ export function SpaCompletionDialog({
                 <span className="text-muted-foreground">{appointment.service_name}</span>
                 <span>${servicePrice.toFixed(2)}</span>
               </div>
-              {selectedAddons.map((a) => (
+              {chargedAddons.map((a) => (
                 <div key={a.id} className="flex justify-between">
                   <span className="text-muted-foreground">{a.name}</span>
                   <span>${a.price.toFixed(2)}</span>
