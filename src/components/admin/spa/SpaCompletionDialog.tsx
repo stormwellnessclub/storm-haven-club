@@ -149,9 +149,39 @@ export function SpaCompletionDialog({
       ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
       : null;
   const servicePrice = overrideValue ?? bookedPrice;
+
+  // Extended time upgrade (per-minute)
+  const extraMinutesNum = Math.max(0, Math.round(parseFloat(extraMinutes) || 0));
+  const extraRateNum =
+    extraRate.trim() !== "" && !isNaN(parseFloat(extraRate))
+      ? Math.max(0, parseFloat(extraRate))
+      : DEFAULT_EXTENDED_RATE;
+  const extendedCharge =
+    Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+  const extendedEntry: SelectedAddon | null =
+    extraMinutesNum > 0
+      ? {
+          id: EXTENDED_TIME_ID,
+          name: `Extended time (${extraMinutesNum} min)`,
+          price: extendedCharge,
+          minutes: extraMinutesNum,
+          rate: extraRateNum,
+        }
+      : null;
+  const chargedAddons: SelectedAddon[] = extendedEntry
+    ? [...selectedAddons, extendedEntry]
+    : selectedAddons;
+
+  const baseDuration = Math.max(
+    0,
+    (appointment.duration_minutes || 0) - savedExtraMinutes
+  );
+  const totalDuration = baseDuration + extraMinutesNum;
+
   const addonsTotal =
-    Math.round(selectedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
+    Math.round(chargedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
   const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
+
   const tipAmount =
     tipPreset !== null
       ? Math.round(subtotal * tipPreset * 100) / 100
