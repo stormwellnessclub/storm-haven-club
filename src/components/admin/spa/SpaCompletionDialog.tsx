@@ -338,12 +338,13 @@ export function SpaCompletionDialog({
               data: {
                 name: memberName,
                 serviceName: appointment.service_name,
-                durationMinutes: appointment.duration_minutes,
+                durationMinutes: totalDuration,
                 servicePrice: servicePrice.toFixed(2),
-                addons: selectedAddons.map((a) => ({
+                addons: chargedAddons.map((a) => ({
                   name: a.name,
                   price: a.price.toFixed(2),
                 })),
+
                 subtotal: subtotal.toFixed(2),
                 tip: tipAmount.toFixed(2),
                 amount: totalAmount.toFixed(2),
