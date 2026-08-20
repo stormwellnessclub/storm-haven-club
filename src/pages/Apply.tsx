@@ -834,11 +834,12 @@ export default function Apply() {
         payload: applicationPayload,
       });
 
-      const { data: inserted, error } = await supabase
+      // NOTE: do NOT add .select() here. Applicants submit while signed out and
+      // cannot read the row back under RLS, which surfaces as
+      // "new row violates row-level security policy" and blocks the submit.
+      const { error } = await supabase
         .from("membership_applications")
-        .insert(applicationPayload)
-        .select("id")
-        .maybeSingle();
+        .insert(applicationPayload);
 
       if (error) {
         console.error("Error submitting application:", error);
@@ -855,8 +856,8 @@ export default function Apply() {
       logSubmitResult({
         clientKey: submitKey,
         status: "succeeded",
-        applicationId: inserted?.id ?? undefined,
       });
+
 
 
       // Log SMS consent + send opt-in confirmation SMS (best-effort, non-blocking)
