@@ -64,9 +64,14 @@ export function SpaCompletionDialog({
   const [staffNotes, setStaffNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
+  const [extraMinutes, setExtraMinutes] = useState<string>("");
+  const [extraRate, setExtraRate] = useState<string>(String(DEFAULT_EXTENDED_RATE));
+  /** Extra minutes already saved on this appointment (so duration isn't double-added) */
+  const [savedExtraMinutes, setSavedExtraMinutes] = useState(0);
   const [sendReceipt, setSendReceipt] = useState(true);
   const [priceOverride, setPriceOverride] = useState<string>("");
   const [editingPrice, setEditingPrice] = useState(false);
+
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
   const { data: allAddons = [] } = useSpaAddons();
