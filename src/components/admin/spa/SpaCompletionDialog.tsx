@@ -27,7 +27,14 @@ interface SelectedAddon {
   id: string;
   name: string;
   price: number;
+  minutes?: number;
+  rate?: number;
 }
+
+/** Synthetic add-on id used for the per-minute extended time upgrade */
+const EXTENDED_TIME_ID = "extended-time";
+const DEFAULT_EXTENDED_RATE = 2;
+
 
 interface SpaCompletionDialogProps {
   open: boolean;
