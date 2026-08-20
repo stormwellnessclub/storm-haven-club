@@ -91,15 +91,32 @@ export function SpaCompletionDialog({
     setEditingPrice(false);
 
     const existingAddons = (appointment as any).addons;
-    setSelectedAddons(
-      Array.isArray(existingAddons)
-        ? existingAddons.map((a: any) => ({
-            id: String(a.id),
-            name: String(a.name),
-            price: Number(a.price) || 0,
-          }))
-        : []
+    const existingList: any[] = Array.isArray(existingAddons) ? existingAddons : [];
+    const existingExtension = existingList.find(
+      (a: any) => String(a?.id) === EXTENDED_TIME_ID
     );
+    setSelectedAddons(
+      existingList
+        .filter((a: any) => String(a?.id) !== EXTENDED_TIME_ID)
+        .map((a: any) => ({
+          id: String(a.id),
+          name: String(a.name),
+          price: Number(a.price) || 0,
+        }))
+    );
+    if (existingExtension) {
+      const mins = Number(existingExtension.minutes) || 0;
+      setExtraMinutes(mins ? String(mins) : "");
+      setSavedExtraMinutes(mins);
+      setExtraRate(
+        String(Number(existingExtension.rate) || DEFAULT_EXTENDED_RATE)
+      );
+    } else {
+      setExtraMinutes("");
+      setSavedExtraMinutes(0);
+      setExtraRate(String(DEFAULT_EXTENDED_RATE));
+    }
+
 
     const existingTip = (appointment as any).tip_amount;
     if (existingTip && existingTip > 0) {
