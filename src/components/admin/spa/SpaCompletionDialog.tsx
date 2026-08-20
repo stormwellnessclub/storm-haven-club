@@ -250,9 +250,10 @@ export function SpaCompletionDialog({
           return;
         }
 
-        const addonDesc = selectedAddons.length
-          ? ` + ${selectedAddons.map((a) => a.name).join(", ")}`
+        const addonDesc = chargedAddons.length
+          ? ` + ${chargedAddons.map((a) => a.name).join(", ")}`
           : "";
+
         const chargeBody: Record<string, any> = {
           action: "charge_saved_card",
           amount: amountCents,
