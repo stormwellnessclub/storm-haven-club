@@ -1,0 +1,1 @@
+ALTER TABLE public.membership_applications ALTER COLUMN referred_by_member DROP NOT NULL;
