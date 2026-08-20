@@ -507,6 +507,60 @@ export function SpaCompletionDialog({
             </div>
           )}
 
+          {/* Extended time (per-minute upgrade) */}
+          <div className="space-y-2">
+            <Label className="font-medium">Extended Time</Label>
+            <div className="rounded-lg border p-3 space-y-2">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Extra minutes</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="5"
+                    className="w-28"
+                    placeholder="0"
+                    value={extraMinutes}
+                    onChange={(e) => setExtraMinutes(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Rate ($/min)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.25"
+                    className="w-24"
+                    value={extraRate}
+                    onChange={(e) => setExtraRate(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-1">
+                  {[15, 30, 45].map((m) => (
+                    <Button
+                      key={m}
+                      type="button"
+                      size="sm"
+                      variant={extraMinutesNum === m ? "default" : "outline"}
+                      onClick={() =>
+                        setExtraMinutes(extraMinutesNum === m ? "" : String(m))
+                      }
+                    >
+                      +{m}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {extraMinutesNum > 0
+                  ? `Extended time — ${extraMinutesNum} min × $${extraRateNum.toFixed(2)} = $${extendedCharge.toFixed(2)} · session ${baseDuration} → ${totalDuration} min`
+                  : `Booked at ${baseDuration} min. Add minutes to upgrade (e.g. 90 → 120 min).`}
+              </p>
+            </div>
+          </div>
+
+
+
           {/* Intake form summary */}
           <div className="p-3 rounded-lg border bg-muted/20">
             <IntakeFormSummary intake={intake} />
