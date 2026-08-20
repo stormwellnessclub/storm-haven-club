@@ -286,10 +286,16 @@ export function SpaCompletionDialog({
         payment_method: paymentMethod,
         tip_amount: tipAmount,
         tip_payment_method: tipAmount > 0 ? tipMethod : null,
-        addons: selectedAddons,
+        addons: chargedAddons,
         addons_total: addonsTotal,
         updated_at: new Date().toISOString(),
       };
+
+      // Keep the session length in sync with any extended-time upgrade
+      if (totalDuration !== appointment.duration_minutes) {
+        updateData.duration_minutes = totalDuration;
+      }
+
 
       // Persist an adjusted service price so records/reports match what was charged
       if (overrideValue !== null && overrideValue !== bookedPrice) {
