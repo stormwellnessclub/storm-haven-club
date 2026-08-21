@@ -86,8 +86,14 @@ export default function CafePOS() {
       const remainingDue = Math.max(0, preCashTotal - cashApplied);
 
       const isCardCharge = remainingDue > 0 && paymentMethod === "card" && selectedCustomer?.stripeCustomerId && selectedCustomer.cardOnFile;
+      if (remainingDue > 0 && paymentMethod === "card" && !isCardCharge) {
+        toast.error("No card on file for this customer — take cash or add a card first. Nothing was charged.");
+        setIsCharging(false);
+        return;
+      }
       const processingFee = isCardCharge ? calculateProcessingFeeFromDollars(remainingDue) : 0;
       const total = remainingDue + processingFee;
+
       const itemNames = cart.map((i) => i.name).join(", ");
 
       // Build order items

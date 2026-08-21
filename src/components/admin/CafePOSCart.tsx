@@ -58,11 +58,14 @@ export function CafePOSCart({
   const [useCredit, setUseCredit] = useState(true);
   const [cashApplyInput, setCashApplyInput] = useState<string>("");
 
-  // Reset when customer changes
+  // Reset when customer changes — and default to charging the card when one is on file
   useEffect(() => {
     setUseCredit(true);
     setCashApplyInput("");
-  }, [memberId]);
+    setCashReceived("");
+    setPaymentMethod(canChargeCard ? "card" : "cash");
+  }, [selectedCustomer?.stripeCustomerId, selectedCustomer?.email, canChargeCard]);
+
 
   // Compute prepaid usage per cart line (use as many as available)
   const prepaidUsage = useMemo(() => {
