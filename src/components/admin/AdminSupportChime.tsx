@@ -3,56 +3,92 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { useReliableRealtime, type RealtimeStatus } from "@/hooks/useReliableRealtime";
 
-// ── Chime player (HTML Audio + embedded WAV) ────────────────────────
-const CHIME_DATA_URI = "data:audio/wav;base64," + "UklGRuqnAQBXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YcanAQAA";
+// ── Chime library ───────────────────────────────────────────────────
+export type ChimeSound =
+  | "bell"
+  | "marimba"
+  | "softChime"
+  | "doorbell"
+  | "waterDrop"
+  | "harp";
 
-// We'll generate the real data URI at module load from a tiny inline WAV
-let chimeDataUri: string | null = null;
+export const CHIME_SOUNDS: Array<{ value: ChimeSound; label: string; hint: string }> = [
+  { value: "softChime", label: "Soft Chime", hint: "Warm two-note, easy on the ears" },
+  { value: "marimba", label: "Marimba", hint: "Wooden, rounded taps" },
+  { value: "harp", label: "Harp Sweep", hint: "Gentle rising arpeggio" },
+  { value: "doorbell", label: "Doorbell", hint: "Classic ding-dong" },
+  { value: "waterDrop", label: "Water Drop", hint: "Very subtle blip" },
+  { value: "bell", label: "Alert Bell", hint: "Bright and cutting (original)" },
+];
 
-function generateChimeWav(): string {
+type Tone = {
+  freq: number;
+  duration: number;
+  volume: number;
+  start: number; // seconds offset
+  decay: number; // exponential decay factor
+  harmonic?: number; // octave mix amount
+  attack?: number;
+};
+
+const SOUND_RECIPES: Record<ChimeSound, Tone[]> = {
+  bell: [
+    { freq: 784, duration: 0.32, volume: 0.9, start: 0, decay: 3.6, harmonic: 0.18 },
+    { freq: 1047, duration: 0.32, volume: 0.9, start: 0.35, decay: 3.6, harmonic: 0.18 },
+    { freq: 1319, duration: 0.95, volume: 0.95, start: 0.7, decay: 2.6, harmonic: 0.18 },
+  ],
+  softChime: [
+    { freq: 660, duration: 1.1, volume: 0.75, start: 0, decay: 3.2, harmonic: 0.05, attack: 0.02 },
+    { freq: 880, duration: 1.4, volume: 0.7, start: 0.22, decay: 2.8, harmonic: 0.05, attack: 0.02 },
+  ],
+  marimba: [
+    { freq: 523, duration: 0.5, volume: 0.85, start: 0, decay: 7, harmonic: 0.3, attack: 0.002 },
+    { freq: 659, duration: 0.5, volume: 0.8, start: 0.14, decay: 7, harmonic: 0.3, attack: 0.002 },
+    { freq: 784, duration: 0.7, volume: 0.8, start: 0.28, decay: 6, harmonic: 0.3, attack: 0.002 },
+  ],
+  harp: [
+    { freq: 523, duration: 0.9, volume: 0.55, start: 0, decay: 4, harmonic: 0.12, attack: 0.006 },
+    { freq: 659, duration: 0.9, volume: 0.55, start: 0.08, decay: 4, harmonic: 0.12, attack: 0.006 },
+    { freq: 784, duration: 0.9, volume: 0.55, start: 0.16, decay: 4, harmonic: 0.12, attack: 0.006 },
+    { freq: 1047, duration: 1.2, volume: 0.6, start: 0.24, decay: 3.2, harmonic: 0.12, attack: 0.006 },
+  ],
+  doorbell: [
+    { freq: 659, duration: 0.6, volume: 0.85, start: 0, decay: 4.5, harmonic: 0.2, attack: 0.005 },
+    { freq: 523, duration: 1.1, volume: 0.85, start: 0.45, decay: 3.2, harmonic: 0.2, attack: 0.005 },
+  ],
+  waterDrop: [
+    { freq: 1200, duration: 0.18, volume: 0.6, start: 0, decay: 9, harmonic: 0, attack: 0.002 },
+    { freq: 900, duration: 0.35, volume: 0.5, start: 0.1, decay: 7, harmonic: 0, attack: 0.002 },
+  ],
+};
+
+function renderWav(tones: Tone[]): string {
   const sampleRate = 44100;
-  // Three-note ascending bell: firm attack, long tail, near full amplitude so
-  // it carries across a busy reception area.
-  const tones: Array<{ freq: number; duration: number; volume: number }> = [
-    { freq: 784, duration: 0.32, volume: 0.9 },
-    { freq: 1047, duration: 0.32, volume: 0.9 },
-    { freq: 1319, duration: 0.95, volume: 0.95 },
-  ];
+  const totalSeconds = Math.max(...tones.map((t) => t.start + t.duration)) + 0.05;
+  const numSamples = Math.floor(sampleRate * totalSeconds);
+  const mix = new Float32Array(numSamples);
 
-  const gapSamples = Math.floor(sampleRate * 0.03);
-  const segments: number[][] = [];
-
-  tones.forEach((tone, i) => {
-    const n = Math.floor(sampleRate * tone.duration);
-    const attack = Math.floor(sampleRate * 0.004);
-    const isLast = i === tones.length - 1;
-    const samples: number[] = [];
+  for (const tone of tones) {
+    const offset = Math.floor(tone.start * sampleRate);
+    const n = Math.floor(tone.duration * sampleRate);
+    const attack = Math.max(1, Math.floor((tone.attack ?? 0.006) * sampleRate));
+    const harmonic = tone.harmonic ?? 0;
     for (let j = 0; j < n; j++) {
+      const idx = offset + j;
+      if (idx >= numSamples) break;
       const t = j / sampleRate;
       const ramp = j < attack ? j / attack : 1;
-      // exponential decay — longer tail on the final note
-      const decay = Math.exp((isLast ? -2.6 : -3.6) * (j / n));
-      const env = tone.volume * ramp * decay;
-      // fundamental + a touch of the octave so it cuts through room noise
+      const env = tone.volume * ramp * Math.exp(-tone.decay * (j / n));
       const wave =
-        0.82 * Math.sin(2 * Math.PI * tone.freq * t) +
-        0.18 * Math.sin(4 * Math.PI * tone.freq * t);
-      samples.push(env * wave);
+        (1 - harmonic) * Math.sin(2 * Math.PI * tone.freq * t) +
+        harmonic * Math.sin(4 * Math.PI * tone.freq * t);
+      mix[idx] += env * wave;
     }
+  }
 
-    segments.push(samples);
-    if (!isLast) segments.push(new Array(gapSamples).fill(0));
-  });
-
-
-
-  const allSamples = segments.flat();
-  const numSamples = allSamples.length;
   const dataSize = numSamples * 2;
   const buffer = new ArrayBuffer(44 + dataSize);
   const view = new DataView(buffer);
-
-  // WAV header
   const writeString = (offset: number, str: string) => {
     for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
   };
@@ -71,29 +107,62 @@ function generateChimeWav(): string {
   view.setUint32(40, dataSize, true);
 
   for (let i = 0; i < numSamples; i++) {
-    const val = Math.max(-1, Math.min(1, allSamples[i]));
+    const val = Math.max(-1, Math.min(1, mix[i]));
     view.setInt16(44 + i * 2, val * 32767, true);
   }
 
-  // Convert to base64 data URI
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as any);
   }
   return "data:audio/wav;base64," + btoa(binary);
 }
 
-// Generate once at module load
-try {
-  chimeDataUri = generateChimeWav();
-} catch (e) {
-  console.warn("Failed to generate chime WAV:", e);
+const uriCache = new Map<ChimeSound, string>();
+
+function getChimeUri(sound: ChimeSound): string | null {
+  try {
+    if (!uriCache.has(sound)) uriCache.set(sound, renderWav(SOUND_RECIPES[sound]));
+    return uriCache.get(sound) ?? null;
+  } catch (e) {
+    console.warn("Failed to generate chime WAV:", e);
+    return null;
+  }
+}
+
+// ── Sound preference (per device) ───────────────────────────────────
+const SOUND_KEY = "admin-chime-sound";
+let inMemorySound: ChimeSound | null = null;
+
+export function getChimeSound(): ChimeSound {
+  if (inMemorySound) return inMemorySound;
+  if (typeof window === "undefined") return "softChime";
+  try {
+    const stored = window.localStorage.getItem(SOUND_KEY) as ChimeSound | null;
+    if (stored && stored in SOUND_RECIPES) return stored;
+  } catch {
+    /* ignore */
+  }
+  return "softChime";
+}
+
+export function setChimeSound(s: ChimeSound) {
+  inMemorySound = s;
+  decodedCache.delete(s);
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SOUND_KEY, s);
+  } catch (error) {
+    console.warn("Failed to persist chime sound:", error);
+  }
 }
 
 // Shared WebAudio context so we can amplify beyond the 1.0 ceiling of <audio>
 let sharedCtx: AudioContext | null = null;
-let decodedChime: AudioBuffer | null = null;
+const decodedCache = new Map<ChimeSound, AudioBuffer>();
+
 
 // ── Volume preference (per device) ──────────────────────────────────
 export type ChimeVolume = "quiet" | "normal" | "loud";
@@ -161,23 +230,26 @@ export function isAudioBlocked(): boolean {
   return !sharedCtx || sharedCtx.state !== "running";
 }
 
-async function playViaWebAudio(): Promise<boolean> {
+async function playViaWebAudio(sound: ChimeSound): Promise<boolean> {
   try {
     const ctx = getCtx();
-    if (!ctx || !chimeDataUri) return false;
+    const uri = getChimeUri(sound);
+    if (!ctx || !uri) return false;
     if (ctx.state === "suspended") await ctx.resume();
     // A suspended context accepts start() silently — treat it as a failure so
     // the caller falls back to the HTMLAudio path instead of playing nothing.
     if (ctx.state !== "running") return false;
 
-    if (!decodedChime) {
-      const res = await fetch(chimeDataUri);
+    let decoded = decodedCache.get(sound);
+    if (!decoded) {
+      const res = await fetch(uri);
       const arr = await res.arrayBuffer();
-      decodedChime = await ctx.decodeAudioData(arr);
+      decoded = await ctx.decodeAudioData(arr);
+      decodedCache.set(sound, decoded);
     }
 
     const src = ctx.createBufferSource();
-    src.buffer = decodedChime;
+    src.buffer = decoded;
 
     const gain = ctx.createGain();
     gain.gain.value = VOLUME_GAIN[getChimeVolume()];
@@ -203,14 +275,16 @@ async function playViaWebAudio(): Promise<boolean> {
 
 export type ChimePlayResult = "played" | "blocked" | "failed";
 
-export async function playNotificationChime(): Promise<ChimePlayResult> {
-  if (!chimeDataUri) {
+export async function playNotificationChime(soundOverride?: ChimeSound): Promise<ChimePlayResult> {
+  const sound = soundOverride ?? getChimeSound();
+  const uri = getChimeUri(sound);
+  if (!uri) {
     console.warn("Chime data URI not available");
     return "failed";
   }
-  if (await playViaWebAudio()) return "played";
+  if (await playViaWebAudio(sound)) return "played";
   try {
-    const audio = new Audio(chimeDataUri);
+    const audio = new Audio(uri);
     audio.volume = 1;
     await audio.play();
     // WebAudio was blocked/suspended; the element played, but the browser may
@@ -228,6 +302,7 @@ export async function playChimeTwice(): Promise<ChimePlayResult> {
   setTimeout(() => { void playNotificationChime(); }, 1800);
   return first;
 }
+
 
 
 
