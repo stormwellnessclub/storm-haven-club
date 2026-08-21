@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Volume2, VolumeX, Play, BellRing } from "lucide-react";
+import { Volume2, VolumeX, Play, BellRing, Music } from "lucide-react";
 import { toast } from "sonner";
 import {
   getIsMuted,
   setIsMuted,
   getChimeVolume,
   setChimeVolume,
+  getChimeSound,
+  setChimeSound,
+  CHIME_SOUNDS,
   playNotificationChime,
   unlockChimeAudio,
   isAudioBlocked,
   type ChimeVolume,
+  type ChimeSound,
 } from "./AdminSupportChime";
 
 const LEVELS: Array<{ value: ChimeVolume; label: string; hint: string }> = [
@@ -19,6 +23,7 @@ const LEVELS: Array<{ value: ChimeVolume; label: string; hint: string }> = [
   { value: "normal", label: "Normal", hint: "Standard notification level" },
   { value: "loud", label: "Loud", hint: "Carries across reception" },
 ];
+
 
 /**
  * Shared notification-sound controls: unlock prompt, test, mute, volume.
