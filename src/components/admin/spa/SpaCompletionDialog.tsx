@@ -325,14 +325,17 @@ export function SpaCompletionDialog({
       }
 
 
-      // Persist an adjusted service price so records/reports match what was charged
-      if (overrideValue !== null && overrideValue !== bookedPrice) {
+      // Persist an adjusted BASE service price (extended time stays itemized
+      // separately) so records/reports match what was charged and reopening the
+      // appointment doesn't add the extension twice.
+      if (overrideValue !== null && servicePrice !== bookedPrice) {
         if (appointment.member_price != null) {
-          updateData.member_price = overrideValue;
+          updateData.member_price = servicePrice;
         } else {
-          updateData.service_price = overrideValue;
+          updateData.service_price = servicePrice;
         }
       }
+
 
       if (paymentIntentId) {
         updateData.payment_intent_id = paymentIntentId;
