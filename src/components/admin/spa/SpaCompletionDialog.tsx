@@ -92,6 +92,8 @@ export function SpaCompletionDialog({
     setSendReceipt(true);
     setPriceOverride("");
     setEditingPrice(false);
+    setPriceManuallyEdited(false);
+
 
     const existingAddons = (appointment as any).addons;
     const existingList: any[] = Array.isArray(existingAddons) ? existingAddons : [];
