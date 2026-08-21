@@ -92,9 +92,11 @@ export function KioskShell({ label, mode, children }: KioskShellProps) {
             </nav>
 
             <div className="ml-auto flex items-center gap-2">
+              <ChimeSoundControls compact />
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 {format(now, "EEE, MMM d • h:mm a")}
               </span>
+
               <Link to="/admin" className="hidden md:inline">
                 <Button type="button" size="sm" variant="ghost" className="gap-1.5 h-8 px-2.5">
                   <Home className="h-3.5 w-3.5" />
