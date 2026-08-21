@@ -22,6 +22,8 @@ import stormLogo from "@/assets/storm-logo-gold.png";
 import { Textarea } from "@/components/ui/textarea";
 import { KioskClassRoster } from "@/components/kiosk/KioskClassRoster";
 import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
+import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
+
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import { formatTime12h } from "@/lib/timeFormat";
