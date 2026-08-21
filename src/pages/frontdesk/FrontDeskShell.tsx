@@ -128,7 +128,9 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
+              <ChimeSoundControls compact />
               <Badge variant="secondary" className="gap-1.5">
+
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                 <span className="font-medium">{shift.staffName}</span>
                 <span className="text-muted-foreground">· {shiftDuration}</span>
