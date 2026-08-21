@@ -71,6 +71,9 @@ export function SpaCompletionDialog({
   const [sendReceipt, setSendReceipt] = useState(true);
   const [priceOverride, setPriceOverride] = useState<string>("");
   const [editingPrice, setEditingPrice] = useState(false);
+  /** True once staff type their own number, so auto-recalc stops overwriting it */
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
+
 
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
@@ -89,6 +92,8 @@ export function SpaCompletionDialog({
     setSendReceipt(true);
     setPriceOverride("");
     setEditingPrice(false);
+    setPriceManuallyEdited(false);
+
 
     const existingAddons = (appointment as any).addons;
     const existingList: any[] = Array.isArray(existingAddons) ? existingAddons : [];
@@ -141,14 +146,10 @@ export function SpaCompletionDialog({
     }
   }, [appointment?.id]);
 
-  if (!appointment) return null;
-
-  const bookedPrice = appointment.member_price ?? appointment.service_price ?? 0;
-  const overrideValue =
-    priceOverride.trim() !== "" && !isNaN(parseFloat(priceOverride))
-      ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
-      : null;
-  const servicePrice = overrideValue ?? bookedPrice;
+  // ---- Pricing math (computed before the early return so effects can use it) ----
+  const bookedPrice = appointment
+    ? appointment.member_price ?? appointment.service_price ?? 0
+    : 0;
 
   // Extended time upgrade (per-minute)
   const extraMinutesNum = Math.max(0, Math.round(parseFloat(extraMinutes) || 0));
@@ -156,8 +157,34 @@ export function SpaCompletionDialog({
     extraRate.trim() !== "" && !isNaN(parseFloat(extraRate))
       ? Math.max(0, parseFloat(extraRate))
       : DEFAULT_EXTENDED_RATE;
-  const extendedCharge =
-    Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+  const extendedCharge = Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+
+  /** What the session should cost before add-ons/tip: base price + extended time */
+  const computedServiceTotal =
+    Math.round((bookedPrice + extendedCharge) * 100) / 100;
+
+  const overrideValue =
+    priceOverride.trim() !== "" && !isNaN(parseFloat(priceOverride))
+      ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
+      : null;
+
+  // While the price editor is open and untouched, keep it in step with the minutes
+  useEffect(() => {
+    if (!editingPrice || priceManuallyEdited) return;
+    setPriceOverride(computedServiceTotal.toFixed(2));
+  }, [computedServiceTotal, editingPrice, priceManuallyEdited]);
+
+  if (!appointment) return null;
+
+  /**
+   * The override field represents the whole session price (base + extended time),
+   * so the base service line is that amount minus the extended-time charge. This
+   * keeps the extension itemized exactly once and avoids double counting when the
+   * appointment is reopened later.
+   */
+  const sessionTotal = overrideValue ?? computedServiceTotal;
+  const servicePrice = Math.max(0, Math.round((sessionTotal - extendedCharge) * 100) / 100);
+
   const extendedEntry: SelectedAddon | null =
     extraMinutesNum > 0
       ? {
@@ -181,6 +208,7 @@ export function SpaCompletionDialog({
   const addonsTotal =
     Math.round(chargedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
   const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
+
 
   const tipAmount =
     tipPreset !== null
@@ -297,14 +325,17 @@ export function SpaCompletionDialog({
       }
 
 
-      // Persist an adjusted service price so records/reports match what was charged
-      if (overrideValue !== null && overrideValue !== bookedPrice) {
+      // Persist an adjusted BASE service price (extended time stays itemized
+      // separately) so records/reports match what was charged and reopening the
+      // appointment doesn't add the extension twice.
+      if (overrideValue !== null && servicePrice !== bookedPrice) {
         if (appointment.member_price != null) {
-          updateData.member_price = overrideValue;
+          updateData.member_price = servicePrice;
         } else {
-          updateData.service_price = overrideValue;
+          updateData.service_price = servicePrice;
         }
       }
+
 
       if (paymentIntentId) {
         updateData.payment_intent_id = paymentIntentId;
@@ -436,14 +467,20 @@ export function SpaCompletionDialog({
                     autoFocus
                     className="h-8 w-24"
                     value={priceOverride}
-                    placeholder={bookedPrice.toFixed(2)}
-                    onChange={(e) => setPriceOverride(e.target.value)}
+                    placeholder={computedServiceTotal.toFixed(2)}
+                    onChange={(e) => {
+                      setPriceManuallyEdited(true);
+                      setPriceOverride(e.target.value);
+                    }}
                   />
+                  <span className="text-xs text-muted-foreground">
+                    session price (incl. extended time)
+                  </span>
                 </div>
               ) : (
                 <p className="text-sm font-semibold">
-                  ${servicePrice.toFixed(2)}
-                  {overrideValue !== null && overrideValue !== bookedPrice && (
+                  ${sessionTotal.toFixed(2)}
+                  {sessionTotal !== bookedPrice && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground line-through">
                       ${bookedPrice.toFixed(2)}
                     </span>
@@ -459,7 +496,7 @@ export function SpaCompletionDialog({
                   if (editingPrice) {
                     setEditingPrice(false);
                   } else {
-                    setPriceOverride(bookedPrice.toFixed(2));
+                    setPriceOverride(computedServiceTotal.toFixed(2));
                     setEditingPrice(true);
                   }
                 }}
@@ -467,18 +504,43 @@ export function SpaCompletionDialog({
                 {editingPrice ? "Done" : "Adjust price"}
               </Button>
             </div>
-            {editingPrice && (
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline"
-                onClick={() => {
-                  setPriceOverride("");
-                  setEditingPrice(false);
-                }}
-              >
-                Reset to ${bookedPrice.toFixed(2)}
-              </button>
+            {extraMinutesNum > 0 && (
+              <p className="text-xs text-muted-foreground">
+                ${bookedPrice.toFixed(2)} + {extraMinutesNum} min × $
+                {extraRateNum.toFixed(2)} (${extendedCharge.toFixed(2)})
+                {overrideValue !== null && overrideValue !== computedServiceTotal
+                  ? ` — manually set to $${overrideValue.toFixed(2)}`
+                  : ""}
+              </p>
             )}
+            {editingPrice && (
+              <div className="flex flex-wrap items-center gap-3">
+                {priceManuallyEdited && overrideValue !== computedServiceTotal && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline"
+                    onClick={() => {
+                      setPriceManuallyEdited(false);
+                      setPriceOverride(computedServiceTotal.toFixed(2));
+                    }}
+                  >
+                    Recalculate (${computedServiceTotal.toFixed(2)})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline"
+                  onClick={() => {
+                    setPriceManuallyEdited(false);
+                    setPriceOverride("");
+                    setEditingPrice(false);
+                  }}
+                >
+                  Reset to ${bookedPrice.toFixed(2)}
+                </button>
+              </div>
+            )}
+
           </div>
 
           {/* Add-ons */}
