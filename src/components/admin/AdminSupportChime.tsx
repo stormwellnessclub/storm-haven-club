@@ -336,7 +336,8 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     intervalRef.current = setInterval(() => {
       const unacked = notifications?.unacknowledgedCount ?? 0;
       if (unacked > 0 && !getIsMuted()) {
-        playNotificationChime();
+        void playChimeTwice();
+
       }
     }, REMINDER_INTERVAL);
 
