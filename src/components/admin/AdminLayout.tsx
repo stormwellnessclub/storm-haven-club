@@ -1,15 +1,16 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { Bell, Coffee, User, Volume2, VolumeX, Play, BellRing } from "lucide-react";
+import { Bell, Coffee, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { useAdminCafeNotifications } from "@/hooks/useAdminCafeNotifications";
-import { AdminSupportChime, getIsMuted, setIsMuted, playNotificationChime, unlockChimeAudio, isAudioBlocked } from "./AdminSupportChime";
+import { AdminSupportChime } from "./AdminSupportChime";
+import { ChimeSoundControls } from "./ChimeSoundControls";
 import { AdminCafeChime } from "./AdminCafeChime";
 import { AudioUnlocker } from "./AudioUnlocker";
-import { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
+
 import type { RealtimeStatus } from "@/hooks/useReliableRealtime";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBareAdminLayout } from "./BareAdminLayoutContext";
