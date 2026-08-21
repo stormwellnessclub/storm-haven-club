@@ -467,14 +467,20 @@ export function SpaCompletionDialog({
                     autoFocus
                     className="h-8 w-24"
                     value={priceOverride}
-                    placeholder={bookedPrice.toFixed(2)}
-                    onChange={(e) => setPriceOverride(e.target.value)}
+                    placeholder={computedServiceTotal.toFixed(2)}
+                    onChange={(e) => {
+                      setPriceManuallyEdited(true);
+                      setPriceOverride(e.target.value);
+                    }}
                   />
+                  <span className="text-xs text-muted-foreground">
+                    session price (incl. extended time)
+                  </span>
                 </div>
               ) : (
                 <p className="text-sm font-semibold">
-                  ${servicePrice.toFixed(2)}
-                  {overrideValue !== null && overrideValue !== bookedPrice && (
+                  ${sessionTotal.toFixed(2)}
+                  {sessionTotal !== bookedPrice && (
                     <span className="ml-2 text-xs font-normal text-muted-foreground line-through">
                       ${bookedPrice.toFixed(2)}
                     </span>
@@ -490,7 +496,7 @@ export function SpaCompletionDialog({
                   if (editingPrice) {
                     setEditingPrice(false);
                   } else {
-                    setPriceOverride(bookedPrice.toFixed(2));
+                    setPriceOverride(computedServiceTotal.toFixed(2));
                     setEditingPrice(true);
                   }
                 }}
@@ -498,18 +504,43 @@ export function SpaCompletionDialog({
                 {editingPrice ? "Done" : "Adjust price"}
               </Button>
             </div>
-            {editingPrice && (
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline"
-                onClick={() => {
-                  setPriceOverride("");
-                  setEditingPrice(false);
-                }}
-              >
-                Reset to ${bookedPrice.toFixed(2)}
-              </button>
+            {extraMinutesNum > 0 && (
+              <p className="text-xs text-muted-foreground">
+                ${bookedPrice.toFixed(2)} + {extraMinutesNum} min × $
+                {extraRateNum.toFixed(2)} (${extendedCharge.toFixed(2)})
+                {overrideValue !== null && overrideValue !== computedServiceTotal
+                  ? ` — manually set to $${overrideValue.toFixed(2)}`
+                  : ""}
+              </p>
             )}
+            {editingPrice && (
+              <div className="flex flex-wrap items-center gap-3">
+                {priceManuallyEdited && overrideValue !== computedServiceTotal && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline"
+                    onClick={() => {
+                      setPriceManuallyEdited(false);
+                      setPriceOverride(computedServiceTotal.toFixed(2));
+                    }}
+                  >
+                    Recalculate (${computedServiceTotal.toFixed(2)})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline"
+                  onClick={() => {
+                    setPriceManuallyEdited(false);
+                    setPriceOverride("");
+                    setEditingPrice(false);
+                  }}
+                >
+                  Reset to ${bookedPrice.toFixed(2)}
+                </button>
+              </div>
+            )}
+
           </div>
 
           {/* Add-ons */}
