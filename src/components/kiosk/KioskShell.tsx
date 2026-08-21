@@ -3,6 +3,8 @@ import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
 import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
+import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
+
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import {
