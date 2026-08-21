@@ -136,6 +136,44 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
           </div>
         </PopoverContent>
       </Popover>
+
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="touch-target" title="Choose notification sound">
+            <Music className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 p-2">
+          <p className="px-2 pb-2 text-xs text-muted-foreground">
+            Tap a sound to hear it — your pick is saved for this device.
+          </p>
+          <div className="flex flex-col">
+            {CHIME_SOUNDS.map((option) => (
+              <Button
+                key={option.value}
+                variant={sound === option.value ? "secondary" : "ghost"}
+                size="sm"
+                className="justify-between h-auto py-2"
+                onClick={async () => {
+                  setChimeSound(option.value);
+                  setSound(option.value);
+                  await unlockChimeAudio();
+                  const result = await playNotificationChime(option.value);
+                  setAudioBlocked(isAudioBlocked());
+                  if (result !== "played") reportResult(result);
+                }}
+              >
+                <span className="flex flex-col items-start text-left">
+                  <span className="text-sm">{option.label}</span>
+                  <span className="text-xs text-muted-foreground">{option.hint}</span>
+                </span>
+                <Play className="h-3.5 w-3.5 shrink-0 opacity-60" />
+              </Button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+
     </div>
   );
 }
