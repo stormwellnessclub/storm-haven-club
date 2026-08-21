@@ -146,14 +146,10 @@ export function SpaCompletionDialog({
     }
   }, [appointment?.id]);
 
-  if (!appointment) return null;
-
-  const bookedPrice = appointment.member_price ?? appointment.service_price ?? 0;
-  const overrideValue =
-    priceOverride.trim() !== "" && !isNaN(parseFloat(priceOverride))
-      ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
-      : null;
-  const servicePrice = overrideValue ?? bookedPrice;
+  // ---- Pricing math (computed before the early return so effects can use it) ----
+  const bookedPrice = appointment
+    ? appointment.member_price ?? appointment.service_price ?? 0
+    : 0;
 
   // Extended time upgrade (per-minute)
   const extraMinutesNum = Math.max(0, Math.round(parseFloat(extraMinutes) || 0));
@@ -161,8 +157,34 @@ export function SpaCompletionDialog({
     extraRate.trim() !== "" && !isNaN(parseFloat(extraRate))
       ? Math.max(0, parseFloat(extraRate))
       : DEFAULT_EXTENDED_RATE;
-  const extendedCharge =
-    Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+  const extendedCharge = Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+
+  /** What the session should cost before add-ons/tip: base price + extended time */
+  const computedServiceTotal =
+    Math.round((bookedPrice + extendedCharge) * 100) / 100;
+
+  const overrideValue =
+    priceOverride.trim() !== "" && !isNaN(parseFloat(priceOverride))
+      ? Math.max(0, Math.round(parseFloat(priceOverride) * 100) / 100)
+      : null;
+
+  // While the price editor is open and untouched, keep it in step with the minutes
+  useEffect(() => {
+    if (!editingPrice || priceManuallyEdited) return;
+    setPriceOverride(computedServiceTotal.toFixed(2));
+  }, [computedServiceTotal, editingPrice, priceManuallyEdited]);
+
+  if (!appointment) return null;
+
+  /**
+   * The override field represents the whole session price (base + extended time),
+   * so the base service line is that amount minus the extended-time charge. This
+   * keeps the extension itemized exactly once and avoids double counting when the
+   * appointment is reopened later.
+   */
+  const sessionTotal = overrideValue ?? computedServiceTotal;
+  const servicePrice = Math.max(0, Math.round((sessionTotal - extendedCharge) * 100) / 100);
+
   const extendedEntry: SelectedAddon | null =
     extraMinutesNum > 0
       ? {
@@ -186,6 +208,7 @@ export function SpaCompletionDialog({
   const addonsTotal =
     Math.round(chargedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
   const subtotal = Math.round((servicePrice + addonsTotal) * 100) / 100;
+
 
   const tipAmount =
     tipPreset !== null
