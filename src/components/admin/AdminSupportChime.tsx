@@ -95,8 +95,36 @@ try {
 let sharedCtx: AudioContext | null = null;
 let decodedChime: AudioBuffer | null = null;
 
-/** Playback level for the chime — kept at a normal, non-startling volume. */
-const CHIME_GAIN = 1.0;
+// ── Volume preference (per device) ──────────────────────────────────
+export type ChimeVolume = "quiet" | "normal" | "loud";
+const VOLUME_KEY = "admin-chime-volume";
+const VOLUME_GAIN: Record<ChimeVolume, number> = { quiet: 1.0, normal: 2.5, loud: 4.5 };
+let inMemoryVolume: ChimeVolume | null = null;
+
+export function getChimeVolume(): ChimeVolume {
+  if (inMemoryVolume) return inMemoryVolume;
+  if (typeof window === "undefined") return "normal";
+  try {
+    const stored = window.localStorage.getItem(VOLUME_KEY) as ChimeVolume | null;
+    if (stored === "quiet" || stored === "normal" || stored === "loud") return stored;
+    // Front desk / kiosk stations default to loud; admin desks to normal.
+    const path = window.location.pathname;
+    return path.startsWith("/frontdesk") || path.startsWith("/kiosk") ? "loud" : "normal";
+  } catch {
+    return "normal";
+  }
+}
+
+export function setChimeVolume(v: ChimeVolume) {
+  inMemoryVolume = v;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VOLUME_KEY, v);
+  } catch (error) {
+    console.warn("Failed to persist chime volume:", error);
+  }
+}
+
 
 function getCtx(): AudioContext | null {
   const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
