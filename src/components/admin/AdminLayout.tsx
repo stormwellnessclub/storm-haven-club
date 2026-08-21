@@ -117,45 +117,8 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-              {audioBlocked && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5 border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 animate-pulse"
-                  onClick={async () => {
-                    await unlockChimeAudio();
-                    setAudioBlocked(isAudioBlocked());
-                    playNotificationChime();
-                  }}
-                  title="Your browser is blocking notification sounds — tap once to enable"
-                >
-                  <BellRing className="h-4 w-4" />
-                  <span className="hidden sm:inline">Enable sound</span>
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="touch-target"
-                onClick={async () => {
-                  await unlockChimeAudio();
-                  setAudioBlocked(isAudioBlocked());
-                  playNotificationChime();
-                  toast.success("Test chime played");
-                }}
-                title="Test notification sound"
-              >
-                <Play className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="touch-target"
-                onClick={toggleMute}
-                title={muted ? "Sound muted — notifications are silent" : "Mute notifications"}
-              >
-                {muted ? <VolumeX className="h-5 w-5 text-destructive" /> : <Volume2 className="h-5 w-5" />}
-              </Button>
+              <ChimeSoundControls />
+
 
               <Button
                 variant="ghost"
