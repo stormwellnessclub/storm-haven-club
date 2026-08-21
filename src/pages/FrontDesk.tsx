@@ -689,10 +689,14 @@ function FrontDeskKiosk() {
             <h1 className="text-xl font-bold">Storm Wellness Club</h1>
             <p className="text-sm text-muted-foreground">Front Desk</p>
           </div>
-          <div className="ml-auto text-right">
-            <p className="text-sm font-medium">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
-            <p className="text-xs text-muted-foreground">{format(new Date(), "h:mm a")}</p>
+          <div className="ml-auto flex items-center gap-3">
+            <ChimeSoundControls compact />
+            <div className="text-right">
+              <p className="text-sm font-medium">{format(new Date(), "EEEE, MMMM d, yyyy")}</p>
+              <p className="text-xs text-muted-foreground">{format(new Date(), "h:mm a")}</p>
+            </div>
           </div>
+
         </div>
       </header>
 
