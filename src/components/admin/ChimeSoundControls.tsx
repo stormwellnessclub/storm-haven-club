@@ -33,7 +33,9 @@ const LEVELS: Array<{ value: ChimeVolume; label: string; hint: string }> = [
 export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
   const [muted, setMuted] = useState(getIsMuted);
   const [volume, setVolume] = useState<ChimeVolume>(getChimeVolume);
+  const [sound, setSound] = useState<ChimeSound>(getChimeSound);
   const [audioBlocked, setAudioBlocked] = useState(false);
+
 
   useEffect(() => {
     const check = () => setAudioBlocked(isAudioBlocked());
