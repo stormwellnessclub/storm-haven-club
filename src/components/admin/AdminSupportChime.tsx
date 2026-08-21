@@ -180,10 +180,19 @@ async function playViaWebAudio(): Promise<boolean> {
     src.buffer = decodedChime;
 
     const gain = ctx.createGain();
-    gain.gain.value = CHIME_GAIN;
+    gain.gain.value = VOLUME_GAIN[getChimeVolume()];
+
+    // Limiter so the boost stays loud without clipping/distorting.
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -6;
+    comp.knee.value = 6;
+    comp.ratio.value = 12;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.25;
 
     src.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(comp);
+    comp.connect(ctx.destination);
     src.start(0);
     return true;
   } catch (err) {
@@ -192,21 +201,34 @@ async function playViaWebAudio(): Promise<boolean> {
   }
 }
 
+export type ChimePlayResult = "played" | "blocked" | "failed";
 
-export async function playNotificationChime() {
+export async function playNotificationChime(): Promise<ChimePlayResult> {
   if (!chimeDataUri) {
     console.warn("Chime data URI not available");
-    return;
+    return "failed";
   }
-  if (await playViaWebAudio()) return;
+  if (await playViaWebAudio()) return "played";
   try {
     const audio = new Audio(chimeDataUri);
-    audio.volume = 0.6;
+    audio.volume = 1;
     await audio.play();
+    // WebAudio was blocked/suspended; the element played, but the browser may
+    // still be throttling. Report blocked so the UI can prompt for a tap.
+    return isAudioBlocked() ? "blocked" : "played";
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
+    return "blocked";
   }
 }
+
+/** Plays the bell twice with a short pause — used for recurring reminders. */
+export async function playChimeTwice(): Promise<ChimePlayResult> {
+  const first = await playNotificationChime();
+  setTimeout(() => { void playNotificationChime(); }, 1800);
+  return first;
+}
+
 
 
 // ── Mute helpers ────────────────────────────────────────────────────
