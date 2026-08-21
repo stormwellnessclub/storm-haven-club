@@ -71,6 +71,9 @@ export function SpaCompletionDialog({
   const [sendReceipt, setSendReceipt] = useState(true);
   const [priceOverride, setPriceOverride] = useState<string>("");
   const [editingPrice, setEditingPrice] = useState(false);
+  /** True once staff type their own number, so auto-recalc stops overwriting it */
+  const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
+
 
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
