@@ -11,31 +11,39 @@ let chimeDataUri: string | null = null;
 
 function generateChimeWav(): string {
   const sampleRate = 44100;
-  // Calm two-note bell: pure sine tones, gentle attack, natural decay.
+  // Three-note ascending bell: firm attack, long tail, near full amplitude so
+  // it carries across a busy reception area.
   const tones: Array<{ freq: number; duration: number; volume: number }> = [
-    { freq: 784, duration: 0.35, volume: 0.5 },
-    { freq: 1047, duration: 0.6, volume: 0.42 },
+    { freq: 784, duration: 0.32, volume: 0.9 },
+    { freq: 1047, duration: 0.32, volume: 0.9 },
+    { freq: 1319, duration: 0.95, volume: 0.95 },
   ];
 
-  const gapSamples = Math.floor(sampleRate * 0.05);
+  const gapSamples = Math.floor(sampleRate * 0.03);
   const segments: number[][] = [];
 
   tones.forEach((tone, i) => {
     const n = Math.floor(sampleRate * tone.duration);
-    const attack = Math.floor(sampleRate * 0.012);
+    const attack = Math.floor(sampleRate * 0.004);
+    const isLast = i === tones.length - 1;
     const samples: number[] = [];
     for (let j = 0; j < n; j++) {
       const t = j / sampleRate;
       const ramp = j < attack ? j / attack : 1;
-      // exponential decay to silence — soft bell tail, no harsh sustain
-      const decay = Math.exp(-3.2 * (j / n));
+      // exponential decay — longer tail on the final note
+      const decay = Math.exp((isLast ? -2.6 : -3.6) * (j / n));
       const env = tone.volume * ramp * decay;
-      samples.push(env * Math.sin(2 * Math.PI * tone.freq * t));
+      // fundamental + a touch of the octave so it cuts through room noise
+      const wave =
+        0.82 * Math.sin(2 * Math.PI * tone.freq * t) +
+        0.18 * Math.sin(4 * Math.PI * tone.freq * t);
+      samples.push(env * wave);
     }
 
     segments.push(samples);
-    if (i === 0) segments.push(new Array(gapSamples).fill(0));
+    if (!isLast) segments.push(new Array(gapSamples).fill(0));
   });
+
 
 
   const allSamples = segments.flat();
@@ -87,8 +95,36 @@ try {
 let sharedCtx: AudioContext | null = null;
 let decodedChime: AudioBuffer | null = null;
 
-/** Playback level for the chime — kept at a normal, non-startling volume. */
-const CHIME_GAIN = 1.0;
+// ── Volume preference (per device) ──────────────────────────────────
+export type ChimeVolume = "quiet" | "normal" | "loud";
+const VOLUME_KEY = "admin-chime-volume";
+const VOLUME_GAIN: Record<ChimeVolume, number> = { quiet: 1.0, normal: 2.5, loud: 4.5 };
+let inMemoryVolume: ChimeVolume | null = null;
+
+export function getChimeVolume(): ChimeVolume {
+  if (inMemoryVolume) return inMemoryVolume;
+  if (typeof window === "undefined") return "normal";
+  try {
+    const stored = window.localStorage.getItem(VOLUME_KEY) as ChimeVolume | null;
+    if (stored === "quiet" || stored === "normal" || stored === "loud") return stored;
+    // Front desk / kiosk stations default to loud; admin desks to normal.
+    const path = window.location.pathname;
+    return path.startsWith("/frontdesk") || path.startsWith("/kiosk") ? "loud" : "normal";
+  } catch {
+    return "normal";
+  }
+}
+
+export function setChimeVolume(v: ChimeVolume) {
+  inMemoryVolume = v;
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(VOLUME_KEY, v);
+  } catch (error) {
+    console.warn("Failed to persist chime volume:", error);
+  }
+}
+
 
 function getCtx(): AudioContext | null {
   const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -144,10 +180,19 @@ async function playViaWebAudio(): Promise<boolean> {
     src.buffer = decodedChime;
 
     const gain = ctx.createGain();
-    gain.gain.value = CHIME_GAIN;
+    gain.gain.value = VOLUME_GAIN[getChimeVolume()];
+
+    // Limiter so the boost stays loud without clipping/distorting.
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -6;
+    comp.knee.value = 6;
+    comp.ratio.value = 12;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.25;
 
     src.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(comp);
+    comp.connect(ctx.destination);
     src.start(0);
     return true;
   } catch (err) {
@@ -156,21 +201,34 @@ async function playViaWebAudio(): Promise<boolean> {
   }
 }
 
+export type ChimePlayResult = "played" | "blocked" | "failed";
 
-export async function playNotificationChime() {
+export async function playNotificationChime(): Promise<ChimePlayResult> {
   if (!chimeDataUri) {
     console.warn("Chime data URI not available");
-    return;
+    return "failed";
   }
-  if (await playViaWebAudio()) return;
+  if (await playViaWebAudio()) return "played";
   try {
     const audio = new Audio(chimeDataUri);
-    audio.volume = 0.6;
+    audio.volume = 1;
     await audio.play();
+    // WebAudio was blocked/suspended; the element played, but the browser may
+    // still be throttling. Report blocked so the UI can prompt for a tap.
+    return isAudioBlocked() ? "blocked" : "played";
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
+    return "blocked";
   }
 }
+
+/** Plays the bell twice with a short pause — used for recurring reminders. */
+export async function playChimeTwice(): Promise<ChimePlayResult> {
+  const first = await playNotificationChime();
+  setTimeout(() => { void playNotificationChime(); }, 1800);
+  return first;
+}
+
 
 
 // ── Mute helpers ────────────────────────────────────────────────────
@@ -278,7 +336,8 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     intervalRef.current = setInterval(() => {
       const unacked = notifications?.unacknowledgedCount ?? 0;
       if (unacked > 0 && !getIsMuted()) {
-        playNotificationChime();
+        void playChimeTwice();
+
       }
     }, REMINDER_INTERVAL);
 
