@@ -230,23 +230,26 @@ export function isAudioBlocked(): boolean {
   return !sharedCtx || sharedCtx.state !== "running";
 }
 
-async function playViaWebAudio(): Promise<boolean> {
+async function playViaWebAudio(sound: ChimeSound): Promise<boolean> {
   try {
     const ctx = getCtx();
-    if (!ctx || !chimeDataUri) return false;
+    const uri = getChimeUri(sound);
+    if (!ctx || !uri) return false;
     if (ctx.state === "suspended") await ctx.resume();
     // A suspended context accepts start() silently — treat it as a failure so
     // the caller falls back to the HTMLAudio path instead of playing nothing.
     if (ctx.state !== "running") return false;
 
-    if (!decodedChime) {
-      const res = await fetch(chimeDataUri);
+    let decoded = decodedCache.get(sound);
+    if (!decoded) {
+      const res = await fetch(uri);
       const arr = await res.arrayBuffer();
-      decodedChime = await ctx.decodeAudioData(arr);
+      decoded = await ctx.decodeAudioData(arr);
+      decodedCache.set(sound, decoded);
     }
 
     const src = ctx.createBufferSource();
-    src.buffer = decodedChime;
+    src.buffer = decoded;
 
     const gain = ctx.createGain();
     gain.gain.value = VOLUME_GAIN[getChimeVolume()];
@@ -272,14 +275,16 @@ async function playViaWebAudio(): Promise<boolean> {
 
 export type ChimePlayResult = "played" | "blocked" | "failed";
 
-export async function playNotificationChime(): Promise<ChimePlayResult> {
-  if (!chimeDataUri) {
+export async function playNotificationChime(soundOverride?: ChimeSound): Promise<ChimePlayResult> {
+  const sound = soundOverride ?? getChimeSound();
+  const uri = getChimeUri(sound);
+  if (!uri) {
     console.warn("Chime data URI not available");
     return "failed";
   }
-  if (await playViaWebAudio()) return "played";
+  if (await playViaWebAudio(sound)) return "played";
   try {
-    const audio = new Audio(chimeDataUri);
+    const audio = new Audio(uri);
     audio.volume = 1;
     await audio.play();
     // WebAudio was blocked/suspended; the element played, but the browser may
@@ -297,6 +302,7 @@ export async function playChimeTwice(): Promise<ChimePlayResult> {
   setTimeout(() => { void playNotificationChime(); }, 1800);
   return first;
 }
+
 
 
 
