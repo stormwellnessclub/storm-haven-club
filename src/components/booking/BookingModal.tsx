@@ -3,7 +3,7 @@ import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
 import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
 
 import { supabase } from "@/integrations/supabase/client";
-import { useBookClass } from "@/hooks/useBooking";
+import { useBookClass, AgreementRequiredError } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
