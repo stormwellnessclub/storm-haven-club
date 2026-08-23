@@ -218,11 +218,11 @@ export function useBookClass() {
             !!(nonMemberProfile as any)?.single_class_pass_agreement_signed;
 
           if (isGuestPass && !guestSigned) {
-            throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+            throw new AgreementRequiredError("guest_pass", "Guest Pass Agreement");
           }
 
           if (isSingleClassPass && !singleSigned) {
-            throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+            throw new AgreementRequiredError("single_class_pass", "Single Class Pass Agreement");
           }
         }
       }
