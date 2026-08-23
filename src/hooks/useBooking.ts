@@ -486,6 +486,8 @@ export function useBookClass() {
       // Toast is suppressed here — the BookingModal shows a rich confirmation dialog instead.
     },
     onError: (error: Error) => {
+      // Agreement gaps are handled inline by the booking UI — no error toast.
+      if (error instanceof AgreementRequiredError) return;
       toast.error(error.message);
     },
   });
