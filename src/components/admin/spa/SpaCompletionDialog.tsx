@@ -494,6 +494,10 @@ export function SpaCompletionDialog({
                 className="h-7 px-2 text-xs"
                 onClick={() => {
                   if (editingPrice) {
+                    // Closing the editor without typing a new price must NOT freeze
+                    // the total — clear the auto-filled value so later minute
+                    // changes keep recalculating the session price.
+                    if (!priceManuallyEdited) setPriceOverride("");
                     setEditingPrice(false);
                   } else {
                     setPriceOverride(computedServiceTotal.toFixed(2));

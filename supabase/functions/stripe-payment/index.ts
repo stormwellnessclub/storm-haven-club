@@ -607,7 +607,29 @@ serve(async (req) => {
     const KIOSK_ALLOWED_ACTIONS = new Set(['charge_saved_card', 'charge_saved_card_with_3ds']);
     const kioskPin = req.headers.get('x-kiosk-pin');
     const authHeader = req.headers.get('authorization');
-    const hasUserToken = !!authHeader && authHeader.replace('Bearer ', '') !== Deno.env.get('SUPABASE_ANON_KEY');
+    const rawToken = (authHeader || '').replace('Bearer ', '').trim();
+
+    /** Decode a JWT payload without verifying it (verification happens in getUser). */
+    const decodeJwtClaims = (token: string): Record<string, any> | null => {
+      try {
+        const part = token.split('.')[1];
+        if (!part) return null;
+        const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'));
+        return JSON.parse(json);
+      } catch {
+        return null;
+      }
+    };
+
+    // A publishable/anon key carries no `sub` claim. Passing it to auth.getUser()
+    // returns a 403 "missing sub claim", which previously surfaced as a confusing
+    // "Invalid authorization". Treat any sub-less token as "no user session".
+    const tokenClaims = rawToken ? decodeJwtClaims(rawToken) : null;
+    const isAnonKeyToken =
+      !rawToken ||
+      rawToken === Deno.env.get('SUPABASE_ANON_KEY') ||
+      (!!tokenClaims && !tokenClaims.sub);
+    const hasUserToken = !!authHeader && !isAnonKeyToken;
 
     let user: any = null;
     let kioskMode = false;
@@ -620,13 +642,26 @@ serve(async (req) => {
       kioskMode = true;
       logStep("Kiosk PIN authenticated", { action });
     } else {
-      if (!authHeader) {
-        throw new Error("Authorization required");
+      if (!hasUserToken) {
+        logStep("No user session on authenticated action", { action });
+        return new Response(
+          JSON.stringify({
+            error: "Please sign in to continue.",
+            code: "auth_required",
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
       }
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user: authedUser }, error: authError } = await supabase.auth.getUser(token);
+      const { data: { user: authedUser }, error: authError } = await supabase.auth.getUser(rawToken);
       if (authError || !authedUser) {
-        throw new Error("Invalid authorization");
+        logStep("Session rejected", { action, reason: authError?.message });
+        return new Response(
+          JSON.stringify({
+            error: "Your session has expired. Please sign in again and retry.",
+            code: "session_expired",
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
       }
       user = authedUser;
       logStep("User authenticated", { userId: user.id, email: user.email });
