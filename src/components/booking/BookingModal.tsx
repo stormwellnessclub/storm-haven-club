@@ -225,11 +225,21 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       return;
     }
 
-    const result = await bookClass.mutateAsync({
-      sessionId: session.id,
-      paymentMethod,
-      passId: selectedPassId || undefined,
-    });
+    let result: any;
+    try {
+      result = await bookClass.mutateAsync({
+        sessionId: session.id,
+        paymentMethod,
+        passId: selectedPassId || undefined,
+      });
+    } catch (err: any) {
+      if (err instanceof AgreementRequiredError) {
+        // Show the inline signing card instead of a dead-end error
+        setPassAgreement({ type: err.agreementType, title: err.agreementTitle });
+        return;
+      }
+      return; // other errors already surfaced via toast
+    }
 
     clearClassDraft();
     onOpenChange(false);
@@ -246,6 +256,26 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       toast.success("Class booked successfully!");
     }
   };
+
+  const handleSignPassAgreement = async () => {
+    if (!passAgreement) return;
+    const isMemberProfile = !!profile;
+    await new Promise<void>((resolve, reject) => {
+      const opts = { onSuccess: () => resolve(), onError: (e: any) => reject(e) };
+      if (passAgreement.type === "guest_pass") {
+        signGuestPassAgreement(undefined as any, opts as any);
+      } else if (isMemberProfile) {
+        signSingleClassPassAgreement(undefined as any, opts as any);
+      } else {
+        signNonMemberSingleClassPassAgreement(undefined as any, opts as any);
+      }
+    }).catch(() => null);
+    setPassAgreement(null);
+    setPassAgreementAcknowledged(false);
+    // Resume the booking now that the agreement is signed
+    setTimeout(() => { void handleBook(); }, 300);
+  };
+
 
   const handleJoinWaitlist = async () => {
     if (!user) {
