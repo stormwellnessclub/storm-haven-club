@@ -521,6 +521,60 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </div>
           )}
 
+          {/* Pass Agreement Required — Inline Signing (guest pass / single class pass) */}
+          {passAgreement && (
+            <div className="space-y-3">
+              <Alert className="bg-destructive/10 border-destructive/30">
+                <FileCheck className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">{passAgreement.title} Required</AlertTitle>
+                <AlertDescription className="mt-1">
+                  Sign the {passAgreement.title.toLowerCase()} below to finish booking with your pass.
+                </AlertDescription>
+              </Alert>
+
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                {passAgreementPdf && (
+                  <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                    <a href={passAgreementPdf} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Open &amp; Review {passAgreement.title} PDF
+                    </a>
+                  </Button>
+                )}
+
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="pass-agreement-inline"
+                    checked={passAgreementAcknowledged}
+                    onCheckedChange={(v) => setPassAgreementAcknowledged(v === true)}
+                  />
+                  <label htmlFor="pass-agreement-inline" className="text-sm leading-snug cursor-pointer">
+                    I have reviewed the {passAgreement.title} and agree to its terms
+                  </label>
+                </div>
+
+                <Button
+                  onClick={handleSignPassAgreement}
+                  disabled={!passAgreementAcknowledged || isSigningPassAgreement || bookClass.isPending}
+                  className="w-full"
+                >
+                  {isSigningPassAgreement || bookClass.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Signing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      I Agree — Sign &amp; Complete Booking
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+
           {/* Payment Method Selection (also used for waitlist hold when full) */}
           {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && !isFundraiser && (
             <>
