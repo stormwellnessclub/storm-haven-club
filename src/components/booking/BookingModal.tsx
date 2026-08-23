@@ -113,6 +113,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
     : null;
 
+  const passAgreementPdf = passAgreement
+    ? (agreements?.[passAgreement.type]?.[0]?.pdf_url
+        ? resolvePdfUrl(agreements[passAgreement.type][0].pdf_url)
+        : null)
+    : null;
+  const isSigningPassAgreement =
+    passAgreement?.type === "guest_pass"
+      ? isSigningGuestPassAgreement
+      : profile
+      ? isSigningSingleClassPassAgreement
+      : isSigningNonMemberSingleClassPassAgreement;
+
   // Determine available payment options
   const canUseMemberCredits = creditsData?.hasClassCredits;
   const canUsePass = creditsData?.availablePasses && creditsData.availablePasses.length > 0;
