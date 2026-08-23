@@ -5,6 +5,22 @@ import { toast } from "sonner";
 import { format, addWeeks, parseISO, parse } from "date-fns";
 import { hasSessionEnded } from "@/lib/clubTime";
 
+/**
+ * Thrown when a pass-based booking is blocked because the user hasn't signed
+ * the pass agreement yet. The booking UI catches this and renders an inline
+ * signing card instead of a dead-end error.
+ */
+export class AgreementRequiredError extends Error {
+  agreementType: "guest_pass" | "single_class_pass";
+  agreementTitle: string;
+  constructor(agreementType: "guest_pass" | "single_class_pass", agreementTitle: string) {
+    super(`${agreementTitle} required`);
+    this.name = "AgreementRequiredError";
+    this.agreementType = agreementType;
+    this.agreementTitle = agreementTitle;
+  }
+}
+
 export interface Booking {
   id: string;
   session_id: string;
