@@ -65,10 +65,22 @@ interface BookingModalProps {
 export function BookingModal({ session, open, onOpenChange }: BookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { profile, signWaiver, isSigningWaiver } = useUserProfile();
+  const {
+    profile,
+    signWaiver,
+    isSigningWaiver,
+    signGuestPassAgreement,
+    isSigningGuestPassAgreement,
+    signSingleClassPassAgreement,
+    isSigningSingleClassPassAgreement,
+  } = useUserProfile();
   const { data: membership } = useUserMembership();
   const isPastDue = !!(membership as any)?.payment_past_due;
-  const { profile: nonMemberProfile } = useNonMemberProfile();
+  const {
+    profile: nonMemberProfile,
+    signSingleClassPassAgreement: signNonMemberSingleClassPassAgreement,
+    isSigningSingleClassPassAgreement: isSigningNonMemberSingleClassPassAgreement,
+  } = useNonMemberProfile();
   const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
 
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
@@ -76,6 +88,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
   const [showWaiverInline, setShowWaiverInline] = useState(false);
   const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
+  const [passAgreement, setPassAgreement] = useState<{
+    type: "guest_pass" | "single_class_pass";
+    title: string;
+  } | null>(null);
+  const [passAgreementAcknowledged, setPassAgreementAcknowledged] = useState(false);
   const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
   const [confirmation, setConfirmation] = useState<import("./BookingConfirmationDialog").BookingConfirmationDetails | null>(null);
 
