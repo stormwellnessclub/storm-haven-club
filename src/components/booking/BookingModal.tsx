@@ -3,7 +3,7 @@ import { usePhoneOnFile } from "@/hooks/usePhoneOnFile";
 import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
 
 import { supabase } from "@/integrations/supabase/client";
-import { useBookClass } from "@/hooks/useBooking";
+import { useBookClass, AgreementRequiredError } from "@/hooks/useBooking";
 import { useAvailableCreditsForCategory } from "@/hooks/useUserCredits";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -65,10 +65,22 @@ interface BookingModalProps {
 export function BookingModal({ session, open, onOpenChange }: BookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { profile, signWaiver, isSigningWaiver } = useUserProfile();
+  const {
+    profile,
+    signWaiver,
+    isSigningWaiver,
+    signGuestPassAgreement,
+    isSigningGuestPassAgreement,
+    signSingleClassPassAgreement,
+    isSigningSingleClassPassAgreement,
+  } = useUserProfile();
   const { data: membership } = useUserMembership();
   const isPastDue = !!(membership as any)?.payment_past_due;
-  const { profile: nonMemberProfile } = useNonMemberProfile();
+  const {
+    profile: nonMemberProfile,
+    signSingleClassPassAgreement: signNonMemberSingleClassPassAgreement,
+    isSigningSingleClassPassAgreement: isSigningNonMemberSingleClassPassAgreement,
+  } = useNonMemberProfile();
   const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
 
   const [paymentMethod, setPaymentMethod] = useState<"credits" | "pass">("credits");
@@ -76,6 +88,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [selectedPassType, setSelectedPassType] = useState<string | null>(null);
   const [showWaiverInline, setShowWaiverInline] = useState(false);
   const [waiverAcknowledged, setWaiverAcknowledged] = useState(false);
+  const [passAgreement, setPassAgreement] = useState<{
+    type: "guest_pass" | "single_class_pass";
+    title: string;
+  } | null>(null);
+  const [passAgreementAcknowledged, setPassAgreementAcknowledged] = useState(false);
   const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
   const [confirmation, setConfirmation] = useState<import("./BookingConfirmationDialog").BookingConfirmationDetails | null>(null);
 
@@ -95,6 +112,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const liabilityWaiverPdf = agreements?.liability_waiver?.[0]?.pdf_url
     ? resolvePdfUrl(agreements.liability_waiver[0].pdf_url)
     : null;
+
+  const passAgreementPdf = passAgreement
+    ? (agreements?.[passAgreement.type]?.[0]?.pdf_url
+        ? resolvePdfUrl(agreements[passAgreement.type][0].pdf_url)
+        : null)
+    : null;
+  const isSigningPassAgreement =
+    passAgreement?.type === "guest_pass"
+      ? isSigningGuestPassAgreement
+      : profile
+      ? isSigningSingleClassPassAgreement
+      : isSigningNonMemberSingleClassPassAgreement;
 
   // Determine available payment options
   const canUseMemberCredits = creditsData?.hasClassCredits;
@@ -225,11 +254,21 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       return;
     }
 
-    const result = await bookClass.mutateAsync({
-      sessionId: session.id,
-      paymentMethod,
-      passId: selectedPassId || undefined,
-    });
+    let result: any;
+    try {
+      result = await bookClass.mutateAsync({
+        sessionId: session.id,
+        paymentMethod,
+        passId: selectedPassId || undefined,
+      });
+    } catch (err: any) {
+      if (err instanceof AgreementRequiredError) {
+        // Show the inline signing card instead of a dead-end error
+        setPassAgreement({ type: err.agreementType, title: err.agreementTitle });
+        return;
+      }
+      return; // other errors already surfaced via toast
+    }
 
     clearClassDraft();
     onOpenChange(false);
@@ -246,6 +285,26 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       toast.success("Class booked successfully!");
     }
   };
+
+  const handleSignPassAgreement = async () => {
+    if (!passAgreement) return;
+    const isMemberProfile = !!profile;
+    await new Promise<void>((resolve, reject) => {
+      const opts = { onSuccess: () => resolve(), onError: (e: any) => reject(e) };
+      if (passAgreement.type === "guest_pass") {
+        signGuestPassAgreement(undefined as any, opts as any);
+      } else if (isMemberProfile) {
+        signSingleClassPassAgreement(undefined as any, opts as any);
+      } else {
+        signNonMemberSingleClassPassAgreement(undefined as any, opts as any);
+      }
+    }).catch(() => null);
+    setPassAgreement(null);
+    setPassAgreementAcknowledged(false);
+    // Resume the booking now that the agreement is signed
+    setTimeout(() => { void handleBook(); }, 300);
+  };
+
 
   const handleJoinWaitlist = async () => {
     if (!user) {
@@ -461,6 +520,60 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               )}
             </div>
           )}
+
+          {/* Pass Agreement Required — Inline Signing (guest pass / single class pass) */}
+          {passAgreement && (
+            <div className="space-y-3">
+              <Alert className="bg-destructive/10 border-destructive/30">
+                <FileCheck className="h-4 w-4 text-destructive" />
+                <AlertTitle className="text-destructive">{passAgreement.title} Required</AlertTitle>
+                <AlertDescription className="mt-1">
+                  Sign the {passAgreement.title.toLowerCase()} below to finish booking with your pass.
+                </AlertDescription>
+              </Alert>
+
+              <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
+                {passAgreementPdf && (
+                  <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                    <a href={passAgreementPdf} target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-4 w-4" />
+                      Open &amp; Review {passAgreement.title} PDF
+                    </a>
+                  </Button>
+                )}
+
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="pass-agreement-inline"
+                    checked={passAgreementAcknowledged}
+                    onCheckedChange={(v) => setPassAgreementAcknowledged(v === true)}
+                  />
+                  <label htmlFor="pass-agreement-inline" className="text-sm leading-snug cursor-pointer">
+                    I have reviewed the {passAgreement.title} and agree to its terms
+                  </label>
+                </div>
+
+                <Button
+                  onClick={handleSignPassAgreement}
+                  disabled={!passAgreementAcknowledged || isSigningPassAgreement || bookClass.isPending}
+                  className="w-full"
+                >
+                  {isSigningPassAgreement || bookClass.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Signing...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      I Agree — Sign &amp; Complete Booking
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
 
           {/* Payment Method Selection (also used for waitlist hold when full) */}
           {user && !creditsLoading && !hasNoPaymentOptions && hasLiabilityWaiver && !isFundraiser && (

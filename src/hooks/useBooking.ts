@@ -5,6 +5,22 @@ import { toast } from "sonner";
 import { format, addWeeks, parseISO, parse } from "date-fns";
 import { hasSessionEnded } from "@/lib/clubTime";
 
+/**
+ * Thrown when a pass-based booking is blocked because the user hasn't signed
+ * the pass agreement yet. The booking UI catches this and renders an inline
+ * signing card instead of a dead-end error.
+ */
+export class AgreementRequiredError extends Error {
+  agreementType: "guest_pass" | "single_class_pass";
+  agreementTitle: string;
+  constructor(agreementType: "guest_pass" | "single_class_pass", agreementTitle: string) {
+    super(`${agreementTitle} required`);
+    this.name = "AgreementRequiredError";
+    this.agreementType = agreementType;
+    this.agreementTitle = agreementTitle;
+  }
+}
+
 export interface Booking {
   id: string;
   session_id: string;
@@ -218,11 +234,11 @@ export function useBookClass() {
             !!(nonMemberProfile as any)?.single_class_pass_agreement_signed;
 
           if (isGuestPass && !guestSigned) {
-            throw new Error("Guest Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+            throw new AgreementRequiredError("guest_pass", "Guest Pass Agreement");
           }
 
           if (isSingleClassPass && !singleSigned) {
-            throw new Error("Single Class Pass Agreement required. Please sign the agreement on the Waivers & Agreements page before booking.");
+            throw new AgreementRequiredError("single_class_pass", "Single Class Pass Agreement");
           }
         }
       }
@@ -470,6 +486,8 @@ export function useBookClass() {
       // Toast is suppressed here — the BookingModal shows a rich confirmation dialog instead.
     },
     onError: (error: Error) => {
+      // Agreement gaps are handled inline by the booking UI — no error toast.
+      if (error instanceof AgreementRequiredError) return;
       toast.error(error.message);
     },
   });
