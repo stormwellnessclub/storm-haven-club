@@ -237,7 +237,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       payment_method: opts.paymentMethod,
       stripe_payment_intent_id: opts.stripePaymentIntentId ?? null,
       sold_by_admin_id: adminUser?.id ?? null,
-      adminNotes: adminNotes || null,
+      notes: adminNotes || null,
     }));
     const { error } = await (supabase as any).from("pt_passes").insert(rows);
     if (error) throw error;
