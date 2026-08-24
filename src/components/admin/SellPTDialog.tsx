@@ -237,7 +237,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       payment_method: opts.paymentMethod,
       stripe_payment_intent_id: opts.stripePaymentIntentId ?? null,
       sold_by_admin_id: adminUser?.id ?? null,
-      adminNotes: adminNotes || null,
+      notes: adminNotes || null,
     }));
     const { error } = await (supabase as any).from("pt_passes").insert(rows);
     if (error) throw error;
@@ -297,10 +297,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           setSubmitting(false);
           return;
         }
-        await insertPasses({
-          paymentMethod: "card_on_file",
-          stripePaymentIntentId: data.paymentIntentId,
-        });
+        try {
+          await insertPasses({
+            paymentMethod: "card_on_file",
+            stripePaymentIntentId: data.paymentIntentId,
+          });
+        } catch (passErr: any) {
+          const warning =
+            `PAYMENT WENT THROUGH ($${((data.totalAmount ?? 0) / 100).toFixed(2)}, ${data.paymentIntentId}) ` +
+            `but the pass could NOT be created: ${passErr?.message ?? "unknown error"}. ` +
+            `Do NOT charge again — grant the pack manually and reference this payment ID.`;
+          setChargeError(warning);
+          toast.error("Card was charged but the pass was not created — see details in the dialog", {
+            duration: 20000,
+          });
+          setSubmitting(false);
+          return;
+        }
         toast.success(`Charged ${(data.totalAmount / 100).toFixed(2)} · ${quantity} × ${selectedPack.name}`);
       } else {
         await insertPasses({ paymentMethod: paymentChoice });
