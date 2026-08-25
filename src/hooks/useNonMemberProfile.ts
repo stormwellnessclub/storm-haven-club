@@ -123,7 +123,13 @@ export function useNonMemberProfile() {
     },
   });
 
-  const signAgreementField = (field: "single_class_pass_agreement_signed" | "class_package_agreement_signed", label: string) =>
+  const signAgreementField = (
+    field:
+      | "single_class_pass_agreement_signed"
+      | "class_package_agreement_signed"
+      | "guest_pass_agreement_signed",
+    label: string
+  ) =>
     useMutation({
       mutationFn: async () => {
         if (!user) throw new Error("Not authenticated");
@@ -131,8 +137,9 @@ export function useNonMemberProfile() {
           .update({ [field]: true, [`${field}_at`]: new Date().toISOString() })
           .eq("user_id", user.id)
           .select()
-          .single();
+          .maybeSingle();
         if (error) throw error;
+        if (!data) throw new Error("Profile not found — please try again");
         return data;
       },
       onSuccess: () => {
@@ -146,6 +153,7 @@ export function useNonMemberProfile() {
 
   const signSingleClassPassAgreement = signAgreementField("single_class_pass_agreement_signed", "Single Class Pass Agreement");
   const signClassPackageAgreement = signAgreementField("class_package_agreement_signed", "Class Package Agreement");
+  const signGuestPassAgreement = signAgreementField("guest_pass_agreement_signed", "Guest Pass Agreement");
 
   return {
     profile: profileQuery.data,
@@ -158,5 +166,8 @@ export function useNonMemberProfile() {
     isSigningSingleClassPassAgreement: signSingleClassPassAgreement.isPending,
     signClassPackageAgreement: signClassPackageAgreement.mutate,
     isSigningClassPackageAgreement: signClassPackageAgreement.isPending,
+    signGuestPassAgreement: signGuestPassAgreement.mutate,
+    isSigningGuestPassAgreement: signGuestPassAgreement.isPending,
   };
+
 }
