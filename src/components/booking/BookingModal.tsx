@@ -80,6 +80,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     profile: nonMemberProfile,
     signSingleClassPassAgreement: signNonMemberSingleClassPassAgreement,
     isSigningSingleClassPassAgreement: isSigningNonMemberSingleClassPassAgreement,
+    signGuestPassAgreement: signNonMemberGuestPassAgreement,
+    isSigningGuestPassAgreement: isSigningNonMemberGuestPassAgreement,
   } = useNonMemberProfile();
   const { hasPhone, isLoading: phoneLoading } = usePhoneOnFile();
 
