@@ -256,7 +256,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
       a => !surfacedIds.has(a.id) && !["cancelled", "no_show"].includes(a.status)
     );
     return { assigned, unassigned, needsAttention };
-  }, [availability, therapists, scheduleDayOfWeek, dayAppointments]);
+  }, [availability, therapists, scheduleDayOfWeek, scheduleDate, dayAppointments]);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
