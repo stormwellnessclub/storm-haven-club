@@ -5674,6 +5674,8 @@ export type Database = {
           created_at: string
           email: string | null
           first_name: string | null
+          guest_pass_agreement_signed: boolean
+          guest_pass_agreement_signed_at: string | null
           id: string
           last_name: string | null
           phone: string | null
@@ -5700,6 +5702,8 @@ export type Database = {
           created_at?: string
           email?: string | null
           first_name?: string | null
+          guest_pass_agreement_signed?: boolean
+          guest_pass_agreement_signed_at?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
@@ -5726,6 +5730,8 @@ export type Database = {
           created_at?: string
           email?: string | null
           first_name?: string | null
+          guest_pass_agreement_signed?: boolean
+          guest_pass_agreement_signed_at?: string | null
           id?: string
           last_name?: string | null
           phone?: string | null
