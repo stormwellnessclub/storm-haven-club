@@ -224,11 +224,13 @@ export function useBookClass() {
 
           const { data: nonMemberProfile } = await (supabase
             .from("non_member_profiles")
-            .select("single_class_pass_agreement_signed")
+            .select("single_class_pass_agreement_signed, guest_pass_agreement_signed")
             .eq("user_id", currentUserId)
             .maybeSingle() as any);
 
-          const guestSigned = !!(profile as any)?.guest_pass_agreement_signed;
+          const guestSigned =
+            !!(profile as any)?.guest_pass_agreement_signed ||
+            !!(nonMemberProfile as any)?.guest_pass_agreement_signed;
           const singleSigned =
             !!(profile as any)?.single_class_pass_agreement_signed ||
             !!(nonMemberProfile as any)?.single_class_pass_agreement_signed;
