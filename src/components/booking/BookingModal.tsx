@@ -291,21 +291,26 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const handleSignPassAgreement = async () => {
     if (!passAgreement) return;
     const isMemberProfile = !!profile;
-    await new Promise<void>((resolve, reject) => {
-      const opts = { onSuccess: () => resolve(), onError: (e: any) => reject(e) };
+    const signed = await new Promise<boolean>((resolve) => {
+      const opts = { onSuccess: () => resolve(true), onError: () => resolve(false) };
       if (passAgreement.type === "guest_pass") {
-        signGuestPassAgreement(undefined as any, opts as any);
+        if (isMemberProfile) signGuestPassAgreement(undefined as any, opts as any);
+        else signNonMemberGuestPassAgreement(undefined as any, opts as any);
       } else if (isMemberProfile) {
         signSingleClassPassAgreement(undefined as any, opts as any);
       } else {
         signNonMemberSingleClassPassAgreement(undefined as any, opts as any);
       }
-    }).catch(() => null);
+    });
+    // If signing failed, keep the card up (error toast already shown) instead of
+    // silently re-running the booking and looping on the same agreement.
+    if (!signed) return;
     setPassAgreement(null);
     setPassAgreementAcknowledged(false);
     // Resume the booking now that the agreement is signed
     setTimeout(() => { void handleBook(); }, 300);
   };
+
 
 
   const handleJoinWaitlist = async () => {
