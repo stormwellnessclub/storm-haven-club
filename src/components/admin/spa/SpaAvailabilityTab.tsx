@@ -699,9 +699,10 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
               onClick={handleSave} 
               disabled={!form.service_id || createAvail.isPending || updateAvail.isPending}
             >
-              {!editingId && selectedDays.length > 1 
+              {!editingId && slotMode === "recurring" && selectedDays.length > 1 
                 ? `Save for ${selectedDays.length} days` 
                 : "Save"}
+
             </Button>
           </DialogFooter>
         </DialogContent>
