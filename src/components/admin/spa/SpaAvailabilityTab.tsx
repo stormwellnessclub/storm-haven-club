@@ -113,6 +113,8 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
     setForm(emptySlot()); 
     setEditingId(null); 
     setSelectedDays([1]); 
+    setSlotMode("recurring");
+    setOneOffDate(format(new Date(), "yyyy-MM-dd"));
     setConflicts([]); 
     setShowForm(true); 
   };
@@ -122,21 +124,34 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
       service_id: slot.service_id, therapist_id: slot.therapist_id, room_id: slot.room_id,
       day_of_week: slot.day_of_week, start_time: slot.start_time, end_time: slot.end_time,
       max_bookings: slot.max_bookings, is_active: slot.is_active,
+      specific_date: slot.specific_date ?? null,
     });
     setEditingId(slot.id);
     setSelectedDays([slot.day_of_week]);
+    setSlotMode(slot.specific_date ? "oneoff" : "recurring");
+    setOneOffDate(slot.specific_date || format(new Date(), "yyyy-MM-dd"));
     setConflicts([]);
     setShowForm(true);
   };
 
-  // Conflict detection
-  const checkConflicts = (days: number[], formData: typeof form) => {
+  // Conflict detection.
+  // `targets` are either weekdays (recurring) or a single ISO date (one-off).
+  const checkConflicts = (
+    targets: { day: number; date: string | null }[],
+    formData: typeof form
+  ) => {
     if (!availability) return [];
     const found: string[] = [];
-    for (const day of days) {
+    for (const target of targets) {
       const overlapping = availability.filter(a => {
         if (editingId && a.id === editingId) return false;
-        if (a.day_of_week !== day) return false;
+        // Date matching: a one-off slot only clashes on its own date; a recurring
+        // slot clashes on every matching weekday (including one-off dates on it).
+        if (a.specific_date) {
+          if (target.date ? a.specific_date !== target.date : a.day_of_week !== target.day) return false;
+        } else if (a.day_of_week !== target.day) {
+          return false;
+        }
         // Check therapist overlap
         const therapistMatch = formData.therapist_id && a.therapist_id && a.therapist_id === formData.therapist_id;
         // Check room overlap  
@@ -154,30 +169,43 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
           ? getTherapistName(o.therapist_id)
           : getRoomName(o.room_id);
         const svcName = getServiceName(o.service_id);
-        found.push(`${DAYS[day]}: ${resource} already assigned to "${svcName}" ${formatSpaTimeRange(o.start_time, o.end_time)}`);
+        const label = target.date ? formatOneOffDate(target.date) : DAYS[target.day];
+        found.push(`${label}: ${resource} already assigned to "${svcName}" ${formatSpaTimeRange(o.start_time, o.end_time)}`);
       }
     }
     return found;
   };
 
   const handleSave = () => {
-    const detectedConflicts = checkConflicts(editingId ? [form.day_of_week] : selectedDays, form);
-    setConflicts(detectedConflicts);
+    const isOneOff = slotMode === "oneoff";
+    const targets = isOneOff
+      ? [{ day: dowForDate(oneOffDate), date: oneOffDate }]
+      : (editingId ? [form.day_of_week] : selectedDays).map(d => ({ day: d, date: null }));
+    setConflicts(checkConflicts(targets, form));
 
     if (editingId) {
-      updateAvail.mutate({ id: editingId, ...form }, { onSuccess: () => setShowForm(false) });
+      const payload = isOneOff
+        ? { ...form, specific_date: oneOffDate, day_of_week: dowForDate(oneOffDate) }
+        : { ...form, specific_date: null };
+      updateAvail.mutate({ id: editingId, ...payload }, { onSuccess: () => setShowForm(false) });
+    } else if (isOneOff) {
+      createAvail.mutate(
+        { ...form, specific_date: oneOffDate, day_of_week: dowForDate(oneOffDate) },
+        { onSuccess: () => setShowForm(false) }
+      );
     } else {
       // Bulk create for all selected days
       const daysToCreate = selectedDays.length > 0 ? selectedDays : [form.day_of_week];
       let completed = 0;
       for (const day of daysToCreate) {
         createAvail.mutate(
-          { ...form, day_of_week: day },
+          { ...form, day_of_week: day, specific_date: null },
           { onSuccess: () => { completed++; if (completed === daysToCreate.length) setShowForm(false); } }
         );
       }
     }
   };
+
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev => 
