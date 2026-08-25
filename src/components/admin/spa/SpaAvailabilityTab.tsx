@@ -59,8 +59,14 @@ function TimeTextInput({ value, onChange }: { value: string; onChange: (v: strin
 const emptySlot = (): Omit<SpaServiceAvailability, "id"> => ({
   service_id: "", therapist_id: null, room_id: null,
   day_of_week: 1, start_time: "09:00", end_time: "17:00",
-  max_bookings: 1, is_active: true,
+  max_bookings: 1, is_active: true, specific_date: null,
 });
+
+/** Day-of-week for a "yyyy-MM-dd" string, computed at local noon to avoid TZ drift. */
+const dowForDate = (iso: string) => new Date(iso + "T12:00:00").getDay();
+
+const formatOneOffDate = (iso: string) => format(new Date(iso + "T12:00:00"), "EEE MMM d");
+
 
 interface SpaAvailabilityTabProps {
   initialView?: string;
@@ -81,7 +87,10 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
   const [form, setForm] = useState(emptySlot());
   const [filterService, setFilterService] = useState("all");
   const [selectedDays, setSelectedDays] = useState<number[]>([1]);
+  const [slotMode, setSlotMode] = useState<"recurring" | "oneoff">("recurring");
+  const [oneOffDate, setOneOffDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [conflicts, setConflicts] = useState<string[]>([]);
+
   const [subTab, setSubTab] = useState(initialView === "schedule" ? "schedule" : "slots");
   const [scheduleDate, setScheduleDate] = useState(initialDate || format(new Date(), "yyyy-MM-dd"));
   const [completionAppointment, setCompletionAppointment] = useState<AdminSpaAppointment | null>(null);
@@ -104,6 +113,8 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
     setForm(emptySlot()); 
     setEditingId(null); 
     setSelectedDays([1]); 
+    setSlotMode("recurring");
+    setOneOffDate(format(new Date(), "yyyy-MM-dd"));
     setConflicts([]); 
     setShowForm(true); 
   };
@@ -113,21 +124,34 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
       service_id: slot.service_id, therapist_id: slot.therapist_id, room_id: slot.room_id,
       day_of_week: slot.day_of_week, start_time: slot.start_time, end_time: slot.end_time,
       max_bookings: slot.max_bookings, is_active: slot.is_active,
+      specific_date: slot.specific_date ?? null,
     });
     setEditingId(slot.id);
     setSelectedDays([slot.day_of_week]);
+    setSlotMode(slot.specific_date ? "oneoff" : "recurring");
+    setOneOffDate(slot.specific_date || format(new Date(), "yyyy-MM-dd"));
     setConflicts([]);
     setShowForm(true);
   };
 
-  // Conflict detection
-  const checkConflicts = (days: number[], formData: typeof form) => {
+  // Conflict detection.
+  // `targets` are either weekdays (recurring) or a single ISO date (one-off).
+  const checkConflicts = (
+    targets: { day: number; date: string | null }[],
+    formData: typeof form
+  ) => {
     if (!availability) return [];
     const found: string[] = [];
-    for (const day of days) {
+    for (const target of targets) {
       const overlapping = availability.filter(a => {
         if (editingId && a.id === editingId) return false;
-        if (a.day_of_week !== day) return false;
+        // Date matching: a one-off slot only clashes on its own date; a recurring
+        // slot clashes on every matching weekday (including one-off dates on it).
+        if (a.specific_date) {
+          if (target.date ? a.specific_date !== target.date : a.day_of_week !== target.day) return false;
+        } else if (a.day_of_week !== target.day) {
+          return false;
+        }
         // Check therapist overlap
         const therapistMatch = formData.therapist_id && a.therapist_id && a.therapist_id === formData.therapist_id;
         // Check room overlap  
@@ -145,30 +169,43 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
           ? getTherapistName(o.therapist_id)
           : getRoomName(o.room_id);
         const svcName = getServiceName(o.service_id);
-        found.push(`${DAYS[day]}: ${resource} already assigned to "${svcName}" ${formatSpaTimeRange(o.start_time, o.end_time)}`);
+        const label = target.date ? formatOneOffDate(target.date) : DAYS[target.day];
+        found.push(`${label}: ${resource} already assigned to "${svcName}" ${formatSpaTimeRange(o.start_time, o.end_time)}`);
       }
     }
     return found;
   };
 
   const handleSave = () => {
-    const detectedConflicts = checkConflicts(editingId ? [form.day_of_week] : selectedDays, form);
-    setConflicts(detectedConflicts);
+    const isOneOff = slotMode === "oneoff";
+    const targets = isOneOff
+      ? [{ day: dowForDate(oneOffDate), date: oneOffDate }]
+      : (editingId ? [form.day_of_week] : selectedDays).map(d => ({ day: d, date: null }));
+    setConflicts(checkConflicts(targets, form));
 
     if (editingId) {
-      updateAvail.mutate({ id: editingId, ...form }, { onSuccess: () => setShowForm(false) });
+      const payload = isOneOff
+        ? { ...form, specific_date: oneOffDate, day_of_week: dowForDate(oneOffDate) }
+        : { ...form, specific_date: null };
+      updateAvail.mutate({ id: editingId, ...payload }, { onSuccess: () => setShowForm(false) });
+    } else if (isOneOff) {
+      createAvail.mutate(
+        { ...form, specific_date: oneOffDate, day_of_week: dowForDate(oneOffDate) },
+        { onSuccess: () => setShowForm(false) }
+      );
     } else {
       // Bulk create for all selected days
       const daysToCreate = selectedDays.length > 0 ? selectedDays : [form.day_of_week];
       let completed = 0;
       for (const day of daysToCreate) {
         createAvail.mutate(
-          { ...form, day_of_week: day },
+          { ...form, day_of_week: day, specific_date: null },
           { onSuccess: () => { completed++; if (completed === daysToCreate.length) setShowForm(false); } }
         );
       }
     }
   };
+
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev => 
@@ -198,8 +235,12 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
     const surfacedIds = new Set<string>();
     const assigned = activeTherapists.map(t => {
       const slots = (availability || []).filter(
-        a => a.therapist_id === t.id && a.day_of_week === scheduleDayOfWeek && a.is_active
+        a =>
+          a.therapist_id === t.id &&
+          a.is_active &&
+          (a.specific_date ? a.specific_date === scheduleDate : a.day_of_week === scheduleDayOfWeek)
       );
+
       const booked = (dayAppointments || []).filter(
         a => a.staff_id === t.id && !["cancelled", "no_show"].includes(a.status)
       );
@@ -215,7 +256,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
       a => !surfacedIds.has(a.id) && !["cancelled", "no_show"].includes(a.status)
     );
     return { assigned, unassigned, needsAttention };
-  }, [availability, therapists, scheduleDayOfWeek, dayAppointments]);
+  }, [availability, therapists, scheduleDayOfWeek, scheduleDate, dayAppointments]);
 
   if (isLoading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>;
 
@@ -257,9 +298,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                 <div className="divide-y">
                   {slots.map(slot => (
                     <div key={slot.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <Badge variant={slot.is_active ? "default" : "outline"} className="text-xs w-20 justify-center">
-                        {DAYS[slot.day_of_week]?.slice(0, 3)}
+                      <Badge
+                        variant={slot.is_active ? "default" : "outline"}
+                        className={`text-xs justify-center ${slot.specific_date ? "w-28" : "w-20"}`}
+                      >
+                        {slot.specific_date ? formatOneOffDate(slot.specific_date) : DAYS[slot.day_of_week]?.slice(0, 3)}
                       </Badge>
+                      {slot.specific_date && (
+                        <Badge variant="secondary" className="text-[10px]">One-off</Badge>
+                      )}
+
                       <span className="text-muted-foreground">
                         {formatSpaTimeRange(slot.start_time, slot.end_time)}
                       </span>
@@ -529,8 +577,38 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
               </Select>
             </div>
 
-            {/* Day selection - bulk for new, single for edit */}
-            {editingId ? (
+            {/* Recurring vs one-off */}
+            <div>
+              <Label>Repeats</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={slotMode === "recurring" ? "default" : "outline"}
+                  onClick={() => setSlotMode("recurring")}
+                >
+                  Weekly (recurring)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={slotMode === "oneoff" ? "default" : "outline"}
+                  onClick={() => setSlotMode("oneoff")}
+                >
+                  One-off date
+                </Button>
+              </div>
+            </div>
+
+            {slotMode === "oneoff" ? (
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={oneOffDate} onChange={e => setOneOffDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Applies only to {formatOneOffDate(oneOffDate)}.
+                </p>
+              </div>
+            ) : editingId ? (
               <div>
                 <Label>Day of Week</Label>
                 <Select value={String(form.day_of_week)} onValueChange={v => setForm({ ...form, day_of_week: parseInt(v) })}>
@@ -558,6 +636,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                 </div>
               </div>
             )}
+
 
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -620,9 +699,10 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
               onClick={handleSave} 
               disabled={!form.service_id || createAvail.isPending || updateAvail.isPending}
             >
-              {!editingId && selectedDays.length > 1 
+              {!editingId && slotMode === "recurring" && selectedDays.length > 1 
                 ? `Save for ${selectedDays.length} days` 
                 : "Save"}
+
             </Button>
           </DialogFooter>
         </DialogContent>
