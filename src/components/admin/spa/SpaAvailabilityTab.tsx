@@ -298,9 +298,16 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                 <div className="divide-y">
                   {slots.map(slot => (
                     <div key={slot.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <Badge variant={slot.is_active ? "default" : "outline"} className="text-xs w-20 justify-center">
-                        {DAYS[slot.day_of_week]?.slice(0, 3)}
+                      <Badge
+                        variant={slot.is_active ? "default" : "outline"}
+                        className={`text-xs justify-center ${slot.specific_date ? "w-28" : "w-20"}`}
+                      >
+                        {slot.specific_date ? formatOneOffDate(slot.specific_date) : DAYS[slot.day_of_week]?.slice(0, 3)}
                       </Badge>
+                      {slot.specific_date && (
+                        <Badge variant="secondary" className="text-[10px]">One-off</Badge>
+                      )}
+
                       <span className="text-muted-foreground">
                         {formatSpaTimeRange(slot.start_time, slot.end_time)}
                       </span>
