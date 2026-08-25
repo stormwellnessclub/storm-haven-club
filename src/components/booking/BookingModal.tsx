@@ -122,7 +122,9 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     : null;
   const isSigningPassAgreement =
     passAgreement?.type === "guest_pass"
-      ? isSigningGuestPassAgreement
+      ? profile
+        ? isSigningGuestPassAgreement
+        : isSigningNonMemberGuestPassAgreement
       : profile
       ? isSigningSingleClassPassAgreement
       : isSigningNonMemberSingleClassPassAgreement;
