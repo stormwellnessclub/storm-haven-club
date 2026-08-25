@@ -577,8 +577,38 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
               </Select>
             </div>
 
-            {/* Day selection - bulk for new, single for edit */}
-            {editingId ? (
+            {/* Recurring vs one-off */}
+            <div>
+              <Label>Repeats</Label>
+              <div className="flex gap-2 mt-1">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={slotMode === "recurring" ? "default" : "outline"}
+                  onClick={() => setSlotMode("recurring")}
+                >
+                  Weekly (recurring)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={slotMode === "oneoff" ? "default" : "outline"}
+                  onClick={() => setSlotMode("oneoff")}
+                >
+                  One-off date
+                </Button>
+              </div>
+            </div>
+
+            {slotMode === "oneoff" ? (
+              <div>
+                <Label>Date</Label>
+                <Input type="date" value={oneOffDate} onChange={e => setOneOffDate(e.target.value)} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Applies only to {formatOneOffDate(oneOffDate)}.
+                </p>
+              </div>
+            ) : editingId ? (
               <div>
                 <Label>Day of Week</Label>
                 <Select value={String(form.day_of_week)} onValueChange={v => setForm({ ...form, day_of_week: parseInt(v) })}>
@@ -606,6 +636,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                 </div>
               </div>
             )}
+
 
             <div className="grid grid-cols-2 gap-4">
               <div>
