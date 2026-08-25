@@ -21,6 +21,8 @@ export interface NonMemberProfile {
   single_class_pass_agreement_signed_at: string | null;
   class_package_agreement_signed: boolean;
   class_package_agreement_signed_at: string | null;
+  guest_pass_agreement_signed?: boolean | null;
+  guest_pass_agreement_signed_at?: string | null;
   sms_opt_in: boolean | null;
   sms_opt_in_at: string | null;
   sms_opt_out_at: string | null;
