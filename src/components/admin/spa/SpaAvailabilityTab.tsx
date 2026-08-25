@@ -59,8 +59,14 @@ function TimeTextInput({ value, onChange }: { value: string; onChange: (v: strin
 const emptySlot = (): Omit<SpaServiceAvailability, "id"> => ({
   service_id: "", therapist_id: null, room_id: null,
   day_of_week: 1, start_time: "09:00", end_time: "17:00",
-  max_bookings: 1, is_active: true,
+  max_bookings: 1, is_active: true, specific_date: null,
 });
+
+/** Day-of-week for a "yyyy-MM-dd" string, computed at local noon to avoid TZ drift. */
+const dowForDate = (iso: string) => new Date(iso + "T12:00:00").getDay();
+
+const formatOneOffDate = (iso: string) => format(new Date(iso + "T12:00:00"), "EEE MMM d");
+
 
 interface SpaAvailabilityTabProps {
   initialView?: string;
