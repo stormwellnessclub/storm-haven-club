@@ -235,8 +235,12 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
     const surfacedIds = new Set<string>();
     const assigned = activeTherapists.map(t => {
       const slots = (availability || []).filter(
-        a => a.therapist_id === t.id && a.day_of_week === scheduleDayOfWeek && a.is_active
+        a =>
+          a.therapist_id === t.id &&
+          a.is_active &&
+          (a.specific_date ? a.specific_date === scheduleDate : a.day_of_week === scheduleDayOfWeek)
       );
+
       const booked = (dayAppointments || []).filter(
         a => a.staff_id === t.id && !["cancelled", "no_show"].includes(a.status)
       );
