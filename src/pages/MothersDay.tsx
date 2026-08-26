@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSpaServices } from "@/hooks/useSpaManagement";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
-import aellaLogo from "@/assets/aella-logo.png";
+import aellaLogo from "@/assets/aella-logo-mark.png";
 import cardImage from "@/assets/mothers-day-card.jpeg";
 import { StripeProvider } from "@/components/StripeProvider";
 import { PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
