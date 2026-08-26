@@ -23,20 +23,32 @@ export function SpaAppointmentRow({
   appt,
   showCancel = false,
   showIntake = false,
+  autoOpenIntake = false,
 }: {
   appt: SpaApptWithStaff;
   showCancel?: boolean;
   /** Show "Intake Form" button when missing (typically only for upcoming). */
   showIntake?: boolean;
+  /** Open the intake dialog automatically (deep link from email). */
+  autoOpenIntake?: boolean;
 }) {
   const cancel = useCancelSpaAppointment();
   const [intakeOpen, setIntakeOpen] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   const needsIntake = serviceNeedsIntake(appt);
   const { data: existingIntake } = useIntakeForm(
     showIntake && needsIntake ? appt.id : null
   );
   const intakeMissing = !existingIntake;
+
+  useEffect(() => {
+    if (autoOpenIntake && needsIntake && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      setIntakeOpen(true);
+    }
+  }, [autoOpenIntake, needsIntake]);
+
 
   const date = parseISO(appt.appointment_date);
   const hoursOut = differenceInHours(
