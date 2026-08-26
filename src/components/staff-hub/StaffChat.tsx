@@ -261,7 +261,7 @@ export function StaffChat({ onUnreadChange }: Props) {
               onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendMessage()}
               className="flex-1"
             />
-            <Button size="icon" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
+            <Button size="icon" aria-label="Send message" onClick={sendMessage} disabled={sending || !newMessage.trim()}>
               <Send className="h-4 w-4" />
             </Button>
           </div>

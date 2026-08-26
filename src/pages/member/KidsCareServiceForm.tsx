@@ -166,13 +166,14 @@ export default function KidsCareServiceForm() {
                       <Button
                         variant="outline"
                         size="sm"
+                        aria-label={`Edit ${child.full_name}`}
                         onClick={() => handleEditChild(child)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" aria-label={`Remove ${child.full_name}`}>
                             <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </Button>
                         </AlertDialogTrigger>

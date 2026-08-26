@@ -447,6 +447,7 @@ export function ChargeHistory({
                       size="sm"
                       variant="ghost"
                       className="h-7 px-2"
+                      aria-label="Export charges to CSV"
                       onClick={exportToCSV}
                     >
                       <Download className="h-3.5 w-3.5" />

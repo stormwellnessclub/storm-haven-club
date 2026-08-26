@@ -798,14 +798,14 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
               <button
                 onClick={() => updateQuantity(item.key, -1)}
                 className="w-6 h-6 border border-cafe-line text-cafe-burgundy hover:bg-cafe-stone transition-colors flex items-center justify-center"
-                aria-label="Decrease"
+                aria-label={`Decrease quantity of ${item.name}`}
               >
                 <Minus className="w-3 h-3" />
               </button>
               <button
                 onClick={() => updateQuantity(item.key, 1)}
                 className="w-6 h-6 border border-cafe-line text-cafe-burgundy hover:bg-cafe-stone transition-colors flex items-center justify-center"
-                aria-label="Increase"
+                aria-label={`Increase quantity of ${item.name}`}
               >
                 <Plus className="w-3 h-3" />
               </button>
