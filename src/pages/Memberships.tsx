@@ -139,7 +139,8 @@ export default function Memberships() {
         title="Gym & Wellness Memberships in Livonia, MI"
         description="Compare Silver, Gold, Platinum & Diamond memberships in Livonia, MI — Reformer Pilates, cycling, recovery spa credits, sauna, café and kids care included. Apply online."
         path="/memberships"
-        image={membershipsHero}
+        image="/og/og-memberships.jpg"
+        imageAlt="Membership at Storm Wellness Club in Livonia, Michigan"
         jsonLd={[
           buildBreadcrumbLd([
             { name: "Home", path: "/" },

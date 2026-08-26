@@ -74,7 +74,13 @@ export default function SpaCategoryHub({ category }: Props) {
 
   return (
     <Layout>
-      <SEOHead title={cat.title} description={cat.description} path={path} />
+      <SEOHead
+        title={cat.title}
+        description={cat.description}
+        path={path}
+        image="/og/og-spa.jpg"
+        imageAlt="Aella Massage & Recovery Spa at Storm Wellness Club in Livonia, Michigan"
+      />
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(breadcrumbLd)}</script>
         <script type="application/ld+json">{JSON.stringify(itemListLd)}</script>
