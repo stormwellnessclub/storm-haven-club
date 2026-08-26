@@ -8527,20 +8527,31 @@ serve(async (req) => {
         }, idempotencyKey ? { idempotencyKey: String(idempotencyKey) } : undefined);
 
 
-        const { error: chargeInsertError } = await supabase
+        // A retried request returns the SAME PaymentIntent (Stripe idempotency key),
+        // so only record the charge once.
+        const { data: existingCharge } = await supabase
           .from('manual_charges')
-          .insert({
-            member_id: memberRecordId,
-            user_id: userId,
-            amount: totalAmount,
-            description: fullDescription,
-            stripe_payment_intent_id: paymentIntent.id,
-            status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-            charged_by: user?.id ?? null,
-          });
-        if (chargeInsertError) {
-          logStep("Warning: failed to record manual_charges row", { error: chargeInsertError.message });
+          .select('id')
+          .eq('stripe_payment_intent_id', paymentIntent.id)
+          .maybeSingle();
+
+        if (!existingCharge) {
+          const { error: chargeInsertError } = await supabase
+            .from('manual_charges')
+            .insert({
+              member_id: memberRecordId,
+              user_id: userId,
+              amount: totalAmount,
+              description: fullDescription,
+              stripe_payment_intent_id: paymentIntent.id,
+              status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
+              charged_by: user?.id ?? null,
+            });
+          if (chargeInsertError) {
+            logStep("Warning: failed to record manual_charges row", { error: chargeInsertError.message });
+          }
         }
+
 
         const pm = await stripe.paymentMethods.retrieve(pmId);
         const cardBrand = pm.card?.brand ? pm.card.brand.charAt(0).toUpperCase() + pm.card.brand.slice(1) : 'Card';

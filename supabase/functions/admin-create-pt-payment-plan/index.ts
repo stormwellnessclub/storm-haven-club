@@ -98,6 +98,49 @@ Deno.serve(async (req) => {
     });
     if (intentErr) throw intentErr;
 
+    // The Stripe subscription is created FIRST so a payment-setup failure can never
+    // leave a granted package behind. Stripe and Postgres are separate systems: the
+    // sale record is the bridge that makes the flow recoverable.
+    const subscription = await stripe.subscriptions.create({
+      customer: stripeCustomerId,
+      items: [{ price: pack.payment_plan_stripe_price_id!, quantity }],
+      default_payment_method: paymentMethodId,
+      collection_method: "charge_automatically",
+      payment_behavior: "error_if_incomplete",
+      off_session: true,
+      metadata: {
+        type: "pt_payment_plan",
+        pt_pack_id: pack.id,
+        installment_total: String(months),
+        user_id: userId,
+        member_id: memberRecordId ?? "",
+        sold_by: auth.userId,
+        quantity: String(quantity),
+        pt_sale_ref: saleRef,
+      },
+    }, { idempotencyKey: `pt_plan:${saleRef}` });
+
+    // Record that money is now committed against this sale. If finalization below
+    // fails, the sale stays "paid" and appears under "Incomplete PT sales".
+    await supabase.rpc("pt_record_sale_payment", {
+      p_idempotency_key: saleRef,
+      p_stripe_payment_intent_id: subscription.id,
+      p_amount_cents: pack.price_cents * quantity,
+    });
+
+    // Schedule auto-cancel after N cycles.
+    try {
+      const periodEnd = (subscription as any).current_period_end;
+      if (periodEnd && months > 1) {
+        const cancelAt = periodEnd + (months - 1) * 30 * 24 * 3600;
+        await stripe.subscriptions.update(subscription.id, { cancel_at: cancelAt });
+      } else if (months === 1) {
+        await stripe.subscriptions.update(subscription.id, { cancel_at_period_end: true });
+      }
+    } catch (e) {
+      console.error("Failed to schedule cancel_at:", (e as Error).message);
+    }
+
     const { data: finalizeRes, error: finalizeErr } = await supabase.rpc("pt_finalize_package_sale", {
       p_idempotency_key: saleRef,
       p_actor: auth.userId === "service_role" ? null : auth.userId,
@@ -111,57 +154,31 @@ Deno.serve(async (req) => {
       .from("pt_passes")
       .update({
         payment_plan_total_installments: months,
-        payment_plan_installments_paid: 0,
+        payment_plan_installments_paid: 1, // first invoice charged
         payment_plan_status: "active",
+        payment_plan_subscription_id: subscription.id,
       })
       .in("id", passIds);
 
-
-    // Create subscription. Charge first invoice immediately with saved PM.
-    // Use billing_cycle_anchor = now (default) and cancel_at = now + months*30 days approx
-    // to enforce N cycles. Prefer schedule via `cancel_at` computed from period end after first invoice.
-    // Simpler and reliable: create subscription then set cancel_at via API call to sub.current_period_end + (months-1)*month.
-    const subscription = await stripe.subscriptions.create({
-      customer: stripeCustomerId,
-      items: [{ price: pack.payment_plan_stripe_price_id!, quantity }],
-      default_payment_method: paymentMethodId,
-      collection_method: "charge_automatically",
-      payment_behavior: "error_if_incomplete",
-      off_session: true,
-      metadata: {
-        type: "pt_payment_plan",
-        pt_pack_id: pack.id,
-        pt_pass_ids: passIds.join(","),
-        installment_total: String(months),
-        user_id: userId,
-        member_id: memberRecordId ?? "",
-        sold_by: auth.userId,
-        quantity: String(quantity),
-      },
-    });
-
-    // Schedule auto-cancel after N cycles.
-    // current_period_end == end of installment #1. cancel_at = period_end + (months-1)*avg month secs.
+    // Backfill pass ids onto the subscription so webhook installment tracking works.
     try {
-      const periodEnd = subscription.current_period_end;
-      if (periodEnd && months > 1) {
-        const cancelAt = periodEnd + (months - 1) * 30 * 24 * 3600;
-        await stripe.subscriptions.update(subscription.id, { cancel_at: cancelAt });
-      } else if (months === 1) {
-        await stripe.subscriptions.update(subscription.id, { cancel_at_period_end: true });
-      }
+      await stripe.subscriptions.update(subscription.id, {
+        metadata: {
+          type: "pt_payment_plan",
+          pt_pack_id: pack.id,
+          pt_pass_ids: passIds.join(","),
+          installment_total: String(months),
+          user_id: userId,
+          member_id: memberRecordId ?? "",
+          sold_by: auth.userId,
+          quantity: String(quantity),
+          pt_sale_ref: saleRef,
+        },
+      });
     } catch (e) {
-      console.error("Failed to schedule cancel_at:", (e as Error).message);
+      console.error("Failed to attach pass ids to subscription:", (e as Error).message);
     }
 
-    // Save subscription id on each pass
-    await supabase
-      .from("pt_passes")
-      .update({
-        payment_plan_subscription_id: subscription.id,
-        payment_plan_installments_paid: 1, // first invoice charged
-      })
-      .in("id", passIds);
 
     return new Response(
       JSON.stringify({
