@@ -3,20 +3,27 @@ import logo from "@/assets/storm-logo-gold.png";
 
 const footerLinks = {
   services: [
-    { label: "Fitness Classes", href: "/classes" },
+    { label: "Class Schedule", href: "/schedule" },
+    { label: "Personal Training", href: "/personal-training" },
+    { label: "Recovery Spa", href: "/spa" },
+    { label: "Massage Therapy", href: "/spa/massage" },
+    { label: "Facials", href: "/spa/facials" },
     { label: "Events", href: "/events" },
-    { label: "Spa & Wellness", href: "/spa" },
     { label: "Café", href: "/cafe" },
     { label: "Gut Reset", href: "/gut-reset" },
     { label: "Kids Care", href: "/kids-care" },
   ],
   membership: [
+    { label: "Memberships & Pricing", href: "/memberships" },
     { label: "Apply Now", href: "/apply" },
     { label: "Class Passes", href: "/class-passes" },
+    { label: "Guest Day Pass", href: "/guest-pass" },
     { label: "Member Amenities", href: "/amenities" },
+    { label: "Storm Shop", href: "/shop" },
     { label: "FAQ", href: "/faq" },
   ],
 };
+
 
 const clubHours = [
   { days: "Monday - Thursday", hours: "5:30 AM - 11:00 PM" },

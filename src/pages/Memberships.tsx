@@ -136,8 +136,8 @@ export default function Memberships() {
   return (
     <Layout>
       <SEOHead
-        title="Memberships"
-        description="Membership tiers and pricing. Silver, Gold, Platinum, and Diamond options with wellness credits, spa access, and recovery at Storm Wellness Club in Livonia, MI."
+        title="Gym & Wellness Memberships in Livonia, MI"
+        description="Compare Silver, Gold, Platinum & Diamond memberships in Livonia, MI — Reformer Pilates, cycling, recovery spa credits, sauna, café and kids care included. Apply online."
         path="/memberships"
         image={membershipsHero}
         jsonLd={[

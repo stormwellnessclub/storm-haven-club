@@ -659,7 +659,11 @@ export default function GuestPass() {
   // Logged in - show inline agreements then form
   return (
     <Layout>
-      <SEOHead title="Guest Pass" description="Purchase a day guest pass to experience Storm Wellness Club in Livonia, MI. Full facility access for one day." path="/guest-pass" />
+      <SEOHead
+        title="Day Guest Pass — Gym, Spa & Sauna Access in Livonia, MI"
+        description="Buy a one-day guest pass to Storm Wellness Club in Livonia, MI. Full club access — sauna, salt room, cold plunge, and a group class. No membership required."
+        path="/guest-pass"
+      />
       <div className="min-h-screen bg-background pt-32 pb-20">
         <div className="container mx-auto px-6">
           {/* Header */}

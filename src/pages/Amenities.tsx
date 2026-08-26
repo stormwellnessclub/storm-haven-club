@@ -1,5 +1,6 @@
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
+import { buildBreadcrumbLd, buildServiceLd } from "@/lib/seo/schemas";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -225,7 +226,24 @@ const membershipTiers = [
 export default function Amenities() {
   return (
     <Layout>
-      <SEOHead title="Sauna, Salt Room & Amenities in Livonia" description="Infrared sauna, Himalayan salt room, cold plunge, steam room, luxury locker rooms, café & kids care at Storm Wellness Club in Livonia, MI." path="/amenities" />
+      <SEOHead
+        title="Sauna, Salt Room & Cold Plunge Amenities in Livonia, MI"
+        description="Infrared sauna, Himalayan salt room, cold plunge, steam room, luxury locker rooms, café and kids care — all included with membership at Storm Wellness Club in Livonia, MI."
+        path="/amenities"
+        jsonLd={[
+          buildBreadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Amenities", path: "/amenities" },
+          ]),
+          buildServiceLd({
+            name: "Club Amenities",
+            serviceType: "Health Club Amenities",
+            description:
+              "Infrared sauna, Himalayan salt room, cold plunge, steam room, luxury locker rooms, café, and kids care at Storm Wellness Club in Livonia, Michigan.",
+            path: "/amenities",
+          }),
+        ]}
+      />
 
       {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
       <h1 className="sr-only">Storm Wellness Club Amenities in Livonia, MI — Sauna, Salt Room, Cold Plunge & More</h1>
