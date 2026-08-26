@@ -208,7 +208,45 @@ export function SpaIntakeForm({
             );
           })}
         </div>
+
+        {isPregnant && (
+          <div className="mt-3 space-y-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
+            <p className="text-sm font-medium">Pregnancy details</p>
+            <div className="space-y-2">
+              <Label className="text-sm font-normal">How many weeks along are you?</Label>
+              <Input
+                type="number"
+                min={1}
+                max={45}
+                inputMode="numeric"
+                placeholder="e.g. 24"
+                value={pregWeeks}
+                onChange={(e) => setPregWeeks(e.target.value)}
+                className="max-w-[140px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-normal">Any accommodations you need?</Label>
+              <Textarea
+                placeholder="e.g. side-lying position, bolster/pillow support, no lying face down"
+                value={pregAccom}
+                onChange={(e) => setPregAccom(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-normal">Any restrictions from your doctor?</Label>
+              <Textarea
+                placeholder="e.g. no deep pressure on legs, avoid certain oils"
+                value={pregRestrict}
+                onChange={(e) => setPregRestrict(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
 
       {/* Allergies */}
       <div className="space-y-2">
