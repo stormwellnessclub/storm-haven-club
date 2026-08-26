@@ -124,6 +124,21 @@ export async function sendSpaNotifications(args: {
     "h:mm a",
   );
 
+  // Audience-aware bookings link: members → /member/bookings, everyone else → /portal/bookings.
+  let isMember = false;
+  {
+    const { data: m } = await supabase
+      .from("members")
+      .select("id")
+      .eq("user_id", a.user_id)
+      .maybeSingle();
+    isMember = !!m;
+  }
+  const bookingsPath = isMember ? "/member/bookings" : "/portal/bookings";
+  const needsIntake =
+    args.kind === "confirmation" &&
+    spaServiceNeedsIntake(a.service_category, a.service_name);
+
   const emailType =
     args.kind === "confirmation"
       ? "spa_appointment_confirmation"
@@ -149,9 +164,13 @@ export async function sendSpaNotifications(args: {
               time: timeStr,
               provider,
               duration: a.duration_minutes,
+              bookingsPath,
+              needsIntake,
+              intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
             },
           },
         })
+
       : Promise.resolve(),
     phone && smsOptIn
       ? supabase.functions.invoke("send-sms", {
