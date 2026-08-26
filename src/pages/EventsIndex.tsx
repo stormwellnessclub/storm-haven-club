@@ -11,6 +11,8 @@ import { Footer } from "@/components/Footer";
 import { formatInTimeZone } from "date-fns-tz";
 import { CalendarDays, MapPin, Ticket } from "lucide-react";
 import { BuyTicketsDialog, type BuyTicketsDialogEvent } from "@/components/events/BuyTicketsDialog";
+import { SEOHead } from "@/components/SEOHead";
+import { buildBreadcrumbLd, buildEventLd } from "@/lib/seo/schemas";
 
 const CLUB_TZ = "America/Detroit";
 
