@@ -10,7 +10,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const FROM = "Storm Wellness Club <hello@notify.stormwellnessclub.com>";
+const FROM = "Storm Wellness Club <admin@stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
 
 const fmtDate = (iso: string) =>
@@ -90,13 +90,21 @@ serve(async (req) => {
         name = meta.first_name || (meta.full_name as string).split(" ")[0];
       }
       if (!name || name === "there") {
-        const { data: prof } = await supabase
+        const { data: prof, error: profileError } = await supabase
           .from("profiles")
-          .select("first_name, full_name")
-          .eq("id", pass.user_id)
+          .select("first_name, last_name, email")
+          .or(`id.eq.${pass.user_id},user_id.eq.${pass.user_id}`)
+          .limit(1)
           .maybeSingle();
+        if (profileError) {
+          console.error("Class pass confirmation profile lookup failed", {
+            pass_id,
+            user_id: pass.user_id,
+            error: profileError.message,
+          });
+        }
+        email = email || prof?.email || null;
         if (prof?.first_name) name = prof.first_name as string;
-        else if (prof?.full_name) name = (prof.full_name as string).split(" ")[0];
       }
     }
     if (!email) {
@@ -132,8 +140,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (e: any) {
-    return new Response(JSON.stringify({ success: false, error: e.message }), {
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("Class pass confirmation failed", { error: message });
+    return new Response(JSON.stringify({ success: false, error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
