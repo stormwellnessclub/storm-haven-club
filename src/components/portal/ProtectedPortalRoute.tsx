@@ -68,7 +68,14 @@ export function ProtectedPortalRoute({ children }: ProtectedPortalRouteProps) {
   }
 
   if (!user) {
-    return <Navigate to="/auth?redirect=/portal" replace />;
+    return (
+      <Navigate
+        to={`/auth?redirect=${encodeURIComponent(
+          window.location.pathname + window.location.search,
+        )}`}
+        replace
+      />
+    );
   }
 
   if (isBlocked) {
