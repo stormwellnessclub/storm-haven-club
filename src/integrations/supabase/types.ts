@@ -9814,6 +9814,9 @@ export type Database = {
           member_id: string | null
           pain_areas: string | null
           pain_level: number | null
+          pregnancy_accommodations: string | null
+          pregnancy_restrictions: string | null
+          pregnancy_weeks: number | null
           pressure_preference: string | null
           prior_massage_experience: string | null
           updated_at: string
@@ -9834,6 +9837,9 @@ export type Database = {
           member_id?: string | null
           pain_areas?: string | null
           pain_level?: number | null
+          pregnancy_accommodations?: string | null
+          pregnancy_restrictions?: string | null
+          pregnancy_weeks?: number | null
           pressure_preference?: string | null
           prior_massage_experience?: string | null
           updated_at?: string
@@ -9854,6 +9860,9 @@ export type Database = {
           member_id?: string | null
           pain_areas?: string | null
           pain_level?: number | null
+          pregnancy_accommodations?: string | null
+          pregnancy_restrictions?: string | null
+          pregnancy_weeks?: number | null
           pressure_preference?: string | null
           prior_massage_experience?: string | null
           updated_at?: string
