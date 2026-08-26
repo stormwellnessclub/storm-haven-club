@@ -1,21 +1,46 @@
-# Send Confirmation Emails for the Sept 13 Massages
+# Make the Intake Link Actually Land on the Form — Then Send the Sept 13 Emails
 
-## The 4 appointments (all Sunday, Sept 13, 2026)
+## I checked the link end-to-end. It works only if they're already signed in.
 
-| Time | Guest | Email | Service | Therapist | Intake done? |
-|---|---|---|---|---|---|
-| 10:00 AM | Jessica Keep | keepjessica1@gmail.com | Prenatal Massage — 90 min | Teresa Tyler | No |
-| 10:00 AM | Caroline Landry | ckeep@umich.edu | Storm Signature Massage — 90 min | Arleacia Parker | No |
-| 11:50 AM | Suzanne Keep | suzkeep@gmail.com | Storm Signature Massage — 90 min | Arleacia Parker | No |
-| 11:50 AM | Sarah Cottrell | sarahkcottrell@gmail.com | Deep Relief Massage — 90 min | Teresa Tyler | No |
+What works today:
+- The email button points to `stormwellnessclub.com/portal/bookings?intake=<their appointment id>`.
+- That page reads `?intake=`, finds the matching upcoming appointment, and the intake dialog opens automatically. Verified in the code.
 
-All four are non-members with accounts, so their intake links will point to the guest portal.
+Where it breaks:
+- If the guest is **signed out** when they tap the button, the portal guard bounces them to
+  `/auth?redirect=/portal` — a hardcoded destination that **throws away the `?intake=` part**.
+  After signing in they land on the portal home, not the intake form.
+- The member page has the same problem by a different route: its guard passes only the path,
+  not the `?intake=` piece, so members lose the deep link too.
 
-## The email they will get
+All four Sept 13 guests have accounts (created when they were booked) but almost certainly
+aren't signed in on their phones, so today most of them would hit exactly that dead end.
 
-Subject: **Spa appointment confirmed — Storm Signature Massage — 90**
+## Fix before sending (small, two files)
 
-Body (Storm header/logo at top, standard footer at bottom):
+1. `src/components/portal/ProtectedPortalRoute.tsx` — redirect to
+   `/auth?redirect=<current path + query>` instead of the hardcoded `/portal`.
+2. `src/components/member/ProtectedMemberRoute.tsx` — carry the query string along with the
+   path so `?intake=` survives sign-in.
+
+`Auth.tsx` already honors a `redirect` query param and only allows internal paths, so nothing
+changes there.
+
+After the fix: signed-in guest → intake form opens immediately. Signed-out guest → sign in, then
+lands straight on the intake form.
+
+## Then send the four confirmations
+
+| Time | Guest | Email | Service | Therapist |
+|---|---|---|---|---|
+| 10:00 AM | Jessica Keep | keepjessica1@gmail.com | Prenatal Massage — 90 min | Teresa Tyler |
+| 10:00 AM | Caroline Landry | ckeep@umich.edu | Storm Signature Massage — 90 min | Arleacia Parker |
+| 11:50 AM | Suzanne Keep | suzkeep@gmail.com | Storm Signature Massage — 90 min | Arleacia Parker |
+| 11:50 AM | Sarah Cottrell | sarahkcottrell@gmail.com | Deep Relief Massage — 90 min | Teresa Tyler |
+
+None of them has an intake form yet, so all four get the intake section.
+
+Subject: **Spa appointment confirmed — <their service>**
 
 ```text
 Appointment Confirmed ✓
@@ -36,30 +61,20 @@ Cancellations within 24 hours may incur a fee.
 Please complete your intake form so your therapist can tailor the
 session (focus areas, pressure, health notes). It only takes a
 couple of minutes.
-            [ Complete Intake Form ]   <- links straight to their form
+            [ Complete Intake Form ]
 
             [ View My Appointments ]
 
 — The Storm Wellness Club Team
 ```
 
-Each guest's own service, time, and therapist are substituted in. The two buttons go to
-`stormwellnessclub.com/portal/bookings?intake=<their appointment>` and
-`stormwellnessclub.com/portal/bookings`.
-
-## What I'll do once you approve
-
-1. Send that confirmation to all four addresses, one call per guest, with their own details.
-2. Also fire the matching confirmation text to anyone with SMS opted in (same path the app uses).
-3. Report back per guest: sent / failed, so you know exactly who got it.
-
-Nothing changes in the app itself — these were booked before the new staff-booking confirmation
-checkbox went live, so this is a one-time catch-up send. Their automatic 24-hour reminder (which
-also nudges the intake form) will still go out on its own.
+I'll send one email per guest with their own details, then report back sent/failed for each.
+Their automatic 24-hour reminder will still go out separately and will nudge the intake form
+again if it's still blank.
 
 ## Technical detail
 
-Invoke the deployed `send-email` function four times with
-`type: 'spa_appointment_confirmation'` and data `{ service, date, time, provider, duration,
-bookingsPath: '/portal/bookings', needsIntake: true, intakeUrlPath: '/portal/bookings?intake=<id>' }`.
-No database or code changes.
+Guard changes use `useLocation()` and build `/auth?redirect=${encodeURIComponent(pathname + search)}`.
+Sends invoke the deployed `send-email` function with `type: 'spa_appointment_confirmation'` and
+`{ service, date, time, provider, duration, bookingsPath: '/portal/bookings', needsIntake: true,
+intakeUrlPath: '/portal/bookings?intake=<id>' }`. No database or schema changes.
