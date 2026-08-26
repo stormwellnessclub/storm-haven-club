@@ -315,8 +315,8 @@ export default function Spa() {
   return (
     <Layout>
       <SEOHead
-        title="Massage & Recovery Spa in Livonia"
-        description="Massage, red light therapy, cold plunge, infrared sauna & cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — book today."
+        title="Aella Massage & Recovery Spa Livonia | Storm Wellness Club"
+        description="Book a massage, red light therapy, cold plunge, infrared sauna or cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — no membership needed."
         path="/spa"
       />
       <Helmet>
@@ -331,7 +331,7 @@ export default function Spa() {
       </Helmet>
 
       {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
-      <h1 className="sr-only">Massage & Recovery Spa in Livonia, MI — Aella at Storm Wellness Club</h1>
+      <h1 className="sr-only">Aella Massage &amp; Recovery Spa in Livonia, MI — open to the public at Storm Wellness Club</h1>
 
       {/* Hidden SEO intro — crawlable copy naming every modality and the service area */}
       <section className="sr-only" aria-hidden="true">
