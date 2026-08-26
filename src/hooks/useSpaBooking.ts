@@ -62,12 +62,19 @@ interface CheckAvailabilityParams {
   excludeAppointmentId?: string;
 }
 
+/** Services that require a spa intake form before the session. */
+export function spaServiceNeedsIntake(category?: string | null, name?: string | null): boolean {
+  const cat = (category || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  return cat.includes("massage") || cat.includes("body") || n.includes("massage");
+}
+
 /**
  * Best-effort spa email + SMS notify. Looks up contact info for the appointment's
  * user (members table → profiles → non_member_profiles) and fires send-email +
  * send-sms in parallel. Never throws — failures are logged only.
  */
-async function sendSpaNotifications(args: {
+export async function sendSpaNotifications(args: {
   appointment: SpaAppointment;
   kind: "confirmation" | "cancellation";
 }) {
@@ -78,6 +85,7 @@ async function sendSpaNotifications(args: {
   let email: string | null = null;
   let phone: string | null = null;
   let smsOptIn = false;
+
 
   const { data: p } = await supabase
     .from("profiles")
