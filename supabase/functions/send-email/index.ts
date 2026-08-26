@@ -3226,6 +3226,7 @@ serve(async (req) => {
                 <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Your intake form isn't done yet</p>
                 <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please complete it before you arrive so your therapist can prepare.</p>
                 <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">Complete Intake Form</a>
+                <p style="margin: 12px 0 0 0; color: #4B4537; font-size: 12px; line-height: 1.5;">If the button doesn't work, sign in to your account dashboard and open <strong>My Bookings</strong> — your appointment there has a "Complete Intake Form" button on it.</p>
               </div>` : ''}
               <p style="${emailStyles.muted}">Need to reschedule? <a href="${BASE_URL}${data.bookingsPath || '/member/bookings'}" style="${emailStyles.link}">Manage your appointment</a>.</p>
 
