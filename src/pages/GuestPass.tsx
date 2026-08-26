@@ -534,7 +534,7 @@ function GuestPassSuccess() {
           <div className="flex items-start gap-3">
             <Phone className="h-5 w-5 text-accent mt-0.5 shrink-0" />
             <div className="text-left">
-              <a href="tel:+13132865070" className="text-sm hover:text-accent transition-colors">(313) 286-5070</a>
+              <a href="tel:+12482328487" className="text-sm hover:text-accent transition-colors">(248) 232-8487</a>
             </div>
           </div>
         </CardContent>

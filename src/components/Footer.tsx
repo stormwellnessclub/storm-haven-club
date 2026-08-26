@@ -121,8 +121,8 @@ export function Footer() {
               <li>18340 Middlebelt Rd</li>
               <li>Livonia, MI 48152</li>
               <li className="pt-2">
-                <a href="tel:+13132865070" className="hover:text-primary-foreground transition-colors">
-                  (313) 286-5070
+                <a href="tel:+12482328487" className="hover:text-primary-foreground transition-colors">
+                  (248) 232-8487
                 </a>
               </li>
               <li>
