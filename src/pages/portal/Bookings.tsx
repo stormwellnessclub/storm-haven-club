@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +45,8 @@ function canReviewClassBooking(booking: any): boolean {
 export default function PortalBookings() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const intakeApptId = searchParams.get("intake");
   const cancelBooking = useCancelBooking();
   const { data: myReviews = [] } = useMyReviews();
   const { upcomingSpa, pastSpa, upcomingPT, pastPT } = useAllAppointmentHistory();
@@ -237,7 +239,7 @@ export default function PortalBookings() {
             {upcomingSpa.length > 0 && (
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
-                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel showIntake />)}
+                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel showIntake autoOpenIntake={intakeApptId === a.id} />)}
               </section>
             )}
             {upcomingPT.length > 0 && (
