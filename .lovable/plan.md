@@ -1,31 +1,26 @@
-# Structured data: organization, classes, and spa services
+# Site icons and web app manifest — gap closure
 
-The site already has a solid foundation: an Organization + LocalBusiness block in `index.html`, schema builders in `src/lib/seo/schemas.ts`, and Service/FAQ/Breadcrumb blocks on several pages. The gaps are the spa and class pages (no prices, no real classes), inconsistent hand-written blocks, and the crawler prerender which only serves the sitewide business block.
+Most of this is already in place from the recent favicon work, verified against the project files:
+
+- `favicon-16x16.png` (16x16), `favicon-32x32.png` (32x32), `favicon.png` (64x64)
+- Apple touch icons at 180x180, 167x167, 152x152
+- Android/PWA icons at 192x192 and 512x512, plus a 512 maskable icon
+- A generated web app manifest with name, short name, theme and background colors, standalone display and icon entries
+- Head links in `index.html` for every favicon size, all three Apple touch icons, and the manifest, each with a cache-busting version
+
+Two real gaps remain.
 
 ## What changes
 
-### 1. Organization / business (sitewide)
-- Point the Organization and LocalBusiness `logo` / `image` at the real branded artwork (gold Storm mark + `/og/og-default.jpg`) instead of the square PWA icon, so knowledge-panel style results have usable imagery.
-- Add a service catalog to the business entity listing the main offerings — Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Personal Training, Café, Kids Care — each linking to its page.
-- Keep `index.html`, `src/lib/seo/business.ts` and the crawler prerender in sync (they are three copies of the same facts today).
+1. **Android Chrome icons under their conventional names.** The 192 and 512 icons currently ship as `pwa-192x192.png` / `pwa-512x512.png`. Add `android-chrome-192x192.png` and `android-chrome-512x512.png` (same gold Storm mark on the dark background) so tooling, audits, and anything expecting the standard filenames resolve them, and reference them from the manifest.
 
-### 2. Spa services
-- On `/spa`: add a Service block for Aella Recovery Spa plus an item list of the live spa services (name, duration, member and guest price, link to booking) built from the data already loaded on the page, alongside the existing breadcrumbs.
-- On each spa service page (massage, facials, body wraps, rituals, recovery, and the standalone red light / cryo / sauna / cold plunge / salt room / Zerobody pages): add pricing offers with duration to the existing Service block, and link the provider to the sitewide business entity by ID rather than repeating the address inline.
-- On the spa category hubs: keep the existing item list but give each entry its price and URL.
+2. **Maskable icon at 192.** Only a 512 maskable exists. Add `android-chrome-maskable-192x192.png` so Android has a correctly padded adaptive icon at the smaller size too.
 
-### 3. Classes
-- On `/schedule`: emit Event structured data for the upcoming published sessions shown on the page — class name, start/end time, instructor, location, remaining spots, and drop-in price — using the existing (currently unused) event builder.
-- On `/classes/:classTypeId`: keep the Service block and add the upcoming sessions of that class type as Events, plus breadcrumbs.
-- Guard against invalid markup: only sessions with a real start time and a public booking URL are emitted, cancelled sessions are marked cancelled, and the list is capped so pages stay light.
-
-### 4. Crawler prerender
-`supabase/functions/seo-prerender/index.ts` serves non-JS crawlers and currently emits only LocalBusiness + WebSite. Add per-path breadcrumb and service blocks matching what the React pages emit, so both audiences see the same entities.
+Both new sizes get manifest entries alongside the existing ones, with the same cache-busting version, and the existing entries stay so already-installed apps keep resolving their icons.
 
 ## Technical notes
-- All new markup goes through the builders in `src/lib/seo/schemas.ts` (`buildServiceLd`, `buildEventLd`, `buildBreadcrumbLd`, `buildProductLd`) and renders via `SEOHead`'s `jsonLd` prop or the `JsonLd` component. Hand-written inline schema objects in `Spa.tsx`, `ServiceLandingPage.tsx`, `SpaCategoryHub.tsx` and `Cafe.tsx` get replaced with builder calls so entity IDs stay consistent.
-- Entities reference the sitewide `#organization` and `#localbusiness` IDs so Google can join them into one graph.
-- Prices come from the same live data the pages already render — no hardcoded price lists that can drift.
-- Validation: build/typecheck, then check the rendered head of `/spa`, `/schedule` and a spa service page in the local preview, and confirm the prerender output for the same paths.
+- Icons are generated from `public/storm-logo-gold.png`, centered and padded (not stretched) on the brand dark background `#0d0d0f`; maskable variants get extra safe-zone padding.
+- Manifest icon list lives in the PWA config in `vite.config.ts` — no service-worker or caching behavior changes.
+- Verification: rebuild, confirm each generated file's pixel dimensions, request each icon and the manifest from the local preview, and confirm the manifest lists every icon.
 
-Structured data affects search results only after Google recrawls, so results appear over the following weeks; publishing is required for any of it to reach crawlers.
+Publishing is required before devices see the updated icon set; iOS home-screen shortcuts saved earlier keep their old icon until removed and re-added.
