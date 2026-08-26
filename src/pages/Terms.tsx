@@ -172,8 +172,8 @@ export default function Terms() {
                     admin@stormwellnessclub.com
                   </a>{" "}
                   ·{" "}
-                  <a href="tel:+13132865070" className="text-gold hover:text-gold-light">
-                    (313) 286-5070
+                  <a href="tel:+12482328487" className="text-gold hover:text-gold-light">
+                    (248) 232-8487
                   </a>
                 </dd>
               </dl>
@@ -274,7 +274,7 @@ export default function Terms() {
               18340 Middlebelt Rd<br />
               Livonia, MI 48152<br />
               Email: <a href="mailto:admin@stormwellnessclub.com" className="text-gold hover:text-gold-light">admin@stormwellnessclub.com</a><br />
-              Phone: <a href="tel:+13132865070" className="text-gold hover:text-gold-light">(313) 286-5070</a>
+              Phone: <a href="tel:+12482328487" className="text-gold hover:text-gold-light">(248) 232-8487</a>
             </address>
           </section>
 

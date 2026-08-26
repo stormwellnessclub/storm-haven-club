@@ -18,7 +18,7 @@ export const BUSINESS = {
   image: "https://stormwellnessclub.com/pwa-512x512.png",
   description:
     "Premium fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
-  telephone: "+1-313-286-5070",
+  telephone: "+1-248-232-8487",
   email: "contact@stormwellnessclub.com",
   priceRange: "$$",
   foundingDate: "2024",

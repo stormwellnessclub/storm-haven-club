@@ -143,10 +143,10 @@ export default function FAQ() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href="tel:+13132865070"
+                href="tel:+12482328487"
                 className="text-gold hover:text-gold-light transition-colors font-medium"
               >
-                (313) 286-5070
+                (248) 232-8487
               </a>
               <span className="hidden sm:inline text-muted-foreground">|</span>
               <a

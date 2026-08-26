@@ -375,11 +375,11 @@ export function ApplicationUnderReview({ applicationData }: ApplicationUnderRevi
                 membership@stormwellnessclub.com
               </a>
               <a 
-                href="tel:+17135551234" 
+                href="tel:+12482328487" 
                 className="flex items-center gap-2 text-sm text-accent hover:underline"
               >
                 <Phone className="w-4 h-4" />
-                (713) 555-1234
+                (248) 232-8487
               </a>
             </div>
           </CardContent>
