@@ -30,6 +30,9 @@ export default defineConfig(({ mode }) => ({
         "apple-touch-icon.png",
         "apple-touch-icon-152x152.png",
         "apple-touch-icon-167x167.png",
+        "android-chrome-192x192.png",
+        "android-chrome-512x512.png",
+        "android-chrome-maskable-192x192.png",
         "robots.txt",
       ],
       manifest: {
@@ -43,6 +46,30 @@ export default defineConfig(({ mode }) => ({
         start_url: "/",
         icons: [
           {
+            src: "/android-chrome-192x192.png?v=2",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/android-chrome-512x512.png?v=2",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/android-chrome-maskable-192x192.png?v=2",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
+            src: "/pwa-maskable-512x512.png?v=2",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+          {
             src: "/pwa-192x192.png?v=2",
             sizes: "192x192",
             type: "image/png",
@@ -55,12 +82,6 @@ export default defineConfig(({ mode }) => ({
             purpose: "any",
           },
           {
-            src: "/pwa-maskable-512x512.png?v=2",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-          {
             src: "/apple-touch-icon.png?v=2",
             sizes: "180x180",
             type: "image/png",
@@ -68,6 +89,7 @@ export default defineConfig(({ mode }) => ({
           },
         ],
       },
+
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,pdf}"],
         globIgnores: ["**/assets/*.jpg", "**/assets/*.jpeg", "**/assets/*.webp"],
