@@ -166,6 +166,7 @@ export default function KidsCareServiceForm() {
                       <Button
                         variant="outline"
                         size="sm"
+                        aria-label={`Edit ${child.full_name}`}
                         onClick={() => handleEditChild(child)}
                       >
                         <Pencil className="h-3.5 w-3.5" />
