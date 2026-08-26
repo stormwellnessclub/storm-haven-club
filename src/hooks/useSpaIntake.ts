@@ -18,6 +18,9 @@ export interface SpaIntakeForm {
   goals: string | null;
   areas_to_avoid: string | null;
   prior_massage_experience: string | null;
+  pregnancy_weeks: number | null;
+  pregnancy_accommodations: string | null;
+  pregnancy_restrictions: string | null;
   consent_signed: boolean;
   consent_signed_at: string | null;
   created_at: string;
@@ -37,6 +40,9 @@ export interface SpaIntakeFormInput {
   goals?: string | null;
   areas_to_avoid?: string | null;
   prior_massage_experience?: string | null;
+  pregnancy_weeks?: number | null;
+  pregnancy_accommodations?: string | null;
+  pregnancy_restrictions?: string | null;
   consent_signed: boolean;
 }
 
