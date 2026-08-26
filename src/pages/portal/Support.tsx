@@ -134,7 +134,7 @@ export default function PortalSupport() {
               className="flex-1"
               rows={2}
             />
-            <Button onClick={handleReply} disabled={sendMessage.isPending} size="icon">
+            <Button onClick={handleReply} disabled={sendMessage.isPending} size="icon" aria-label="Send message">
               <Send className="h-4 w-4" />
             </Button>
           </div>

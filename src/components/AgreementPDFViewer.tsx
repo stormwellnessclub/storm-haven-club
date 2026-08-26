@@ -233,7 +233,7 @@ export function AgreementPDFViewer({
             <h3 className="font-medium">{title}</h3>
             {showControls && (
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
+                <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5} aria-label="Zoom out">
                   <ZoomOut className="h-4 w-4" />
                 </Button>
                 <span className="text-sm text-muted-foreground min-w-[60px] text-center">
@@ -242,10 +242,10 @@ export function AgreementPDFViewer({
                 <Button variant="ghost" size="sm" onClick={zoomIn} disabled={scale >= 3.0}>
                   <ZoomIn className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={handleDownload}>
+                <Button variant="ghost" size="sm" onClick={handleDownload} aria-label="Download agreement PDF">
                   <Download className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={handlePrint}>
+                <Button variant="ghost" size="sm" onClick={handlePrint} aria-label="Print agreement">
                   <Printer className="h-4 w-4" />
                 </Button>
               </div>
@@ -319,7 +319,7 @@ export function AgreementPDFViewer({
                           Viewing Document {index + 1}
                         </span>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5}>
+                          <Button variant="ghost" size="sm" onClick={zoomOut} disabled={scale <= 0.5} aria-label="Zoom out">
                             <ZoomOut className="h-4 w-4" />
                           </Button>
                           <span className="text-sm text-muted-foreground min-w-[60px] text-center">
@@ -342,7 +342,7 @@ export function AgreementPDFViewer({
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm" onClick={handlePrint}>
+                          <Button variant="ghost" size="sm" onClick={handlePrint} aria-label="Print agreement">
                             <Printer className="h-4 w-4" />
                           </Button>
                         </div>

@@ -413,7 +413,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
 
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="icon">
+                  <Button variant="outline" size="icon" aria-label="Pick a date">
                     <CalendarIcon className="h-4 w-4" />
                   </Button>
                 </PopoverTrigger>

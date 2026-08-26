@@ -133,7 +133,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
                     <span className="hidden sm:inline text-xs">Support</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="icon" className="touch-target">
+                <Button variant="ghost" size="icon" className="touch-target" aria-label="Open account menu">
                   <User className="h-5 w-5" />
                 </Button>
               </div>

@@ -132,10 +132,10 @@ export default function Referrals() {
               <div className="flex-1 bg-muted rounded-md px-4 py-3 font-mono text-lg text-center tracking-wider">
                 {codeLoading ? "Loading..." : referralCode ?? "—"}
               </div>
-              <Button variant="outline" size="icon" onClick={handleCopyCode} disabled={!referralCode}>
+              <Button variant="outline" size="icon" aria-label="Copy referral code" onClick={handleCopyCode} disabled={!referralCode}>
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" onClick={handleCopyLink} disabled={!referralCode}>
+              <Button variant="outline" size="icon" aria-label="Share referral link" onClick={handleCopyLink} disabled={!referralCode}>
                 <Share2 className="h-4 w-4" />
               </Button>
             </div>
