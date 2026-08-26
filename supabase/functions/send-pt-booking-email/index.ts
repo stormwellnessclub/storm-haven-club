@@ -10,7 +10,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const FROM = "Storm Wellness Club <hello@notify.stormwellnessclub.com>";
+const FROM = "Storm Wellness Club <hello@stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
 const TZ = "America/Detroit";
 
