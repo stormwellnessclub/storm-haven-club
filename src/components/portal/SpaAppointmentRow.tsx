@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ClipboardCheck, Sparkles, User, X } from "lucide-react";
 import { format, parseISO, differenceInHours } from "date-fns";
 import { Badge } from "@/components/ui/badge";
