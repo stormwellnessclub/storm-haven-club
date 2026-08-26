@@ -3190,6 +3190,7 @@ serve(async (req) => {
                 <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Before your session — intake form</p>
                 <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please complete your intake form so your therapist can tailor the session (focus areas, pressure, health notes). It only takes a couple of minutes.</p>
                 <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">Complete Intake Form</a>
+                <p style="margin: 12px 0 0 0; color: #4B4537; font-size: 12px; line-height: 1.5;">If the button doesn't work, sign in to your account dashboard and open <strong>My Bookings</strong> — your appointment there has a "Complete Intake Form" button on it.</p>
               </div>` : ''}
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}${data.bookingsPath || '/member/bookings'}" style="${emailStyles.button}">View My Appointments</a>
