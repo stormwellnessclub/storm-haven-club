@@ -315,8 +315,8 @@ export default function Spa() {
   return (
     <Layout>
       <SEOHead
-        title="Massage & Recovery Spa in Livonia"
-        description="Massage, red light therapy, cold plunge, infrared sauna & cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — book today."
+        title="Aella Massage & Recovery Spa Livonia | Storm Wellness Club"
+        description="Book a massage, red light therapy, cold plunge, infrared sauna or cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — no membership needed."
         path="/spa"
       />
       <Helmet>
