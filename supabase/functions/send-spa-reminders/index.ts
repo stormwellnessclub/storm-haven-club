@@ -74,9 +74,10 @@ async function processWindow(admin: any, window: Window) {
   const { data: appts, error } = await admin
     .from("spa_appointments")
     .select(
-      "id, user_id, service_name, appointment_date, appointment_time, duration_minutes, staff_id, status, " +
+      "id, user_id, service_name, service_category, appointment_date, appointment_time, duration_minutes, staff_id, status, " +
         sentCol,
     )
+
     .in("appointment_date", Array.from(new Set([loDate, hiDate])))
     .eq("status", "confirmed")
     .is(sentCol, null)
