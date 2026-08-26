@@ -3220,7 +3220,14 @@ serve(async (req) => {
                   ${data.provider ? `<tr><td style="padding: 8px 0; color: #6b7280;">With</td><td style="padding: 8px 0; font-weight: 600;">${data.provider}</td></tr>` : ''}
                 </table>
               </div>
-              <p style="${emailStyles.muted}">Need to reschedule? <a href="${BASE_URL}/member/bookings" style="${emailStyles.link}">Manage your appointment</a>.</p>
+              ${data.needsIntake ? `
+              <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Your intake form isn't done yet</p>
+                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please complete it before you arrive so your therapist can prepare.</p>
+                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">Complete Intake Form</a>
+              </div>` : ''}
+              <p style="${emailStyles.muted}">Need to reschedule? <a href="${BASE_URL}${data.bookingsPath || '/member/bookings'}" style="${emailStyles.link}">Manage your appointment</a>.</p>
+
               <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>
             </div>
             ${getEmailFooter()}
