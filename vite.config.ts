@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => ({
       },
       manifestFilename: "manifest.webmanifest",
       includeAssets: [
+        "favicon.ico",
         "favicon.png",
         "favicon-32x32.png",
         "favicon-16x16.png",
