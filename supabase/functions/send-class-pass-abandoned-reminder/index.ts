@@ -10,7 +10,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const FROM = "Storm Wellness Club <hello@notify.stormwellnessclub.com>";
+const FROM = "Storm Wellness Club <hello@stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
 
 interface Body {

@@ -95,7 +95,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "Storm Wellness <alerts@notify.stormwellnessclub.com>",
+            from: "Storm Wellness <alerts@stormwellnessclub.com>",
             to,
             subject: `⚠️ Payment tracking drift detected (${drift})`,
             html: `
