@@ -2,7 +2,18 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const SITE_URL = "https://stormwellnessclub.com";
 const SITE_NAME = "Storm Wellness Club";
-const OG_IMAGE = `${SITE_URL}/pwa-512x512.png`;
+const OG_IMAGE = `${SITE_URL}/og/og-default.jpg`;
+
+// Per-path 1200x630 social share cards (fall back to OG_IMAGE)
+const OG_IMAGES: Record<string, string> = {
+  '/spa': `${SITE_URL}/og/og-spa.jpg`,
+  '/cafe': `${SITE_URL}/og/og-cafe.jpg`,
+  '/classes': `${SITE_URL}/og/og-classes.jpg`,
+  '/schedule': `${SITE_URL}/og/og-classes.jpg`,
+  '/class-passes': `${SITE_URL}/og/og-classes.jpg`,
+  '/memberships': `${SITE_URL}/og/og-memberships.jpg`,
+  '/apply': `${SITE_URL}/og/og-memberships.jpg`,
+};
 
 const CRAWLER_USER_AGENTS = [
   'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider',
@@ -43,8 +54,8 @@ const PAGE_META: Record<string, PageMeta> = {
     `
   },
   '/classes': {
-    title: `Classes | ${SITE_NAME}`,
-    description: 'Explore class offerings at Storm Wellness Club: Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more in Livonia, MI.',
+    title: `Reformer Pilates, Cycling & Yoga Classes in Livonia, MI | ${SITE_NAME}`,
+    description: 'Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Barre, HIIT and Sculpt classes at Storm Wellness Club in Livonia, MI. Book online — class passes available.',
     h1: 'Classes at Storm Wellness Club',
     bodyContent: `
       <h2>Class Categories</h2>
@@ -62,14 +73,14 @@ const PAGE_META: Record<string, PageMeta> = {
     `
   },
   '/schedule': {
-    title: `Class Schedule | ${SITE_NAME}`,
-    description: 'View and book upcoming class sessions at Storm Wellness Club. Real-time availability, waitlist support, and easy online booking in Livonia, MI.',
+    title: `Reformer Pilates & Cycling Class Schedule in Livonia, MI | ${SITE_NAME}`,
+    description: "See this week's Reformer Pilates, Indoor Cycling, Yoga and aerobics classes in Livonia, MI. Small groups, book online — class passes available, no membership required.",
     h1: 'Class Schedule',
     bodyContent: `<p>View our weekly class schedule and book your spot. Real-time availability and waitlist support for all classes including Reformer Pilates, Cycling, Yoga, HIIT, Barre, and more.</p>`
   },
   '/memberships': {
-    title: `Memberships | ${SITE_NAME}`,
-    description: 'Membership tiers and pricing at Storm Wellness Club. Standard, Premium, and Executive options with wellness credits, guest passes, and spa access.',
+    title: `Gym & Wellness Memberships in Livonia, MI | ${SITE_NAME}`,
+    description: 'Compare Silver, Gold, Platinum & Diamond memberships in Livonia, MI — Reformer Pilates, cycling, recovery spa credits, sauna, café and kids care included. Apply online.',
     h1: 'Membership Plans',
     bodyContent: `
       <h2>Membership Tiers</h2>
@@ -89,9 +100,9 @@ const PAGE_META: Record<string, PageMeta> = {
     bodyContent: `<p>Ready to join Storm Wellness Club? Submit your membership application online. Choose your preferred membership tier, provide your details, and start your wellness journey.</p>`
   },
   '/spa': {
-    title: `Recovery Spa | ${SITE_NAME}`,
-    description: 'Spa and recovery services including sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments in Livonia, MI.',
-    h1: 'Recovery Spa',
+    title: `Aella Massage & Recovery Spa Livonia | ${SITE_NAME}`,
+    description: 'Book a massage, red light therapy, cold plunge, infrared sauna or cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — no membership needed.',
+    h1: 'Aella Massage & Recovery Spa',
     bodyContent: `
       <h2>Spa & Recovery Services</h2>
       <ul>
@@ -106,8 +117,8 @@ const PAGE_META: Record<string, PageMeta> = {
     `
   },
   '/cafe': {
-    title: `Café | ${SITE_NAME}`,
-    description: 'In-house café with smoothies, protein shakes, acai bowls, cold-pressed juices, coffee, and healthy snacks at Storm Wellness Club in Livonia, MI.',
+    title: `Café, Juice & Smoothie Bar in Livonia | ${SITE_NAME}`,
+    description: 'Healthy café in Livonia, MI — smoothies, protein shakes, açaí bowls, cold-pressed juice & espresso. Open to the public at Storm Wellness Club.',
     h1: 'Storm Wellness Café',
     bodyContent: `<p>Fuel your workout with our in-house café featuring smoothies, protein shakes, acai bowls, cold-pressed juices, premium coffee, and healthy snacks. Available to members and guests.</p>`
   },
@@ -292,6 +303,7 @@ function isCrawler(userAgent: string): boolean {
 
 function renderPage(path: string): string {
   const meta = PAGE_META[path] || PAGE_META['/'];
+  const ogImage = OG_IMAGES[path] || OG_IMAGE;
   const canonicalUrl = `${SITE_URL}${path === '/' ? '' : path}`;
 
   return `<!DOCTYPE html>
@@ -309,14 +321,14 @@ function renderPage(path: string): string {
   <meta property="og:description" content="${meta.description}">
   <meta property="og:url" content="${canonicalUrl}">
   <meta property="og:type" content="website">
-  <meta property="og:image" content="${OG_IMAGE}">
+  <meta property="og:image" content="${ogImage}">
   <meta property="og:site_name" content="${SITE_NAME}">
   <meta property="og:locale" content="en_US">
 
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${meta.title}">
   <meta name="twitter:description" content="${meta.description}">
-  <meta name="twitter:image" content="${OG_IMAGE}">
+  <meta name="twitter:image" content="${ogImage}">
 
   <script type="application/ld+json">${JSON.stringify(JSON_LD_LOCAL_BUSINESS)}</script>
   <script type="application/ld+json">${JSON.stringify(JSON_LD_WEBSITE)}</script>

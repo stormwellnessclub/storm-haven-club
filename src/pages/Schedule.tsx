@@ -11,6 +11,8 @@ export default function Schedule() {
         title="Reformer Pilates & Cycling Class Schedule in Livonia, MI"
         description="See this week's Reformer Pilates, Indoor Cycling, Yoga and aerobics classes in Livonia, MI. Small groups, book online — class passes available, no membership required."
         path="/schedule"
+        image="/og/og-classes.jpg"
+        imageAlt="Reformer Pilates studio at Storm Wellness Club in Livonia, Michigan"
         jsonLd={[
           buildBreadcrumbLd([
             { name: "Home", path: "/" },

@@ -2,7 +2,7 @@ import { Helmet } from "react-helmet-async";
 
 const SITE_NAME = "Storm Wellness Club";
 const BASE_URL = "https://stormwellnessclub.com";
-const DEFAULT_IMAGE = `${BASE_URL}/pwa-512x512.png`;
+const DEFAULT_IMAGE = `${BASE_URL}/og/og-default.jpg`;
 
 interface SEOHeadProps {
   title: string;

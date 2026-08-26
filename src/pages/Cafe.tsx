@@ -105,7 +105,10 @@ export default function Cafe() {
         title="Café, Juice & Smoothie Bar in Livonia"
         description="Healthy café in Livonia, MI — smoothies, protein shakes, açaí bowls, cold-pressed juice & espresso. Open to the public at Storm Wellness Club."
         path="/cafe"
+        image="/og/og-cafe.jpg"
+        imageAlt="Smoothies, açaí bowls and espresso at the Storm Wellness Club café in Livonia, Michigan"
       />
+
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(restaurantLd)}</script>
         <script type="application/ld+json">{JSON.stringify(breadcrumbLd)}</script>

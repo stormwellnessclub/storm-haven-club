@@ -50,6 +50,8 @@ export default function EventsIndex() {
         title="Wellness Events & Sound Baths in Livonia, MI"
         description="Upcoming sound baths, workshops, and member celebrations at Storm Wellness Club in Livonia, MI. See dates, prices, and buy tickets online — guests welcome."
         path="/events"
+        image="/og/og-default.jpg"
+        imageAlt="Storm Wellness Club in Livonia, Michigan"
         jsonLd={[
           buildBreadcrumbLd([
             { name: "Home", path: "/" },
