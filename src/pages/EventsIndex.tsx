@@ -31,8 +31,31 @@ export default function EventsIndex() {
     },
   });
 
+  const eventLd = (events ?? []).map((e) =>
+    buildEventLd({
+      name: e.title,
+      description: e.description ?? undefined,
+      startDate: e.starts_at,
+      endDate: e.ends_at ?? e.starts_at,
+      path: `/events/${e.slug ?? e.id}`,
+      price: (e.non_member_price_cents ?? 0) / 100,
+    }),
+  );
+
   return (
     <div className="min-h-screen bg-background">
+      <SEOHead
+        title="Wellness Events & Sound Baths in Livonia, MI"
+        description="Upcoming sound baths, workshops, and member celebrations at Storm Wellness Club in Livonia, MI. See dates, prices, and buy tickets online — guests welcome."
+        path="/events"
+        jsonLd={[
+          buildBreadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Events", path: "/events" },
+          ]),
+          ...eventLd,
+        ]}
+      />
       <Navigation />
 
       {/* Hero */}
@@ -42,13 +65,26 @@ export default function EventsIndex() {
             Storm Wellness Club
           </Badge>
           <h1 className="font-serif text-4xl md:text-6xl mb-4 text-primary">
-            Events & Experiences
+            Wellness Events & Experiences in Livonia
           </h1>
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-            Curated gatherings, sound baths, and member celebrations at the club.
+            Curated gatherings, sound baths, workshops, and member celebrations at the club —
+            most events are open to guests as well as members.
+          </p>
+          <p className="text-muted-foreground max-w-2xl mx-auto text-sm mt-4">
+            Looking for something weekly instead?{" "}
+            <Link to="/schedule" className="text-primary underline underline-offset-4">
+              Browse the class schedule
+            </Link>{" "}
+            or unwind at the{" "}
+            <Link to="/spa" className="text-primary underline underline-offset-4">
+              Aella Recovery Spa
+            </Link>
+            .
           </p>
         </div>
       </section>
+
 
       {/* Events */}
       <section className="container mx-auto px-4 py-16">
