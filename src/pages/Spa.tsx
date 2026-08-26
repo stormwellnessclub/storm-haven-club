@@ -331,7 +331,7 @@ export default function Spa() {
       </Helmet>
 
       {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
-      <h1 className="sr-only">Massage & Recovery Spa in Livonia, MI — Aella at Storm Wellness Club</h1>
+      <h1 className="sr-only">Aella Massage &amp; Recovery Spa in Livonia, MI — open to the public at Storm Wellness Club</h1>
 
       {/* Hidden SEO intro — crawlable copy naming every modality and the service area */}
       <section className="sr-only" aria-hidden="true">
