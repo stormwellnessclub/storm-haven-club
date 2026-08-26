@@ -180,7 +180,7 @@ export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgra
               {/* Delete Button */}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                  <Button variant="ghost" size="sm" aria-label="Delete program" className="text-destructive hover:text-destructive">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </AlertDialogTrigger>
