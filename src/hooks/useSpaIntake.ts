@@ -18,6 +18,9 @@ export interface SpaIntakeForm {
   goals: string | null;
   areas_to_avoid: string | null;
   prior_massage_experience: string | null;
+  pregnancy_weeks: number | null;
+  pregnancy_accommodations: string | null;
+  pregnancy_restrictions: string | null;
   consent_signed: boolean;
   consent_signed_at: string | null;
   created_at: string;
@@ -37,6 +40,9 @@ export interface SpaIntakeFormInput {
   goals?: string | null;
   areas_to_avoid?: string | null;
   prior_massage_experience?: string | null;
+  pregnancy_weeks?: number | null;
+  pregnancy_accommodations?: string | null;
+  pregnancy_restrictions?: string | null;
   consent_signed: boolean;
 }
 
@@ -100,6 +106,9 @@ export function useSubmitIntakeForm() {
         goals: input.goals || null,
         areas_to_avoid: input.areas_to_avoid || null,
         prior_massage_experience: input.prior_massage_experience || null,
+        pregnancy_weeks: input.pregnancy_weeks ?? null,
+        pregnancy_accommodations: input.pregnancy_accommodations || null,
+        pregnancy_restrictions: input.pregnancy_restrictions || null,
         consent_signed: input.consent_signed,
         consent_signed_at: input.consent_signed ? new Date().toISOString() : null,
       };

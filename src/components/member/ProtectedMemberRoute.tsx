@@ -35,7 +35,13 @@ export function ProtectedMemberRoute({ children }: ProtectedMemberRouteProps) {
   // Redirect to auth if not logged in. Trust AuthContext as the single
   // source of truth — no extra getUser/refreshSession dance here.
   if (!user) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    return (
+      <Navigate
+        to={`/auth?redirect=${encodeURIComponent(location.pathname + location.search)}`}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   // Show loading while checking application/member status or blocked status

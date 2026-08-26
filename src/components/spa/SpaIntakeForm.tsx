@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,11 @@ export function SpaIntakeForm({
   const [experience, setExperience] = useState<string>(
     initial?.prior_massage_experience || "occasional",
   );
+  const [pregWeeks, setPregWeeks] = useState<string>(
+    initial?.pregnancy_weeks != null ? String(initial.pregnancy_weeks) : "",
+  );
+  const [pregAccom, setPregAccom] = useState<string>(initial?.pregnancy_accommodations || "");
+  const [pregRestrict, setPregRestrict] = useState<string>(initial?.pregnancy_restrictions || "");
   const [consent, setConsent] = useState<boolean>(initial?.consent_signed || false);
 
   useEffect(() => {
@@ -63,9 +69,14 @@ export function SpaIntakeForm({
       setGoals(initial.goals || "");
       setAvoid(initial.areas_to_avoid || "");
       setExperience(initial.prior_massage_experience || "occasional");
+      setPregWeeks(initial.pregnancy_weeks != null ? String(initial.pregnancy_weeks) : "");
+      setPregAccom(initial.pregnancy_accommodations || "");
+      setPregRestrict(initial.pregnancy_restrictions || "");
       setConsent(initial.consent_signed || false);
     }
   }, [initial?.id]);
+
+  const isPregnant = healthConditions.includes("pregnancy");
 
   const toggle = (
     arr: string[],
@@ -76,6 +87,7 @@ export function SpaIntakeForm({
   };
 
   const handleSubmit = async () => {
+    const weeks = parseInt(pregWeeks, 10);
     await onSubmit({
       focus_areas: focusAreas,
       pressure_preference: pressure,
@@ -87,11 +99,16 @@ export function SpaIntakeForm({
       goals: goals.trim() || null,
       areas_to_avoid: avoid.trim() || null,
       prior_massage_experience: experience,
+      pregnancy_weeks:
+        isPregnant && Number.isFinite(weeks) && weeks >= 1 && weeks <= 45 ? weeks : null,
+      pregnancy_accommodations: isPregnant ? pregAccom.trim() || null : null,
+      pregnancy_restrictions: isPregnant ? pregRestrict.trim() || null : null,
       consent_signed: consent,
     });
   };
 
   const canSubmit = consent && focusAreas.length > 0 && !isSubmitting;
+
 
   return (
     <div className="space-y-6">
@@ -192,7 +209,45 @@ export function SpaIntakeForm({
             );
           })}
         </div>
+
+        {isPregnant && (
+          <div className="mt-3 space-y-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
+            <p className="text-sm font-medium">Pregnancy details</p>
+            <div className="space-y-2">
+              <Label className="text-sm font-normal">How many weeks along are you?</Label>
+              <Input
+                type="number"
+                min={1}
+                max={45}
+                inputMode="numeric"
+                placeholder="e.g. 24"
+                value={pregWeeks}
+                onChange={(e) => setPregWeeks(e.target.value)}
+                className="max-w-[140px]"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-normal">Any accommodations you need?</Label>
+              <Textarea
+                placeholder="e.g. side-lying position, bolster/pillow support, no lying face down"
+                value={pregAccom}
+                onChange={(e) => setPregAccom(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-normal">Any restrictions from your doctor?</Label>
+              <Textarea
+                placeholder="e.g. no deep pressure on legs, avoid certain oils"
+                value={pregRestrict}
+                onChange={(e) => setPregRestrict(e.target.value)}
+                rows={2}
+              />
+            </div>
+          </div>
+        )}
       </div>
+
 
       {/* Allergies */}
       <div className="space-y-2">

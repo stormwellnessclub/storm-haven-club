@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, AlertCircle } from "lucide-react";
+import { ClipboardCheck, AlertCircle, Baby } from "lucide-react";
 import {
   type SpaIntakeForm,
   getFocusAreaLabel,
@@ -32,9 +32,16 @@ export function IntakeFormSummary({ intake, showEmptyState = true }: Props) {
     (e) => e.value === intake.prior_massage_experience,
   )?.label;
 
+  const isPregnant = intake.health_conditions?.includes("pregnancy");
+  const hasPregnancyDetails =
+    isPregnant ||
+    intake.pregnancy_weeks != null ||
+    !!intake.pregnancy_accommodations ||
+    !!intake.pregnancy_restrictions;
+
   return (
-    <div className="space-y-3 text-sm">
-      <div className="flex items-center gap-2 font-medium">
+    <div className="space-y-1 text-sm">
+      <div className="flex items-center gap-2 font-medium pb-2">
         <ClipboardCheck className="h-4 w-4 text-accent" />
         Client Intake
         {intake.consent_signed && (
@@ -44,62 +51,113 @@ export function IntakeFormSummary({ intake, showEmptyState = true }: Props) {
         )}
       </div>
 
-      {intake.focus_areas?.length > 0 && (
-        <Field label="Focus areas">
-          <div className="space-y-2">
-            <BodyDiagramReadOnly selected={intake.focus_areas} />
-            <div className="flex flex-wrap gap-1">
-              {intake.focus_areas.map((a) => (
-                <Badge key={a} variant="secondary" className="text-xs">
-                  {getFocusAreaLabel(a)}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        </Field>
-      )}
-
-      {pressure && <Field label="Pressure" value={pressure} />}
-      {typeof intake.pain_level === "number" && intake.pain_level > 0 && (
-        <Field label={`Pain (${intake.pain_level}/10)`} value={intake.pain_areas || "—"} />
-      )}
-
-      {intake.health_conditions?.length > 0 && (
-        <Field label="Health conditions">
+      <Field question="Focus areas requested" answered={intake.focus_areas?.length > 0}>
+        <div className="space-y-2">
+          <BodyDiagramReadOnly selected={intake.focus_areas} />
           <div className="flex flex-wrap gap-1">
-            {intake.health_conditions.map((h) => (
-              <Badge key={h} variant="destructive" className="text-xs">
-                {getHealthConditionLabel(h)}
+            {intake.focus_areas.map((a) => (
+              <Badge key={a} variant="secondary" className="text-xs">
+                {getFocusAreaLabel(a)}
               </Badge>
             ))}
           </div>
-        </Field>
+        </div>
+      </Field>
+
+      <Field question="Preferred pressure" value={pressure} />
+
+      <Field
+        question="Current pain / tension level"
+        answered={typeof intake.pain_level === "number"}
+      >
+        <div className="space-y-1">
+          <Badge variant="outline" className="text-xs">
+            {intake.pain_level ?? 0} / 10
+          </Badge>
+          {typeof intake.pain_level === "number" && intake.pain_level > 0 && (
+            <p className="text-foreground">
+              {intake.pain_areas || (
+                <span className="text-muted-foreground italic">
+                  No detail given on where it hurts
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+      </Field>
+
+      <Field
+        question="Health conditions reported"
+        answered={intake.health_conditions?.length > 0}
+      >
+        <div className="flex flex-wrap gap-1">
+          {intake.health_conditions.map((h) => (
+            <Badge key={h} variant="destructive" className="text-xs">
+              {getHealthConditionLabel(h)}
+            </Badge>
+          ))}
+        </div>
+      </Field>
+
+      {hasPregnancyDetails && (
+        <div className="my-2 rounded-lg border border-accent/50 bg-accent/5 p-3 space-y-2">
+          <div className="flex items-center gap-2 font-medium">
+            <Baby className="h-4 w-4 text-accent" />
+            Pregnancy details
+            {intake.pregnancy_weeks != null && (
+              <Badge variant="secondary" className="text-xs">
+                {intake.pregnancy_weeks} weeks along
+              </Badge>
+            )}
+          </div>
+          {intake.pregnancy_weeks == null && (
+            <p className="text-xs text-muted-foreground">Weeks along: not provided</p>
+          )}
+          <Field
+            question="Accommodations needed"
+            value={intake.pregnancy_accommodations || undefined}
+          />
+          <Field
+            question="Restrictions from their doctor"
+            value={intake.pregnancy_restrictions || undefined}
+          />
+        </div>
       )}
 
-      {intake.allergies && <Field label="Allergies" value={intake.allergies} />}
-      {intake.medications && <Field label="Medications" value={intake.medications} />}
-      {intake.goals && <Field label="Goals" value={intake.goals} />}
-      {intake.areas_to_avoid && <Field label="Avoid" value={intake.areas_to_avoid} />}
-      {experience && <Field label="Experience" value={experience} />}
+      <Field
+        question="Allergies (oils, lotions, fragrances)"
+        value={intake.allergies || undefined}
+      />
+      <Field question="Current medications" value={intake.medications || undefined} />
+      <Field question="Goals for this session" value={intake.goals || undefined} />
+      <Field question="Areas to avoid" value={intake.areas_to_avoid || undefined} />
+      <Field question="Prior massage experience" value={experience} />
     </div>
   );
 }
 
 function Field({
-  label,
+  question,
   value,
   children,
+  answered,
 }: {
-  label: string;
+  question: string;
   value?: string;
   children?: React.ReactNode;
+  /** Override for children-based fields: false renders the "not answered" state */
+  answered?: boolean;
 }) {
+  const hasAnswer = children ? answered !== false : !!value;
+
   return (
-    <div className="grid grid-cols-[110px_1fr] gap-2 items-start">
-      <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide pt-0.5">
-        {label}
-      </span>
-      <div>{children ?? <span className="text-foreground">{value}</span>}</div>
+    <div className="py-2 border-b border-border/50 last:border-b-0 space-y-1">
+      <p className="text-xs text-muted-foreground font-medium">{question}</p>
+      {hasAnswer ? (
+        <div className="text-foreground whitespace-pre-wrap">{children ?? value}</div>
+      ) : (
+        <p className="text-muted-foreground italic">None reported</p>
+      )}
     </div>
   );
 }
