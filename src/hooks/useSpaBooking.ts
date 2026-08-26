@@ -62,12 +62,19 @@ interface CheckAvailabilityParams {
   excludeAppointmentId?: string;
 }
 
+/** Services that require a spa intake form before the session. */
+export function spaServiceNeedsIntake(category?: string | null, name?: string | null): boolean {
+  const cat = (category || "").toLowerCase();
+  const n = (name || "").toLowerCase();
+  return cat.includes("massage") || cat.includes("body") || n.includes("massage");
+}
+
 /**
  * Best-effort spa email + SMS notify. Looks up contact info for the appointment's
  * user (members table → profiles → non_member_profiles) and fires send-email +
  * send-sms in parallel. Never throws — failures are logged only.
  */
-async function sendSpaNotifications(args: {
+export async function sendSpaNotifications(args: {
   appointment: SpaAppointment;
   kind: "confirmation" | "cancellation";
 }) {
@@ -78,6 +85,7 @@ async function sendSpaNotifications(args: {
   let email: string | null = null;
   let phone: string | null = null;
   let smsOptIn = false;
+
 
   const { data: p } = await supabase
     .from("profiles")
@@ -116,6 +124,21 @@ async function sendSpaNotifications(args: {
     "h:mm a",
   );
 
+  // Audience-aware bookings link: members → /member/bookings, everyone else → /portal/bookings.
+  let isMember = false;
+  {
+    const { data: m } = await supabase
+      .from("members")
+      .select("id")
+      .eq("user_id", a.user_id)
+      .maybeSingle();
+    isMember = !!m;
+  }
+  const bookingsPath = isMember ? "/member/bookings" : "/portal/bookings";
+  const needsIntake =
+    args.kind === "confirmation" &&
+    spaServiceNeedsIntake(a.service_category, a.service_name);
+
   const emailType =
     args.kind === "confirmation"
       ? "spa_appointment_confirmation"
@@ -141,9 +164,13 @@ async function sendSpaNotifications(args: {
               time: timeStr,
               provider,
               duration: a.duration_minutes,
+              bookingsPath,
+              needsIntake,
+              intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
             },
           },
         })
+
       : Promise.resolve(),
     phone && smsOptIn
       ? supabase.functions.invoke("send-sms", {

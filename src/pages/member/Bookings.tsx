@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -42,6 +42,8 @@ function canReviewClassBooking(booking: any): boolean {
 
 export default function MemberBookings() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const intakeApptId = searchParams.get("intake");
   const { data: upcomingBookings, isLoading: upcomingLoading } = useUpcomingBookings();
   const { data: pastBookings, isLoading: pastLoading } = usePastBookings();
   const { data: myReviews = [] } = useMyReviews();
@@ -123,7 +125,7 @@ export default function MemberBookings() {
             {upcomingSpa.length > 0 && (
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold text-muted-foreground">Spa & Recovery</h3>
-                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel showIntake />)}
+                {upcomingSpa.map((a) => <SpaAppointmentRow key={a.id} appt={a} showCancel showIntake autoOpenIntake={intakeApptId === a.id} />)}
               </section>
             )}
             {upcomingPT.length > 0 && (

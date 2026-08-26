@@ -10,7 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, AlertTriangle, Search, FileCheck, ArrowRight, Info, CreditCard, Heart, X } from "lucide-react";
 import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
-import { useCheckSpaAvailability, useSpaBookedSlots } from "@/hooks/useSpaBooking";
+import { useCheckSpaAvailability, useSpaBookedSlots, sendSpaNotifications } from "@/hooks/useSpaBooking";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -80,6 +81,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [voucherInput, setVoucherInput] = useState("");
   const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
   const [reminderSending, setReminderSending] = useState(false);
+  const [sendConfirmation, setSendConfirmation] = useState(true);
 
   const handleApplyVoucher = async () => {
     const res = await applyVoucher(voucherInput);
@@ -542,6 +544,27 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       }).select("id").single();
       if (error) throw error;
 
+      // Confirmation email + SMS (best-effort; only possible with a linked account).
+      if (sendConfirmation && userIdToInsert && inserted?.id) {
+        try {
+          await sendSpaNotifications({
+            appointment: {
+              id: inserted.id,
+              user_id: userIdToInsert,
+              service_name: selectedService.name,
+              service_category: selectedService.category,
+              appointment_date: appointmentDate,
+              appointment_time: appointmentTime + ":00",
+              duration_minutes: selectedService.duration_minutes,
+              staff_id: resolvedTherapist,
+            } as any,
+            kind: "confirmation",
+          });
+        } catch (e) {
+          console.warn("admin spa confirmation notify failed (non-fatal):", e);
+        }
+      }
+
       if (usingVoucher) {
         try {
           await redeemMothersDayVoucher(appliedVoucher!.code, inserted?.id || null);
@@ -580,6 +603,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     setPaymentMethod("in_person");
     setConflict(null);
     setVoucherInput("");
+    setSendConfirmation(true);
     clearVoucher();
   };
 
@@ -946,6 +970,25 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
             </Select>
           </div>
           )}
+
+          {/* Confirmation email */}
+          <div className="flex items-start gap-2 rounded-md border p-3">
+            <Checkbox
+              id="spa-send-confirmation"
+              checked={sendConfirmation}
+              onCheckedChange={(v) => setSendConfirmation(v === true)}
+            />
+            <div className="space-y-1">
+              <Label htmlFor="spa-send-confirmation" className="cursor-pointer">
+                Send confirmation email / text
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {selectedCustomer?.userId
+                  ? "Includes the intake form link for massage & body services."
+                  : "Walk-in guests without an account can't be emailed — take the intake form at the front desk."}
+              </p>
+            </div>
+          </div>
 
           {/* Notes */}
           <div>

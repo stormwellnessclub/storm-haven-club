@@ -74,9 +74,10 @@ async function processWindow(admin: any, window: Window) {
   const { data: appts, error } = await admin
     .from("spa_appointments")
     .select(
-      "id, user_id, service_name, appointment_date, appointment_time, duration_minutes, staff_id, status, " +
+      "id, user_id, service_name, service_category, appointment_date, appointment_time, duration_minutes, staff_id, status, " +
         sentCol,
     )
+
     .in("appointment_date", Array.from(new Set([loDate, hiDate])))
     .eq("status", "confirmed")
     .is(sentCol, null)
@@ -156,6 +157,28 @@ async function processWindow(admin: any, window: Window) {
         minute: "2-digit",
       });
 
+      // Audience-aware links + intake reminder (massage/body services only).
+      const { data: memberRow } = await admin
+        .from("members")
+        .select("id")
+        .eq("user_id", a.user_id)
+        .maybeSingle();
+      const bookingsPath = memberRow ? "/member/bookings" : "/portal/bookings";
+
+      const cat = (a.service_category || "").toLowerCase();
+      const svcName = (a.service_name || "").toLowerCase();
+      const intakeService =
+        cat.includes("massage") || cat.includes("body") || svcName.includes("massage");
+      let needsIntake = false;
+      if (intakeService) {
+        const { data: intake } = await admin
+          .from("spa_intake_forms")
+          .select("id")
+          .eq("appointment_id", a.id)
+          .maybeSingle();
+        needsIntake = !intake;
+      }
+
       const smsKey = window === "24h" ? "appointment-reminder-24h" : "appointment-reminder-2h";
       const smsVars =
         window === "24h"
@@ -179,9 +202,13 @@ async function processWindow(admin: any, window: Window) {
                   time: timeLabel,
                   provider,
                   window,
+                  bookingsPath,
+                  needsIntake,
+                  intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
                 },
               }),
             })
+
           : Promise.resolve(),
         phone && smsOptIn
           ? fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
