@@ -68,9 +68,14 @@ export function SpaIntakeForm({
       setGoals(initial.goals || "");
       setAvoid(initial.areas_to_avoid || "");
       setExperience(initial.prior_massage_experience || "occasional");
+      setPregWeeks(initial.pregnancy_weeks != null ? String(initial.pregnancy_weeks) : "");
+      setPregAccom(initial.pregnancy_accommodations || "");
+      setPregRestrict(initial.pregnancy_restrictions || "");
       setConsent(initial.consent_signed || false);
     }
   }, [initial?.id]);
+
+  const isPregnant = healthConditions.includes("pregnancy");
 
   const toggle = (
     arr: string[],
@@ -81,6 +86,7 @@ export function SpaIntakeForm({
   };
 
   const handleSubmit = async () => {
+    const weeks = parseInt(pregWeeks, 10);
     await onSubmit({
       focus_areas: focusAreas,
       pressure_preference: pressure,
@@ -92,11 +98,16 @@ export function SpaIntakeForm({
       goals: goals.trim() || null,
       areas_to_avoid: avoid.trim() || null,
       prior_massage_experience: experience,
+      pregnancy_weeks:
+        isPregnant && Number.isFinite(weeks) && weeks >= 1 && weeks <= 45 ? weeks : null,
+      pregnancy_accommodations: isPregnant ? pregAccom.trim() || null : null,
+      pregnancy_restrictions: isPregnant ? pregRestrict.trim() || null : null,
       consent_signed: consent,
     });
   };
 
   const canSubmit = consent && focusAreas.length > 0 && !isSubmitting;
+
 
   return (
     <div className="space-y-6">
