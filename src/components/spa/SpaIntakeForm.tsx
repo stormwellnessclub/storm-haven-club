@@ -49,6 +49,11 @@ export function SpaIntakeForm({
   const [experience, setExperience] = useState<string>(
     initial?.prior_massage_experience || "occasional",
   );
+  const [pregWeeks, setPregWeeks] = useState<string>(
+    initial?.pregnancy_weeks != null ? String(initial.pregnancy_weeks) : "",
+  );
+  const [pregAccom, setPregAccom] = useState<string>(initial?.pregnancy_accommodations || "");
+  const [pregRestrict, setPregRestrict] = useState<string>(initial?.pregnancy_restrictions || "");
   const [consent, setConsent] = useState<boolean>(initial?.consent_signed || false);
 
   useEffect(() => {
