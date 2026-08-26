@@ -16,7 +16,30 @@ Where it breaks:
 All four Sept 13 guests have accounts (created when they were booked) but almost certainly
 aren't signed in on their phones, so today most of them would hit exactly that dead end.
 
+## What the intake form asks today (no changes planned unless you want them)
+
+Required: at least one focus area (tap-the-body diagram: head/scalp, neck,
+shoulders, upper/mid/lower back, arms, hands, chest, abdomen, hips, glutes,
+hamstrings, quads, calves, feet) and the consent checkbox.
+
+Also collected: preferred pressure (light / medium / firm / deep tissue);
+pain-or-tension level 0-10 with a free-text "where does it hurt / injuries"
+box when above 0; health conditions (pregnancy, high/low blood pressure,
+heart condition, blood thinners, diabetes, recent surgery under 6 months,
+skin condition, allergies, varicose veins, fibromyalgia/chronic pain, cancer
+history, other); allergies to oils/lotions/fragrances; current medications;
+goals for the session; areas to avoid; prior massage experience (first time /
+occasional / regular).
+
+Consent line: "I confirm the information above is accurate and I consent to
+receive treatment. I understand I should notify my therapist of any discomfort
+during the session."
+
+Therapists see the completed form on the appointment. Tell me anything you
+want added or removed and I'll fold it into this same change.
+
 ## Fix before sending (small, two files)
+
 
 1. `src/components/portal/ProtectedPortalRoute.tsx` — redirect to
    `/auth?redirect=<current path + query>` instead of the hardcoded `/portal`.
@@ -63,7 +86,12 @@ session (focus areas, pressure, health notes). It only takes a
 couple of minutes.
             [ Complete Intake Form ]
 
+If the button doesn't work, sign in to your account dashboard and
+open "My Bookings" — your appointment will show a
+"Complete Intake Form" button right on it.
+
             [ View My Appointments ]
+
 
 — The Storm Wellness Club Team
 ```
