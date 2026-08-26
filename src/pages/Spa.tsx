@@ -33,7 +33,7 @@ import { Label } from "@/components/ui/label";
 import sauna from "@/assets/sauna.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import treatmentRoom from "@/assets/treatment-room.jpg";
-import aellaLogo from "@/assets/aella-logo.png";
+import aellaLogo from "@/assets/aella-logo-mark.png";
 // Wellness imagery
 import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
 import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
