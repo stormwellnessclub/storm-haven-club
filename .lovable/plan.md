@@ -63,7 +63,12 @@ session (focus areas, pressure, health notes). It only takes a
 couple of minutes.
             [ Complete Intake Form ]
 
+If the button doesn't work, sign in to your account dashboard and
+open "My Bookings" — your appointment will show a
+"Complete Intake Form" button right on it.
+
             [ View My Appointments ]
+
 
 — The Storm Wellness Club Team
 ```
