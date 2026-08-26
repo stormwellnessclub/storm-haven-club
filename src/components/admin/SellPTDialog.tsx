@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -64,6 +64,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [submitting, setSubmitting] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
   const [usePaymentPlan, setUsePaymentPlan] = useState(false);
+  /** Stable reference for the current sale attempt — reused on retry. */
+  const saleKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (presetUserId) {
@@ -215,32 +217,47 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setAdminNotes("");
     setChargeError(null);
     setUsePaymentPlan(false);
+    saleKeyRef.current = null;
   }
 
-  async function insertPasses(opts: {
-    paymentMethod: string;
-    stripePaymentIntentId?: string | null;
-  }) {
-    if (!selectedUserId || !selectedPack) return;
-    const { data: { user: adminUser } } = await supabase.auth.getUser();
-    const rows = Array.from({ length: quantity }).map(() => ({
-      user_id: selectedUserId,
-      pack_id: selectedPack.id,
-      format: selectedPack.format,
-      pack_name: selectedPack.name,
-      sessions_total: selectedPack.sessions,
-      sessions_remaining: selectedPack.sessions,
-      price_cents_charged: selectedPack.price_cents,
-      activated_at: activatedAt,
-      expires_at: expiresAt,
-      status: "active",
-      payment_method: opts.paymentMethod,
-      stripe_payment_intent_id: opts.stripePaymentIntentId ?? null,
-      sold_by_admin_id: adminUser?.id ?? null,
-      notes: adminNotes || null,
-    }));
-    const { error } = await (supabase as any).from("pt_passes").insert(rows);
+  /**
+   * Phase 2A: sales are finalized server-side against a recoverable sale record.
+   * The same sale reference is reused on retry so Stripe never charges twice and
+   * the database never creates duplicate packages.
+   */
+  async function openSaleIntent(paymentMethod: string) {
+    if (!selectedUserId || !selectedPack) throw new Error("Missing customer or pack");
+    const key = saleKeyRef.current ?? crypto.randomUUID();
+    saleKeyRef.current = key;
+    const { data, error } = await (supabase as any).rpc("pt_open_sale_intent", {
+      p_idempotency_key: key,
+      p_user_id: selectedUserId,
+      p_pack_name: selectedPack.name,
+      p_format: selectedPack.format,
+      p_sessions_per_pack: selectedPack.sessions,
+      p_quantity: quantity,
+      p_unit_price_cents: selectedPack.price_cents,
+      p_activated_at: activatedAt,
+      p_expires_at: expiresAt,
+      p_payment_method: paymentMethod,
+      p_pack_id: selectedPack.id,
+      p_notes: adminNotes || null,
+    });
     if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    return { key, sale: row as { status: string; stripe_payment_intent_id: string | null } };
+  }
+
+  async function finalizeSale(key: string) {
+    const { error } = await (supabase as any).rpc("pt_finalize_package_sale", {
+      p_idempotency_key: key,
+    });
+    if (error) {
+      await (supabase as any)
+        .rpc("pt_fail_sale_intent", { p_idempotency_key: key, p_error: error.message })
+        .catch(() => {});
+      throw error;
+    }
   }
 
   async function submit() {
@@ -274,55 +291,65 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         }
         toast.success(`Payment plan started — ${planMonths} × ${formatCents(perInstallmentCents)}`);
       } else if (paymentChoice === "card_on_file") {
-        const description = `Personal Training: ${quantity} × ${selectedPack.name}`;
-        const { data, error } = await supabase.functions.invoke("stripe-payment", {
-          body: {
-            action: "admin_charge_user_saved_card",
-            userId: selectedUserId,
-            paymentMethodId: selectedCardId,
-            amount: subtotalCents,
-            description,
-            grossUpFee: true,
-            metadata: {
-              pt_pack_id: selectedPack.id,
-              pt_format: selectedPack.format,
-              quantity: String(quantity),
-              sessions_per_pack: String(selectedPack.sessions),
+        const { key, sale } = await openSaleIntent("card_on_file");
+        const alreadyPaid = sale?.status === "paid" || sale?.status === "finalized";
+
+        if (!alreadyPaid) {
+          const description = `Personal Training: ${quantity} × ${selectedPack.name}`;
+          const { data, error } = await supabase.functions.invoke("stripe-payment", {
+            body: {
+              action: "admin_charge_user_saved_card",
+              userId: selectedUserId,
+              paymentMethodId: selectedCardId,
+              amount: subtotalCents,
+              description,
+              grossUpFee: true,
+              idempotencyKey: `pt_sale:${key}`,
+              metadata: {
+                pt_pack_id: selectedPack.id,
+                pt_format: selectedPack.format,
+                pt_sale_ref: key,
+                quantity: String(quantity),
+                sessions_per_pack: String(selectedPack.sessions),
+              },
             },
-          },
-        });
-        if (error) throw error;
-        if (!data?.success) {
-          setChargeError(data?.error || `Charge failed (status: ${data?.status ?? "unknown"})`);
-          setSubmitting(false);
-          return;
+          });
+          if (error) throw error;
+          if (!data?.success) {
+            setChargeError(data?.error || `Charge failed (status: ${data?.status ?? "unknown"})`);
+            setSubmitting(false);
+            return;
+          }
+          await (supabase as any).rpc("pt_record_sale_payment", {
+            p_idempotency_key: key,
+            p_stripe_payment_intent_id: data.paymentIntentId,
+            p_amount_cents: data.totalAmount ?? subtotalCents,
+          });
+          toast.success(`Charged ${(data.totalAmount / 100).toFixed(2)} · ${quantity} × ${selectedPack.name}`);
         }
+
         try {
-          await insertPasses({
-            paymentMethod: "card_on_file",
-            stripePaymentIntentId: data.paymentIntentId,
-          });
+          await finalizeSale(key);
         } catch (passErr: any) {
-          const warning =
-            `PAYMENT WENT THROUGH ($${((data.totalAmount ?? 0) / 100).toFixed(2)}, ${data.paymentIntentId}) ` +
-            `but the pass could NOT be created: ${passErr?.message ?? "unknown error"}. ` +
-            `Do NOT charge again — grant the pack manually and reference this payment ID.`;
-          setChargeError(warning);
-          toast.error("Card was charged but the pass was not created — see details in the dialog", {
-            duration: 20000,
-          });
+          setChargeError(
+            `PAYMENT IS RECORDED for this sale (reference ${key}) but the package was not created: ` +
+              `${passErr?.message ?? "unknown error"}. Press "Sell" again to retry — the customer will NOT be charged a second time. ` +
+              `The sale also appears under "Incomplete PT sales" on the PT Passes page.`,
+          );
+          toast.error("Payment recorded — package creation failed. Retry is safe.", { duration: 20000 });
           setSubmitting(false);
           return;
         }
-        toast.success(`Charged ${(data.totalAmount / 100).toFixed(2)} · ${quantity} × ${selectedPack.name}`);
       } else {
-        await insertPasses({ paymentMethod: paymentChoice });
+        const { key } = await openSaleIntent(paymentChoice);
+        await finalizeSale(key);
         toast.success(`Sold ${quantity} × ${selectedPack.name}`);
       }
 
 
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
+      qc.invalidateQueries({ queryKey: ["pt-sale-intents"] });
       reset();
       onOpenChange(false);
     } catch (e: any) {

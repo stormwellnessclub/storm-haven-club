@@ -8427,6 +8427,7 @@ serve(async (req) => {
           description,
           grossUpFee = true,
           metadata: extraMetadata = {},
+          idempotencyKey = null,
         } = body;
 
         if (!userId || !amount || !description) {
@@ -8523,7 +8524,8 @@ serve(async (req) => {
               Object.entries(extraMetadata || {}).map(([k, v]) => [k, String(v)])
             ),
           },
-        });
+        }, idempotencyKey ? { idempotencyKey: String(idempotencyKey) } : undefined);
+
 
         const { error: chargeInsertError } = await supabase
           .from('manual_charges')

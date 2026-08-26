@@ -76,27 +76,33 @@ export function GrantLegacyPtPackDialog({ open, onOpenChange, presetUserId, pres
     if (!expiresAt) return toast.error("Expiration required");
     setSaving(true);
     try {
-      const { data: { user: adminUser } } = await supabase.auth.getUser();
-      const { error } = await (supabase as any).from("pt_passes").insert({
-        user_id: userId,
-        pack_id: null,
-        format,
-        pack_name: packName.trim(),
-        sessions_total: sessions,
-        sessions_remaining: sessions,
-        price_cents_charged: 0,
-        activated_at: activatedAt,
-        expires_at: expiresAt,
-        status: "active",
-        payment_method: "legacy",
-        stripe_payment_intent_id: null,
-        sold_by_admin_id: adminUser?.id ?? null,
-        notes: notes.trim() ? `[Legacy — Old Location] ${notes.trim()}` : "[Legacy — Old Location]",
+      // Phase 2A: packages are only created server-side, against a sale record.
+      const key = crypto.randomUUID();
+      const { error: intentErr } = await (supabase as any).rpc("pt_open_sale_intent", {
+        p_idempotency_key: key,
+        p_user_id: userId,
+        p_pack_name: packName.trim(),
+        p_format: format,
+        p_sessions_per_pack: sessions,
+        p_quantity: 1,
+        p_unit_price_cents: 0,
+        p_activated_at: activatedAt,
+        p_expires_at: expiresAt,
+        p_payment_method: "legacy",
+        p_pack_id: null,
+        p_notes: notes.trim() ? `[Legacy — Old Location] ${notes.trim()}` : "[Legacy — Old Location]",
+      });
+      if (intentErr) throw intentErr;
+
+      const { error } = await (supabase as any).rpc("pt_finalize_package_sale", {
+        p_idempotency_key: key,
       });
       if (error) throw error;
+
       toast.success(`Granted ${sessions} legacy session${sessions !== 1 ? "s" : ""}`);
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
+      qc.invalidateQueries({ queryKey: ["pt-sale-intents"] });
       reset();
       onOpenChange(false);
     } catch (e: any) {

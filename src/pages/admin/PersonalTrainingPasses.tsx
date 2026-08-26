@@ -13,6 +13,7 @@ import { format as fmtDate, parseISO, differenceInDays } from "date-fns";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { GrantLegacyPtPackDialog } from "@/components/admin/GrantLegacyPtPackDialog";
+import { IncompletePTSales } from "@/components/admin/IncompletePTSales";
 import { PT_FORMAT_LABEL, PtFormat, PtPass, formatCents } from "@/lib/ptFormat";
 import { Link } from "react-router-dom";
 
@@ -159,17 +160,40 @@ export default function PersonalTrainingPasses() {
   async function saveEdits(p: PtPass) {
     setSaving(true);
     try {
-      const { error } = await (supabase as any)
-        .from("pt_passes")
-        .update({
-          activated_at: draftActivation,
-          expires_at: draftExpires,
-          sessions_remaining: Math.max(0, Math.min(draftRemaining, draftTotal)),
-        })
-        .eq("id", p.id);
-      if (error) throw error;
+      const nextRemaining = Math.max(0, Math.min(draftRemaining, draftTotal));
+      const delta = nextRemaining - p.sessions_remaining;
+
+      // Dates are safe to edit directly; balance changes must go through the
+      // sanctioned adjustment path so they land in the audit history.
+      if (draftActivation !== p.activated_at || draftExpires !== p.expires_at) {
+        const { error } = await (supabase as any)
+          .from("pt_passes")
+          .update({ activated_at: draftActivation, expires_at: draftExpires })
+          .eq("id", p.id);
+        if (error) throw error;
+      }
+
+      if (delta !== 0) {
+        const reason = window.prompt(
+          `Reason for changing the balance from ${p.sessions_remaining} to ${nextRemaining} session(s)? (required — this is recorded in the adjustment history)`,
+        );
+        if (!reason || !reason.trim()) {
+          toast.error("Balance unchanged — a reason is required");
+        } else {
+          const { error } = await (supabase as any).rpc("pt_adjust_pass_balance", {
+            p_pass_id: p.id,
+            p_delta: delta,
+            p_reason: reason.trim(),
+            p_adjustment_type: "manual",
+            p_new_expires_at: null,
+          });
+          if (error) throw error;
+        }
+      }
+
       toast.success("Pass updated");
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
+      qc.invalidateQueries({ queryKey: ["pt-pass-adjustments"] });
       setEditingId(null);
     } catch (e: any) {
       toast.error(e?.message ?? "Update failed");
@@ -179,17 +203,35 @@ export default function PersonalTrainingPasses() {
   }
 
   async function useSession(p: PtPass) {
-    const { error } = await (supabase as any).rpc("use_pt_session", { _pass_id: p.id });
+    const reason = window.prompt(
+      "Why is a session being consumed manually? (required — recorded in the session history)",
+    );
+    if (!reason || !reason.trim()) return toast.error("A reason is required");
+    const { error } = await (supabase as any).rpc("pt_manual_consume_session", {
+      p_pass_id: p.id,
+      p_quantity: 1,
+      p_reason: reason.trim(),
+    });
     if (error) return toast.error(error.message);
     toast.success("Session deducted");
     qc.invalidateQueries({ queryKey: ["pt-passes"] });
+    qc.invalidateQueries({ queryKey: ["pt-pass-usage"] });
   }
 
   async function changeStatus(p: PtPass, status: PtPass["status"]) {
-    const { error } = await (supabase as any).from("pt_passes").update({ status }).eq("id", p.id);
+    const reason = window.prompt(
+      `Reason for setting this package to "${status}"? (required — recorded in the adjustment history)`,
+    );
+    if (!reason || !reason.trim()) return toast.error("A reason is required");
+    const { error } = await (supabase as any).rpc("pt_set_pass_status", {
+      p_pass_id: p.id,
+      p_status: status,
+      p_reason: reason.trim(),
+    });
     if (error) return toast.error(error.message);
     toast.success("Status updated");
     qc.invalidateQueries({ queryKey: ["pt-passes"] });
+    qc.invalidateQueries({ queryKey: ["pt-pass-adjustments"] });
   }
 
   function openSellForCustomer(g: CustomerGroup) {
@@ -228,6 +270,8 @@ export default function PersonalTrainingPasses() {
             </Button>
           </div>
         </div>
+
+        <IncompletePTSales />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <Input

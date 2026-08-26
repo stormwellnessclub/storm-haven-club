@@ -6868,6 +6868,11 @@ export type Database = {
           amount_due_cents: number
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
+          cancel_outcome_reason: string | null
+          cancel_overridden_at: string | null
+          cancel_override_by: string | null
+          cancel_override_reason: string | null
+          cancel_policy_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -6887,6 +6892,7 @@ export type Database = {
           live_state: Json
           location_id: string | null
           no_show_at: string | null
+          no_show_consumed: boolean
           notes: string | null
           package_deducted: boolean
           package_deducted_at: string | null
@@ -6912,6 +6918,11 @@ export type Database = {
           amount_due_cents?: number
           booked_by_admin_id?: string | null
           cancel_credit_outcome?: string | null
+          cancel_outcome_reason?: string | null
+          cancel_overridden_at?: string | null
+          cancel_override_by?: string | null
+          cancel_override_reason?: string | null
+          cancel_policy_outcome?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -6931,6 +6942,7 @@ export type Database = {
           live_state?: Json
           location_id?: string | null
           no_show_at?: string | null
+          no_show_consumed?: boolean
           notes?: string | null
           package_deducted?: boolean
           package_deducted_at?: string | null
@@ -6956,6 +6968,11 @@ export type Database = {
           amount_due_cents?: number
           booked_by_admin_id?: string | null
           cancel_credit_outcome?: string | null
+          cancel_outcome_reason?: string | null
+          cancel_overridden_at?: string | null
+          cancel_override_by?: string | null
+          cancel_override_reason?: string | null
+          cancel_policy_outcome?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -6975,6 +6992,7 @@ export type Database = {
           live_state?: Json
           location_id?: string | null
           no_show_at?: string | null
+          no_show_consumed?: boolean
           notes?: string | null
           package_deducted?: boolean
           package_deducted_at?: string | null
@@ -8267,6 +8285,84 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_sale_intents: {
+        Row: {
+          activated_at: string
+          amount_charged_cents: number | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          finalize_error: string | null
+          finalized_at: string | null
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          idempotency_key: string
+          notes: string | null
+          pack_id: string | null
+          pack_name: string
+          paid_at: string | null
+          pass_ids: string[]
+          payment_method: string
+          quantity: number
+          sessions_per_pack: number
+          status: string
+          stripe_payment_intent_id: string | null
+          unit_price_cents: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at: string
+          amount_charged_cents?: number | null
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          finalize_error?: string | null
+          finalized_at?: string | null
+          format: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          idempotency_key: string
+          notes?: string | null
+          pack_id?: string | null
+          pack_name: string
+          paid_at?: string | null
+          pass_ids?: string[]
+          payment_method?: string
+          quantity?: number
+          sessions_per_pack: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          unit_price_cents?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string
+          amount_charged_cents?: number | null
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          finalize_error?: string | null
+          finalized_at?: string | null
+          format?: Database["public"]["Enums"]["pt_format"]
+          id?: string
+          idempotency_key?: string
+          notes?: string | null
+          pack_id?: string | null
+          pack_name?: string
+          paid_at?: string | null
+          pass_ids?: string[]
+          payment_method?: string
+          quantity?: number
+          sessions_per_pack?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          unit_price_cents?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pt_saved_views: {
         Row: {
           created_at: string
@@ -8635,35 +8731,95 @@ export type Database = {
       }
       pt_session_usage: {
         Row: {
+          appointment_id: string | null
           created_at: string
+          created_by: string | null
+          event_type: string
           id: string
+          idempotency_key: string | null
           notes: string | null
           pass_id: string
+          quantity: number
+          reason: string | null
+          reversal_reason: string | null
+          reversed_at: string | null
+          reversed_by: string | null
+          reversed_by_usage_id: string | null
+          reverses_usage_id: string | null
+          sessions_after: number | null
+          sessions_before: number | null
           used_at: string
           used_by_admin_id: string | null
         }
         Insert: {
+          appointment_id?: string | null
           created_at?: string
+          created_by?: string | null
+          event_type?: string
           id?: string
+          idempotency_key?: string | null
           notes?: string | null
           pass_id: string
+          quantity?: number
+          reason?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          reversed_by_usage_id?: string | null
+          reverses_usage_id?: string | null
+          sessions_after?: number | null
+          sessions_before?: number | null
           used_at?: string
           used_by_admin_id?: string | null
         }
         Update: {
+          appointment_id?: string | null
           created_at?: string
+          created_by?: string | null
+          event_type?: string
           id?: string
+          idempotency_key?: string | null
           notes?: string | null
           pass_id?: string
+          quantity?: number
+          reason?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
+          reversed_by?: string | null
+          reversed_by_usage_id?: string | null
+          reverses_usage_id?: string | null
+          sessions_after?: number | null
+          sessions_before?: number | null
           used_at?: string
           used_by_admin_id?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "pt_session_usage_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pt_session_usage_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
             referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_usage_reversed_by_usage_id_fkey"
+            columns: ["reversed_by_usage_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_usage"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_usage_reverses_usage_id_fkey"
+            columns: ["reverses_usage_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_usage"
             referencedColumns: ["id"]
           },
         ]
@@ -11645,6 +11801,11 @@ export type Database = {
           amount_due_cents: number
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
+          cancel_outcome_reason: string | null
+          cancel_overridden_at: string | null
+          cancel_override_by: string | null
+          cancel_override_reason: string | null
+          cancel_policy_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -11664,6 +11825,7 @@ export type Database = {
           live_state: Json
           location_id: string | null
           no_show_at: string | null
+          no_show_consumed: boolean
           notes: string | null
           package_deducted: boolean
           package_deducted_at: string | null
@@ -11733,6 +11895,11 @@ export type Database = {
           amount_due_cents: number
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
+          cancel_outcome_reason: string | null
+          cancel_overridden_at: string | null
+          cancel_override_by: string | null
+          cancel_override_reason: string | null
+          cancel_policy_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -11752,6 +11919,7 @@ export type Database = {
           live_state: Json
           location_id: string | null
           no_show_at: string | null
+          no_show_consumed: boolean
           notes: string | null
           package_deducted: boolean
           package_deducted_at: string | null
@@ -11808,11 +11976,21 @@ export type Database = {
       }
       cancel_class_booking: { Args: { _booking_id: string }; Returns: Json }
       cancel_pt_appointment: {
-        Args: { p_appointment_id: string; p_reason?: string }
+        Args: {
+          p_appointment_id: string
+          p_outcome?: string
+          p_override_reason?: string
+          p_reason?: string
+        }
         Returns: {
           amount_due_cents: number
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
+          cancel_outcome_reason: string | null
+          cancel_overridden_at: string | null
+          cancel_override_by: string | null
+          cancel_override_reason: string | null
+          cancel_policy_outcome: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -11832,6 +12010,7 @@ export type Database = {
           live_state: Json
           location_id: string | null
           no_show_at: string | null
+          no_show_consumed: boolean
           notes: string | null
           package_deducted: boolean
           package_deducted_at: string | null
@@ -12679,12 +12858,31 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_apply_session_delta: {
+        Args: {
+          p_actor?: string
+          p_appointment_id?: string
+          p_delta: number
+          p_event_type: string
+          p_grow_total?: boolean
+          p_idempotency_key?: string
+          p_pass_id: string
+          p_reason: string
+          p_reverses_usage_id?: string
+          p_used_at?: string
+        }
+        Returns: Json
+      }
       pt_can_coach_client: {
         Args: { _client: string; _uid: string }
         Returns: boolean
       }
       pt_can_view_client: {
         Args: { _client: string; _uid: string }
+        Returns: boolean
+      }
+      pt_cancel_outcome_consumes: {
+        Args: { p_outcome: string }
         Returns: boolean
       }
       pt_check_appointment_conflict:
@@ -12717,6 +12915,44 @@ export type Database = {
         Args: { p_completed?: boolean; p_task_id: string }
         Returns: Json
       }
+      pt_fail_sale_intent: {
+        Args: { p_error: string; p_idempotency_key: string }
+        Returns: {
+          activated_at: string
+          amount_charged_cents: number | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          finalize_error: string | null
+          finalized_at: string | null
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          idempotency_key: string
+          notes: string | null
+          pack_id: string | null
+          pack_name: string
+          paid_at: string | null
+          pass_ids: string[]
+          payment_method: string
+          quantity: number
+          sessions_per_pack: number
+          status: string
+          stripe_payment_intent_id: string | null
+          unit_price_cents: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_sale_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pt_finalize_package_sale: {
+        Args: { p_actor?: string; p_idempotency_key: string }
+        Returns: Json
+      }
       pt_group_slot_occupancy: {
         Args: {
           p_ends_at: string
@@ -12727,13 +12963,172 @@ export type Database = {
         Returns: Json
       }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
+      pt_is_financial_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
       pt_log_renewal_reminder: {
         Args: { p_note?: string; p_pass_id: string }
         Returns: Json
       }
+      pt_manual_consume_session: {
+        Args: { p_pass_id: string; p_quantity?: number; p_reason?: string }
+        Returns: Json
+      }
+      pt_mark_no_show: {
+        Args: {
+          p_appointment_id: string
+          p_consume?: boolean
+          p_override_reason?: string
+          p_reason?: string
+        }
+        Returns: {
+          amount_due_cents: number
+          booked_by_admin_id: string | null
+          cancel_credit_outcome: string | null
+          cancel_outcome_reason: string | null
+          cancel_overridden_at: string | null
+          cancel_override_by: string | null
+          cancel_override_reason: string | null
+          cancel_policy_outcome: string | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          checked_in_at: string | null
+          completed_at: string | null
+          confirmation_email_sent_at: string | null
+          confirmation_status: string
+          confirmed_at: string | null
+          created_at: string
+          duration_minutes: number
+          ends_at: string
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          instructor_id: string | null
+          internal_notes: string | null
+          is_waitlist: boolean
+          live_state: Json
+          location_id: string | null
+          no_show_at: string | null
+          no_show_consumed: boolean
+          notes: string | null
+          package_deducted: boolean
+          package_deducted_at: string | null
+          paid_at: string | null
+          pass_id: string | null
+          payment_method: string | null
+          payment_note: string | null
+          payment_status: string
+          pre_session_note: string | null
+          pre_session_note_updated_at: string | null
+          prep_checklist: Json
+          session_type_id: string | null
+          started_at: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["pt_appointment_status"]
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          usage_id: string | null
+          user_id: string
+          waitlist_position: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
+      pt_open_sale_intent: {
+        Args: {
+          p_activated_at: string
+          p_expires_at: string
+          p_format: Database["public"]["Enums"]["pt_format"]
+          p_idempotency_key: string
+          p_notes?: string
+          p_pack_id?: string
+          p_pack_name: string
+          p_payment_method: string
+          p_quantity: number
+          p_sessions_per_pack: number
+          p_unit_price_cents: number
+          p_user_id: string
+        }
+        Returns: {
+          activated_at: string
+          amount_charged_cents: number | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          finalize_error: string | null
+          finalized_at: string | null
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          idempotency_key: string
+          notes: string | null
+          pack_id: string | null
+          pack_name: string
+          paid_at: string | null
+          pass_ids: string[]
+          payment_method: string
+          quantity: number
+          sessions_per_pack: number
+          status: string
+          stripe_payment_intent_id: string | null
+          unit_price_cents: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_sale_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pt_pick_pass_for_appointment: {
+        Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
+        Returns: string
+      }
+      pt_record_sale_payment: {
+        Args: {
+          p_amount_cents: number
+          p_idempotency_key: string
+          p_stripe_payment_intent_id: string
+        }
+        Returns: {
+          activated_at: string
+          amount_charged_cents: number | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          finalize_error: string | null
+          finalized_at: string | null
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          idempotency_key: string
+          notes: string | null
+          pack_id: string | null
+          pack_name: string
+          paid_at: string | null
+          pass_ids: string[]
+          payment_method: string
+          quantity: number
+          sessions_per_pack: number
+          status: string
+          stripe_payment_intent_id: string | null
+          unit_price_cents: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_sale_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pt_request_role: { Args: never; Returns: string }
       pt_reschedule_appointment: {
         Args: {
           p_appointment_id: string
@@ -12747,6 +13142,10 @@ export type Database = {
       }
       pt_set_package_deduction: {
         Args: { p_appointment_id: string; p_deduct: boolean }
+        Returns: Json
+      }
+      pt_set_pass_status: {
+        Args: { p_pass_id: string; p_reason: string; p_status: string }
         Returns: Json
       }
       pt_transfer_pass_sessions: {
@@ -12932,10 +13331,6 @@ export type Database = {
           p_stripe_event_id?: string
         }
         Returns: boolean
-      }
-      use_pt_session: {
-        Args: { _notes?: string; _pass_id: string }
-        Returns: Json
       }
       validate_gift_card_code: { Args: { p_code: string }; Returns: Json }
       validate_manager_refund_code: {

@@ -78,32 +78,44 @@ Deno.serve(async (req) => {
     }
     if (!stripeCustomerId) throw new Error("No Stripe customer on file for this user");
 
-    // Insert pass rows first (so we have ids for metadata)
-    const rows = Array.from({ length: quantity }).map(() => ({
-      user_id: userId,
-      pack_id: pack.id,
-      format: pack.format,
-      pack_name: pack.name,
-      sessions_total: pack.sessions,
-      sessions_remaining: pack.sessions,
-      price_cents_charged: pack.price_cents,
-      activated_at: activatedAt,
-      expires_at: expiresAt,
-      status: "active",
-      payment_method: "payment_plan",
-      sold_by_admin_id: auth.userId === "service_role" ? null : auth.userId,
-      notes: adminNotes,
-      payment_plan_total_installments: months,
-      payment_plan_installments_paid: 0,
-      payment_plan_status: "active",
-    }));
-    const { data: insertedPasses, error: insertErr } = await supabase
-      .from("pt_passes")
-      .insert(rows)
-      .select("id");
-    if (insertErr) throw insertErr;
+    // Phase 2A: packages are created server-side through the sanctioned,
+    // idempotent sale path — never by a direct insert.
+    const saleRef = body.saleRef ?? crypto.randomUUID();
 
-    const passIds = (insertedPasses ?? []).map((r: any) => r.id);
+    const { error: intentErr } = await supabase.rpc("pt_open_sale_intent", {
+      p_idempotency_key: saleRef,
+      p_user_id: userId,
+      p_pack_name: pack.name,
+      p_format: pack.format,
+      p_sessions_per_pack: pack.sessions,
+      p_quantity: quantity,
+      p_unit_price_cents: pack.price_cents,
+      p_activated_at: activatedAt,
+      p_expires_at: expiresAt,
+      p_payment_method: "payment_plan",
+      p_pack_id: pack.id,
+      p_notes: adminNotes,
+    });
+    if (intentErr) throw intentErr;
+
+    const { data: finalizeRes, error: finalizeErr } = await supabase.rpc("pt_finalize_package_sale", {
+      p_idempotency_key: saleRef,
+      p_actor: auth.userId === "service_role" ? null : auth.userId,
+    });
+    if (finalizeErr) throw finalizeErr;
+
+    const passIds = ((finalizeRes as any)?.pass_ids ?? []) as string[];
+    if (passIds.length === 0) throw new Error("Package finalization returned no packages");
+
+    await supabase
+      .from("pt_passes")
+      .update({
+        payment_plan_total_installments: months,
+        payment_plan_installments_paid: 0,
+        payment_plan_status: "active",
+      })
+      .in("id", passIds);
+
 
     // Create subscription. Charge first invoice immediately with saved PM.
     // Use billing_cycle_anchor = now (default) and cancel_at = now + months*30 days approx

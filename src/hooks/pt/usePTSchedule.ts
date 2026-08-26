@@ -211,8 +211,22 @@ export function usePTAppointmentActions() {
     return true;
   };
 
-  const markNoShow = (id: string) =>
-    patch(id, { status: "no_show", no_show_at: new Date().toISOString() }, "Marked as no-show");
+  /**
+   * No-show runs through the server so the configured consumption outcome is
+   * applied and recorded (staff can excuse it with `consume = false`).
+   */
+  const markNoShow = async (id: string, consume = true, reason?: string) => {
+    const { error } = await (supabase as any).rpc("pt_mark_no_show", {
+      p_appointment_id: id,
+      p_consume: consume,
+      p_reason: reason ?? null,
+      p_override_reason: consume ? null : reason ?? "No-show excused by staff",
+    });
+    if (error) { toast.error(error.message); return false; }
+    toast.success(consume ? "Marked no-show · session consumed" : "Marked no-show · session not consumed");
+    invalidate();
+    return true;
+  };
 
   const confirm = (id: string) =>
     patch(id, { confirmation_status: "confirmed", confirmed_at: new Date().toISOString() }, "Marked confirmed");
@@ -250,9 +264,30 @@ export function usePTAppointmentActions() {
   };
 
   const cancel = useMutation({
-    mutationFn: async ({ id, reason }: { id: string; reason: string | null }) => {
+    mutationFn: async ({
+      id,
+      reason,
+      outcome,
+      overrideReason,
+    }: {
+      id: string;
+      reason: string | null;
+      /** Optional explicit outcome; omit to let the policy decide. */
+      outcome?:
+        | "timely_client_cancel"
+        | "late_client_cancel"
+        | "no_show"
+        | "staff_cancel"
+        | "facility_cancel"
+        | "admin_override_credit"
+        | "admin_override_consume";
+      overrideReason?: string | null;
+    }) => {
       const { data, error } = await (supabase as any).rpc("cancel_pt_appointment", {
-        p_appointment_id: id, p_reason: reason,
+        p_appointment_id: id,
+        p_reason: reason,
+        p_outcome: outcome ?? null,
+        p_override_reason: overrideReason ?? null,
       });
       if (error) throw error;
       supabase.functions
