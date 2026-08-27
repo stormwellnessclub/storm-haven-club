@@ -7807,82 +7807,145 @@ export type Database = {
       pt_passes: {
         Row: {
           activated_at: string
+          amount_outstanding_cents: number
+          amount_paid_cents: number
+          catalog_price_cents: number | null
+          catalog_sessions: number | null
           created_at: string
           expires_at: string
+          financial_status: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents: number | null
           id: string
+          internal_notes: string | null
+          new_revenue_cents: number
           notes: string | null
+          original_purchase_date: string | null
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
           pack_id: string | null
           pack_name: string
           payment_method: string | null
+          payment_plan_installment_cents: number | null
           payment_plan_installments_paid: number
+          payment_plan_next_payment_date: string | null
           payment_plan_status: string
           payment_plan_subscription_id: string | null
+          payment_plan_total_cents: number | null
           payment_plan_total_installments: number | null
           price_cents_charged: number
+          price_override_cents: number | null
           purchased_at: string
           renewal_reminder_count: number
           renewal_reminder_sent_at: string | null
           session_type_id: string | null
+          sessions_override: number | null
           sessions_remaining: number
           sessions_total: number
           sold_by_admin_id: string | null
+          source_reference: string | null
+          source_system: string | null
+          source_type: string
           status: Database["public"]["Enums"]["pt_pass_status"]
           stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           activated_at?: string
+          amount_outstanding_cents?: number
+          amount_paid_cents?: number
+          catalog_price_cents?: number | null
+          catalog_sessions?: number | null
           created_at?: string
           expires_at: string
+          financial_status?: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents?: number | null
           id?: string
+          internal_notes?: string | null
+          new_revenue_cents?: number
           notes?: string | null
+          original_purchase_date?: string | null
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
           pack_id?: string | null
           pack_name: string
           payment_method?: string | null
+          payment_plan_installment_cents?: number | null
           payment_plan_installments_paid?: number
+          payment_plan_next_payment_date?: string | null
           payment_plan_status?: string
           payment_plan_subscription_id?: string | null
+          payment_plan_total_cents?: number | null
           payment_plan_total_installments?: number | null
           price_cents_charged?: number
+          price_override_cents?: number | null
           purchased_at?: string
           renewal_reminder_count?: number
           renewal_reminder_sent_at?: string | null
           session_type_id?: string | null
+          sessions_override?: number | null
           sessions_remaining: number
           sessions_total: number
           sold_by_admin_id?: string | null
+          source_reference?: string | null
+          source_system?: string | null
+          source_type?: string
           status?: Database["public"]["Enums"]["pt_pass_status"]
           stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           activated_at?: string
+          amount_outstanding_cents?: number
+          amount_paid_cents?: number
+          catalog_price_cents?: number | null
+          catalog_sessions?: number | null
           created_at?: string
           expires_at?: string
+          financial_status?: string
           format?: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents?: number | null
           id?: string
+          internal_notes?: string | null
+          new_revenue_cents?: number
           notes?: string | null
+          original_purchase_date?: string | null
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
           pack_id?: string | null
           pack_name?: string
           payment_method?: string | null
+          payment_plan_installment_cents?: number | null
           payment_plan_installments_paid?: number
+          payment_plan_next_payment_date?: string | null
           payment_plan_status?: string
           payment_plan_subscription_id?: string | null
+          payment_plan_total_cents?: number | null
           payment_plan_total_installments?: number | null
           price_cents_charged?: number
+          price_override_cents?: number | null
           purchased_at?: string
           renewal_reminder_count?: number
           renewal_reminder_sent_at?: string | null
           session_type_id?: string | null
+          sessions_override?: number | null
           sessions_remaining?: number
           sessions_total?: number
           sold_by_admin_id?: string | null
+          source_reference?: string | null
+          source_system?: string | null
+          source_type?: string
           status?: Database["public"]["Enums"]["pt_pass_status"]
           stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -7902,6 +7965,106 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pt_payment_allocations: {
+        Row: {
+          amount_cents: number
+          appointment_id: string | null
+          created_at: string
+          id: string
+          pass_id: string | null
+          payment_id: string
+        }
+        Insert: {
+          amount_cents: number
+          appointment_id?: string | null
+          created_at?: string
+          id?: string
+          pass_id?: string | null
+          payment_id: string
+        }
+        Update: {
+          amount_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          id?: string
+          pass_id?: string | null
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_payment_allocations_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_allocations_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_payments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          internal_note: string | null
+          method: string
+          note: string | null
+          paid_at: string
+          recorded_by: string | null
+          reference: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          internal_note?: string | null
+          method: string
+          note?: string | null
+          paid_at?: string
+          recorded_by?: string | null
+          reference?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          internal_note?: string | null
+          method?: string
+          note?: string | null
+          paid_at?: string
+          recorded_by?: string | null
+          reference?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       pt_performance_tests: {
         Row: {
@@ -8289,24 +8452,42 @@ export type Database = {
         Row: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_today_cents: number | null
+          catalog_price_cents: number | null
+          catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
           finalize_error: string | null
           finalized_at: string | null
+          first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents: number | null
           id: string
           idempotency_key: string
+          installment_cents: number | null
+          installment_count: number | null
+          new_revenue_cents: number | null
           notes: string | null
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
           pack_id: string | null
           pack_name: string
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          previously_paid_cents: number | null
+          price_override_cents: number | null
           quantity: number
+          sale_type: string
+          sessions_override: number | null
           sessions_per_pack: number
+          source_reference: string | null
+          source_system: string | null
           status: string
           stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           unit_price_cents: number
           updated_at: string
           user_id: string
@@ -8314,24 +8495,42 @@ export type Database = {
         Insert: {
           activated_at: string
           amount_charged_cents?: number | null
+          amount_due_today_cents?: number | null
+          catalog_price_cents?: number | null
+          catalog_sessions?: number | null
           created_at?: string
           created_by?: string | null
           expires_at: string
           finalize_error?: string | null
           finalized_at?: string | null
+          first_installment_date?: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents?: number | null
           id?: string
           idempotency_key: string
+          installment_cents?: number | null
+          installment_count?: number | null
+          new_revenue_cents?: number | null
           notes?: string | null
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
           pack_id?: string | null
           pack_name: string
           paid_at?: string | null
           pass_ids?: string[]
           payment_method?: string
+          previously_paid_cents?: number | null
+          price_override_cents?: number | null
           quantity?: number
+          sale_type?: string
+          sessions_override?: number | null
           sessions_per_pack: number
+          source_reference?: string | null
+          source_system?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           unit_price_cents?: number
           updated_at?: string
           user_id: string
@@ -8339,24 +8538,42 @@ export type Database = {
         Update: {
           activated_at?: string
           amount_charged_cents?: number | null
+          amount_due_today_cents?: number | null
+          catalog_price_cents?: number | null
+          catalog_sessions?: number | null
           created_at?: string
           created_by?: string | null
           expires_at?: string
           finalize_error?: string | null
           finalized_at?: string | null
+          first_installment_date?: string | null
           format?: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents?: number | null
           id?: string
           idempotency_key?: string
+          installment_cents?: number | null
+          installment_count?: number | null
+          new_revenue_cents?: number | null
           notes?: string | null
+          override_at?: string | null
+          override_by?: string | null
+          override_reason?: string | null
           pack_id?: string | null
           pack_name?: string
           paid_at?: string | null
           pass_ids?: string[]
           payment_method?: string
+          previously_paid_cents?: number | null
+          price_override_cents?: number | null
           quantity?: number
+          sale_type?: string
+          sessions_override?: number | null
           sessions_per_pack?: number
+          source_reference?: string | null
+          source_system?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
           unit_price_cents?: number
           updated_at?: string
           user_id?: string
@@ -12848,6 +13065,32 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_add_existing_package: {
+        Args: {
+          p_activated_at: string
+          p_expires_at: string
+          p_financial_status?: string
+          p_format: Database["public"]["Enums"]["pt_format"]
+          p_idempotency_key: string
+          p_internal_notes?: string
+          p_new_revenue_cents?: number
+          p_notes?: string
+          p_original_purchase_date?: string
+          p_outstanding_cents?: number
+          p_pack_id: string
+          p_pack_name: string
+          p_package_value_cents?: number
+          p_paid_cents?: number
+          p_sessions_original: number
+          p_sessions_remaining: number
+          p_sessions_used: number
+          p_source_reference?: string
+          p_source_system?: string
+          p_source_type?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       pt_adjust_pass_balance: {
         Args: {
           p_adjustment_type?: string
@@ -12857,6 +13100,18 @@ export type Database = {
           p_reason: string
         }
         Returns: Json
+      }
+      pt_apply_past_appointments: {
+        Args: {
+          p_appointment_ids: string[]
+          p_pass_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
+      pt_apply_sale_financials: {
+        Args: { p_idempotency_key: string }
+        Returns: undefined
       }
       pt_apply_session_delta: {
         Args: {
@@ -12915,29 +13170,62 @@ export type Database = {
         Args: { p_completed?: boolean; p_task_id: string }
         Returns: Json
       }
+      pt_eligible_past_appointments: {
+        Args: { p_user_id: string }
+        Returns: {
+          already_applied: boolean
+          amount_due_cents: number
+          format: Database["public"]["Enums"]["pt_format"]
+          id: string
+          instructor_id: string
+          pass_id: string
+          payment_status: string
+          session_type_id: string
+          starts_at: string
+          status: string
+        }[]
+      }
       pt_fail_sale_intent: {
         Args: { p_error: string; p_idempotency_key: string }
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_today_cents: number | null
+          catalog_price_cents: number | null
+          catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
           finalize_error: string | null
           finalized_at: string | null
+          first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents: number | null
           id: string
           idempotency_key: string
+          installment_cents: number | null
+          installment_count: number | null
+          new_revenue_cents: number | null
           notes: string | null
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
           pack_id: string | null
           pack_name: string
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          previously_paid_cents: number | null
+          price_override_cents: number | null
           quantity: number
+          sale_type: string
+          sessions_override: number | null
           sessions_per_pack: number
+          source_reference: string | null
+          source_system: string | null
           status: string
           stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           unit_price_cents: number
           updated_at: string
           user_id: string
@@ -12963,9 +13251,23 @@ export type Database = {
         Returns: Json
       }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
+      pt_is_financial_manager: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
+      pt_link_payment_plan: {
+        Args: {
+          p_installment_cents: number
+          p_installments_paid: number
+          p_next_payment_date?: string
+          p_pass_ids: string[]
+          p_status?: string
+          p_subscription_id: string
+          p_total_cents: number
+          p_total_installments: number
+        }
+        Returns: Json
+      }
       pt_log_renewal_reminder: {
         Args: { p_note?: string; p_pass_id: string }
         Returns: Json
@@ -13057,24 +13359,42 @@ export type Database = {
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_today_cents: number | null
+          catalog_price_cents: number | null
+          catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
           finalize_error: string | null
           finalized_at: string | null
+          first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents: number | null
           id: string
           idempotency_key: string
+          installment_cents: number | null
+          installment_count: number | null
+          new_revenue_cents: number | null
           notes: string | null
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
           pack_id: string | null
           pack_name: string
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          previously_paid_cents: number | null
+          price_override_cents: number | null
           quantity: number
+          sale_type: string
+          sessions_override: number | null
           sessions_per_pack: number
+          source_reference: string | null
+          source_system: string | null
           status: string
           stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           unit_price_cents: number
           updated_at: string
           user_id: string
@@ -13086,9 +13406,105 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      pt_open_sale_intent_v2: {
+        Args: {
+          p_activated_at?: string
+          p_amount_due_today_cents?: number
+          p_expires_at?: string
+          p_first_installment_date?: string
+          p_idempotency_key: string
+          p_installment_cents?: number
+          p_installment_count?: number
+          p_notes?: string
+          p_override_reason?: string
+          p_pack_id: string
+          p_payment_method?: string
+          p_price_override_cents?: number
+          p_quantity?: number
+          p_sale_type?: string
+          p_sessions_override?: number
+          p_user_id: string
+        }
+        Returns: {
+          activated_at: string
+          amount_charged_cents: number | null
+          amount_due_today_cents: number | null
+          catalog_price_cents: number | null
+          catalog_sessions: number | null
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          finalize_error: string | null
+          finalized_at: string | null
+          first_installment_date: string | null
+          format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents: number | null
+          id: string
+          idempotency_key: string
+          installment_cents: number | null
+          installment_count: number | null
+          new_revenue_cents: number | null
+          notes: string | null
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
+          pack_id: string | null
+          pack_name: string
+          paid_at: string | null
+          pass_ids: string[]
+          payment_method: string
+          previously_paid_cents: number | null
+          price_override_cents: number | null
+          quantity: number
+          sale_type: string
+          sessions_override: number | null
+          sessions_per_pack: number
+          source_reference: string | null
+          source_system: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          unit_price_cents: number
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "pt_sale_intents"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      pt_pass_history: {
+        Args: { p_pass_id: string }
+        Returns: {
+          actor: string
+          appointment_id: string
+          delta: number
+          event_type: string
+          occurred_at: string
+          reason: string
+          related_pass_id: string
+          sessions_after: number
+          sessions_before: number
+          source: string
+        }[]
+      }
       pt_pick_pass_for_appointment: {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
+      }
+      pt_record_historical_session: {
+        Args: {
+          p_idempotency_key?: string
+          p_instructor_id?: string
+          p_note?: string
+          p_pass_id: string
+          p_quantity: number
+          p_reason: string
+          p_session_date: string
+        }
+        Returns: Json
       }
       pt_record_sale_payment: {
         Args: {
@@ -13099,24 +13515,42 @@ export type Database = {
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_today_cents: number | null
+          catalog_price_cents: number | null
+          catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
           finalize_error: string | null
           finalized_at: string | null
+          first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          historical_value_cents: number | null
           id: string
           idempotency_key: string
+          installment_cents: number | null
+          installment_count: number | null
+          new_revenue_cents: number | null
           notes: string | null
+          override_at: string | null
+          override_by: string | null
+          override_reason: string | null
           pack_id: string | null
           pack_name: string
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          previously_paid_cents: number | null
+          price_override_cents: number | null
           quantity: number
+          sale_type: string
+          sessions_override: number | null
           sessions_per_pack: number
+          source_reference: string | null
+          source_system: string | null
           status: string
           stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
           unit_price_cents: number
           updated_at: string
           user_id: string
@@ -13127,6 +13561,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      pt_record_session_payment: {
+        Args: {
+          p_amount_cents?: number
+          p_appointment_ids: string[]
+          p_idempotency_key?: string
+          p_method: string
+          p_note?: string
+          p_paid_at?: string
+          p_reference?: string
+          p_stripe_payment_intent_id?: string
+        }
+        Returns: Json
       }
       pt_request_role: { Args: never; Returns: string }
       pt_reschedule_appointment: {
@@ -13148,6 +13595,14 @@ export type Database = {
         Args: { p_pass_id: string; p_reason: string; p_status: string }
         Returns: Json
       }
+      pt_settle_with_package: {
+        Args: {
+          p_appointment_ids: string[]
+          p_pass_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       pt_transfer_pass_sessions: {
         Args: {
           p_from_pass_id: string
@@ -13155,6 +13610,10 @@ export type Database = {
           p_sessions: number
           p_to_pass_id: string
         }
+        Returns: Json
+      }
+      pt_waive_sessions: {
+        Args: { p_appointment_ids: string[]; p_reason: string }
         Returns: Json
       }
       recompute_marketing_contact_segment: {
