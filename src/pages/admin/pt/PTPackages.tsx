@@ -311,6 +311,26 @@ export default function PTPackages() {
       </PTCard>
 
       <SellPTDialog open={sellOpen} onOpenChange={setSellOpen} />
+      <AddExistingPackageDialog
+        open={addExistingMode !== null}
+        onOpenChange={(v) => !v && setAddExistingMode(null)}
+        mode={addExistingMode ?? "existing"}
+      />
+      <ApplyPastSessionsDialog
+        pass={applyPastPass}
+        clientName={applyPastPass ? nameOf(applyPastPass.user_id) : ""}
+        onClose={() => setApplyPastPass(null)}
+      />
+      <RecordHistoricalSessionDialog
+        pass={historicalPass}
+        clientName={historicalPass ? nameOf(historicalPass.user_id) : ""}
+        onClose={() => setHistoricalPass(null)}
+      />
+      <PackageHistoryModal
+        pass={historyPass}
+        clientName={historyPass ? nameOf(historyPass.user_id) : ""}
+        onClose={() => setHistoryPass(null)}
+      />
       <AdjustDialog
         pass={adjustPass}
         clientName={adjustPass ? nameOf(adjustPass.user_id) : ""}
