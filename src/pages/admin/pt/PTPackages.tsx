@@ -30,6 +30,10 @@ export default function PTPackages() {
   const [search, setSearch] = useState("");
   const [adjustPass, setAdjustPass] = useState<PTPassRow | null>(null);
   const [transferFrom, setTransferFrom] = useState<PTPassRow | null>(null);
+  const [addExistingMode, setAddExistingMode] = useState<"existing" | "transfer" | null>(null);
+  const [applyPastPass, setApplyPastPass] = useState<PTPassRow | null>(null);
+  const [historicalPass, setHistoricalPass] = useState<PTPassRow | null>(null);
+  const [historyPass, setHistoryPass] = useState<PTPassRow | null>(null);
 
   const { data: passes = [], isLoading: loadingPasses } = usePTPasses();
   const { data: packs = [], isLoading: loadingPacks } = usePTPacks();
