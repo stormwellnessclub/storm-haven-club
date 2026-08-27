@@ -28,6 +28,7 @@ export const PT_NAV: PTNavItem[] = [
   { label: "Session Notes", to: "/admin/pt/session-notes", icon: NotebookPen },
   { label: "Progress Tracking", to: "/admin/pt/progress", icon: TrendingUp },
   { label: "Packages", to: "/admin/pt/packages", icon: Package },
+  { label: "Billing & Autopay", to: "/admin/pt/billing", icon: CreditCard },
   { label: "Trainers", to: "/admin/pt/trainers", icon: UserCog },
   { label: "Tasks", to: "/admin/pt/tasks", icon: ListChecks, badge: "tasks" },
   { label: "Messages", to: "/admin/pt/messages", icon: MessageSquare, badge: "messages" },
