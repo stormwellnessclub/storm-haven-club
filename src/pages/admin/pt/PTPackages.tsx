@@ -17,6 +17,9 @@ import { downloadCsv } from "@/lib/ptExport";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AddExistingPackageDialog, ApplyPastSessionsDialog, RecordHistoricalSessionDialog, PackageHistoryModal,
+} from "@/components/admin/pt/PTPackageWorkflows";
 
 type Tab = "active" | "expiring" | "expired" | "usage" | "adjustments" | "catalog";
 
