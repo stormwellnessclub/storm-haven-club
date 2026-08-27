@@ -415,7 +415,7 @@ export function usePTFinancialMutations() {
       const { error: recErr } = await (supabase as any).rpc("pt_record_session_payment", {
         p_appointment_ids: i.appointmentIds,
         p_method: "card",
-        p_amount_cents: data.totalAmount ?? i.amountCents,
+        p_amount_cents: i.amountCents,
         p_paid_at: null,
         p_reference: null,
         p_note: null,
