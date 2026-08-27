@@ -229,18 +229,16 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     if (!selectedUserId || !selectedPack) throw new Error("Missing customer or pack");
     const key = saleKeyRef.current ?? crypto.randomUUID();
     saleKeyRef.current = key;
-    const { data, error } = await (supabase as any).rpc("pt_open_sale_intent", {
+    // Phase 2B: the server re-reads pt_packs and derives name/format/sessions/price
+    // from the catalog. Only the pack id, quantity and dates are submitted here.
+    const { data, error } = await (supabase as any).rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: key,
       p_user_id: selectedUserId,
-      p_pack_name: selectedPack.name,
-      p_format: selectedPack.format,
-      p_sessions_per_pack: selectedPack.sessions,
-      p_quantity: quantity,
-      p_unit_price_cents: selectedPack.price_cents,
-      p_activated_at: activatedAt,
-      p_expires_at: expiresAt,
-      p_payment_method: paymentMethod,
       p_pack_id: selectedPack.id,
+      p_quantity: quantity,
+      p_payment_method: paymentMethod,
+      p_activated_at: activatedAt,
+      p_expires_at: expiresAt || null,
       p_notes: adminNotes || null,
     });
     if (error) throw error;

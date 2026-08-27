@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format as fmtDate } from "date-fns";
-import { Package, Plus, Download, ArrowLeftRight, SlidersHorizontal, BellRing, History } from "lucide-react";
+import { Package, Plus, Download, ArrowLeftRight, SlidersHorizontal, BellRing, History, CalendarCheck, ClipboardList } from "lucide-react";
 import {
   PTShell, PTPageHeader, PTCard, PTTable, PTColumn, PTEmptyState, PTBadge, PTTabs,
   PTKpiCard, PTModal, ptButtonClass,
@@ -17,6 +17,9 @@ import { downloadCsv } from "@/lib/ptExport";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AddExistingPackageDialog, ApplyPastSessionsDialog, RecordHistoricalSessionDialog, PackageHistoryModal,
+} from "@/components/admin/pt/PTPackageWorkflows";
 
 type Tab = "active" | "expiring" | "expired" | "usage" | "adjustments" | "catalog";
 
@@ -27,6 +30,10 @@ export default function PTPackages() {
   const [search, setSearch] = useState("");
   const [adjustPass, setAdjustPass] = useState<PTPassRow | null>(null);
   const [transferFrom, setTransferFrom] = useState<PTPassRow | null>(null);
+  const [addExistingMode, setAddExistingMode] = useState<"existing" | "transfer" | null>(null);
+  const [applyPastPass, setApplyPastPass] = useState<PTPassRow | null>(null);
+  const [historicalPass, setHistoricalPass] = useState<PTPassRow | null>(null);
+  const [historyPass, setHistoryPass] = useState<PTPassRow | null>(null);
 
   const { data: passes = [], isLoading: loadingPasses } = usePTPasses();
   const { data: packs = [], isLoading: loadingPacks } = usePTPacks();
@@ -104,6 +111,27 @@ export default function PTPackages() {
             onClick={(e) => { e.stopPropagation(); setTransferFrom(p); }}
           >
             <ArrowLeftRight className="h-4 w-4" />
+          </button>
+          <button
+            className="text-pt-muted hover:text-pt-gold transition-colors p-1"
+            title="Apply past sessions"
+            onClick={(e) => { e.stopPropagation(); setApplyPastPass(p); }}
+          >
+            <CalendarCheck className="h-4 w-4" />
+          </button>
+          <button
+            className="text-pt-muted hover:text-pt-gold transition-colors p-1"
+            title="Record a historical session"
+            onClick={(e) => { e.stopPropagation(); setHistoricalPass(p); }}
+          >
+            <ClipboardList className="h-4 w-4" />
+          </button>
+          <button
+            className="text-pt-muted hover:text-pt-gold transition-colors p-1"
+            title="Package history"
+            onClick={(e) => { e.stopPropagation(); setHistoryPass(p); }}
+          >
+            <History className="h-4 w-4" />
           </button>
           <button
             className="text-pt-muted hover:text-pt-gold transition-colors p-1"
@@ -210,6 +238,12 @@ export default function PTPackages() {
             <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/packs")}>
               Edit catalog
             </button>
+            <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("transfer")}>
+              Transferred package
+            </button>
+            <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("existing")}>
+              <Plus className="h-4 w-4" /> Existing package
+            </button>
             <button className={ptButtonClass("primary")} onClick={() => setSellOpen(true)}>
               <Plus className="h-4 w-4" /> Sell package
             </button>
@@ -277,6 +311,26 @@ export default function PTPackages() {
       </PTCard>
 
       <SellPTDialog open={sellOpen} onOpenChange={setSellOpen} />
+      <AddExistingPackageDialog
+        open={addExistingMode !== null}
+        onOpenChange={(v) => !v && setAddExistingMode(null)}
+        mode={addExistingMode ?? "existing"}
+      />
+      <ApplyPastSessionsDialog
+        pass={applyPastPass}
+        clientName={applyPastPass ? nameOf(applyPastPass.user_id) : ""}
+        onClose={() => setApplyPastPass(null)}
+      />
+      <RecordHistoricalSessionDialog
+        pass={historicalPass}
+        clientName={historicalPass ? nameOf(historicalPass.user_id) : ""}
+        onClose={() => setHistoricalPass(null)}
+      />
+      <PackageHistoryModal
+        pass={historyPass}
+        clientName={historyPass ? nameOf(historyPass.user_id) : ""}
+        onClose={() => setHistoryPass(null)}
+      />
       <AdjustDialog
         pass={adjustPass}
         clientName={adjustPass ? nameOf(adjustPass.user_id) : ""}

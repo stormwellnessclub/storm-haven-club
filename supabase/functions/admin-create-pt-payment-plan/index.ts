@@ -82,19 +82,22 @@ Deno.serve(async (req) => {
     // idempotent sale path — never by a direct insert.
     const saleRef = body.saleRef ?? crypto.randomUUID();
 
-    const { error: intentErr } = await supabase.rpc("pt_open_sale_intent", {
+    // Phase 2B: the server derives name/format/sessions/price from pt_packs.
+    const totalCents = pack.price_cents * quantity;
+    const installmentCents = Math.ceil(totalCents / months);
+
+    const { error: intentErr } = await supabase.rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: saleRef,
       p_user_id: userId,
-      p_pack_name: pack.name,
-      p_format: pack.format,
-      p_sessions_per_pack: pack.sessions,
+      p_pack_id: pack.id,
       p_quantity: quantity,
-      p_unit_price_cents: pack.price_cents,
+      p_payment_method: "payment_plan",
       p_activated_at: activatedAt,
       p_expires_at: expiresAt,
-      p_payment_method: "payment_plan",
-      p_pack_id: pack.id,
       p_notes: adminNotes,
+      p_sale_type: "payment_plan",
+      p_installment_count: months,
+      p_installment_cents: installmentCents,
     });
     if (intentErr) throw intentErr;
 
@@ -125,7 +128,7 @@ Deno.serve(async (req) => {
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
       p_stripe_payment_intent_id: subscription.id,
-      p_amount_cents: pack.price_cents * quantity,
+      p_amount_cents: totalCents,
     });
 
     // Schedule auto-cancel after N cycles.
@@ -150,15 +153,22 @@ Deno.serve(async (req) => {
     const passIds = ((finalizeRes as any)?.pass_ids ?? []) as string[];
     if (passIds.length === 0) throw new Error("Package finalization returned no packages");
 
-    await supabase
-      .from("pt_passes")
-      .update({
-        payment_plan_total_installments: months,
-        payment_plan_installments_paid: 1, // first invoice charged
-        payment_plan_status: "active",
-        payment_plan_subscription_id: subscription.id,
-      })
-      .in("id", passIds);
+    // Phase 2B: plan linkage goes through the sanctioned RPC so the dedicated
+    // subscription id, totals and installment schedule are recorded consistently.
+    const nextPaymentDate = (subscription as any).current_period_end
+      ? new Date((subscription as any).current_period_end * 1000).toISOString().slice(0, 10)
+      : null;
+    const { error: linkErr } = await supabase.rpc("pt_link_payment_plan", {
+      p_pass_ids: passIds,
+      p_subscription_id: subscription.id,
+      p_total_installments: months,
+      p_installments_paid: 1, // first invoice charged
+      p_installment_cents: installmentCents,
+      p_total_cents: totalCents,
+      p_next_payment_date: nextPaymentDate,
+      p_status: "active",
+    });
+    if (linkErr) console.error("Failed to link payment plan:", linkErr.message);
 
     // Backfill pass ids onto the subscription so webhook installment tracking works.
     try {
