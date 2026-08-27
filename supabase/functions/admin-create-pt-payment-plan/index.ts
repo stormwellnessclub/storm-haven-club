@@ -153,15 +153,22 @@ Deno.serve(async (req) => {
     const passIds = ((finalizeRes as any)?.pass_ids ?? []) as string[];
     if (passIds.length === 0) throw new Error("Package finalization returned no packages");
 
-    await supabase
-      .from("pt_passes")
-      .update({
-        payment_plan_total_installments: months,
-        payment_plan_installments_paid: 1, // first invoice charged
-        payment_plan_status: "active",
-        payment_plan_subscription_id: subscription.id,
-      })
-      .in("id", passIds);
+    // Phase 2B: plan linkage goes through the sanctioned RPC so the dedicated
+    // subscription id, totals and installment schedule are recorded consistently.
+    const nextPaymentDate = (subscription as any).current_period_end
+      ? new Date((subscription as any).current_period_end * 1000).toISOString().slice(0, 10)
+      : null;
+    const { error: linkErr } = await supabase.rpc("pt_link_payment_plan", {
+      p_pass_ids: passIds,
+      p_subscription_id: subscription.id,
+      p_total_installments: months,
+      p_installments_paid: 1, // first invoice charged
+      p_installment_cents: installmentCents,
+      p_total_cents: totalCents,
+      p_next_payment_date: nextPaymentDate,
+      p_status: "active",
+    });
+    if (linkErr) console.error("Failed to link payment plan:", linkErr.message);
 
     // Backfill pass ids onto the subscription so webhook installment tracking works.
     try {
