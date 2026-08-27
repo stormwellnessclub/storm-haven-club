@@ -208,6 +208,7 @@ import PTPortalReassessments from "@/pages/admin/pt/PTReassessments";
 import PTPortalSessionNotes from "@/pages/admin/pt/PTSessionNotes";
 import PTPortalProgress from "@/pages/admin/pt/PTProgress";
 import PTPortalPackages from "@/pages/admin/pt/PTPackages";
+import PTPortalBilling from "@/pages/admin/pt/PTBilling";
 import PTPortalTrainers from "@/pages/admin/pt/PTTrainers";
 import PTPortalTasks from "@/pages/admin/pt/PTTasks";
 import PTPortalMessages from "@/pages/admin/pt/PTMessages";
