@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
+import { usePTClientBilling } from "@/hooks/pt/usePTFinancials";
 
 const TABS = [
   "Overview", "Sessions", "Programs", "Progress", "Notes",
@@ -883,5 +884,57 @@ function StatusModal({ open, onOpenChange, current, onSave }: {
         </SelectContent>
       </Select>
     </PTModal>
+  );
+}
+
+/* ------------------------------------------ Phase 2B: billing snapshot */
+
+function PTClientBillingSnapshot({ userId }: { userId?: string }) {
+  const { data } = usePTClientBilling(userId);
+  if (!data) return null;
+
+  const plan: any = data.plan;
+  const items: Array<{ label: string; value: string; tone?: string }> = [
+    { label: "Sessions remaining", value: String(data.activePass?.sessions_remaining ?? 0) },
+    {
+      label: "Unpaid sessions",
+      value: `${data.unpaidCount} · ${formatCents(data.unpaidCents)}`,
+      tone: data.unpaidCount > 0 ? "text-pt-red" : undefined,
+    },
+    {
+      label: "Payment plan",
+      value: plan
+        ? `${plan.payment_plan_installments_paid ?? 0}/${plan.payment_plan_total_installments ?? 0} paid · ${formatCents(plan.payment_plan_installment_cents ?? 0)}/mo`
+        : "None",
+    },
+    {
+      label: "Next autopay",
+      value: plan?.payment_plan_next_payment_date ? fmt(plan.payment_plan_next_payment_date) : "—",
+    },
+    {
+      label: "Outstanding on packages",
+      value: formatCents(
+        (data.passes as any[]).reduce((s, p) => s + (p.amount_outstanding_cents || 0), 0),
+      ),
+    },
+  ];
+
+  return (
+    <PTCard>
+      <PTSectionTitle>Billing snapshot</PTSectionTitle>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5 mt-2">
+        {items.map((i) => (
+          <div key={i.label} className="rounded-lg border border-pt-line p-3">
+            <div className="text-[11px] uppercase tracking-wide text-pt-muted">{i.label}</div>
+            <div className={`text-[15px] font-medium mt-1 ${i.tone ?? ""}`}>{i.value}</div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3">
+        <Link to="/admin/pt/billing" className="text-[13px] text-pt-gold hover:underline">
+          Open Billing &amp; Autopay →
+        </Link>
+      </div>
+    </PTCard>
   );
 }
