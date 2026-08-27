@@ -82,19 +82,22 @@ Deno.serve(async (req) => {
     // idempotent sale path — never by a direct insert.
     const saleRef = body.saleRef ?? crypto.randomUUID();
 
-    const { error: intentErr } = await supabase.rpc("pt_open_sale_intent", {
+    // Phase 2B: the server derives name/format/sessions/price from pt_packs.
+    const totalCents = pack.price_cents * quantity;
+    const installmentCents = Math.ceil(totalCents / months);
+
+    const { error: intentErr } = await supabase.rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: saleRef,
       p_user_id: userId,
-      p_pack_name: pack.name,
-      p_format: pack.format,
-      p_sessions_per_pack: pack.sessions,
+      p_pack_id: pack.id,
       p_quantity: quantity,
-      p_unit_price_cents: pack.price_cents,
+      p_payment_method: "payment_plan",
       p_activated_at: activatedAt,
       p_expires_at: expiresAt,
-      p_payment_method: "payment_plan",
-      p_pack_id: pack.id,
       p_notes: adminNotes,
+      p_sale_type: "payment_plan",
+      p_installment_count: months,
+      p_installment_cents: installmentCents,
     });
     if (intentErr) throw intentErr;
 
