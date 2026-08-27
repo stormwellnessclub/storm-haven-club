@@ -599,6 +599,7 @@ export default function PTClientDetail() {
             />
           </PTCard>
         </div>
+        </>
       )}
 
       {/* --------------------------------------------------- communication */}
