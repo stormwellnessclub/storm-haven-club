@@ -238,6 +238,12 @@ export default function PTPackages() {
             <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/packs")}>
               Edit catalog
             </button>
+            <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("transfer")}>
+              Transferred package
+            </button>
+            <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("existing")}>
+              <Plus className="h-4 w-4" /> Existing package
+            </button>
             <button className={ptButtonClass("primary")} onClick={() => setSellOpen(true)}>
               <Plus className="h-4 w-4" /> Sell package
             </button>
