@@ -114,6 +114,27 @@ export default function PTPackages() {
           </button>
           <button
             className="text-pt-muted hover:text-pt-gold transition-colors p-1"
+            title="Apply past sessions"
+            onClick={(e) => { e.stopPropagation(); setApplyPastPass(p); }}
+          >
+            <CalendarCheck className="h-4 w-4" />
+          </button>
+          <button
+            className="text-pt-muted hover:text-pt-gold transition-colors p-1"
+            title="Record a historical session"
+            onClick={(e) => { e.stopPropagation(); setHistoricalPass(p); }}
+          >
+            <ClipboardList className="h-4 w-4" />
+          </button>
+          <button
+            className="text-pt-muted hover:text-pt-gold transition-colors p-1"
+            title="Package history"
+            onClick={(e) => { e.stopPropagation(); setHistoryPass(p); }}
+          >
+            <History className="h-4 w-4" />
+          </button>
+          <button
+            className="text-pt-muted hover:text-pt-gold transition-colors p-1"
             title="Log renewal reminder"
             onClick={(e) => { e.stopPropagation(); logReminder.mutate({ passId: p.id }); }}
           >
