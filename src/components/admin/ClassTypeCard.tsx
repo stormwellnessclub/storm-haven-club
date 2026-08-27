@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ChevronRight, Plus, Flame, Calendar, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +17,8 @@ interface ClassTypeCardProps {
   isActive: boolean;
   scheduleCount: number;
   onAddSchedule?: () => void;
+  onToggleHeated?: (isHeated: boolean) => void;
+  heatedPending?: boolean;
 }
 
 export function ClassTypeCard({
@@ -28,7 +32,10 @@ export function ClassTypeCard({
   isActive,
   scheduleCount,
   onAddSchedule,
+  onToggleHeated,
+  heatedPending,
 }: ClassTypeCardProps) {
+
   return (
     <div
       className={cn(
