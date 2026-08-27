@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
       p_stripe_payment_intent_id: subscription.id,
-      p_amount_cents: pack.price_cents * quantity,
+      p_amount_cents: totalCents,
     });
 
     // Schedule auto-cancel after N cycles.
