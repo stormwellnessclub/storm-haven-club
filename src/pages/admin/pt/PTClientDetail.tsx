@@ -569,7 +569,9 @@ export default function PTClientDetail() {
 
       {/* --------------------------------------------------------- billing */}
       {tab === "Billing" && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <>
+        <PTClientBillingSnapshot userId={userId} />
+        <div className="grid gap-4 lg:grid-cols-2 mt-4">
           <PTCard padded={false}>
             <div className="p-4 pb-0"><PTSectionTitle action={<button className={ptButtonClass("ghost")} onClick={() => setSellOpen(true)}>Sell package</button>}>Packages</PTSectionTitle></div>
             <PTTable
