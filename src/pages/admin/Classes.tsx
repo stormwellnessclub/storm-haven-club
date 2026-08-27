@@ -216,6 +216,27 @@ export default function Classes() {
     onError: () => toast.error("Failed to update instructor"),
   });
 
+  const toggleHiddenMutation = useMutation({
+    mutationFn: async ({ sessionId, isHidden }: { sessionId: string; isHidden: boolean }) => {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ is_hidden: isHidden } as any)
+        .eq("id", sessionId);
+      if (error) throw error;
+      return isHidden;
+    },
+    onSuccess: (isHidden) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-day"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-sessions-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["public-schedule"] });
+      toast.success(isHidden ? "Class hidden from members" : "Class visible to members");
+    },
+    onError: () => toast.error("Failed to update visibility"),
+  });
+
+
   const cancelSessionMutation = useMutation({
     mutationFn: async () => {
       if (!selectedSession) return;
