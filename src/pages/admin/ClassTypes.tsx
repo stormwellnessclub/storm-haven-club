@@ -203,6 +203,25 @@ export default function ClassTypes() {
       toast.error("Failed to create class type");
     },
   });
+  // Toggle heated flag for a class type
+  const toggleHeatedMutation = useMutation({
+    mutationFn: async ({ id, isHeated }: { id: string; isHeated: boolean }) => {
+      const { error } = await supabase
+        .from("class_types")
+        .update({ is_heated: isHeated } as any)
+        .eq("id", id);
+      if (error) throw error;
+      return isHeated;
+    },
+    onSuccess: (isHeated) => {
+      queryClient.invalidateQueries({ queryKey: ['class-types-grouped'] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
+      toast.success(isHeated ? "Marked as heated" : "Marked as non-heated");
+    },
+    onError: () => toast.error("Failed to update heated setting"),
+  });
+
 
   // Quick add schedule mutation
   const quickScheduleMutation = useMutation({
@@ -406,6 +425,8 @@ export default function ClassTypes() {
                           isActive={classType.is_active}
                           scheduleCount={classType.scheduleCount}
                           onAddSchedule={() => openQuickSchedule(classType.id)}
+                          onToggleHeated={(v) => toggleHeatedMutation.mutate({ id: classType.id, isHeated: v })}
+                          heatedPending={toggleHeatedMutation.isPending}
                         />
                       ))}
                     </div>

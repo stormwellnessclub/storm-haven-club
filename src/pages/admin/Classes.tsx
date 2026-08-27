@@ -6,7 +6,7 @@ import { useBareAdminLayout } from "@/components/admin/BareAdminLayoutContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, EyeOff, UserCog } from "lucide-react";
+import { Calendar as CalendarIcon, CalendarDays, Clock, Users, CheckCircle, Dumbbell, XCircle, UserPlus, List, ChevronLeft, ChevronRight, Loader2, ExternalLink, Eye, EyeOff, UserCog } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -215,6 +215,27 @@ export default function Classes() {
     },
     onError: () => toast.error("Failed to update instructor"),
   });
+
+  const toggleHiddenMutation = useMutation({
+    mutationFn: async ({ sessionId, isHidden }: { sessionId: string; isHidden: boolean }) => {
+      const { error } = await supabase
+        .from("class_sessions")
+        .update({ is_hidden: isHidden } as any)
+        .eq("id", sessionId);
+      if (error) throw error;
+      return isHidden;
+    },
+    onSuccess: (isHidden) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-day"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-class-sessions-upcoming"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-sessions-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["public-schedule"] });
+      toast.success(isHidden ? "Class hidden from members" : "Class visible to members");
+    },
+    onError: () => toast.error("Failed to update visibility"),
+  });
+
 
   const cancelSessionMutation = useMutation({
     mutationFn: async () => {
@@ -538,33 +559,54 @@ export default function Classes() {
                       </div>
 
                       {/* Action buttons */}
-                      {!session.is_cancelled && (
-                        <div className="flex flex-col gap-2 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); openRoster(session.id); }}
-                          >
-                            <ExternalLink className="h-4 w-4 mr-1" /> Manage Roster
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => { e.stopPropagation(); openRoster(session.id); }}
-                          >
-                            <UserPlus className="h-4 w-4 mr-1" /> Add Person
-                          </Button>
-                          {(status === 'upcoming' || status === 'in-progress' || status === 'completed') && (
+                      <div className="flex flex-col gap-2 flex-shrink-0">
+                        {!session.is_cancelled && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); openRoster(session.id); }}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-1" /> Manage Roster
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-destructive border-destructive/30 hover:bg-destructive/10"
-                              onClick={(e) => { e.stopPropagation(); setSelectedSession(session); setCancelDialogOpen(true); }}
+                              onClick={(e) => { e.stopPropagation(); openRoster(session.id); }}
                             >
-                              <XCircle className="h-4 w-4 mr-1" /> Cancel
+                              <UserPlus className="h-4 w-4 mr-1" /> Add Person
                             </Button>
+                          </>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={toggleHiddenMutation.isPending}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleHiddenMutation.mutate({
+                              sessionId: session.id,
+                              isHidden: !(session as any).is_hidden,
+                            });
+                          }}
+                        >
+                          {(session as any).is_hidden ? (
+                            <><Eye className="h-4 w-4 mr-1" /> Show on schedule</>
+                          ) : (
+                            <><EyeOff className="h-4 w-4 mr-1" /> Hide from schedule</>
                           )}
-                        </div>
-                      )}
+                        </Button>
+                        {!session.is_cancelled && (status === 'upcoming' || status === 'in-progress' || status === 'completed') && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                            onClick={(e) => { e.stopPropagation(); setSelectedSession(session); setCancelDialogOpen(true); }}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" /> Cancel
+                          </Button>
+                        )}
+                      </div>
+
                     </div>
                   </CardContent>
                 </Card>

@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { ChevronRight, Plus, Flame, Calendar, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +17,8 @@ interface ClassTypeCardProps {
   isActive: boolean;
   scheduleCount: number;
   onAddSchedule?: () => void;
+  onToggleHeated?: (isHeated: boolean) => void;
+  heatedPending?: boolean;
 }
 
 export function ClassTypeCard({
@@ -28,7 +32,10 @@ export function ClassTypeCard({
   isActive,
   scheduleCount,
   onAddSchedule,
+  onToggleHeated,
+  heatedPending,
 }: ClassTypeCardProps) {
+
   return (
     <div
       className={cn(
@@ -71,10 +78,25 @@ export function ClassTypeCard({
       </div>
 
       <div className="flex items-center gap-3">
+        {onToggleHeated && (
+          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <Switch
+              id={`heated-${id}`}
+              checked={isHeated}
+              disabled={heatedPending}
+              onCheckedChange={(v) => onToggleHeated(v)}
+            />
+            <Label htmlFor={`heated-${id}`} className="text-xs text-muted-foreground cursor-pointer">
+              Heated
+            </Label>
+          </div>
+        )}
+
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           <Calendar className="h-4 w-4" />
           <span>{scheduleCount} schedule{scheduleCount !== 1 ? 's' : ''}</span>
         </div>
+
 
         {!isActive && (
           <Badge variant="secondary">Inactive</Badge>
