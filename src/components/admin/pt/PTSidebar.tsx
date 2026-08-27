@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarDays, Users, Dumbbell, NotebookPen, TrendingUp, Package,
-  UserCog, ListChecks, MessageSquare, BarChart3, Settings, ChevronLeft, ChevronRight,
+  UserCog, ListChecks, MessageSquare, BarChart3, Settings, ChevronLeft, ChevronRight, CreditCard,
   LogOut, User, ArrowLeft, LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
