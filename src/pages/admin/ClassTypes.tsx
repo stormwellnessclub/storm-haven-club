@@ -425,6 +425,8 @@ export default function ClassTypes() {
                           isActive={classType.is_active}
                           scheduleCount={classType.scheduleCount}
                           onAddSchedule={() => openQuickSchedule(classType.id)}
+                          onToggleHeated={(v) => toggleHeatedMutation.mutate({ id: classType.id, isHeated: v })}
+                          heatedPending={toggleHeatedMutation.isPending}
                         />
                       ))}
                     </div>
