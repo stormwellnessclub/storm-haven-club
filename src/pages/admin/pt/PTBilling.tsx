@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format as fmtDate, differenceInCalendarDays, addDays } from "date-fns";
 import {
   Wallet, CreditCard, AlertTriangle, CheckCircle2, Clock, Repeat, Download, Receipt,
+  FileText, Undo2, Plus,
 } from "lucide-react";
 import {
   PTShell, PTPageHeader, PTCard, PTTable, PTColumn, PTEmptyState, PTBadge, PTTabs,
@@ -17,9 +18,17 @@ import {
   usePTUnpaidSessions, usePTPaymentPlans, usePTPayments, usePTPaymentAllocations,
   PTUnpaidSession, PTPlanRow, PT_PAYMENT_METHOD_LABEL,
 } from "@/hooks/pt/usePTFinancials";
+import {
+  usePTInvoices, usePTRefunds, usePTFailedPayments,
+  PTInvoiceRow, PT_INVOICE_STATUS_LABEL, ptInvoiceTone,
+} from "@/hooks/pt/usePTBillingCenter";
 import { PTSessionCheckoutDialog } from "@/components/admin/pt/PTSessionCheckoutDialog";
+import { PTInvoiceDialog } from "@/components/admin/pt/PTInvoiceDialog";
+import { PTInvoiceDetailDialog } from "@/components/admin/pt/PTInvoiceDetailDialog";
+import { PTRefundDialog, PTRefundTarget } from "@/components/admin/pt/PTRefundDialog";
+import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
 
-type Tab = "autopay" | "unpaid" | "activity";
+type Tab = "autopay" | "unpaid" | "activity" | "invoices" | "failed" | "refunds";
 type AgeFilter = "all" | "today" | "7" | "8-30" | "31";
 
 const planStatusTone = (s?: string | null) =>
@@ -33,6 +42,11 @@ export default function PTBilling() {
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [checkout, setCheckout] = useState<PTUnpaidSession[]>([]);
   const [openPlan, setOpenPlan] = useState<PTPlanRow | null>(null);
+  const [openInvoice, setOpenInvoice] = useState<PTInvoiceRow | null>(null);
+  const [refundTarget, setRefundTarget] = useState<PTRefundTarget | null>(null);
+  const [newInvoiceFor, setNewInvoiceFor] = useState<{ userId: string; name: string } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
 
   const { data: unpaid = [], isLoading: loadingUnpaid } = usePTUnpaidSessions();
   const { data: plans = [], isLoading: loadingPlans } = usePTPaymentPlans();
