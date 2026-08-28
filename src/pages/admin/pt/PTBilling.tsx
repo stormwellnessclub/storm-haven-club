@@ -765,7 +765,10 @@ function FailedGroup({
   title, rows, loading,
 }: {
   title: string;
-  rows: Array<{ key: string; client: string; detail: string; when: string; amount: string; onOpen: () => void }>;
+  rows: Array<{
+    key: string; client: string; detail: string; when: string; amount: string;
+    onOpen: () => void; action?: React.ReactNode;
+  }>;
   loading?: boolean;
 }) {
   return (
@@ -780,19 +783,22 @@ function FailedGroup({
       ) : (
         <div className="rounded-lg border border-pt-line divide-y divide-pt-line bg-white">
           {rows.map((r) => (
-            <button
+            <div
               key={r.key}
-              onClick={r.onOpen}
               className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-pt-beige/40"
             >
-              <span className="text-[13px] font-medium w-48 truncate">{r.client}</span>
-              <span className="text-[13px] text-pt-muted flex-1 truncate">{r.detail}</span>
-              <span className="text-[13px] text-pt-muted w-28">{r.when}</span>
-              <span className="text-[13px] font-medium">{r.amount}</span>
-            </button>
+              <button onClick={r.onOpen} className="flex flex-1 items-center gap-3 text-left">
+                <span className="text-[13px] font-medium w-48 truncate">{r.client}</span>
+                <span className="text-[13px] text-pt-muted flex-1 truncate">{r.detail}</span>
+                <span className="text-[13px] text-pt-muted w-28">{r.when}</span>
+                <span className="text-[13px] font-medium">{r.amount}</span>
+              </button>
+              {r.action}
+            </div>
           ))}
         </div>
       )}
     </div>
   );
 }
+
