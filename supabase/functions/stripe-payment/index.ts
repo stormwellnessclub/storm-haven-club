@@ -4907,7 +4907,10 @@ serve(async (req) => {
       case 'process_admin_refund': {
         const { memberId, chargeId, paymentIntentId, chargeType, refundAmount: adminRefundAmount, refundNotes: adminRefundNotes, managerCode, refundMethodType: adminRefundMethod } = body;
 
-        if (!memberId) throw new Error("Member ID is required");
+        // Personal-training clients are not always members, so PT refunds are
+        // identified by their Stripe payment intent instead of a member record.
+        if (!memberId && chargeType !== 'personal_training') throw new Error("Member ID is required");
+        if (!memberId && !paymentIntentId) throw new Error("Payment intent is required for PT refunds");
         if (!adminRefundAmount || adminRefundAmount <= 0) throw new Error("Valid refund amount is required");
 
         logStep("Processing admin refund", { memberId, chargeId, chargeType, adminRefundAmount, adminRefundMethod });
@@ -4963,7 +4966,7 @@ serve(async (req) => {
         const { error: refundLogError } = await supabase
           .from('refund_requests')
           .insert({
-            member_id: memberId,
+            member_id: memberId || null,
             original_charge_id: chargeId || null,
             original_payment_intent_id: paymentIntentId || null,
             charge_type: chargeType,
