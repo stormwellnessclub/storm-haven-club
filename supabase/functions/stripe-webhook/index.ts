@@ -2337,6 +2337,18 @@ serve(async (req) => {
                   }
                   logStep('PT payment plan installment recorded', { subId, passIds, total });
                 }
+                // Phase 2C: the installment is real money — record it once in the
+                // PT ledger (idempotent on the Stripe invoice id) so it appears in
+                // PT payment history and the member's financial view.
+                const { data: instRes, error: instErr } = await supabase.rpc('pt_record_installment_payment', {
+                  p_subscription_id: subId,
+                  p_stripe_invoice_id: invoice.id,
+                  p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
+                  p_paid_at: new Date().toISOString(),
+                  p_payment_intent_id: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : null,
+                });
+                if (instErr) logError(instErr, 'PT_INSTALLMENT_RECORD');
+                else logStep('PT installment money recorded', instRes);
                 return successResponse({ pt_payment_plan: true, subId });
               }
             } catch (ptPlanErr) {
@@ -3149,6 +3161,19 @@ serve(async (req) => {
                   .update({ payment_plan_status: 'past_due' })
                   .in('id', passIds);
               }
+              // Phase 2C: register the failed installment as a PT-scoped dunning
+              // obligation so it appears in the failed-payment center with attempt
+              // counts, and so membership dunning never chases it.
+              const { error: dunErr } = await supabase.rpc('pt_register_failed_installment', {
+                p_subscription_id: subId,
+                p_stripe_invoice_id: invoice.id,
+                p_customer_id: typeof invoice.customer === 'string' ? invoice.customer : null,
+                p_amount_cents: invoice.amount_due ?? 0,
+                p_failure_reason: (invoice as any).last_finalization_error?.message
+                  ?? (invoice as any).last_payment_error?.message ?? 'Card was declined',
+                p_failure_code: (invoice as any).last_payment_error?.code ?? null,
+              });
+              if (dunErr) logError(dunErr, 'PT_FAILED_INSTALLMENT_DUNNING');
               logStep('PT payment plan installment FAILED', { subId, passIds });
               return successResponse({ pt_payment_plan_failed: true, subId });
             }

@@ -80,7 +80,8 @@ serve(async (req) => {
     let query = supabase
       .from("payment_dunning_state")
       .select("id, member_id, stripe_invoice_id, status")
-      .eq("status", "active");
+      .eq("status", "active")
+      .or("service_type.is.null,service_type.eq.membership");
     if (body.memberId) query = query.eq("member_id", body.memberId);
 
     const { data: rows, error: rowsErr } = await query;
