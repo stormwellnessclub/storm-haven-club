@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { usePTClientBilling } from "@/hooks/pt/usePTFinancials";
+import { PTClientFinancialCenter } from "@/components/admin/pt/PTClientFinancialCenter";
 
 const TABS = [
   "Overview", "Sessions", "Programs", "Progress", "Notes",
@@ -575,7 +576,7 @@ export default function PTClientDetail() {
         <div className="mt-4">
           <PTClientFinancialCenter
             userId={userId}
-            clientName={clientName}
+            clientName={name}
             passes={passes as any[]}
           />
         </div>
