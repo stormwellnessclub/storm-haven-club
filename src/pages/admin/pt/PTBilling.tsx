@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format as fmtDate, differenceInCalendarDays, addDays } from "date-fns";
 import {
   Wallet, CreditCard, AlertTriangle, CheckCircle2, Clock, Repeat, Download, Receipt,
+  FileText, Undo2, Plus,
 } from "lucide-react";
 import {
   PTShell, PTPageHeader, PTCard, PTTable, PTColumn, PTEmptyState, PTBadge, PTTabs,
@@ -17,9 +18,17 @@ import {
   usePTUnpaidSessions, usePTPaymentPlans, usePTPayments, usePTPaymentAllocations,
   PTUnpaidSession, PTPlanRow, PT_PAYMENT_METHOD_LABEL,
 } from "@/hooks/pt/usePTFinancials";
+import {
+  usePTInvoices, usePTRefunds, usePTFailedPayments,
+  PTInvoiceRow, PT_INVOICE_STATUS_LABEL, ptInvoiceTone,
+} from "@/hooks/pt/usePTBillingCenter";
 import { PTSessionCheckoutDialog } from "@/components/admin/pt/PTSessionCheckoutDialog";
+import { PTInvoiceDialog } from "@/components/admin/pt/PTInvoiceDialog";
+import { PTInvoiceDetailDialog } from "@/components/admin/pt/PTInvoiceDetailDialog";
+import { PTRefundDialog, PTRefundTarget } from "@/components/admin/pt/PTRefundDialog";
+import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
 
-type Tab = "autopay" | "unpaid" | "activity";
+type Tab = "autopay" | "unpaid" | "activity" | "invoices" | "failed" | "refunds";
 type AgeFilter = "all" | "today" | "7" | "8-30" | "31";
 
 const planStatusTone = (s?: string | null) =>
@@ -33,17 +42,28 @@ export default function PTBilling() {
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [checkout, setCheckout] = useState<PTUnpaidSession[]>([]);
   const [openPlan, setOpenPlan] = useState<PTPlanRow | null>(null);
+  const [openInvoice, setOpenInvoice] = useState<PTInvoiceRow | null>(null);
+  const [refundTarget, setRefundTarget] = useState<PTRefundTarget | null>(null);
+  const [newInvoiceFor, setNewInvoiceFor] = useState<{ userId: string; name: string } | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
 
   const { data: unpaid = [], isLoading: loadingUnpaid } = usePTUnpaidSessions();
   const { data: plans = [], isLoading: loadingPlans } = usePTPaymentPlans();
   const { data: payments = [], isLoading: loadingPayments } = usePTPayments();
   const { data: allocations = [] } = usePTPaymentAllocations(payments.map((p) => p.id));
+  const { data: invoices = [], isLoading: loadingInvoices } = usePTInvoices();
+  const { data: refunds = [], isLoading: loadingRefunds } = usePTRefunds();
+  const { data: failed, isLoading: loadingFailed } = usePTFailedPayments();
 
   const { data: people = {} } = usePTPeople([
     ...unpaid.map((u) => u.user_id),
     ...plans.map((p) => p.user_id),
     ...payments.map((p) => p.user_id),
+    ...invoices.map((i) => i.user_id),
+    ...refunds.map((r) => r.user_id),
   ]);
+
   const nameOf = (id?: string | null) => (id ? people[id]?.name ?? "—" : "—");
 
   const matches = (id: string) =>
@@ -193,7 +213,85 @@ export default function PTBilling() {
       key: "status", header: "Status",
       render: (p) => <PTBadge tone={p.status === "succeeded" ? "green" : "red"}>{p.status}</PTBadge>,
     },
+    {
+      key: "refund", header: "", align: "right",
+      render: (p) => {
+        const refunded = p.refunded_cents ?? 0;
+        if (p.status !== "succeeded" || refunded >= p.amount_cents) {
+          return refunded > 0 ? <PTBadge tone="neutral">Refunded {formatCents(refunded)}</PTBadge> : null;
+        }
+        return (
+          <button
+            className={ptButtonClass("outline")}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRefundTarget({
+                paymentId: p.id, userId: p.user_id, memberId: null,
+                clientName: nameOf(p.user_id), amountCents: p.amount_cents,
+                refundedCents: refunded, stripePaymentIntentId: p.stripe_payment_intent_id ?? null,
+              });
+            }}
+          >
+            Refund
+          </button>
+        );
+      },
+    },
   ];
+
+  /* ------------------------------------------------------------ invoices */
+
+  const invoiceRows = useMemo(
+    () => invoices.filter((i) => matches(i.user_id)),
+    [invoices, search, people], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const invoiceColumns: PTColumn<PTInvoiceRow>[] = [
+    { key: "num", header: "Invoice", render: (i) => i.invoice_number },
+    { key: "client", header: "Client", render: (i) => nameOf(i.user_id) },
+    { key: "issued", header: "Issued", render: (i) => fmtDate(new Date(`${i.issue_date}T12:00:00`), "MMM d, yyyy") },
+    {
+      key: "due", header: "Due",
+      render: (i) => (i.due_date ? fmtDate(new Date(`${i.due_date}T12:00:00`), "MMM d, yyyy") : <span className="text-pt-muted">—</span>),
+    },
+    { key: "total", header: "Total", align: "right", render: (i) => formatCents(i.total_cents) },
+    { key: "paid", header: "Paid", align: "right", render: (i) => formatCents(i.amount_paid_cents) },
+    {
+      key: "balance", header: "Balance", align: "right",
+      render: (i) => <span className={i.amount_due_cents > 0 ? "text-pt-red font-medium" : ""}>{formatCents(i.amount_due_cents)}</span>,
+    },
+    {
+      key: "status", header: "Status",
+      render: (i) => <PTBadge tone={ptInvoiceTone(i.status) as any}>{PT_INVOICE_STATUS_LABEL[i.status] ?? i.status}</PTBadge>,
+    },
+  ];
+
+  const invoiceStats = useMemo(() => ({
+    open: invoices.filter((i) => !["paid", "void"].includes(i.status)).length,
+    outstanding: invoices.reduce((s, i) => s + (["paid", "void"].includes(i.status) ? 0 : i.amount_due_cents), 0),
+    pastDue: invoices.filter((i) => i.status === "past_due").length,
+    drafts: invoices.filter((i) => i.status === "draft").length,
+  }), [invoices]);
+
+  /* ------------------------------------------------------------- refunds */
+
+  const refundRows = useMemo(
+    () => refunds.filter((r) => matches(r.user_id)),
+    [refunds, search, people], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const refundColumns: PTColumn<any>[] = [
+    { key: "when", header: "Refunded", render: (r) => fmtDate(new Date(r.refunded_at), "MMM d, yyyy h:mm a") },
+    { key: "client", header: "Client", render: (r) => nameOf(r.user_id) },
+    { key: "amount", header: "Amount", align: "right", render: (r) => formatCents(r.amount_cents) },
+    {
+      key: "method", header: "Method",
+      render: (r) => <PTBadge tone={r.method === "stripe" ? "gold" : "neutral"}>{r.method === "stripe" ? "Stripe" : "Manual"}</PTBadge>,
+    },
+    { key: "reason", header: "Reason", render: (r) => r.reason },
+    { key: "ref", header: "Stripe refund", render: (r) => r.stripe_refund_id || "—" },
+  ];
+
 
   function exportCurrent() {
     if (tab === "unpaid") {
@@ -235,14 +333,16 @@ export default function PTBilling() {
         }
       />
 
-      {tab === "unpaid" ? (
+      {tab === "unpaid" && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <PTKpiCard label="Unpaid PT sessions" value={unpaidRows.length} icon={Receipt} tone="amber" />
           <PTKpiCard label="Outstanding PT amount" value={formatCents(unpaidTotal)} tone="red" />
           <PTKpiCard label="Clients affected" value={byClient.size} />
           <PTKpiCard label="Over 30 days" value={unpaidRows.filter((u) => differenceInCalendarDays(new Date(), new Date(u.starts_at)) > 30).length} tone="red" />
         </div>
-      ) : (
+      )}
+
+      {(tab === "autopay" || tab === "activity") && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           <PTKpiCard label="Active plans" value={planStats.active} icon={Repeat} />
           <PTKpiCard label="Due next 7 days" value={planStats.due7} icon={Clock} tone="gold" />
@@ -254,6 +354,40 @@ export default function PTBilling() {
         </div>
       )}
 
+      {tab === "invoices" && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <PTKpiCard label="Open invoices" value={invoiceStats.open} icon={FileText} tone="gold" />
+          <PTKpiCard label="Invoiced outstanding" value={formatCents(invoiceStats.outstanding)} tone="red" />
+          <PTKpiCard label="Past due" value={invoiceStats.pastDue} tone="red" />
+          <PTKpiCard label="Drafts" value={invoiceStats.drafts} />
+        </div>
+      )}
+
+      {tab === "failed" && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <PTKpiCard label="Failed card attempts" value={failed?.dunning.length ?? 0} icon={AlertTriangle} tone="red" />
+          <PTKpiCard label="Plans failing" value={failed?.plans.length ?? 0} tone="red" />
+          <PTKpiCard label="Past-due invoices" value={failed?.invoices.length ?? 0} tone="amber" />
+          <PTKpiCard
+            label="At-risk amount"
+            value={formatCents(
+              (failed?.plans ?? []).reduce((s: number, p: any) => s + (p.payment_plan_installment_cents ?? 0), 0) +
+              (failed?.invoices ?? []).reduce((s: number, i: any) => s + (i.amount_due_cents ?? 0), 0),
+            )}
+            tone="red"
+          />
+        </div>
+      )}
+
+      {tab === "refunds" && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <PTKpiCard label="Refunds recorded" value={refunds.length} icon={Undo2} />
+          <PTKpiCard label="Total refunded" value={formatCents(refunds.reduce((s, r) => s + r.amount_cents, 0))} tone="amber" />
+          <PTKpiCard label="Stripe refunds" value={refunds.filter((r) => r.method === "stripe").length} />
+        </div>
+      )}
+
+
       <PTCard padded={false}>
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-1">
           <PTTabs<Tab>
@@ -261,10 +395,14 @@ export default function PTBilling() {
             onChange={setTab}
             tabs={[
               { value: "unpaid", label: "Unpaid sessions", count: unpaid.length },
+              { value: "invoices", label: "Invoices", count: invoices.length },
               { value: "autopay", label: "Autopay & payment plans", count: plans.length },
+              { value: "failed", label: "Failed & past due", count: (failed?.dunning.length ?? 0) + (failed?.plans.length ?? 0) + (failed?.invoices.length ?? 0) },
               { value: "activity", label: "Payment activity", count: payments.length },
+              { value: "refunds", label: "Refunds", count: refunds.length },
             ]}
           />
+
           <div className="flex items-center gap-2">
             {tab === "unpaid" && (
               <Select value={age} onValueChange={(v) => setAge(v as AgeFilter)}>
@@ -292,12 +430,18 @@ export default function PTBilling() {
                 </SelectContent>
               </Select>
             )}
+            {tab === "invoices" && (
+              <button className={ptButtonClass("primary")} onClick={() => setPickerOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> New invoice
+              </button>
+            )}
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search client…"
               className="h-9 w-52 border-pt-line bg-white"
             />
+
           </div>
         </div>
 
@@ -347,7 +491,109 @@ export default function PTBilling() {
             empty={<PTEmptyState icon={Wallet} title="No PT payments recorded yet" />}
           />
         )}
+
+        {tab === "invoices" && (
+          <PTTable
+            columns={invoiceColumns}
+            rows={invoiceRows}
+            loading={loadingInvoices}
+            getRowKey={(i) => i.id}
+            onRowClick={(i) => setOpenInvoice(i)}
+            empty={<PTEmptyState icon={FileText} title="No PT invoices yet" description="Invoice one or more unpaid sessions, a package balance, or a custom charge." />}
+          />
+        )}
+
+        {tab === "refunds" && (
+          <PTTable
+            columns={refundColumns}
+            rows={refundRows}
+            loading={loadingRefunds}
+            getRowKey={(r) => r.id}
+            empty={<PTEmptyState icon={Undo2} title="No refunds recorded" description="Refunds issued from payment activity appear here." />}
+          />
+        )}
+
+        {tab === "failed" && (
+          <div className="p-3 space-y-5">
+            <PTAlert tone="warning" title="Collection follow-up">
+              Failed PT charges use the same Storm dunning flow as membership dues — retry the card,
+              contact the client, or invoice the balance instead.
+            </PTAlert>
+
+            <FailedGroup
+              title="Failed card charges"
+              rows={(failed?.dunning ?? []).map((d: any) => ({
+                key: d.id,
+                client: nameOf(d.user_id),
+                detail: `${d.failure_count ?? 1} attempt(s)${d.last_failure_reason ? ` · ${d.last_failure_reason}` : ""}`,
+                when: d.first_failed_at ? fmtDate(new Date(d.first_failed_at), "MMM d, yyyy") : "—",
+                amount: formatCents(d.amount_cents ?? 0),
+                onOpen: () => navigate(`/admin/pt/clients/${d.user_id}`),
+              }))}
+              loading={loadingFailed}
+            />
+
+            <FailedGroup
+              title="Payment plans failing"
+              rows={(failed?.plans ?? []).map((p: any) => ({
+                key: p.id,
+                client: nameOf(p.user_id),
+                detail: `${p.pack_name} · ${p.payment_plan_installments_paid ?? 0}/${p.payment_plan_total_installments ?? 0} installments`,
+                when: p.payment_plan_next_payment_date ?? "—",
+                amount: formatCents(p.payment_plan_installment_cents ?? 0),
+                onOpen: () => navigate(`/admin/pt/clients/${p.user_id}`),
+              }))}
+              loading={loadingFailed}
+            />
+
+            <FailedGroup
+              title="Past-due invoices"
+              rows={(failed?.invoices ?? []).map((i: any) => ({
+                key: i.id,
+                client: nameOf(i.user_id),
+                detail: `${i.invoice_number} · due ${i.due_date ?? "—"}`,
+                when: i.due_date ?? "—",
+                amount: formatCents(i.amount_due_cents ?? 0),
+                onOpen: () => { setOpenInvoice(i as PTInvoiceRow); setTab("invoices"); },
+              }))}
+              loading={loadingFailed}
+            />
+          </div>
+        )}
       </PTCard>
+
+      <PTModal
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        title="Invoice which client?"
+        size="sm"
+      >
+        <PTClientPicker
+          onChange={(c) => {
+            if (!c) return;
+            setNewInvoiceFor({ userId: c.id, name: c.name });
+            setPickerOpen(false);
+          }}
+        />
+      </PTModal>
+
+      {newInvoiceFor && (
+        <PTInvoiceDialog
+          open
+          userId={newInvoiceFor.userId}
+          clientName={newInvoiceFor.name}
+          onClose={() => setNewInvoiceFor(null)}
+        />
+      )}
+
+      <PTInvoiceDetailDialog
+        invoice={openInvoice}
+        clientName={openInvoice ? nameOf(openInvoice.user_id) : ""}
+        onClose={() => setOpenInvoice(null)}
+      />
+
+      <PTRefundDialog target={refundTarget} onClose={() => setRefundTarget(null)} />
+
 
       <PTSessionCheckoutDialog
         sessions={checkout}
@@ -453,6 +699,44 @@ function Summary({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-pt-line px-3 py-2">
       <div className="text-xs text-pt-muted">{label}</div>
       <div className="text-[15px] font-medium text-pt-ink tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- failed payment groups */
+
+function FailedGroup({
+  title, rows, loading,
+}: {
+  title: string;
+  rows: Array<{ key: string; client: string; detail: string; when: string; amount: string; onOpen: () => void }>;
+  loading?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-[13px] font-medium mb-2">{title} · {rows.length}</div>
+      {loading ? (
+        <div className="text-[13px] text-pt-muted">Loading…</div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-lg border border-pt-line bg-white px-3 py-3 text-[13px] text-pt-muted">
+          Nothing here — good news.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-pt-line divide-y divide-pt-line bg-white">
+          {rows.map((r) => (
+            <button
+              key={r.key}
+              onClick={r.onOpen}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-pt-beige/40"
+            >
+              <span className="text-[13px] font-medium w-48 truncate">{r.client}</span>
+              <span className="text-[13px] text-pt-muted flex-1 truncate">{r.detail}</span>
+              <span className="text-[13px] text-pt-muted w-28">{r.when}</span>
+              <span className="text-[13px] font-medium">{r.amount}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -48,6 +48,9 @@ export interface PTPaymentRow {
   note: string | null;
   paid_at: string;
   recorded_by: string | null;
+  refunded_cents?: number | null;
+  payment_type?: string | null;
+  invoice_id?: string | null;
 }
 
 export interface PTHistoryRow {
@@ -146,7 +149,7 @@ export function usePTPayments() {
     queryFn: async (): Promise<PTPaymentRow[]> => {
       const { data, error } = await (supabase as any)
         .from("pt_payments")
-        .select("id, user_id, amount_cents, method, status, stripe_payment_intent_id, reference, note, paid_at, recorded_by")
+        .select("id, user_id, amount_cents, method, status, payment_type, stripe_payment_intent_id, reference, note, paid_at, recorded_by, refunded_cents, invoice_id")
         .order("paid_at", { ascending: false })
         .limit(500);
       if (error) throw error;
