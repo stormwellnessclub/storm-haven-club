@@ -96,7 +96,7 @@ export function usePTMClientSummary(userId?: string) {
         (supabase as any).from("pt_client_profiles").select("*").eq("user_id", userId).maybeSingle(),
         supabase
           .from("members")
-          .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, join_date")
+          .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, created_at")
           .eq("user_id", userId!)
           .maybeSingle(),
         supabase
@@ -204,7 +204,7 @@ export function usePTMClientSummary(userId?: string) {
         isMember: !!m,
         status: prof.status ?? (remainingTotal > 0 ? "active" : "inactive"),
         membershipStatus: m ? m.status ?? "unknown" : nm ? "non-member" : "guest",
-        memberSince: m?.join_date ?? nm?.created_at ?? ap?.created_at ?? null,
+        memberSince: m?.created_at ?? nm?.created_at ?? ap?.created_at ?? null,
         primaryTrainerId: prof.primary_trainer_id ?? null,
         primaryTrainerName: prof.primary_trainer_id ? trainerNames[prof.primary_trainer_id] ?? null : null,
         sessionsCompleted: completed.length,

@@ -68,7 +68,7 @@ export function usePTClientDirectory() {
       for (const part of chunk(ids, 300)) {
         const [{ data: m }, { data: n }, { data: pr }] = await Promise.all([
           supabase.from("members")
-            .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, join_date")
+            .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, created_at")
             .in("user_id", part),
           supabase.from("non_member_profiles").select("user_id, email, first_name, last_name, phone, created_at").in("user_id", part),
           supabase.from("profiles").select("user_id, email, first_name, last_name, phone, created_at").in("user_id", part),
@@ -135,7 +135,7 @@ export function usePTClientDirectory() {
           initials: initialsOf(name),
           isMember: !!m,
           membershipStatus: m ? (m.status ?? "unknown") : nm ? "non-member" : "guest",
-          memberSince: m?.join_date ?? nm?.created_at ?? ap?.created_at ?? null,
+          memberSince: m?.created_at ?? nm?.created_at ?? ap?.created_at ?? null,
           primaryTrainerId: prof.primary_trainer_id ?? null,
           clientStatus: prof.status ?? (sessionsRemaining > 0 ? "active" : "inactive"),
           tags: (prof.tags ?? []) as string[],
