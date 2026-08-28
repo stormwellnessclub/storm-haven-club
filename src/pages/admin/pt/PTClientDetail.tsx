@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { usePTClientBilling } from "@/hooks/pt/usePTFinancials";
+import { PTClientFinancialCenter } from "@/components/admin/pt/PTClientFinancialCenter";
 
 const TABS = [
   "Overview", "Sessions", "Programs", "Progress", "Notes",
@@ -572,7 +573,15 @@ export default function PTClientDetail() {
       {tab === "Billing" && (
         <>
         <PTClientBillingSnapshot userId={userId} />
+        <div className="mt-4">
+          <PTClientFinancialCenter
+            userId={userId}
+            clientName={name}
+            passes={passes as any[]}
+          />
+        </div>
         <div className="grid gap-4 lg:grid-cols-2 mt-4">
+
           <PTCard padded={false}>
             <div className="p-4 pb-0"><PTSectionTitle action={<button className={ptButtonClass("ghost")} onClick={() => setSellOpen(true)}>Sell package</button>}>Packages</PTSectionTitle></div>
             <PTTable

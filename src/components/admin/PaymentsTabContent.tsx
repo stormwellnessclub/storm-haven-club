@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChargeHistory } from "@/components/ChargeHistory";
+import { MemberPTFinancialSummary } from "@/components/admin/MemberPTFinancialSummary";
 import { AdminActionButton, ADMIN_ACTION_TOOLTIPS } from "@/components/admin/AdminActionButton";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { 
@@ -201,6 +202,8 @@ export function PaymentsTabContent({
           )}
         </CardContent>
       </Card>
+
+      <MemberPTFinancialSummary memberId={member.id} />
 
       <Card>
         <CardHeader>
