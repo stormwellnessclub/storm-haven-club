@@ -3501,12 +3501,22 @@ serve(async (req) => {
                   ? `${memberData.first_name} ${memberData.last_name}`
                   : memberData.first_name || memberData.last_name || 'Member';
 
+                // First-time activation failures get a different, welcome-oriented email
+                const isActivationFailure =
+                  invoice.billing_reason === 'subscription_create' ||
+                  memberData.status === 'pending_activation';
+
                 const { error: emailError } = await supabase.functions.invoke('send-email', {
                   body: {
-                    type: 'payment_failed',
+                    type: isActivationFailure ? 'activation_payment_failed' : 'payment_failed',
                     to: memberData.email,
                     data: {
                       name: memberName,
+                      duesLabel: subscriptionType === 'annual_fee'
+                        ? 'initiation fee'
+                        : (memberData as any)?.billing_type === 'annual' || (memberData as any)?.is_founding_member
+                          ? 'annual dues'
+                          : 'monthly dues',
                       amount: invoice.amount_due / 100, // Convert from cents to dollars
                       failureReason: declineReason || failureMessage || 'Payment processing failed',
                       failureMessage: failureMessage || null,
