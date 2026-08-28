@@ -16,11 +16,12 @@ import { formatCents } from "@/lib/ptFormat";
 import { downloadCsv } from "@/lib/ptExport";
 import {
   usePTUnpaidSessions, usePTPaymentPlans, usePTPayments, usePTPaymentAllocations,
-  PTUnpaidSession, PTPlanRow, PT_PAYMENT_METHOD_LABEL,
+  usePTNonCashSettlements, PTUnpaidSession, PTPlanRow, PT_PAYMENT_METHOD_LABEL,
 } from "@/hooks/pt/usePTFinancials";
 import {
-  usePTInvoices, usePTRefunds, usePTFailedPayments,
-  PTInvoiceRow, PT_INVOICE_STATUS_LABEL, ptInvoiceTone,
+  usePTInvoices, usePTRefunds, usePTFailedPayments, usePTRetryInstallment,
+  PTInvoiceRow, PT_INVOICE_STATUS_LABEL, ptInvoiceTone, PT_PAYMENT_TYPE_LABEL,
+  PTFailedObligation,
 } from "@/hooks/pt/usePTBillingCenter";
 import { PTSessionCheckoutDialog } from "@/components/admin/pt/PTSessionCheckoutDialog";
 import { PTInvoiceDialog } from "@/components/admin/pt/PTInvoiceDialog";
@@ -55,6 +56,8 @@ export default function PTBilling() {
   const { data: invoices = [], isLoading: loadingInvoices } = usePTInvoices();
   const { data: refunds = [], isLoading: loadingRefunds } = usePTRefunds();
   const { data: failed, isLoading: loadingFailed } = usePTFailedPayments();
+  const { data: settlements = [] } = usePTNonCashSettlements();
+  const retryInstallment = usePTRetryInstallment();
 
   const { data: people = {} } = usePTPeople([
     ...unpaid.map((u) => u.user_id),
@@ -189,21 +192,57 @@ export default function PTBilling() {
     return m;
   }, [allocations]);
 
+  /**
+   * Payment history is money AND explicit no-money settlements, so staff can see
+   * that a session was covered by a package without it reading as revenue.
+   */
+  const activityRows = useMemo(() => {
+    const money = payments.map((p: any) => ({ ...p, kind: "money" as const }));
+    const noncash = settlements.map((a) => ({
+      id: `settle:${a.id}`,
+      kind: "settlement" as const,
+      user_id: a.user_id,
+      paid_at: a.paid_at ?? a.starts_at,
+      amount_cents: 0,
+      method: a.payment_status === "pass" ? "package" : "complimentary",
+      status: "succeeded",
+      payment_type: a.payment_status === "pass" ? "package_credit" : "waived",
+      reference: a.payment_note ?? null,
+      refunded_cents: 0,
+      appointment_id: a.id,
+    }));
+    return [...money, ...noncash].sort(
+      (a, b) => new Date(b.paid_at).getTime() - new Date(a.paid_at).getTime(),
+    );
+  }, [payments, settlements]);
+
   const paymentColumns: PTColumn<any>[] = [
     { key: "when", header: "Paid", render: (p) => fmtDate(new Date(p.paid_at), "MMM d, yyyy h:mm a") },
     { key: "client", header: "Client", render: (p) => nameOf(p.user_id) },
-    { key: "amount", header: "Amount", align: "right", render: (p) => formatCents(p.amount_cents) },
+    {
+      key: "type", header: "Type",
+      render: (p) => PT_PAYMENT_TYPE_LABEL[p.payment_type ?? "session"] ?? "Individual PT Session",
+    },
+    {
+      key: "amount", header: "Amount", align: "right",
+      render: (p) => (p.kind === "settlement"
+        ? <span className="text-pt-muted">$0 collected</span>
+        : formatCents(p.amount_cents)),
+    },
     {
       key: "method", header: "Method",
       render: (p) => (
         <PTBadge tone={p.method === "card" ? "gold" : "neutral"}>
-          {PT_PAYMENT_METHOD_LABEL[p.method] ?? p.method}{p.method !== "card" ? " · manual" : ""}
+          {p.kind === "settlement"
+            ? (p.method === "package" ? "Settled by package" : "Complimentary")
+            : `${PT_PAYMENT_METHOD_LABEL[p.method] ?? p.method}${p.method !== "card" ? " · manual" : ""}`}
         </PTBadge>
       ),
     },
     {
       key: "sessions", header: "Applied to",
       render: (p) => {
+        if (p.kind === "settlement") return "1 session";
         const a = allocByPayment.get(p.id) ?? [];
         return a.length ? `${a.length} session${a.length === 1 ? "" : "s"}` : "—";
       },
@@ -216,6 +255,7 @@ export default function PTBilling() {
     {
       key: "refund", header: "", align: "right",
       render: (p) => {
+        if (p.kind === "settlement") return null;
         const refunded = p.refunded_cents ?? 0;
         if (p.status !== "succeeded" || refunded >= p.amount_cents) {
           return refunded > 0 ? <PTBadge tone="neutral">Refunded {formatCents(refunded)}</PTBadge> : null;
@@ -485,7 +525,7 @@ export default function PTBilling() {
         {tab === "activity" && (
           <PTTable
             columns={paymentColumns}
-            rows={payments}
+            rows={activityRows}
             loading={loadingPayments}
             getRowKey={(p) => p.id}
             empty={<PTEmptyState icon={Wallet} title="No PT payments recorded yet" />}
@@ -521,14 +561,30 @@ export default function PTBilling() {
             </PTAlert>
 
             <FailedGroup
-              title="Failed card charges"
-              rows={(failed?.dunning ?? []).map((d: any) => ({
+              title="Failed installments"
+              rows={((failed?.dunning ?? []) as PTFailedObligation[]).map((d) => ({
                 key: d.id,
                 client: nameOf(d.user_id),
-                detail: `${d.failure_count ?? 1} attempt(s)${d.last_failure_reason ? ` · ${d.last_failure_reason}` : ""}`,
+                detail: [
+                  d.pack_name,
+                  `${d.attempts} attempt${d.attempts === 1 ? "" : "s"}`,
+                  d.last_retry_at ? `last ${fmtDate(new Date(d.last_retry_at), "MMM d")}` : null,
+                  d.due_date ? `due ${d.due_date}` : null,
+                  d.failure_reason,
+                  d.outstanding_cents ? `${formatCents(d.outstanding_cents)} outstanding` : null,
+                ].filter(Boolean).join(" · "),
                 when: d.first_failed_at ? fmtDate(new Date(d.first_failed_at), "MMM d, yyyy") : "—",
                 amount: formatCents(d.amount_cents ?? 0),
-                onOpen: () => navigate(`/admin/pt/clients/${d.user_id}`),
+                onOpen: () => d.user_id && navigate(`/admin/pt/clients/${d.user_id}`),
+                action: (
+                  <button
+                    className={ptButtonClass("outline")}
+                    disabled={retryInstallment.isPending}
+                    onClick={(e) => { e.stopPropagation(); retryInstallment.mutate(d.id); }}
+                  >
+                    Retry charge
+                  </button>
+                ),
               }))}
               loading={loadingFailed}
             />
@@ -709,7 +765,10 @@ function FailedGroup({
   title, rows, loading,
 }: {
   title: string;
-  rows: Array<{ key: string; client: string; detail: string; when: string; amount: string; onOpen: () => void }>;
+  rows: Array<{
+    key: string; client: string; detail: string; when: string; amount: string;
+    onOpen: () => void; action?: React.ReactNode;
+  }>;
   loading?: boolean;
 }) {
   return (
@@ -724,19 +783,22 @@ function FailedGroup({
       ) : (
         <div className="rounded-lg border border-pt-line divide-y divide-pt-line bg-white">
           {rows.map((r) => (
-            <button
+            <div
               key={r.key}
-              onClick={r.onOpen}
               className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-pt-beige/40"
             >
-              <span className="text-[13px] font-medium w-48 truncate">{r.client}</span>
-              <span className="text-[13px] text-pt-muted flex-1 truncate">{r.detail}</span>
-              <span className="text-[13px] text-pt-muted w-28">{r.when}</span>
-              <span className="text-[13px] font-medium">{r.amount}</span>
-            </button>
+              <button onClick={r.onOpen} className="flex flex-1 items-center gap-3 text-left">
+                <span className="text-[13px] font-medium w-48 truncate">{r.client}</span>
+                <span className="text-[13px] text-pt-muted flex-1 truncate">{r.detail}</span>
+                <span className="text-[13px] text-pt-muted w-28">{r.when}</span>
+                <span className="text-[13px] font-medium">{r.amount}</span>
+              </button>
+              {r.action}
+            </div>
           ))}
         </div>
       )}
     </div>
   );
 }
+

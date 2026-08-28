@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -13660,6 +13660,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      pt_failed_obligations: { Args: never; Returns: Json }
       pt_finalize_package_sale: {
         Args: { p_actor?: string; p_idempotency_key: string }
         Returns: Json
@@ -13676,6 +13677,7 @@ export type Database = {
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_manager: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_staff: { Args: { _uid: string }; Returns: boolean }
+      pt_is_service_or_financial: { Args: never; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
       pt_link_payment_plan: {
@@ -13932,6 +13934,16 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_record_installment_payment: {
+        Args: {
+          p_amount_cents: number
+          p_paid_at?: string
+          p_payment_intent_id?: string
+          p_stripe_invoice_id: string
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
       pt_record_invoice_payment: {
         Args: {
           p_amount_cents: number
@@ -14025,6 +14037,17 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_register_failed_installment: {
+        Args: {
+          p_amount_cents: number
+          p_customer_id: string
+          p_failure_code?: string
+          p_failure_reason?: string
+          p_stripe_invoice_id: string
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
       pt_request_role: { Args: never; Returns: string }
       pt_reschedule_appointment: {
         Args: {
@@ -14036,6 +14059,20 @@ export type Database = {
           p_starts_at?: string
         }
         Returns: Json
+      }
+      pt_resolve_failed_obligation: {
+        Args: {
+          p_amount_cents: number
+          p_dunning_id: string
+          p_method: string
+          p_note?: string
+          p_reference?: string
+        }
+        Returns: Json
+      }
+      pt_sale_payment_record: {
+        Args: { p_idempotency_key: string }
+        Returns: string
       }
       pt_send_invoice: {
         Args: { p_invoice_id: string; p_recipient?: string }

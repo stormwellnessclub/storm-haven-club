@@ -158,7 +158,33 @@ export function usePTPayments() {
   });
 }
 
+/**
+ * Sessions settled without money changing hands (package credit or a waived
+ * charge). These are shown in payment history as explicit $0 events so a
+ * package settlement is never mistaken for collected revenue.
+ */
+export function usePTNonCashSettlements() {
+  return useQuery({
+    queryKey: ["pt-noncash-settlements"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("pt_appointments")
+        .select("id, user_id, starts_at, paid_at, payment_status, payment_method, payment_note, pass_id, amount_due_cents")
+        .in("payment_status", ["pass", "comp"])
+        .order("paid_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return (data ?? []) as Array<{
+        id: string; user_id: string; starts_at: string; paid_at: string | null;
+        payment_status: string; payment_method: string | null; payment_note: string | null;
+        pass_id: string | null; amount_due_cents: number | null;
+      }>;
+    },
+  });
+}
+
 export function usePTPaymentAllocations(paymentIds: string[]) {
+
   const ids = Array.from(new Set(paymentIds)).sort();
   return useQuery({
     queryKey: ["pt-payment-allocations", ids],

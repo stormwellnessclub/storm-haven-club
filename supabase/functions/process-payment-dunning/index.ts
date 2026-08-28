@@ -36,7 +36,9 @@ Deno.serve(async (req) => {
     const { data: rows, error } = await supabase
       .from("payment_dunning_state")
       .select("*")
-      .eq("status", "active");
+      .eq("status", "active")
+      // Membership dunning must never chase a personal-training obligation.
+      .or("service_type.is.null,service_type.eq.membership");
 
     if (error) throw error;
 
