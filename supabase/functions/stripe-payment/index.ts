@@ -4966,7 +4966,7 @@ serve(async (req) => {
         const { error: refundLogError } = await supabase
           .from('refund_requests')
           .insert({
-            member_id: memberId,
+            member_id: memberId || null,
             original_charge_id: chargeId || null,
             original_payment_intent_id: paymentIntentId || null,
             charge_type: chargeType,
