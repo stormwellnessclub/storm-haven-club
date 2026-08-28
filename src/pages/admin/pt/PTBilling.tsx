@@ -395,10 +395,14 @@ export default function PTBilling() {
             onChange={setTab}
             tabs={[
               { value: "unpaid", label: "Unpaid sessions", count: unpaid.length },
+              { value: "invoices", label: "Invoices", count: invoices.length },
               { value: "autopay", label: "Autopay & payment plans", count: plans.length },
+              { value: "failed", label: "Failed & past due", count: (failed?.dunning.length ?? 0) + (failed?.plans.length ?? 0) + (failed?.invoices.length ?? 0) },
               { value: "activity", label: "Payment activity", count: payments.length },
+              { value: "refunds", label: "Refunds", count: refunds.length },
             ]}
           />
+
           <div className="flex items-center gap-2">
             {tab === "unpaid" && (
               <Select value={age} onValueChange={(v) => setAge(v as AgeFilter)}>
