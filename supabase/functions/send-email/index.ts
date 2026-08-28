@@ -70,7 +70,7 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
 
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'pos_charge_receipt' | 'spa_receipt' | 'pos_charge_failed' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'pos_charge_receipt' | 'spa_receipt' | 'pos_charge_failed' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'activation_payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
   to: string;
   data: Record<string, any>;
 }
@@ -1414,6 +1414,57 @@ serve(async (req) => {
               <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
                 <p style="font-style:italic;color:#6b7280;margin-bottom:5px;font-family:Georgia,serif;">Warmly,</p>
                 <p style="font-weight:600;color:#1f2937;margin:0;font-family:Georgia,serif;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
+      case 'activation_payment_failed': {
+        subject = 'Action needed to activate your Storm membership';
+        const actAmount = data.amount ? `$${Number(data.amount).toFixed(2)}` : 'your first membership charge';
+        const actReason = data.failureReason || data.declineReason || 'Your bank declined the charge';
+        const duesLabel = data.duesLabel || 'membership dues';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Welcome, ${data.name}!</h2>
+
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Your membership has been approved &mdash; but we were not able to complete the first charge for your ${duesLabel} (${actAmount}), so your membership is not active yet.
+              </p>
+
+              <div style="background: #fee2e2; border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <p style="margin: 0; font-weight: 600; color: #991b1b;">${actReason}</p>
+              </div>
+
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                Nothing else is needed from you beyond a working card &mdash; once a valid payment method is on file, we will run the charge again and your access, credits, and booking privileges will unlock right away.
+              </p>
+
+              <div style="background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 25px 0;">
+                <h3 style="margin: 0 0 15px 0; color: #312D28;">To activate your membership:</h3>
+                <ul style="color: #374151; line-height: 2; margin: 0; padding-left: 20px;">
+                  <li>Sign in to your member portal</li>
+                  <li>Go to Membership &rarr; Payment Methods</li>
+                  <li>Add a card and set it as your default</li>
+                </ul>
+              </div>
+
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${BASE_URL}/member/membership" style="${emailStyles.button}">Add Payment Method</a>
+              </div>
+
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you would prefer to use a different card or have questions about your billing option, simply reply to this email and our team will take care of it.
+              </p>
+
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">The Storm Wellness Club Team</p>
               </div>
             </div>
             ${getEmailFooter()}
