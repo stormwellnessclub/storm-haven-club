@@ -178,17 +178,13 @@ export function usePTOutstanding(userId?: string) {
   });
 }
 
-/** Failed / past-due PT obligations: dunning rows tagged as PT plus failed plans. */
+/** Failed / past-due PT obligations: PT-scoped dunning rows plus failing plans and invoices. */
 export function usePTFailedPayments() {
   return useQuery({
     queryKey: ["pt-failed-payments"],
     queryFn: async () => {
       const [dunning, plans, invoices] = await Promise.all([
-        (supabase as any)
-          .from("payment_dunning_state")
-          .select("*")
-          .eq("service_type", "personal_training")
-          .order("first_failed_at", { ascending: false }),
+        (supabase as any).rpc("pt_failed_obligations"),
         (supabase as any)
           .from("pt_passes")
           .select("id, user_id, pack_name, payment_plan_status, payment_plan_installment_cents, payment_plan_next_payment_date, payment_plan_installments_paid, payment_plan_total_installments, amount_outstanding_cents, stripe_subscription_id")
@@ -199,13 +195,71 @@ export function usePTFailedPayments() {
           .eq("status", "past_due"),
       ]);
       return {
-        dunning: dunning.data ?? [],
+        dunning: (dunning.data ?? []) as PTFailedObligation[],
         plans: plans.data ?? [],
         invoices: invoices.data ?? [],
       };
     },
   });
 }
+
+export interface PTFailedObligation {
+  id: string;
+  user_id: string | null;
+  pass_id: string | null;
+  pack_name: string | null;
+  amount_cents: number;
+  outstanding_cents: number | null;
+  first_failed_at: string | null;
+  last_retry_at: string | null;
+  attempts: number;
+  status: string;
+  failure_reason: string | null;
+  due_date: string | null;
+  stripe_invoice_id: string | null;
+  stripe_subscription_id: string | null;
+}
+
+/** Retry a failed PT installment against the SAME Stripe invoice (never a new charge). */
+export function usePTRetryInstallment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (dunningId: string) => {
+      const { data, error } = await supabase.functions.invoke("pt-retry-installment", {
+        body: { dunningId },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "Retry failed");
+      return data;
+    },
+    onSuccess: () => { invalidate(qc); toast.success("Installment collected"); },
+    onError: (e: any) => toast.error(e?.message ?? "Retry failed"),
+  });
+}
+
+/** Record an authorized offline settlement of a failed PT obligation. */
+export function usePTResolveFailedObligation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (i: {
+      dunningId: string; method: string; amountCents: number;
+      reference?: string | null; note?: string | null;
+    }) => {
+      const { data, error } = await (supabase as any).rpc("pt_resolve_failed_obligation", {
+        p_dunning_id: i.dunningId,
+        p_method: i.method,
+        p_amount_cents: i.amountCents,
+        p_reference: i.reference || null,
+        p_note: i.note || null,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => { invalidate(qc); toast.success("Offline settlement recorded"); },
+    onError: (e: any) => toast.error(e?.message ?? "Could not record settlement"),
+  });
+}
+
 
 export function usePTPaymentCommunications(invoiceId?: string) {
   return useQuery({
