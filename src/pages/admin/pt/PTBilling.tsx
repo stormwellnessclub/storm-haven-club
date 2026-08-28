@@ -430,12 +430,18 @@ export default function PTBilling() {
                 </SelectContent>
               </Select>
             )}
+            {tab === "invoices" && (
+              <button className={ptButtonClass("primary")} onClick={() => setPickerOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> New invoice
+              </button>
+            )}
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search client…"
               className="h-9 w-52 border-pt-line bg-white"
             />
+
           </div>
         </div>
 
