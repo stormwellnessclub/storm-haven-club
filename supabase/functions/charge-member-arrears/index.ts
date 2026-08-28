@@ -66,10 +66,35 @@ serve(async (req) => {
 
     // Resolve invoice to charge
     let targetInvoice: Stripe.Invoice | null = null;
+
+    // Membership arrears must never collect a personal-training obligation:
+    // PT installment invoices belong to the PT billing workspace.
+    const isPersonalTraining = async (inv: Stripe.Invoice) => {
+      const subId = getInvoiceSubscriptionId(inv);
+      if (!subId) return false;
+      try {
+        const sub = await stripe.subscriptions.retrieve(
+          typeof subId === "string" ? subId : (subId as any).id,
+        );
+        return sub.metadata?.type === "pt_payment_plan";
+      } catch {
+        return false;
+      }
+    };
+
     if (invoiceId) {
       targetInvoice = await stripe.invoices.retrieve(invoiceId);
       if (targetInvoice.customer !== member.stripe_customer_id) {
         throw new Error("Invoice does not belong to this member");
+      }
+      if (await isPersonalTraining(targetInvoice)) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "This is a personal-training installment — retry it from PT Billing",
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
     } else {
       const open = await stripe.invoices.list({
@@ -83,9 +108,19 @@ serve(async (req) => {
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      // Oldest first
+      // Oldest first, personal-training installments excluded
       open.data.sort((a, b) => a.created - b.created);
-      targetInvoice = open.data[0];
+      const membershipInvoices: Stripe.Invoice[] = [];
+      for (const inv of open.data) {
+        if (!(await isPersonalTraining(inv))) membershipInvoices.push(inv);
+      }
+      if (membershipInvoices.length === 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: "No open membership invoices to charge" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      targetInvoice = membershipInvoices[0];
     }
 
     if (targetInvoice.status !== "open") {
