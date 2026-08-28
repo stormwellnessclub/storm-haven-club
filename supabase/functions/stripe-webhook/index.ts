@@ -390,7 +390,7 @@ async function resolveSubscriptionInvoiceMember(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   invoice: Stripe.Invoice,
-  selectColumns = 'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
+  selectColumns = 'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id, billing_type, is_founding_member',
 ): Promise<{ memberData: any | null; subscriptionType: SubscriptionInvoiceType; memberError: unknown | null }> {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
   const customerId = getInvoiceCustomerId(invoice);
