@@ -32,12 +32,13 @@ export function useMembersBillingIssues() {
       const { data: members, error: membersError } = await supabase
         .from("members")
         .select(`
-          id, status, subscription_status, billing_type,
+          id, status, subscription_status, billing_type, is_founding_member,
           stripe_customer_id, stripe_subscription_id,
           card_brand, card_last4, card_exp_month, card_exp_year,
           annual_fee_paid_at, annual_fee_subscription_id
         `)
         .in("status", ["active", "pending_activation", "past_due"]);
+
 
       if (membersError) throw membersError;
 
