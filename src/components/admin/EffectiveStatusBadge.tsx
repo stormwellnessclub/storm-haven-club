@@ -55,6 +55,15 @@ export function getEffectiveStatus(
   );
 
   if (hasFailedPayment) {
+    const pastDueIssue = issues.find(i => i.code === 'subscription_past_due');
+    if (pastDueIssue) {
+      return {
+        status: 'payment_failed',
+        canCheckIn: false,
+        label: pastDueIssue.shortLabel || 'Past Due',
+        description: `${pastDueIssue.message} - access denied`,
+      };
+    }
     return {
       status: 'payment_failed',
       canCheckIn: false,
@@ -107,11 +116,12 @@ export function getEffectiveStatus(
   // hasFailedPayment already handled above
 
   if (status === 'past_due') {
+    const duesIssue = issues.find(i => i.code === 'subscription_past_due' || i.code === 'failed_payment');
     return {
       status: 'past_due',
       canCheckIn: false,
-      label: 'Past Due',
-      description: 'Subscription past due - access denied',
+      label: duesIssue?.shortLabel || 'Past Due',
+      description: duesIssue ? `${duesIssue.message} - access denied` : 'Subscription past due - access denied',
     };
   }
 
