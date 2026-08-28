@@ -555,13 +555,26 @@ export default function Applications() {
           memberInsertData.locked_start_date = format(lockedStartDate, "yyyy-MM-dd");
         }
         
-        const { error: memberError } = await supabase
+        const { data: insertedMember, error: memberError } = await supabase
           .from("members")
-          .insert(memberInsertData);
+          .insert(memberInsertData)
+          .select("id")
+          .maybeSingle();
         
         if (memberError) {
           console.error("Failed to create member record:", memberError);
         }
+
+        // If the application never captured card metadata but a Stripe customer
+        // exists, pull the card down now so the member doesn't show "Not Synced".
+        if (insertedMember?.id && !application.card_last4 && application.stripe_customer_id) {
+          try {
+            await syncCardMetadataWithRetry(insertedMember.id, application.stripe_customer_id, 2);
+          } catch (syncErr) {
+            console.warn("Card metadata sync after approval failed:", syncErr);
+          }
+        }
+
         
         // Send appropriate email based on options
         if (!suppressEmail) {
