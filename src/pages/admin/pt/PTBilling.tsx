@@ -571,7 +571,7 @@ export default function PTBilling() {
         <PTClientPicker
           onChange={(c) => {
             if (!c) return;
-            setNewInvoiceFor({ userId: c.user_id, name: c.name });
+            setNewInvoiceFor({ userId: c.id, name: c.name });
             setPickerOpen(false);
           }}
         />
@@ -699,6 +699,44 @@ function Summary({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-pt-line px-3 py-2">
       <div className="text-xs text-pt-muted">{label}</div>
       <div className="text-[15px] font-medium text-pt-ink tabular-nums">{value}</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------- failed payment groups */
+
+function FailedGroup({
+  title, rows, loading,
+}: {
+  title: string;
+  rows: Array<{ key: string; client: string; detail: string; when: string; amount: string; onOpen: () => void }>;
+  loading?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-[13px] font-medium mb-2">{title} · {rows.length}</div>
+      {loading ? (
+        <div className="text-[13px] text-pt-muted">Loading…</div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-lg border border-pt-line bg-white px-3 py-3 text-[13px] text-pt-muted">
+          Nothing here — good news.
+        </div>
+      ) : (
+        <div className="rounded-lg border border-pt-line divide-y divide-pt-line bg-white">
+          {rows.map((r) => (
+            <button
+              key={r.key}
+              onClick={r.onOpen}
+              className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-pt-beige/40"
+            >
+              <span className="text-[13px] font-medium w-48 truncate">{r.client}</span>
+              <span className="text-[13px] text-pt-muted flex-1 truncate">{r.detail}</span>
+              <span className="text-[13px] text-pt-muted w-28">{r.when}</span>
+              <span className="text-[13px] font-medium">{r.amount}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
