@@ -5913,8 +5913,11 @@ export type Database = {
           metadata: Json
           next_email_day: number | null
           next_email_due_at: string | null
+          pt_invoice_id: string | null
+          pt_pass_id: string | null
           recovered_at: string | null
           retry_count: number
+          service_type: string
           status: string
           stripe_customer_id: string | null
           stripe_invoice_id: string
@@ -5936,8 +5939,11 @@ export type Database = {
           metadata?: Json
           next_email_day?: number | null
           next_email_due_at?: string | null
+          pt_invoice_id?: string | null
+          pt_pass_id?: string | null
           recovered_at?: string | null
           retry_count?: number
+          service_type?: string
           status?: string
           stripe_customer_id?: string | null
           stripe_invoice_id: string
@@ -5959,8 +5965,11 @@ export type Database = {
           metadata?: Json
           next_email_day?: number | null
           next_email_due_at?: string | null
+          pt_invoice_id?: string | null
+          pt_pass_id?: string | null
           recovered_at?: string | null
           retry_count?: number
+          service_type?: string
           status?: string
           stripe_customer_id?: string | null
           stripe_invoice_id?: string
@@ -7557,6 +7566,159 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_invoice_line_items: {
+        Row: {
+          amount_cents: number
+          amount_paid_cents: number
+          appointment_id: string | null
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          pass_id: string | null
+          quantity: number
+          settled_at: string | null
+          unit_amount_cents: number
+        }
+        Insert: {
+          amount_cents: number
+          amount_paid_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          pass_id?: string | null
+          quantity?: number
+          settled_at?: string | null
+          unit_amount_cents: number
+        }
+        Update: {
+          amount_cents?: number
+          amount_paid_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          pass_id?: string | null
+          quantity?: number
+          settled_at?: string | null
+          unit_amount_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_invoice_line_items_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "pt_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_invoice_line_items_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_invoices: {
+        Row: {
+          amount_due_cents: number
+          amount_paid_cents: number
+          created_at: string
+          created_by: string | null
+          discount_cents: number
+          due_date: string | null
+          id: string
+          internal_notes: string | null
+          invoice_number: string
+          issue_date: string
+          notes: string | null
+          paid_at: string | null
+          pass_id: string | null
+          sent_at: string | null
+          status: string
+          subtotal_cents: number
+          tax_cents: number
+          total_cents: number
+          updated_at: string
+          user_id: string
+          viewed_at: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          created_at?: string
+          created_by?: string | null
+          discount_cents?: number
+          due_date?: string | null
+          id?: string
+          internal_notes?: string | null
+          invoice_number: string
+          issue_date?: string
+          notes?: string | null
+          paid_at?: string | null
+          pass_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal_cents?: number
+          tax_cents?: number
+          total_cents?: number
+          updated_at?: string
+          user_id: string
+          viewed_at?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount_due_cents?: number
+          amount_paid_cents?: number
+          created_at?: string
+          created_by?: string | null
+          discount_cents?: number
+          due_date?: string | null
+          id?: string
+          internal_notes?: string | null
+          invoice_number?: string
+          issue_date?: string
+          notes?: string | null
+          paid_at?: string | null
+          pass_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal_cents?: number
+          tax_cents?: number
+          total_cents?: number
+          updated_at?: string
+          user_id?: string
+          viewed_at?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_invoices_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_locations: {
         Row: {
           address: string | null
@@ -7972,6 +8134,7 @@ export type Database = {
           appointment_id: string | null
           created_at: string
           id: string
+          invoice_line_item_id: string | null
           pass_id: string | null
           payment_id: string
         }
@@ -7980,6 +8143,7 @@ export type Database = {
           appointment_id?: string | null
           created_at?: string
           id?: string
+          invoice_line_item_id?: string | null
           pass_id?: string | null
           payment_id: string
         }
@@ -7988,6 +8152,7 @@ export type Database = {
           appointment_id?: string | null
           created_at?: string
           id?: string
+          invoice_line_item_id?: string | null
           pass_id?: string | null
           payment_id?: string
         }
@@ -7997,6 +8162,13 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: false
             referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_allocations_invoice_line_item_id_fkey"
+            columns: ["invoice_line_item_id"]
+            isOneToOne: false
+            referencedRelation: "pt_invoice_line_items"
             referencedColumns: ["id"]
           },
           {
@@ -8015,6 +8187,136 @@ export type Database = {
           },
         ]
       }
+      pt_payment_communications: {
+        Row: {
+          channel: string
+          comm_type: string
+          created_at: string
+          created_by: string | null
+          delivery_status: string
+          failure_reason: string | null
+          id: string
+          invoice_id: string | null
+          pass_id: string | null
+          payment_id: string | null
+          queued_at: string
+          recipient: string
+          sent_at: string | null
+          template: string | null
+          user_id: string | null
+        }
+        Insert: {
+          channel?: string
+          comm_type: string
+          created_at?: string
+          created_by?: string | null
+          delivery_status?: string
+          failure_reason?: string | null
+          id?: string
+          invoice_id?: string | null
+          pass_id?: string | null
+          payment_id?: string | null
+          queued_at?: string
+          recipient: string
+          sent_at?: string | null
+          template?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          channel?: string
+          comm_type?: string
+          created_at?: string
+          created_by?: string | null
+          delivery_status?: string
+          failure_reason?: string | null
+          id?: string
+          invoice_id?: string | null
+          pass_id?: string | null
+          payment_id?: string | null
+          queued_at?: string
+          recipient?: string
+          sent_at?: string | null
+          template?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_payment_communications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "pt_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_communications_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_communications_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_payment_corrections: {
+        Row: {
+          corrected_by: string | null
+          corrected_value: string | null
+          correction_type: string
+          created_at: string
+          field_name: string | null
+          id: string
+          invoice_id: string | null
+          original_value: string | null
+          payment_id: string | null
+          reason: string
+        }
+        Insert: {
+          corrected_by?: string | null
+          corrected_value?: string | null
+          correction_type: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          original_value?: string | null
+          payment_id?: string | null
+          reason: string
+        }
+        Update: {
+          corrected_by?: string | null
+          corrected_value?: string | null
+          correction_type?: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          invoice_id?: string | null
+          original_value?: string | null
+          payment_id?: string | null
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_payment_corrections_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "pt_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_corrections_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_payments: {
         Row: {
           amount_cents: number
@@ -8022,11 +8324,14 @@ export type Database = {
           id: string
           idempotency_key: string | null
           internal_note: string | null
+          invoice_id: string | null
           method: string
           note: string | null
           paid_at: string
+          payment_type: string
           recorded_by: string | null
           reference: string | null
+          refunded_cents: number
           status: string
           stripe_payment_intent_id: string | null
           updated_at: string
@@ -8038,11 +8343,14 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           internal_note?: string | null
+          invoice_id?: string | null
           method: string
           note?: string | null
           paid_at?: string
+          payment_type?: string
           recorded_by?: string | null
           reference?: string | null
+          refunded_cents?: number
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string
@@ -8054,17 +8362,28 @@ export type Database = {
           id?: string
           idempotency_key?: string | null
           internal_note?: string | null
+          invoice_id?: string | null
           method?: string
           note?: string | null
           paid_at?: string
+          payment_type?: string
           recorded_by?: string | null
           reference?: string | null
+          refunded_cents?: number
           status?: string
           stripe_payment_intent_id?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pt_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "pt_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pt_performance_tests: {
         Row: {
@@ -8447,6 +8766,86 @@ export type Database = {
           weight_lbs?: number | null
         }
         Relationships: []
+      }
+      pt_refunds: {
+        Row: {
+          amount_cents: number
+          appointment_id: string | null
+          created_at: string
+          id: string
+          idempotency_key: string | null
+          invoice_id: string | null
+          method: string
+          pass_id: string | null
+          payment_id: string
+          reason: string
+          refunded_at: string
+          refunded_by: string | null
+          stripe_refund_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          appointment_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          invoice_id?: string | null
+          method: string
+          pass_id?: string | null
+          payment_id: string
+          reason: string
+          refunded_at?: string
+          refunded_by?: string | null
+          stripe_refund_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          appointment_id?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string | null
+          invoice_id?: string | null
+          method?: string
+          pass_id?: string | null
+          payment_id?: string
+          reason?: string
+          refunded_at?: string
+          refunded_by?: string | null
+          stripe_refund_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_refunds_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_refunds_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "pt_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_refunds_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "pt_payments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pt_sale_intents: {
         Row: {
@@ -13170,6 +13569,30 @@ export type Database = {
         Args: { p_completed?: boolean; p_task_id: string }
         Returns: Json
       }
+      pt_correct_payment: {
+        Args: {
+          p_corrected_value: string
+          p_correction_type: string
+          p_field_name: string
+          p_payment_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      pt_create_invoice: {
+        Args: {
+          p_appointment_ids?: string[]
+          p_custom_lines?: Json
+          p_discount_cents?: number
+          p_due_date?: string
+          p_internal_notes?: string
+          p_notes?: string
+          p_pass_id?: string
+          p_tax_cents?: number
+          p_user_id: string
+        }
+        Returns: Json
+      }
       pt_eligible_past_appointments: {
         Args: { p_user_id: string }
         Returns: {
@@ -13340,6 +13763,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      pt_my_financial_history: { Args: never; Returns: Json }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       pt_open_sale_intent: {
         Args: {
@@ -13475,6 +13899,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      pt_outstanding_balance: { Args: { p_user_id: string }; Returns: Json }
       pt_pass_history: {
         Args: { p_pass_id: string }
         Returns: {
@@ -13494,6 +13919,7 @@ export type Database = {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
       }
+      pt_recalc_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       pt_record_historical_session: {
         Args: {
           p_idempotency_key?: string
@@ -13503,6 +13929,30 @@ export type Database = {
           p_quantity: number
           p_reason: string
           p_session_date: string
+        }
+        Returns: Json
+      }
+      pt_record_invoice_payment: {
+        Args: {
+          p_amount_cents: number
+          p_idempotency_key?: string
+          p_invoice_id: string
+          p_method: string
+          p_note?: string
+          p_paid_at?: string
+          p_reference?: string
+          p_stripe_payment_intent_id?: string
+        }
+        Returns: Json
+      }
+      pt_record_refund: {
+        Args: {
+          p_amount_cents: number
+          p_idempotency_key?: string
+          p_method?: string
+          p_payment_id: string
+          p_reason: string
+          p_stripe_refund_id?: string
         }
         Returns: Json
       }
@@ -13587,6 +14037,10 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_send_invoice: {
+        Args: { p_invoice_id: string; p_recipient?: string }
+        Returns: Json
+      }
       pt_set_package_deduction: {
         Args: { p_appointment_id: string; p_deduct: boolean }
         Returns: Json
@@ -13610,6 +14064,10 @@ export type Database = {
           p_sessions: number
           p_to_pass_id: string
         }
+        Returns: Json
+      }
+      pt_void_invoice: {
+        Args: { p_invoice_id: string; p_reason: string }
         Returns: Json
       }
       pt_waive_sessions: {
