@@ -87,6 +87,8 @@ function formatTierDisplay(rawPlan: string): string {
 }
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
+import { syncCardMetadataWithRetry } from "@/hooks/useCardSyncStatus";
+
 
 type Application = {
   id: string;
