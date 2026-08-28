@@ -3822,32 +3822,51 @@ serve(async (req) => {
           // Sync to membership_applications if this is an application setup
           if (metadata.type === 'application_card_setup' || metadata.type === 'admin_card_setup') {
             const applicantEmail = metadata.applicant_email || metadata.email;
-            
-            if (applicantEmail && customerId) {
-              const { error: appUpdateError } = await supabase
-                .from('membership_applications')
-                .update({ 
-                  stripe_customer_id: customerId,
-                  payment_info_provided: true,
-                  card_brand: cardBrand,
-                  card_last4: cardLast4,
-                  card_exp_month: cardExpMonth,
-                  card_exp_year: cardExpYear,
-                })
-                .eq('email', applicantEmail);
 
-              if (appUpdateError) {
-                logError(appUpdateError, "SETUP_INTENT_APPLICATION_UPDATE");
-              } else {
-                logStep("Application updated with Stripe customer and card details", { 
-                  email: applicantEmail, 
-                  customerId,
-                  cardBrand,
-                  cardLast4
-                });
+            if (customerId) {
+              const cardPayload = {
+                stripe_customer_id: customerId,
+                payment_info_provided: true,
+                card_brand: cardBrand,
+                card_last4: cardLast4,
+                card_exp_month: cardExpMonth,
+                card_exp_year: cardExpYear,
+              };
+
+              // Match case-insensitively on email (applicants type mixed case),
+              // and fall back to the Stripe customer id so the card metadata
+              // always lands on the application row.
+              let matched = 0;
+              if (applicantEmail) {
+                const { data: byEmail, error: emailErr } = await supabase
+                  .from('membership_applications')
+                  .update(cardPayload)
+                  .ilike('email', applicantEmail)
+                  .select('id');
+                if (emailErr) logError(emailErr, "SETUP_INTENT_APPLICATION_UPDATE");
+                matched = byEmail?.length ?? 0;
               }
+
+              if (matched === 0) {
+                const { data: byCustomer, error: custErr } = await supabase
+                  .from('membership_applications')
+                  .update(cardPayload)
+                  .eq('stripe_customer_id', customerId)
+                  .select('id');
+                if (custErr) logError(custErr, "SETUP_INTENT_APPLICATION_UPDATE_BY_CUSTOMER");
+                matched = byCustomer?.length ?? 0;
+              }
+
+              logStep("Application card sync", {
+                email: applicantEmail,
+                customerId,
+                cardBrand,
+                cardLast4,
+                rowsMatched: matched,
+              });
             }
           }
+
 
           // If metadata has member_id, ensure member record is synced with card details
           if (metadata.member_id && customerId) {
