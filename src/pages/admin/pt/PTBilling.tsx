@@ -491,7 +491,109 @@ export default function PTBilling() {
             empty={<PTEmptyState icon={Wallet} title="No PT payments recorded yet" />}
           />
         )}
+
+        {tab === "invoices" && (
+          <PTTable
+            columns={invoiceColumns}
+            rows={invoiceRows}
+            loading={loadingInvoices}
+            getRowKey={(i) => i.id}
+            onRowClick={(i) => setOpenInvoice(i)}
+            empty={<PTEmptyState icon={FileText} title="No PT invoices yet" description="Invoice one or more unpaid sessions, a package balance, or a custom charge." />}
+          />
+        )}
+
+        {tab === "refunds" && (
+          <PTTable
+            columns={refundColumns}
+            rows={refundRows}
+            loading={loadingRefunds}
+            getRowKey={(r) => r.id}
+            empty={<PTEmptyState icon={Undo2} title="No refunds recorded" description="Refunds issued from payment activity appear here." />}
+          />
+        )}
+
+        {tab === "failed" && (
+          <div className="p-3 space-y-5">
+            <PTAlert tone="warning" title="Collection follow-up">
+              Failed PT charges use the same Storm dunning flow as membership dues — retry the card,
+              contact the client, or invoice the balance instead.
+            </PTAlert>
+
+            <FailedGroup
+              title="Failed card charges"
+              rows={(failed?.dunning ?? []).map((d: any) => ({
+                key: d.id,
+                client: nameOf(d.user_id),
+                detail: `${d.failure_count ?? 1} attempt(s)${d.last_failure_reason ? ` · ${d.last_failure_reason}` : ""}`,
+                when: d.first_failed_at ? fmtDate(new Date(d.first_failed_at), "MMM d, yyyy") : "—",
+                amount: formatCents(d.amount_cents ?? 0),
+                onOpen: () => navigate(`/admin/pt/clients/${d.user_id}`),
+              }))}
+              loading={loadingFailed}
+            />
+
+            <FailedGroup
+              title="Payment plans failing"
+              rows={(failed?.plans ?? []).map((p: any) => ({
+                key: p.id,
+                client: nameOf(p.user_id),
+                detail: `${p.pack_name} · ${p.payment_plan_installments_paid ?? 0}/${p.payment_plan_total_installments ?? 0} installments`,
+                when: p.payment_plan_next_payment_date ?? "—",
+                amount: formatCents(p.payment_plan_installment_cents ?? 0),
+                onOpen: () => navigate(`/admin/pt/clients/${p.user_id}`),
+              }))}
+              loading={loadingFailed}
+            />
+
+            <FailedGroup
+              title="Past-due invoices"
+              rows={(failed?.invoices ?? []).map((i: any) => ({
+                key: i.id,
+                client: nameOf(i.user_id),
+                detail: `${i.invoice_number} · due ${i.due_date ?? "—"}`,
+                when: i.due_date ?? "—",
+                amount: formatCents(i.amount_due_cents ?? 0),
+                onOpen: () => { setOpenInvoice(i as PTInvoiceRow); setTab("invoices"); },
+              }))}
+              loading={loadingFailed}
+            />
+          </div>
+        )}
       </PTCard>
+
+      <PTModal
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        title="Invoice which client?"
+        size="sm"
+      >
+        <PTClientPicker
+          onChange={(c) => {
+            if (!c) return;
+            setNewInvoiceFor({ userId: c.user_id, name: c.name });
+            setPickerOpen(false);
+          }}
+        />
+      </PTModal>
+
+      {newInvoiceFor && (
+        <PTInvoiceDialog
+          open
+          userId={newInvoiceFor.userId}
+          clientName={newInvoiceFor.name}
+          onClose={() => setNewInvoiceFor(null)}
+        />
+      )}
+
+      <PTInvoiceDetailDialog
+        invoice={openInvoice}
+        clientName={openInvoice ? nameOf(openInvoice.user_id) : ""}
+        onClose={() => setOpenInvoice(null)}
+      />
+
+      <PTRefundDialog target={refundTarget} onClose={() => setRefundTarget(null)} />
+
 
       <PTSessionCheckoutDialog
         sessions={checkout}
