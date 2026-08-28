@@ -52,12 +52,18 @@ export default function PTBilling() {
   const { data: plans = [], isLoading: loadingPlans } = usePTPaymentPlans();
   const { data: payments = [], isLoading: loadingPayments } = usePTPayments();
   const { data: allocations = [] } = usePTPaymentAllocations(payments.map((p) => p.id));
+  const { data: invoices = [], isLoading: loadingInvoices } = usePTInvoices();
+  const { data: refunds = [], isLoading: loadingRefunds } = usePTRefunds();
+  const { data: failed, isLoading: loadingFailed } = usePTFailedPayments();
 
   const { data: people = {} } = usePTPeople([
     ...unpaid.map((u) => u.user_id),
     ...plans.map((p) => p.user_id),
     ...payments.map((p) => p.user_id),
+    ...invoices.map((i) => i.user_id),
+    ...refunds.map((r) => r.user_id),
   ]);
+
   const nameOf = (id?: string | null) => (id ? people[id]?.name ?? "—" : "—");
 
   const matches = (id: string) =>
