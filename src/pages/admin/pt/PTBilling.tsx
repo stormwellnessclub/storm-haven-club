@@ -213,7 +213,85 @@ export default function PTBilling() {
       key: "status", header: "Status",
       render: (p) => <PTBadge tone={p.status === "succeeded" ? "green" : "red"}>{p.status}</PTBadge>,
     },
+    {
+      key: "refund", header: "", align: "right",
+      render: (p) => {
+        const refunded = p.refunded_amount_cents ?? 0;
+        if (p.status !== "succeeded" || refunded >= p.amount_cents) {
+          return refunded > 0 ? <PTBadge tone="neutral">Refunded {formatCents(refunded)}</PTBadge> : null;
+        }
+        return (
+          <button
+            className={ptButtonClass("outline")}
+            onClick={(e) => {
+              e.stopPropagation();
+              setRefundTarget({
+                paymentId: p.id, userId: p.user_id, memberId: p.member_id ?? null,
+                clientName: nameOf(p.user_id), amountCents: p.amount_cents,
+                refundedCents: refunded, stripePaymentIntentId: p.stripe_payment_intent_id ?? null,
+              });
+            }}
+          >
+            Refund
+          </button>
+        );
+      },
+    },
   ];
+
+  /* ------------------------------------------------------------ invoices */
+
+  const invoiceRows = useMemo(
+    () => invoices.filter((i) => matches(i.user_id)),
+    [invoices, search, people], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const invoiceColumns: PTColumn<PTInvoiceRow>[] = [
+    { key: "num", header: "Invoice", render: (i) => i.invoice_number },
+    { key: "client", header: "Client", render: (i) => nameOf(i.user_id) },
+    { key: "issued", header: "Issued", render: (i) => fmtDate(new Date(`${i.issue_date}T12:00:00`), "MMM d, yyyy") },
+    {
+      key: "due", header: "Due",
+      render: (i) => (i.due_date ? fmtDate(new Date(`${i.due_date}T12:00:00`), "MMM d, yyyy") : <span className="text-pt-muted">—</span>),
+    },
+    { key: "total", header: "Total", align: "right", render: (i) => formatCents(i.total_cents) },
+    { key: "paid", header: "Paid", align: "right", render: (i) => formatCents(i.amount_paid_cents) },
+    {
+      key: "balance", header: "Balance", align: "right",
+      render: (i) => <span className={i.amount_due_cents > 0 ? "text-pt-red font-medium" : ""}>{formatCents(i.amount_due_cents)}</span>,
+    },
+    {
+      key: "status", header: "Status",
+      render: (i) => <PTBadge tone={ptInvoiceTone(i.status) as any}>{PT_INVOICE_STATUS_LABEL[i.status] ?? i.status}</PTBadge>,
+    },
+  ];
+
+  const invoiceStats = useMemo(() => ({
+    open: invoices.filter((i) => !["paid", "void"].includes(i.status)).length,
+    outstanding: invoices.reduce((s, i) => s + (["paid", "void"].includes(i.status) ? 0 : i.amount_due_cents), 0),
+    pastDue: invoices.filter((i) => i.status === "past_due").length,
+    drafts: invoices.filter((i) => i.status === "draft").length,
+  }), [invoices]);
+
+  /* ------------------------------------------------------------- refunds */
+
+  const refundRows = useMemo(
+    () => refunds.filter((r) => matches(r.user_id)),
+    [refunds, search, people], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const refundColumns: PTColumn<any>[] = [
+    { key: "when", header: "Refunded", render: (r) => fmtDate(new Date(r.refunded_at), "MMM d, yyyy h:mm a") },
+    { key: "client", header: "Client", render: (r) => nameOf(r.user_id) },
+    { key: "amount", header: "Amount", align: "right", render: (r) => formatCents(r.amount_cents) },
+    {
+      key: "method", header: "Method",
+      render: (r) => <PTBadge tone={r.method === "stripe" ? "gold" : "neutral"}>{r.method === "stripe" ? "Stripe" : "Manual"}</PTBadge>,
+    },
+    { key: "reason", header: "Reason", render: (r) => r.reason },
+    { key: "ref", header: "Stripe refund", render: (r) => r.stripe_refund_id || "—" },
+  ];
+
 
   function exportCurrent() {
     if (tab === "unpaid") {
