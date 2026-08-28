@@ -333,14 +333,16 @@ export default function PTBilling() {
         }
       />
 
-      {tab === "unpaid" ? (
+      {tab === "unpaid" && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <PTKpiCard label="Unpaid PT sessions" value={unpaidRows.length} icon={Receipt} tone="amber" />
           <PTKpiCard label="Outstanding PT amount" value={formatCents(unpaidTotal)} tone="red" />
           <PTKpiCard label="Clients affected" value={byClient.size} />
           <PTKpiCard label="Over 30 days" value={unpaidRows.filter((u) => differenceInCalendarDays(new Date(), new Date(u.starts_at)) > 30).length} tone="red" />
         </div>
-      ) : (
+      )}
+
+      {(tab === "autopay" || tab === "activity") && (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
           <PTKpiCard label="Active plans" value={planStats.active} icon={Repeat} />
           <PTKpiCard label="Due next 7 days" value={planStats.due7} icon={Clock} tone="gold" />
@@ -351,6 +353,40 @@ export default function PTBilling() {
           <PTKpiCard label="Completing soon" value={planStats.completingSoon} />
         </div>
       )}
+
+      {tab === "invoices" && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <PTKpiCard label="Open invoices" value={invoiceStats.open} icon={FileText} tone="gold" />
+          <PTKpiCard label="Invoiced outstanding" value={formatCents(invoiceStats.outstanding)} tone="red" />
+          <PTKpiCard label="Past due" value={invoiceStats.pastDue} tone="red" />
+          <PTKpiCard label="Drafts" value={invoiceStats.drafts} />
+        </div>
+      )}
+
+      {tab === "failed" && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <PTKpiCard label="Failed card attempts" value={failed?.dunning.length ?? 0} icon={AlertTriangle} tone="red" />
+          <PTKpiCard label="Plans failing" value={failed?.plans.length ?? 0} tone="red" />
+          <PTKpiCard label="Past-due invoices" value={failed?.invoices.length ?? 0} tone="amber" />
+          <PTKpiCard
+            label="At-risk amount"
+            value={formatCents(
+              (failed?.plans ?? []).reduce((s: number, p: any) => s + (p.payment_plan_installment_cents ?? 0), 0) +
+              (failed?.invoices ?? []).reduce((s: number, i: any) => s + (i.amount_due_cents ?? 0), 0),
+            )}
+            tone="red"
+          />
+        </div>
+      )}
+
+      {tab === "refunds" && (
+        <div className="mb-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <PTKpiCard label="Refunds recorded" value={refunds.length} icon={Undo2} />
+          <PTKpiCard label="Total refunded" value={formatCents(refunds.reduce((s, r) => s + r.amount_cents, 0))} tone="amber" />
+          <PTKpiCard label="Stripe refunds" value={refunds.filter((r) => r.method === "stripe").length} />
+        </div>
+      )}
+
 
       <PTCard padded={false}>
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-1">
