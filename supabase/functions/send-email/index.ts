@@ -3472,10 +3472,17 @@ serve(async (req) => {
     }
 
     // Use named sender for application emails
+    const billingSenderTypes = new Set([
+      'admin_payment_failed_alert',
+      'payment_failed',
+      'activation_payment_failed',
+    ]);
 
     const senderAddress = type === 'application_submitted'
       ? 'Storm Wellness Club <membership@stormwellnessclub.com>'
-      : 'Storm Wellness Club <admin@stormwellnessclub.com>';
+      : billingSenderTypes.has(type)
+        ? 'Storm Wellness Club Billing <billing@stormwellnessclub.com>'
+        : 'Storm Wellness Club <admin@stormwellnessclub.com>';
 
     const sendPayload: any = {
       from: senderAddress,
@@ -3483,7 +3490,12 @@ serve(async (req) => {
       subject,
       html,
     };
+    // Admin alerts should reply straight to the member in question when known
+    if (!data?.replyTo && type === 'admin_payment_failed_alert' && data?.memberEmail) {
+      sendPayload.reply_to = String(data.memberEmail);
+    }
     if (data?.replyTo) sendPayload.reply_to = String(data.replyTo);
+
 
     const emailResponse = await resend.emails.send(sendPayload);
 
