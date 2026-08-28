@@ -216,7 +216,7 @@ export default function PTBilling() {
     {
       key: "refund", header: "", align: "right",
       render: (p) => {
-        const refunded = p.refunded_amount_cents ?? 0;
+        const refunded = p.refunded_cents ?? 0;
         if (p.status !== "succeeded" || refunded >= p.amount_cents) {
           return refunded > 0 ? <PTBadge tone="neutral">Refunded {formatCents(refunded)}</PTBadge> : null;
         }
@@ -226,7 +226,7 @@ export default function PTBilling() {
             onClick={(e) => {
               e.stopPropagation();
               setRefundTarget({
-                paymentId: p.id, userId: p.user_id, memberId: p.member_id ?? null,
+                paymentId: p.id, userId: p.user_id, memberId: null,
                 clientName: nameOf(p.user_id), amountCents: p.amount_cents,
                 refundedCents: refunded, stripePaymentIntentId: p.stripe_payment_intent_id ?? null,
               });
