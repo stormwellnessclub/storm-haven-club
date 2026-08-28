@@ -390,7 +390,7 @@ async function resolveSubscriptionInvoiceMember(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   invoice: Stripe.Invoice,
-  selectColumns = 'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id',
+  selectColumns = 'id, status, email, first_name, last_name, stripe_subscription_id, annual_fee_subscription_id, billing_type, is_founding_member',
 ): Promise<{ memberData: any | null; subscriptionType: SubscriptionInvoiceType; memberError: unknown | null }> {
   const subscriptionId = getInvoiceSubscriptionId(invoice);
   const customerId = getInvoiceCustomerId(invoice);
@@ -3501,12 +3501,22 @@ serve(async (req) => {
                   ? `${memberData.first_name} ${memberData.last_name}`
                   : memberData.first_name || memberData.last_name || 'Member';
 
+                // First-time activation failures get a different, welcome-oriented email
+                const isActivationFailure =
+                  invoice.billing_reason === 'subscription_create' ||
+                  memberData.status === 'pending_activation';
+
                 const { error: emailError } = await supabase.functions.invoke('send-email', {
                   body: {
-                    type: 'payment_failed',
+                    type: isActivationFailure ? 'activation_payment_failed' : 'payment_failed',
                     to: memberData.email,
                     data: {
                       name: memberName,
+                      duesLabel: subscriptionType === 'annual_fee'
+                        ? 'initiation fee'
+                        : (memberData as any)?.billing_type === 'annual' || (memberData as any)?.is_founding_member
+                          ? 'annual dues'
+                          : 'monthly dues',
                       amount: invoice.amount_due / 100, // Convert from cents to dollars
                       failureReason: declineReason || failureMessage || 'Payment processing failed',
                       failureMessage: failureMessage || null,

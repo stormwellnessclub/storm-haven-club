@@ -32,12 +32,13 @@ export function useMembersBillingIssues() {
       const { data: members, error: membersError } = await supabase
         .from("members")
         .select(`
-          id, status, subscription_status, billing_type,
+          id, status, subscription_status, billing_type, is_founding_member,
           stripe_customer_id, stripe_subscription_id,
           card_brand, card_last4, card_exp_month, card_exp_year,
           annual_fee_paid_at, annual_fee_subscription_id
         `)
         .in("status", ["active", "pending_activation", "past_due"]);
+
 
       if (membersError) throw membersError;
 
@@ -73,13 +74,17 @@ export function useMembersBillingIssues() {
         const issues: BillingIssue[] = [];
         const memberAny = member as typeof member & { subscription_status?: string; billing_type?: string };
         const isCashBilling = memberAny.billing_type === 'cash';
+        // Annual / founding members are not billed monthly — label their dues accordingly
+        const isAnnualDues = memberAny.billing_type === 'annual' || (member as typeof member & { is_founding_member?: boolean }).is_founding_member === true;
+        const duesTerm = isAnnualDues ? 'Annual dues' : 'Monthly dues';
+        const duesShort = isAnnualDues ? 'Annual Dues Past Due' : 'Past Due';
 
         // Subscription checks
         if (!isCashBilling && (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired')) {
           issues.push({ type: "error", code: "subscription_incomplete", message: "Initial payment failed - subscription never started", shortLabel: "Payment Failed" });
           missingSubscription++;
         } else if (!isCashBilling && (memberAny.subscription_status === 'past_due')) {
-          issues.push({ type: "error", code: "subscription_past_due", message: "Subscription payment past due", shortLabel: "Past Due" });
+          issues.push({ type: "error", code: "subscription_past_due", message: `${duesTerm} past due`, shortLabel: duesShort });
           missingSubscription++;
         } else if (!isCashBilling && (memberAny.subscription_status === 'canceled' || memberAny.subscription_status === 'unpaid')) {
           issues.push({ type: "error", code: "subscription_canceled", message: "Subscription canceled or unpaid", shortLabel: "Canceled" });
@@ -115,7 +120,7 @@ export function useMembersBillingIssues() {
 
         // Failed payments — only counts unresolved membership-invoice arrears
         if (membersWithFailedPayments.has(member.id)) {
-          issues.push({ type: "error", code: "failed_payment", message: "Unresolved membership invoice (dues or annual fee)", shortLabel: "Unpaid Dues" });
+          issues.push({ type: "error", code: "failed_payment", message: `Unresolved membership invoice (${isAnnualDues ? 'annual dues or annual fee' : 'monthly dues or annual fee'})`, shortLabel: isAnnualDues ? "Unpaid Annual Dues" : "Unpaid Dues" });
           failedPaymentsCount++;
         }
 
