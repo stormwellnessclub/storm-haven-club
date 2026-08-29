@@ -360,11 +360,12 @@ export default function Spa() {
             <img src={aellaLogo} alt="Aella" className="h-24 w-auto mb-6" />
             <p className="text-gold-light text-sm uppercase tracking-widest mb-4">by Storm Wellness Club</p>
             <h2 className="heading-display text-primary-foreground mb-6">
-              A Sanctuary for Renewal
+              Recovery Spa &amp; Massage in Livonia
             </h2>
             <p className="text-primary-foreground/80 text-lg leading-relaxed mb-8">
-              Open to all—no membership required. Our holistic approach encompasses 
-              world-class treatments designed to support every step of your wellness journey.
+              Open to the public — no membership required. Himalayan salt room, infrared sauna,
+              red light therapy, cold plunge, cryotherapy and licensed massage are available to
+              book today.
             </p>
             <Button variant="gold" size="lg">
               Book a Treatment
@@ -379,11 +380,14 @@ export default function Spa() {
           <div className="flex items-center justify-center gap-3 text-center">
             <Info className="w-5 h-5 text-accent flex-shrink-0" />
             <p className="text-sm font-medium text-foreground">
-              Full spa services coming soon.
+              Recovery services — salt room, infrared sauna, red light, cold plunge, cryotherapy and
+              massage — are open now to members and non-members. Additional facial and body treatments
+              marked "Coming Soon" are still on the way.
             </p>
           </div>
         </div>
       </section>
+
 
       {/* Member Discounts Banner */}
       <section className="py-6 bg-secondary/50 border-b border-border">
