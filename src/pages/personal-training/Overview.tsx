@@ -82,7 +82,10 @@ export default function PersonalTrainingOverview() {
               <p className="text-accent text-[11px] uppercase tracking-[0.4em] mb-6">
                 Storm Wellness Club · Private Coaching
               </p>
-              <h1 className="sr-only">Personal Training & Private Pilates in Livonia, MI</h1>
+              <h1 className="text-foreground/90 text-sm md:text-base uppercase tracking-[0.2em] mb-6">
+                Personal Training &amp; Private Pilates in Livonia, MI
+              </h1>
+
               <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
                 Trained for
                 <br />

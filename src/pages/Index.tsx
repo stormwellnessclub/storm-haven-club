@@ -99,8 +99,8 @@ export default function Index() {
   return <Layout>
       <SEOHead title="Wellness Club in Livonia, MI" description="Storm Wellness Club is Livonia's premier wellness club & fitness center — Reformer Pilates, cycling, recovery spa, sauna, café, kids care & family memberships." path="/" />
 
-      {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
-      <h1 className="sr-only">Wellness Club & Fitness Center in Livonia, MI</h1>
+
+
 
       {/* Hero Section */}
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
@@ -117,8 +117,11 @@ export default function Index() {
         </div>
         
         <div className="relative z-10 container mx-auto px-4 sm:px-6 text-center py-20 sm:py-0">
-          
+          <h1 className="text-primary-foreground/90 text-xs sm:text-sm uppercase tracking-[0.25em] mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-1">
+            Wellness Club &amp; Fitness Center in Livonia, MI
+          </h1>
           <h2 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
+
             This is what it feels like
             <br />
             <span>to finally </span><span className="text-accent">arrive.</span>

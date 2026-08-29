@@ -928,13 +928,15 @@ export const SPA_CATEGORIES: Record<string, CategoryContent> = {
     name: "Massage",
     dbCategory: "Massage",
     h1: "Massage Therapy in Livonia, MI",
-    subhead: "Licensed therapists, private treatment rooms, and five distinct massage modalities — booked online in under a minute.",
-    title: "Massage Therapy — Livonia, MI",
-    description: "Massage therapy in Livonia, MI. Storm Signature, Deep Relief, Sports Performance, Lymph & Flow, and Prenatal massage. 60 or 90 minutes.",
+    subhead: "Licensed massage therapists, private treatment rooms, and five distinct modalities — Swedish, deep tissue, sports, lymphatic, and prenatal — booked online in under a minute.",
+    title: "Massage Therapy Livonia, MI | Licensed Massage Therapists",
+    description: "Massage therapy in Livonia, MI with licensed massage therapists. Swedish, deep tissue, sports, lymphatic drainage & prenatal massage. 60 or 90 minutes, open to the public.",
     intro: [
-      "Storm Wellness Club's Aella Spa offers five distinct massage modalities, each performed by a licensed Michigan-certified therapist in a private, quiet, temperature-controlled treatment room. Choose the right session for what your body needs that day.",
-      "Members receive 5-12% off depending on tier. Non-members are welcome — simply create a portal account and sign a waiver before your first appointment.",
+      "Storm Wellness Club's Aella Spa offers five distinct massage modalities in Livonia, Michigan, each performed by a licensed, Michigan-certified massage therapist in a private, quiet, temperature-controlled treatment room. Choose the session that matches what your body needs that day.",
+      "Swedish-style work in the Storm Signature Massage calms the nervous system with flowing, medium-pressure strokes — the right starting point if you want general relaxation and better sleep. Deep tissue work in the Deep Relief Massage uses slower, sustained pressure through the deeper muscle layers to release chronic knots in the back, neck, and shoulders. Sports massage in the Sports Performance session combines active stretching and trigger-point work for athletes training, competing, or recovering from hard sessions. Lymph & Flow uses light rhythmic drainage strokes to reduce fluid retention and post-surgical swelling, and Prenatal Massage is delivered by therapists trained in safe second- and third-trimester positioning and support.",
+      "Every therapist on our team holds an active Michigan massage therapy license and completes ongoing modality-specific training. Sessions run 60 or 90 minutes and include warmed organic oil and hot towels. Members receive 5–12% off depending on tier. Non-members are welcome — simply create a portal account and sign a waiver before your first appointment.",
     ],
+
     services: massage,
   },
   facials: {
