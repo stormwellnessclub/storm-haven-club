@@ -77,12 +77,13 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
         <SidebarInset className="flex-1 min-w-0">
           <header className="h-14 sm:h-16 border-b border-border flex items-center justify-between px-3 sm:px-4 bg-card sticky top-0 z-40">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-              <SidebarTrigger className="touch-target" />
+              <SidebarTrigger className="touch-target shrink-0" />
               {title && (
                 <h1 className="text-base sm:text-lg font-semibold truncate">{title}</h1>
               )}
             </div>
-            <div className="flex items-center gap-1 sm:gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
