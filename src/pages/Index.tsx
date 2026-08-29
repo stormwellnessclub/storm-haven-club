@@ -99,8 +99,8 @@ export default function Index() {
   return <Layout>
       <SEOHead title="Wellness Club in Livonia, MI" description="Storm Wellness Club is Livonia's premier wellness club & fitness center — Reformer Pilates, cycling, recovery spa, sauna, café, kids care & family memberships." path="/" />
 
-      {/* Hidden SEO H1 — keyword-anchored, not visible to users */}
-      <h1 className="sr-only">Wellness Club & Fitness Center in Livonia, MI</h1>
+
+
 
       {/* Hero Section */}
       <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
