@@ -2994,6 +2994,7 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           feedback_email_sent_at: string | null
+          feedback_token: string | null
           follow_up_notes: string | null
           follow_up_status: string | null
           guest_email: string | null
@@ -3028,6 +3029,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           feedback_email_sent_at?: string | null
+          feedback_token?: string | null
           follow_up_notes?: string | null
           follow_up_status?: string | null
           guest_email?: string | null
@@ -3062,6 +3064,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           feedback_email_sent_at?: string | null
+          feedback_token?: string | null
           follow_up_notes?: string | null
           follow_up_status?: string | null
           guest_email?: string | null
@@ -13246,6 +13249,10 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
+      issue_guest_feedback_token: {
+        Args: { p_guest_pass_id: string }
+        Returns: string
+      }
       join_waitlist_with_hold: {
         Args: {
           p_credit_id?: string
@@ -14222,6 +14229,10 @@ export type Database = {
       submit_class_review_for_booking: {
         Args: { _booking_id: string; _rating: number; _review_text?: string }
         Returns: string
+      }
+      submit_guest_feedback: {
+        Args: { p_comment?: string; p_rating: number; p_token: string }
+        Returns: Json
       }
       submit_public_spa_review: {
         Args: {
