@@ -181,7 +181,7 @@ export default function Memberships() {
         <div className="absolute inset-0">
           <img
             src={membershipsHero}
-            alt="Storm Wellness Club"
+            alt="Storm Wellness Club membership lounge and facilities in Livonia, Michigan"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/70 to-charcoal/90" />
@@ -219,7 +219,7 @@ export default function Memberships() {
               <div className="relative overflow-hidden">
                 <img
                   src={gymArea1}
-                  alt="Gym"
+                  alt="State-of-the-art gym floor with strength and cardio equipment at Storm Wellness Club"
                   className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-charcoal/30 via-transparent to-transparent" />
@@ -227,7 +227,7 @@ export default function Memberships() {
               <div className="relative overflow-hidden">
                 <img
                   src={saunaInterior}
-                  alt="Sauna"
+                  alt="Cedar-lined traditional sauna in the wet spa at Storm Wellness Club"
                   className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-charcoal/10" />
@@ -235,7 +235,7 @@ export default function Memberships() {
               <div className="relative overflow-hidden">
                 <img
                   src={steamRoom}
-                  alt="Steam Room"
+                  alt="Eucalyptus steam room in the wet spa at Storm Wellness Club"
                   className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-charcoal/10" />
@@ -243,7 +243,7 @@ export default function Memberships() {
               <div className="relative overflow-hidden">
                 <img
                   src={saltRoom}
-                  alt="Salt Room"
+                  alt="Himalayan salt room for halotherapy at Storm Wellness Club"
                   className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-charcoal/10" />
@@ -251,7 +251,7 @@ export default function Memberships() {
               <div className="relative overflow-hidden">
                 <img
                   src={coldPlunge}
-                  alt="Cold Plunge"
+                  alt="Cold plunge pool for recovery and contrast therapy at Storm Wellness Club"
                   className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-gradient-to-l from-charcoal/30 via-transparent to-transparent" />
