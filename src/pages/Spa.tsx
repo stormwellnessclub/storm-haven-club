@@ -315,12 +315,13 @@ export default function Spa() {
   return (
     <Layout>
       <SEOHead
-        title="Aella Massage & Recovery Spa Livonia | Storm Wellness Club"
-        description="Book a massage, red light therapy, cold plunge, infrared sauna or cryotherapy at Aella Recovery Spa in Livonia, MI. Open to the public — no membership needed."
+        title="Recovery Spa & Massage Livonia, MI | Aella at Storm"
+        description="Recovery spa in Livonia, MI open to the public — no membership needed. Himalayan salt room, infrared sauna, red light therapy, cold plunge, cryotherapy and massage."
         path="/spa"
         image="/og/og-spa.jpg"
         imageAlt="Aella Massage & Recovery Spa at Storm Wellness Club in Livonia, Michigan"
       />
+
 
       <Helmet>
         <script type="application/ld+json">{JSON.stringify({
