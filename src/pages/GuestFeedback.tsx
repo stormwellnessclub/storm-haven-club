@@ -39,51 +39,34 @@ export default function GuestFeedback() {
 
     setIsSubmitting(true);
     try {
-      // Look up guest pass to populate name/email on feedback
-      const guestPassId = token?.startsWith('fb-') ? token.slice(3) : null;
-      let guestName: string | null = null;
-      let guestEmail: string | null = null;
+      // Submission is validated server-side against the secret token stored on the guest pass.
+      const { data, error } = await (supabase.rpc as any)("submit_guest_feedback", {
+        p_token: token,
+        p_rating: rating,
+        p_comment: comment.trim() || null,
+      });
 
-      if (guestPassId) {
-        const { data: passData } = await (supabase
-          .from("guest_passes" as any)
-          .select("guest_name, guest_email")
-          .eq("id", guestPassId)
-          .maybeSingle() as any);
-        if (passData) {
-          guestName = passData.guest_name;
-          guestEmail = passData.guest_email;
-        }
-      }
+      if (error) throw error;
 
-      const { error } = await (supabase
-        .from("guest_feedback" as any)
-        .insert({
-          feedback_token: token,
-          guest_pass_id: guestPassId,
-          guest_name: guestName,
-          guest_email: guestEmail,
-          rating,
-          comment: comment.trim() || null,
-        }) as any);
-
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("You've already submitted feedback. Thank you!");
-          setSubmitted(true);
-        } else {
-          throw error;
-        }
-      } else {
+      const result = (data || {}) as { success?: boolean; error?: string };
+      if (result.success) {
         setSubmitted(true);
         toast.success("Thank you for your feedback!");
+      } else if (result.error === "already_submitted") {
+        toast.error("You've already submitted feedback. Thank you!");
+        setSubmitted(true);
+      } else if (result.error === "invalid_token") {
+        toast.error("This feedback link is no longer valid. Please use the link from your email.");
+      } else {
+        toast.error("Please check your rating and comment, then try again.");
       }
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to submit feedback");
+    } catch {
+      toast.error("Failed to submit feedback");
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   if (submitted) {
     return (
