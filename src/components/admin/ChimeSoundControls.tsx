@@ -140,7 +140,7 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon" className="touch-target" title="Choose notification sound">
+          <Button variant="ghost" size="icon" className="touch-target hidden sm:inline-flex" title="Choose notification sound">
             <Music className="h-4 w-4" />
           </Button>
         </PopoverTrigger>
