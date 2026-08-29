@@ -86,7 +86,7 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
       <Button
         variant="ghost"
         size="icon"
-        className="touch-target"
+        className="touch-target hidden sm:inline-flex"
         onClick={test}
         title="Test notification sound"
       >
@@ -105,10 +105,11 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
 
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs capitalize" title="Chime volume">
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-xs capitalize hidden sm:inline-flex" title="Chime volume">
             {volume}
           </Button>
         </PopoverTrigger>
+
         <PopoverContent align="end" className="w-56 p-2">
           <p className="px-2 pb-2 text-xs text-muted-foreground">Chime volume (this device)</p>
           <div className="flex flex-col">
