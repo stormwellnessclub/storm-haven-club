@@ -54,8 +54,17 @@ serve(async (req) => {
 
     for (const guest of yesterdayGuests) {
       try {
-        // Generate a unique feedback token based on guest pass ID
-        const feedbackToken = `fb-${guest.id}`;
+        // Secret, server-generated per-pass token (not derivable from the pass id)
+        const { data: tokenData, error: tokenError } = await supabase.rpc(
+          'issue_guest_feedback_token',
+          { p_guest_pass_id: guest.id },
+        );
+        if (tokenError || !tokenData) {
+          console.error(`Failed to issue feedback token for ${guest.id}:`, tokenError);
+          errors++;
+          continue;
+        }
+        const feedbackToken = tokenData as string;
 
         // Format visit date for the email
         const visitDate = guest.valid_date 
@@ -64,6 +73,7 @@ serve(async (req) => {
 
         const appBaseUrl = Deno.env.get('APP_BASE_URL') ?? 'https://stormwellnessclub.com';
         const feedbackUrl = `${appBaseUrl}/guest-feedback?token=${feedbackToken}`;
+
 
         // Send the feedback email
         const { error: emailError } = await supabase.functions.invoke('send-email', {
