@@ -89,7 +89,7 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
       if (!dateStr) return [];
       const { data, error } = await (supabase.from as any)("kids_care_hour_slots_public")
-        .select("id, slot_date, open_time, close_time, label, created_at, updated_at")
+        .select("id, slot_date, open_time, close_time, label")
         .eq("slot_date", dateStr)
         .order("open_time", { ascending: true });
 
@@ -155,7 +155,7 @@ export function useUpcomingKidsCareSlots(days = 7) {
     queryKey: ["kids-care-hour-slots-upcoming", today, days],
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
       const { data, error } = await (supabase.from as any)("kids_care_hour_slots_public")
-        .select("id, slot_date, open_time, close_time, label, created_at, updated_at")
+        .select("id, slot_date, open_time, close_time, label")
         .gte("slot_date", today)
         .lt("slot_date", endDate)
         .order("slot_date", { ascending: true })
