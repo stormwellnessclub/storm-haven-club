@@ -29,6 +29,13 @@
       "when": 1788128660696,
       "tag": "0003_waitlist_counts_anon_and_legacy_guest_feedback_token",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788128711903,
+      "tag": "0004_kids_care_hour_slots_public_read",
+      "breakpoints": true
     }
   ]
 }
