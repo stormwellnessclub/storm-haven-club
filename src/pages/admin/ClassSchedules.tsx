@@ -622,22 +622,43 @@ export default function ClassSchedules() {
   });
 
 
-  // Real-time inline warnings for the form
+  // Real-time inline warnings for the form (date-window aware)
   const formWarnings = useMemo(() => {
     if (!classTypeId || !startTime || !endTime) return [];
+
+    const isOneTime = scheduleMode === "one_time";
+    let resolvedDay = dayOfWeek;
+    let from: string | null = null;
+    let until: string | null = null;
+
+    if (isOneTime) {
+      if (!oneTimeDate) return [];
+      const [y, m, d] = oneTimeDate.split("-").map(Number);
+      resolvedDay = new Date(y, m - 1, d).getDay();
+      from = oneTimeDate;
+      until = oneTimeDate;
+    } else if (scheduleMode === "duration") {
+      from = effectiveFrom || null;
+      until = effectiveUntil || null;
+    }
+
     return checkNewScheduleConflicts(
       {
-        day_of_week: dayOfWeek,
+        day_of_week: resolvedDay,
         start_time: startTime,
         end_time: endTime,
         instructor_id: instructorId || null,
         room: room.trim() || null,
         is_active: isActive,
         id: editingSchedule?.id,
+        effective_from: from,
+        effective_until: until,
+        is_one_time: isOneTime,
       },
       schedules
     );
-  }, [classTypeId, instructorId, dayOfWeek, startTime, endTime, room, isActive, editingSchedule, schedules]);
+  }, [classTypeId, instructorId, dayOfWeek, startTime, endTime, room, isActive, editingSchedule, schedules, scheduleMode, oneTimeDate, effectiveFrom, effectiveUntil]);
+
 
   function handleConflictEdit(scheduleId: string) {
     const schedule = schedules.find(s => s.id === scheduleId);

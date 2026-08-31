@@ -7,11 +7,16 @@ interface ScheduleForConflict {
   end_time: string;
   room: string | null;
   is_active: boolean;
+  /** Date window the rule is live for. Null = open-ended. */
+  effective_from?: string | null;
+  effective_until?: string | null;
+  is_one_time?: boolean;
   class_types?: { id: string; name: string; category: string } | null;
   instructors?: { id: string; first_name: string; last_name: string } | null;
 }
 
 export type { ScheduleForConflict };
+
 
 export interface ScheduleConflict {
   type: "instructor_overlap" | "room_conflict" | "identical_slot";
@@ -74,22 +79,67 @@ function normRoom(room: string | null): string | null {
   return r ? r : null;
 }
 
+type DateWindow = { from: string | null; until: string | null };
+
+function todayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** The live date window for a rule. One-offs collapse to their single date. */
+export function scheduleWindow(s: {
+  effective_from?: string | null;
+  effective_until?: string | null;
+  is_one_time?: boolean;
+}): DateWindow {
+  if (s.is_one_time) {
+    const day = s.effective_from || s.effective_until || null;
+    return { from: day, until: day };
+  }
+  return { from: s.effective_from ?? null, until: s.effective_until ?? null };
+}
+
+/** Two date windows overlap. Null bounds are treated as open-ended. */
+function windowsOverlap(a: DateWindow, b: DateWindow): boolean {
+  if (a.until && b.from && a.until < b.from) return false;
+  if (b.until && a.from && b.until < a.from) return false;
+  return true;
+}
+
+/** A rule whose window already ended can never conflict with anything upcoming. */
+function isExpired(s: ScheduleForConflict, today: string): boolean {
+  const w = scheduleWindow(s);
+  return !!w.until && w.until < today;
+}
+
+function windowKey(w: DateWindow): string {
+  return `${w.from ?? "*"}~${w.until ?? "*"}`;
+}
+
 /**
  * Groups exact same-slot duplicates into clusters (one issue per time slot, not per pair)
  * and reports remaining partial overlaps (same instructor / same room at overlapping times)
  * as individual pair conflicts.
+ *
+ * Date-aware: schedules whose date windows never overlap (e.g. an August rule and its
+ * September replacement) are not conflicts, and expired rules are ignored entirely.
  */
 export function analyzeScheduleConflicts(
   schedules: ScheduleForConflict[]
 ): ScheduleConflictReport {
-  const active = schedules.filter((s) => s.is_active);
+  const today = todayISO();
+  const active = schedules.filter((s) => s.is_active && !isExpired(s, today));
 
-  // 1. Cluster exact duplicates: same day + room + start + end
+  // 1. Cluster exact duplicates: same day + room + start + end + same live date window
   const clusterMap = new Map<string, ScheduleSlotCluster>();
   for (const s of active) {
     const room = normRoom(s.room);
     if (!room) continue;
-    const key = `${s.day_of_week}|${room}|${s.start_time}|${s.end_time}`;
+    const key = `${s.day_of_week}|${room}|${s.start_time}|${s.end_time}|${windowKey(
+      scheduleWindow(s)
+    )}`;
+
     const existing = clusterMap.get(key);
     if (existing) {
       existing.schedules.push(s);
@@ -121,7 +171,9 @@ export function analyzeScheduleConflicts(
       const a = active[i];
       const b = active[j];
       if (a.day_of_week !== b.day_of_week) continue;
+      if (!windowsOverlap(scheduleWindow(a), scheduleWindow(b))) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
+
 
       const sameCluster =
         clusteredIds.has(a.id) &&
@@ -164,7 +216,8 @@ export function analyzeScheduleConflicts(
 
 /** @deprecated Kept for compatibility — prefer analyzeScheduleConflicts. */
 export function detectScheduleConflicts(schedules: ScheduleForConflict[]): ScheduleConflict[] {
-  const active = schedules.filter((s) => s.is_active);
+  const today = todayISO();
+  const active = schedules.filter((s) => s.is_active && !isExpired(s, today));
   const conflicts: ScheduleConflict[] = [];
 
   for (let i = 0; i < active.length; i++) {
@@ -173,7 +226,9 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
       const b = active[j];
 
       if (a.day_of_week !== b.day_of_week) continue;
+      if (!windowsOverlap(scheduleWindow(a), scheduleWindow(b))) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
+
 
       const classA = className(a);
       const classB = className(b);
@@ -221,10 +276,32 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
   return conflicts.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
 }
 
+function formatDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Human-readable "when" for a conflicting rule, used in warning text. */
+function whenLabel(s: ScheduleForConflict): string {
+  const w = scheduleWindow(s);
+  if (s.is_one_time && w.from) return `on ${formatDay(w.from)}`;
+  if (w.from && w.until) return `between ${formatDay(w.from)} and ${formatDay(w.until)}`;
+  if (w.until) return `through ${formatDay(w.until)}`;
+  if (w.from) return `from ${formatDay(w.from)} onward`;
+  return "at that time";
+}
+
 /**
  * Check a proposed (new or edited) schedule against existing schedules for conflicts.
  * Returns an array of human-readable conflict description strings.
  * If the array is empty, the schedule is safe to save.
+ *
+ * Date-aware: only rules whose live date windows actually overlap the proposed
+ * window are considered, and already-expired rules are ignored.
  */
 export function checkNewScheduleConflicts(
   proposed: {
@@ -235,22 +312,29 @@ export function checkNewScheduleConflicts(
     room: string | null;
     id?: string;
     is_active?: boolean;
+    effective_from?: string | null;
+    effective_until?: string | null;
+    is_one_time?: boolean;
   },
   existingSchedules: ScheduleForConflict[]
 ): string[] {
   // Only check if the proposed schedule is active (default true)
   if (proposed.is_active === false) return [];
 
+  const today = todayISO();
+  const proposedWindow = scheduleWindow(proposed);
   const warnings: string[] = [];
   const active = existingSchedules.filter(
-    (s) => s.is_active && s.id !== proposed.id
+    (s) => s.is_active && s.id !== proposed.id && !isExpired(s, today)
   );
 
   for (const existing of active) {
     if (existing.day_of_week !== proposed.day_of_week) continue;
+    if (!windowsOverlap(proposedWindow, scheduleWindow(existing))) continue;
     if (!timesOverlap(proposed.start_time, proposed.end_time, existing.start_time, existing.end_time)) continue;
 
     const name = existing.class_types?.name || "another class";
+    const when = whenLabel(existing);
 
     // Instructor overlap
     if (
@@ -258,7 +342,7 @@ export function checkNewScheduleConflicts(
       existing.instructor_id &&
       proposed.instructor_id === existing.instructor_id
     ) {
-      warnings.push(`${instructorName(existing)} is already teaching ${name} at that time`);
+      warnings.push(`${instructorName(existing)} is already teaching ${name} ${when}`);
     }
 
     // Room conflict
@@ -267,9 +351,10 @@ export function checkNewScheduleConflicts(
       existing.room &&
       proposed.room.trim().toLowerCase() === existing.room.trim().toLowerCase()
     ) {
-      warnings.push(`${proposed.room} is already booked for ${name} at that time`);
+      warnings.push(`${proposed.room} is already booked for ${name} ${when}`);
     }
   }
 
   return warnings;
 }
+
