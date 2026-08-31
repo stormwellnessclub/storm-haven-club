@@ -4,6 +4,7 @@ import logo from "@/assets/storm-logo-gold.png";
 const footerLinks = {
   services: [
     { label: "Class Schedule", href: "/schedule" },
+    { label: "Class Reviews", href: "/reviews" },
     { label: "Personal Training", href: "/personal-training" },
     { label: "Recovery Spa", href: "/spa" },
     { label: "Massage Therapy", href: "/spa/massage" },

@@ -43,6 +43,13 @@
       "when": 1788202971554,
       "tag": "0005_harden_class_session_reconciliation_windows",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788212190986,
+      "tag": "0006_public_class_reviews_rpc",
+      "breakpoints": true
     }
   ]
 }

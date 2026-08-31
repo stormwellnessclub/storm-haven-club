@@ -83,9 +83,17 @@ export default function ClassStudio() {
   const { data: waitlistCounts = {} } = useWaitlistCounts(sessions.map((s) => s.id));
 
   const summary = useMemo(() => {
-    const live = sessions.filter((s) => !s.is_cancelled);
-    const cap = live.reduce((a, s) => a + s.max_capacity, 0);
-    const booked = live.reduce((a, s) => a + s.current_enrollment, 0);
+    // Summary always reflects everything scheduled in range (matching studio/instructor
+    // filters) so hidden drafts are still surfaced even when the grid hides them.
+    const scoped = allSessions.filter((s) => {
+      if (studioFilter !== "all" && normalizeRoom(s.room) !== studioFilter) return false;
+      if (instructorFilter !== "all" && s.instructor_id !== instructorFilter) return false;
+      return true;
+    });
+    const live = scoped.filter((s) => !s.is_cancelled);
+    const published = live.filter((s) => !s.is_hidden);
+    const cap = published.reduce((a, s) => a + s.max_capacity, 0);
+    const booked = published.reduce((a, s) => a + s.current_enrollment, 0);
     return {
       classes: live.length,
       fill: cap ? Math.round((booked / cap) * 100) : 0,
@@ -93,7 +101,7 @@ export default function ClassStudio() {
       unstaffed: live.filter((s) => !s.instructor_id).length,
       drafts: live.filter((s) => s.is_hidden).length,
     };
-  }, [sessions, waitlistCounts]);
+  }, [allSessions, studioFilter, instructorFilter, waitlistCounts]);
 
   const shiftDate = (deltaDays: number) =>
     setParam("date", format(addDays(date, deltaDays), "yyyy-MM-dd"));
