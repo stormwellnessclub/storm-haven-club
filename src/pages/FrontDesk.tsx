@@ -26,6 +26,7 @@ import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
 
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
+import { useBareAdminLayout } from "@/components/admin/BareAdminLayoutContext";
 import { formatTime12h } from "@/lib/timeFormat";
 import { NoIndex } from "@/components/seo/NoIndex";
 import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
@@ -465,14 +466,20 @@ function TodaysKidsCare() {
 // Access is enforced by ProtectedFrontDeskRoute (authenticated staff session +
 // front_desk/manager/admin role). No PIN gate here.
 export default function FrontDeskPage() {
-
+  // When rendered inside the front-desk / kiosk shell, that shell already
+  // mounts the chimes. Mounting them twice doubles realtime channels.
+  const bare = useBareAdminLayout();
 
   return (
     <>
       <NoIndex />
-      <AudioUnlocker />
-      <AdminSupportChime />
-      <AdminCafeChime />
+      {!bare && (
+        <>
+          <AudioUnlocker />
+          <AdminSupportChime />
+          <AdminCafeChime />
+        </>
+      )}
       <FrontDeskKiosk />
     </>
   );

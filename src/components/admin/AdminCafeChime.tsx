@@ -73,17 +73,21 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
     lastSeenCountRef.current = current;
   }, [notifications?.totalActiveCount, chimeSafe]);
 
-  // 5-minute reminder while orders remain
+  // 5-minute reminder while orders remain. Created ONCE (counts read from a
+  // ref) — the query refetches often and would otherwise reset the timer.
+  const notifRef = useRef(notifications);
+  notifRef.current = notifications;
+
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
-      const active = notifications?.totalActiveCount ?? 0;
+      const active = notifRef.current?.totalActiveCount ?? 0;
       if (active > 0 && !getIsMuted()) playNotificationChime();
     }, FIVE_MINUTES);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [notifications]);
+  }, []);
 
   return null;
 }
