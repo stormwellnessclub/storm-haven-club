@@ -1,48 +1,55 @@
 import { useEffect } from "react";
-import { unlockChimeAudio } from "./AdminSupportChime";
+import { isAudioBlocked, unlockChimeAudio } from "./AdminSupportChime";
 
 /**
- * Browsers block audio until the user has interacted with the page.
- * On the first pointerdown/keydown anywhere in the admin layout, wake the
- * SHARED audio engine the chime actually uses (plus a silent <audio> element)
- * so subsequent chimes are heard — including the very first realtime
- * notification of the session.
+ * Browsers block audio until the user has interacted with the page, and they
+ * also SUSPEND the audio engine again when a tab is backgrounded for a while —
+ * which is exactly what happens on a front-desk station that sits idle.
+ *
+ * So instead of unlocking once, we keep listening and re-wake the SHARED audio
+ * engine on any interaction (or tab focus) whenever it's blocked again.
  */
 export function AudioUnlocker() {
   useEffect(() => {
-    let unlocked = false;
+    let silentPlayed = false;
 
     const unlock = () => {
-      if (unlocked) return;
-      unlocked = true;
+      if (!isAudioBlocked()) return;
 
       // 1) Wake the shared WebAudio context used by playNotificationChime()
-      unlockChimeAudio();
+      void unlockChimeAudio();
 
-      // 2) Play a silent <audio> element (covers HTMLAudio fallback path)
-      try {
-        const silent =
-          "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-        const a = new Audio(silent);
-        a.volume = 0;
-        a.play().catch(() => {});
-      } catch (e) {
-        console.warn("AudioUnlocker failed:", e);
+      // 2) Play a silent <audio> element once (covers HTMLAudio fallback path)
+      if (!silentPlayed) {
+        silentPlayed = true;
+        try {
+          const silent =
+            "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+          const a = new Audio(silent);
+          a.volume = 0;
+          a.play().catch(() => {});
+        } catch (e) {
+          console.warn("AudioUnlocker failed:", e);
+        }
       }
-
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      window.removeEventListener("touchstart", unlock);
     };
 
-    window.addEventListener("pointerdown", unlock, { once: false });
-    window.addEventListener("keydown", unlock, { once: false });
-    window.addEventListener("touchstart", unlock, { once: false });
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") unlock();
+    };
+
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    window.addEventListener("touchstart", unlock);
+    window.addEventListener("focus", unlock);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
       window.removeEventListener("touchstart", unlock);
+      window.removeEventListener("focus", unlock);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
