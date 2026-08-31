@@ -26,6 +26,7 @@ import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
 
 import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
 import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
+import { useBareAdminLayout } from "@/components/admin/BareAdminLayoutContext";
 import { formatTime12h } from "@/lib/timeFormat";
 import { NoIndex } from "@/components/seo/NoIndex";
 import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
