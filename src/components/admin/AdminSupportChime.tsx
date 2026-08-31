@@ -404,20 +404,25 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     lastSeenOpenRef.current = open;
   }, [notifications?.unreadCount, notifications?.openCount, chimeSafe]);
 
-  // Recurring reminder while requests are still unacknowledged ("received" silences it)
+  // Recurring reminder while requests are still unacknowledged ("received" silences it).
+  // The interval is created ONCE — reading counts from a ref — because the
+  // notifications query refetches every 30s and would otherwise reset the
+  // 60s timer before it ever fired.
+  const notifRef = useRef(notifications);
+  notifRef.current = notifications;
+
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
     intervalRef.current = setInterval(() => {
-      const unacked = notifications?.unacknowledgedCount ?? 0;
+      const unacked = notifRef.current?.unacknowledgedCount ?? 0;
       if (unacked > 0 && !getIsMuted()) {
         void playChimeTwice();
-
       }
     }, REMINDER_INTERVAL);
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [notifications]);
+  }, []);
 
   return null; // Invisible — audio only
 }
