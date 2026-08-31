@@ -132,7 +132,7 @@ serve(async (req) => {
       // Fetch user's workout logs for personalization
       const { data: logs } = await supabase
         .from('workout_logs')
-        .select('workout_type, workout_name, duration_minutes, exercises, performed_at')
+        .select('workout_type, duration_minutes, exercises, performed_at')
         .eq('member_id', memberId)
         .order('performed_at', { ascending: false })
         .limit(10);
