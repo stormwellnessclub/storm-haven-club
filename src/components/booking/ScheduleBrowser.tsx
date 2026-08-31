@@ -9,7 +9,7 @@ import {
 import { isSessionFinishedToday } from "@/lib/classSessionFilters";
 import {
   ChevronLeft, ChevronRight, Clock, Users, Flame, Snowflake, Heart,
-  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin, Info, Crown,
+  CircleDot, Bike, Activity, CalendarDays, CalendarIcon, MapPin, Info, Crown, Star,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -23,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
 import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
+import { useClassTypeRatings } from "@/hooks/useClassReviews";
 
 type RoomFilter = "all" | "Reformer Studio" | "Cycle Studio" | "Aerobics Studio";
 type HeatFilter = "all" | "heated" | "non_heated";
@@ -184,6 +185,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
 
+  const { data: ratings } = useClassTypeRatings();
   const { data: myBookings } = useMyBookings();
   const bookedSessionIds = useMemo(() => {
     if (!myBookings) return new Set<string>();
