@@ -2825,14 +2825,18 @@ export default function Applications() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Liability Waiver</p>
-                        {selectedApplication.liability_waiver_signed ? (
+                        {waiverRecord?.waiver_signed || selectedApplication.liability_waiver_signed ? (
                           <Badge variant="outline" className="text-green-600 border-green-500/30">
                             <CheckCircle className="h-3 w-3 mr-1" />
                             Signed
+                            {waiverRecord?.waiver_signed_at
+                              ? ` · ${format(new Date(waiverRecord.waiver_signed_at), "MMM d, yyyy")}`
+                              : ""}
                           </Badge>
                         ) : (
                           <span className="text-muted-foreground">Not signed</span>
                         )}
+
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Previous Member</p>
