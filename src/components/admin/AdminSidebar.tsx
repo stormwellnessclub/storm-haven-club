@@ -49,6 +49,7 @@ import {
   Leaf,
   GraduationCap,
   Tag,
+  LayoutGrid,
 } from "lucide-react";
 import {
   Sidebar,
@@ -122,6 +123,7 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin', 'manager', 'class_instructor'],
     defaultOpen: true,
     items: [
+      { title: "Class Studio Portal", url: "/admin/class-studio", icon: LayoutGrid },
       { title: "Today's Classes", url: "/admin/classes", icon: Calendar },
       { title: "Class Management", url: "/admin/class-types", icon: Dumbbell },
       { title: "Class Schedules", url: "/admin/class-schedules", icon: CalendarDays },

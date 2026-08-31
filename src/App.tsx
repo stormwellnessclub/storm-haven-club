@@ -106,6 +106,7 @@ import CafeImageReview from "./pages/admin/CafeImageReview";
 
 import Childcare from "./pages/admin/Childcare";
 import AdminClasses from "./pages/admin/Classes";
+import ClassStudio from "./pages/admin/ClassStudio";
 import StaffRoles from "./pages/admin/StaffRoles";
 import StaffDetail from "./pages/admin/StaffDetail";
 import StaffPins from "./pages/admin/StaffPins";
@@ -440,6 +441,7 @@ const App = () => (
               <Route path="/admin/cafe-image-review" element={<ProtectedAdminRoute><CafeImageReview /></ProtectedAdminRoute>} />
               
               <Route path="/admin/childcare" element={<ProtectedAdminRoute><Childcare /></ProtectedAdminRoute>} />
+              <Route path="/admin/class-studio" element={<ProtectedAdminRoute><ClassStudio /></ProtectedAdminRoute>} />
               <Route path="/admin/classes" element={<ProtectedAdminRoute><AdminClasses /></ProtectedAdminRoute>} />
               <Route path="/admin/class-types" element={<ProtectedAdminRoute><ClassTypes /></ProtectedAdminRoute>} />
               <Route path="/admin/class-types/:id" element={<ProtectedAdminRoute><ClassTypeDetail /></ProtectedAdminRoute>} />
