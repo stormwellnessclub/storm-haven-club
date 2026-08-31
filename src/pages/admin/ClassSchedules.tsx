@@ -49,7 +49,7 @@ import { format, addWeeks, differenceInCalendarDays, parse, startOfDay } from "d
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { analyzeScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
+import { analyzeScheduleConflicts, detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView, type CalendarPrefill } from "@/components/admin/WeeklyCalendarView";
 import { InstructorScheduleDrawer } from "@/components/admin/InstructorScheduleDrawer";
@@ -562,6 +562,7 @@ export default function ClassSchedules() {
   const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
   const conflictReport = useMemo(() => analyzeScheduleConflicts(schedules), [schedules]);
+  const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
 
   const conflictScheduleIds = useMemo(() => {
     const ids = new Set<string>();
