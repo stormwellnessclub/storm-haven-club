@@ -123,9 +123,10 @@ export function useUserRoles() {
 
       // Primary: RPC path
       try {
-        const roles = await fetchRolesViaRpc(user.id);
+        const roles = await fetchRolesViaRpc(userId);
         console.info('[useUserRoles] Resolved roles via RPC:', roles);
         lastGoodRolesRef.current = roles;
+        resolvedOnceRef.current = true;
         setState({ roles, loading: false, resolved: true, error: null, jwtError: false });
         return;
       } catch (rpcErr) {
@@ -141,9 +142,10 @@ export function useUserRoles() {
 
       // Fallback: direct table query
       try {
-        const roles = await fetchRolesViaTable(user.id);
+        const roles = await fetchRolesViaTable(userId);
         console.info('[useUserRoles] Resolved roles via table:', roles);
         lastGoodRolesRef.current = roles;
+        resolvedOnceRef.current = true;
         setState({ roles, loading: false, resolved: true, error: null, jwtError: false });
         return;
       } catch (tableErr) {
@@ -164,11 +166,11 @@ export function useUserRoles() {
     setState({
       roles: preserved,
       loading: false,
-      resolved: preserved.length > 0,
+      resolved: resolvedOnceRef.current || preserved.length > 0,
       error: sawJwtError ? 'Session token is invalid' : 'Failed to fetch roles',
       jwtError: sawJwtError,
     });
-  }, [authReady, user, session]);
+  }, [authReady, userId, hasSession]);
 
   useEffect(() => {
     fetchRoles();
