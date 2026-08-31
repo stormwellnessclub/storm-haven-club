@@ -291,6 +291,7 @@ export default function PTClients() {
 
       <SellPTDialog open={sellOpen} onOpenChange={setSellOpen} />
       <BookPTSessionDialog open={bookOpen} onOpenChange={setBookOpen} />
+      <PTNewClientDialog open={newClientOpen} onOpenChange={setNewClientOpen} />
     </PTShell>
   );
 }
