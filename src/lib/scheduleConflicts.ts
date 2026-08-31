@@ -216,7 +216,8 @@ export function analyzeScheduleConflicts(
 
 /** @deprecated Kept for compatibility — prefer analyzeScheduleConflicts. */
 export function detectScheduleConflicts(schedules: ScheduleForConflict[]): ScheduleConflict[] {
-  const active = schedules.filter((s) => s.is_active);
+  const today = todayISO();
+  const active = schedules.filter((s) => s.is_active && !isExpired(s, today));
   const conflicts: ScheduleConflict[] = [];
 
   for (let i = 0; i < active.length; i++) {
@@ -225,7 +226,9 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
       const b = active[j];
 
       if (a.day_of_week !== b.day_of_week) continue;
+      if (!windowsOverlap(scheduleWindow(a), scheduleWindow(b))) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
+
 
       const classA = className(a);
       const classB = className(b);
