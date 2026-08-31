@@ -562,7 +562,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                         No classes scheduled
                       </div>
                     ) : (
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         {daySessions.map((session) => {
                           const ct = session.class_types;
                           const config = categoryConfig[ct.category] || { icon: Activity, label: ct.category, color: "bg-muted text-muted-foreground" };
@@ -570,167 +570,208 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                           const spotsLeft = session.max_capacity - session.current_enrollment;
                           const isFull = spotsLeft <= 0;
                           const instructor = session.instructors;
+                          const rating = ratings?.[ct.id];
+                          const openDetails = () =>
+                            openDetailsFor(session, {
+                              isBooked: bookedSessionIds.has(session.id),
+                              isOnWaitlist: !!waitlistStatus?.[session.id],
+                              waitlistCount: waitlistCounts?.[session.id],
+                            });
 
                           return (
-                            <div
+                            <article
                               key={session.id}
-                              className="card-luxury p-4 flex gap-3 cursor-pointer hover:shadow-md transition-shadow"
-                              onClick={() =>
-                                openDetailsFor(session, {
-                                  isBooked: bookedSessionIds.has(session.id),
-                                  isOnWaitlist: !!waitlistStatus?.[session.id],
-                                  waitlistCount: waitlistCounts?.[session.id],
-                                })
-                              }
+                              className="card-luxury p-4 flex flex-col cursor-pointer hover:shadow-md transition-shadow"
+                              onClick={openDetails}
                               role="button"
                               tabIndex={0}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter" || e.key === " ") {
                                   e.preventDefault();
-                                  openDetailsFor(session, {
-                                    isBooked: bookedSessionIds.has(session.id),
-                                    isOnWaitlist: !!waitlistStatus?.[session.id],
-                                    waitlistCount: waitlistCounts?.[session.id],
-                                  });
+                                  openDetails();
                                 }
                               }}
                             >
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${config.color.split(" ")[0]}`}>
-                                <Icon className={`w-5 h-5 ${config.color.split(" ")[1]}`} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <h3 className="font-serif text-base font-medium truncate">{ct.name}</h3>
-                                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
-                                    {(ct.is_signature || session.instructors?.is_master) && (
-                                      <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-amber-700 text-white border-0">
-                                        <Crown className="w-2.5 h-2.5 mr-0.5" /> Signature
-                                      </Badge>
-                                    )}
-                                    {session.is_invite_only && (
-                                      <Badge className="text-[10px] bg-purple-600 hover:bg-purple-600 text-white">
-                                        Invite Only
-                                      </Badge>
-                                    )}
-                                    {session.is_fundraiser && (
-                                      <Badge className="text-[10px] bg-rose-600 hover:bg-rose-600 text-white">
-                                        <Heart className="w-2.5 h-2.5 mr-0.5" /> Fundraiser
-                                      </Badge>
-                                    )}
-                                    {session.room && (
-                                      <Badge variant="outline" className="text-[10px]">
-                                        <MapPin className="w-2.5 h-2.5 mr-0.5" /> {session.room}
-                                      </Badge>
-                                    )}
-                                    {ct.category !== "cycling" && (
-                                      ct.is_heated ? (
-                                        <Badge variant="outline" className="text-[10px] border-accent/50 text-accent bg-accent/10">
-                                          <Flame className="w-2.5 h-2.5 mr-0.5" /> Hot
-                                        </Badge>
-                                      ) : (
-                                        <Badge variant="outline" className="text-[10px]">
-                                          <Snowflake className="w-2.5 h-2.5 mr-0.5" /> Cool
-                                        </Badge>
-                                      )
-                                    )}
-                                  </div>
-                                </div>
-
-                                {session.is_fundraiser && (
-                                  <div className="mt-1 rounded-md border border-rose-300/60 bg-rose-50 dark:bg-rose-950/30 px-2 py-1 text-[11px] text-rose-900 dark:text-rose-100">
-                                    <span className="font-semibold">
-                                      {session.override_price_cents != null
-                                        ? `$${(session.override_price_cents / 100).toFixed(0)} · `
-                                        : ""}
-                                      {session.fundraiser_beneficiary || "Fundraiser"}
-                                    </span>
-                                    <span className="block leading-snug">
-                                      {session.session_notes || "100% of proceeds will be donated."}
-                                    </span>
-                                  </div>
-                                )}
-
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {formatTime(session.start_time)} – {formatTime(session.end_time)}
+                              {/* Time + availability row */}
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="flex items-center gap-1.5 text-sm font-medium">
+                                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                                  {formatTime(session.start_time)}
+                                  <span className="text-muted-foreground font-normal">
+                                    · {ct.duration_minutes || 50} min
                                   </span>
-                                  {(() => {
-                                    const wlc = waitlistCounts?.[session.id] ?? 0;
-                                    if (isFull) {
-                                      return (
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[11px] font-medium">
-                                          <Users className="w-3 h-3" />
-                                          Full{wlc > 0 ? ` · +${wlc} waitlisted` : ""}
-                                        </span>
-                                      );
-                                    }
-                                    const almostFull = spotsLeft <= 3;
+                                </span>
+                                {(() => {
+                                  const wlc = waitlistCounts?.[session.id] ?? 0;
+                                  if (isFull) {
                                     return (
-                                      <span
-                                        className={[
-                                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-                                          almostFull
-                                            ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
-                                            : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
-                                        ].join(" ")}
-                                      >
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 text-destructive px-2 py-0.5 text-[11px] font-medium">
                                         <Users className="w-3 h-3" />
-                                        {almostFull ? `Only ${spotsLeft} left` : `${spotsLeft} spots open`}
+                                        Full{wlc > 0 ? ` · +${wlc} waiting` : ""}
                                       </span>
                                     );
-                                  })()}
-                                </div>
-
-
-                                {instructor && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {instructor.first_name} {instructor.last_name}
-                                  </p>
-                                )}
-
-
-                                <Link
-                                  to={`/classes/${ct.id}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="inline-block mt-1 text-[11px] text-primary hover:underline"
-                                >
-                                  View class & reviews
-                                </Link>
-
-                                <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                                  {bookedSessionIds.has(session.id) ? (
-                                    <Badge variant="outline" className="text-xs border-primary/50 text-primary">
-                                      Booked
-                                    </Badge>
-                                  ) : session.is_invite_only ? (
-                                    <Badge variant="outline" className="text-xs border-purple-500/50 text-purple-700 dark:text-purple-300">
-                                      Invite only — see front desk
-                                    </Badge>
-                                  ) : waitlistStatus?.[session.id] ? (
-                                    <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-700">
-                                      Waitlist #{waitlistStatus[session.id].position}
-                                    </Badge>
-                                  ) : (
-                                    <Button
-                                      size="sm"
-                                      variant={isFull ? "outline" : "default"}
-                                      className="h-7 text-xs"
-                                      onClick={() => {
-                                        if (!user) {
-                                          navigate(`/auth?redirect=${encodeURIComponent(authRedirect)}`);
-                                          return;
-                                        }
-                                        setSelectedSession(buildBookable(session));
-                                        setBookingOpen(true);
-                                      }}
+                                  }
+                                  const almostFull = spotsLeft <= 3;
+                                  return (
+                                    <span
+                                      className={[
+                                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                                        almostFull
+                                          ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                                          : "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+                                      ].join(" ")}
                                     >
-                                      {isFull ? "Join Waitlist" : session.is_fundraiser ? "Donate & Reserve" : "Book"}
-                                    </Button>
-                                  )}
+                                      <Users className="w-3 h-3" />
+                                      {almostFull ? `Only ${spotsLeft} left` : `${spotsLeft} spots open`}
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+
+                              {/* Name + instructor */}
+                              <div className="flex items-start gap-3 mt-2">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${config.color.split(" ")[0]}`}>
+                                  <Icon className={`w-5 h-5 ${config.color.split(" ")[1]}`} />
+                                </div>
+                                <div className="min-w-0">
+                                  <h3 className="font-serif text-lg font-medium leading-snug break-words">
+                                    {ct.name}
+                                  </h3>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    {instructor
+                                      ? `with ${instructor.first_name} ${instructor.last_name}`
+                                      : "Instructor to be announced"}
+                                    {session.room ? ` · ${session.room}` : ""}
+                                  </p>
                                 </div>
                               </div>
-                            </div>
+
+                              {/* Rating */}
+                              {rating && rating.review_count > 0 && (
+                                <Link
+                                  to={`/reviews?class=${ct.id}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 mt-2 text-xs text-muted-foreground hover:text-foreground"
+                                >
+                                  <span className="flex items-center" aria-hidden="true">
+                                    {[1, 2, 3, 4, 5].map((n) => (
+                                      <Star
+                                        key={n}
+                                        className={`w-3.5 h-3.5 ${
+                                          n <= Math.round(rating.average_rating)
+                                            ? "fill-amber-500 text-amber-500"
+                                            : "text-muted-foreground/40"
+                                        }`}
+                                      />
+                                    ))}
+                                  </span>
+                                  <span className="font-medium text-foreground">
+                                    {rating.average_rating.toFixed(1)}
+                                  </span>
+                                  <span className="underline underline-offset-2">
+                                    {rating.review_count} review{rating.review_count === 1 ? "" : "s"}
+                                  </span>
+                                </Link>
+                              )}
+
+                              {/* Description — visible up front, no extra click */}
+                              {ct.description && (
+                                <p className="mt-2 text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                                  {ct.description}
+                                </p>
+                              )}
+
+                              {/* Badges */}
+                              <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                                {(ct.is_signature || session.instructors?.is_master) && (
+                                  <Badge className="text-[10px] bg-gradient-to-r from-amber-500 to-amber-700 text-white border-0">
+                                    <Crown className="w-2.5 h-2.5 mr-0.5" /> Signature
+                                  </Badge>
+                                )}
+                                {session.is_invite_only && (
+                                  <Badge className="text-[10px] bg-purple-600 hover:bg-purple-600 text-white">
+                                    Invite Only
+                                  </Badge>
+                                )}
+                                {session.is_fundraiser && (
+                                  <Badge className="text-[10px] bg-rose-600 hover:bg-rose-600 text-white">
+                                    <Heart className="w-2.5 h-2.5 mr-0.5" /> Fundraiser
+                                  </Badge>
+                                )}
+                                <Badge variant="outline" className="text-[10px]">
+                                  {config.label}
+                                </Badge>
+                                {ct.category !== "cycling" && (
+                                  ct.is_heated ? (
+                                    <Badge variant="outline" className="text-[10px] border-accent/50 text-accent bg-accent/10">
+                                      <Flame className="w-2.5 h-2.5 mr-0.5" /> Heated
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px]">
+                                      <Snowflake className="w-2.5 h-2.5 mr-0.5" /> Non-heated
+                                    </Badge>
+                                  )
+                                )}
+                              </div>
+
+                              {session.is_fundraiser && (
+                                <div className="mt-2 rounded-md border border-rose-300/60 bg-rose-50 dark:bg-rose-950/30 px-2 py-1 text-[11px] text-rose-900 dark:text-rose-100">
+                                  <span className="font-semibold">
+                                    {session.override_price_cents != null
+                                      ? `$${(session.override_price_cents / 100).toFixed(0)} · `
+                                      : ""}
+                                    {session.fundraiser_beneficiary || "Fundraiser"}
+                                  </span>
+                                  <span className="block leading-snug">
+                                    {session.session_notes || "100% of proceeds will be donated."}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Actions */}
+                              <div
+                                className="mt-3 pt-3 border-t border-border/60 flex items-center gap-2"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {bookedSessionIds.has(session.id) ? (
+                                  <Badge variant="outline" className="text-xs border-primary/50 text-primary">
+                                    You're booked
+                                  </Badge>
+                                ) : session.is_invite_only ? (
+                                  <Badge variant="outline" className="text-xs border-purple-500/50 text-purple-700 dark:text-purple-300">
+                                    Invite only — see front desk
+                                  </Badge>
+                                ) : waitlistStatus?.[session.id] ? (
+                                  <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-700">
+                                    Waitlist #{waitlistStatus[session.id].position}
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant={isFull ? "outline" : "default"}
+                                    className="flex-1"
+                                    onClick={() => {
+                                      if (!user) {
+                                        navigate(`/auth?redirect=${encodeURIComponent(authRedirect)}`);
+                                        return;
+                                      }
+                                      setSelectedSession(buildBookable(session));
+                                      setBookingOpen(true);
+                                    }}
+                                  >
+                                    {isFull ? "Join Waitlist" : session.is_fundraiser ? "Donate & Reserve" : "Book this class"}
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="text-xs"
+                                  onClick={openDetails}
+                                >
+                                  Details
+                                </Button>
+                              </div>
+                            </article>
                           );
                         })}
                       </div>
