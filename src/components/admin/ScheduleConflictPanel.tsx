@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   ScheduleConflictReport,
   ScheduleForConflict,
+  sharedWindowLabel,
 } from "@/lib/scheduleConflicts";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -166,6 +167,9 @@ export function ScheduleConflictPanel({
                   <span className="text-xs text-muted-foreground">
                     {cluster.schedules.length} classes scheduled here
                   </span>
+                  <Badge variant="outline" className="text-xs">
+                    {sharedWindowLabel(cluster.schedules[0], cluster.schedules[1])}
+                  </Badge>
                 </div>
                 <div className="space-y-2">{cluster.schedules.map(renderScheduleRow)}</div>
               </div>
@@ -178,10 +182,14 @@ export function ScheduleConflictPanel({
               >
                 <div className="flex items-center gap-2 flex-wrap">
                   <Badge
-                    variant={pair.type === "instructor_overlap" ? "destructive" : "secondary"}
+                    variant={pair.type === "room_overlap" ? "secondary" : "destructive"}
                     className="text-xs"
                   >
-                    {pair.type === "instructor_overlap" ? "Instructor double-booked" : "Room overlap"}
+                    {pair.type === "instructor_and_room_overlap"
+                      ? "Instructor + room overlap"
+                      : pair.type === "instructor_overlap"
+                        ? "Instructor double-booked"
+                        : "Room overlap"}
                   </Badge>
                   <span className="text-sm font-medium">{DAYS[pair.dayOfWeek]}</span>
                   <span className="text-xs text-muted-foreground">
@@ -189,6 +197,9 @@ export function ScheduleConflictPanel({
                     {" & "}
                     {formatTime(pair.scheduleB.start_time)}–{formatTime(pair.scheduleB.end_time)}
                   </span>
+                   <Badge variant="outline" className="text-xs">
+                     {sharedWindowLabel(pair.scheduleA, pair.scheduleB)}
+                   </Badge>
                 </div>
                 <p className="text-sm">{pair.detail}</p>
                 <div className="space-y-2">

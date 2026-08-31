@@ -36,6 +36,13 @@
       "when": 1788128711903,
       "tag": "0004_kids_care_hour_slots_public_read",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788202971554,
+      "tag": "0005_harden_class_session_reconciliation_windows",
+      "breakpoints": true
     }
   ]
 }

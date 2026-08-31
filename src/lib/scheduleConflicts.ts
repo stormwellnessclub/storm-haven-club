@@ -39,7 +39,7 @@ export interface ScheduleSlotCluster {
 
 /** A pairwise overlap that is not an exact same-slot duplicate. */
 export interface SchedulePairConflict {
-  type: "instructor_overlap" | "room_overlap";
+  type: "instructor_overlap" | "room_overlap" | "instructor_and_room_overlap";
   dayOfWeek: number;
   scheduleA: ScheduleForConflict;
   scheduleB: ScheduleForConflict;
@@ -82,9 +82,12 @@ function normRoom(room: string | null): string | null {
 type DateWindow = { from: string | null; until: string | null };
 
 function todayISO(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Detroit",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 /** The live date window for a rule. One-offs collapse to their single date. */
@@ -107,6 +110,32 @@ function windowsOverlap(a: DateWindow, b: DateWindow): boolean {
   return true;
 }
 
+function laterDate(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a > b ? a : b;
+}
+
+function earlierDate(a: string | null, b: string | null): string | null {
+  if (!a) return b;
+  if (!b) return a;
+  return a < b ? a : b;
+}
+
+/** A shared date window must contain at least one occurrence of the recurring weekday. */
+function windowsShareWeekday(a: DateWindow, b: DateWindow, dayOfWeek: number): boolean {
+  if (!windowsOverlap(a, b)) return false;
+  const from = laterDate(a.from, b.from);
+  const until = earlierDate(a.until, b.until);
+  if (!from || !until) return true;
+
+  const [year, month, day] = from.split("-").map(Number);
+  const start = new Date(Date.UTC(year, month - 1, day));
+  const daysAhead = (dayOfWeek - start.getUTCDay() + 7) % 7;
+  start.setUTCDate(start.getUTCDate() + daysAhead);
+  return start.toISOString().slice(0, 10) <= until;
+}
+
 /** A rule whose window already ended can never conflict with anything upcoming. */
 function isExpired(s: ScheduleForConflict, today: string): boolean {
   const w = scheduleWindow(s);
@@ -115,6 +144,16 @@ function isExpired(s: ScheduleForConflict, today: string): boolean {
 
 function windowKey(w: DateWindow): string {
   return `${w.from ?? "*"}~${w.until ?? "*"}`;
+}
+
+export function sharedWindowLabel(a: ScheduleForConflict, b: ScheduleForConflict): string {
+  const from = laterDate(scheduleWindow(a).from, scheduleWindow(b).from);
+  const until = earlierDate(scheduleWindow(a).until, scheduleWindow(b).until);
+  if (from && until && from === until) return formatDay(from);
+  if (from && until) return `${formatDay(from)}–${formatDay(until)}`;
+  if (from) return `From ${formatDay(from)}`;
+  if (until) return `Through ${formatDay(until)}`;
+  return "Ongoing";
 }
 
 /**
@@ -171,7 +210,7 @@ export function analyzeScheduleConflicts(
       const a = active[i];
       const b = active[j];
       if (a.day_of_week !== b.day_of_week) continue;
-      if (!windowsOverlap(scheduleWindow(a), scheduleWindow(b))) continue;
+      if (!windowsShareWeekday(scheduleWindow(a), scheduleWindow(b), a.day_of_week)) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
 
 
@@ -184,28 +223,26 @@ export function analyzeScheduleConflicts(
         normRoom(a.room) === normRoom(b.room);
       if (sameCluster) continue;
 
-      if (a.instructor_id && b.instructor_id && a.instructor_id === b.instructor_id) {
-        pairs.push({
-          type: "instructor_overlap",
-          dayOfWeek: a.day_of_week,
-          scheduleA: a,
-          scheduleB: b,
-          detail: `${instructorName(a)} is scheduled to teach two classes at once — ${className(
-            a
-          )} and ${className(b)}`,
-        });
-      }
-
       const roomA = normRoom(a.room);
-      if (roomA && roomA === normRoom(b.room)) {
+      const sameInstructor = !!a.instructor_id && a.instructor_id === b.instructor_id;
+      const sameRoom = !!roomA && roomA === normRoom(b.room);
+      if (sameInstructor || sameRoom) {
+        const type = sameInstructor && sameRoom
+          ? "instructor_and_room_overlap"
+          : sameInstructor
+            ? "instructor_overlap"
+            : "room_overlap";
+        const detail = sameInstructor && sameRoom
+          ? `${instructorName(a)} is assigned to both ${className(a)} and ${className(b)} in ${a.room}`
+          : sameInstructor
+            ? `${instructorName(a)} is scheduled to teach two classes at once — ${className(a)} and ${className(b)}`
+            : `${a.room} is used by two overlapping classes — ${className(a)} and ${className(b)}`;
         pairs.push({
-          type: "room_overlap",
+          type,
           dayOfWeek: a.day_of_week,
           scheduleA: a,
           scheduleB: b,
-          detail: `${a.room} is used by two overlapping classes — ${className(a)} and ${className(
-            b
-          )}`,
+          detail,
         });
       }
     }
@@ -226,7 +263,7 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
       const b = active[j];
 
       if (a.day_of_week !== b.day_of_week) continue;
-      if (!windowsOverlap(scheduleWindow(a), scheduleWindow(b))) continue;
+      if (!windowsShareWeekday(scheduleWindow(a), scheduleWindow(b), a.day_of_week)) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
 
 
@@ -258,9 +295,7 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
           scheduleB: b,
           detail: `${instructorName(a)} is double-booked: ${classA} and ${classB}`,
         });
-      }
-
-      if (a.room && b.room && a.room === b.room) {
+      } else if (a.room && b.room && normRoom(a.room) === normRoom(b.room)) {
         conflicts.push({
           type: "room_conflict",
           severity: "medium",
@@ -330,27 +365,29 @@ export function checkNewScheduleConflicts(
 
   for (const existing of active) {
     if (existing.day_of_week !== proposed.day_of_week) continue;
-    if (!windowsOverlap(proposedWindow, scheduleWindow(existing))) continue;
+    if (!windowsShareWeekday(proposedWindow, scheduleWindow(existing), proposed.day_of_week)) continue;
     if (!timesOverlap(proposed.start_time, proposed.end_time, existing.start_time, existing.end_time)) continue;
 
     const name = existing.class_types?.name || "another class";
     const when = whenLabel(existing);
 
-    // Instructor overlap
-    if (
+    const instructorConflict = (
       proposed.instructor_id &&
       existing.instructor_id &&
       proposed.instructor_id === existing.instructor_id
-    ) {
-      warnings.push(`${instructorName(existing)} is already teaching ${name} ${when}`);
-    }
+    );
 
-    // Room conflict
-    if (
+    const roomConflict = (
       proposed.room &&
       existing.room &&
       proposed.room.trim().toLowerCase() === existing.room.trim().toLowerCase()
-    ) {
+    );
+
+    if (instructorConflict && roomConflict) {
+      warnings.push(`${instructorName(existing)} is already teaching ${name} in ${proposed.room} ${when}`);
+    } else if (instructorConflict) {
+      warnings.push(`${instructorName(existing)} is already teaching ${name} ${when}`);
+    } else if (roomConflict) {
       warnings.push(`${proposed.room} is already booked for ${name} ${when}`);
     }
   }
