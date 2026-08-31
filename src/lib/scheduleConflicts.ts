@@ -276,10 +276,32 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
   return conflicts.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
 }
 
+function formatDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/** Human-readable "when" for a conflicting rule, used in warning text. */
+function whenLabel(s: ScheduleForConflict): string {
+  const w = scheduleWindow(s);
+  if (s.is_one_time && w.from) return `on ${formatDay(w.from)}`;
+  if (w.from && w.until) return `between ${formatDay(w.from)} and ${formatDay(w.until)}`;
+  if (w.until) return `through ${formatDay(w.until)}`;
+  if (w.from) return `from ${formatDay(w.from)} onward`;
+  return "at that time";
+}
+
 /**
  * Check a proposed (new or edited) schedule against existing schedules for conflicts.
  * Returns an array of human-readable conflict description strings.
  * If the array is empty, the schedule is safe to save.
+ *
+ * Date-aware: only rules whose live date windows actually overlap the proposed
+ * window are considered, and already-expired rules are ignored.
  */
 export function checkNewScheduleConflicts(
   proposed: {
@@ -290,22 +312,29 @@ export function checkNewScheduleConflicts(
     room: string | null;
     id?: string;
     is_active?: boolean;
+    effective_from?: string | null;
+    effective_until?: string | null;
+    is_one_time?: boolean;
   },
   existingSchedules: ScheduleForConflict[]
 ): string[] {
   // Only check if the proposed schedule is active (default true)
   if (proposed.is_active === false) return [];
 
+  const today = todayISO();
+  const proposedWindow = scheduleWindow(proposed);
   const warnings: string[] = [];
   const active = existingSchedules.filter(
-    (s) => s.is_active && s.id !== proposed.id
+    (s) => s.is_active && s.id !== proposed.id && !isExpired(s, today)
   );
 
   for (const existing of active) {
     if (existing.day_of_week !== proposed.day_of_week) continue;
+    if (!windowsOverlap(proposedWindow, scheduleWindow(existing))) continue;
     if (!timesOverlap(proposed.start_time, proposed.end_time, existing.start_time, existing.end_time)) continue;
 
     const name = existing.class_types?.name || "another class";
+    const when = whenLabel(existing);
 
     // Instructor overlap
     if (
@@ -313,7 +342,7 @@ export function checkNewScheduleConflicts(
       existing.instructor_id &&
       proposed.instructor_id === existing.instructor_id
     ) {
-      warnings.push(`${instructorName(existing)} is already teaching ${name} at that time`);
+      warnings.push(`${instructorName(existing)} is already teaching ${name} ${when}`);
     }
 
     // Room conflict
@@ -322,9 +351,10 @@ export function checkNewScheduleConflicts(
       existing.room &&
       proposed.room.trim().toLowerCase() === existing.room.trim().toLowerCase()
     ) {
-      warnings.push(`${proposed.room} is already booked for ${name} at that time`);
+      warnings.push(`${proposed.room} is already booked for ${name} ${when}`);
     }
   }
 
   return warnings;
 }
+
