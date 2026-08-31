@@ -7,11 +7,16 @@ interface ScheduleForConflict {
   end_time: string;
   room: string | null;
   is_active: boolean;
+  /** Date window the rule is live for. Null = open-ended. */
+  effective_from?: string | null;
+  effective_until?: string | null;
+  is_one_time?: boolean;
   class_types?: { id: string; name: string; category: string } | null;
   instructors?: { id: string; first_name: string; last_name: string } | null;
 }
 
 export type { ScheduleForConflict };
+
 
 export interface ScheduleConflict {
   type: "instructor_overlap" | "room_conflict" | "identical_slot";
