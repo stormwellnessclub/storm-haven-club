@@ -49,7 +49,7 @@ import { format, addWeeks, differenceInCalendarDays, parse, startOfDay } from "d
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
+import { analyzeScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView, type CalendarPrefill } from "@/components/admin/WeeklyCalendarView";
 import { InstructorScheduleDrawer } from "@/components/admin/InstructorScheduleDrawer";
@@ -1042,7 +1042,13 @@ export default function ClassSchedules() {
         </div>
 
         {/* Conflict Detector */}
-        <ScheduleConflictPanel conflicts={conflicts} onEditSchedule={handleConflictEdit} />
+        <ScheduleConflictPanel
+          report={conflictReport}
+          usageByScheduleId={conflictUsage}
+          onEditSchedule={handleConflictEdit}
+          onDeactivateSchedule={(id) => deactivateScheduleMutation.mutate(id)}
+          deactivatingId={deactivateScheduleMutation.isPending ? (deactivateScheduleMutation.variables as string) : null}
+        />
 
         {/* Info Banner */}
         {activeScheduleCount > 0 && upcomingSessionCount === 0 && (
