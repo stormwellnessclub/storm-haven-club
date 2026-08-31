@@ -174,7 +174,7 @@ export function useJoinWaitlist() {
 
         const [{ data: session }, { data: prof }, { data: nonMember }] = await Promise.all([
           (supabase.from as any)("class_sessions")
-            .select("id, scheduled_date, scheduled_time, class_types(name)")
+            .select("id, session_date, start_time, class_types(name)")
             .eq("id", data.sessionId)
             .maybeSingle(),
           supabase
@@ -198,8 +198,8 @@ export function useJoinWaitlist() {
 
         const className =
           (session as any)?.class_types?.name ?? "your class";
-        const rawDate = (session as any)?.scheduled_date as string | undefined;
-        const rawTime = (session as any)?.scheduled_time as string | undefined;
+        const rawDate = (session as any)?.session_date as string | undefined;
+        const rawTime = (session as any)?.start_time as string | undefined;
         const dateStr = rawDate
           ? new Date(rawDate + "T00:00:00").toLocaleDateString("en-US", {
               weekday: "short",
