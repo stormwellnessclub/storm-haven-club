@@ -57,10 +57,21 @@ export function SalesTaxByMonthReport({ dateRange }: Props) {
         const from = format(startOfMonth(m), "yyyy-MM-dd'T'00:00:00");
         const to = format(endOfMonth(m), "yyyy-MM-dd'T'23:59:59");
         try {
-          const { data: res, error: fnErr } = await supabase.functions.invoke("stripe-sales-tax", {
-            body: { start_date: from, end_date: to },
-          });
-          if (fnErr) throw new Error(fnErr.message);
+          const callMonth = async () => {
+            const { data: res, error: fnErr } = await supabase.functions.invoke("stripe-sales-tax", {
+              body: { start_date: from, end_date: to },
+            });
+            if (fnErr) throw new Error(fnErr.message);
+            return res;
+          };
+
+          let res = await callMonth();
+          // Long report runs can outlive an access token. Refresh once and
+          // retry instead of failing the whole report with "access denied".
+          if (res?.ok === false && /sign in again|session expired|authorization/i.test(String(res.error || ""))) {
+            await supabase.auth.refreshSession();
+            res = await callMonth();
+          }
           if (res?.ok === false) throw new Error(res.error || "Request failed");
           results.push({
             key: format(m, "yyyy-MM"),
@@ -81,6 +92,11 @@ export function SalesTaxByMonthReport({ dateRange }: Props) {
       }
       return results;
     },
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 30,
+    retry: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const monthsData = data ?? [];

@@ -69,6 +69,8 @@ async function fetchRolesViaTable(userId: string): Promise<AppRole[]> {
 
 export function useUserRoles() {
   const { user, session, authReady } = useAuth();
+  const userId = user?.id ?? null;
+  const hasSession = !!session;
   const [state, setState] = useState<UserRolesState>({
     roles: [],
     loading: true,
@@ -79,22 +81,32 @@ export function useUserRoles() {
   // Preserve last successful roles so a transient refresh failure doesn't
   // cause a UI lockout for already-confirmed staff.
   const lastGoodRolesRef = useRef<AppRole[]>([]);
+  // Once roles have resolved for this user, later refreshes happen in the
+  // background so protected pages are never unmounted mid-work.
+  const resolvedOnceRef = useRef(false);
 
   const fetchRoles = useCallback(async () => {
     if (!authReady) {
+      if (resolvedOnceRef.current) return;
       setState((prev) => ({ ...prev, loading: true, resolved: false, error: null, jwtError: false }));
       return;
     }
 
-    if (!user || !session) {
+    if (!userId || !hasSession) {
       console.info('[useUserRoles] No user/session, resolving with empty roles');
       lastGoodRolesRef.current = [];
+      resolvedOnceRef.current = false;
       setState({ roles: [], loading: false, resolved: true, error: null, jwtError: false });
       return;
     }
 
-    console.info('[useUserRoles] Fetching roles for user:', user.id);
-    setState((prev) => ({ ...prev, loading: true, error: null, jwtError: false }));
+    console.info('[useUserRoles] Fetching roles for user:', userId);
+    setState((prev) => ({
+      ...prev,
+      loading: !resolvedOnceRef.current,
+      error: null,
+      jwtError: false,
+    }));
 
     let lastError: unknown = null;
     let sawJwtError = false;
@@ -111,9 +123,10 @@ export function useUserRoles() {
 
       // Primary: RPC path
       try {
-        const roles = await fetchRolesViaRpc(user.id);
+        const roles = await fetchRolesViaRpc(userId);
         console.info('[useUserRoles] Resolved roles via RPC:', roles);
         lastGoodRolesRef.current = roles;
+        resolvedOnceRef.current = true;
         setState({ roles, loading: false, resolved: true, error: null, jwtError: false });
         return;
       } catch (rpcErr) {
@@ -129,9 +142,10 @@ export function useUserRoles() {
 
       // Fallback: direct table query
       try {
-        const roles = await fetchRolesViaTable(user.id);
+        const roles = await fetchRolesViaTable(userId);
         console.info('[useUserRoles] Resolved roles via table:', roles);
         lastGoodRolesRef.current = roles;
+        resolvedOnceRef.current = true;
         setState({ roles, loading: false, resolved: true, error: null, jwtError: false });
         return;
       } catch (tableErr) {
@@ -152,11 +166,11 @@ export function useUserRoles() {
     setState({
       roles: preserved,
       loading: false,
-      resolved: preserved.length > 0,
+      resolved: resolvedOnceRef.current || preserved.length > 0,
       error: sawJwtError ? 'Session token is invalid' : 'Failed to fetch roles',
       jwtError: sawJwtError,
     });
-  }, [authReady, user, session]);
+  }, [authReady, userId, hasSession]);
 
   useEffect(() => {
     fetchRoles();

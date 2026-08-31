@@ -19,8 +19,10 @@ export function ProtectedAdminRoute({ children }: ProtectedAdminRouteProps) {
   // Stable loading state: show spinner while auth or roles are actively
   // resolving. If a refetch is in progress after a previous error, keep
   // showing "Verifying access..." rather than flipping to the error UI.
+  // Only block the page on the FIRST access check. Later background role
+  // refreshes (token refresh, window focus) must not unmount the current page.
   const stillResolvingRoles =
-    !!user && (rolesLoading || (!rolesResolved && !rolesError));
+    !!user && !rolesResolved && (rolesLoading || !rolesError);
 
   if (authLoading || !authReady || stillResolvingRoles) {
     return (
