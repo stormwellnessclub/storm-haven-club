@@ -69,6 +69,8 @@ async function fetchRolesViaTable(userId: string): Promise<AppRole[]> {
 
 export function useUserRoles() {
   const { user, session, authReady } = useAuth();
+  const userId = user?.id ?? null;
+  const hasSession = !!session;
   const [state, setState] = useState<UserRolesState>({
     roles: [],
     loading: true,
