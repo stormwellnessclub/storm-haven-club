@@ -295,9 +295,7 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
           scheduleB: b,
           detail: `${instructorName(a)} is double-booked: ${classA} and ${classB}`,
         });
-      }
-
-      if (a.room && b.room && a.room === b.room) {
+      } else if (a.room && b.room && normRoom(a.room) === normRoom(b.room)) {
         conflicts.push({
           type: "room_conflict",
           severity: "medium",

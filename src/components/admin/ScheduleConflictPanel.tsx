@@ -167,6 +167,9 @@ export function ScheduleConflictPanel({
                   <span className="text-xs text-muted-foreground">
                     {cluster.schedules.length} classes scheduled here
                   </span>
+                  <Badge variant="outline" className="text-xs">
+                    {sharedWindowLabel(cluster.schedules[0], cluster.schedules[1])}
+                  </Badge>
                 </div>
                 <div className="space-y-2">{cluster.schedules.map(renderScheduleRow)}</div>
               </div>
