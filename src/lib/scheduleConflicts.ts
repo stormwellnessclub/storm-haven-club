@@ -171,7 +171,9 @@ export function analyzeScheduleConflicts(
       const a = active[i];
       const b = active[j];
       if (a.day_of_week !== b.day_of_week) continue;
+      if (!windowsOverlap(scheduleWindow(a), scheduleWindow(b))) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
+
 
       const sameCluster =
         clusteredIds.has(a.id) &&
