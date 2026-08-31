@@ -61,6 +61,7 @@ import MemberCafe from "./pages/member/Cafe";
 import PortalCafe from "./pages/portal/Cafe";
 import Amenities from "./pages/Amenities";
 import KidsCare from "./pages/KidsCare";
+import Reviews from "./pages/Reviews";
 import ClassPasses from "./pages/ClassPasses";
 import Memberships from "./pages/Memberships";
 import Apply from "./pages/Apply";
@@ -309,6 +310,7 @@ const App = () => (
               <Route path="/personal-training/private-pilates" element={<PTPrivatePilates />} />
               
               <Route path="/personal-training/semi-private" element={<PTSemiPrivate />} />
+              <Route path="/reviews" element={<Reviews />} />
               <Route path="/class-passes" element={<ClassPasses />} />
               <Route path="/memberships" element={<Memberships />} />
               <Route path="/apply" element={<Apply />} />
