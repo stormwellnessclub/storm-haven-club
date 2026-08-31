@@ -13079,6 +13079,21 @@ export type Database = {
           therapist_name: string
         }[]
       }
+      get_public_class_reviews: {
+        Args: never
+        Returns: {
+          class_category: string
+          class_type_id: string
+          class_type_name: string
+          created_at: string
+          id: string
+          instructor_id: string
+          instructor_name: string
+          rating: number
+          review_text: string
+          reviewer_name: string
+        }[]
+      }
       get_public_instructors: {
         Args: never
         Returns: {
