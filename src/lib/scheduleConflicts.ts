@@ -11,6 +11,8 @@ interface ScheduleForConflict {
   instructors?: { id: string; first_name: string; last_name: string } | null;
 }
 
+export type { ScheduleForConflict };
+
 export interface ScheduleConflict {
   type: "instructor_overlap" | "room_conflict" | "identical_slot";
   severity: "high" | "medium";
@@ -18,6 +20,32 @@ export interface ScheduleConflict {
   scheduleA: ScheduleForConflict;
   scheduleB: ScheduleForConflict;
   detail: string;
+}
+
+/** A group of 2+ schedules sharing the exact same weekday, room and time window. */
+export interface ScheduleSlotCluster {
+  key: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  room: string;
+  schedules: ScheduleForConflict[];
+}
+
+/** A pairwise overlap that is not an exact same-slot duplicate. */
+export interface SchedulePairConflict {
+  type: "instructor_overlap" | "room_overlap";
+  dayOfWeek: number;
+  scheduleA: ScheduleForConflict;
+  scheduleB: ScheduleForConflict;
+  detail: string;
+}
+
+export interface ScheduleConflictReport {
+  clusters: ScheduleSlotCluster[];
+  pairs: SchedulePairConflict[];
+  /** Number of distinct problem areas: one per cluster + one per pair conflict. */
+  totalIssues: number;
 }
 
 function timeToMinutes(time: string): number {
@@ -33,6 +61,108 @@ function timesOverlap(startA: string, endA: string, startB: string, endB: string
   return sA < eB && sB < eA;
 }
 
+function instructorName(s: ScheduleForConflict): string {
+  return s.instructors ? `${s.instructors.first_name} ${s.instructors.last_name}` : "This instructor";
+}
+
+function className(s: ScheduleForConflict): string {
+  return s.class_types?.name || "Unknown class";
+}
+
+function normRoom(room: string | null): string | null {
+  const r = room?.trim().toLowerCase();
+  return r ? r : null;
+}
+
+/**
+ * Groups exact same-slot duplicates into clusters (one issue per time slot, not per pair)
+ * and reports remaining partial overlaps (same instructor / same room at overlapping times)
+ * as individual pair conflicts.
+ */
+export function analyzeScheduleConflicts(
+  schedules: ScheduleForConflict[]
+): ScheduleConflictReport {
+  const active = schedules.filter((s) => s.is_active);
+
+  // 1. Cluster exact duplicates: same day + room + start + end
+  const clusterMap = new Map<string, ScheduleSlotCluster>();
+  for (const s of active) {
+    const room = normRoom(s.room);
+    if (!room) continue;
+    const key = `${s.day_of_week}|${room}|${s.start_time}|${s.end_time}`;
+    const existing = clusterMap.get(key);
+    if (existing) {
+      existing.schedules.push(s);
+    } else {
+      clusterMap.set(key, {
+        key,
+        dayOfWeek: s.day_of_week,
+        startTime: s.start_time,
+        endTime: s.end_time,
+        room: s.room!.trim(),
+        schedules: [s],
+      });
+    }
+  }
+
+  const clusters = Array.from(clusterMap.values())
+    .filter((c) => c.schedules.length > 1)
+    .sort(
+      (a, b) => a.dayOfWeek - b.dayOfWeek || timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
+    );
+
+  const clusteredIds = new Set<string>();
+  for (const c of clusters) for (const s of c.schedules) clusteredIds.add(s.id);
+
+  // 2. Remaining pairwise overlaps (partial overlaps, or duplicates already clustered are skipped)
+  const pairs: SchedulePairConflict[] = [];
+  for (let i = 0; i < active.length; i++) {
+    for (let j = i + 1; j < active.length; j++) {
+      const a = active[i];
+      const b = active[j];
+      if (a.day_of_week !== b.day_of_week) continue;
+      if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
+
+      const sameCluster =
+        clusteredIds.has(a.id) &&
+        clusteredIds.has(b.id) &&
+        a.start_time === b.start_time &&
+        a.end_time === b.end_time &&
+        normRoom(a.room) !== null &&
+        normRoom(a.room) === normRoom(b.room);
+      if (sameCluster) continue;
+
+      if (a.instructor_id && b.instructor_id && a.instructor_id === b.instructor_id) {
+        pairs.push({
+          type: "instructor_overlap",
+          dayOfWeek: a.day_of_week,
+          scheduleA: a,
+          scheduleB: b,
+          detail: `${instructorName(a)} is scheduled to teach two classes at once — ${className(
+            a
+          )} and ${className(b)}`,
+        });
+      }
+
+      const roomA = normRoom(a.room);
+      if (roomA && roomA === normRoom(b.room)) {
+        pairs.push({
+          type: "room_overlap",
+          dayOfWeek: a.day_of_week,
+          scheduleA: a,
+          scheduleB: b,
+          detail: `${a.room} is used by two overlapping classes — ${className(a)} and ${className(
+            b
+          )}`,
+        });
+      }
+    }
+  }
+
+  return { clusters, pairs, totalIssues: clusters.length + pairs.length };
+}
+
+/** @deprecated Kept for compatibility — prefer analyzeScheduleConflicts. */
 export function detectScheduleConflicts(schedules: ScheduleForConflict[]): ScheduleConflict[] {
   const active = schedules.filter((s) => s.is_active);
   const conflicts: ScheduleConflict[] = [];
@@ -45,10 +175,9 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
       if (a.day_of_week !== b.day_of_week) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
 
-      const classA = a.class_types?.name || "Unknown";
-      const classB = b.class_types?.name || "Unknown";
+      const classA = className(a);
+      const classB = className(b);
 
-      // Check identical slot
       if (
         a.start_time === b.start_time &&
         a.end_time === b.end_time &&
@@ -62,25 +191,20 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
           scheduleB: b,
           detail: `${classA} and ${classB} are in the same room (${a.room}) at the exact same time`,
         });
-        continue; // Don't double-report as room conflict
+        continue;
       }
 
-      // Instructor overlap
       if (a.instructor_id && b.instructor_id && a.instructor_id === b.instructor_id) {
-        const name = a.instructors
-          ? `${a.instructors.first_name} ${a.instructors.last_name}`
-          : "Unknown";
         conflicts.push({
           type: "instructor_overlap",
           severity: "high",
           dayOfWeek: a.day_of_week,
           scheduleA: a,
           scheduleB: b,
-          detail: `${name} is double-booked: ${classA} and ${classB}`,
+          detail: `${instructorName(a)} is double-booked: ${classA} and ${classB}`,
         });
       }
 
-      // Room conflict
       if (a.room && b.room && a.room === b.room) {
         conflicts.push({
           type: "room_conflict",
@@ -94,7 +218,6 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
     }
   }
 
-  // Sort: high severity first
   return conflicts.sort((a, b) => (a.severity === "high" ? -1 : 1) - (b.severity === "high" ? -1 : 1));
 }
 
@@ -127,7 +250,7 @@ export function checkNewScheduleConflicts(
     if (existing.day_of_week !== proposed.day_of_week) continue;
     if (!timesOverlap(proposed.start_time, proposed.end_time, existing.start_time, existing.end_time)) continue;
 
-    const className = existing.class_types?.name || "another class";
+    const name = existing.class_types?.name || "another class";
 
     // Instructor overlap
     if (
@@ -135,10 +258,7 @@ export function checkNewScheduleConflicts(
       existing.instructor_id &&
       proposed.instructor_id === existing.instructor_id
     ) {
-      const name = existing.instructors
-        ? `${existing.instructors.first_name} ${existing.instructors.last_name}`
-        : "The selected instructor";
-      warnings.push(`${name} is already teaching ${className} at that time`);
+      warnings.push(`${instructorName(existing)} is already teaching ${name} at that time`);
     }
 
     // Room conflict
@@ -147,7 +267,7 @@ export function checkNewScheduleConflicts(
       existing.room &&
       proposed.room.trim().toLowerCase() === existing.room.trim().toLowerCase()
     ) {
-      warnings.push(`${proposed.room} is already booked for ${className} at that time`);
+      warnings.push(`${proposed.room} is already booked for ${name} at that time`);
     }
   }
 
