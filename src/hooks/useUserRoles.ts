@@ -81,22 +81,32 @@ export function useUserRoles() {
   // Preserve last successful roles so a transient refresh failure doesn't
   // cause a UI lockout for already-confirmed staff.
   const lastGoodRolesRef = useRef<AppRole[]>([]);
+  // Once roles have resolved for this user, later refreshes happen in the
+  // background so protected pages are never unmounted mid-work.
+  const resolvedOnceRef = useRef(false);
 
   const fetchRoles = useCallback(async () => {
     if (!authReady) {
+      if (resolvedOnceRef.current) return;
       setState((prev) => ({ ...prev, loading: true, resolved: false, error: null, jwtError: false }));
       return;
     }
 
-    if (!user || !session) {
+    if (!userId || !hasSession) {
       console.info('[useUserRoles] No user/session, resolving with empty roles');
       lastGoodRolesRef.current = [];
+      resolvedOnceRef.current = false;
       setState({ roles: [], loading: false, resolved: true, error: null, jwtError: false });
       return;
     }
 
-    console.info('[useUserRoles] Fetching roles for user:', user.id);
-    setState((prev) => ({ ...prev, loading: true, error: null, jwtError: false }));
+    console.info('[useUserRoles] Fetching roles for user:', userId);
+    setState((prev) => ({
+      ...prev,
+      loading: !resolvedOnceRef.current,
+      error: null,
+      jwtError: false,
+    }));
 
     let lastError: unknown = null;
     let sawJwtError = false;
