@@ -91,12 +91,7 @@ export default function Reports() {
   }, []);
 
   const handleExport = useCallback(() => {
-    setIsExporting(true);
-    // Simulate export - in production this would generate actual CSV
-    setTimeout(() => {
-      toast.success('Report exported successfully');
-      setIsExporting(false);
-    }, 1000);
+    toast.info('Use the "Export" button inside the report below to download its full detail.');
   }, []);
 
   const SidebarContent = (
