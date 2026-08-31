@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
+import { PTNewClientDialog } from "@/components/admin/pt/PTNewClientDialog";
 
 const fmt = (iso: string | null, pattern = "MMM d") => (iso ? fmtDate(parseISO(iso), pattern) : "—");
 
@@ -47,6 +48,7 @@ export default function PTClients() {
   const [viewShared, setViewShared] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
   const [bookOpen, setBookOpen] = useState(false);
+  const [newClientOpen, setNewClientOpen] = useState(false);
 
   const set = <K extends keyof PTClientFilters>(key: K, value: PTClientFilters[K]) => {
     setActiveView(null);
@@ -76,6 +78,9 @@ export default function PTClients() {
         subtitle="Search, segment and manage every training client."
         actions={
           <>
+            <button className={ptButtonClass("outline")} onClick={() => setNewClientOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" /> Add client
+            </button>
             <button className={ptButtonClass("outline")} onClick={() => setBookOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" /> Book session
             </button>
