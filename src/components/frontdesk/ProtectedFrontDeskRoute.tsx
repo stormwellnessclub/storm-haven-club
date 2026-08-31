@@ -14,7 +14,7 @@ export function ProtectedFrontDeskRoute({ children }: { children: ReactNode }) {
   const { user, loading: authLoading, authReady } = useAuth();
   const { roles, loading: rolesLoading, resolved, error, refetch } = useUserRoles();
 
-  if (authLoading || !authReady || (user && (rolesLoading || (!resolved && !error)))) {
+  if (authLoading || !authReady || (user && !resolved && (rolesLoading || !error))) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <NoIndex />

@@ -237,7 +237,16 @@ import AdminPersonalTrainingTrainers from "@/pages/admin/PersonalTrainingTrainer
 import AdminPersonalTrainingUnpaid from "@/pages/admin/PersonalTrainingUnpaid";
 
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Returning to a tab/window must not re-run every active query, which
+      // was wiping in-progress screens (e.g. long report generation).
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+  },
+});
 
 const App = () => (
   <HelmetProvider>
