@@ -1,94 +1,62 @@
 # Class Studio Portal (Admin)
 
-One destination for scheduling, rosters, waitlists and studio metrics — instead of jumping between Today's Classes, Class Management, Class Schedules and Roster.
+One destination for planning, scheduling, staffing, rosters and studio metrics — instead of jumping between Today's Classes, Class Management, Class Schedules and Roster.
+
+## Research: what top-rated studio systems do
+
+Reviewed the admin scheduling experience of Mariana Tek, Momence, Arketa, WellnessLiving, Mindbody, Pike13, zingfit and Xplor Studio.
+
+Table stakes they all have and we don't:
+- Recurring "series" templates with edit-this-occurrence vs edit-entire-series.
+- One-off overrides layered on a series without breaking the template.
+- Substitute instructor for a single date, preserving the instructor of record for pay/history.
+- Roster/check-in slide-out panel from the calendar (no page change).
+- Capacity + waitlist shown on the calendar tile ("8/8", "wait 3").
+- Waitlist auto-promotion when a spot frees up.
+- Bulk publish/unpublish and copy-a-week-forward.
+
+Differentiators worth copying (this is where the month-planning pain gets solved):
+- Resource/room columns side by side (Mariana Tek, zingfit) so conflicts are visible instantly.
+- Drag-and-drop scheduling and rescheduling directly on the calendar (Momence, Mariana Tek).
+- A draft/publish workflow: build next month, review, then publish in one action.
+- Instructor coverage view — hours per instructor per week, conflicts, unstaffed classes flagged.
+- Bulk actions: mass-cancel a date range (holidays), bulk instructor swap, bulk capacity change.
+- Utilization analytics by class type / instructor / time slot to prune the schedule.
+- Booking-window controls per template (how far ahead members can book).
+
+## Mockups
+
+Two mockups accompany this plan: the **Day Grid** (studio columns + roster panel) and the **Month Planner** (template palette, drag-to-day, instructor coverage, publish draft).
 
 ## What exists today
 
 - Rooms are free text on schedules/sessions. Live values: Reformer Studio (71), Cycle Studio (41), Aerobics Studio (31), plus one typo "REFOREMR STUDIO".
 - Four separate pages: `/admin/classes` (today), `/admin/class-types`, `/admin/class-schedules`, roster on its own page.
-- Sessions already carry room, capacity, enrollment, cancelled/hidden, invite-only, fundraiser, notes, price override.
-
-## Mockup — Studio Grid (default view)
-
-```text
-CLASS STUDIO PORTAL          [ Grid | Week | List | Templates | Metrics ]
-< >  Mon Sep 1, 2026  [Today]   Rooms: [All v]  Instructor: [All v]  [+ Add Class]
-────────────────────────────────────────────────────────────────────────────
-        REFORMER STUDIO        CYCLE STUDIO          AEROBICS STUDIO
-        cap 8                  cap 10                cap 20
- 6:00 ┌──────────────────┐
- 6:30 │ Reformer 50      │  ┌──────────────────┐
- 7:00 │ Sara K.  8/8 FULL│  │ Rhythm Ride      │
- 7:30 │ wait 3           │  │ Mia R.   6/10    │
- 8:00 └──────────────────┘  └──────────────────┘  ┌──────────────────┐
- 8:30                                             │ Mat Pilates      │
- 9:00 ┌──────────────────┐                        │ SUB: Dana  4/20  │
- 9:30 │ Reformer Flow    │                        └──────────────────┘
-10:00 │ (no instructor)⚠ │
-      └──────────────────┘
- ...
-────────────────────────────────────────────────────────────────────────────
-Today: 9 classes · 71% fill · 4 waitlisted · 2 unstaffed ⚠ · 1 hidden
-```
-
-- Columns = studios, rows = time. Overlaps in one column are an instant visual conflict.
-- Tile shows class, instructor (SUB badge when substituted), x/y filled, waitlist count, and flags (hidden, cancelled, invite-only, fundraiser).
-- Drag a tile to a new time or another studio column to reschedule that one session (confirm dialog, notifies booked members).
-
-## Mockup — Session side panel (click a tile, no page change)
-
-```text
-┌ Reformer 50 · Mon Sep 1 · 6:30–7:20 AM · Reformer Studio ────────── X ┐
-│ Sara K. [Change] [Assign sub]     Capacity 8 [-][+]   8/8 · Wait 3    │
-│ [Check-in] [Roster] [Waitlist 3] [Details] [History]                  │
-│ ─────────────────────────────────────────────────────────────────────│
-│ ✔ Malak B.        Gold        checked in 6:24a      [no-show][remove] │
-│ ○ Jerica S.       Class pass  —                     [check in]        │
-│ ✗ Amy T.          Gold        cancelled (late)                        │
-│ + Add member / guest to this class                                    │
-│ ─────────────────────────────────────────────────────────────────────│
-│ [Cancel class] [Hide] [Invite-only] [Notes] [Message roster]          │
-└───────────────────────────────────────────────────────────────────────┘
-```
-
-## Mockup — Metrics tab
-
-```text
-Range: [Last 30 days v]   Studio: [All v]
-Fill rate 68%   Sessions 214   Bookings 1,412   No-show 6.1%   Waitlist 88
-
-Fill by studio      Reformer ███████████ 84%
-                    Cycle    ███████ 61%
-                    Aerobics ████ 42%
-
-Best / worst time slots        Instructor leaderboard
-Tue 6:00a Reformer  97% ↑      Sara K.     88% · 2.1% no-show
-Sun 4:00p Aerobics  19% ↓      Mia R.      64% · 7.8% no-show
-                               (empty-seat cost + trend arrows per slot)
-```
+- `class_sessions` already carries room, capacity, enrollment, cancelled/hidden, invite-only, fundraiser, notes, price override.
 
 ## Scope
 
-**Phase 1 — Portal shell + Studio Grid**
-- New route `/admin/class-studio` with tabs: Grid, Week, List, Templates, Metrics. Existing pages stay reachable; sidebar points here first.
-- Day grid by studio column, with room/instructor/class-type filters and a "show cancelled/hidden" toggle.
-- Session side panel with roster, check-in, no-show, add/remove attendee, waitlist promote, capacity change, cancel/hide/notes — all without leaving the grid.
-- Normalize room values to a small studio list (fix "REFOREMR STUDIO"; rooms become a picker, not free text).
+**Phase 1 — Portal shell + Day Grid**
+- New route `/admin/class-studio` with tabs: Day Grid, Week, Month Planner, Templates, Metrics. Sidebar points here first; old pages stay reachable.
+- Day grid with one column per studio, time axis, filters (studio, instructor, class type), toggle for cancelled/hidden.
+- Session slide-out panel: roster, check-in, no-show, add walk-in, waitlist promote, capacity change, cancel/hide/notes, message class — all without leaving the grid.
+- Normalize rooms into a studio list (fix "REFOREMR STUDIO"); room becomes a picker, not free text.
 
-**Phase 2 — Control & speed**
-- Drag-and-drop reschedule (time/studio) for a single session, with conflict guard.
-- Substitute instructor for one date, preserving the schedule's instructor of record.
-- Bulk actions: copy a week forward, mass-cancel a date range (holidays), bulk instructor swap, bulk capacity change.
-- Quick "add one-off class" from an empty grid cell (pre-fills day/time/studio).
+**Phase 2 — Month Planner (the monthly scheduling workflow)**
+- Month calendar with a left palette of class templates (class type + default instructor + duration + studio). Drag a template onto a day to schedule it; drag within the calendar to move it.
+- Draft mode: everything you add/move/remove stays unpublished until "Publish" — with a change counter and a review list. Members never see half-built months.
+- Instructor coverage rail: hours per instructor for the visible week, conflicts, and unstaffed-class flags.
+- Bulk tools: Copy Week Forward (into the next N weeks), Bulk Assign Instructor over a date range, Mass Cancel Range for holidays, bulk capacity change.
+- Assign a substitute for one date without changing the recurring rule.
 
 **Phase 3 — Templates & metrics**
-- Templates tab: recurring rules grouped by studio and weekday with active date windows, clone-a-template, activate/deactivate, and the existing conflict panel folded in.
-- Metrics tab: fill rate, no-show rate, waitlist demand, revenue per session, best/worst slots, instructor leaderboard, with CSV export.
+- Templates tab: recurring rules grouped by studio and weekday with their active date windows, clone-a-template, activate/deactivate, booking-window setting per template, and the existing conflict panel folded in.
+- Metrics tab: fill rate by studio/class type/time slot, no-show rate, waitlist demand, revenue per session, instructor leaderboard, best/worst slots, CSV export.
 
 ## Technical notes
 
-- New page `src/pages/admin/ClassStudio.tsx` plus components under `src/components/admin/class-studio/` (StudioGrid, SessionPanel, RosterList, TemplatesTab, MetricsTab). Existing `ClassRoster.tsx` logic is reused via extracted hooks rather than duplicated.
-- All times computed in `America/Detroit`; tab/filter/date state stored in the URL so refresh and Back keep position.
-- Room normalization is a data cleanup plus a `studios` lookup (or constant list) feeding the picker; sessions keep their `room` text for compatibility.
-- Reschedule, sub-assign, bulk cancel and waitlist promotion go through RPCs so capacity, credits, refunds and notifications stay consistent with current booking rules; cancelled bookings remain visible greyed out with Early/Late labels.
-- Metrics come from aggregate queries over `class_sessions` / `class_bookings` / `class_waitlist`, cached per range.
+- New page `src/pages/admin/ClassStudio.tsx` with components under `src/components/admin/class-studio/` (StudioDayGrid, SessionPanel, MonthPlanner, TemplatePalette, CoverageRail, TemplatesTab, MetricsTab). Roster logic reused from `ClassRoster.tsx` via extracted hooks rather than duplicated.
+- Draft/publish adds a staged-change layer for planned sessions (draft rows plus a publish RPC) so nothing reaches members until published.
+- All times in `America/Detroit`; tab, date and filter state kept in the URL so refresh and Back keep position.
+- Move, sub-assign, bulk cancel and waitlist promotion go through RPCs so capacity, credits, refunds and notifications match current booking rules; cancelled bookings stay visible greyed out with Early/Late labels.
+- Metrics from aggregate queries over `class_sessions`, `class_bookings`, `class_waitlist`, cached per range.
