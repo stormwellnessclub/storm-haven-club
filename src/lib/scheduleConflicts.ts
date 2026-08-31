@@ -79,22 +79,67 @@ function normRoom(room: string | null): string | null {
   return r ? r : null;
 }
 
+type DateWindow = { from: string | null; until: string | null };
+
+function todayISO(): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** The live date window for a rule. One-offs collapse to their single date. */
+export function scheduleWindow(s: {
+  effective_from?: string | null;
+  effective_until?: string | null;
+  is_one_time?: boolean;
+}): DateWindow {
+  if (s.is_one_time) {
+    const day = s.effective_from || s.effective_until || null;
+    return { from: day, until: day };
+  }
+  return { from: s.effective_from ?? null, until: s.effective_until ?? null };
+}
+
+/** Two date windows overlap. Null bounds are treated as open-ended. */
+function windowsOverlap(a: DateWindow, b: DateWindow): boolean {
+  if (a.until && b.from && a.until < b.from) return false;
+  if (b.until && a.from && b.until < a.from) return false;
+  return true;
+}
+
+/** A rule whose window already ended can never conflict with anything upcoming. */
+function isExpired(s: ScheduleForConflict, today: string): boolean {
+  const w = scheduleWindow(s);
+  return !!w.until && w.until < today;
+}
+
+function windowKey(w: DateWindow): string {
+  return `${w.from ?? "*"}~${w.until ?? "*"}`;
+}
+
 /**
  * Groups exact same-slot duplicates into clusters (one issue per time slot, not per pair)
  * and reports remaining partial overlaps (same instructor / same room at overlapping times)
  * as individual pair conflicts.
+ *
+ * Date-aware: schedules whose date windows never overlap (e.g. an August rule and its
+ * September replacement) are not conflicts, and expired rules are ignored entirely.
  */
 export function analyzeScheduleConflicts(
   schedules: ScheduleForConflict[]
 ): ScheduleConflictReport {
-  const active = schedules.filter((s) => s.is_active);
+  const today = todayISO();
+  const active = schedules.filter((s) => s.is_active && !isExpired(s, today));
 
-  // 1. Cluster exact duplicates: same day + room + start + end
+  // 1. Cluster exact duplicates: same day + room + start + end + same live date window
   const clusterMap = new Map<string, ScheduleSlotCluster>();
   for (const s of active) {
     const room = normRoom(s.room);
     if (!room) continue;
-    const key = `${s.day_of_week}|${room}|${s.start_time}|${s.end_time}`;
+    const key = `${s.day_of_week}|${room}|${s.start_time}|${s.end_time}|${windowKey(
+      scheduleWindow(s)
+    )}`;
+
     const existing = clusterMap.get(key);
     if (existing) {
       existing.schedules.push(s);
