@@ -49,6 +49,7 @@ import {
   Leaf,
   GraduationCap,
   Tag,
+  LayoutGrid,
 } from "lucide-react";
 import {
   Sidebar,
