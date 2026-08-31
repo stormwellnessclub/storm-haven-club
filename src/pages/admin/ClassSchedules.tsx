@@ -49,7 +49,7 @@ import { format, addWeeks, differenceInCalendarDays, parse, startOfDay } from "d
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
+import { analyzeScheduleConflicts, detectScheduleConflicts, checkNewScheduleConflicts } from "@/lib/scheduleConflicts";
 import { ScheduleConflictPanel } from "@/components/admin/ScheduleConflictPanel";
 import { WeeklyCalendarView, type CalendarPrefill } from "@/components/admin/WeeklyCalendarView";
 import { InstructorScheduleDrawer } from "@/components/admin/InstructorScheduleDrawer";
@@ -561,7 +561,66 @@ export default function ClassSchedules() {
 
   const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
+  const conflictReport = useMemo(() => analyzeScheduleConflicts(schedules), [schedules]);
   const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
+
+  const conflictScheduleIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const c of conflictReport.clusters) for (const s of c.schedules) ids.add(s.id);
+    for (const p of conflictReport.pairs) {
+      ids.add(p.scheduleA.id);
+      ids.add(p.scheduleB.id);
+    }
+    return Array.from(ids).sort();
+  }, [conflictReport]);
+
+  // Bookings attached to each conflicting schedule, so staff can see what is safe to remove.
+  const { data: conflictBookingCounts = {} } = useQuery({
+    queryKey: ['conflict-schedule-bookings', conflictScheduleIds],
+    enabled: conflictScheduleIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("class_bookings")
+        .select("id, class_sessions!inner(schedule_id)")
+        .in("class_sessions.schedule_id", conflictScheduleIds);
+      if (error) throw error;
+      const counts: Record<string, number> = {};
+      for (const row of (data || []) as unknown as { class_sessions: { schedule_id: string | null } }[]) {
+        const sid = row.class_sessions?.schedule_id;
+        if (!sid) continue;
+        counts[sid] = (counts[sid] || 0) + 1;
+      }
+      return counts;
+    },
+  });
+
+  const conflictUsage = useMemo(() => {
+    const usage: Record<string, { sessions: number; bookings: number }> = {};
+    for (const id of conflictScheduleIds) {
+      usage[id] = {
+        sessions: (generatedSessionsBySchedule.get(id) || []).filter(s => !s.is_cancelled && !s.is_hidden).length,
+        bookings: conflictBookingCounts[id] || 0,
+      };
+    }
+    return usage;
+  }, [conflictScheduleIds, generatedSessionsBySchedule, conflictBookingCounts]);
+
+  const deactivateScheduleMutation = useMutation({
+    mutationFn: async (scheduleId: string) => {
+      const { error } = await supabase
+        .from("class_schedules")
+        .update({ is_active: false })
+        .eq("id", scheduleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['class-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-generated-sessions'] });
+      toast.success("Schedule deactivated — no new sessions will be generated for it");
+    },
+    onError: (error: Error) => toast.error(error.message || "Failed to deactivate schedule"),
+  });
+
 
   // Real-time inline warnings for the form
   const formWarnings = useMemo(() => {
@@ -984,7 +1043,13 @@ export default function ClassSchedules() {
         </div>
 
         {/* Conflict Detector */}
-        <ScheduleConflictPanel conflicts={conflicts} onEditSchedule={handleConflictEdit} />
+        <ScheduleConflictPanel
+          report={conflictReport}
+          usageByScheduleId={conflictUsage}
+          onEditSchedule={handleConflictEdit}
+          onDeactivateSchedule={(id) => deactivateScheduleMutation.mutate(id)}
+          deactivatingId={deactivateScheduleMutation.isPending ? (deactivateScheduleMutation.variables as string) : null}
+        />
 
         {/* Info Banner */}
         {activeScheduleCount > 0 && upcomingSessionCount === 0 && (
