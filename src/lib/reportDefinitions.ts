@@ -259,6 +259,15 @@ export const REPORTS: ReportDefinition[] = [
     defaultDateRange: 'last30days',
   },
   {
+    id: 'sales-tax-by-month',
+    name: 'Sales Tax by Month (Detailed)',
+    description: 'Every taxed sale broken down month by month, by source, with full transaction detail and CSV export',
+    category: 'financial',
+    icon: Receipt,
+    filters: [],
+    defaultDateRange: 'last12months',
+  },
+  {
     id: 'cafe-sales',
     name: 'Café Sales Report',
     description: 'Daily café revenue, top items, category breakdown, tax collected, and order log',

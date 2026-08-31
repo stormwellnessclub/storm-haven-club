@@ -37,6 +37,7 @@ import { GuestReturnsReport } from "./reports/GuestReturnsReport";
 import { ClassEngagementReport } from "./reports/ClassEngagementReport";
 import { DailySalesBreakdownReport } from "./reports/DailySalesBreakdownReport";
 import { SalesTaxReport } from "./reports/SalesTaxReport";
+import { SalesTaxByMonthReport } from "./reports/SalesTaxByMonthReport";
 import { CafeSalesReport } from "./reports/CafeSalesReport";
 import { CafeSalesByMonthReport } from "./reports/CafeSalesByMonthReport";
 import { AutopayUpcomingChargesReport } from "./reports/AutopayUpcomingChargesReport";
@@ -158,6 +159,7 @@ function ReportContent({ reportId, dateRange, filters }: ReportContentProps) {
     'guest-returns': GuestReturnsReport,
     'class-engagement': ClassEngagementReport,
     'sales-tax-collected': SalesTaxReport,
+    'sales-tax-by-month': SalesTaxByMonthReport,
     'cafe-sales': CafeSalesReport,
     'cafe-sales-by-month': CafeSalesByMonthReport,
   };
