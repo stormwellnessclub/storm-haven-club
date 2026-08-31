@@ -216,6 +216,24 @@ export default function Applications() {
   const [pendingBulkAction, setPendingBulkAction] = useState<string | null>(null);
   const [planFilter, setPlanFilter] = useState<string>("all");
   const [memberLinkStatus, setMemberLinkStatus] = useState<{ hasUser: boolean; hasMember: boolean; memberLinked: boolean } | null>(null);
+
+  // Authoritative waiver record lives on the member's profile (signed in-app),
+  // not on the application's acknowledgement checkbox.
+  const { data: waiverRecord } = useQuery({
+    queryKey: ["application-waiver-record", selectedApplication?.email?.toLowerCase()],
+    enabled: !!selectedApplication?.email,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("waiver_signed, waiver_signed_at")
+        .ilike("email", selectedApplication!.email)
+        .order("waiver_signed_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+  });
+
   
   // Charge dialog state
   const [showChargeDialog, setShowChargeDialog] = useState(false);
