@@ -16,8 +16,8 @@ Verified read-only just now:
 
 Rebuild the exhibit as `malak-bazzi-terms-disclosure-v4.pdf`:
 
-1. Drop the script-signature stamp entirely. The agreement pages are included exactly as published, unmodified, signature line blank.
-2. On the agreement page, overlay only a neutral, clearly-labeled annotation box (not on the signature line itself) reading: "Accepted electronically — no handwritten signature captured. See Electronic Acceptance Record."
+1. Drop the script-signature stamp entirely.
+2. White out the handwritten signature block on agreement page 3 (Member Name / Signature / Date lines) so there is no empty signature line to invite confusion, and place in its place a clearly-labeled box: "Accepted electronically on March 14, 2026 by mbazzi5988@gmail.com — see Electronic Acceptance Record." The agreement's terms text stays untouched; a footnote on that page notes the acknowledgment block was replaced with the electronic acceptance record for this exhibit.
 3. Rename the "Electronic Signature Certificate" page to **Electronic Acceptance Record** and state plainly what the system captured: the acceptance flags with their exact field names and values, submission timestamp, authenticated account email, application ID — and an explicit line that no handwritten or typed signature was captured because enrollment is checkbox-based.
 4. Keep the corroboration section (waiver record, card authorization, payment history, check-in history) since that is what actually carries weight for a 13.2 rebuttal.
 5. Retain v3 on disk but stop treating it as the deliverable.
