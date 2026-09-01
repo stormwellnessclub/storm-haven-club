@@ -108,7 +108,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
 
   // Payment method
   const payMap = new Map<string, { count: number; revenue: number }>();
-  orders.forEach((o) => {
+  sales.forEach((o) => {
     const method = o.payment_method || "Unknown";
     const entry = payMap.get(method) || { count: 0, revenue: 0 };
     entry.count += 1;
@@ -253,7 +253,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
 
       {/* Order Log */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Order Log ({orders.length} orders)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Order Log ({sales.length} orders)</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -266,7 +266,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.slice(0, 100).map((order) => {
+              {sales.slice(0, 100).map((order) => {
                 const itemSummary = order.items.map((it) => it.name).join(", ");
                 return (
                   <TableRow key={order.id}>
@@ -280,7 +280,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
               })}
             </TableBody>
           </Table>
-          {orders.length > 100 && <p className="text-xs text-muted-foreground mt-2 text-center">Showing first 100 of {orders.length} orders</p>}
+          {sales.length > 100 && <p className="text-xs text-muted-foreground mt-2 text-center">Showing first 100 of {sales.length} orders</p>}
         </CardContent>
       </Card>
     </div>
