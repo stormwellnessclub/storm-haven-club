@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -7,13 +6,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Info, DollarSign, Receipt, Coffee } from "lucide-react";
 import { format } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { fetchCafeSales, CAFE_TAX_RATE } from "@/lib/cafeSales";
 
 interface Props {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
 
-const TAX_RATE = 0.06;
+const TAX_RATE = CAFE_TAX_RATE;
 
 export function CafeSalesByMonthReport({ dateRange }: Props) {
   const startISO = dateRange.start.toISOString();
@@ -22,24 +22,7 @@ export function CafeSalesByMonthReport({ dateRange }: Props) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["cafe-sales-by-month", startISO, endISO],
     queryFn: async () => {
-      // Page through to avoid 1000-row cap
-      const pageSize = 1000;
-      let from = 0;
-      const all: { created_at: string; total_amount: number }[] = [];
-      while (true) {
-        const { data, error } = await supabase
-          .from("cafe_orders")
-          .select("created_at,total_amount")
-          .eq("status", "completed")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO)
-          .order("created_at", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        all.push(...(data || []) as { created_at: string; total_amount: number }[]);
-        if (!data || data.length < pageSize) break;
-        from += pageSize;
-      }
+      const all = await fetchCafeSales(dateRange.start, dateRange.end);
 
       const byMonth = new Map<string, { key: string; label: string; orders: number; gross: number }>();
       for (const row of all) {
@@ -68,6 +51,7 @@ export function CafeSalesByMonthReport({ dateRange }: Props) {
       return { rows, totalGross, totalTax, totalNet, totalOrders };
     },
   });
+
 
   if (isLoading) {
     return (
