@@ -209,11 +209,19 @@ export function useStudioMutations() {
         .insert(payload as any)
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        if ((error as any).code === "23505") {
+          throw new Error(
+            "That class is already scheduled at this time on this day.",
+          );
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => invalidate(),
     onError: (e: any) => toast.error(e.message || "Could not add class"),
+
   });
 
   const cancelSession = useMutation({
@@ -358,17 +366,50 @@ export function useStudioMutations() {
           });
         });
       }
-      if (!rows.length) return 0;
-      const { error: insErr } = await supabase.from("class_sessions").insert(rows);
+      if (!rows.length) return { inserted: 0, skipped: 0 };
+
+      // Target weeks usually already contain the auto-generated recurring
+      // sessions. Skip those instead of letting the unique constraint
+      // (class_type_id, session_date, start_time) abort the whole insert.
+      const targetDates = Array.from(new Set(rows.map((r) => r.session_date)));
+      const { data: existing, error: exErr } = await supabase
+        .from("class_sessions")
+        .select("class_type_id, session_date, start_time")
+        .in("session_date", targetDates);
+      if (exErr) throw exErr;
+      const taken = new Set(
+        (existing || []).map(
+          (e: any) => `${e.class_type_id}|${e.session_date}|${e.start_time}`,
+        ),
+      );
+      const fresh: any[] = [];
+      for (const r of rows) {
+        const key = `${r.class_type_id}|${r.session_date}|${r.start_time}`;
+        if (taken.has(key)) continue;
+        taken.add(key);
+        fresh.push(r);
+      }
+      const skipped = rows.length - fresh.length;
+      if (!fresh.length) return { inserted: 0, skipped };
+
+      const { error: insErr } = await supabase.from("class_sessions").insert(fresh);
       if (insErr) throw insErr;
-      return rows.length;
+      return { inserted: fresh.length, skipped };
     },
-    onSuccess: (n) => {
+    onSuccess: ({ inserted, skipped }) => {
       invalidate();
-      toast.success(`Copied ${n} class${n === 1 ? "" : "es"} as drafts`);
+      if (!inserted && skipped) {
+        toast.info(`Nothing to copy — all ${skipped} classes already exist`);
+        return;
+      }
+      toast.success(
+        `Copied ${inserted} class${inserted === 1 ? "" : "es"} as drafts` +
+          (skipped ? ` · skipped ${skipped} already scheduled` : ""),
+      );
     },
     onError: (e: any) => toast.error(e.message || "Copy failed"),
   });
+
 
   const deleteDraft = useMutation({
     mutationFn: async (sessionId: string) => {
