@@ -1,18 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DollarSign, ShoppingCart, TrendingUp, Receipt, Coffee } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { fetchCafeSales, CAFE_TAX_RATE } from "@/lib/cafeSales";
 
 interface CafeSalesReportProps {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
 
-const TAX_RATE = 0.06;
+const TAX_RATE = CAFE_TAX_RATE;
 const PIE_COLORS = [
   "hsl(var(--primary))",
   "hsl(var(--chart-2))",
@@ -24,89 +24,11 @@ const PIE_COLORS = [
   "#ff7300",
 ];
 
-interface NormalizedOrder {
-  id: string;
-  created_at: string;
-  total_amount: number; // dollars
-  items: { name: string; category: string }[];
-  payment_method: string;
-  status: string;
-  source: "manual_charges" | "cafe_orders";
-}
-
-/** Parse item names from manual_charges description like:
- *  "Cafe - Matcha - Vanilla | Cafe - Banana Mango - (20oz) (incl. MI 6% tax)" */
-function parseDescription(desc: string): { name: string; category: string }[] {
-  // Remove trailing tax note
-  const cleaned = desc.replace(/\s*\(incl\.\s*MI\s*\d+%?\s*tax\)\s*$/i, "");
-  const segments = cleaned.split(" | ");
-  return segments.map((seg) => {
-    const parts = seg.split(" - ").map((p) => p.trim());
-    // parts[0] = "Cafe", parts[1] = item name, rest = variant/size
-    const itemName = parts.length > 1 ? parts.slice(1).filter(p => !p.startsWith("(")).join(" - ") : seg;
-    return { name: itemName || seg, category: "Café" };
-  });
-}
-
-interface OrderItem {
-  name?: string; itemName?: string; item_name?: string;
-  quantity?: number; qty?: number;
-  price?: number; total?: number;
-  category?: string; categoryName?: string; category_name?: string;
-}
-
-function extractItems(orderItems: unknown): OrderItem[] {
-  if (!Array.isArray(orderItems)) return [];
-  return orderItems as OrderItem[];
-}
-
-function getItemName(item: OrderItem): string {
-  return item.name || item.itemName || item.item_name || "Unknown Item";
-}
-
-function getItemQty(item: OrderItem): number {
-  return item.quantity || item.qty || 1;
-}
-
-function getItemCategory(item: OrderItem): string {
-  return item.category || item.categoryName || item.category_name || "Café";
-}
-
 export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
-  // Query manual_charges (primary source — actual Stripe payments)
-  const { data: manualCharges, isLoading: loadingCharges } = useQuery({
-    queryKey: ["cafe-manual-charges", dateRange.start.toISOString(), dateRange.end.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("manual_charges")
-        .select("id, created_at, amount, description, status, stripe_payment_intent_id, member_id")
-        .ilike("description", "Cafe%")
-        .eq("status", "succeeded")
-        .gte("created_at", dateRange.start.toISOString())
-        .lte("created_at", dateRange.end.toISOString())
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
+  const { data: orders, isLoading } = useQuery({
+    queryKey: ["cafe-sales-unified", dateRange.start.toISOString(), dateRange.end.toISOString()],
+    queryFn: () => fetchCafeSales(dateRange.start, dateRange.end),
   });
-
-  // Query cafe_orders (fallback — cash/member account sales)
-  const { data: cafeOrders, isLoading: loadingOrders } = useQuery({
-    queryKey: ["cafe-orders-report", dateRange.start.toISOString(), dateRange.end.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cafe_orders")
-        .select("id, created_at, total_amount, order_items, payment_method, status, payment_intent_id")
-        .gte("created_at", dateRange.start.toISOString())
-        .lte("created_at", dateRange.end.toISOString())
-        .in("status", ["completed", "ready", "preparing", "pending"])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const isLoading = loadingCharges || loadingOrders;
 
   if (isLoading) {
     return (
@@ -120,46 +42,9 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
     );
   }
 
-  // Build set of payment_intent_ids from manual_charges to deduplicate
-  const mcPiIds = new Set(
-    (manualCharges || []).map((mc) => mc.stripe_payment_intent_id).filter(Boolean)
-  );
+  const sales = orders || [];
 
-  // Normalize manual_charges → NormalizedOrder
-  const mcOrders: NormalizedOrder[] = (manualCharges || []).map((mc) => ({
-    id: mc.id,
-    created_at: mc.created_at,
-    total_amount: (mc.amount || 0) / 100, // cents → dollars
-    items: parseDescription(mc.description || ""),
-    payment_method: "card",
-    status: "succeeded",
-    source: "manual_charges",
-  }));
-
-  // Normalize cafe_orders (only those NOT already in manual_charges)
-  const coOrders: NormalizedOrder[] = (cafeOrders || [])
-    .filter((co) => !co.payment_intent_id || !mcPiIds.has(co.payment_intent_id))
-    .map((co) => {
-      const items = extractItems(co.order_items);
-      return {
-        id: co.id,
-        created_at: co.created_at,
-        total_amount: co.total_amount || 0,
-        items: items.map((it) => ({
-          name: getItemName(it),
-          category: getItemCategory(it),
-        })),
-        payment_method: co.payment_method || "unknown",
-        status: co.status,
-        source: "cafe_orders" as const,
-      };
-    });
-
-  const orders = [...mcOrders, ...coOrders].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
-
-  if (orders.length === 0) {
+  if (sales.length === 0) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <Coffee className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -169,16 +54,17 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
   }
 
   // Summary stats
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total_amount, 0);
-  const totalOrders = orders.length;
+  const totalRevenue = sales.reduce((sum, o) => sum + o.total_amount, 0);
+  const totalOrders = sales.length;
   const avgOrderValue = totalRevenue / totalOrders;
-  const totalTax = totalRevenue * TAX_RATE;
+  // Totals are tax-inclusive — back out the 6% MI tax
+  const totalTax = totalRevenue - totalRevenue / (1 + TAX_RATE);
 
   // Daily aggregation
   const dailyMap = new Map<string, { revenue: number; orders: number }>();
   const days = eachDayOfInterval({ start: dateRange.start, end: dateRange.end });
   days.forEach((d) => dailyMap.set(format(d, "yyyy-MM-dd"), { revenue: 0, orders: 0 }));
-  orders.forEach((o) => {
+  sales.forEach((o) => {
     const day = format(parseISO(o.created_at), "yyyy-MM-dd");
     const entry = dailyMap.get(day) || { revenue: 0, orders: 0 };
     entry.revenue += o.total_amount;
@@ -189,18 +75,20 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, val]) => ({ date: format(parseISO(date), "MMM d"), revenue: val.revenue, orders: val.orders }));
 
-  // Item aggregation
+  // Item aggregation (revenue split across units in the order)
   const itemMap = new Map<string, { qty: number; revenue: number; category: string }>();
-  orders.forEach((o) => {
-    const itemCount = o.items.length || 1;
-    const perItemRevenue = o.total_amount / itemCount;
+  sales.forEach((o) => {
+    const unitCount = o.items.reduce((s, it) => s + (it.quantity || 1), 0) || 1;
+    const perUnitRevenue = o.total_amount / unitCount;
     o.items.forEach((item) => {
+      const qty = item.quantity || 1;
       const entry = itemMap.get(item.name) || { qty: 0, revenue: 0, category: item.category };
-      entry.qty += 1;
-      entry.revenue += perItemRevenue;
+      entry.qty += qty;
+      entry.revenue += perUnitRevenue * qty;
       itemMap.set(item.name, entry);
     });
   });
+
   const topItems = Array.from(itemMap.entries())
     .map(([name, val]) => ({ name, ...val, pct: totalRevenue > 0 ? (val.revenue / totalRevenue) * 100 : 0 }))
     .sort((a, b) => b.revenue - a.revenue)
@@ -220,7 +108,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
 
   // Payment method
   const payMap = new Map<string, { count: number; revenue: number }>();
-  orders.forEach((o) => {
+  sales.forEach((o) => {
     const method = o.payment_method || "Unknown";
     const entry = payMap.get(method) || { count: 0, revenue: 0 };
     entry.count += 1;
@@ -365,7 +253,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
 
       {/* Order Log */}
       <Card>
-        <CardHeader><CardTitle className="text-base">Order Log ({orders.length} orders)</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Order Log ({sales.length} orders)</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
@@ -378,7 +266,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.slice(0, 100).map((order) => {
+              {sales.slice(0, 100).map((order) => {
                 const itemSummary = order.items.map((it) => it.name).join(", ");
                 return (
                   <TableRow key={order.id}>
@@ -392,7 +280,7 @@ export function CafeSalesReport({ dateRange }: CafeSalesReportProps) {
               })}
             </TableBody>
           </Table>
-          {orders.length > 100 && <p className="text-xs text-muted-foreground mt-2 text-center">Showing first 100 of {orders.length} orders</p>}
+          {sales.length > 100 && <p className="text-xs text-muted-foreground mt-2 text-center">Showing first 100 of {sales.length} orders</p>}
         </CardContent>
       </Card>
     </div>
