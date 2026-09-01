@@ -78,9 +78,12 @@ export function CafeSalesByMonthReport({ dateRange }: Props) {
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Café orders store tax-inclusive totals. Sales tax shown here is back-calculated at 6% (MI).
-          For authoritative Stripe-sourced tax figures, see the <strong>Sales Tax Collected</strong> report.
+          Includes both café order tickets and café purchases charged to member / non-member
+          accounts at the POS (de-duplicated). Totals are tax-inclusive; sales tax is
+          back-calculated at 6% (MI). For authoritative Stripe-sourced tax figures, see the{" "}
+          <strong>Sales Tax Collected</strong> report.
         </AlertDescription>
+
       </Alert>
 
       {/* Summary tiles */}
