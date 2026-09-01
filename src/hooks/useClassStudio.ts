@@ -209,11 +209,19 @@ export function useStudioMutations() {
         .insert(payload as any)
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        if ((error as any).code === "23505") {
+          throw new Error(
+            "That class is already scheduled at this time on this day.",
+          );
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: () => invalidate(),
     onError: (e: any) => toast.error(e.message || "Could not add class"),
+
   });
 
   const cancelSession = useMutation({
