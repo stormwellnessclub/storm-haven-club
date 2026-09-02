@@ -78,6 +78,13 @@
       "when": 1788324283855,
       "tag": "0010_tighten_staff_pay_and_pii_exposure",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788379513042,
+      "tag": "0011_cafe_online_ordering_switch",
+      "breakpoints": true
     }
   ]
 }
