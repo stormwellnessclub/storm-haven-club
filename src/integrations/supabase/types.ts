@@ -14264,6 +14264,14 @@ export type Database = {
         }
         Returns: Json
       }
+      staff_get_kids_care_children: {
+        Args: { _user_id: string }
+        Returns: {
+          date_of_birth: string
+          full_name: string
+          id: string
+        }[]
+      }
       submit_class_review: {
         Args: {
           _booking_id: string
