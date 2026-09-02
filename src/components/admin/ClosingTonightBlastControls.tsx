@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,11 +21,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Eye, Loader2, Mail, Send } from "lucide-react";
+import { Eye, Loader2, Mail, Send, Users } from "lucide-react";
 
 const FN = "send-closing-tonight-blast";
+
+type Recipient = {
+  id: string;
+  name: string;
+  email: string;
+  subscription_status: string | null;
+  records_cancelled: boolean;
+  alreadySent: boolean;
+};
+
+const BILLING_OK = new Set(["active", "sponsored", "trialing"]);
 
 export function ClosingTonightBlastControls() {
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -38,6 +51,88 @@ export function ClosingTonightBlastControls() {
 
   const [blasting, setBlasting] = useState(false);
   const [result, setResult] = useState<{ queued: number; skipped: number } | null>(null);
+
+  const [listOpen, setListOpen] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [recipients, setRecipients] = useState<Recipient[]>([]);
+  const [search, setSearch] = useState("");
+  const [billingFilter, setBillingFilter] = useState<"all" | "ok" | "issue">("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const loadRecipients = async () => {
+    setListLoading(true);
+    try {
+      const [{ data: mem, error }, { data: sent }] = await Promise.all([
+        supabase
+          .from("members")
+          .select("id, first_name, last_name, email, subscription_status, records_cancelled_at")
+          .eq("status", "active")
+          .order("last_name"),
+        supabase
+          .from("email_audit_log")
+          .select("recipient_email")
+          .eq("email_type", "closing_early_2026_09_02"),
+      ]);
+      if (error) throw error;
+      const sentSet = new Set((sent ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
+      const rows: Recipient[] = (mem ?? [])
+        .filter((m: any) => String(m.email || "").trim())
+        .map((m: any) => ({
+          id: m.id,
+          name: [m.first_name, m.last_name].filter(Boolean).join(" ") || "—",
+          email: String(m.email).trim().toLowerCase(),
+          subscription_status: m.subscription_status,
+          records_cancelled: !!m.records_cancelled_at,
+          alreadySent: sentSet.has(String(m.email).trim().toLowerCase()),
+        }));
+      setRecipients(rows);
+      setSelected(
+        new Set(
+          rows
+            .filter((r) => !r.alreadySent && !r.records_cancelled)
+            .map((r) => r.email),
+        ),
+      );
+    } catch (e: any) {
+      toast.error(e?.message || "Could not load recipients");
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (listOpen && recipients.length === 0) loadRecipients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listOpen]);
+
+  const hasBillingIssue = (r: Recipient) =>
+    r.records_cancelled || !BILLING_OK.has(String(r.subscription_status ?? "none"));
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return recipients.filter((r) => {
+      if (q && !r.name.toLowerCase().includes(q) && !r.email.includes(q)) return false;
+      if (billingFilter === "ok" && hasBillingIssue(r)) return false;
+      if (billingFilter === "issue" && !hasBillingIssue(r)) return false;
+      return true;
+    });
+  }, [recipients, search, billingFilter]);
+
+  const toggle = (email: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(email);
+      else next.delete(email);
+      return next;
+    });
+
+  const setAllFiltered = (on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      filtered.forEach((r) => (on ? next.add(r.email) : next.delete(r.email)));
+      return next;
+    });
+
 
   const loadPreview = async () => {
     setPreviewLoading(true);
