@@ -154,7 +154,7 @@ export default function NonMemberDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_bookings")
-        .select("*, class_sessions(session_date, start_time, end_time, class_types(name), instructors(name))")
+        .select("*, class_sessions(session_date, start_time, end_time, class_types(name), instructors(first_name, last_name))")
         .eq("user_id", userId!)
         .order("booked_at", { ascending: false })
         .limit(100);
