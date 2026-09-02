@@ -23,7 +23,7 @@ export function ClosingTonightBanner({ floating = false }: { floating?: boolean 
 
   return (
     <div
-      className={`relative px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 ${floating ? "fixed bottom-0 left-0 right-0 z-40 shadow-2xl" : ""}`}
+      className={`${floating ? "fixed bottom-0 left-0 right-0 z-40 shadow-2xl" : "relative"} px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6`}
       style={{
         background: "linear-gradient(135deg, #2a1a05 0%, #4a2f10 60%, #6b4620 100%)",
         [floating ? "borderTop" : "borderBottom"]: "2px solid #c9a86a",
