@@ -51,6 +51,7 @@ import {
   Tag,
   LayoutGrid,
   UserMinus,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -201,6 +202,7 @@ const departments: DepartmentSection[] = [
       { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX },
       { title: "Equipment", url: "/admin/equipment", icon: Dumbbell },
       { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
+      { title: "Announcements", url: "/admin/marketing?tab=announcements", icon: Bell },
       { title: "Events", url: "/admin/events", icon: Sparkles },
       { title: "Email Templates", url: "/admin/email-templates", icon: MessageSquare },
       { title: "Settings", url: "/admin/settings", icon: Settings },
