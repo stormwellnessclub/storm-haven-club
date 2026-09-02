@@ -181,10 +181,18 @@ export function ClosingTonightBlastControls() {
   const sendBlast = async () => {
     setBlasting(true);
     try {
-      const { data, error } = await supabase.functions.invoke(FN, { body: {} });
+      const onlyEmails = recipients.length ? Array.from(selected) : undefined;
+      if (recipients.length && (!onlyEmails || onlyEmails.length === 0)) {
+        toast.error("No recipients selected");
+        return;
+      }
+      const { data, error } = await supabase.functions.invoke(FN, {
+        body: onlyEmails ? { onlyEmails } : {},
+      });
       if (error) throw error;
       setResult(data);
       toast.success(`Sent ${data.queued} emails (${data.skipped} skipped)`);
+      if (recipients.length) loadRecipients();
     } catch (e: any) {
       toast.error(e?.message || "Blast failed");
     } finally {
@@ -199,11 +207,16 @@ export function ClosingTonightBlastControls() {
           <Mail className="h-4 w-4" /> Tonight's Early Closing (9:00 PM) — Wed, Sept 2
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Urgent maintenance notice. Sends one email per active member (idempotent — re-running skips
-          anyone already sent). Nothing goes out until you press Send.
+          Urgent maintenance notice. Open <strong>View recipients</strong> to see exactly who gets it and
+          uncheck anyone you don't want included. Nothing goes out until you press Send.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={() => setListOpen(true)}>
+          <Users className="h-4 w-4 mr-2" />
+          View recipients{recipients.length ? ` (${selected.size})` : ""}
+        </Button>
+
         <Button size="sm" variant="outline" onClick={loadPreview} disabled={previewLoading}>
           {previewLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Eye className="h-4 w-4 mr-2" />}
           Preview email
@@ -212,6 +225,8 @@ export function ClosingTonightBlastControls() {
         <Button size="sm" variant="outline" onClick={() => setTestOpen(true)}>
           <Send className="h-4 w-4 mr-2" /> Send test
         </Button>
+
+
 
         <AlertDialog>
           <AlertDialogTrigger asChild>
