@@ -1122,7 +1122,9 @@ export default function NonMemberDetail() {
                                 {session?.class_types?.name || "—"}
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
-                                {session?.instructors?.name || "—"}
+                                {session?.instructors
+                                  ? `${session.instructors.first_name ?? ""} ${session.instructors.last_name ?? ""}`.trim() || "—"
+                                  : "—"}
                               </TableCell>
                               <TableCell>
                                 <Badge variant={booking.status === "confirmed" ? "default" : "secondary"} className="text-xs">
