@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Coffee, ShoppingBag, Dumbbell, Ticket, CreditCard, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 interface Props {
   dateRange: { start: Date; end: Date };
@@ -362,7 +363,7 @@ function GuestPassesTab({ dateRange }: { dateRange: Props["dateRange"] }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("guest_passes")
-        .select("*")
+        .select(GUEST_PASS_COLUMNS)
         .gte("purchased_at", dateRange.start.toISOString())
         .lte("purchased_at", dateRange.end.toISOString());
       if (error) throw error;

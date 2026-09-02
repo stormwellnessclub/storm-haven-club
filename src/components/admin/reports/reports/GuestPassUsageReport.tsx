@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Ticket, CheckCircle, Clock, XCircle, DollarSign, TrendingUp } from "lucide-react";
 import { format, parseISO, eachWeekOfInterval, endOfWeek, isWithinInterval } from "date-fns";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 interface Props {
   dateRange: { start: Date; end: Date };
@@ -21,7 +22,7 @@ export function GuestPassUsageReport({ dateRange, filters }: Props) {
     queryFn: async () => {
       const { data: passes, error } = await supabase
         .from('guest_passes')
-        .select('*')
+        .select(GUEST_PASS_COLUMNS)
         .gte('created_at', dateRange.start.toISOString())
         .lte('created_at', dateRange.end.toISOString());
 

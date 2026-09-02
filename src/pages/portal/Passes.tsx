@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { MyPTPassesSection } from "@/components/portal/MyPTPassesSection";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 export default function PortalPasses() {
   const { user } = useAuth();
@@ -67,7 +68,7 @@ export default function PortalPasses() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("guest_passes")
-        .select("*")
+        .select(GUEST_PASS_COLUMNS)
         .eq("user_id", user!.id)
         .order("purchased_at", { ascending: false });
       if (error) throw error;

@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 export type VisitorType = "member" | "guest_pass" | "class_booking" | "spa_appointment";
 
@@ -41,7 +42,7 @@ export function useUnifiedCheckInSearch() {
         // 2. Guest passes (today, active/purchased)
         supabase
           .from("guest_passes")
-          .select("*")
+          .select(GUEST_PASS_COLUMNS)
           .or(`guest_name.ilike.%${q}%,guest_email.ilike.%${q}%`)
           .eq("valid_date", todayStr)
           .in("status", ["active", "purchased"])
