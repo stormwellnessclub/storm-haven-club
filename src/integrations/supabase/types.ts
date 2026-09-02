@@ -874,6 +874,27 @@ export type Database = {
           },
         ]
       }
+      cafe_ordering_settings: {
+        Row: {
+          id: boolean
+          online_ordering_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: boolean
+          online_ordering_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: boolean
+          online_ordering_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       cafe_orders: {
         Row: {
           completed_at: string | null
