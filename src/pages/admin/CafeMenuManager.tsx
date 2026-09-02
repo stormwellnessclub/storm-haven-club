@@ -42,10 +42,14 @@ import { MultiImageUploader } from "@/components/admin/MultiImageUploader";
 import { getPrimaryItemImage } from "@/lib/itemImage";
 
 import { useCafeMenuRealtime } from "@/hooks/useCafeMenuRealtime";
+import { useCafeOrderingEnabled, useSetCafeOrderingEnabled } from "@/hooks/useCafeOrderingEnabled";
 
 export default function CafeMenuManager() {
   useCafeMenuRealtime("cafe-menu-admin");
+  const { data: orderingEnabled = true, isLoading: orderingLoading } = useCafeOrderingEnabled();
+  const setOrdering = useSetCafeOrderingEnabled();
   const { data: categories = [], isLoading: catLoading } = useAllCafeMenuCategories();
+
   const { data: allItems = [], isLoading: itemsLoading } = useAllCafeMenuItems();
   const addCategory = useAddCafeCategory();
   const addItem = useAddCafeMenuItem();
@@ -115,12 +119,27 @@ export default function CafeMenuManager() {
   return (
     <AdminLayout>
       <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Cafe Menu Manager</h1>
             <p className="text-muted-foreground text-sm">Manage categories, items, prices, images, and availability</p>
           </div>
+          <div className="flex items-center gap-3 rounded-md border px-4 py-2">
+            <div className="text-sm">
+              <div className="font-medium">Online ordering</div>
+              <div className="text-xs text-muted-foreground">
+                {orderingEnabled ? "Customers can order online" : "Closed — menu only, POS unaffected"}
+              </div>
+            </div>
+            <Switch
+              checked={orderingEnabled}
+              disabled={orderingLoading || setOrdering.isPending}
+              onCheckedChange={(v) => setOrdering.mutate(v)}
+              aria-label="Toggle cafe online ordering"
+            />
+          </div>
         </div>
+
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Categories Panel */}
