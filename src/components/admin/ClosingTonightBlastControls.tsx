@@ -260,6 +260,83 @@ export function ClosingTonightBlastControls() {
         </AlertDialog>
       </div>
 
+      {/* Recipients */}
+      <Dialog open={listOpen} onOpenChange={setListOpen}>
+        <DialogContent className="max-w-3xl h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Recipients — {selected.size} selected of {recipients.length} active members</DialogTitle>
+            <DialogDescription>
+              Uncheck anyone you don't want to email. Members with a billing problem are flagged in red;
+              records-cancelled members are unchecked by default.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              placeholder="Search name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
+            {(["all", "ok", "issue"] as const).map((f) => (
+              <Button
+                key={f}
+                size="sm"
+                variant={billingFilter === f ? "default" : "outline"}
+                onClick={() => setBillingFilter(f)}
+              >
+                {f === "all" ? "All" : f === "ok" ? "Billing OK" : "Billing issue"}
+              </Button>
+            ))}
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => setAllFiltered(true)}>Select shown</Button>
+              <Button size="sm" variant="outline" onClick={() => setAllFiltered(false)}>Clear shown</Button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto border rounded-md divide-y">
+            {listLoading ? (
+              <div className="p-6 text-sm text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading members…
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-6 text-sm text-muted-foreground">No members match.</div>
+            ) : (
+              filtered.map((r) => (
+                <label key={r.id} className="flex items-center gap-3 p-2.5 hover:bg-muted/50 cursor-pointer">
+                  <Checkbox
+                    checked={selected.has(r.email)}
+                    onCheckedChange={(v) => toggle(r.email, !!v)}
+                    disabled={r.alreadySent}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">{r.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{r.email}</div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {r.records_cancelled && <Badge variant="destructive">Cancelled (records)</Badge>}
+                    {hasBillingIssue(r) && !r.records_cancelled && (
+                      <Badge variant="destructive">{r.subscription_status ?? "no subscription"}</Badge>
+                    )}
+                    {!hasBillingIssue(r) && (
+                      <Badge variant="secondary">{r.subscription_status ?? "active"}</Badge>
+                    )}
+                    {r.alreadySent && <Badge variant="outline">Already sent</Badge>}
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={loadRecipients} disabled={listLoading}>Refresh</Button>
+            <Button onClick={() => setListOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {/* Preview */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-3xl h-[85vh] flex flex-col p-0">
