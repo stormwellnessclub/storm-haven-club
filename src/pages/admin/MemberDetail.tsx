@@ -115,6 +115,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 // Helper functions
 const getStatusColor = (status: string) => {
@@ -397,7 +398,7 @@ export default function MemberDetail() {
       if (!member?.user_id) return [];
       const { data, error } = await supabase
         .from("guest_passes")
-        .select("*")
+        .select(GUEST_PASS_COLUMNS)
         .or(`user_id.eq.${member.user_id}${member.email ? `,guest_email.ilike.${member.email}` : ''}`)
         .order("purchased_at", { ascending: false });
       if (error) throw error;

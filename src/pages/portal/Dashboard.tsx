@@ -24,6 +24,7 @@ import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
 import { EventAnnouncementBanner } from "@/components/events/EventAnnouncementBanner";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 
 export default function PortalDashboard() {
@@ -82,7 +83,7 @@ export default function PortalDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("guest_passes")
-        .select("*")
+        .select(GUEST_PASS_COLUMNS)
         .eq("user_id", user!.id)
         .eq("status", "active")
         .gt("expires_at", new Date().toISOString())

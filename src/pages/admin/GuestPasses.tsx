@@ -24,6 +24,7 @@ import { GuestPassFollowUpTab } from "@/components/admin/GuestPassFollowUpTab";
 import { GuestPassMarketingTab } from "@/components/admin/GuestPassMarketingTab";
 import { AdminGrantPassDialog } from "@/components/admin/AdminGrantPassDialog";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 const GUEST_PASS_PRICE = 60;
 
@@ -101,7 +102,7 @@ export default function GuestPasses() {
     try {
       const { data, error } = await (supabase
         .from('guest_passes' as any)
-        .select('*')
+        .select(GUEST_PASS_COLUMNS)
         .order('purchased_at', { ascending: false })
         .limit(500) as any);
       if (error) throw error;

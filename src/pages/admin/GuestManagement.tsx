@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 interface GuestRecord {
   id: string;
@@ -121,7 +122,7 @@ export default function GuestManagement() {
     setLoading(true);
     const { data, error } = await (supabase
       .from("guest_passes" as any)
-      .select("*")
+      .select(GUEST_PASS_COLUMNS)
       .order("purchased_at", { ascending: false }) as any);
     if (!error && data) {
       setPasses(data as GuestRecord[]);

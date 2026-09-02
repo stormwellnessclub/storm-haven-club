@@ -10,6 +10,44 @@ import { clubTodayDateStr } from "@/lib/clubTime";
 
 export const CHECKED_IN_STATUSES = ["used", "exhausted"] as const;
 
+/**
+ * Every guest_passes column readable by signed-in users.
+ * `card_exp_month`, `card_exp_year` and `feedback_token` are intentionally
+ * excluded — the Data API grant withholds them, so `select("*")` fails.
+ */
+export const GUEST_PASS_COLUMNS = [
+  "id",
+  "user_id",
+  "guest_name",
+  "guest_email",
+  "phone_number",
+  "guest_gender",
+  "member_referral",
+  "referring_member_id",
+  "status",
+  "valid_date",
+  "used_at",
+  "expires_at",
+  "purchased_at",
+  "created_at",
+  "price_paid",
+  "payment_method",
+  "stripe_customer_id",
+  "stripe_payment_id",
+  "card_brand",
+  "card_last4",
+  "sold_by",
+  "checked_in_by",
+  "no_show",
+  "admin_notes",
+  "visit_notes",
+  "visit_interests",
+  "add_ons",
+  "follow_up_status",
+  "follow_up_notes",
+  "feedback_email_sent_at",
+].join(", ") as unknown as "*";
+
 export function isGuestPassCheckedIn(pass: {
   status?: string | null;
   used_at?: string | null;

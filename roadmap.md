@@ -10,3 +10,4 @@
 - [x] Fix pt_group_slot_occupancy (profiles.full_name -> first/last)
 - [x] Rola Taleb: freeze ended 8/11 but Stripe collection stayed paused — resumed + finalized Aug dues (card declined, insufficient funds)
 - [x] Cancelled members list/tab: separate roster of cancelled vs. cancelled-but-owing members, no emails triggered, accurate active member count
+- [x] Fix guest passes failing to load (explicit column selects after grant tightening)

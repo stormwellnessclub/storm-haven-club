@@ -16,6 +16,7 @@ import { CreditCard, RefreshCw, ShieldCheck, ShieldX, Package, Calendar as Calen
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 const GUEST_PASS_PRICE = 60;
 
@@ -64,7 +65,7 @@ export function NonMemberDetailSheet({ account, open, onOpenChange }: Props) {
     queryFn: async () => {
       const { data, error } = await (supabase
         .from("guest_passes" as any)
-        .select("*")
+        .select(GUEST_PASS_COLUMNS)
         .ilike("guest_email", account!.email!)
         .order("purchased_at", { ascending: false }) as any);
       if (error) throw error;
