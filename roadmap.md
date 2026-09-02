@@ -11,3 +11,4 @@
 - [x] Rola Taleb: freeze ended 8/11 but Stripe collection stayed paused — resumed + finalized Aug dues (card declined, insufficient funds)
 - [x] Cancelled members list/tab: separate roster of cancelled vs. cancelled-but-owing members, no emails triggered, accurate active member count
 - [x] Fix guest passes failing to load (explicit column selects after grant tightening)
+- [x] Early closing notice (Wed Sep 2, 9:00 PM urgent maintenance): email template + preview/test controls, member & public site banner
