@@ -5,7 +5,7 @@ const STORAGE_KEY = "closing-early-2026-09-02-dismissed";
 // Hide after 9:00 PM Wednesday Sept 2, 2026 in America/Detroit (EDT = UTC-4)
 const HIDE_AFTER = new Date("2026-09-03T01:00:00Z");
 
-export function ClosingTonightBanner() {
+export function ClosingTonightBanner({ floating = false }: { floating?: boolean } = {}) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -23,10 +23,10 @@ export function ClosingTonightBanner() {
 
   return (
     <div
-      className="relative px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6"
+      className={`relative px-5 sm:px-8 py-5 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 ${floating ? "fixed bottom-0 left-0 right-0 z-40 shadow-2xl" : ""}`}
       style={{
         background: "linear-gradient(135deg, #2a1a05 0%, #4a2f10 60%, #6b4620 100%)",
-        borderBottom: "2px solid #c9a86a",
+        [floating ? "borderTop" : "borderBottom"]: "2px solid #c9a86a",
         color: "#f5ecd2",
       }}
     >

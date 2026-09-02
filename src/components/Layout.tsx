@@ -11,7 +11,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   return (
     <div className="min-h-screen flex flex-col">
-      <ClosingTonightBanner />
+      <ClosingTonightBanner floating />
       <Navigation />
       <PWAInstallPrompt />
       <main className="flex-1">
