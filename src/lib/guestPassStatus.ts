@@ -46,7 +46,7 @@ export const GUEST_PASS_COLUMNS = [
   "follow_up_status",
   "follow_up_notes",
   "feedback_email_sent_at",
-].join(", ");
+].join(", ") as unknown as "*";
 
 export function isGuestPassCheckedIn(pass: {
   status?: string | null;
