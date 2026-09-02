@@ -7,6 +7,7 @@ import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
 import { Link } from "react-router-dom";
 import { MemorialDayHoursBanner } from "@/components/member/MemorialDayHoursBanner";
 import { MaintenanceJuly23Banner } from "@/components/member/MaintenanceJuly23Banner";
+import { ClosingTonightBanner } from "@/components/member/ClosingTonightBanner";
 import { PortalPhoneGate } from "./PortalPhoneGate";
 import { NonMemberSmsOptInGate } from "./NonMemberSmsOptInGate";
 import { MilestoneCelebrationHost } from "@/components/member/MilestoneCelebrationHost";
@@ -29,6 +30,7 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
     <SidebarProvider>
       <NonMemberSmsOptInGate />
       <div className="min-h-screen flex flex-col w-full bg-background">
+        <ClosingTonightBanner />
         <MaintenanceJuly23Banner />
         <MemorialDayHoursBanner />
 

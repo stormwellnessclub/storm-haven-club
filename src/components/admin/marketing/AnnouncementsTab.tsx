@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Send, Search, Eye, EyeOff, Users, Mail, Megaphone } from "lucide-react";
 import { MaintenanceBlastControls } from "@/components/admin/MaintenanceBlastControls";
+import { ClosingTonightBlastControls } from "@/components/admin/ClosingTonightBlastControls";
 
 interface Recipient {
   id: string;
@@ -215,6 +216,7 @@ export function AnnouncementsTab() {
 
   return (
     <div className="space-y-6">
+      <ClosingTonightBlastControls />
       <MaintenanceBlastControls />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
