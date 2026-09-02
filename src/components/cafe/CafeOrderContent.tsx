@@ -40,6 +40,7 @@ import { CafeRatingBadge } from "@/components/cafe/CafeRatingBadge";
 import { CafeItemReviews } from "@/components/cafe/CafeItemReviews";
 import { CafeReviewPrompt } from "@/components/cafe/CafeReviewPrompt";
 import { getPrimaryItemImage } from "@/lib/itemImage";
+import { useCafeOrderingEnabled } from "@/hooks/useCafeOrderingEnabled";
 
 interface CartAddon {
   id: string;
