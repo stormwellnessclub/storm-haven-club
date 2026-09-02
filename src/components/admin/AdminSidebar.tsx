@@ -50,6 +50,7 @@ import {
   GraduationCap,
   Tag,
   LayoutGrid,
+  UserMinus,
 } from "lucide-react";
 import {
   Sidebar,

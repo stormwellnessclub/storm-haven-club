@@ -192,8 +192,10 @@ export default function Members() {
           card_exp_year,
           user_id,
           activation_email_sent_at,
-          cancellation_email_sent_at
+          cancellation_email_sent_at,
+          records_cancelled_at
         `)
+        .is("records_cancelled_at", null)
         .order("created_at", { ascending: false });
 
       if (membersError) throw membersError;
