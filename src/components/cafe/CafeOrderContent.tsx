@@ -304,6 +304,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
   const { data: addons = [] } = useCafeMenuAddons();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const { data: orderingEnabled = true } = useCafeOrderingEnabled();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"card" | "member_account">("card");
@@ -1227,6 +1228,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                             )}
 
                             {/* Actions */}
+                            {orderingEnabled && (
                             <div className="mt-auto flex items-center gap-5 pt-2">
                               <button
                                 onClick={(e) => {
@@ -1244,6 +1246,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                                 {itemAddons.length > 0 ? "Customize & Add" : "Add to Order"}
                               </button>
                             </div>
+                            )}
                           </article>
                         );
                       });
@@ -1255,6 +1258,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
               </main>
 
               {/* Sticky cart (desktop) */}
+              {orderingEnabled && (
               <aside className="hidden md:block w-[300px] lg:w-[320px] shrink-0 border-l border-cafe-line bg-cafe-stone-soft">
                 <div className={`sticky ${variant === "public" ? "top-32" : "top-12"} p-8`}>
                   <div className="flex items-baseline justify-between mb-6 pb-4 border-b border-cafe-line/70">
@@ -1286,11 +1290,12 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                   )}
                 </div>
               </aside>
+              )}
             </div>
           </div>
 
           {/* Mobile sticky bag bar */}
-          {cartCount > 0 && (
+          {orderingEnabled && cartCount > 0 && (
             <button
               onClick={() => setMobileBagOpen(true)}
               className="md:hidden fixed bottom-24 left-4 right-4 z-50 bg-[hsl(var(--cafe-terracotta))] text-white shadow-[0_12px_40px_rgba(0,0,0,0.35)] flex items-center justify-between px-5 py-4 safe-area-bottom animate-pulse"
@@ -1617,6 +1622,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                   )}
                 </div>
 
+                {orderingEnabled && (
                 <div className="flex items-center gap-5 pt-2">
                   <button
                     onClick={() => {
@@ -1642,6 +1648,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                     </button>
                   )}
                 </div>
+                )}
 
                 <CafeItemReviews menuItemId={detailItem.id} itemName={name} />
               </>
@@ -1698,6 +1705,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                               Details
                             </button>
                           )}
+                          {orderingEnabled && (
                           <button
                             onClick={() => {
                               if (soldOut) return;
@@ -1709,6 +1717,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                           >
                             {soldOut ? "Sold Out" : "Add"}
                           </button>
+                          )}
                         </div>
                       </div>
                     </li>
