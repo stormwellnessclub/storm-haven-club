@@ -238,8 +238,10 @@ export function ClosingTonightBlastControls() {
             <AlertDialogHeader>
               <AlertDialogTitle>Send tonight's early closing email?</AlertDialogTitle>
               <AlertDialogDescription>
-                Sends one email per active member (status = active, has email on file). Idempotent —
-                re-running skips anyone already sent.
+                {recipients.length
+                  ? `Sends to the ${selected.size} recipient${selected.size === 1 ? "" : "s"} you have checked in the recipients list. Anyone already emailed is skipped.`
+                  : "Sends one email per active member with an email on file. Idempotent — re-running skips anyone already sent."}
+
                 {result && (
                   <div className="mt-3 rounded bg-muted p-2 text-xs">
                     Last run: queued {result.queued}, skipped {result.skipped}
