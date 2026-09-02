@@ -1,4 +1,4 @@
-# Close online café ordering (plus two queued items)
+# Close online café ordering
 
 ## 1. Turn café online ordering off — today
 
@@ -13,10 +13,6 @@ Right now there is no way to stop online café orders; the order UI is always li
 
 Sweep any café orders still sitting in pending / preparing / ready from today and mark them completed so the queue and the front-desk banner are clear. (Checked just now: the active queue is currently empty, so this will likely close zero orders — the sweep still runs so nothing is left hanging.)
 
-## Still queued from earlier (not started)
-
-- Nightly job that finalizes leftover draft dues invoices when a freeze ends, with tracking of failed charges like Rola's.
-- Report on Cancelled Members showing who carries a balance, the amounts, and next dues invoice dates.
 
 ## Technical notes
 
