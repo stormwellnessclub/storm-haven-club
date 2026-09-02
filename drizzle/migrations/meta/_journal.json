@@ -50,6 +50,13 @@
       "when": 1788212190986,
       "tag": "0006_public_class_reviews_rpc",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788319684352,
+      "tag": "0007_fix_pt_group_slot_occupancy_name",
+      "breakpoints": true
     }
   ]
 }

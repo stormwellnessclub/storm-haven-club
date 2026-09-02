@@ -154,7 +154,7 @@ export default function NonMemberDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("class_bookings")
-        .select("*, class_sessions(session_date, start_time, end_time, class_types(name), instructors(name))")
+        .select("*, class_sessions(session_date, start_time, end_time, class_types(name), instructors(first_name, last_name))")
         .eq("user_id", userId!)
         .order("booked_at", { ascending: false })
         .limit(100);
@@ -1122,7 +1122,9 @@ export default function NonMemberDetail() {
                                 {session?.class_types?.name || "—"}
                               </TableCell>
                               <TableCell className="text-sm text-muted-foreground">
-                                {session?.instructors?.name || "—"}
+                                {session?.instructors
+                                  ? `${session.instructors.first_name ?? ""} ${session.instructors.last_name ?? ""}`.trim() || "—"
+                                  : "—"}
                               </TableCell>
                               <TableCell>
                                 <Badge variant={booking.status === "confirmed" ? "default" : "secondary"} className="text-xs">
