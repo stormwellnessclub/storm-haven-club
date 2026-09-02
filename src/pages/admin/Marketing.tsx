@@ -39,28 +39,31 @@ export default function Marketing() {
           }}
           className="space-y-4"
         >
-          <TabsList>
-            <TabsTrigger value="guests">Guests</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
-            <TabsTrigger value="announcements" className="gap-1.5">
-              <Bell className="h-3.5 w-3.5" /> Announcements
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="gap-1.5">
-              <Mail className="h-3.5 w-3.5" /> Contacts
-            </TabsTrigger>
-            <TabsTrigger value="cafe" className="gap-1.5">
-              <Coffee className="h-3.5 w-3.5" /> Cafe
-            </TabsTrigger>
-            <TabsTrigger value="sms" className="gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5" /> SMS Blast
-            </TabsTrigger>
-            <TabsTrigger value="sms-templates" className="gap-1.5">
-              <MessageCircle className="h-3.5 w-3.5" /> SMS Templates
-            </TabsTrigger>
-            <TabsTrigger value="referrals">Referrals</TabsTrigger>
-            <TabsTrigger value="templates">Email Templates</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto pb-1 -mx-1 px-1">
+            <TabsList className="w-max flex-nowrap">
+              <TabsTrigger value="guests">Guests</TabsTrigger>
+              <TabsTrigger value="members">Members</TabsTrigger>
+              <TabsTrigger value="announcements" className="gap-1.5">
+                <Bell className="h-3.5 w-3.5" /> Announcements
+              </TabsTrigger>
+              <TabsTrigger value="contacts" className="gap-1.5">
+                <Mail className="h-3.5 w-3.5" /> Contacts
+              </TabsTrigger>
+              <TabsTrigger value="cafe" className="gap-1.5">
+                <Coffee className="h-3.5 w-3.5" /> Cafe
+              </TabsTrigger>
+              <TabsTrigger value="sms" className="gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" /> SMS Blast
+              </TabsTrigger>
+              <TabsTrigger value="sms-templates" className="gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5" /> SMS Templates
+              </TabsTrigger>
+              <TabsTrigger value="referrals">Referrals</TabsTrigger>
+              <TabsTrigger value="templates">Email Templates</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
+          </div>
+
 
           <TabsContent value="guests">
             <GuestMarketingTab />

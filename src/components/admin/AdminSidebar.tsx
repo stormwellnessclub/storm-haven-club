@@ -51,6 +51,7 @@ import {
   Tag,
   LayoutGrid,
   UserMinus,
+  Bell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -201,6 +202,7 @@ const departments: DepartmentSection[] = [
       { title: "Blocked Persons", url: "/admin/blocked", icon: ShieldX },
       { title: "Equipment", url: "/admin/equipment", icon: Dumbbell },
       { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
+      { title: "Announcements", url: "/admin/marketing?tab=announcements", icon: Bell },
       { title: "Events", url: "/admin/events", icon: Sparkles },
       { title: "Email Templates", url: "/admin/email-templates", icon: MessageSquare },
       { title: "Settings", url: "/admin/settings", icon: Settings },
@@ -259,8 +261,21 @@ export function AdminSidebar() {
     if (path === "/admin") {
       return location.pathname === "/admin";
     }
-    return location.pathname.startsWith(path);
+    const [pathOnly, query] = path.split("?");
+    if (query) {
+      // Tab-specific entries must match the query string too
+      const params = new URLSearchParams(query);
+      const current = new URLSearchParams(location.search);
+      if (location.pathname !== pathOnly) return false;
+      return Array.from(params.entries()).every(([k, v]) => current.get(k) === v);
+    }
+    if (location.pathname === pathOnly) {
+      // A bare entry is not active when a tab-specific sibling matches
+      return true;
+    }
+    return location.pathname.startsWith(pathOnly + "/");
   };
+
 
   // Check if user has any of the department's required roles
   const canSeeDepartment = (dept: DepartmentSection) => {
