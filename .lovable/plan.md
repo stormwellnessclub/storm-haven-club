@@ -1,34 +1,26 @@
-# Freeze dues recovery job + Cancelled Members balance report
+# Close online café ordering (plus two queued items)
 
-## 1. Nightly freeze draft-invoice finalizer
+## 1. Turn café online ordering off — today
 
-A new nightly job catches what happened with Jana, Mariam and Rola: a freeze ends, but Stripe still has collection paused, so the dues invoice sits as a draft and nobody is charged.
+Right now there is no way to stop online café orders; the order UI is always live. This adds a simple on/off switch.
 
-Every night (right after the existing freeze-expiration run), for each member whose freeze has ended:
+- Add an **Online ordering** toggle in the café admin/menu manager (admin + manager only).
+- When it is off, the café page, member portal café page, and non-member portal café page show the menu as normal but with **no ordering controls at all** — no add-to-cart, no checkout, no notice or banner text. It simply reads as a menu.
+- Front desk / kiosk POS is unaffected: staff can still ring up orders in person.
+- Flip the switch off now, so no one can place an online order today. Turning it back on is one click.
 
-- Lift any leftover Stripe collection pause on the dues subscription.
-- Find draft dues invoices on that subscription.
-- Leave invoices that cover the frozen period alone (unbilled) and finalize + charge the post-freeze cycle invoices.
-- Record every outcome — charged, declined, skipped — so nothing is silent.
+## 2. Close out today's orders
 
-When a charge fails (Rola's declined $515.25), the job records the failure, the invoice stays open in the normal dunning/retry flow, and the member appears in Billing Arrears with the amount owed.
+Sweep any café orders still sitting in pending / preparing / ready from today and mark them completed so the queue and the front-desk banner are clear. (Checked just now: the active queue is currently empty, so this will likely close zero orders — the sweep still runs so nothing is left hanging.)
 
-## 2. Freeze billing recovery tracking
+## Still queued from earlier (not started)
 
-A new record is written per invoice the job touches: member, freeze, invoice number, amount, action taken, result, and the decline reason if any. This history is visible in the admin billing area so you can see at a glance which freeze-end charges went through and which failed.
-
-## 3. Cancelled Members balance report
-
-A report on the Cancelled Members page showing:
-
-- How many people on the cancelled list carry a balance, and the total outstanding.
-- Per person: name, amount outstanding, and the date their next dues invoice is due (from Stripe, when the subscription is still live) or "no upcoming invoice" when Stripe is fully stopped.
-- CSV export, matching the other billing reports.
+- Nightly job that finalizes leftover draft dues invoices when a freeze ends, with tracking of failed charges like Rola's.
+- Report on Cancelled Members showing who carries a balance, the amounts, and next dues invoice dates.
 
 ## Technical notes
 
-- New edge function `reconcile-freeze-dues` (trusted-caller only, same internal-token pattern as `process-freeze-expirations`). Steps per member with a `completed`/expired freeze in the last 60 days: retrieve subscription, clear `pause_collection` if present, list `draft` invoices for the subscription, classify each by `period_start`/`period_end` against the freeze window, void/skip in-freeze drafts, set `auto_advance: true` and finalize + pay post-freeze drafts.
-- Failures write to `billing_arrears` and `payment_attempts` using the existing helpers so `process-payment-dunning` picks them up unchanged.
-- New table `freeze_billing_recoveries` (member_id, freeze_id, stripe_invoice_id, invoice_number, amount_cents, action, outcome, failure_reason, created_at) with RLS + GRANTs limited to admin/manager roles.
-- New `pg_cron` job at 07:30 UTC daily (30 minutes after `process-freeze-expirations-daily` at 07:00 UTC), one run per day, so no added recurring cost beyond a single nightly call.
-- Report: new component under the Cancelled Members page reading `members` filtered on `records_cancelled_at`, joined to `billing_arrears` for outstanding balance; next-invoice dates fetched in one batched call to a small edge function that reads `upcoming invoice`/`next_pending_invoice_item_invoice` per subscription. All dates rendered in `America/Detroit`.
+- Store the flag as a single row in `system_config` (key `cafe_online_ordering_enabled`) — public read, write restricted to admin/manager via RLS, so no new table is needed.
+- New `useCafeOrderingEnabled()` hook reads the flag; `CafeOrderContent.tsx` hides cart, quantity steppers, add-on dialog trigger, and the checkout button when disabled, for the `public`, `member`, and `nonmember` variants. The POS path (`src/pages/admin/CafePOS.tsx`, front-desk and kiosk shells) ignores the flag.
+- Server-side enforcement: `useCreateCafeOrder` order inserts are blocked by a `BEFORE INSERT` trigger on `cafe_orders` that rejects non-staff inserts while the flag is off, so hiding the button is not the only guard.
+- Order sweep: one-time update setting `status = 'completed'` and `completed_at = now()` for orders created today (America/Detroit) still in pending/preparing/ready.
