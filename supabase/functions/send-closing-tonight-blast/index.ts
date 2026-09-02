@@ -146,16 +146,21 @@ serve(async (req) => {
     (sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()),
   );
 
+  const onlyEmails: Set<string> | null = Array.isArray(body?.onlyEmails) && body.onlyEmails.length
+    ? new Set(body.onlyEmails.map((e: any) => String(e).trim().toLowerCase()))
+    : null;
+
   let queued = 0;
   let skipped = 0;
   const errors: Array<{ email: string; error: string }> = [];
 
   for (const m of members ?? []) {
     const email = String(m.email || "").trim().toLowerCase();
-    if (!email || alreadySent.has(email)) {
+    if (!email || alreadySent.has(email) || (onlyEmails && !onlyEmails.has(email))) {
       skipped++;
       continue;
     }
+
     try {
       const resp = await resend.emails.send({
         from: "Storm Wellness Club <admin@stormwellnessclub.com>",
