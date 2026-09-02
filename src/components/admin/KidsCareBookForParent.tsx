@@ -70,10 +70,10 @@ export function KidsCareBookForParent() {
     setMembers([]);
     // Fetch children, passes, and existing pass-child assignments
     const [childRes, passRes, bookingsRes] = await Promise.all([
-      (supabase.from as any)("kids_care_children")
-        .select("id, full_name, date_of_birth")
-        .eq("user_id", member.user_id)
-        .eq("is_active", true),
+      (supabase as any).rpc("staff_get_kids_care_children", {
+        _user_id: member.user_id,
+      }),
+
       supabase
         .from("class_passes")
         .select("id, classes_remaining, classes_total, expires_at")
