@@ -57,6 +57,20 @@
       "when": 1788319684352,
       "tag": "0007_fix_pt_group_slot_occupancy_name",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788320259343,
+      "tag": "0008_add_records_cancelled_members",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788320404870,
+      "tag": "0009_block_records_cancelled_bookings",
+      "breakpoints": true
     }
   ]
 }

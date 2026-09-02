@@ -4989,6 +4989,10 @@ export type Database = {
           pending_tier_change_by: string | null
           phone: string | null
           photo_url: string | null
+          records_cancelled_at: string | null
+          records_cancelled_by: string | null
+          records_cancelled_reason: string | null
+          records_collection_status: string | null
           referral_points_balance: number
           referred_by_code: string | null
           status: string
@@ -5040,6 +5044,10 @@ export type Database = {
           pending_tier_change_by?: string | null
           phone?: string | null
           photo_url?: string | null
+          records_cancelled_at?: string | null
+          records_cancelled_by?: string | null
+          records_cancelled_reason?: string | null
+          records_collection_status?: string | null
           referral_points_balance?: number
           referred_by_code?: string | null
           status?: string
@@ -5091,6 +5099,10 @@ export type Database = {
           pending_tier_change_by?: string | null
           phone?: string | null
           photo_url?: string | null
+          records_cancelled_at?: string | null
+          records_cancelled_by?: string | null
+          records_cancelled_reason?: string | null
+          records_collection_status?: string | null
           referral_points_balance?: number
           referred_by_code?: string | null
           status?: string

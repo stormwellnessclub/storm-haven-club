@@ -50,6 +50,7 @@ import {
   GraduationCap,
   Tag,
   LayoutGrid,
+  UserMinus,
 } from "lucide-react";
 import {
   Sidebar,
@@ -115,6 +116,7 @@ const departments: DepartmentSection[] = [
       { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake },
       { title: "Agreements", url: "/admin/agreements", icon: FileText },
       { title: "Signature Certificates", url: "/admin/signature-certificates", icon: FileText },
+      { title: "Cancelled Members", url: "/admin/cancelled-members", icon: UserMinus },
       { title: "Membership Health", url: "/admin/membership-health", icon: Activity },
     ],
   },
