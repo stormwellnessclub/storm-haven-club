@@ -353,8 +353,14 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
   }
   if (await playViaWebAudio(sound)) return "played";
   try {
-    const audio = new Audio(uri);
+    // Reuse the element primed during a user gesture; fall back to a new one.
+    const audio = getPrimedElement(sound) ?? new Audio(uri);
     audio.volume = 1;
+    try {
+      audio.currentTime = 0;
+    } catch {
+      /* ignore */
+    }
     await audio.play();
     // WebAudio was blocked/suspended; the element played, but the browser may
     // still be throttling. Report blocked so the UI can prompt for a tap.
@@ -363,6 +369,7 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
     console.warn("Failed to play notification chime:", err);
     return "blocked";
   }
+
 }
 
 /** Plays the bell twice with a short pause — used for recurring reminders. */
