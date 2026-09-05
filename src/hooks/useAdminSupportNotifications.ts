@@ -105,6 +105,8 @@ export function useAdminSupportNotifications() {
     refetchIntervalInBackground: true,
     // Keep polling through brief network/offline blips instead of pausing.
     networkMode: "always" as const,
+    // Check immediately when the window comes back to the front.
+    refetchOnWindowFocus: true,
     staleTime: 5000,
   });
 }
