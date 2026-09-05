@@ -271,9 +271,9 @@ export function isAudioBlocked(): boolean {
   return !sharedCtx || sharedCtx.state !== "running";
 }
 
-async function playViaWebAudio(sound: ChimeSound): Promise<boolean> {
+async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean> {
   try {
-    const ctx = getCtx();
+    let ctx = getCtx();
     const uri = getChimeUri(sound);
     if (!ctx || !uri) return false;
     if (ctx.state !== "running") {
@@ -284,9 +284,10 @@ async function playViaWebAudio(sound: ChimeSound): Promise<boolean> {
       }
     }
     // The context can get stuck "suspended"/"interrupted" after the machine
-    // sleeps. Tear it down once and rebuild so the next attempt is on a fresh
-    // engine instead of silently playing into a dead one.
+    // sleeps or the audio device changes. Tear it down once and rebuild so the
+    // next attempt runs on a fresh engine instead of silently playing nothing.
     if (ctx.state !== "running") {
+      if (!retry) return false;
       try {
         await ctx.close();
       } catch {
@@ -294,17 +295,18 @@ async function playViaWebAudio(sound: ChimeSound): Promise<boolean> {
       }
       sharedCtx = null;
       decodedCache.clear();
-      const fresh = getCtx();
-      if (fresh && fresh.state !== "running") {
+      ctx = getCtx();
+      if (!ctx) return false;
+      if (ctx.state !== "running") {
         try {
-          await fresh.resume();
+          await ctx.resume();
         } catch {
           /* ignore */
         }
       }
-      if (!fresh || fresh.state !== "running") return false;
-      return playViaWebAudio(sound);
+      if (ctx.state !== "running") return false;
     }
+
 
 
     let decoded = decodedCache.get(sound);
