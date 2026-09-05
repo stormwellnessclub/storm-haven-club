@@ -38,19 +38,30 @@ export function AudioUnlocker() {
       if (document.visibilityState === "visible") unlock();
     };
 
+    // Even with no interaction at all, keep re-waking the engine. Laptops that
+    // sleep or switch audio devices leave it suspended, which is exactly the
+    // "worked for a while, then went quiet" case.
+    const watchdog = setInterval(() => {
+      if (isAudioBlocked()) void unlockChimeAudio();
+    }, 20_000);
+
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
     window.addEventListener("touchstart", unlock);
     window.addEventListener("focus", unlock);
+    window.addEventListener("online", unlock);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      clearInterval(watchdog);
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
       window.removeEventListener("touchstart", unlock);
       window.removeEventListener("focus", unlock);
+      window.removeEventListener("online", unlock);
       document.removeEventListener("visibilitychange", onVisibility);
     };
+
   }, []);
 
   return null;
