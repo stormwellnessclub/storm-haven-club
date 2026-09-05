@@ -198,8 +198,33 @@ export function setChimeVolume(v: ChimeVolume) {
 function getCtx(): AudioContext | null {
   const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
   if (!Ctx) return null;
+  // A context can end up "closed" (or wedged after the laptop sleeps / the
+  // audio device changes). Rebuild it instead of playing into a dead engine.
+  if (sharedCtx && sharedCtx.state === "closed") {
+    sharedCtx = null;
+    decodedCache.clear();
+  }
   if (!sharedCtx) sharedCtx = new Ctx();
   return sharedCtx;
+}
+
+// A single reusable <audio> element, primed during a user gesture. Reusing a
+// primed element survives long idle periods far better than `new Audio()`.
+let primedEl: HTMLAudioElement | null = null;
+let primedSound: ChimeSound | null = null;
+
+function getPrimedElement(sound: ChimeSound): HTMLAudioElement | null {
+  const uri = getChimeUri(sound);
+  if (!uri) return null;
+  if (!primedEl) {
+    primedEl = new Audio();
+    primedEl.preload = "auto";
+  }
+  if (primedSound !== sound) {
+    primedEl.src = uri;
+    primedSound = sound;
+  }
+  return primedEl;
 }
 
 /**
@@ -210,17 +235,33 @@ function getCtx(): AudioContext | null {
 export async function unlockChimeAudio(): Promise<void> {
   try {
     const ctx = getCtx();
-    if (!ctx) return;
-    if (ctx.state === "suspended") await ctx.resume();
-    const buffer = ctx.createBuffer(1, 1, 22050);
-    const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.connect(ctx.destination);
-    src.start(0);
+    if (ctx) {
+      if (ctx.state !== "running") await ctx.resume();
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.connect(ctx.destination);
+      src.start(0);
+    }
+    // Prime the fallback element too, silently.
+    const el = getPrimedElement(getChimeSound());
+    if (el) {
+      const prevVol = el.volume;
+      el.volume = 0;
+      try {
+        await el.play();
+        el.pause();
+        el.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+      el.volume = prevVol || 1;
+    }
   } catch (err) {
     console.warn("unlockChimeAudio failed:", err);
   }
 }
+
 
 /** True when the shared audio engine is missing or still blocked by the browser. */
 export function isAudioBlocked(): boolean {
