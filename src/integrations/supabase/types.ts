@@ -13339,6 +13339,7 @@ export type Database = {
       kiosk_cafe_notification_counts: {
         Args: never
         Returns: {
+          latest_order_at: string
           pending_count: number
           preparing_count: number
           total_active_count: number
@@ -13347,6 +13348,7 @@ export type Database = {
       kiosk_cafe_notification_counts_impl: {
         Args: never
         Returns: {
+          latest_order_at: string
           pending_count: number
           preparing_count: number
           total_active_count: number
@@ -13419,6 +13421,7 @@ export type Database = {
       kiosk_support_notification_counts: {
         Args: never
         Returns: {
+          latest_member_message_at: string
           open_count: number
           unacknowledged_count: number
           unread_count: number
@@ -13427,6 +13430,7 @@ export type Database = {
       kiosk_support_notification_counts_impl: {
         Args: never
         Returns: {
+          latest_member_message_at: string
           open_count: number
           unacknowledged_count: number
           unread_count: number
