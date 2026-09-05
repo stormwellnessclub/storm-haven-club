@@ -276,10 +276,36 @@ async function playViaWebAudio(sound: ChimeSound): Promise<boolean> {
     const ctx = getCtx();
     const uri = getChimeUri(sound);
     if (!ctx || !uri) return false;
-    if (ctx.state === "suspended") await ctx.resume();
-    // A suspended context accepts start() silently — treat it as a failure so
-    // the caller falls back to the HTMLAudio path instead of playing nothing.
-    if (ctx.state !== "running") return false;
+    if (ctx.state !== "running") {
+      try {
+        await ctx.resume();
+      } catch {
+        /* ignore */
+      }
+    }
+    // The context can get stuck "suspended"/"interrupted" after the machine
+    // sleeps. Tear it down once and rebuild so the next attempt is on a fresh
+    // engine instead of silently playing into a dead one.
+    if (ctx.state !== "running") {
+      try {
+        await ctx.close();
+      } catch {
+        /* ignore */
+      }
+      sharedCtx = null;
+      decodedCache.clear();
+      const fresh = getCtx();
+      if (fresh && fresh.state !== "running") {
+        try {
+          await fresh.resume();
+        } catch {
+          /* ignore */
+        }
+      }
+      if (!fresh || fresh.state !== "running") return false;
+      return playViaWebAudio(sound);
+    }
+
 
     let decoded = decodedCache.get(sound);
     if (!decoded) {
