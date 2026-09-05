@@ -36,6 +36,7 @@ export function useAdminSupportNotifications() {
             unreadCount,
             totalActiveCount: openCount + unreadCount,
             unacknowledgedCount,
+            latestMemberMessageAt: row?.latest_member_message_at ?? null,
           };
         }
 
@@ -71,11 +72,21 @@ export function useAdminSupportNotifications() {
           unreadCount = count || 0;
         }
 
+        // Newest member message overall — catches a new message even when the
+        // counts stay flat (e.g. staff opened the thread on another station).
+        const { data: latestRows } = await supabase
+          .from('email_messages')
+          .select('created_at')
+          .eq('sender_type', 'member')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
         return {
           openCount: openCount || 0,
           unreadCount,
           totalActiveCount: (openCount || 0) + unreadCount,
           unacknowledgedCount: unacknowledgedIds.length,
+          latestMemberMessageAt: (latestRows?.[0] as any)?.created_at ?? null,
         };
       } catch (error) {
         console.error('Failed to load admin support notifications:', error);
@@ -84,13 +95,18 @@ export function useAdminSupportNotifications() {
           unreadCount: 0,
           totalActiveCount: 0,
           unacknowledgedCount: 0,
+          latestMemberMessageAt: null,
         };
       }
     },
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
-    staleTime: 10000, // Consider data stale after 10 seconds
+    // Keep checking even when this window is behind another one — a front desk
+    // or admin tab is almost never the focused window when a request lands.
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
+    staleTime: 5000,
   });
 }
+
 
 export function useMarkMessagesAsRead() {
   return async (conversationId: string) => {
