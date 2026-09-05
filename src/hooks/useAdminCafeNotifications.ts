@@ -68,6 +68,8 @@ export function useAdminCafeNotifications() {
     // Background windows must keep polling — the café screen is rarely focused.
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
+    // Keep polling through brief network/offline blips instead of pausing.
+    networkMode: "always" as const,
     staleTime: 5000,
   });
 }

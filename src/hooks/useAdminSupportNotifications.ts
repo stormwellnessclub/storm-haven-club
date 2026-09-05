@@ -103,6 +103,8 @@ export function useAdminSupportNotifications() {
     // or admin tab is almost never the focused window when a request lands.
     refetchInterval: 15000,
     refetchIntervalInBackground: true,
+    // Keep polling through brief network/offline blips instead of pausing.
+    networkMode: "always" as const,
     staleTime: 5000,
   });
 }
