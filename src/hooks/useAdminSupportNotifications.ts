@@ -7,7 +7,10 @@ interface SupportNotifications {
   totalActiveCount: number;
   /** Open/in-progress requests that no staff member has marked "received" yet. */
   unacknowledgedCount: number;
+  /** Timestamp of the newest member message — used to detect arrivals that don't move the counts. */
+  latestMemberMessageAt: string | null;
 }
+
 
 export function useAdminSupportNotifications() {
   return useQuery({
