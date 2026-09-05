@@ -346,6 +346,7 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSeenUnreadRef = useRef<number | null>(null);
   const lastSeenOpenRef = useRef<number | null>(null);
+  const lastSeenMessageAtRef = useRef<string | null | undefined>(undefined);
   const justChimedViaRealtimeRef = useRef(false);
 
   const chimeSafe = useCallback(() => {
@@ -388,21 +389,27 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
 
   // Polling fallback: chime if unread/open grew without a realtime event
   useEffect(() => {
-    const unread = notifications?.unreadCount ?? 0;
-    const open = notifications?.openCount ?? 0;
+    if (!notifications) return;
+    const unread = notifications.unreadCount ?? 0;
+    const open = notifications.openCount ?? 0;
     const prevUnread = lastSeenUnreadRef.current;
     const prevOpen = lastSeenOpenRef.current;
-    if (
-      prevUnread !== null && prevOpen !== null &&
-      (unread > prevUnread || open > prevOpen) &&
-      !justChimedViaRealtimeRef.current
-    ) {
+    const latest = notifications.latestMemberMessageAt ?? null;
+    const prevLatest = lastSeenMessageAtRef.current;
+
+    const countGrew =
+      prevUnread !== null && prevOpen !== null && (unread > prevUnread || open > prevOpen);
+    const newerMessage =
+      prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
+
+    if ((countGrew || newerMessage) && !justChimedViaRealtimeRef.current) {
       console.log("[support chime] polling fallback triggered");
       chimeSafe();
     }
     lastSeenUnreadRef.current = unread;
     lastSeenOpenRef.current = open;
-  }, [notifications?.unreadCount, notifications?.openCount, chimeSafe]);
+    lastSeenMessageAtRef.current = latest;
+  }, [notifications, chimeSafe]);
 
   // Recurring reminder while requests are still unacknowledged ("received" silences it).
   // The interval is created ONCE — reading counts from a ref — because the

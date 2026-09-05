@@ -21,6 +21,7 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
   const { data: notifications } = useAdminCafeNotifications();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSeenCountRef = useRef<number | null>(null);
+  const lastSeenOrderAtRef = useRef<string | null | undefined>(undefined);
   const justChimedViaRealtimeRef = useRef(false);
 
   const chimeSafe = useCallback(() => {
@@ -64,14 +65,22 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
 
   // Polling fallback: if active count grew but realtime didn't fire, chime anyway
   useEffect(() => {
-    const current = notifications?.totalActiveCount ?? 0;
+    if (!notifications) return;
+    const current = notifications.totalActiveCount ?? 0;
     const prev = lastSeenCountRef.current;
-    if (prev !== null && current > prev && !justChimedViaRealtimeRef.current) {
+    const latest = notifications.latestOrderAt ?? null;
+    const prevLatest = lastSeenOrderAtRef.current;
+    const countGrew = prev !== null && current > prev;
+    const newerOrder =
+      prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
+
+    if ((countGrew || newerOrder) && !justChimedViaRealtimeRef.current) {
       console.log("[cafe chime] polling fallback triggered (count", prev, "→", current, ")");
       chimeSafe();
     }
     lastSeenCountRef.current = current;
-  }, [notifications?.totalActiveCount, chimeSafe]);
+    lastSeenOrderAtRef.current = latest;
+  }, [notifications, chimeSafe]);
 
   // 5-minute reminder while orders remain. Created ONCE (counts read from a
   // ref) — the query refetches often and would otherwise reset the timer.
