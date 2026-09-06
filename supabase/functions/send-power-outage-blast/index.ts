@@ -1,4 +1,4 @@
-// Sep 2 2026 early-closing announcement email blast (9:00 PM close, urgent maintenance).
+// Sep 6 2026 power outage announcement email blast.
 // Admin-only. Modes: preview (return HTML), testEmail (single send), else blast all active members.
 // Idempotent on email_type='power_outage_2026_09_06'.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -14,7 +14,7 @@ const corsHeaders = {
 
 const TEMPLATE_KEY = "power_outage_2026_09_06";
 const TEST_TEMPLATE_KEY = "power_outage_2026_09_06_test";
-const SUBJECT = "Closing early tonight at 9:00 PM — urgent maintenance";
+const SUBJECT = "Power outage update — power not expected back until tomorrow";
 
 function buildHtml(firstName: string | null): string {
   const greeting = firstName ? `Hi ${firstName},` : "Hello,";
@@ -26,25 +26,25 @@ function buildHtml(firstName: string | null): string {
       <div style="height:4px;background:linear-gradient(90deg,#B8A068,#C1B19C,#B8A068);"></div>
       <div style="background:#ffffff;padding:32px 30px;border-left:1px solid #C1B19C;border-right:1px solid #C1B19C;color:#1C170F;">
         <p style="color:#a17e3a;font-family:Arial,sans-serif;letter-spacing:2px;font-size:11px;margin:0 0 8px;">AN IMPORTANT UPDATE</p>
-        <h1 style="font-family:Georgia,serif;font-weight:500;margin:0 0 6px;font-size:26px;line-height:1.25;">Closing Early Tonight at 9:00 PM</h1>
-        <p style="color:#88766B;margin:0 0 22px;font-style:italic;">Wednesday, September 2 &middot; urgent maintenance</p>
+        <h1 style="font-family:Georgia,serif;font-weight:500;margin:0 0 6px;font-size:26px;line-height:1.25;">Power Outage at the Club</h1>
+        <p style="color:#88766B;margin:0 0 22px;font-style:italic;">Power is not expected to be restored until tomorrow</p>
 
         <p>${greeting}</p>
-        <p>A quick but important note about <strong>tonight</strong>:</p>
+        <p>We lost power at the club today, and we&rsquo;ve just received word from the utility that
+        <strong>power is not expected to be restored until tomorrow</strong>.</p>
 
         <div style="background:#F7F4EC;border:1px solid #E7DFCF;padding:18px 20px;border-radius:6px;margin:14px 0 22px;">
           <p style="margin:0;font-size:15px;">
-            The club will <strong>close at 9:00 PM tonight</strong> instead of our usual time so our team can complete
-            urgent maintenance. Please plan to wrap up your workout, class, or recovery session and exit the building
-            by <strong>9:00 PM</strong>.
+            Until power is back, the club is unable to operate normally. Classes, spa and recovery services,
+            caf&eacute; service, and check-in are affected. If you have a booking during this time, our team
+            will reach out to you directly &mdash; you will not lose a credit or a session because of the outage.
           </p>
         </div>
 
-        <p>All classes, spa, recovery, and caf&eacute; service will end before close. If you have a booking affected by the early closing, our team will reach out to you directly.</p>
+        <p>We will keep everyone updated as soon as we hear anything new, and we&rsquo;ll confirm here and in your
+        member portal the moment we are back up and running.</p>
 
-        <p>We reopen on our normal schedule tomorrow morning with everything running as usual.</p>
-
-        <p>Thank you for your understanding on such short notice &mdash; we appreciate you.</p>
+        <p>Thank you for your patience &mdash; this is out of our hands, but keeping you informed is not.</p>
 
         <p style="margin:28px 0 0;">Warmly,<br/><strong>The Storm Wellness Club Team</strong></p>
       </div>
