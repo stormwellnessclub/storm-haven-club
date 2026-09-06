@@ -206,8 +206,26 @@ const getAnnualFeeBadge = (status: string) => {
 export default function Applications() {
   const { user } = useAuth();
   const { isSuperAdmin } = useUserRoles();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilterState] = useState<string>(
+    () => searchParams.get("tab") || "all",
+  );
+
+  // Keep the URL in sync so the sidebar can deep-link straight to a tab.
+  const setStatusFilter = (next: string) => {
+    setStatusFilterState(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === "all") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
+
+  useEffect(() => {
+    const tab = searchParams.get("tab") || "all";
+    setStatusFilterState((prev) => (prev === tab ? prev : tab));
+  }, [searchParams]);
+
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [notesValue, setNotesValue] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
