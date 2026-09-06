@@ -2,11 +2,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
-
-import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
-import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import { NoIndex } from "@/components/seo/NoIndex";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import {
@@ -109,10 +105,6 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
   return (
     <>
       <NoIndex />
-      <AudioUnlocker />
-      <AdminSupportChime />
-      <AdminCafeChime />
-
       <div className="min-h-screen flex flex-col bg-background">
         {/* Persistent cafe order banner — visible cue for the front desk */}
         <CafeOrderBanner />

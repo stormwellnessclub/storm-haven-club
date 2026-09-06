@@ -16,8 +16,6 @@ interface Options {
   /** Unique channel name (per browser tab). */
   channelName: string;
   listeners: RealtimeListener[];
-  /** How long without a server event before forcing a reconnect. Default 90s. */
-  staleAfterMs?: number;
   /** Verbose console logs for debugging. */
   debug?: boolean;
 }
@@ -26,21 +24,19 @@ interface Options {
  * Wraps a Supabase realtime channel with:
  *  - automatic reconnect on CHANNEL_ERROR / TIMED_OUT / CLOSED
  *  - exponential backoff (1s → 30s)
- *  - "stale" detection: if no events for `staleAfterMs`, force reconnect
+ *  - reconnect on network/page lifecycle recovery
  *  - exposes connection status so the UI can show a health indicator
  */
 export function useReliableRealtime({
   channelName,
   listeners,
-  staleAfterMs = 90_000,
   debug = false,
 }: Options) {
   const [status, setStatus] = useState<RealtimeStatus>("idle");
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const lastActivityRef = useRef<number>(Date.now());
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const staleTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef = useRef(true);
   const listenersRef = useRef(listeners);
   listenersRef.current = listeners;
 
@@ -66,7 +62,21 @@ export function useReliableRealtime({
     }
   }, [log]);
 
+  const connectRef = useRef<() => void>(() => undefined);
+
+  const scheduleReconnect = useCallback(() => {
+    if (!mountedRef.current || reconnectTimerRef.current) return;
+    const attempt = reconnectAttemptsRef.current++;
+    const delay = Math.min(30_000, 1000 * Math.pow(2, attempt));
+    log(`reconnect in ${delay}ms (attempt ${attempt + 1})`);
+    reconnectTimerRef.current = setTimeout(() => {
+      reconnectTimerRef.current = null;
+      connectRef.current();
+    }, delay);
+  }, [log]);
+
   const connect = useCallback(() => {
+    if (!mountedRef.current) return;
     cleanup();
     setStatus("connecting");
     log("connecting…");
@@ -85,7 +95,6 @@ export function useReliableRealtime({
           ...(l.filter ? { filter: l.filter } : {}),
         },
         (payload: any) => {
-          lastActivityRef.current = Date.now();
           try {
             l.callback(payload);
           } catch (e) {
@@ -97,7 +106,6 @@ export function useReliableRealtime({
 
     ch.subscribe((subStatus) => {
       log("status:", subStatus);
-      lastActivityRef.current = Date.now();
       if (subStatus === "SUBSCRIBED") {
         setStatus("connected");
         reconnectAttemptsRef.current = 0;
@@ -111,64 +119,42 @@ export function useReliableRealtime({
     });
 
     channelRef.current = ch;
-  }, [cleanup, channelName, log]);
+  }, [cleanup, channelName, log, scheduleReconnect]);
 
-  const scheduleReconnect = useCallback(() => {
-    if (reconnectTimerRef.current) return;
-    const attempt = reconnectAttemptsRef.current++;
-    const delay = Math.min(30_000, 1000 * Math.pow(2, attempt));
-    log(`reconnect in ${delay}ms (attempt ${attempt + 1})`);
-    reconnectTimerRef.current = setTimeout(() => {
-      reconnectTimerRef.current = null;
-      connect();
-    }, delay);
-  }, [connect, log]);
+  connectRef.current = connect;
 
   // Initial connect + cleanup
   useEffect(() => {
+    mountedRef.current = true;
     connect();
     return () => {
+      mountedRef.current = false;
       cleanup();
-      if (staleTimerRef.current) clearInterval(staleTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelName]);
 
-  // Stale-detection watchdog
+  // A quiet channel is healthy. Reconnect only after a real lifecycle/network
+  // transition or an explicit channel error, then let polling reconcile gaps.
   useEffect(() => {
-    if (staleTimerRef.current) clearInterval(staleTimerRef.current);
-    staleTimerRef.current = setInterval(() => {
-      const idleFor = Date.now() - lastActivityRef.current;
-      if (status === "connected" && idleFor > staleAfterMs) {
-        log(`stale for ${idleFor}ms — forcing reconnect`);
-        lastActivityRef.current = Date.now();
-        connect();
-      }
-    }, 30_000);
-    return () => {
-      if (staleTimerRef.current) clearInterval(staleTimerRef.current);
-    };
-  }, [status, staleAfterMs, connect, log]);
-
-  // Reconnect on tab focus (covers laptop sleep, network blips)
-  useEffect(() => {
-    const onFocus = () => {
-      const idleFor = Date.now() - lastActivityRef.current;
-      if (status !== "connected" || idleFor > 60_000) {
-        log("tab focus — reconnecting");
-        connect();
-      }
+    const recover = () => {
+      log("station resumed — reconnecting");
+      connect();
     };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") onFocus();
+      if (document.visibilityState === "visible") recover();
     };
-    window.addEventListener("focus", onFocus);
+    window.addEventListener("online", recover);
+    window.addEventListener("pageshow", recover);
+    document.addEventListener("resume", recover);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("online", recover);
+      window.removeEventListener("pageshow", recover);
+      document.removeEventListener("resume", recover);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [status, connect, log]);
+  }, [connect, log]);
 
   return { status };
 }
