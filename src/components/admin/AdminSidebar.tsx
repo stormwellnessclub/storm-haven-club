@@ -113,6 +113,8 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin', 'manager', 'front_desk'],
     items: [
       { title: "Applications", url: "/admin/applications", icon: FileText },
+      { title: "Abandoned Applications", url: "/admin/applications?tab=abandoned", icon: AlertCircle },
+
       { title: "Member Credits", url: "/admin/member-credits", icon: CreditCard },
       { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake },
       { title: "Agreements", url: "/admin/agreements", icon: FileText },
