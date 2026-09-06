@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +71,7 @@ import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaid
 import { PersonalizedLetterModal } from "@/components/admin/PersonalizedLetterModal";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { AbandonedApplicationsTab } from "@/components/admin/AbandonedApplicationsTab";
+import { useAbandonedApplicationsCount } from "@/hooks/useAbandonedApplications";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -206,8 +209,27 @@ const getAnnualFeeBadge = (status: string) => {
 export default function Applications() {
   const { user } = useAuth();
   const { isSuperAdmin } = useUserRoles();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const abandonedCount = useAbandonedApplicationsCount();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilterState] = useState<string>(
+    () => searchParams.get("tab") || "all",
+  );
+
+  // Keep the URL in sync so the sidebar can deep-link straight to a tab.
+  const setStatusFilter = (next: string) => {
+    setStatusFilterState(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === "all") params.delete("tab");
+    else params.set("tab", next);
+    setSearchParams(params, { replace: true });
+  };
+
+  useEffect(() => {
+    const tab = searchParams.get("tab") || "all";
+    setStatusFilterState((prev) => (prev === tab ? prev : tab));
+  }, [searchParams]);
+
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [notesValue, setNotesValue] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -2007,7 +2029,13 @@ export default function Applications() {
             <Button variant={statusFilter === "abandoned" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("abandoned")} className="border-destructive/30 text-destructive hover:bg-destructive/10">
               <AlertCircle className="h-3 w-3 mr-1" />
               Abandoned
+              {abandonedCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium">
+                  {abandonedCount}
+                </span>
+              )}
             </Button>
+
             <Button
               variant={statusFilter === "card_declined" ? "default" : "outline"}
               size="sm"

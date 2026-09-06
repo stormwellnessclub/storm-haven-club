@@ -71,6 +71,7 @@ import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useUnresolvedFailedCount } from "@/hooks/useUnresolvedFailedCount";
+import { useAbandonedApplicationsCount } from "@/hooks/useAbandonedApplications";
 import { canAccessPage, type AppRole } from "@/lib/permissions";
 
 interface MenuItem {
@@ -113,6 +114,8 @@ const departments: DepartmentSection[] = [
     roles: ['super_admin', 'admin', 'manager', 'front_desk'],
     items: [
       { title: "Applications", url: "/admin/applications", icon: FileText },
+      { title: "Abandoned Applications", url: "/admin/applications?tab=abandoned", icon: AlertCircle },
+
       { title: "Member Credits", url: "/admin/member-credits", icon: CreditCard },
       { title: "Freeze Requests", url: "/admin/freeze-requests", icon: Snowflake },
       { title: "Agreements", url: "/admin/agreements", icon: FileText },
@@ -219,6 +222,8 @@ export function AdminSidebar() {
   const [todaysGuestCount, setTodaysGuestCount] = useState(0);
   const [hasMembership, setHasMembership] = useState(false);
   const unresolvedFailedCount = useUnresolvedFailedCount();
+  const abandonedApplicationsCount = useAbandonedApplicationsCount();
+
 
   useEffect(() => {
     if (!user) return;
@@ -271,8 +276,9 @@ export function AdminSidebar() {
     }
     if (location.pathname === pathOnly) {
       // A bare entry is not active when a tab-specific sibling matches
-      return true;
+      return !new URLSearchParams(location.search).get("tab");
     }
+
     return location.pathname.startsWith(pathOnly + "/");
   };
 
@@ -370,6 +376,14 @@ export function AdminSidebar() {
                                   {unresolvedFailedCount}
                                 </span>
                               )}
+                              {item.url === "/admin/applications?tab=abandoned" &&
+                                abandonedApplicationsCount > 0 &&
+                                !isCollapsed && (
+                                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium">
+                                    {abandonedApplicationsCount}
+                                  </span>
+                                )}
+
                             </NavLink>
                             )}
                           </SidebarMenuButton>
