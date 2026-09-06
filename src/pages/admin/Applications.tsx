@@ -71,6 +71,7 @@ import { MarkPaidDialog, ManualPaymentMethod } from "@/components/admin/MarkPaid
 import { PersonalizedLetterModal } from "@/components/admin/PersonalizedLetterModal";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { AbandonedApplicationsTab } from "@/components/admin/AbandonedApplicationsTab";
+import { useAbandonedApplicationsCount } from "@/hooks/useAbandonedApplications";
 
 // Normalize membership tier from any format to consistent display name
 function normalizeTierName(rawPlan: string): string {
@@ -209,6 +210,7 @@ export default function Applications() {
   const { user } = useAuth();
   const { isSuperAdmin } = useUserRoles();
   const [searchParams, setSearchParams] = useSearchParams();
+  const abandonedCount = useAbandonedApplicationsCount();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilterState] = useState<string>(
     () => searchParams.get("tab") || "all",
