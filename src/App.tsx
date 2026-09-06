@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { StationNotificationProvider } from "@/components/admin/StationNotificationProvider";
 import { HelmetProvider } from "react-helmet-async";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -262,6 +263,7 @@ const App = () => (
           <BrowserRouter>
             <SessionMonitor />
             <ScrollToTop />
+            <StationNotificationProvider>
             <Routes>
               {/* Static file redirects for crawlers */}
               <Route path="/sitemap.xml" element={<SitemapRedirect />} />
@@ -527,6 +529,7 @@ const App = () => (
               
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </StationNotificationProvider>
           </BrowserRouter>
         </ErrorBoundary>
       </TooltipProvider>

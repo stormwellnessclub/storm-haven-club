@@ -2,11 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { KioskPinGate } from "@/components/kiosk/KioskPinGate";
-import { AdminSupportChime } from "@/components/admin/AdminSupportChime";
 import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
-
-import { AdminCafeChime } from "@/components/admin/AdminCafeChime";
-import { AudioUnlocker } from "@/components/admin/AudioUnlocker";
 import {
   UserCheck, Coffee, Sparkles, GraduationCap, Lock, Home,
 } from "lucide-react";
@@ -54,15 +50,12 @@ export function KioskShell({ label, mode, children }: KioskShellProps) {
 
   const handleLock = async () => {
     sessionStorage.removeItem("kioskUnlocked");
+    window.dispatchEvent(new Event("station:kiosk-auth-changed"));
     setUnlocked(false);
   };
 
   return (
     <>
-      <AudioUnlocker />
-      <AdminSupportChime />
-      <AdminCafeChime />
-
       <div className="min-h-screen flex flex-col bg-background">
         {/* Header */}
         <header className="border-b bg-card sticky top-0 z-30">

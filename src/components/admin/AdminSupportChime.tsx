@@ -212,6 +212,7 @@ function getCtx(): AudioContext | null {
 // primed element survives long idle periods far better than `new Audio()`.
 let primedEl: HTMLAudioElement | null = null;
 let primedSound: ChimeSound | null = null;
+let fallbackUnlocked = false;
 
 function getPrimedElement(sound: ChimeSound): HTMLAudioElement | null {
   const uri = getChimeUri(sound);
@@ -250,6 +251,7 @@ export async function unlockChimeAudio(): Promise<void> {
       el.volume = 0;
       try {
         await el.play();
+        fallbackUnlocked = true;
         el.pause();
         el.currentTime = 0;
       } catch {
@@ -268,7 +270,7 @@ export function isAudioBlocked(): boolean {
   if (typeof window === "undefined") return false;
   const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
   if (!Ctx) return false; // no WebAudio — HTMLAudio fallback handles it
-  return !sharedCtx || sharedCtx.state !== "running";
+  return (!sharedCtx || sharedCtx.state !== "running") && !fallbackUnlocked;
 }
 
 async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean> {
@@ -351,7 +353,10 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
     console.warn("Chime data URI not available");
     return "failed";
   }
-  if (await playViaWebAudio(sound)) return "played";
+    if (await playViaWebAudio(sound)) {
+      fallbackUnlocked = true;
+      return "played";
+    }
   try {
     // Reuse the element primed during a user gesture; fall back to a new one.
     const audio = getPrimedElement(sound) ?? new Audio(uri);
@@ -362,9 +367,8 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
       /* ignore */
     }
     await audio.play();
-    // WebAudio was blocked/suspended; the element played, but the browser may
-    // still be throttling. Report blocked so the UI can prompt for a tap.
-    return isAudioBlocked() ? "blocked" : "played";
+    fallbackUnlocked = true;
+    return "played";
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
     return "blocked";
@@ -411,6 +415,24 @@ export function setIsMuted(val: boolean) {
 
 // ── Component ───────────────────────────────────────────────────────
 const REMINDER_INTERVAL = 60 * 1000;
+const SUPPORT_CURSOR_KEY = "station-support-message-cursor";
+
+function readSessionCursor(key: string): string | null | undefined {
+  try {
+    const value = window.sessionStorage.getItem(key);
+    return value === null ? undefined : value;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeSessionCursor(key: string, value: string | null) {
+  try {
+    if (value) window.sessionStorage.setItem(key, value);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 interface Props {
   onStatusChange?: (s: RealtimeStatus) => void;
@@ -420,10 +442,7 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
   const queryClient = useQueryClient();
   const { data: notifications } = useAdminSupportNotifications();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSeenUnreadRef = useRef<number | null>(null);
-  const lastSeenOpenRef = useRef<number | null>(null);
-  const lastSeenMessageAtRef = useRef<string | null | undefined>(undefined);
-  const justChimedViaRealtimeRef = useRef(false);
+  const lastSeenMessageAtRef = useRef<string | null | undefined>(readSessionCursor(SUPPORT_CURSOR_KEY));
 
   const chimeSafe = useCallback(() => {
     if (!getIsMuted()) playNotificationChime();
@@ -439,23 +458,17 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     listeners: [
       {
         event: "INSERT",
-        table: "email_conversations",
-        callback: () => {
-          invalidate();
-          justChimedViaRealtimeRef.current = true;
-          chimeSafe();
-          setTimeout(() => { justChimedViaRealtimeRef.current = false; }, 35_000);
-        },
-      },
-      {
-        event: "INSERT",
         table: "email_messages",
         filter: "sender_type=eq.member",
-        callback: () => {
+        callback: (payload) => {
           invalidate();
-          justChimedViaRealtimeRef.current = true;
+          const createdAt = String(payload?.new?.created_at ?? "");
+          if (createdAt && createdAt === lastSeenMessageAtRef.current) return;
+          if (createdAt) {
+            lastSeenMessageAtRef.current = createdAt;
+            writeSessionCursor(SUPPORT_CURSOR_KEY, createdAt);
+          }
           chimeSafe();
-          setTimeout(() => { justChimedViaRealtimeRef.current = false; }, 35_000);
         },
       },
     ],
@@ -463,28 +476,20 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
 
   useEffect(() => { onStatusChange?.(status); }, [status, onStatusChange]);
 
-  // Polling fallback: chime if unread/open grew without a realtime event
+  // Polling fallback compares event identity, never mutable badge counts.
   useEffect(() => {
     if (!notifications) return;
-    const unread = notifications.unreadCount ?? 0;
-    const open = notifications.openCount ?? 0;
-    const prevUnread = lastSeenUnreadRef.current;
-    const prevOpen = lastSeenOpenRef.current;
     const latest = notifications.latestMemberMessageAt ?? null;
     const prevLatest = lastSeenMessageAtRef.current;
-
-    const countGrew =
-      prevUnread !== null && prevOpen !== null && (unread > prevUnread || open > prevOpen);
     const newerMessage =
       prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
 
-    if ((countGrew || newerMessage) && !justChimedViaRealtimeRef.current) {
+    if (newerMessage) {
       console.log("[support chime] polling fallback triggered");
       chimeSafe();
     }
-    lastSeenUnreadRef.current = unread;
-    lastSeenOpenRef.current = open;
     lastSeenMessageAtRef.current = latest;
+    writeSessionCursor(SUPPORT_CURSOR_KEY, latest);
   }, [notifications, chimeSafe]);
 
   // Recurring reminder while requests are still unacknowledged ("received" silences it).

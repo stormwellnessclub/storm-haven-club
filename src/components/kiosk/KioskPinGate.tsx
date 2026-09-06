@@ -31,6 +31,7 @@ export function KioskPinGate({ onUnlock }: KioskPinGateProps) {
         // lookup, credits, cafe orders and charges pass RLS.
         const ok = await startKioskSession(pin);
         if (!ok) toast.error("Unlocked, but staff data access failed. Try again.");
+        window.dispatchEvent(new Event("station:kiosk-auth-changed"));
         onUnlock();
       } else {
         toast.error("Invalid PIN");

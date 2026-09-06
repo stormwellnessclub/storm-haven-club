@@ -5,6 +5,24 @@ import { useReliableRealtime, type RealtimeStatus } from "@/hooks/useReliableRea
 import { getIsMuted, playNotificationChime } from "./AdminSupportChime";
 
 const FIVE_MINUTES = 5 * 60 * 1000;
+const CAFE_CURSOR_KEY = "station-cafe-order-cursor";
+
+function readCafeCursor(): string | null | undefined {
+  try {
+    const value = window.sessionStorage.getItem(CAFE_CURSOR_KEY);
+    return value === null ? undefined : value;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCafeCursor(value: string | null) {
+  try {
+    if (value) window.sessionStorage.setItem(CAFE_CURSOR_KEY, value);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 interface Props {
   onStatusChange?: (s: RealtimeStatus) => void;
@@ -20,9 +38,7 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
   const queryClient = useQueryClient();
   const { data: notifications } = useAdminCafeNotifications();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSeenCountRef = useRef<number | null>(null);
-  const lastSeenOrderAtRef = useRef<string | null | undefined>(undefined);
-  const justChimedViaRealtimeRef = useRef(false);
+  const lastSeenOrderAtRef = useRef<string | null | undefined>(readCafeCursor());
 
   const chimeSafe = useCallback(() => {
     if (!getIsMuted()) playNotificationChime();
@@ -40,14 +56,15 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
       {
         event: "INSERT",
         table: "cafe_orders",
-        callback: () => {
+        callback: (payload) => {
           invalidate();
-          justChimedViaRealtimeRef.current = true;
+          const createdAt = String(payload?.new?.created_at ?? "");
+          if (createdAt && createdAt === lastSeenOrderAtRef.current) return;
+          if (createdAt) {
+            lastSeenOrderAtRef.current = createdAt;
+            writeCafeCursor(createdAt);
+          }
           chimeSafe();
-          // Reset flag after a window long enough for the polling refresh
-          setTimeout(() => {
-            justChimedViaRealtimeRef.current = false;
-          }, 35_000);
         },
       },
       {
@@ -63,23 +80,20 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
     onStatusChange?.(status);
   }, [status, onStatusChange]);
 
-  // Polling fallback: if active count grew but realtime didn't fire, chime anyway
+  // Polling fallback compares event identity, never mutable order counts.
   useEffect(() => {
     if (!notifications) return;
-    const current = notifications.totalActiveCount ?? 0;
-    const prev = lastSeenCountRef.current;
     const latest = notifications.latestOrderAt ?? null;
     const prevLatest = lastSeenOrderAtRef.current;
-    const countGrew = prev !== null && current > prev;
     const newerOrder =
       prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
 
-    if ((countGrew || newerOrder) && !justChimedViaRealtimeRef.current) {
-      console.log("[cafe chime] polling fallback triggered (count", prev, "→", current, ")");
+    if (newerOrder) {
+      console.log("[cafe chime] polling fallback triggered");
       chimeSafe();
     }
-    lastSeenCountRef.current = current;
     lastSeenOrderAtRef.current = latest;
+    writeCafeCursor(latest);
   }, [notifications, chimeSafe]);
 
   // 5-minute reminder while orders remain. Created ONCE (counts read from a
