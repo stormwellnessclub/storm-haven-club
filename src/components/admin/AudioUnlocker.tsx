@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { isAudioBlocked, unlockChimeAudio } from "./AdminSupportChime";
+import { isAudioBlocked, markChimeAudioNeedsUnlock, unlockChimeAudio } from "./AdminSupportChime";
 
 /**
  * Browsers block audio until the user has interacted with the page, and they
@@ -36,7 +36,9 @@ export function AudioUnlocker() {
 
     const onVisibility = () => {
       if (document.visibilityState === "visible") unlock();
+      else markChimeAudioNeedsUnlock();
     };
+    const onFreeze = () => markChimeAudioNeedsUnlock();
 
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
@@ -45,6 +47,8 @@ export function AudioUnlocker() {
     window.addEventListener("online", unlock);
     window.addEventListener("pageshow", unlock);
     document.addEventListener("resume", unlock);
+    document.addEventListener("freeze", onFreeze);
+    window.addEventListener("pagehide", onFreeze);
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
@@ -55,6 +59,8 @@ export function AudioUnlocker() {
       window.removeEventListener("online", unlock);
       window.removeEventListener("pageshow", unlock);
       document.removeEventListener("resume", unlock);
+      document.removeEventListener("freeze", onFreeze);
+      window.removeEventListener("pagehide", onFreeze);
       document.removeEventListener("visibilitychange", onVisibility);
     };
 
