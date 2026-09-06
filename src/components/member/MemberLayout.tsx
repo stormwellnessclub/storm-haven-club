@@ -14,6 +14,7 @@ import { SmsOptInGate } from "./SmsOptInGate";
 import { MemorialDayHoursBanner } from "./MemorialDayHoursBanner";
 import { MaintenanceJuly23Banner } from "./MaintenanceJuly23Banner";
 import { ClosingTonightBanner } from "./ClosingTonightBanner";
+import { PowerOutageBanner } from "./PowerOutageBanner";
 import { MilestoneCelebrationHost } from "./MilestoneCelebrationHost";
 import { AchievementCelebrationHost } from "./AchievementCelebrationHost";
 
@@ -110,6 +111,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
         <NotificationBar items={notifications} />
         
         {/* Info banners */}
+        <PowerOutageBanner />
         <ClosingTonightBanner />
         <MaintenanceJuly23Banner />
         <MemorialDayHoursBanner />
