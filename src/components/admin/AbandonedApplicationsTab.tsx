@@ -469,9 +469,20 @@ export function AbandonedApplicationsTab() {
       {nothing && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>No abandoned applications found.</AlertDescription>
+          <AlertDescription>
+            No one is waiting in this list right now — every started application has either been
+            completed or already matches a record you have.
+            {totals && (
+              <>
+                {" "}
+                Set aside: {totals.alreadyApplied} already applied, {totals.alreadyMember} already
+                members, {totals.testRows} test entries.
+              </>
+            )}
+          </AlertDescription>
         </Alert>
       )}
+
 
       {/* 1. Failed submits */}
       {submitFailures.length > 0 && (
