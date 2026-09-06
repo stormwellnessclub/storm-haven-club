@@ -71,6 +71,7 @@ import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useUnresolvedFailedCount } from "@/hooks/useUnresolvedFailedCount";
+import { useAbandonedApplicationsCount } from "@/hooks/useAbandonedApplications";
 import { canAccessPage, type AppRole } from "@/lib/permissions";
 
 interface MenuItem {
