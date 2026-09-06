@@ -221,6 +221,8 @@ export function AdminSidebar() {
   const [todaysGuestCount, setTodaysGuestCount] = useState(0);
   const [hasMembership, setHasMembership] = useState(false);
   const unresolvedFailedCount = useUnresolvedFailedCount();
+  const abandonedApplicationsCount = useAbandonedApplicationsCount();
+
 
   useEffect(() => {
     if (!user) return;
