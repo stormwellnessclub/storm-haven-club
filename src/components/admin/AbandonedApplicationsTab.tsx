@@ -36,28 +36,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-type FilterReason = "none" | "already_applied" | "already_member" | "test_email";
-
-interface AbandonedAttempt {
-  id: string;
-  stripe_customer_id: string;
-  status: string;
-  source: string;
-  created_at: string;
-  reminder_sent_at: string | null;
-  reminder_count: number | null;
-  card_brand?: string | null;
-  card_last4?: string | null;
-  metadata: {
-    applicant_email?: string;
-    applicant_name?: string;
-  } | null;
-  possibleDuplicateOf?: string | null;
-  filterReason: FilterReason;
-  attemptCount: number;
-  attemptDates: string[];
-}
-
 interface SubmitFailure {
   id: string;
   created_at: string;
@@ -70,10 +48,6 @@ interface SubmitFailure {
   payload: Record<string, unknown> | null;
 }
 
-const TEST_EMAIL_PATTERN = /(test@|@example\.com|@test\.com)/i;
-
-const normalizeName = (v?: string | null) =>
-  (v || "").toLowerCase().replace(/[^a-z]/g, "");
 
 const REASON_LABEL: Record<FilterReason, string> = {
   none: "",
