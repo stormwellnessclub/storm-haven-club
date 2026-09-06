@@ -212,7 +212,7 @@ function getCtx(): AudioContext | null {
 // primed element survives long idle periods far better than `new Audio()`.
 let primedEl: HTMLAudioElement | null = null;
 let primedSound: ChimeSound | null = null;
-let fallbackUnlocked = false;
+let audioReady = false;
 
 function getPrimedElement(sound: ChimeSound): HTMLAudioElement | null {
   const uri = getChimeUri(sound);
@@ -238,6 +238,7 @@ export async function unlockChimeAudio(): Promise<void> {
     const ctx = getCtx();
     if (ctx) {
       if (ctx.state !== "running") await ctx.resume();
+        if (ctx.state === "running") audioReady = true;
       const buffer = ctx.createBuffer(1, 1, 22050);
       const src = ctx.createBufferSource();
       src.buffer = buffer;
@@ -251,7 +252,7 @@ export async function unlockChimeAudio(): Promise<void> {
       el.volume = 0;
       try {
         await el.play();
-        fallbackUnlocked = true;
+        audioReady = true;
         el.pause();
         el.currentTime = 0;
       } catch {
@@ -268,9 +269,12 @@ export async function unlockChimeAudio(): Promise<void> {
 /** True when the shared audio engine is missing or still blocked by the browser. */
 export function isAudioBlocked(): boolean {
   if (typeof window === "undefined") return false;
-  const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
-  if (!Ctx) return false; // no WebAudio — HTMLAudio fallback handles it
-  return (!sharedCtx || sharedCtx.state !== "running") && !fallbackUnlocked;
+  return !audioReady;
+}
+
+/** Browser sleep/page freeze can invalidate a previously unlocked output path. */
+export function markChimeAudioNeedsUnlock() {
+  audioReady = false;
 }
 
 async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean> {
@@ -354,7 +358,7 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
     return "failed";
   }
     if (await playViaWebAudio(sound)) {
-      fallbackUnlocked = true;
+      audioReady = true;
       return "played";
     }
   try {
@@ -367,7 +371,7 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
       /* ignore */
     }
     await audio.play();
-    fallbackUnlocked = true;
+    audioReady = true;
     return "played";
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
