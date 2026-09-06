@@ -71,7 +71,7 @@ export function PowerOutageBlastControls() {
         supabase
           .from("email_audit_log")
           .select("recipient_email")
-          .eq("email_type", "closing_early_2026_09_02"),
+          .eq("email_type", "power_outage_2026_09_06"),
       ]);
       if (error) throw error;
       const sentSet = new Set((sent ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
@@ -204,10 +204,10 @@ export function PowerOutageBlastControls() {
     <div className="rounded-lg border p-4 space-y-3 bg-card">
       <div>
         <h3 className="font-semibold text-base flex items-center gap-2">
-          <Mail className="h-4 w-4" /> Tonight's Early Closing (9:00 PM) — Wed, Sept 2
+          <Mail className="h-4 w-4" /> Power Outage Update — Restoration Expected Tomorrow
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Urgent maintenance notice. Open <strong>View recipients</strong> to see exactly who gets it and
+          Power outage status notice. Open <strong>View recipients</strong> to see exactly who gets it and
           uncheck anyone you don't want included. Nothing goes out until you press Send.
         </p>
       </div>
@@ -236,7 +236,7 @@ export function PowerOutageBlastControls() {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Send tonight's early closing email?</AlertDialogTitle>
+              <AlertDialogTitle>Send the power outage update email?</AlertDialogTitle>
               <AlertDialogDescription>
                 {recipients.length
                   ? `Sends to the ${selected.size} recipient${selected.size === 1 ? "" : "s"} you have checked in the recipients list. Anyone already emailed is skipped.`
@@ -341,7 +341,7 @@ export function PowerOutageBlastControls() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-3xl h-[85vh] flex flex-col p-0">
           <DialogHeader className="p-4 border-b">
-            <DialogTitle>Email preview — Closing tonight at 9:00 PM</DialogTitle>
+            <DialogTitle>Email preview — Power outage update</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden bg-muted">
             {html ? (
