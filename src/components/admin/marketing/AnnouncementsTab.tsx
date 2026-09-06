@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Send, Search, Eye, EyeOff, Users, Mail, Megaphone } from "lucide-react";
 import { MaintenanceBlastControls } from "@/components/admin/MaintenanceBlastControls";
 import { ClosingTonightBlastControls } from "@/components/admin/ClosingTonightBlastControls";
+import { PowerOutageBlastControls } from "@/components/admin/PowerOutageBlastControls";
 
 interface Recipient {
   id: string;
@@ -216,6 +217,7 @@ export function AnnouncementsTab() {
 
   return (
     <div className="space-y-6">
+      <PowerOutageBlastControls />
       <ClosingTonightBlastControls />
       <MaintenanceBlastControls />
 
