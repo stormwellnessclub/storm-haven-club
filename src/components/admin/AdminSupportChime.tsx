@@ -411,6 +411,24 @@ export function setIsMuted(val: boolean) {
 
 // ── Component ───────────────────────────────────────────────────────
 const REMINDER_INTERVAL = 60 * 1000;
+const SUPPORT_CURSOR_KEY = "station-support-message-cursor";
+
+function readSessionCursor(key: string): string | null | undefined {
+  try {
+    const value = window.sessionStorage.getItem(key);
+    return value === null ? undefined : value;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeSessionCursor(key: string, value: string | null) {
+  try {
+    if (value) window.sessionStorage.setItem(key, value);
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 interface Props {
   onStatusChange?: (s: RealtimeStatus) => void;
@@ -422,8 +440,7 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastSeenUnreadRef = useRef<number | null>(null);
   const lastSeenOpenRef = useRef<number | null>(null);
-  const lastSeenMessageAtRef = useRef<string | null | undefined>(undefined);
-  const justChimedViaRealtimeRef = useRef(false);
+  const lastSeenMessageAtRef = useRef<string | null | undefined>(() => readSessionCursor(SUPPORT_CURSOR_KEY));
 
   const chimeSafe = useCallback(() => {
     if (!getIsMuted()) playNotificationChime();
@@ -439,23 +456,17 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     listeners: [
       {
         event: "INSERT",
-        table: "email_conversations",
-        callback: () => {
-          invalidate();
-          justChimedViaRealtimeRef.current = true;
-          chimeSafe();
-          setTimeout(() => { justChimedViaRealtimeRef.current = false; }, 35_000);
-        },
-      },
-      {
-        event: "INSERT",
         table: "email_messages",
         filter: "sender_type=eq.member",
-        callback: () => {
+        callback: (payload) => {
           invalidate();
-          justChimedViaRealtimeRef.current = true;
+          const createdAt = String(payload?.new?.created_at ?? "");
+          if (createdAt && createdAt === lastSeenMessageAtRef.current) return;
+          if (createdAt) {
+            lastSeenMessageAtRef.current = createdAt;
+            writeSessionCursor(SUPPORT_CURSOR_KEY, createdAt);
+          }
           chimeSafe();
-          setTimeout(() => { justChimedViaRealtimeRef.current = false; }, 35_000);
         },
       },
     ],
@@ -478,13 +489,14 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
     const newerMessage =
       prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
 
-    if ((countGrew || newerMessage) && !justChimedViaRealtimeRef.current) {
+    if (countGrew || newerMessage) {
       console.log("[support chime] polling fallback triggered");
       chimeSafe();
     }
     lastSeenUnreadRef.current = unread;
     lastSeenOpenRef.current = open;
     lastSeenMessageAtRef.current = latest;
+    writeSessionCursor(SUPPORT_CURSOR_KEY, latest);
   }, [notifications, chimeSafe]);
 
   // Recurring reminder while requests are still unacknowledged ("received" silences it).

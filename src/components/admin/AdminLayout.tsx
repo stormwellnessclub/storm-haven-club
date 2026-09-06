@@ -5,13 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
 import { useAdminCafeNotifications } from "@/hooks/useAdminCafeNotifications";
-import { AdminSupportChime } from "./AdminSupportChime";
 import { ChimeSoundControls } from "./ChimeSoundControls";
-import { AdminCafeChime } from "./AdminCafeChime";
-import { AudioUnlocker } from "./AudioUnlocker";
-import { useState } from "react";
-
 import type { RealtimeStatus } from "@/hooks/useReliableRealtime";
+import { useStationNotifications } from "./StationNotificationProvider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useBareAdminLayout } from "./BareAdminLayoutContext";
 
@@ -45,8 +41,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
   const { data: cafeNotifications } = useAdminCafeNotifications();
-  const [supportStatus, setSupportStatus] = useState<RealtimeStatus>("idle");
-  const [cafeStatus, setCafeStatus] = useState<RealtimeStatus>("idle");
+  const { supportStatus, cafeStatus } = useStationNotifications();
 
   // When embedded inside a kiosk shell, render the page body only.
   // The shell already provides chrome, chimes, and audio unlock.
@@ -69,9 +64,6 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
 
   return (
     <SidebarProvider>
-      <AudioUnlocker />
-      <AdminSupportChime onStatusChange={setSupportStatus} />
-      <AdminCafeChime onStatusChange={setCafeStatus} />
       <div className="min-h-screen flex flex-col md:flex-row w-full bg-background">
         <AdminSidebar />
         <SidebarInset className="flex-1 min-w-0">
