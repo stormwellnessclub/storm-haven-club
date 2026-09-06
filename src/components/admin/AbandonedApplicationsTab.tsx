@@ -35,6 +35,12 @@ import {
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  useAbandonedApplications,
+  type AbandonedAttempt,
+  type FilterReason,
+} from "@/hooks/useAbandonedApplications";
+
 
 interface SubmitFailure {
   id: string;
