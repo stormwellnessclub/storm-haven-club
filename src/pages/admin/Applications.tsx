@@ -2027,7 +2027,13 @@ export default function Applications() {
             <Button variant={statusFilter === "abandoned" ? "default" : "outline"} size="sm" onClick={() => setStatusFilter("abandoned")} className="border-destructive/30 text-destructive hover:bg-destructive/10">
               <AlertCircle className="h-3 w-3 mr-1" />
               Abandoned
+              {abandonedCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-medium">
+                  {abandonedCount}
+                </span>
+              )}
             </Button>
+
             <Button
               variant={statusFilter === "card_declined" ? "default" : "outline"}
               size="sm"
