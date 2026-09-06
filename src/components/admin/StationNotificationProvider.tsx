@@ -4,17 +4,20 @@ import type { RealtimeStatus } from "@/hooks/useReliableRealtime";
 import { AdminSupportChime } from "./AdminSupportChime";
 import { AdminCafeChime } from "./AdminCafeChime";
 import { AudioUnlocker } from "./AudioUnlocker";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface StationNotificationState {
   active: boolean;
   supportStatus: RealtimeStatus;
   cafeStatus: RealtimeStatus;
+  alertsPaused: boolean;
 }
 
 const StationNotificationContext = createContext<StationNotificationState>({
   active: false,
   supportStatus: "idle",
   cafeStatus: "idle",
+  alertsPaused: false,
 });
 
 function isStationPath(pathname: string) {
@@ -36,6 +39,7 @@ function kioskIsUnlocked() {
  */
 export function StationNotificationProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
+  const { user, authReady } = useAuth();
   const [kioskUnlocked, setKioskUnlocked] = useState(kioskIsUnlocked);
   const [supportStatus, setSupportStatus] = useState<RealtimeStatus>("idle");
   const [cafeStatus, setCafeStatus] = useState<RealtimeStatus>("idle");
@@ -50,10 +54,13 @@ export function StationNotificationProvider({ children }: { children: ReactNode 
     };
   }, []);
 
-  const active = isStationPath(pathname) && (!pathname.startsWith("/kiosk") || kioskUnlocked);
+  const isKiosk = pathname.startsWith("/kiosk");
+  const isAuthenticatedStation = pathname.startsWith("/admin") || pathname.startsWith("/frontdesk");
+  const alertsPaused = isAuthenticatedStation && authReady && !user;
+  const active = isStationPath(pathname) && (isKiosk ? kioskUnlocked && !!user : !!user);
   const value = useMemo(
-    () => ({ active, supportStatus, cafeStatus }),
-    [active, supportStatus, cafeStatus],
+    () => ({ active, supportStatus, cafeStatus, alertsPaused }),
+    [active, supportStatus, cafeStatus, alertsPaused],
   );
 
   return (

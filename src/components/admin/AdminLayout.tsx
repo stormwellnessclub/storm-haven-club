@@ -1,6 +1,6 @@
 import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
-import { Bell, Coffee, User } from "lucide-react";
+import { Bell, Coffee, User, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotifications";
@@ -41,7 +41,7 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
   const navigate = useNavigate();
   const { data: notifications } = useAdminSupportNotifications();
   const { data: cafeNotifications } = useAdminCafeNotifications();
-  const { supportStatus, cafeStatus } = useStationNotifications();
+  const { supportStatus, cafeStatus, alertsPaused } = useStationNotifications();
 
   // When embedded inside a kiosk shell, render the page body only.
   // The shell already provides chrome, chimes, and audio unlock.
@@ -75,6 +75,12 @@ export function AdminLayout({ children, title }: AdminLayoutProps) {
               )}
             </div>
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+              {alertsPaused && (
+                <Button variant="destructive" size="sm" onClick={() => navigate("/auth")} className="h-8 gap-1.5">
+                  <TriangleAlert className="h-4 w-4" />
+                  <span className="hidden sm:inline">Alerts paused — sign in</span>
+                </Button>
+              )}
 
               <TooltipProvider delayDuration={200}>
                 <Tooltip>

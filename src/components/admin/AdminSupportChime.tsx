@@ -212,6 +212,7 @@ function getCtx(): AudioContext | null {
 // primed element survives long idle periods far better than `new Audio()`.
 let primedEl: HTMLAudioElement | null = null;
 let primedSound: ChimeSound | null = null;
+let fallbackUnlocked = false;
 
 function getPrimedElement(sound: ChimeSound): HTMLAudioElement | null {
   const uri = getChimeUri(sound);
@@ -250,6 +251,7 @@ export async function unlockChimeAudio(): Promise<void> {
       el.volume = 0;
       try {
         await el.play();
+        fallbackUnlocked = true;
         el.pause();
         el.currentTime = 0;
       } catch {
@@ -268,7 +270,7 @@ export function isAudioBlocked(): boolean {
   if (typeof window === "undefined") return false;
   const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
   if (!Ctx) return false; // no WebAudio — HTMLAudio fallback handles it
-  return !sharedCtx || sharedCtx.state !== "running";
+  return (!sharedCtx || sharedCtx.state !== "running") && !fallbackUnlocked;
 }
 
 async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean> {
@@ -351,7 +353,10 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
     console.warn("Chime data URI not available");
     return "failed";
   }
-  if (await playViaWebAudio(sound)) return "played";
+    if (await playViaWebAudio(sound)) {
+      fallbackUnlocked = true;
+      return "played";
+    }
   try {
     // Reuse the element primed during a user gesture; fall back to a new one.
     const audio = getPrimedElement(sound) ?? new Audio(uri);
@@ -362,9 +367,8 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
       /* ignore */
     }
     await audio.play();
-    // WebAudio was blocked/suspended; the element played, but the browser may
-    // still be throttling. Report blocked so the UI can prompt for a tap.
-    return isAudioBlocked() ? "blocked" : "played";
+    fallbackUnlocked = true;
+    return "played";
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
     return "blocked";
