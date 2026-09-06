@@ -438,9 +438,7 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
   const queryClient = useQueryClient();
   const { data: notifications } = useAdminSupportNotifications();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSeenUnreadRef = useRef<number | null>(null);
-  const lastSeenOpenRef = useRef<number | null>(null);
-  const lastSeenMessageAtRef = useRef<string | null | undefined>(() => readSessionCursor(SUPPORT_CURSOR_KEY));
+  const lastSeenMessageAtRef = useRef<string | null | undefined>(readSessionCursor(SUPPORT_CURSOR_KEY));
 
   const chimeSafe = useCallback(() => {
     if (!getIsMuted()) playNotificationChime();
@@ -474,27 +472,18 @@ export function AdminSupportChime({ onStatusChange }: Props = {}) {
 
   useEffect(() => { onStatusChange?.(status); }, [status, onStatusChange]);
 
-  // Polling fallback: chime if unread/open grew without a realtime event
+  // Polling fallback compares event identity, never mutable badge counts.
   useEffect(() => {
     if (!notifications) return;
-    const unread = notifications.unreadCount ?? 0;
-    const open = notifications.openCount ?? 0;
-    const prevUnread = lastSeenUnreadRef.current;
-    const prevOpen = lastSeenOpenRef.current;
     const latest = notifications.latestMemberMessageAt ?? null;
     const prevLatest = lastSeenMessageAtRef.current;
-
-    const countGrew =
-      prevUnread !== null && prevOpen !== null && (unread > prevUnread || open > prevOpen);
     const newerMessage =
       prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
 
-    if (countGrew || newerMessage) {
+    if (newerMessage) {
       console.log("[support chime] polling fallback triggered");
       chimeSafe();
     }
-    lastSeenUnreadRef.current = unread;
-    lastSeenOpenRef.current = open;
     lastSeenMessageAtRef.current = latest;
     writeSessionCursor(SUPPORT_CURSOR_KEY, latest);
   }, [notifications, chimeSafe]);

@@ -38,8 +38,7 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
   const queryClient = useQueryClient();
   const { data: notifications } = useAdminCafeNotifications();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastSeenCountRef = useRef<number | null>(null);
-  const lastSeenOrderAtRef = useRef<string | null | undefined>(() => readCafeCursor());
+  const lastSeenOrderAtRef = useRef<string | null | undefined>(readCafeCursor());
 
   const chimeSafe = useCallback(() => {
     if (!getIsMuted()) playNotificationChime();
@@ -81,22 +80,18 @@ export function AdminCafeChime({ onStatusChange }: Props = {}) {
     onStatusChange?.(status);
   }, [status, onStatusChange]);
 
-  // Polling fallback: if active count grew but realtime didn't fire, chime anyway
+  // Polling fallback compares event identity, never mutable order counts.
   useEffect(() => {
     if (!notifications) return;
-    const current = notifications.totalActiveCount ?? 0;
-    const prev = lastSeenCountRef.current;
     const latest = notifications.latestOrderAt ?? null;
     const prevLatest = lastSeenOrderAtRef.current;
-    const countGrew = prev !== null && current > prev;
     const newerOrder =
       prevLatest !== undefined && !!latest && (!prevLatest || latest > prevLatest);
 
-    if (countGrew || newerOrder) {
-      console.log("[cafe chime] polling fallback triggered (count", prev, "→", current, ")");
+    if (newerOrder) {
+      console.log("[cafe chime] polling fallback triggered");
       chimeSafe();
     }
-    lastSeenCountRef.current = current;
     lastSeenOrderAtRef.current = latest;
     writeCafeCursor(latest);
   }, [notifications, chimeSafe]);
