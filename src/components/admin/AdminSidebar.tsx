@@ -273,8 +273,9 @@ export function AdminSidebar() {
     }
     if (location.pathname === pathOnly) {
       // A bare entry is not active when a tab-specific sibling matches
-      return true;
+      return !new URLSearchParams(location.search).get("tab");
     }
+
     return location.pathname.startsWith(pathOnly + "/");
   };
 
