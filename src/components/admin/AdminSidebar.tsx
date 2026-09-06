@@ -375,6 +375,14 @@ export function AdminSidebar() {
                                   {unresolvedFailedCount}
                                 </span>
                               )}
+                              {item.url === "/admin/applications?tab=abandoned" &&
+                                abandonedApplicationsCount > 0 &&
+                                !isCollapsed && (
+                                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium">
+                                    {abandonedApplicationsCount}
+                                  </span>
+                                )}
+
                             </NavLink>
                             )}
                           </SidebarMenuButton>
