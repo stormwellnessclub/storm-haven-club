@@ -11,6 +11,7 @@ import { Loader2, Send, Search, Eye, EyeOff, Users, Mail, Megaphone } from "luci
 import { MaintenanceBlastControls } from "@/components/admin/MaintenanceBlastControls";
 import { ClosingTonightBlastControls } from "@/components/admin/ClosingTonightBlastControls";
 import { PowerOutageBlastControls } from "@/components/admin/PowerOutageBlastControls";
+import { LaborDayHoursBlastControls } from "@/components/admin/LaborDayHoursBlastControls";
 
 interface Recipient {
   id: string;
@@ -217,6 +218,7 @@ export function AnnouncementsTab() {
 
   return (
     <div className="space-y-6">
+      <LaborDayHoursBlastControls />
       <PowerOutageBlastControls />
       <ClosingTonightBlastControls />
       <MaintenanceBlastControls />
