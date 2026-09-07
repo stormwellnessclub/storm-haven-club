@@ -176,10 +176,11 @@ import {
   InstructorTimeOff,
   InstructorSubs,
   InstructorNotes,
-  InstructorPay,
   InstructorMessages,
   InstructorDocuments,
 } from "./pages/instructor/Stubs";
+import InstructorPay from "./pages/instructor/Pay";
+import AdminInstructorPay from "./pages/admin/InstructorPay";
 import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
