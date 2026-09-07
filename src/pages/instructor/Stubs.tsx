@@ -58,12 +58,6 @@ export const InstructorNotes = () => (
     description="Post-class notes on form cues, injuries, and attendance trends. Ships in Phase 2."
   />
 );
-export const InstructorPay = () => (
-  <InstructorStub
-    title="Hours & Pay"
-    description="Current pay period, hours worked, estimated pay, and downloadable statements. Ships in Phase 3."
-  />
-);
 export const InstructorMessages = () => (
   <InstructorStub
     title="Messages"

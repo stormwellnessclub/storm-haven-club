@@ -3452,6 +3452,172 @@ export type Database = {
           },
         ]
       }
+      instructor_pay_items: {
+        Row: {
+          adjusted_at: string | null
+          adjusted_by: string | null
+          amount: number
+          attendance_count: number
+          created_at: string
+          description: string
+          id: string
+          instructor_id: string
+          is_manual: boolean
+          is_paid_class: boolean
+          item_date: string
+          notes: string | null
+          period_id: string
+          rate: number
+          session_id: string | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
+          amount?: number
+          attendance_count?: number
+          created_at?: string
+          description: string
+          id?: string
+          instructor_id: string
+          is_manual?: boolean
+          is_paid_class?: boolean
+          item_date: string
+          notes?: string | null
+          period_id: string
+          rate?: number
+          session_id?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adjusted_at?: string | null
+          adjusted_by?: string | null
+          amount?: number
+          attendance_count?: number
+          created_at?: string
+          description?: string
+          id?: string
+          instructor_id?: string
+          is_manual?: boolean
+          is_paid_class?: boolean
+          item_date?: string
+          notes?: string | null
+          period_id?: string
+          rate?: number
+          session_id?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructor_pay_items_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_pay_items_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_pay_items_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_pay_items_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_pay_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_pay_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instructor_pay_periods: {
+        Row: {
+          auto_roll: boolean
+          created_at: string
+          end_date: string
+          id: string
+          instructor_id: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_note: string | null
+          rate_per_class: number
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          auto_roll?: boolean
+          created_at?: string
+          end_date: string
+          id?: string
+          instructor_id: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_note?: string | null
+          rate_per_class?: number
+          start_date: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          auto_roll?: boolean
+          created_at?: string
+          end_date?: string
+          id?: string
+          instructor_id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          payment_note?: string | null
+          rate_per_class?: number
+          start_date?: string
+          status?: string
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instructor_pay_periods_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_pay_periods_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "instructor_pay_periods_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       instructors: {
         Row: {
           bio: string | null
@@ -12440,6 +12606,30 @@ export type Database = {
         Args: { _instructor_id: string }
         Returns: undefined
       }
+      admin_mark_pay_period_paid: {
+        Args: { _note?: string; _period_id: string }
+        Returns: {
+          auto_roll: boolean
+          created_at: string
+          end_date: string
+          id: string
+          instructor_id: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_note: string | null
+          rate_per_class: number
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "instructor_pay_periods"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       admin_set_pt_session_payment: {
         Args: {
           p_amount_cents?: number
@@ -12509,6 +12699,30 @@ export type Database = {
       admin_set_staff_pin: {
         Args: { _pin: string; _staff_user_id: string }
         Returns: undefined
+      }
+      admin_unmark_pay_period_paid: {
+        Args: { _period_id: string }
+        Returns: {
+          auto_roll: boolean
+          created_at: string
+          end_date: string
+          id: string
+          instructor_id: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_note: string | null
+          rate_per_class: number
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "instructor_pay_periods"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       admin_update_gift_card: {
         Args: {
@@ -14229,6 +14443,30 @@ export type Database = {
         Args: { _member_id: string; _points_cost: number; _reward_type: string }
         Returns: Json
       }
+      refresh_instructor_pay_period: {
+        Args: { _period_id: string }
+        Returns: {
+          auto_roll: boolean
+          created_at: string
+          end_date: string
+          id: string
+          instructor_id: string
+          paid_at: string | null
+          paid_by: string | null
+          payment_note: string | null
+          rate_per_class: number
+          start_date: string
+          status: string
+          total_amount: number
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "instructor_pay_periods"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       refund_waitlist_hold: {
         Args: { p_waitlist_id: string }
         Returns: undefined
@@ -14248,6 +14486,7 @@ export type Database = {
           reason: string
         }[]
       }
+      roll_instructor_pay_periods: { Args: never; Returns: number }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       settle_membership_dues_payment: {
         Args: {

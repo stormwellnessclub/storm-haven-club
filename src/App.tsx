@@ -176,10 +176,11 @@ import {
   InstructorTimeOff,
   InstructorSubs,
   InstructorNotes,
-  InstructorPay,
   InstructorMessages,
   InstructorDocuments,
 } from "./pages/instructor/Stubs";
+import InstructorPay from "./pages/instructor/Pay";
+import AdminInstructorPay from "./pages/admin/InstructorPay";
 import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -452,7 +453,9 @@ const App = () => (
               <Route path="/admin/class-types" element={<ProtectedAdminRoute><ClassTypes /></ProtectedAdminRoute>} />
               <Route path="/admin/class-types/:id" element={<ProtectedAdminRoute><ClassTypeDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/instructors" element={<ProtectedAdminRoute><Instructors /></ProtectedAdminRoute>} />
+              <Route path="/admin/instructor-pay" element={<ProtectedAdminRoute><AdminInstructorPay /></ProtectedAdminRoute>} />
               <Route path="/admin/class-schedules" element={<ProtectedAdminRoute><ClassSchedules /></ProtectedAdminRoute>} />
+
               <Route path="/admin/class-pass-pricing" element={<ProtectedAdminRoute><ClassPassPricing /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles" element={<ProtectedAdminRoute><StaffRoles /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />

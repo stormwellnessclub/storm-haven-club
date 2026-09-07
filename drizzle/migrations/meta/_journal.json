@@ -99,6 +99,13 @@
       "when": 1788643705362,
       "tag": "0013_kiosk_notification_latest_timestamps",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788807713877,
+      "tag": "0014_instructor_pay_periods",
+      "breakpoints": true
     }
   ]
 }
