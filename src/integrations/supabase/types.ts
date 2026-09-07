@@ -11290,6 +11290,48 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_coverage_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          day_of_week: number
+          department: string
+          end_time: string
+          id: string
+          is_active: boolean
+          min_staff: number
+          notes: string | null
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week: number
+          department: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          min_staff?: number
+          notes?: string | null
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          day_of_week?: number
+          department?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          min_staff?: number
+          notes?: string | null
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_invites: {
         Row: {
           claimed_at: string | null
@@ -11400,6 +11442,39 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_pay_rates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string | null
+          hourly_rate: number
+          id: string
+          notes: string | null
+          person_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string | null
+          hourly_rate?: number
+          id?: string
+          notes?: string | null
+          person_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string | null
+          hourly_rate?: number
+          id?: string
+          notes?: string | null
+          person_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_pin_attempts: {
         Row: {
           attempted_at: string
@@ -11484,6 +11559,68 @@ export type Database = {
         }
         Relationships: []
       }
+      staff_schedule_profiles: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          default_availability: Json
+          departments: string[]
+          display_name: string | null
+          email: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          person_key: string
+          phone: string | null
+          placeholder_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_availability?: Json
+          departments?: string[]
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          person_key: string
+          phone?: string | null
+          placeholder_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_availability?: Json
+          departments?: string[]
+          display_name?: string | null
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          person_key?: string
+          phone?: string | null
+          placeholder_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_schedule_profiles_placeholder_id_fkey"
+            columns: ["placeholder_id"]
+            isOneToOne: false
+            referencedRelation: "staff_placeholders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_shift_clocks: {
         Row: {
           admin_adjusted: boolean
@@ -11534,6 +11671,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           day_of_week: number
+          department: string | null
           effective_from: string | null
           effective_to: string | null
           end_time: string
@@ -11551,6 +11689,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           day_of_week: number
+          department?: string | null
           effective_from?: string | null
           effective_to?: string | null
           end_time: string
@@ -11568,6 +11707,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           day_of_week?: number
+          department?: string | null
           effective_from?: string | null
           effective_to?: string | null
           end_time?: string
@@ -11585,14 +11725,17 @@ export type Database = {
       }
       staff_shifts: {
         Row: {
+          break_minutes: number
           created_at: string
           created_by: string | null
+          department: string | null
           end_time: string
           id: string
           notes: string | null
           person_name: string | null
           person_ref: string | null
           position: string | null
+          published_at: string | null
           shift_date: string
           start_time: string
           status: Database["public"]["Enums"]["staff_shift_status"]
@@ -11601,14 +11744,17 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          break_minutes?: number
           created_at?: string
           created_by?: string | null
+          department?: string | null
           end_time: string
           id?: string
           notes?: string | null
           person_name?: string | null
           person_ref?: string | null
           position?: string | null
+          published_at?: string | null
           shift_date: string
           start_time: string
           status?: Database["public"]["Enums"]["staff_shift_status"]
@@ -11617,14 +11763,17 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          break_minutes?: number
           created_at?: string
           created_by?: string | null
+          department?: string | null
           end_time?: string
           id?: string
           notes?: string | null
           person_name?: string | null
           person_ref?: string | null
           position?: string | null
+          published_at?: string | null
           shift_date?: string
           start_time?: string
           status?: Database["public"]["Enums"]["staff_shift_status"]
@@ -12948,6 +13097,10 @@ export type Database = {
           claimed_count: number
           pass_ids: string[]
         }[]
+      }
+      copy_schedule_week: {
+        Args: { p_from_week: string; p_to_week: string }
+        Returns: Json
       }
       create_atomic_class_booking: {
         Args: {
@@ -14384,6 +14537,7 @@ export type Database = {
         Args: { p_appointment_ids: string[]; p_reason: string }
         Returns: Json
       }
+      publish_schedule_week: { Args: { p_week_start: string }; Returns: number }
       recompute_marketing_contact_segment: {
         Args: { _email: string }
         Returns: undefined
@@ -14487,6 +14641,17 @@ export type Database = {
         }[]
       }
       roll_instructor_pay_periods: { Args: never; Returns: number }
+      schedule_labor_cost: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          cost: number
+          department: string
+          hourly_rate: number
+          hours: number
+          person_key: string
+          person_name: string
+        }[]
+      }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       settle_membership_dues_payment: {
         Args: {

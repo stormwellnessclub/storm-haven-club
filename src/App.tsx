@@ -142,6 +142,13 @@ import CardDeclinedEmailPreview from "./pages/admin/CardDeclinedEmailPreview";
 import EmailTemplatesIndex from "./pages/admin/EmailTemplatesIndex";
 import StaffHub from "./pages/admin/StaffHub";
 import StaffSchedule from "./pages/admin/StaffSchedule";
+import { ProtectedScheduleRoute } from "./components/schedule/ProtectedScheduleRoute";
+import ScheduleToday from "./pages/schedule/ScheduleToday";
+import ScheduleBuilder from "./pages/schedule/ScheduleBuilder";
+import ScheduleTeam from "./pages/schedule/ScheduleTeam";
+import ScheduleCoverage from "./pages/schedule/ScheduleCoverage";
+import ScheduleTimeOff from "./pages/schedule/ScheduleTimeOff";
+import ScheduleHours from "./pages/schedule/ScheduleHours";
 import MerchManager from "./pages/admin/MerchManager";
 import SpaManagement from "./pages/admin/SpaManagement";
 import MothersDayAdmin from "./pages/admin/MothersDayAdmin";
@@ -461,6 +468,12 @@ const App = () => (
               <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-pins" element={<ProtectedAdminRoute><StaffPins /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-schedule" element={<ProtectedAdminRoute><StaffSchedule /></ProtectedAdminRoute>} />
+              <Route path="/schedule" element={<ProtectedScheduleRoute><ScheduleToday /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/builder" element={<ProtectedScheduleRoute><ScheduleBuilder /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/team" element={<ProtectedScheduleRoute><ScheduleTeam /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/coverage" element={<ProtectedScheduleRoute><ScheduleCoverage /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/time-off" element={<ProtectedScheduleRoute><ScheduleTimeOff /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/hours" element={<ProtectedScheduleRoute><ScheduleHours /></ProtectedScheduleRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />
