@@ -930,6 +930,19 @@
 }
 
 /* ========================================
+   STAFF SCHEDULING PORTAL — department colors
+   ======================================== */
+:root {
+  --dept-front-desk: 214 84% 48%;
+  --dept-kids-care: 330 74% 48%;
+  --dept-cafe: 32 82% 44%;
+  --dept-assistant: 265 62% 52%;
+  --dept-other: 215 16% 42%;
+}
+
+
+
+/* ========================================
    PERSONAL TRAINING PORTAL — Noir / Cream / Gold
    ======================================== */
 :root {
