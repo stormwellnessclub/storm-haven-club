@@ -135,6 +135,7 @@ const departments: DepartmentSection[] = [
       { title: "Class Schedules", url: "/admin/class-schedules", icon: CalendarDays },
       { title: "Class Pass Pricing", url: "/admin/class-pass-pricing", icon: Tag },
       { title: "Instructors", url: "/admin/instructors", icon: UserCog },
+      { title: "Instructor Pay", url: "/admin/instructor-pay", icon: DollarSign },
       { title: "Instructor Portal", url: "/instructor", icon: GraduationCap },
       { title: "Class Pass Abandoned", url: "/admin/abandoned-class-pass-checkouts", icon: ShoppingCart },
     ],
