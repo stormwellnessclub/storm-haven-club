@@ -13058,6 +13058,7 @@ export type Database = {
         Args: { p_gift_card_id: string }
         Returns: Json
       }
+      changed_columns: { Args: { p_new: Json; p_old: Json }; Returns: string[] }
       check_and_award_achievements: {
         Args: { _member_id: string }
         Returns: undefined
@@ -13664,6 +13665,7 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
+      is_privileged_row_writer: { Args: never; Returns: boolean }
       issue_guest_feedback_token: {
         Args: { p_guest_pass_id: string }
         Returns: string
