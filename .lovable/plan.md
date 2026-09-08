@@ -1,6 +1,6 @@
 # Make the front desk chime reliable (and prove it)
 
-The alert sound already has realtime + polling triggers, and it works on some machines. On the main front desk computer it stays silent in both Admin and Front Desk mode. Today nothing on screen tells us *why* — the code tries to play, fails quietly, and writes a warning to a place no one is looking. So the fix is two parts: make the silence impossible to miss, and remove the ways the sound can die on a machine that sits logged in all day.
+The alert sound already has realtime + polling triggers, and it works on some machines. On the main front desk computer it stays silent in both Admin and Front Desk mode. A direct test also fails even though that computer's output volume is at maximum, which rules out the app simply being turned down. Today nothing on screen tells us whether the browser blocked playback, the audio engine suspended, or the alert never reached the machine — the code tries to play and fails quietly. The fix will isolate those stages, make failures visible, and remove the ways the sound can die on a machine that sits logged in all day.
 
 ## Part 1 — A visible sound status, always on screen
 
@@ -8,9 +8,9 @@ Add a small always-visible "Sound" pill in the Admin and Front Desk top bar:
 
 - Green "Sound on" once a real tone has actually been produced.
 - Amber, pulsing "Sound off — click to turn on" whenever the browser has muted or suspended audio, the person turned it off, or the last alert failed to play. Clicking it turns the sound back on and plays a confirmation tone.
-- A "Test sound" button right there that reports back honestly: played, blocked by the browser, or device produced no output.
+- A "Test sound" button right there that separately verifies browser permission, audio-engine playback, and the fallback player. It reports which stage failed instead of showing a generic failure.
 
-Rather than assuming a sound played, the app will listen to its own output and confirm a tone was really produced. If nothing came out, the pill turns amber immediately.
+Rather than assuming a successful browser command means the speakers produced sound, the app will verify that the audio graph processed the tone. If the graph is active but the computer is still silent, diagnostics will clearly identify that the remaining issue is the browser/operating-system output route.
 
 ## Part 2 — Remove the ways it goes silent
 
@@ -28,8 +28,8 @@ Add `/admin/chime-diagnostics` (also linked from the Sound pill) showing, in pla
 - Whether the browser is blocking sound for this site
 - Audio engine state and which output device the browser is using
 - Live connection status for café orders and messages, and the time the last one arrived
-- Result of the last few alert attempts
-- A "Run full test" button: plays a tone, sends a test café-order style alert, and reports each step
+- Result of the last few alert attempts, including browser error names and timestamps
+- A "Run full test" button that checks two independent playback methods, exercises a café-order style alert and a support-message style alert, and reports each step
 
 That page tells us in seconds whether the front desk machine is muted at the operating system level, blocked by Chrome's per-site sound setting, on the wrong output device, or not receiving events at all — instead of guessing again.
 
