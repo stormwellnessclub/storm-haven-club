@@ -468,7 +468,7 @@ const App = () => (
               <Route path="/admin/staff-roles/:userId" element={<ProtectedAdminRoute><StaffDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-pins" element={<ProtectedAdminRoute><StaffPins /></ProtectedAdminRoute>} />
               <Route path="/admin/staff-schedule" element={<ProtectedAdminRoute><StaffSchedule /></ProtectedAdminRoute>} />
-              <Route path="/schedule" element={<ProtectedScheduleRoute><ScheduleToday /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/today" element={<ProtectedScheduleRoute><ScheduleToday /></ProtectedScheduleRoute>} />
               <Route path="/schedule/builder" element={<ProtectedScheduleRoute><ScheduleBuilder /></ProtectedScheduleRoute>} />
               <Route path="/schedule/team" element={<ProtectedScheduleRoute><ScheduleTeam /></ProtectedScheduleRoute>} />
               <Route path="/schedule/coverage" element={<ProtectedScheduleRoute><ScheduleCoverage /></ProtectedScheduleRoute>} />
