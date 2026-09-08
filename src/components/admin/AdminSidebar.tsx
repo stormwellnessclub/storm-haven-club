@@ -105,7 +105,7 @@ const departments: DepartmentSection[] = [
       { title: "Non-Member Accounts", url: "/admin/non-member-accounts", icon: UserPlus },
       { title: "Support", url: "/admin/emails", icon: MessageSquare },
       { title: "Staff Hub", url: "/admin/staff-hub", icon: MessagesSquare, highlight: true },
-      { title: "Staff Schedule", url: "/schedule", icon: CalendarDays, highlight: true },
+      { title: "Staff Schedule", url: "/schedule/today", icon: CalendarDays, highlight: true },
       { title: "Front Desk Mode", url: "/front-desk", icon: Monitor, highlight: true },
     ],
   },
