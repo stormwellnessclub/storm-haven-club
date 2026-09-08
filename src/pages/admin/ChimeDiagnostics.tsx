@@ -1,6 +1,8 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { useLocation } from "react-router-dom";
 import { Activity, BellRing, CheckCircle2, CircleAlert, MonitorSpeaker, Radio, Volume2 } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { FrontDeskShell } from "@/pages/frontdesk/FrontDeskShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +20,7 @@ import {
 type DeviceInfo = { label: string; id: string };
 
 export default function ChimeDiagnostics() {
+  const { pathname } = useLocation();
   const engine = useSyncExternalStore(subscribeChimeEngine, getChimeEngineSnapshot, getChimeEngineSnapshot);
   const { supportStatus, cafeStatus } = useStationNotifications();
   const [testing, setTesting] = useState(false);
@@ -37,6 +40,9 @@ export default function ChimeDiagnostics() {
   const runTest = async () => {
     setTesting(true);
     setIsMuted(false);
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      void Notification.requestPermission();
+    }
     await unlockChimeAudio();
     const result = await runChimeDiagnostics();
     setTestResult(result.result);
@@ -44,9 +50,8 @@ export default function ChimeDiagnostics() {
   };
 
   const ready = engine.state === "ready";
-  return (
-    <AdminLayout title="Chime Diagnostics">
-      <div className="mx-auto max-w-5xl space-y-6">
+  const content = (
+      <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
         <Alert variant={ready ? "default" : "destructive"}>
           {ready ? <CheckCircle2 className="h-4 w-4" /> : <CircleAlert className="h-4 w-4" />}
           <AlertTitle>{ready ? "Notification sound is ready" : "Notification sound needs attention"}</AlertTitle>
@@ -119,8 +124,10 @@ export default function ChimeDiagnostics() {
           </CardContent>
         </Card>
       </div>
-    </AdminLayout>
   );
+  return pathname.startsWith("/frontdesk")
+    ? <FrontDeskShell>{content}</FrontDeskShell>
+    : <AdminLayout title="Chime Diagnostics">{content}</AdminLayout>;
 }
 
 function StatusRow({ label, value, good }: { label: string; value: string; good: boolean }) {

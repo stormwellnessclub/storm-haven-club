@@ -62,6 +62,9 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
   };
 
   const test = async () => {
+    if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      void Notification.requestPermission();
+    }
     await unlockChimeAudio();
     const result = await playNotificationChime();
     reportResult(result);
@@ -92,19 +95,6 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
           {soundNeedsAttention ? "Sound off — click" : "Sound on"}
         </span>
       </Button>
-
-      {audioBlocked && engine.state === "ready" && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 border-amber-400 text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 animate-pulse"
-          onClick={test}
-          title="Your browser is blocking notification sounds — tap once to enable"
-        >
-          <BellRing className="h-4 w-4" />
-          {!compact && <span className="hidden sm:inline">Enable sound</span>}
-        </Button>
-      )}
 
       <Button
         variant="ghost"

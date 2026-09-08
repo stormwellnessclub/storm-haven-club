@@ -367,6 +367,7 @@ const App = () => (
               <Route path="/frontdesk/class-roster/:sessionId" element={<ProtectedFrontDeskRoute><FrontDeskClassRosterPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/messages" element={<ProtectedFrontDeskRoute><FrontDeskMessagesPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/events" element={<ProtectedFrontDeskRoute><FrontDeskEventsPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/chime-diagnostics" element={<ProtectedFrontDeskRoute><ChimeDiagnostics /></ProtectedFrontDeskRoute>} />
 
               {/* Instructor Portal */}
               <Route path="/instructor-login" element={<InstructorLogin />} />
