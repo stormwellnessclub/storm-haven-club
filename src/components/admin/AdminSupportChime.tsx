@@ -214,6 +214,103 @@ let primedEl: HTMLAudioElement | null = null;
 let primedSound: ChimeSound | null = null;
 let audioReady = false;
 
+export type ChimeEngineState = "ready" | "needs-gesture" | "blocked" | "muted";
+export type ChimeAttempt = {
+  at: string;
+  method: "web-audio" | "html-audio" | "system";
+  result: "played" | "blocked" | "failed";
+  detail: string;
+};
+
+export type ChimeEngineSnapshot = {
+  state: ChimeEngineState;
+  contextState: string;
+  pendingAlerts: number;
+  lastAttempt: ChimeAttempt | null;
+  attempts: ChimeAttempt[];
+};
+
+let engineSnapshot: ChimeEngineSnapshot = {
+  state: getIsMutedFromStorage() ? "muted" : "needs-gesture",
+  contextState: "not-started",
+  pendingAlerts: 0,
+  lastAttempt: null,
+  attempts: [],
+};
+const engineSubscribers = new Set<() => void>();
+let originalTitle = "";
+let titleTimer: ReturnType<typeof setInterval> | null = null;
+
+function getIsMutedFromStorage() {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem("admin-chime-muted") === "true";
+  } catch {
+    return false;
+  }
+}
+
+function updateEngineSnapshot(patch: Partial<ChimeEngineSnapshot>) {
+  engineSnapshot = { ...engineSnapshot, ...patch };
+  engineSubscribers.forEach((notify) => notify());
+}
+
+function recordAttempt(attempt: ChimeAttempt) {
+  const attempts = [attempt, ...engineSnapshot.attempts].slice(0, 12);
+  updateEngineSnapshot({ attempts, lastAttempt: attempt });
+}
+
+function errorDetail(error: unknown) {
+  if (error instanceof DOMException) return `${error.name}: ${error.message}`;
+  if (error instanceof Error) return `${error.name}: ${error.message}`;
+  return String(error ?? "Unknown browser audio error");
+}
+
+export function getChimeEngineSnapshot() {
+  return engineSnapshot;
+}
+
+export function subscribeChimeEngine(callback: () => void) {
+  engineSubscribers.add(callback);
+  return () => engineSubscribers.delete(callback);
+}
+
+export function getAudioContextState() {
+  return sharedCtx?.state ?? "not-started";
+}
+
+function startVisualAlert() {
+  if (typeof document === "undefined" || titleTimer) return;
+  originalTitle = document.title;
+  let showAlert = true;
+  titleTimer = setInterval(() => {
+    document.title = showAlert ? "NEW ALERT — Storm" : originalTitle;
+    showAlert = !showAlert;
+  }, 900);
+}
+
+export function clearPendingChimeAlerts() {
+  updateEngineSnapshot({ pendingAlerts: 0 });
+  if (titleTimer) clearInterval(titleTimer);
+  titleTimer = null;
+  if (typeof document !== "undefined" && originalTitle) document.title = originalTitle;
+}
+
+function notifyDesktop() {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  try {
+    new Notification("Storm front desk alert", { body: "A new café order or member message needs attention." });
+  } catch {
+    /* Browser notification support varies by installed-app mode. */
+  }
+}
+
+function queueMissedAlert() {
+  updateEngineSnapshot({ pendingAlerts: engineSnapshot.pendingAlerts + 1 });
+  startVisualAlert();
+  notifyDesktop();
+}
+
 function getPrimedElement(sound: ChimeSound): HTMLAudioElement | null {
   const uri = getChimeUri(sound);
   if (!uri) return null;
@@ -238,7 +335,7 @@ export async function unlockChimeAudio(): Promise<void> {
     const ctx = getCtx();
     if (ctx) {
       if (ctx.state !== "running") await ctx.resume();
-        if (ctx.state === "running") audioReady = true;
+      if (ctx.state === "running") audioReady = true;
       const buffer = ctx.createBuffer(1, 1, 22050);
       const src = ctx.createBufferSource();
       src.buffer = buffer;
@@ -255,13 +352,23 @@ export async function unlockChimeAudio(): Promise<void> {
         audioReady = true;
         el.pause();
         el.currentTime = 0;
-      } catch {
-        /* ignore */
+      } catch (error) {
+        recordAttempt({ at: new Date().toISOString(), method: "html-audio", result: "blocked", detail: errorDetail(error) });
       }
       el.volume = prevVol || 1;
     }
+    updateEngineSnapshot({
+      state: audioReady ? "ready" : "blocked",
+      contextState: getAudioContextState(),
+    });
+    if (audioReady && engineSnapshot.pendingAlerts > 0) {
+      clearPendingChimeAlerts();
+      window.setTimeout(() => { void playNotificationChime(); }, 100);
+    }
   } catch (err) {
     console.warn("unlockChimeAudio failed:", err);
+    updateEngineSnapshot({ state: "blocked", contextState: getAudioContextState() });
+    recordAttempt({ at: new Date().toISOString(), method: "system", result: "failed", detail: errorDetail(err) });
   }
 }
 
@@ -275,6 +382,7 @@ export function isAudioBlocked(): boolean {
 /** Browser sleep/page freeze can invalidate a previously unlocked output path. */
 export function markChimeAudioNeedsUnlock() {
   audioReady = false;
+  if (!getIsMuted()) updateEngineSnapshot({ state: "needs-gesture", contextState: getAudioContextState() });
 }
 
 async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean> {
@@ -337,13 +445,27 @@ async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean
     comp.attack.value = 0.003;
     comp.release.value = 0.25;
 
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
     src.connect(gain);
-    gain.connect(comp);
+    gain.connect(analyser);
+    analyser.connect(comp);
     comp.connect(ctx.destination);
     src.start(0);
-    return true;
+    await new Promise((resolve) => window.setTimeout(resolve, 80));
+    const samples = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(samples);
+    const graphProducedSignal = samples.some((sample) => Math.abs(sample - 128) > 2);
+    recordAttempt({
+      at: new Date().toISOString(),
+      method: "web-audio",
+      result: graphProducedSignal ? "played" : "failed",
+      detail: graphProducedSignal ? `Audio graph active (${ctx.state})` : `No signal in audio graph (${ctx.state})`,
+    });
+    return graphProducedSignal;
   } catch (err) {
     console.warn("WebAudio chime failed, falling back:", err);
+    recordAttempt({ at: new Date().toISOString(), method: "web-audio", result: "failed", detail: errorDetail(err) });
     return false;
   }
 }
@@ -351,6 +473,10 @@ async function playViaWebAudio(sound: ChimeSound, retry = true): Promise<boolean
 export type ChimePlayResult = "played" | "blocked" | "failed";
 
 export async function playNotificationChime(soundOverride?: ChimeSound): Promise<ChimePlayResult> {
+  if (getIsMuted()) {
+    updateEngineSnapshot({ state: "muted" });
+    return "blocked";
+  }
   const sound = soundOverride ?? getChimeSound();
   const uri = getChimeUri(sound);
   if (!uri) {
@@ -359,6 +485,7 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
   }
     if (await playViaWebAudio(sound)) {
       audioReady = true;
+      updateEngineSnapshot({ state: "ready", contextState: getAudioContextState() });
       return "played";
     }
   try {
@@ -372,9 +499,14 @@ export async function playNotificationChime(soundOverride?: ChimeSound): Promise
     }
     await audio.play();
     audioReady = true;
+    recordAttempt({ at: new Date().toISOString(), method: "html-audio", result: "played", detail: "Fallback audio player started" });
+    updateEngineSnapshot({ state: "ready", contextState: getAudioContextState() });
     return "played";
   } catch (err) {
     console.warn("Failed to play notification chime:", err);
+    recordAttempt({ at: new Date().toISOString(), method: "html-audio", result: "blocked", detail: errorDetail(err) });
+    updateEngineSnapshot({ state: "blocked", contextState: getAudioContextState() });
+    queueMissedAlert();
     return "blocked";
   }
 
@@ -415,6 +547,19 @@ export function setIsMuted(val: boolean) {
   } catch (error) {
     console.warn("Failed to persist admin chime preference:", error);
   }
+  updateEngineSnapshot({ state: val ? "muted" : (audioReady ? "ready" : "needs-gesture") });
+}
+
+export async function runChimeDiagnostics() {
+  const before = engineSnapshot.attempts.length;
+  await unlockChimeAudio();
+  const result = await playNotificationChime();
+  return {
+    result,
+    state: engineSnapshot.state,
+    contextState: getAudioContextState(),
+    attempts: engineSnapshot.attempts.slice(0, Math.max(1, engineSnapshot.attempts.length - before)),
+  };
 }
 
 // ── Component ───────────────────────────────────────────────────────
