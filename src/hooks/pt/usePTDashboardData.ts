@@ -48,10 +48,10 @@ export function usePTDashboard() {
           .order("created_at", { ascending: false }),
         (supabase as any)
           .from("pt_programs")
-          .select("id, user_id, name, reassessment_date, status")
-          .not("reassessment_date", "is", null)
-          .lte("reassessment_date", fmtDate(addDays(today, 14), "yyyy-MM-dd"))
-          .order("reassessment_date", { ascending: true }),
+          .select("id, user_id, name, next_reassessment, status")
+          .not("next_reassessment", "is", null)
+          .lte("next_reassessment", fmtDate(addDays(today, 14), "yyyy-MM-dd"))
+          .order("next_reassessment", { ascending: true }),
       ]);
 
       // Surface read failures instead of rendering an empty dashboard.
