@@ -5,6 +5,7 @@ import { AdminSupportChime } from "./AdminSupportChime";
 import { AdminCafeChime } from "./AdminCafeChime";
 import { AudioUnlocker } from "./AudioUnlocker";
 import { useAuth } from "@/contexts/AuthContext";
+import { ChimeFailureBanner } from "./ChimeFailureBanner";
 
 interface StationNotificationState {
   active: boolean;
@@ -70,6 +71,7 @@ export function StationNotificationProvider({ children }: { children: ReactNode 
           <AudioUnlocker />
           <AdminSupportChime onStatusChange={setSupportStatus} />
           <AdminCafeChime onStatusChange={setCafeStatus} />
+          <ChimeFailureBanner />
         </>
       )}
       {children}

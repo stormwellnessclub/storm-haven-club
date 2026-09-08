@@ -39,6 +39,9 @@ export function AudioUnlocker() {
       else markChimeAudioNeedsUnlock();
     };
     const onFreeze = () => markChimeAudioNeedsUnlock();
+    const checkEngine = () => {
+      if (!document.hidden && isAudioBlocked()) void unlockChimeAudio();
+    };
 
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", unlock);
@@ -50,6 +53,8 @@ export function AudioUnlocker() {
     document.addEventListener("freeze", onFreeze);
     window.addEventListener("pagehide", onFreeze);
     document.addEventListener("visibilitychange", onVisibility);
+    navigator.mediaDevices?.addEventListener?.("devicechange", onFreeze);
+    const heartbeat = window.setInterval(checkEngine, 20_000);
 
     return () => {
       window.removeEventListener("pointerdown", unlock);
@@ -62,6 +67,8 @@ export function AudioUnlocker() {
       document.removeEventListener("freeze", onFreeze);
       window.removeEventListener("pagehide", onFreeze);
       document.removeEventListener("visibilitychange", onVisibility);
+      navigator.mediaDevices?.removeEventListener?.("devicechange", onFreeze);
+      window.clearInterval(heartbeat);
     };
 
   }, []);

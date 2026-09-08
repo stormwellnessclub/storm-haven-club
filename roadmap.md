@@ -13,3 +13,4 @@
 - [x] Fix guest passes failing to load (explicit column selects after grant tightening)
 - [x] Early closing notice (Wed Sep 2, 9:00 PM urgent maintenance): email template + preview/test controls, member & public site banner
 - [x] Rebuild Admin / Front Desk / Kiosk notification chime as one persistent service
+- [ ] Make the main front desk computer chime self-recovering, visible, and diagnosable
