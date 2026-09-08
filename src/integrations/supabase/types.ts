@@ -13548,6 +13548,16 @@ export type Database = {
           supabase_url: string
         }[]
       }
+      get_spa_busy_slots: {
+        Args: { p_date: string }
+        Returns: {
+          appointment_time: string
+          cleanup_minutes: number
+          duration_minutes: number
+          room_id: string
+          staff_id: string
+        }[]
+      }
       get_spa_review_token_info: {
         Args: { _token: string }
         Returns: {
