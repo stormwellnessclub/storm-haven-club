@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Volume2, VolumeX, Play, BellRing, Music } from "lucide-react";
+import { Volume2, VolumeX, Play, BellRing, Music, Activity } from "lucide-react";
 import { toast } from "sonner";
 import {
   getIsMuted,
@@ -16,6 +17,8 @@ import {
   isAudioBlocked,
   type ChimeVolume,
   type ChimeSound,
+  getChimeEngineSnapshot,
+  subscribeChimeEngine,
 } from "./AdminSupportChime";
 
 const LEVELS: Array<{ value: ChimeVolume; label: string; hint: string }> = [
@@ -31,10 +34,12 @@ const LEVELS: Array<{ value: ChimeVolume; label: string; hint: string }> = [
  * station can verify and adjust the concierge bell.
  */
 export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
+  const navigate = useNavigate();
   const [muted, setMuted] = useState(getIsMuted);
   const [volume, setVolume] = useState<ChimeVolume>(getChimeVolume);
   const [sound, setSound] = useState<ChimeSound>(getChimeSound);
   const [audioBlocked, setAudioBlocked] = useState(false);
+  const engine = useSyncExternalStore(subscribeChimeEngine, getChimeEngineSnapshot, getChimeEngineSnapshot);
 
 
   useEffect(() => {
@@ -66,11 +71,29 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
     const next = !muted;
     setIsMuted(next);
     setMuted(next);
+    if (!next) void test();
   };
+
+  const soundNeedsAttention = muted || audioBlocked || engine.state !== "ready";
 
   return (
     <div className="flex items-center gap-1">
-      {audioBlocked && (
+      <Button
+        variant={soundNeedsAttention ? "outline" : "secondary"}
+        size="sm"
+        className={soundNeedsAttention
+          ? "h-8 gap-1.5 border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 animate-pulse"
+          : "h-8 gap-1.5 border border-emerald-600/30 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200"}
+        onClick={soundNeedsAttention ? test : () => navigate("/admin/chime-diagnostics")}
+        title={soundNeedsAttention ? "Click to restore notification sound" : "Sound is ready — open diagnostics"}
+      >
+        {soundNeedsAttention ? <BellRing className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        <span className={compact ? "hidden lg:inline" : "hidden sm:inline"}>
+          {soundNeedsAttention ? "Sound off — click" : "Sound on"}
+        </span>
+      </Button>
+
+      {audioBlocked && engine.state === "ready" && (
         <Button
           variant="outline"
           size="sm"
@@ -174,6 +197,16 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
           </div>
         </PopoverContent>
       </Popover>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="touch-target hidden sm:inline-flex"
+        onClick={() => navigate("/admin/chime-diagnostics")}
+        title="Open sound diagnostics"
+      >
+        <Activity className="h-4 w-4" />
+      </Button>
 
     </div>
   );

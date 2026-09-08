@@ -188,6 +188,7 @@ import {
 } from "./pages/instructor/Stubs";
 import InstructorPay from "./pages/instructor/Pay";
 import AdminInstructorPay from "./pages/admin/InstructorPay";
+import ChimeDiagnostics from "./pages/admin/ChimeDiagnostics";
 import InstructorLogin from "./pages/InstructorLogin";
 import KioskReception from "./pages/kiosk/Reception";
 import KioskCafe from "./pages/kiosk/Cafe";
@@ -475,6 +476,7 @@ const App = () => (
               <Route path="/schedule/time-off" element={<ProtectedScheduleRoute><ScheduleTimeOff /></ProtectedScheduleRoute>} />
               <Route path="/schedule/hours" element={<ProtectedScheduleRoute><ScheduleHours /></ProtectedScheduleRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
+              <Route path="/admin/chime-diagnostics" element={<ProtectedAdminRoute><ChimeDiagnostics /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
               <Route path="/admin/freeze-requests" element={<ProtectedAdminRoute><FreezeRequests /></ProtectedAdminRoute>} />
               <Route path="/admin/equipment" element={<ProtectedAdminRoute><Equipment /></ProtectedAdminRoute>} />
