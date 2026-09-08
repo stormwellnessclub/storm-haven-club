@@ -555,8 +555,18 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       }
     } catch (error: any) {
       console.error("Booking error:", error);
-      toast.error(error.message || "Failed to book appointment");
+      const msg: string = error?.message || "Failed to book appointment";
+      if (/already booked|no longer available/i.test(msg)) {
+        // Someone took this slot first — refresh the grid and clear the selection.
+        setSelectedTime("");
+        setStep("details");
+        queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
+        toast.error("Sorry — that time was just taken. Please pick another time.");
+        return;
+      }
+      toast.error(msg);
     }
+
   };
 
   const minDate = isSameDayEligible ? startOfDay(new Date()) : addDays(new Date(), 1);

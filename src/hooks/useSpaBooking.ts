@@ -552,13 +552,14 @@ export function useSpaBookedSlots(date: Date | undefined | null) {
     queryFn: async (): Promise<BookedSlot[]> => {
       if (!date) return [];
       try {
-        const { data, error } = await (supabase.from as any)("spa_appointments")
-          .select("appointment_time, duration_minutes, cleanup_minutes, staff_id, room_id, status")
-          .eq("appointment_date", format(date, "yyyy-MM-dd"))
-          .in("status", ["confirmed", "pending", "checked_in", "in_progress"]);
+        // Uses a SECURITY DEFINER RPC so customers (who cannot read other people's
+        // appointments under RLS) still see accurate busy blocks — no personal data.
+        const { data, error } = await (supabase as any).rpc("get_spa_busy_slots", {
+          p_date: format(date, "yyyy-MM-dd"),
+        });
 
         if (error) {
-          if (error.code === "42P01" || error.message?.includes("does not exist")) {
+          if (error.code === "42883" || error.code === "42P01" || error.message?.includes("does not exist")) {
             return [];
           }
           throw error;
@@ -572,11 +573,12 @@ export function useSpaBookedSlots(date: Date | undefined | null) {
           room_id: d.room_id,
         }));
       } catch (error: any) {
-        if (error?.code === "42P01" || error?.message?.includes("does not exist")) {
+        if (error?.code === "42883" || error?.code === "42P01" || error?.message?.includes("does not exist")) {
           return [];
         }
         throw error;
       }
+
     },
     enabled: !!date,
     staleTime: 30_000,
