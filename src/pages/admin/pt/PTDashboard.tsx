@@ -293,7 +293,7 @@ export default function PTDashboard() {
                         <div className="text-[11px] text-pt-muted truncate">{p.name}</div>
                       </button>
                       <span className="text-[11px] text-pt-muted shrink-0">
-                        {fmtDate(new Date(`${p.reassessment_date}T12:00:00`), "MMM d")}
+                        {fmtDate(new Date(`${p.next_reassessment}T12:00:00`), "MMM d")}
                       </span>
                     </li>
                   ))}

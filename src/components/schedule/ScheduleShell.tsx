@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
 const NAV = [
-  { to: '/schedule', label: 'Today', icon: LayoutGrid, end: true },
+  { to: '/schedule/today', label: 'Today', icon: LayoutGrid, end: true },
   { to: '/schedule/builder', label: 'Schedule', icon: CalendarDays, end: false },
   { to: '/schedule/team', label: 'Team', icon: Users, end: false },
   { to: '/schedule/coverage', label: 'Coverage rules', icon: ShieldCheck, end: false },
