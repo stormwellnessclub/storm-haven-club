@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Volume2, VolumeX, Play, BellRing, Music, Activity } from "lucide-react";
@@ -35,6 +35,10 @@ const LEVELS: Array<{ value: ChimeVolume; label: string; hint: string }> = [
  */
 export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const diagnosticsPath = pathname.startsWith("/frontdesk")
+    ? "/frontdesk/chime-diagnostics"
+    : "/admin/chime-diagnostics";
   const [muted, setMuted] = useState(getIsMuted);
   const [volume, setVolume] = useState<ChimeVolume>(getChimeVolume);
   const [sound, setSound] = useState<ChimeSound>(getChimeSound);
@@ -87,7 +91,7 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
         className={soundNeedsAttention
           ? "h-8 gap-1.5 border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 animate-pulse"
           : "h-8 gap-1.5 border border-emerald-600/30 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200"}
-        onClick={soundNeedsAttention ? test : () => navigate("/admin/chime-diagnostics")}
+        onClick={soundNeedsAttention ? test : () => navigate(diagnosticsPath)}
         title={soundNeedsAttention ? "Click to restore notification sound" : "Sound is ready — open diagnostics"}
       >
         {soundNeedsAttention ? <BellRing className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
@@ -192,7 +196,7 @@ export function ChimeSoundControls({ compact = false }: { compact?: boolean }) {
         variant="ghost"
         size="icon"
         className="touch-target hidden sm:inline-flex"
-        onClick={() => navigate("/admin/chime-diagnostics")}
+        onClick={() => navigate(diagnosticsPath)}
         title="Open sound diagnostics"
       >
         <Activity className="h-4 w-4" />

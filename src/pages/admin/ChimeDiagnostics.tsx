@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useLocation } from "react-router-dom";
 import { Activity, BellRing, CheckCircle2, CircleAlert, MonitorSpeaker, Radio, Volume2 } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
