@@ -120,6 +120,13 @@
       "when": 1788830328729,
       "tag": "0016_restrict_member_self_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788856264579,
+      "tag": "0017_cafe_reviews_email_privacy",
+      "breakpoints": true
     }
   ]
 }
