@@ -168,19 +168,19 @@ export default function KidsCareBookings() {
               {Object.entries(slotsByDate).map(([date, slots]) => (
                 <Card
                   key={date}
-                  className={`transition-colors ${canBook ? "cursor-pointer hover:border-accent/50" : "opacity-60 cursor-not-allowed"}`}
+                  className={`transition-colors ${canBook ? "cursor-pointer hover:border-accent/50" : "opacity-90 cursor-not-allowed"}`}
                   onClick={() => canBook && openBookingForDate(parseISO(date))}
                   title={bookDisabledTitle}
                 >
                   <CardContent className="py-4">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-semibold">
+                      <p className="text-sm font-semibold text-foreground">
                         {date === todayStr ? "Today" : format(parseISO(date), "EEEE, MMM d")}
                       </p>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-accent h-auto py-1 px-2"
+                        className="text-xs text-accent font-semibold h-auto py-1 px-2"
                         disabled={!canBook}
                       >
                         Book →
@@ -188,7 +188,7 @@ export default function KidsCareBookings() {
                     </div>
                     <div className="space-y-1">
                       {slots!.map((slot, i) => (
-                        <div key={i} className="text-sm text-muted-foreground flex items-center gap-1">
+                        <div key={i} className="text-sm text-foreground/90 font-medium flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {formatTime12h(slot.open_time)} – {formatTime12h(slot.close_time)}
                           {slot.label && (
