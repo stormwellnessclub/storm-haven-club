@@ -134,6 +134,13 @@
       "when": 1788898258074,
       "tag": "0018_get_spa_busy_slots",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1788990140342,
+      "tag": "0019_cafe_reviews_invoker_views",
+      "breakpoints": true
     }
   ]
 }
