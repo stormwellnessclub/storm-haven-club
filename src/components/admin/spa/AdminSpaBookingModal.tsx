@@ -351,7 +351,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         dateObj,
         time,
         selectedService.duration_minutes,
-        selectedService.cleanup_minutes
+        selectedService.cleanup_minutes,
+        allowOutsideWindow
       );
 
       const hasManualTherapist = therapistId !== "auto";
@@ -359,10 +360,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
       if (!slot && (!hasManualTherapist || !hasManualRoom)) {
         setConflict(
-          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually to override."
+          "That time is outside the configured therapist or room availability for this service. Pick another time, turn on \"Allow time outside posted hours\", or assign a therapist and room manually."
         );
         return;
       }
+
 
       const resolvedTherapist = hasManualTherapist ? therapistId : slot?.therapist_id || null;
       const resolvedRoom = hasManualRoom ? roomId : slot?.room_id || null;
