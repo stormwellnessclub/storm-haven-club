@@ -219,13 +219,16 @@ export function findNextAvailableSlot(
   return null;
 }
 
-/** Format the latest possible start time for a given service window for UI hints. */
+/**
+ * Latest possible start time for a service window (cleanup may run past the
+ * window end, so it is not subtracted here).
+ */
 export function latestStartTime(
   windowEnd: string,
   durationMinutes: number,
-  cleanupMinutes: number
+  _cleanupMinutes = 0
 ): string {
-  return addMinutesToTime(trim(windowEnd), -(durationMinutes + cleanupMinutes));
+  return addMinutesToTime(trim(windowEnd), -durationMinutes);
 }
 
 /** Get the broadest availability window (earliest start, latest end) for a service+date. */
