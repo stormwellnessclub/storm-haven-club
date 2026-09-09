@@ -302,9 +302,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       {
         therapistId: therapistId !== "auto" ? therapistId : undefined,
         roomId: roomId !== "auto" ? roomId : undefined,
-      }
+      },
+      undefined,
+      allowOutsideWindow
     );
-  }, [availability, selectedService, serviceId, dateObj, bookedSlots, therapistId, roomId]);
+  }, [availability, selectedService, serviceId, dateObj, bookedSlots, therapistId, roomId, allowOutsideWindow]);
 
   const totalPossibleStartTimes = useMemo(() => {
     if (!selectedService || !serviceId) return 0;
@@ -313,9 +315,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       serviceId,
       dateObj,
       selectedService.duration_minutes,
-      selectedService.cleanup_minutes
+      selectedService.cleanup_minutes,
+      undefined,
+      undefined,
+      undefined,
+      allowOutsideWindow
     ).length;
-  }, [availability, selectedService, serviceId, dateObj]);
+  }, [availability, selectedService, serviceId, dateObj, allowOutsideWindow]);
 
   // Next-available helper for empty days
   const nextAvailable = useMemo(() => {
