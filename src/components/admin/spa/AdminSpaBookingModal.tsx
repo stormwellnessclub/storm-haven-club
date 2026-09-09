@@ -12,6 +12,7 @@ import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useA
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots, sendSpaNotifications } from "@/hooks/useSpaBooking";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +72,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [timeError, setTimeError] = useState<string | null>(null);
   const [therapistId, setTherapistId] = useState<string>("auto");
   const [roomId, setRoomId] = useState<string>("auto");
+  const [allowOutsideWindow, setAllowOutsideWindow] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("in_person");
   const [conflict, setConflict] = useState<string | null>(null);
