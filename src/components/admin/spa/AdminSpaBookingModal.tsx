@@ -855,12 +855,12 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 )}
                 {windowHint && (
                   <p className="text-xs text-muted-foreground">
-                    Available: {formatTime12h(windowHint.start)} – {formatTime12h(windowHint.end)} (last booking {formatTime12h(windowHint.latestStart)})
+                    Available: {formatTime12h(windowHint.start)} – {formatTime12h(windowHint.end)} (last start {formatTime12h(windowHint.latestStart)})
                   </p>
                 )}
                 {selectedService && (
                   <p className="text-xs text-muted-foreground">
-                    Duration: {selectedService.duration_minutes}min + {selectedService.cleanup_minutes}min cleanup
+                    Duration: {selectedService.duration_minutes}min + {selectedService.cleanup_minutes}min cleanup (cleanup may run past posted hours)
                   </p>
                 )}
                 {selectedService && totalPossibleStartTimes > 0 && availableStartTimes.length < totalPossibleStartTimes && (
@@ -870,6 +870,17 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                     {therapistId !== "auto" || roomId !== "auto" ? " for this therapist/room" : ""}.
                   </p>
                 )}
+                <div className="flex items-center gap-2 pt-1">
+                  <Switch
+                    id="spa-allow-outside-window"
+                    checked={allowOutsideWindow}
+                    onCheckedChange={setAllowOutsideWindow}
+                  />
+                  <Label htmlFor="spa-allow-outside-window" className="cursor-pointer text-xs font-normal text-muted-foreground">
+                    Allow time outside posted hours
+                  </Label>
+                </div>
+
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Select a service and date first</p>
