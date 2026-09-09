@@ -51,8 +51,9 @@ function trim(t: string): string {
 }
 
 /**
- * Find the active availability window covering a given time, where the appointment
- * (duration + cleanup) fits entirely inside the window.
+ * Find the active availability window covering a given time. Only the treatment
+ * itself must fit inside the window — the trailing cleanup/turnover time is
+ * allowed to run past the posted end time (it's on the house).
  */
 export function findCoveringSlot(
   availability: SpaServiceAvailability[] | undefined,
@@ -60,21 +61,24 @@ export function findCoveringSlot(
   date: Date,
   time: string,
   durationMinutes: number,
-  cleanupMinutes: number
+  cleanupMinutes: number,
+  allowOutsideWindow = false
 ): AvailabilitySlotMatch | null {
   if (!availability) return null;
   const dow = getDay(date);
   const iso = format(date, "yyyy-MM-dd");
-  const endTime = addMinutesToTime(time, durationMinutes + cleanupMinutes);
+  const endTime = addMinutesToTime(time, durationMinutes);
 
-  const matches = availability.filter((a) => {
+  const onDate = availability.filter((a) => {
     if (a.service_id !== serviceId || !a.is_active) return false;
-    const dateMatches = a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
-    if (!dateMatches) return false;
-    const winStart = trim(a.start_time);
-    const winEnd = trim(a.end_time);
-    return time >= winStart && endTime <= winEnd;
+    return a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
   });
+
+  let matches = onDate.filter((a) => time >= trim(a.start_time) && endTime <= trim(a.end_time));
+
+  // Staff override: allow a time outside the posted window, but still resolve
+  // therapist/room from that day's configured windows.
+  if (matches.length === 0 && allowOutsideWindow) matches = onDate;
 
   if (matches.length === 0) return null;
   // Prefer slots with both therapist and room assigned
@@ -90,6 +94,7 @@ export function findCoveringSlot(
     end_time: trim(best.end_time),
   };
 }
+
 
 /**
  * Whether the service has any active availability windows on a given date.
