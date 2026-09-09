@@ -399,14 +399,14 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         // ignore — fail-soft, server will reject if needed
       }
     },
-    [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail]
+    [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail, allowOutsideWindow]
   );
 
-  // Re-run conflict check when therapist/room/date change after a time was set
+  // Re-run conflict check when therapist/room/date/override change after a time was set
   useEffect(() => {
     if (appointmentTime) void runConflictCheck(appointmentTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [therapistId, roomId, appointmentDate]);
+  }, [therapistId, roomId, appointmentDate, allowOutsideWindow]);
 
   const handleTimeInputBlur = () => {
     if (!timeInputDisplay.trim()) {
