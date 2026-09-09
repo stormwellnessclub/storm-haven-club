@@ -51,8 +51,9 @@ function trim(t: string): string {
 }
 
 /**
- * Find the active availability window covering a given time, where the appointment
- * (duration + cleanup) fits entirely inside the window.
+ * Find the active availability window covering a given time. Only the treatment
+ * itself must fit inside the window — the trailing cleanup/turnover time is
+ * allowed to run past the posted end time (it's on the house).
  */
 export function findCoveringSlot(
   availability: SpaServiceAvailability[] | undefined,
@@ -60,21 +61,24 @@ export function findCoveringSlot(
   date: Date,
   time: string,
   durationMinutes: number,
-  cleanupMinutes: number
+  cleanupMinutes: number,
+  allowOutsideWindow = false
 ): AvailabilitySlotMatch | null {
   if (!availability) return null;
   const dow = getDay(date);
   const iso = format(date, "yyyy-MM-dd");
-  const endTime = addMinutesToTime(time, durationMinutes + cleanupMinutes);
+  const endTime = addMinutesToTime(time, durationMinutes);
 
-  const matches = availability.filter((a) => {
+  const onDate = availability.filter((a) => {
     if (a.service_id !== serviceId || !a.is_active) return false;
-    const dateMatches = a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
-    if (!dateMatches) return false;
-    const winStart = trim(a.start_time);
-    const winEnd = trim(a.end_time);
-    return time >= winStart && endTime <= winEnd;
+    return a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
   });
+
+  let matches = onDate.filter((a) => time >= trim(a.start_time) && endTime <= trim(a.end_time));
+
+  // Staff override: allow a time outside the posted window, but still resolve
+  // therapist/room from that day's configured windows.
+  if (matches.length === 0 && allowOutsideWindow) matches = onDate;
 
   if (matches.length === 0) return null;
   // Prefer slots with both therapist and room assigned
@@ -90,6 +94,7 @@ export function findCoveringSlot(
     end_time: trim(best.end_time),
   };
 }
+
 
 /**
  * Whether the service has any active availability windows on a given date.
@@ -111,8 +116,10 @@ export function hasCoverageOnDate(
 }
 
 /**
- * Generate selectable HH:mm start times for a given date + service that fit
- * entirely inside an active availability window (duration + cleanup ≤ window end).
+ * Generate selectable HH:mm start times for a given date + service. Only the
+ * treatment itself must end by the window's end time — the trailing cleanup is
+ * allowed to run past posted hours. Cleanup is still counted when checking
+ * conflicts with existing bookings.
  */
 export function generateAvailableStartTimes(
   availability: SpaServiceAvailability[] | undefined,
@@ -122,7 +129,8 @@ export function generateAvailableStartTimes(
   cleanupMinutes: number,
   bookedSlots?: BookedSlot[],
   resourceFilter?: { therapistId?: string | null; roomId?: string | null },
-  minStartTime?: string // "HH:mm" — drop slots earlier than this (used for same-day notice)
+  minStartTime?: string, // "HH:mm" — drop slots earlier than this (used for same-day notice)
+  allowOutsideWindow = false // staff override: offer the full grid regardless of posted hours
 ): string[] {
   if (!availability) return [];
   const dow = getDay(date);
@@ -133,13 +141,15 @@ export function generateAvailableStartTimes(
       a.is_active &&
       (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
-  if (windows.length === 0) return [];
+  if (windows.length === 0 && !allowOutsideWindow) return [];
 
   const slots = new Set<string>();
   for (const t of TIME_GRID) {
     if (minStartTime && t < minStartTime) continue;
-    const endT = addMinutesToTime(t, durationMinutes + cleanupMinutes);
-    const fits = windows.some((w) => t >= trim(w.start_time) && endT <= trim(w.end_time));
+    const endT = addMinutesToTime(t, durationMinutes);
+    const fits =
+      allowOutsideWindow ||
+      windows.some((w) => t >= trim(w.start_time) && endT <= trim(w.end_time));
     if (!fits) continue;
 
     // Check booked-slot conflicts (therapist or room overlap, including 15-min cleanup)
@@ -149,9 +159,9 @@ export function generateAvailableStartTimes(
 
       // Determine which window will satisfy this slot, to know what therapist/room
       // will be auto-assigned (if no manual override).
-      const coveringWindow = windows.find(
-        (w) => t >= trim(w.start_time) && endT <= trim(w.end_time)
-      );
+      const coveringWindow =
+        windows.find((w) => t >= trim(w.start_time) && endT <= trim(w.end_time)) ||
+        (allowOutsideWindow ? windows[0] : undefined);
       const intendedTherapist =
         resourceFilter?.therapistId !== undefined
           ? resourceFilter.therapistId
@@ -160,6 +170,7 @@ export function generateAvailableStartTimes(
         resourceFilter?.roomId !== undefined
           ? resourceFilter.roomId
           : coveringWindow?.room_id || null;
+
 
       const conflicts = bookedSlots.some((b) => {
         const bStart = toMin(trim(b.appointment_time));
@@ -208,13 +219,16 @@ export function findNextAvailableSlot(
   return null;
 }
 
-/** Format the latest possible start time for a given service window for UI hints. */
+/**
+ * Latest possible start time for a service window (cleanup may run past the
+ * window end, so it is not subtracted here).
+ */
 export function latestStartTime(
   windowEnd: string,
   durationMinutes: number,
-  cleanupMinutes: number
+  _cleanupMinutes = 0
 ): string {
-  return addMinutesToTime(trim(windowEnd), -(durationMinutes + cleanupMinutes));
+  return addMinutesToTime(trim(windowEnd), -durationMinutes);
 }
 
 /** Get the broadest availability window (earliest start, latest end) for a service+date. */

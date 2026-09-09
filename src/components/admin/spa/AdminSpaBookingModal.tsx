@@ -12,6 +12,7 @@ import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useA
 import { useSpaServices, useSpaTherapists, useSpaRooms, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
 import { useCheckSpaAvailability, useSpaBookedSlots, sendSpaNotifications } from "@/hooks/useSpaBooking";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -71,6 +72,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
   const [timeError, setTimeError] = useState<string | null>(null);
   const [therapistId, setTherapistId] = useState<string>("auto");
   const [roomId, setRoomId] = useState<string>("auto");
+  const [allowOutsideWindow, setAllowOutsideWindow] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("in_person");
   const [conflict, setConflict] = useState<string | null>(null);
@@ -300,9 +302,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       {
         therapistId: therapistId !== "auto" ? therapistId : undefined,
         roomId: roomId !== "auto" ? roomId : undefined,
-      }
+      },
+      undefined,
+      allowOutsideWindow
     );
-  }, [availability, selectedService, serviceId, dateObj, bookedSlots, therapistId, roomId]);
+  }, [availability, selectedService, serviceId, dateObj, bookedSlots, therapistId, roomId, allowOutsideWindow]);
 
   const totalPossibleStartTimes = useMemo(() => {
     if (!selectedService || !serviceId) return 0;
@@ -311,9 +315,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
       serviceId,
       dateObj,
       selectedService.duration_minutes,
-      selectedService.cleanup_minutes
+      selectedService.cleanup_minutes,
+      undefined,
+      undefined,
+      undefined,
+      allowOutsideWindow
     ).length;
-  }, [availability, selectedService, serviceId, dateObj]);
+  }, [availability, selectedService, serviceId, dateObj, allowOutsideWindow]);
 
   // Next-available helper for empty days
   const nextAvailable = useMemo(() => {
@@ -343,7 +351,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         dateObj,
         time,
         selectedService.duration_minutes,
-        selectedService.cleanup_minutes
+        selectedService.cleanup_minutes,
+        allowOutsideWindow
       );
 
       const hasManualTherapist = therapistId !== "auto";
@@ -351,10 +360,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
       if (!slot && (!hasManualTherapist || !hasManualRoom)) {
         setConflict(
-          "That time is outside the configured therapist or room availability for this service. Pick another time, or assign a therapist and room manually to override."
+          "That time is outside the configured therapist or room availability for this service. Pick another time, turn on \"Allow time outside posted hours\", or assign a therapist and room manually."
         );
         return;
       }
+
 
       const resolvedTherapist = hasManualTherapist ? therapistId : slot?.therapist_id || null;
       const resolvedRoom = hasManualRoom ? roomId : slot?.room_id || null;
@@ -389,14 +399,14 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
         // ignore — fail-soft, server will reject if needed
       }
     },
-    [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail]
+    [selectedService, dateObj, availability, serviceId, therapistId, roomId, checkAvail, allowOutsideWindow]
   );
 
-  // Re-run conflict check when therapist/room/date change after a time was set
+  // Re-run conflict check when therapist/room/date/override change after a time was set
   useEffect(() => {
     if (appointmentTime) void runConflictCheck(appointmentTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [therapistId, roomId, appointmentDate]);
+  }, [therapistId, roomId, appointmentDate, allowOutsideWindow]);
 
   const handleTimeInputBlur = () => {
     if (!timeInputDisplay.trim()) {
@@ -845,12 +855,12 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                 )}
                 {windowHint && (
                   <p className="text-xs text-muted-foreground">
-                    Available: {formatTime12h(windowHint.start)} – {formatTime12h(windowHint.end)} (last booking {formatTime12h(windowHint.latestStart)})
+                    Available: {formatTime12h(windowHint.start)} – {formatTime12h(windowHint.end)} (last start {formatTime12h(windowHint.latestStart)})
                   </p>
                 )}
                 {selectedService && (
                   <p className="text-xs text-muted-foreground">
-                    Duration: {selectedService.duration_minutes}min + {selectedService.cleanup_minutes}min cleanup
+                    Duration: {selectedService.duration_minutes}min + {selectedService.cleanup_minutes}min cleanup (cleanup may run past posted hours)
                   </p>
                 )}
                 {selectedService && totalPossibleStartTimes > 0 && availableStartTimes.length < totalPossibleStartTimes && (
@@ -860,6 +870,17 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
                     {therapistId !== "auto" || roomId !== "auto" ? " for this therapist/room" : ""}.
                   </p>
                 )}
+                <div className="flex items-center gap-2 pt-1">
+                  <Switch
+                    id="spa-allow-outside-window"
+                    checked={allowOutsideWindow}
+                    onCheckedChange={setAllowOutsideWindow}
+                  />
+                  <Label htmlFor="spa-allow-outside-window" className="cursor-pointer text-xs font-normal text-muted-foreground">
+                    Allow time outside posted hours
+                  </Label>
+                </div>
+
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">Select a service and date first</p>
