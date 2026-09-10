@@ -921,25 +921,61 @@ serve(async (req) => {
         appQuery = appId ? appQuery.eq('id', appId) : appQuery.eq('stripe_customer_id', appCustomerId);
         const { data: appRow } = await appQuery.maybeSingle();
 
-        if (!appRow?.stripe_customer_id) {
-          logStep("list_application_payment_methods: no matching application");
-          return emptyResult();
-        }
-
         const staffCaller = await isStaffCaller(['super_admin', 'admin', 'manager', 'front_desk']);
-        const ownerCaller = !!user?.email && !!appRow.email &&
+        const ownerCaller = !!user?.email && !!appRow?.email &&
           user.email.toLowerCase() === String(appRow.email).toLowerCase();
 
         if (!staffCaller && !ownerCaller) {
           await auditPrivileged('stripe_authz_denied', {
             action: 'list_application_payment_methods',
-            application_id: appRow.id,
+            application_id: appRow?.id ?? null,
             reason: 'not_owner',
           });
           return new Response(
             JSON.stringify({ error: "Not authorized", paymentMethods: [], hasPaymentMethod: false }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
           );
+        }
+
+        // Resolve the customer: application row first, then the member record,
+        // then Stripe lookup by email (cards are often saved after approval).
+        let resolvedAppCustomerId: string | null = appRow?.stripe_customer_id ?? null;
+        const resolvedAppEmail = appRow?.email ?? null;
+
+        if (!resolvedAppCustomerId && staffCaller && resolvedAppEmail) {
+          const { data: memberByEmail } = await supabase
+            .from('members')
+            .select('stripe_customer_id')
+            .ilike('email', resolvedAppEmail)
+            .not('stripe_customer_id', 'is', null)
+            .limit(1)
+            .maybeSingle();
+          resolvedAppCustomerId = memberByEmail?.stripe_customer_id ?? null;
+
+          if (!resolvedAppCustomerId) {
+            try {
+              const stripeMatches = await stripe.customers.list({ email: resolvedAppEmail, limit: 1 });
+              resolvedAppCustomerId = stripeMatches.data[0]?.id ?? null;
+            } catch (lookupError) {
+              logStep("list_application_payment_methods: stripe email lookup failed", { error: String(lookupError) });
+            }
+          }
+
+          if (resolvedAppCustomerId && appRow?.id) {
+            await supabase
+              .from('membership_applications')
+              .update({ stripe_customer_id: resolvedAppCustomerId })
+              .eq('id', appRow.id);
+          }
+        }
+
+        if (!resolvedAppCustomerId && appCustomerId && staffCaller) {
+          resolvedAppCustomerId = appCustomerId;
+        }
+
+        if (!resolvedAppCustomerId) {
+          logStep("list_application_payment_methods: no customer resolved");
+          return emptyResult();
         }
 
         try {
