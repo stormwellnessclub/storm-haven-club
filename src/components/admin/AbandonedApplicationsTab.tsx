@@ -34,6 +34,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+
+const CLUB_TZ = "America/Detroit";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   useAbandonedApplications,
@@ -82,7 +86,7 @@ export function AbandonedApplicationsTab() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
-  const [showFiltered, setShowFiltered] = useState(false);
+  const [showFiltered, setShowFiltered] = useState(true);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
 
