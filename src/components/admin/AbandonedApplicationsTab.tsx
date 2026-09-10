@@ -472,7 +472,7 @@ export function AbandonedApplicationsTab() {
 
       {/* Last activity — proves tracking is live */}
       {totals && (
-        <div className="grid gap-3 sm:grid-cols-4 rounded-lg border bg-muted/30 p-4">
+        <div className="grid gap-3 sm:grid-cols-5 rounded-lg border bg-muted/30 p-4">
           <div>
             <p className="text-xs text-muted-foreground">Last person started</p>
             <p className="text-sm font-semibold">
