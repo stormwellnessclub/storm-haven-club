@@ -979,19 +979,19 @@ serve(async (req) => {
         }
 
         try {
-          const appCustomer = await stripe.customers.retrieve(appRow.stripe_customer_id);
+          const appCustomer = await stripe.customers.retrieve(resolvedAppCustomerId);
           const appDefaultPaymentMethodId = !appCustomer.deleted
             ? appCustomer.invoice_settings?.default_payment_method as string | null
             : null;
 
           const appPaymentMethods = await stripe.paymentMethods.list({
-            customer: appRow.stripe_customer_id,
+            customer: resolvedAppCustomerId,
             type: 'card',
           });
 
           const appFormattedMethods = appPaymentMethods.data.map((pm: any) => ({
             id: pm.id,
-            customer: appRow.stripe_customer_id,
+            customer: resolvedAppCustomerId,
             brand: pm.card?.brand,
             last4: pm.card?.last4,
             expMonth: pm.card?.exp_month,
