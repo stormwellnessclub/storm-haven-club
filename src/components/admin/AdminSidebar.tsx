@@ -71,7 +71,11 @@ import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useUnresolvedFailedCount } from "@/hooks/useUnresolvedFailedCount";
-import { useAbandonedApplicationsCount } from "@/hooks/useAbandonedApplications";
+import {
+  useAbandonedApplications,
+  useAbandonedApplicationsCount,
+} from "@/hooks/useAbandonedApplications";
+
 import { canAccessPage, type AppRole } from "@/lib/permissions";
 
 interface MenuItem {
@@ -224,6 +228,9 @@ export function AdminSidebar() {
   const [hasMembership, setHasMembership] = useState(false);
   const unresolvedFailedCount = useUnresolvedFailedCount();
   const abandonedApplicationsCount = useAbandonedApplicationsCount();
+  const { data: abandonedData } = useAbandonedApplications();
+  const abandonedHiddenCount = abandonedData?.filtered.length ?? 0;
+
 
 
   useEffect(() => {
@@ -380,10 +387,14 @@ export function AdminSidebar() {
                               {item.url === "/admin/applications?tab=abandoned" &&
                                 abandonedApplicationsCount > 0 &&
                                 !isCollapsed && (
-                                  <span className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium">
+                                  <span
+                                    title={`${abandonedApplicationsCount} people started an application and never finished. ${abandonedHiddenCount} more started but finished later — listed on the page.`}
+                                    className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium"
+                                  >
                                     {abandonedApplicationsCount}
                                   </span>
                                 )}
+
 
                             </NavLink>
                             )}

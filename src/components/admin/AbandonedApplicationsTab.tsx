@@ -34,6 +34,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+
+const CLUB_TZ = "America/Detroit";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   useAbandonedApplications,
@@ -82,7 +86,7 @@ export function AbandonedApplicationsTab() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
-  const [showFiltered, setShowFiltered] = useState(false);
+  const [showFiltered, setShowFiltered] = useState(true);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
 
@@ -466,6 +470,35 @@ export function AbandonedApplicationsTab() {
         </div>
       </div>
 
+      {/* Last activity — proves tracking is live */}
+      {totals && (
+        <div className="grid gap-3 sm:grid-cols-4 rounded-lg border bg-muted/30 p-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Last person started</p>
+            <p className="text-sm font-semibold">
+              {totals.lastAttemptAt
+                ? formatInTimeZone(new Date(totals.lastAttemptAt), CLUB_TZ, "MMM d, yyyy h:mm a")
+                : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Started this week</p>
+            <p className="text-sm font-semibold">{totals.last7}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Started this month</p>
+            <p className="text-sm font-semibold">{totals.last30}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Finished later (not leads)</p>
+            <p className="text-sm font-semibold">
+              {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
+            </p>
+          </div>
+        </div>
+      )}
+
+
       {nothing && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
@@ -590,7 +623,7 @@ export function AbandonedApplicationsTab() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">
-                Already on file ({filtered.length})
+                Finished later — not leads ({filtered.length})
               </h3>
               <p className="text-sm text-muted-foreground">
                 These attempts match an existing application or member record, so they are not

@@ -35,6 +35,9 @@ export interface AbandonedApplicationsResult {
     alreadyApplied: number;
     alreadyMember: number;
     testRows: number;
+    lastAttemptAt: string | null;
+    last7: number;
+    last30: number;
   };
 }
 
@@ -43,6 +46,14 @@ export const ABANDONED_APPLICATIONS_QUERY_KEY = ["abandoned-applications"] as co
 const TEST_EMAIL_PATTERN = /(test@|@example\.com|@test\.com)/i;
 
 const normalizeName = (v?: string | null) => (v || "").toLowerCase().replace(/[^a-z]/g, "");
+
+/** An attempt is only "resolved" when the matching record was created at/after the attempt. */
+const RESOLVED_GRACE_MS = 60 * 60 * 1000; // 1h grace for records written just before the attempt row
+
+function resolvedAfter(recordAt: string | null | undefined, attemptAt: string) {
+  if (!recordAt) return false;
+  return new Date(recordAt).getTime() >= new Date(attemptAt).getTime() - RESOLVED_GRACE_MS;
+}
 
 async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult> {
   const { data, error } = await supabase
@@ -84,20 +95,26 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
   }
 
   const [appsRes, membersRes] = await Promise.all([
-    supabase.from("membership_applications").select("email, full_name"),
-    supabase.from("members").select("email, first_name, last_name"),
+    supabase.from("membership_applications").select("email, full_name, created_at"),
+    supabase.from("members").select("email, first_name, last_name, created_at"),
   ]);
 
-  const appEmails = new Set<string>();
-  const memberEmails = new Set<string>();
+  // email -> newest record timestamp
+  const appEmails = new Map<string, string>();
+  const memberEmails = new Map<string, string>();
   const knownNames = new Map<string, string>();
+  const keepNewest = (map: Map<string, string>, key: string, at: string) => {
+    const prev = map.get(key);
+    if (!prev || new Date(at).getTime() > new Date(prev).getTime()) map.set(key, at);
+  };
   for (const row of (appsRes.data || []) as any[]) {
-    if (row.email) appEmails.add(String(row.email).toLowerCase().trim());
+    if (row.email) keepNewest(appEmails, String(row.email).toLowerCase().trim(), row.created_at);
     const n = normalizeName(row.full_name);
     if (n) knownNames.set(n, row.email || row.full_name);
   }
   for (const row of (membersRes.data || []) as any[]) {
-    if (row.email) memberEmails.add(String(row.email).toLowerCase().trim());
+    if (row.email)
+      keepNewest(memberEmails, String(row.email).toLowerCase().trim(), row.created_at);
     const n = normalizeName(`${row.first_name || ""}${row.last_name || ""}`);
     if (n) knownNames.set(n, row.email || `${row.first_name} ${row.last_name}`);
   }
@@ -112,8 +129,10 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
 
     let filterReason: FilterReason = "none";
     if (TEST_EMAIL_PATTERN.test(email)) filterReason = "test_email";
-    else if (memberEmails.has(email)) filterReason = "already_member";
-    else if (appEmails.has(email)) filterReason = "already_applied";
+    else if (resolvedAfter(memberEmails.get(email), newest.created_at))
+      filterReason = "already_member";
+    else if (resolvedAfter(appEmails.get(email), newest.created_at))
+      filterReason = "already_applied";
 
     const nameKey = normalizeName(meta?.applicant_name);
     all.push({
@@ -130,6 +149,10 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
 
   const visible = all.filter((a) => a.filterReason === "none");
 
+  const now = Date.now();
+  const since = (days: number) =>
+    rows.filter((r) => now - new Date(r.created_at).getTime() <= days * 86400000).length;
+
   return {
     cardSaved: visible.filter((a) => a.status === "succeeded"),
     noCard: visible.filter((a) => a.status !== "succeeded"),
@@ -142,9 +165,13 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       alreadyApplied: all.filter((a) => a.filterReason === "already_applied").length,
       alreadyMember: all.filter((a) => a.filterReason === "already_member").length,
       testRows: all.filter((a) => a.filterReason === "test_email").length,
+      lastAttemptAt: rows[0]?.created_at ?? null,
+      last7: since(7),
+      last30: since(30),
     },
   };
 }
+
 
 /** Shared source of truth for the abandoned applications list and its badge count. */
 export function useAbandonedApplications(enabled = true) {
