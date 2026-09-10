@@ -623,7 +623,7 @@ export function AbandonedApplicationsTab() {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">
-                Already on file ({filtered.length})
+                Finished later — not leads ({filtered.length})
               </h3>
               <p className="text-sm text-muted-foreground">
                 These attempts match an existing application or member record, so they are not
