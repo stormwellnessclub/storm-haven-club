@@ -8641,12 +8641,30 @@ serve(async (req) => {
     
     // Return card errors as 200 with error field so the frontend can read the message
     // (non-2xx responses from supabase.functions.invoke lose the response body)
-    const isStripeCardError = (error as any)?.type === 'StripeCardError';
+    const errType = (error as any)?.type;
+    const errCode = (error as any)?.code;
+    const isStripeCardError = errType === 'StripeCardError';
+    const isMissingPaymentMethod =
+      errCode === 'resource_missing' ||
+      message.includes('no attached payment source') ||
+      message.includes('default payment method');
+    const isStripeInvalidRequest = errType === 'StripeInvalidRequestError';
     const isValidationError = message.includes('required') || message.includes('not found') || 
                               message.includes('No payment method') || message.includes('already has') ||
                               message.includes('Unauthorized') || message.includes('Invalid');
     
-    if (isStripeCardError || isValidationError) {
+    if (isMissingPaymentMethod) {
+      return new Response(
+        JSON.stringify({
+          error: 'No card on file for this customer. Please add a payment method before charging.',
+          code: 'no_payment_method',
+          success: false,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    if (isStripeCardError || isStripeInvalidRequest || isValidationError) {
       return new Response(
         JSON.stringify({ error: message, success: false }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }

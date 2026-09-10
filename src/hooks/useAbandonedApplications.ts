@@ -59,7 +59,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
   const { data, error } = await supabase
     .from("card_setup_attempts")
     .select(
-      "id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
+      "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
     )
     .is("application_id", null)
     .in("status", ["initiated", "abandoned", "failed", "succeeded"])
@@ -127,10 +127,14 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
     mergedAttempts += list.length - 1;
     const meta = newest.metadata as AbandonedAttempt["metadata"];
 
+    // A card attempt tied to a member record, or from the admin portal, is staff
+    // work on an existing member — never a lead, regardless of dates.
+    const linkedToMember =
+      list.some((a: any) => a.member_id) || list.every((a: any) => a.source === "admin_portal");
+
     let filterReason: FilterReason = "none";
     if (TEST_EMAIL_PATTERN.test(email)) filterReason = "test_email";
-    else if (resolvedAfter(memberEmails.get(email), newest.created_at))
-      filterReason = "already_member";
+    else if (linkedToMember || memberEmails.has(email)) filterReason = "already_member";
     else if (resolvedAfter(appEmails.get(email), newest.created_at))
       filterReason = "already_applied";
 
