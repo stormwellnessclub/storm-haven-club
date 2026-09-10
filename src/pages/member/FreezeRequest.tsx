@@ -388,11 +388,21 @@ export default function FreezeRequest() {
                             mode="single"
                             selected={startDate}
                             onSelect={setStartDate}
-                            disabled={(date) => isBefore(date, startOfTomorrow())}
+                            disabled={(date) => isBefore(date, minStartDate)}
+                            defaultMonth={minStartDate}
                             initialFocus
                           />
                         </PopoverContent>
                       </Popover>
+                      <p className="text-xs text-muted-foreground">
+                        Freeze requests require at least {FREEZE_NOTICE_DAYS} days' notice. The earliest start date is{" "}
+                        {format(minStartDate, "MMMM d, yyyy")}.
+                      </p>
+                      {shortNotice && (
+                        <p className="text-xs text-destructive">
+                          That start date is less than {FREEZE_NOTICE_DAYS} days away. Please pick a later date.
+                        </p>
+                      )}
                     </div>
 
                     {/* Duration */}
