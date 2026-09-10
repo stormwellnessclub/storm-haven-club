@@ -495,6 +495,11 @@ export function AbandonedApplicationsTab() {
               {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
             </p>
           </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Card updates by existing members</p>
+            <p className="text-sm font-semibold">{totals.memberCardUpdates}</p>
+            <p className="text-[11px] text-muted-foreground">Excluded — not applicants</p>
+          </div>
         </div>
       )}
 
