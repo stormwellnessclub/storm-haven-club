@@ -165,12 +165,33 @@ export function AbandonedApplicationsTab() {
     setIsBulkSending(true);
     let successCount = 0;
     let failCount = 0;
+    let skippedCount = 0;
+
+    // Re-check right before sending: nobody who has since become a member or
+    // completed an application can be emailed a "finish your application" note.
+    const emails = toSend
+      .map((a) => a.metadata?.applicant_email?.toLowerCase().trim())
+      .filter((e): e is string => !!e);
+    const excluded = new Set<string>();
+    if (emails.length > 0) {
+      const [memberRows, appRows] = await Promise.all([
+        supabase.from("members").select("email").in("email", emails),
+        supabase.from("membership_applications").select("email").in("email", emails),
+      ]);
+      for (const r of [...(memberRows.data || []), ...(appRows.data || [])] as any[]) {
+        if (r.email) excluded.add(String(r.email).toLowerCase().trim());
+      }
+    }
 
     for (const attempt of toSend) {
       const email = attempt.metadata?.applicant_email;
       const name = attempt.metadata?.applicant_name;
       if (!email || !name) {
         failCount++;
+        continue;
+      }
+      if (excluded.has(email.toLowerCase().trim())) {
+        skippedCount++;
         continue;
       }
 
@@ -183,6 +204,8 @@ export function AbandonedApplicationsTab() {
     }
 
     if (successCount > 0) toast.success(`Sent ${successCount} reminder(s)`);
+    if (skippedCount > 0)
+      toast.info(`Skipped ${skippedCount} — already a member or already applied`);
     if (failCount > 0) toast.error(`Failed to send ${failCount} reminder(s)`);
 
     setSelectedIds(new Set());
@@ -472,7 +495,7 @@ export function AbandonedApplicationsTab() {
 
       {/* Last activity — proves tracking is live */}
       {totals && (
-        <div className="grid gap-3 sm:grid-cols-4 rounded-lg border bg-muted/30 p-4">
+        <div className="grid gap-3 sm:grid-cols-5 rounded-lg border bg-muted/30 p-4">
           <div>
             <p className="text-xs text-muted-foreground">Last person started</p>
             <p className="text-sm font-semibold">
@@ -494,6 +517,11 @@ export function AbandonedApplicationsTab() {
             <p className="text-sm font-semibold">
               {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
             </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Card updates by existing members</p>
+            <p className="text-sm font-semibold">{totals.memberCardUpdates}</p>
+            <p className="text-[11px] text-muted-foreground">Excluded — not applicants</p>
           </div>
         </div>
       )}

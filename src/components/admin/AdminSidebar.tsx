@@ -230,6 +230,7 @@ export function AdminSidebar() {
   const abandonedApplicationsCount = useAbandonedApplicationsCount();
   const { data: abandonedData } = useAbandonedApplications();
   const abandonedHiddenCount = abandonedData?.filtered.length ?? 0;
+  const abandonedMemberCardUpdates = abandonedData?.totals.memberCardUpdates ?? 0;
 
 
 
@@ -388,7 +389,7 @@ export function AdminSidebar() {
                                 abandonedApplicationsCount > 0 &&
                                 !isCollapsed && (
                                   <span
-                                    title={`${abandonedApplicationsCount} people started an application and never finished. ${abandonedHiddenCount} more started but finished later — listed on the page.`}
+                                    title={`${abandonedApplicationsCount} people started an application and never finished. ${abandonedHiddenCount} more started but finished later — listed on the page. ${abandonedMemberCardUpdates} card updates by existing members are excluded.`}
                                     className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium"
                                   >
                                     {abandonedApplicationsCount}

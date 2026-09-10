@@ -38,6 +38,8 @@ export interface AbandonedApplicationsResult {
     lastAttemptAt: string | null;
     last7: number;
     last30: number;
+    /** Card saves/updates by existing members — excluded from the lead list. */
+    memberCardUpdates: number;
   };
 }
 
@@ -56,15 +58,27 @@ function resolvedAfter(recordAt: string | null | undefined, attemptAt: string) {
 }
 
 async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult> {
-  const { data, error } = await supabase
-    .from("card_setup_attempts")
-    .select(
-      "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
-    )
-    .is("application_id", null)
-    .in("status", ["initiated", "abandoned", "failed", "succeeded"])
-    .order("created_at", { ascending: false })
-    .limit(2000);
+  // Only attempts that came from the public application form can be leads.
+  // Anything tied to a member record, or made in the member/admin portal, is
+  // card maintenance for an existing member and never belongs in this list.
+  const [{ data, error }, memberUpdatesRes] = await Promise.all([
+    supabase
+      .from("card_setup_attempts")
+      .select(
+        "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
+      )
+      .is("application_id", null)
+      .is("member_id", null)
+      .eq("source", "self_service")
+      .in("status", ["initiated", "abandoned", "failed", "succeeded"])
+      .order("created_at", { ascending: false })
+      .limit(2000),
+    supabase
+      .from("card_setup_attempts")
+      .select("id", { count: "exact", head: true })
+      .is("application_id", null)
+      .not("member_id", "is", null),
+  ]);
 
   if (error) throw error;
 
@@ -127,14 +141,10 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
     mergedAttempts += list.length - 1;
     const meta = newest.metadata as AbandonedAttempt["metadata"];
 
-    // A card attempt tied to a member record, or from the admin portal, is staff
-    // work on an existing member — never a lead, regardless of dates.
-    const linkedToMember =
-      list.some((a: any) => a.member_id) || list.every((a: any) => a.source === "admin_portal");
-
     let filterReason: FilterReason = "none";
     if (TEST_EMAIL_PATTERN.test(email)) filterReason = "test_email";
-    else if (linkedToMember || memberEmails.has(email)) filterReason = "already_member";
+    // Anyone with a member record is never a lead, whenever they joined.
+    else if (memberEmails.has(email)) filterReason = "already_member";
     else if (resolvedAfter(appEmails.get(email), newest.created_at))
       filterReason = "already_applied";
 
@@ -172,6 +182,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       lastAttemptAt: rows[0]?.created_at ?? null,
       last7: since(7),
       last30: since(30),
+      memberCardUpdates: memberUpdatesRes.count ?? 0,
     },
   };
 }
