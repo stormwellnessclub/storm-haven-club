@@ -126,16 +126,25 @@ export default function FreezeRequest() {
   const isPastDueBlocked = !!pastDue?.blocked;
   const outstandingDollars = ((pastDue?.outstanding_cents ?? 0) / 100).toFixed(2);
 
+  const minStartDate = earliestFreezeStartDate();
+  const shortNotice = !!startDate && isShortNoticeFreeze(startDate);
+
   const canSubmit = 
     eligibility?.canFreeze && 
     !isPastDueBlocked &&
     startDate && 
+    !shortNotice &&
     durationMonths <= (eligibility?.monthsRemaining || 0) &&
     membership?.id;
 
 
   const handleSubmit = () => {
     if (!membership?.id || !startDate) return;
+    if (isShortNoticeFreeze(startDate)) {
+      toast.error(`Freeze requests need at least ${FREEZE_NOTICE_DAYS} days' notice.`);
+      return;
+    }
+    
     
     createFreeze.mutate({
       memberId: membership.id,
