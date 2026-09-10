@@ -156,6 +156,8 @@ export function useCreateFreezeRequest() {
       const msg = String(error?.message || "");
       if (msg.includes("PAST_DUE_BLOCK")) {
         toast.error(msg.replace(/^.*PAST_DUE_BLOCK:\s*/, ""));
+      } else if (msg.includes("FREEZE_NOTICE_REQUIRED")) {
+        toast.error(msg.replace(/^.*FREEZE_NOTICE_REQUIRED:\s*/, ""));
       } else {
         toast.error("Failed to submit freeze request");
       }

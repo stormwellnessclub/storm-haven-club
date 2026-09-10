@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle, ExternalLink, Mail } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
+import { FREEZE_NOTICE_DAYS, isShortNoticeFreeze } from "@/lib/freezePolicy";
 import { Link } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -497,6 +498,12 @@ export default function FreezeRequests() {
                   />
                 </PopoverContent>
               </Popover>
+              {approveStartDate && isShortNoticeFreeze(approveStartDate) && (
+                <p className="text-xs text-amber-600">
+                  Heads up: members are asked for {FREEZE_NOTICE_DAYS} days' notice and this start date is sooner.
+                  You can still approve it.
+                </p>
+              )}
             </div>
             <div className="p-3 rounded-lg bg-muted/50">
               <p className="text-sm">

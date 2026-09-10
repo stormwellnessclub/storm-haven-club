@@ -11,7 +11,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Loader2, CalendarIcon, Snowflake, AlertCircle, CheckCircle2, Clock, X, DollarSign, ExternalLink, CreditCard, PauseCircle } from "lucide-react";
-import { format, addMonths, isBefore, startOfTomorrow } from "date-fns";
+import { format, addMonths, isBefore } from "date-fns";
+import { FREEZE_NOTICE_DAYS, earliestFreezeStartDate, isShortNoticeFreeze } from "@/lib/freezePolicy";
 import { cn } from "@/lib/utils";
 import { useMemberFreezes, useFreezeEligibility, useCreateFreezeRequest, useCancelFreezeRequest, useFreezePastDueStatus } from "@/hooks/useMemberFreezes";
 import { useUserMembership } from "@/hooks/useUserMembership";
@@ -125,16 +126,25 @@ export default function FreezeRequest() {
   const isPastDueBlocked = !!pastDue?.blocked;
   const outstandingDollars = ((pastDue?.outstanding_cents ?? 0) / 100).toFixed(2);
 
+  const minStartDate = earliestFreezeStartDate();
+  const shortNotice = !!startDate && isShortNoticeFreeze(startDate);
+
   const canSubmit = 
     eligibility?.canFreeze && 
     !isPastDueBlocked &&
     startDate && 
+    !shortNotice &&
     durationMonths <= (eligibility?.monthsRemaining || 0) &&
     membership?.id;
 
 
   const handleSubmit = () => {
     if (!membership?.id || !startDate) return;
+    if (isShortNoticeFreeze(startDate)) {
+      toast.error(`Freeze requests need at least ${FREEZE_NOTICE_DAYS} days' notice.`);
+      return;
+    }
+    
     
     createFreeze.mutate({
       memberId: membership.id,
@@ -378,11 +388,21 @@ export default function FreezeRequest() {
                             mode="single"
                             selected={startDate}
                             onSelect={setStartDate}
-                            disabled={(date) => isBefore(date, startOfTomorrow())}
+                            disabled={(date) => isBefore(date, minStartDate)}
+                            defaultMonth={minStartDate}
                             initialFocus
                           />
                         </PopoverContent>
                       </Popover>
+                      <p className="text-xs text-muted-foreground">
+                        Freeze requests require at least {FREEZE_NOTICE_DAYS} days' notice. The earliest start date is{" "}
+                        {format(minStartDate, "MMMM d, yyyy")}.
+                      </p>
+                      {shortNotice && (
+                        <p className="text-xs text-destructive">
+                          That start date is less than {FREEZE_NOTICE_DAYS} days away. Please pick a later date.
+                        </p>
+                      )}
                     </div>
 
                     {/* Duration */}

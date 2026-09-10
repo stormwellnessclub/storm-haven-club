@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import DOMPurify from "dompurify";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -237,7 +238,7 @@ export function CancellationNoticeDialog({ open, onOpenChange, targets, onSent }
                 </div>
                 <div
                   className="p-5 text-sm leading-relaxed [&_p]:mb-4 [&_a]:underline"
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewHtml) }}
                 />
               </div>
               {targets.length > 1 && (
