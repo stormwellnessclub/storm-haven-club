@@ -921,19 +921,14 @@ serve(async (req) => {
         appQuery = appId ? appQuery.eq('id', appId) : appQuery.eq('stripe_customer_id', appCustomerId);
         const { data: appRow } = await appQuery.maybeSingle();
 
-        if (!appRow?.stripe_customer_id) {
-          logStep("list_application_payment_methods: no matching application");
-          return emptyResult();
-        }
-
         const staffCaller = await isStaffCaller(['super_admin', 'admin', 'manager', 'front_desk']);
-        const ownerCaller = !!user?.email && !!appRow.email &&
+        const ownerCaller = !!user?.email && !!appRow?.email &&
           user.email.toLowerCase() === String(appRow.email).toLowerCase();
 
         if (!staffCaller && !ownerCaller) {
           await auditPrivileged('stripe_authz_denied', {
             action: 'list_application_payment_methods',
-            application_id: appRow.id,
+            application_id: appRow?.id ?? null,
             reason: 'not_owner',
           });
           return new Response(
@@ -942,20 +937,61 @@ serve(async (req) => {
           );
         }
 
+        // Resolve the customer: application row first, then the member record,
+        // then Stripe lookup by email (cards are often saved after approval).
+        let resolvedAppCustomerId: string | null = appRow?.stripe_customer_id ?? null;
+        const resolvedAppEmail = appRow?.email ?? null;
+
+        if (!resolvedAppCustomerId && staffCaller && resolvedAppEmail) {
+          const { data: memberByEmail } = await supabase
+            .from('members')
+            .select('stripe_customer_id')
+            .ilike('email', resolvedAppEmail)
+            .not('stripe_customer_id', 'is', null)
+            .limit(1)
+            .maybeSingle();
+          resolvedAppCustomerId = memberByEmail?.stripe_customer_id ?? null;
+
+          if (!resolvedAppCustomerId) {
+            try {
+              const stripeMatches = await stripe.customers.list({ email: resolvedAppEmail, limit: 1 });
+              resolvedAppCustomerId = stripeMatches.data[0]?.id ?? null;
+            } catch (lookupError) {
+              logStep("list_application_payment_methods: stripe email lookup failed", { error: String(lookupError) });
+            }
+          }
+
+          if (resolvedAppCustomerId && appRow?.id) {
+            await supabase
+              .from('membership_applications')
+              .update({ stripe_customer_id: resolvedAppCustomerId })
+              .eq('id', appRow.id);
+          }
+        }
+
+        if (!resolvedAppCustomerId && appCustomerId && staffCaller) {
+          resolvedAppCustomerId = appCustomerId;
+        }
+
+        if (!resolvedAppCustomerId) {
+          logStep("list_application_payment_methods: no customer resolved");
+          return emptyResult();
+        }
+
         try {
-          const appCustomer = await stripe.customers.retrieve(appRow.stripe_customer_id);
+          const appCustomer = await stripe.customers.retrieve(resolvedAppCustomerId);
           const appDefaultPaymentMethodId = !appCustomer.deleted
             ? appCustomer.invoice_settings?.default_payment_method as string | null
             : null;
 
           const appPaymentMethods = await stripe.paymentMethods.list({
-            customer: appRow.stripe_customer_id,
+            customer: resolvedAppCustomerId,
             type: 'card',
           });
 
           const appFormattedMethods = appPaymentMethods.data.map((pm: any) => ({
             id: pm.id,
-            customer: appRow.stripe_customer_id,
+            customer: resolvedAppCustomerId,
             brand: pm.card?.brand,
             last4: pm.card?.last4,
             expMonth: pm.card?.exp_month,
@@ -3710,6 +3746,7 @@ serve(async (req) => {
             const annualFeeSubItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId }]);
             const annualFeeSubscription = await stripe.subscriptions.create({
               customer: memberData.stripe_customer_id,
+              default_payment_method: paymentMethodId,
               items: annualFeeSubItems,
               billing_cycle_anchor: billingAnchor,
               proration_behavior: 'none',
@@ -5489,6 +5526,22 @@ serve(async (req) => {
           paymentMethodForFee.card.brand.charAt(0).toUpperCase() + paymentMethodForFee.card.brand.slice(1) : 'Card';
         const cardLast4ForFee = paymentMethodForFee.card?.last4 || '****';
 
+        // Ensure the customer has a default payment method so invoices can charge automatically
+        try {
+          const customerForFee = await stripe.customers.retrieve(customerIdForFee);
+          const existingDefaultPm = !('deleted' in customerForFee && customerForFee.deleted)
+            ? ((customerForFee as any).invoice_settings?.default_payment_method as string | null)
+            : null;
+          if (!existingDefaultPm) {
+            await stripe.customers.update(customerIdForFee, {
+              invoice_settings: { default_payment_method: paymentMethodIdForFee },
+            });
+            logStep("Set customer default payment method", { customerId: customerIdForFee, paymentMethodId: paymentMethodIdForFee });
+          }
+        } catch (defaultPmError) {
+          logStep("Could not set default payment method", { error: String(defaultPmError) });
+        }
+
         // Determine gender for pricing
         const normalizedGenderForFee = (memberDataForFee.gender?.toLowerCase() === 'male' || 
                                         memberDataForFee.gender?.toLowerCase() === 'men') ? 'men' : 'women';
@@ -5518,6 +5571,7 @@ serve(async (req) => {
           const initiationItems1 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems1,
             proration_behavior: 'none',
             metadata: {
@@ -5541,6 +5595,7 @@ serve(async (req) => {
           const initiationItems2 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems2,
             billing_cycle_anchor: billingAnchor,
             proration_behavior: 'none',
@@ -5561,6 +5616,7 @@ serve(async (req) => {
           const initiationItems3 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems3,
             proration_behavior: 'none',
             metadata: {
@@ -5577,6 +5633,7 @@ serve(async (req) => {
           const initiationItems4 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems4,
             proration_behavior: 'none',
             metadata: {
