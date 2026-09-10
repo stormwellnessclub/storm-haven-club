@@ -148,6 +148,13 @@
       "when": 1788990198013,
       "tag": "0020_cafe_reviews_column_grants_followup",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789006216533,
+      "tag": "0021_tighten_self_update_policies_and_freeze_notice",
+      "breakpoints": true
     }
   ]
 }
