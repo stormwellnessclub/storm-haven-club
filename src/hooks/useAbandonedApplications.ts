@@ -38,6 +38,8 @@ export interface AbandonedApplicationsResult {
     lastAttemptAt: string | null;
     last7: number;
     last30: number;
+    /** Card saves/updates by existing members — excluded from the lead list. */
+    memberCardUpdates: number;
   };
 }
 
