@@ -470,6 +470,35 @@ export function AbandonedApplicationsTab() {
         </div>
       </div>
 
+      {/* Last activity — proves tracking is live */}
+      {totals && (
+        <div className="grid gap-3 sm:grid-cols-4 rounded-lg border bg-muted/30 p-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Last person started</p>
+            <p className="text-sm font-semibold">
+              {totals.lastAttemptAt
+                ? formatInTimeZone(new Date(totals.lastAttemptAt), CLUB_TZ, "MMM d, yyyy h:mm a")
+                : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Started this week</p>
+            <p className="text-sm font-semibold">{totals.last7}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Started this month</p>
+            <p className="text-sm font-semibold">{totals.last30}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Finished later (not leads)</p>
+            <p className="text-sm font-semibold">
+              {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
+            </p>
+          </div>
+        </div>
+      )}
+
+
       {nothing && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
