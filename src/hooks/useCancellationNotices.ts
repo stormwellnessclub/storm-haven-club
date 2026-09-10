@@ -83,13 +83,22 @@ export interface NoticeVars {
 }
 
 /** Client-side merge-field rendering so the preview matches what gets sent. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function renderNoticeBody(bodyHtml: string, vars: NoticeVars): string {
   const amount = Number(vars.amountOwed ?? 0);
   const map: Record<string, string> = {
-    name: vars.name ?? "",
-    membershipTier: vars.membershipTier ?? "",
-    cancellationDate: vars.cancellationDate ?? "",
-    reason: vars.reason ?? "",
+    name: escapeHtml(vars.name ?? ""),
+    membershipTier: escapeHtml(vars.membershipTier ?? ""),
+    cancellationDate: escapeHtml(vars.cancellationDate ?? ""),
+    reason: escapeHtml(vars.reason ?? ""),
     amountOwed: amount > 0 ? `$${amount.toFixed(2)}` : "",
     amountOwedBlock:
       amount > 0
