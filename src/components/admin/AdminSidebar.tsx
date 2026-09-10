@@ -228,6 +228,9 @@ export function AdminSidebar() {
   const [hasMembership, setHasMembership] = useState(false);
   const unresolvedFailedCount = useUnresolvedFailedCount();
   const abandonedApplicationsCount = useAbandonedApplicationsCount();
+  const { data: abandonedData } = useAbandonedApplications();
+  const abandonedHiddenCount = abandonedData?.filtered.length ?? 0;
+
 
 
   useEffect(() => {
