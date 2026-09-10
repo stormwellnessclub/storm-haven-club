@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { AlertTriangle, Volume2 } from "lucide-react";
+import { AlertTriangle, Volume2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   clearPendingChimeAlerts,
@@ -15,8 +15,9 @@ export function ChimeFailureBanner() {
 
   const restore = async () => {
     await unlockChimeAudio();
-    const result = await playNotificationChime();
-    if (result === "played") clearPendingChimeAlerts();
+    await playNotificationChime();
+    // Always clear: the banner is an alert notice, not a permanent audio-state indicator.
+    clearPendingChimeAlerts();
   };
 
   return (
@@ -29,6 +30,15 @@ export function ChimeFailureBanner() {
         <Button size="sm" variant="secondary" className="gap-2" onClick={restore}>
           <Volume2 className="h-4 w-4" />
           Restore sound
+        </Button>
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label="Dismiss alert notice"
+          className="h-8 w-8 shrink-0 hover:bg-destructive-foreground/20"
+          onClick={() => clearPendingChimeAlerts()}
+        >
+          <X className="h-4 w-4" />
         </Button>
       </div>
     </div>
