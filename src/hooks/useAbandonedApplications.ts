@@ -56,15 +56,27 @@ function resolvedAfter(recordAt: string | null | undefined, attemptAt: string) {
 }
 
 async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult> {
-  const { data, error } = await supabase
-    .from("card_setup_attempts")
-    .select(
-      "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
-    )
-    .is("application_id", null)
-    .in("status", ["initiated", "abandoned", "failed", "succeeded"])
-    .order("created_at", { ascending: false })
-    .limit(2000);
+  // Only attempts that came from the public application form can be leads.
+  // Anything tied to a member record, or made in the member/admin portal, is
+  // card maintenance for an existing member and never belongs in this list.
+  const [{ data, error }, memberUpdatesRes] = await Promise.all([
+    supabase
+      .from("card_setup_attempts")
+      .select(
+        "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
+      )
+      .is("application_id", null)
+      .is("member_id", null)
+      .eq("source", "self_service")
+      .in("status", ["initiated", "abandoned", "failed", "succeeded"])
+      .order("created_at", { ascending: false })
+      .limit(2000),
+    supabase
+      .from("card_setup_attempts")
+      .select("id", { count: "exact", head: true })
+      .is("application_id", null)
+      .not("member_id", "is", null),
+  ]);
 
   if (error) throw error;
 
