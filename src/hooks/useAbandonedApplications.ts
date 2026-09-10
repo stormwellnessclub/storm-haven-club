@@ -59,7 +59,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
   const { data, error } = await supabase
     .from("card_setup_attempts")
     .select(
-      "id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
+      "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
     )
     .is("application_id", null)
     .in("status", ["initiated", "abandoned", "failed", "succeeded"])
