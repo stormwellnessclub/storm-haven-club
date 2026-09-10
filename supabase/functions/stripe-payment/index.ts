@@ -3710,6 +3710,7 @@ serve(async (req) => {
             const annualFeeSubItems = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceId }]);
             const annualFeeSubscription = await stripe.subscriptions.create({
               customer: memberData.stripe_customer_id,
+              default_payment_method: paymentMethodId,
               items: annualFeeSubItems,
               billing_cycle_anchor: billingAnchor,
               proration_behavior: 'none',
@@ -5518,6 +5519,7 @@ serve(async (req) => {
           const initiationItems1 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems1,
             proration_behavior: 'none',
             metadata: {
@@ -5541,6 +5543,7 @@ serve(async (req) => {
           const initiationItems2 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems2,
             billing_cycle_anchor: billingAnchor,
             proration_behavior: 'none',
@@ -5561,6 +5564,7 @@ serve(async (req) => {
           const initiationItems3 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems3,
             proration_behavior: 'none',
             metadata: {
@@ -5577,6 +5581,7 @@ serve(async (req) => {
           const initiationItems4 = await addRecurringProcessingFeeItems(stripe, [{ price: annualFeePriceIdForMember }]);
           initiationFeeSubscription = await stripe.subscriptions.create({
             customer: customerIdForFee,
+            default_payment_method: paymentMethodIdForFee,
             items: initiationItems4,
             proration_behavior: 'none',
             metadata: {
