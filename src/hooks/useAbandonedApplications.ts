@@ -180,6 +180,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       lastAttemptAt: rows[0]?.created_at ?? null,
       last7: since(7),
       last30: since(30),
+      memberCardUpdates: memberUpdatesRes.count ?? 0,
     },
   };
 }
