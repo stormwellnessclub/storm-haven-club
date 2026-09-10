@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, CalendarIcon, Check, X, PlayCircle, Snowflake, Search, ShieldCheck, StopCircle, ExternalLink, Mail } from "lucide-react";
 import { format, isBefore, startOfToday } from "date-fns";
+import { FREEZE_NOTICE_DAYS, isShortNoticeFreeze } from "@/lib/freezePolicy";
 import { Link } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
