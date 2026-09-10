@@ -5490,6 +5490,22 @@ serve(async (req) => {
           paymentMethodForFee.card.brand.charAt(0).toUpperCase() + paymentMethodForFee.card.brand.slice(1) : 'Card';
         const cardLast4ForFee = paymentMethodForFee.card?.last4 || '****';
 
+        // Ensure the customer has a default payment method so invoices can charge automatically
+        try {
+          const customerForFee = await stripe.customers.retrieve(customerIdForFee);
+          const existingDefaultPm = !('deleted' in customerForFee && customerForFee.deleted)
+            ? ((customerForFee as any).invoice_settings?.default_payment_method as string | null)
+            : null;
+          if (!existingDefaultPm) {
+            await stripe.customers.update(customerIdForFee, {
+              invoice_settings: { default_payment_method: paymentMethodIdForFee },
+            });
+            logStep("Set customer default payment method", { customerId: customerIdForFee, paymentMethodId: paymentMethodIdForFee });
+          }
+        } catch (defaultPmError) {
+          logStep("Could not set default payment method", { error: String(defaultPmError) });
+        }
+
         // Determine gender for pricing
         const normalizedGenderForFee = (memberDataForFee.gender?.toLowerCase() === 'male' || 
                                         memberDataForFee.gender?.toLowerCase() === 'men') ? 'men' : 'women';
