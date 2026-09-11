@@ -71,6 +71,8 @@ import stormLogo from "@/assets/storm-logo-gold.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { useUnresolvedFailedCount } from "@/hooks/useUnresolvedFailedCount";
+import { useNewPrivateEventRequestCount } from "@/hooks/usePrivateEvents";
+
 import {
   useAbandonedApplications,
   useAbandonedApplicationsCount,
@@ -212,6 +214,8 @@ const departments: DepartmentSection[] = [
       { title: "Marketing", url: "/admin/marketing", icon: Megaphone },
       { title: "Announcements", url: "/admin/marketing?tab=announcements", icon: Bell },
       { title: "Events", url: "/admin/events", icon: Sparkles },
+      { title: "Private Events", url: "/admin/private-events", icon: PartyPopper },
+
       { title: "Email Templates", url: "/admin/email-templates", icon: MessageSquare },
       { title: "Settings", url: "/admin/settings", icon: Settings },
     ],
@@ -228,6 +232,8 @@ export function AdminSidebar() {
   const [hasMembership, setHasMembership] = useState(false);
   const unresolvedFailedCount = useUnresolvedFailedCount();
   const abandonedApplicationsCount = useAbandonedApplicationsCount();
+  const { data: newPrivateEventRequests = 0 } = useNewPrivateEventRequestCount();
+
   const { data: abandonedData } = useAbandonedApplications();
   const abandonedHiddenCount = abandonedData?.filtered.length ?? 0;
   const abandonedMemberCardUpdates = abandonedData?.totals.memberCardUpdates ?? 0;
@@ -395,7 +401,14 @@ export function AdminSidebar() {
                                     {abandonedApplicationsCount}
                                   </span>
                                 )}
-
+                              {item.url === "/admin/private-events" && newPrivateEventRequests > 0 && !isCollapsed && (
+                                <span
+                                  title={`${newPrivateEventRequests} new private event request${newPrivateEventRequests === 1 ? "" : "s"} waiting for review.`}
+                                  className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-accent text-accent-foreground text-xs font-medium"
+                                >
+                                  {newPrivateEventRequests}
+                                </span>
+                              )}
 
                             </NavLink>
                             )}
