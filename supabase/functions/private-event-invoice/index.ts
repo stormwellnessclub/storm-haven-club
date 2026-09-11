@@ -33,8 +33,62 @@ serve(async (req) => {
   try {
     const body = await req.json();
     const action = String(body.action ?? "");
+
+    // Quote / proposal email works off the event, not an invoice.
+    if (action === "send_quote") {
+      const eventId = String(body.event_id ?? "");
+      if (!eventId) return fail("Missing event.", 400);
+
+      const { data: ev } = await supabase
+        .from("private_events")
+        .select("id, title, event_type, event_date, start_time, end_time, guest_count, spaces, client_first_name, client_email, flat_total_cents, tax_enabled")
+        .eq("id", eventId)
+        .maybeSingle();
+      if (!ev) return fail("Event not found.", 404);
+
+      const to = String(body.email ?? ev.client_email ?? "").trim().toLowerCase();
+      if (!to) return fail("No client email on this event.");
+
+      const { data: items } = await supabase
+        .from("private_event_line_items")
+        .select("label, quantity, unit_price_cents, taxable, sort_order")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true });
+
+      const rows = (items ?? []).map((i: any) => ({
+        label: `${i.label}${Number(i.quantity) !== 1 ? ` × ${i.quantity}` : ""}`,
+        value: money(Math.round(Number(i.quantity) * i.unit_price_cents)),
+      }));
+
+      const totalCents = Number(body.total_cents ?? 0);
+      const depositCents = Number(body.deposit_cents ?? 0);
+      if (totalCents > 0) rows.push({ label: "Total", value: money(totalCents) });
+      if (depositCents > 0) rows.push({ label: "Deposit to reserve", value: money(depositCents) });
+
+      const sentQuote = await sendBrandedEmail({
+        to,
+        subject: `Your event proposal — ${ev.title}`,
+        html: eventEmailShell({
+          heading: `Proposal for ${ev.title}`,
+          intro: `Hello${ev.client_first_name ? ` ${ev.client_first_name}` : ""}, thank you for considering Storm Wellness Club. Here is the proposal for your event${ev.event_date ? ` on ${ev.event_date}` : ""}${ev.guest_count ? ` for ${ev.guest_count} guests` : ""}.`,
+          rows,
+          outro: "Reply to this email to confirm and we'll send your deposit invoice to hold the date.",
+        }),
+      });
+      if (!sentQuote.ok) return fail(sentQuote.error || "Email could not be sent.");
+
+      await supabase.from("private_event_activity").insert({
+        event_id: eventId,
+        kind: "quote",
+        message: `Proposal emailed to ${to}.`,
+      });
+
+      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
+
     const invoiceId = String(body.invoice_id ?? "");
     if (!invoiceId) return fail("Missing invoice.", 400);
+
 
     const { data: invoice } = await supabase
       .from("private_event_invoices")
