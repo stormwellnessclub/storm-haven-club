@@ -6533,6 +6533,406 @@ export type Database = {
         }
         Relationships: []
       }
+      private_event_activity: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event_id: string
+          id: string
+          kind: string
+          message: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          kind: string
+          message: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          kind?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_event_activity_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_event_blocks: {
+        Row: {
+          block_date: string
+          created_at: string
+          end_time: string
+          event_id: string
+          id: string
+          spa_room_id: string | null
+          space: string | null
+          start_time: string
+        }
+        Insert: {
+          block_date: string
+          created_at?: string
+          end_time: string
+          event_id: string
+          id?: string
+          spa_room_id?: string | null
+          space?: string | null
+          start_time: string
+        }
+        Update: {
+          block_date?: string
+          created_at?: string
+          end_time?: string
+          event_id?: string
+          id?: string
+          spa_room_id?: string | null
+          space?: string | null
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_event_blocks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_event_blocks_spa_room_id_fkey"
+            columns: ["spa_room_id"]
+            isOneToOne: false
+            referencedRelation: "spa_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_event_invoices: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          event_id: string
+          id: string
+          kind: string
+          label: string | null
+          notes: string | null
+          paid_at: string | null
+          pay_token: string
+          payment_method: string | null
+          sent_at: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          event_id: string
+          id?: string
+          kind?: string
+          label?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          pay_token?: string
+          payment_method?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          event_id?: string
+          id?: string
+          kind?: string
+          label?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          pay_token?: string
+          payment_method?: string | null
+          sent_at?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_event_invoices_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_event_line_items: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          label: string
+          quantity: number
+          sort_order: number
+          taxable: boolean
+          unit_price_cents: number
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          label: string
+          quantity?: number
+          sort_order?: number
+          taxable?: boolean
+          unit_price_cents?: number
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          label?: string
+          quantity?: number
+          sort_order?: number
+          taxable?: boolean
+          unit_price_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_event_line_items_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_event_requests: {
+        Row: {
+          budget_range: string | null
+          converted_event_id: string | null
+          created_at: string
+          email: string
+          event_type: string | null
+          first_name: string
+          guest_count: number | null
+          id: string
+          last_name: string
+          notes: string | null
+          phone: string | null
+          preferred_date: string | null
+          preferred_time: string | null
+          spaces: string[]
+          status: string
+        }
+        Insert: {
+          budget_range?: string | null
+          converted_event_id?: string | null
+          created_at?: string
+          email: string
+          event_type?: string | null
+          first_name: string
+          guest_count?: number | null
+          id?: string
+          last_name: string
+          notes?: string | null
+          phone?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          spaces?: string[]
+          status?: string
+        }
+        Update: {
+          budget_range?: string | null
+          converted_event_id?: string | null
+          created_at?: string
+          email?: string
+          event_type?: string | null
+          first_name?: string
+          guest_count?: number | null
+          id?: string
+          last_name?: string
+          notes?: string | null
+          phone?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          spaces?: string[]
+          status?: string
+        }
+        Relationships: []
+      }
+      private_event_tasks: {
+        Row: {
+          assignee: string | null
+          created_at: string
+          done_at: string | null
+          due_date: string | null
+          event_id: string
+          id: string
+          is_done: boolean
+          sort_order: number
+          title: string
+        }
+        Insert: {
+          assignee?: string | null
+          created_at?: string
+          done_at?: string | null
+          due_date?: string | null
+          event_id: string
+          id?: string
+          is_done?: boolean
+          sort_order?: number
+          title: string
+        }
+        Update: {
+          assignee?: string | null
+          created_at?: string
+          done_at?: string | null
+          due_date?: string | null
+          event_id?: string
+          id?: string
+          is_done?: boolean
+          sort_order?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_event_tasks_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_events: {
+        Row: {
+          balance_due_date: string | null
+          client_email: string | null
+          client_first_name: string | null
+          client_last_name: string | null
+          client_phone: string | null
+          created_at: string
+          created_by: string | null
+          deposit_type: string
+          deposit_value: number
+          end_time: string | null
+          event_date: string | null
+          event_type: string | null
+          flat_total_cents: number | null
+          guest_count: number | null
+          id: string
+          internal_notes: string | null
+          member_id: string | null
+          pass_processing_fee: boolean
+          request_id: string | null
+          spaces: string[]
+          stage: string
+          start_time: string | null
+          tax_enabled: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          balance_due_date?: string | null
+          client_email?: string | null
+          client_first_name?: string | null
+          client_last_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_type?: string
+          deposit_value?: number
+          end_time?: string | null
+          event_date?: string | null
+          event_type?: string | null
+          flat_total_cents?: number | null
+          guest_count?: number | null
+          id?: string
+          internal_notes?: string | null
+          member_id?: string | null
+          pass_processing_fee?: boolean
+          request_id?: string | null
+          spaces?: string[]
+          stage?: string
+          start_time?: string | null
+          tax_enabled?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          balance_due_date?: string | null
+          client_email?: string | null
+          client_first_name?: string | null
+          client_last_name?: string | null
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          deposit_type?: string
+          deposit_value?: number
+          end_time?: string | null
+          event_date?: string | null
+          event_type?: string | null
+          flat_total_cents?: number | null
+          guest_count?: number | null
+          id?: string
+          internal_notes?: string | null
+          member_id?: string | null
+          pass_processing_fee?: boolean
+          request_id?: string | null
+          spaces?: string[]
+          stage?: string
+          start_time?: string | null
+          tax_enabled?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "private_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "private_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "private_event_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processed_webhook_events: {
         Row: {
           error_message: string | null
@@ -13891,6 +14291,20 @@ export type Database = {
         Returns: string
       }
       preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
+      private_event_conflicts: {
+        Args: {
+          p_date: string
+          p_end: string
+          p_exclude_event?: string
+          p_start: string
+        }
+        Returns: {
+          end_time: string
+          label: string
+          source: string
+          start_time: string
+        }[]
+      }
       process_member_scan: {
         Args: {
           p_auto_check_in?: boolean
