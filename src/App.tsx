@@ -129,6 +129,10 @@ import ClassRoster from "./pages/admin/ClassRoster";
 import Marketing from "./pages/admin/Marketing";
 import EventVoteTracking from "./pages/admin/EventVoteTracking";
 import EventsHub from "./pages/admin/EventsHub";
+import PrivateEventsPage from "./pages/PrivateEvents";
+import PrivateEventInvoicePay from "./pages/PrivateEventInvoicePay";
+import AdminPrivateEvents from "./pages/admin/PrivateEvents";
+
 import EventDetail from "./pages/admin/EventDetail";
 import EventPage from "./pages/EventPage";
 import EventsIndex from "./pages/EventsIndex";
@@ -284,6 +288,9 @@ const App = () => (
               <Route path="/classes" element={<Classes />} />
               <Route path="/classes/:classTypeId" element={<PublicClassTypeDetail />} />
               <Route path="/schedule" element={<Schedule />} />
+              <Route path="/private-events" element={<PrivateEventsPage />} />
+              <Route path="/private-events/pay/:token" element={<PrivateEventInvoicePay />} />
+
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />
               {/* Recovery standalone modality pages */}
@@ -488,6 +495,8 @@ const App = () => (
               <Route path="/admin/class-roster/:sessionId" element={<ProtectedAdminRoute><ClassRoster /></ProtectedAdminRoute>} />
               <Route path="/admin/marketing" element={<ProtectedAdminRoute><Marketing /></ProtectedAdminRoute>} />
               <Route path="/admin/events" element={<ProtectedAdminRoute><EventsHub /></ProtectedAdminRoute>} />
+              <Route path="/admin/private-events" element={<ProtectedAdminRoute><AdminPrivateEvents /></ProtectedAdminRoute>} />
+
               <Route path="/admin/events/:slug" element={<ProtectedAdminRoute><EventDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
