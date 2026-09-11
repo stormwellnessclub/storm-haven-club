@@ -69,10 +69,12 @@ export default function PrivateEventInvoicePay() {
   return (
     <Layout>
       <SEOHead
-        title="Pay your event invoice | Storm Wellness Club"
+        title="Pay your event invoice"
         description="Securely pay your private event deposit or balance at Storm Wellness Club."
-        noIndex
+        path={`/private-events/pay/${token ?? ""}`}
+        noindex
       />
+
       <div className="mx-auto max-w-lg px-4 py-16">
         {loading && (
           <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin" /></div>
