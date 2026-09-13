@@ -306,18 +306,22 @@ export function AbandonedApplicationsTab() {
     ]);
   };
 
-  const renderAttemptTable = (rows: AbandonedAttempt[], showCard: boolean) => (
+  const renderAttemptTable = (
+    rows: AbandonedAttempt[],
+    showCard: boolean,
+    selectable = true,
+  ) => (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-10" />
+          {selectable && <TableHead className="w-10" />}
           <TableHead>Name</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Date Started</TableHead>
           {showCard && <TableHead>Card</TableHead>}
-          <TableHead>Source</TableHead>
-          <TableHead>Reminder Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead>{selectable ? "Source" : "Outcome"}</TableHead>
+          <TableHead>{selectable ? "Reminder Status" : "Attempts"}</TableHead>
+          {selectable && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -329,19 +333,16 @@ export function AbandonedApplicationsTab() {
 
           return (
             <TableRow key={attempt.id}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.has(attempt.id)}
-                  onCheckedChange={(checked) => handleSelectOne(attempt.id, !!checked)}
-                />
-              </TableCell>
+              {selectable && (
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.has(attempt.id)}
+                    onCheckedChange={(checked) => handleSelectOne(attempt.id, !!checked)}
+                  />
+                </TableCell>
+              )}
               <TableCell className="font-medium">
                 {name}
-                {attempt.filterReason !== "none" && (
-                  <Badge variant="secondary" className="ml-2 text-[10px]">
-                    {REASON_LABEL[attempt.filterReason]}
-                  </Badge>
-                )}
                 {attempt.possibleDuplicateOf && (
                   <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
                     Possible duplicate of {attempt.possibleDuplicateOf}
@@ -376,46 +377,62 @@ export function AbandonedApplicationsTab() {
                 </TableCell>
               )}
               <TableCell>
-                <Badge variant="outline" className="text-xs">
-                  {attempt.source === "self_service" ? "Self-Service" : attempt.source}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {reminderCount > 0 ? (
-                  <Badge className="bg-accent/20 text-accent-foreground">
-                    <Mail className="h-3 w-3 mr-1" />
-                    Sent ({reminderCount})
+                {selectable ? (
+                  <Badge variant="outline" className="text-xs">
+                    {attempt.source === "self_service" ? "Self-Service" : attempt.source}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Not sent
+                  <Badge variant="secondary" className="text-xs">
+                    {REASON_LABEL[attempt.filterReason]}
+                    {attempt.resolvedAt
+                      ? ` ${format(new Date(attempt.resolvedAt), "MMM d, yyyy")}`
+                      : ""}
                   </Badge>
                 )}
               </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleSendReminder(attempt)}
-                  disabled={sendingId === attempt.id}
-                >
-                  {sendingId === attempt.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+              <TableCell>
+                {selectable ? (
+                  reminderCount > 0 ? (
+                    <Badge className="bg-accent/20 text-accent-foreground">
+                      <Mail className="h-3 w-3 mr-1" />
+                      Sent ({reminderCount})
+                    </Badge>
                   ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-1" />
-                      Send Reminder
-                    </>
-                  )}
-                </Button>
+                    <Badge variant="outline" className="text-muted-foreground">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Not sent
+                    </Badge>
+                  )
+                ) : (
+                  <span className="text-xs text-muted-foreground">{attempt.attemptCount}</span>
+                )}
               </TableCell>
+              {selectable && (
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSendReminder(attempt)}
+                    disabled={sendingId === attempt.id}
+                  >
+                    {sendingId === attempt.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-1" />
+                        Send Reminder
+                      </>
+                    )}
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
   );
+
 
   if (isLoading || loadingFailures) {
     return (
