@@ -645,27 +645,66 @@ export function AbandonedApplicationsTab() {
         </section>
       )}
 
-      {/* 4. Hidden: already applied / already a member / test rows */}
-      {showFiltered && filtered.length > 0 && (
-        <section className="space-y-3">
+      {/* 4. Started, then applied — separate, never mixed into the lead list */}
+      {showResolved && appliedLater.length > 0 && (
+        <section className="space-y-3" ref={appliedRef}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">
-                Finished later — not leads ({filtered.length})
+                Started, then applied ({appliedLater.length})
               </h3>
               <p className="text-sm text-muted-foreground">
-                These attempts match an existing application or member record, so they are not
-                leads — shown here so nothing is invisible.
+                They finished and submitted an application. Not leads — no reminders can be sent
+                from here.
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(filtered, "already-on-file")}>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(appliedLater, "started-then-applied")}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
           </div>
-          {renderAttemptTable(filtered, true)}
+          {renderAttemptTable(appliedLater, true, false)}
         </section>
       )}
+
+      {/* 4b. Started, then joined as a member */}
+      {showResolved && memberLater.length > 0 && (
+        <section className="space-y-3" ref={memberRef}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">
+                Started, then joined as a member ({memberLater.length})
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                These people are members today. Not leads — no reminders can be sent from here.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(memberLater, "started-then-joined")}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+          {renderAttemptTable(memberLater, true, false)}
+        </section>
+      )}
+
+      {/* 4c. Test records */}
+      {showResolved && testRows.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">Test records ({testRows.length})</h3>
+              <p className="text-sm text-muted-foreground">Internal or test email addresses.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(testRows, "test-records")}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+          {renderAttemptTable(testRows, true, false)}
+        </section>
+      )}
+
 
       {/* 5. Incomplete records — no email captured on the attempt */}
       {showIncomplete && incomplete.length > 0 && (
