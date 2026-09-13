@@ -86,9 +86,12 @@ export function AbandonedApplicationsTab() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
-  const [showFiltered, setShowFiltered] = useState(true);
+  const [showResolved, setShowResolved] = useState(true);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
+  const appliedRef = useRef<HTMLElement | null>(null);
+  const memberRef = useRef<HTMLElement | null>(null);
+
 
   // ---- Failed / unresolved submit attempts (the provable group) -------------
   const { data: submitFailures = [], isLoading: loadingFailures } = useQuery({
