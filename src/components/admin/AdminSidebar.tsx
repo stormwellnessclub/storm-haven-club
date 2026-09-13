@@ -2,7 +2,9 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { PartyPopper } from "lucide-react";
 import {
+
   DollarSign,
   LayoutDashboard,
   Users,
