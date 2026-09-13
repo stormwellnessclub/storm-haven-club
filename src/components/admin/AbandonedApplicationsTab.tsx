@@ -156,7 +156,9 @@ export function AbandonedApplicationsTab() {
   };
 
   const handleBulkSend = async () => {
-    const toSend = [...cardSaved, ...noCard, ...filtered].filter((a) => selectedIds.has(a.id));
+    // Only genuinely unfinished people are ever selectable or sendable.
+    const toSend = [...cardSaved, ...noCard].filter((a) => selectedIds.has(a.id));
+
     if (toSend.length === 0) {
       toast.error("No applications selected");
       return;
