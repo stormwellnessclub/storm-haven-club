@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -86,9 +86,12 @@ export function AbandonedApplicationsTab() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
-  const [showFiltered, setShowFiltered] = useState(true);
+  const [showResolved, setShowResolved] = useState(true);
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
+  const appliedRef = useRef<HTMLElement | null>(null);
+  const memberRef = useRef<HTMLElement | null>(null);
+
 
   // ---- Failed / unresolved submit attempts (the provable group) -------------
   const { data: submitFailures = [], isLoading: loadingFailures } = useQuery({
@@ -118,9 +121,20 @@ export function AbandonedApplicationsTab() {
 
   const cardSaved = grouped?.cardSaved ?? [];
   const noCard = grouped?.noCard ?? [];
-  const filtered = grouped?.filtered ?? [];
+  const appliedLater = grouped?.appliedLater ?? [];
+  const memberLater = grouped?.memberLater ?? [];
+  const testRows = grouped?.testRows ?? [];
   const incomplete = useMemo(() => grouped?.incomplete ?? [], [grouped]);
   const totals = grouped?.totals;
+
+  const revealResolved = (target: "applied" | "member") => {
+    setShowResolved(true);
+    setTimeout(() => {
+      const el = target === "applied" ? appliedRef.current : memberRef.current;
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
 
   const sendReminderMutation = useMutation({
     mutationFn: async ({ id, email, name }: { id: string; email: string; name: string }) => {
@@ -156,7 +170,9 @@ export function AbandonedApplicationsTab() {
   };
 
   const handleBulkSend = async () => {
-    const toSend = [...cardSaved, ...noCard, ...filtered].filter((a) => selectedIds.has(a.id));
+    // Only genuinely unfinished people are ever selectable or sendable.
+    const toSend = [...cardSaved, ...noCard].filter((a) => selectedIds.has(a.id));
+
     if (toSend.length === 0) {
       toast.error("No applications selected");
       return;
@@ -282,11 +298,12 @@ export function AbandonedApplicationsTab() {
     const rows = [
       ...cardSaved,
       ...noCard,
-      ...(showFiltered ? filtered : []),
+      ...(showResolved ? [...appliedLater, ...memberLater, ...testRows] : []),
       ...(showIncomplete ? incomplete : []),
     ];
     exportGroup(rows, "abandoned-applications-visible");
   };
+
 
   const exportFailures = () => {
     if (submitFailures.length === 0) {
@@ -306,18 +323,22 @@ export function AbandonedApplicationsTab() {
     ]);
   };
 
-  const renderAttemptTable = (rows: AbandonedAttempt[], showCard: boolean) => (
+  const renderAttemptTable = (
+    rows: AbandonedAttempt[],
+    showCard: boolean,
+    selectable = true,
+  ) => (
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-10" />
+          {selectable && <TableHead className="w-10" />}
           <TableHead>Name</TableHead>
           <TableHead>Email</TableHead>
           <TableHead>Date Started</TableHead>
           {showCard && <TableHead>Card</TableHead>}
-          <TableHead>Source</TableHead>
-          <TableHead>Reminder Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          <TableHead>{selectable ? "Source" : "Outcome"}</TableHead>
+          <TableHead>{selectable ? "Reminder Status" : "Attempts"}</TableHead>
+          {selectable && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -329,19 +350,16 @@ export function AbandonedApplicationsTab() {
 
           return (
             <TableRow key={attempt.id}>
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.has(attempt.id)}
-                  onCheckedChange={(checked) => handleSelectOne(attempt.id, !!checked)}
-                />
-              </TableCell>
+              {selectable && (
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.has(attempt.id)}
+                    onCheckedChange={(checked) => handleSelectOne(attempt.id, !!checked)}
+                  />
+                </TableCell>
+              )}
               <TableCell className="font-medium">
                 {name}
-                {attempt.filterReason !== "none" && (
-                  <Badge variant="secondary" className="ml-2 text-[10px]">
-                    {REASON_LABEL[attempt.filterReason]}
-                  </Badge>
-                )}
                 {attempt.possibleDuplicateOf && (
                   <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
                     Possible duplicate of {attempt.possibleDuplicateOf}
@@ -376,46 +394,62 @@ export function AbandonedApplicationsTab() {
                 </TableCell>
               )}
               <TableCell>
-                <Badge variant="outline" className="text-xs">
-                  {attempt.source === "self_service" ? "Self-Service" : attempt.source}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {reminderCount > 0 ? (
-                  <Badge className="bg-accent/20 text-accent-foreground">
-                    <Mail className="h-3 w-3 mr-1" />
-                    Sent ({reminderCount})
+                {selectable ? (
+                  <Badge variant="outline" className="text-xs">
+                    {attempt.source === "self_service" ? "Self-Service" : attempt.source}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Not sent
+                  <Badge variant="secondary" className="text-xs">
+                    {REASON_LABEL[attempt.filterReason]}
+                    {attempt.resolvedAt
+                      ? ` ${format(new Date(attempt.resolvedAt), "MMM d, yyyy")}`
+                      : ""}
                   </Badge>
                 )}
               </TableCell>
-              <TableCell className="text-right">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleSendReminder(attempt)}
-                  disabled={sendingId === attempt.id}
-                >
-                  {sendingId === attempt.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+              <TableCell>
+                {selectable ? (
+                  reminderCount > 0 ? (
+                    <Badge className="bg-accent/20 text-accent-foreground">
+                      <Mail className="h-3 w-3 mr-1" />
+                      Sent ({reminderCount})
+                    </Badge>
                   ) : (
-                    <>
-                      <Send className="h-4 w-4 mr-1" />
-                      Send Reminder
-                    </>
-                  )}
-                </Button>
+                    <Badge variant="outline" className="text-muted-foreground">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Not sent
+                    </Badge>
+                  )
+                ) : (
+                  <span className="text-xs text-muted-foreground">{attempt.attemptCount}</span>
+                )}
               </TableCell>
+              {selectable && (
+                <TableCell className="text-right">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSendReminder(attempt)}
+                    disabled={sendingId === attempt.id}
+                  >
+                    {sendingId === attempt.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-1" />
+                        Send Reminder
+                      </>
+                    )}
+                  </Button>
+                </TableCell>
+              )}
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
   );
+
 
   if (isLoading || loadingFailures) {
     return (
@@ -429,7 +463,9 @@ export function AbandonedApplicationsTab() {
     submitFailures.length === 0 &&
     cardSaved.length === 0 &&
     noCard.length === 0 &&
-    filtered.length === 0 &&
+    appliedLater.length === 0 &&
+    memberLater.length === 0 &&
+    testRows.length === 0 &&
     incomplete.length === 0;
 
   return (
@@ -442,18 +478,14 @@ export function AbandonedApplicationsTab() {
           </p>
           {totals && (
             <p className="text-xs text-muted-foreground">
-              {totals.rows} card-setup attempts total ·{" "}
-              {totals.mergedAttempts > 0
-                ? `${totals.mergedAttempts} merged as repeat attempts`
-                : "no repeat attempts"}{" "}
-              ·{" "}
+              {totals.people} people · {totals.rows} card-setup attempts ·{" "}
               <button
                 type="button"
                 className="underline"
-                onClick={() => setShowFiltered((v) => !v)}
+                onClick={() => revealResolved("applied")}
               >
-                {totals.alreadyApplied + totals.alreadyMember + totals.testRows} hidden (
-                {totals.alreadyApplied} already applied, {totals.alreadyMember} already members,{" "}
+                {totals.alreadyApplied + totals.alreadyMember + totals.testRows} finished later (
+                {totals.alreadyApplied} applied, {totals.alreadyMember} members,{" "}
                 {totals.testRows} test)
               </button>{" "}
               ·{" "}
@@ -467,6 +499,7 @@ export function AbandonedApplicationsTab() {
             </p>
           )}
         </div>
+
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={exportEverythingShown}>
             <Download className="h-4 w-4 mr-2" />
@@ -506,17 +539,34 @@ export function AbandonedApplicationsTab() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Started this week</p>
-            <p className="text-sm font-semibold">{totals.last7}</p>
+            <p className="text-sm font-semibold">
+              {totals.people7} {totals.people7 === 1 ? "person" : "people"}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {totals.last7} attempts · {totals.unfinished7} still unfinished
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Started this month</p>
-            <p className="text-sm font-semibold">{totals.last30}</p>
+            <p className="text-sm font-semibold">
+              {totals.people30} {totals.people30 === 1 ? "person" : "people"}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {totals.last30} attempts · {totals.unfinished30} still unfinished
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Finished later (not leads)</p>
             <p className="text-sm font-semibold">
               {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
             </p>
+            <button
+              type="button"
+              className="text-[11px] underline text-muted-foreground"
+              onClick={() => revealResolved("applied")}
+            >
+              {totals.alreadyApplied} applied · {totals.alreadyMember} members
+            </button>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Card updates by existing members</p>
@@ -536,13 +586,15 @@ export function AbandonedApplicationsTab() {
             {totals && (
               <>
                 {" "}
-                Set aside: {totals.alreadyApplied} already applied, {totals.alreadyMember} already
-                members, {totals.testRows} test entries.
+                {totals.people30} people started in the last 30 days and {totals.unfinished30} are
+                still unfinished. Set aside overall: {totals.alreadyApplied} applied afterwards,{" "}
+                {totals.alreadyMember} became members, {totals.testRows} test entries.
               </>
             )}
           </AlertDescription>
         </Alert>
       )}
+
 
 
       {/* 1. Failed submits */}
@@ -645,27 +697,66 @@ export function AbandonedApplicationsTab() {
         </section>
       )}
 
-      {/* 4. Hidden: already applied / already a member / test rows */}
-      {showFiltered && filtered.length > 0 && (
-        <section className="space-y-3">
+      {/* 4. Started, then applied — separate, never mixed into the lead list */}
+      {showResolved && appliedLater.length > 0 && (
+        <section className="space-y-3" ref={appliedRef}>
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold">
-                Finished later — not leads ({filtered.length})
+                Started, then applied ({appliedLater.length})
               </h3>
               <p className="text-sm text-muted-foreground">
-                These attempts match an existing application or member record, so they are not
-                leads — shown here so nothing is invisible.
+                They finished and submitted an application. Not leads — no reminders can be sent
+                from here.
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(filtered, "already-on-file")}>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(appliedLater, "started-then-applied")}>
               <Download className="h-4 w-4 mr-2" />
               Export CSV
             </Button>
           </div>
-          {renderAttemptTable(filtered, true)}
+          {renderAttemptTable(appliedLater, true, false)}
         </section>
       )}
+
+      {/* 4b. Started, then joined as a member */}
+      {showResolved && memberLater.length > 0 && (
+        <section className="space-y-3" ref={memberRef}>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">
+                Started, then joined as a member ({memberLater.length})
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                These people are members today. Not leads — no reminders can be sent from here.
+              </p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(memberLater, "started-then-joined")}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+          {renderAttemptTable(memberLater, true, false)}
+        </section>
+      )}
+
+      {/* 4c. Test records */}
+      {showResolved && testRows.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold">Test records ({testRows.length})</h3>
+              <p className="text-sm text-muted-foreground">Internal or test email addresses.</p>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => exportGroup(testRows, "test-records")}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+          {renderAttemptTable(testRows, true, false)}
+        </section>
+      )}
+
 
       {/* 5. Incomplete records — no email captured on the attempt */}
       {showIncomplete && incomplete.length > 0 && (

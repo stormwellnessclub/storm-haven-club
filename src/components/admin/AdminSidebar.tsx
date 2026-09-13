@@ -237,7 +237,11 @@ export function AdminSidebar() {
   const newPrivateEventRequests = useNewPrivateEventRequestCount() ?? 0;
 
   const { data: abandonedData } = useAbandonedApplications();
-  const abandonedHiddenCount = abandonedData?.filtered.length ?? 0;
+  const abandonedHiddenCount =
+    (abandonedData?.appliedLater.length ?? 0) +
+    (abandonedData?.memberLater.length ?? 0) +
+    (abandonedData?.testRows.length ?? 0);
+
   const abandonedMemberCardUpdates = abandonedData?.totals.memberCardUpdates ?? 0;
 
 
