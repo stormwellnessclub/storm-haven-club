@@ -118,9 +118,20 @@ export function AbandonedApplicationsTab() {
 
   const cardSaved = grouped?.cardSaved ?? [];
   const noCard = grouped?.noCard ?? [];
-  const filtered = grouped?.filtered ?? [];
+  const appliedLater = grouped?.appliedLater ?? [];
+  const memberLater = grouped?.memberLater ?? [];
+  const testRows = grouped?.testRows ?? [];
   const incomplete = useMemo(() => grouped?.incomplete ?? [], [grouped]);
   const totals = grouped?.totals;
+
+  const revealResolved = (target: "applied" | "member") => {
+    setShowResolved(true);
+    setTimeout(() => {
+      const el = target === "applied" ? appliedRef.current : memberRef.current;
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  };
+
 
   const sendReminderMutation = useMutation({
     mutationFn: async ({ id, email, name }: { id: string; email: string; name: string }) => {
