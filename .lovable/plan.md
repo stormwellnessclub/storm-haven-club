@@ -28,7 +28,7 @@ So the count is honest about attempts, but everyone it counts has already been r
 
 ## Technical notes
 
-- `src/hooks/useAbandonedApplications.ts`: keep the current source filter (`application_id is null`, `member_id is null`, `source = 'self_service'`). Add per-person `resolution` (`unfinished` | `applied` | `member` | `test`) plus `resolvedAt` from the matched `membership_applications` / `members` row. Change `last7` / `last30` to count distinct people alongside raw attempts, and return the actual attempt arrays for each window instead of just counts.
-- `src/components/admin/AbandonedApplicationsTab.tsx`: summary tiles become buttons that set an active window filter; add the Recent activity table driven by that filter; outcome chips carry the resolved date; `showFiltered` defaults on.
+- `src/hooks/useAbandonedApplications.ts`: keep the current source filter (`application_id is null`, `member_id is null`, `source = 'self_service'`). Add per-person `resolution` (`unfinished` | `applied` | `member` | `test`) plus `resolvedAt` from the matched `membership_applications` / `members` row, and split the result into separate `unfinished` / `applied` / `member` buckets rather than one mixed array. Change `last7` / `last30` to count distinct people alongside raw attempts.
+- `src/components/admin/AbandonedApplicationsTab.tsx`: summary tiles become buttons that open the matching section; separate tables per bucket with reminder checkboxes only on the unfinished table; outcome chips carry the resolved date.
 - `src/components/admin/AdminSidebar.tsx`: badge keeps counting only genuinely unfinished people (currently 39 overall, 2 in the last 30 days).
 - Read-only: no schema changes, no migrations, no emails sent.
