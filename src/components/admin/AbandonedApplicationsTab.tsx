@@ -429,7 +429,9 @@ export function AbandonedApplicationsTab() {
     submitFailures.length === 0 &&
     cardSaved.length === 0 &&
     noCard.length === 0 &&
-    filtered.length === 0 &&
+    appliedLater.length === 0 &&
+    memberLater.length === 0 &&
+    testRows.length === 0 &&
     incomplete.length === 0;
 
   return (
@@ -442,18 +444,14 @@ export function AbandonedApplicationsTab() {
           </p>
           {totals && (
             <p className="text-xs text-muted-foreground">
-              {totals.rows} card-setup attempts total ·{" "}
-              {totals.mergedAttempts > 0
-                ? `${totals.mergedAttempts} merged as repeat attempts`
-                : "no repeat attempts"}{" "}
-              ·{" "}
+              {totals.people} people · {totals.rows} card-setup attempts ·{" "}
               <button
                 type="button"
                 className="underline"
-                onClick={() => setShowFiltered((v) => !v)}
+                onClick={() => revealResolved("applied")}
               >
-                {totals.alreadyApplied + totals.alreadyMember + totals.testRows} hidden (
-                {totals.alreadyApplied} already applied, {totals.alreadyMember} already members,{" "}
+                {totals.alreadyApplied + totals.alreadyMember + totals.testRows} finished later (
+                {totals.alreadyApplied} applied, {totals.alreadyMember} members,{" "}
                 {totals.testRows} test)
               </button>{" "}
               ·{" "}
@@ -467,6 +465,7 @@ export function AbandonedApplicationsTab() {
             </p>
           )}
         </div>
+
         <div className="flex items-center gap-2">
           <Button size="sm" variant="outline" onClick={exportEverythingShown}>
             <Download className="h-4 w-4 mr-2" />
