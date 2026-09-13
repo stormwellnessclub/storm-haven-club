@@ -282,11 +282,12 @@ export function AbandonedApplicationsTab() {
     const rows = [
       ...cardSaved,
       ...noCard,
-      ...(showFiltered ? filtered : []),
+      ...(showResolved ? [...appliedLater, ...memberLater, ...testRows] : []),
       ...(showIncomplete ? incomplete : []),
     ];
     exportGroup(rows, "abandoned-applications-visible");
   };
+
 
   const exportFailures = () => {
     if (submitFailures.length === 0) {
