@@ -19,14 +19,22 @@ export interface AbandonedAttempt {
   } | null;
   possibleDuplicateOf?: string | null;
   filterReason: FilterReason;
+  /** When the person applied / joined, if they did. */
+  resolvedAt: string | null;
   attemptCount: number;
   attemptDates: string[];
 }
 
 export interface AbandonedApplicationsResult {
+  /** Genuinely unfinished — the only people who may be emailed a reminder. */
   cardSaved: AbandonedAttempt[];
   noCard: AbandonedAttempt[];
-  filtered: AbandonedAttempt[];
+  /** Started, then submitted an application (never mixed into the lead list). */
+  appliedLater: AbandonedAttempt[];
+  /** Started, then became a member. */
+  memberLater: AbandonedAttempt[];
+  /** Test / internal records. */
+  testRows: AbandonedAttempt[];
   incomplete: AbandonedAttempt[];
   totals: {
     rows: number;
@@ -36,8 +44,15 @@ export interface AbandonedApplicationsResult {
     alreadyMember: number;
     testRows: number;
     lastAttemptAt: string | null;
+    /** Raw attempt rows in the window. */
     last7: number;
     last30: number;
+    /** Distinct people in the window. */
+    people7: number;
+    people30: number;
+    /** Of the people in the window, how many are still unfinished. */
+    unfinished7: number;
+    unfinished30: number;
     /** Card saves/updates by existing members — excluded from the lead list. */
     memberCardUpdates: number;
   };
@@ -98,6 +113,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
         metadata: meta,
         reminder_count: attempt.reminder_count ?? 0,
         filterReason: "none",
+        resolvedAt: null,
         attemptCount: 1,
         attemptDates: [attempt.created_at],
       });
@@ -142,11 +158,18 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
     const meta = newest.metadata as AbandonedAttempt["metadata"];
 
     let filterReason: FilterReason = "none";
-    if (TEST_EMAIL_PATTERN.test(email)) filterReason = "test_email";
-    // Anyone with a member record is never a lead, whenever they joined.
-    else if (memberEmails.has(email)) filterReason = "already_member";
-    else if (resolvedAfter(appEmails.get(email), newest.created_at))
+    let resolvedAt: string | null = null;
+    if (TEST_EMAIL_PATTERN.test(email)) {
+      filterReason = "test_email";
+    } else if (memberEmails.has(email)) {
+      // Anyone with a member record is never a lead, whenever they joined.
+      filterReason = "already_member";
+      resolvedAt = memberEmails.get(email) ?? null;
+    } else if (appEmails.has(email)) {
+      // An application on file means they finished the form — not a lead.
       filterReason = "already_applied";
+      resolvedAt = appEmails.get(email) ?? null;
+    }
 
     const nameKey = normalizeName(meta?.applicant_name);
     all.push({
@@ -154,6 +177,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       metadata: meta,
       reminder_count: newest.reminder_count ?? 0,
       filterReason,
+      resolvedAt,
       attemptCount: list.length,
       attemptDates: list.map((a: any) => a.created_at),
       possibleDuplicateOf:
@@ -164,13 +188,20 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
   const visible = all.filter((a) => a.filterReason === "none");
 
   const now = Date.now();
-  const since = (days: number) =>
-    rows.filter((r) => now - new Date(r.created_at).getTime() <= days * 86400000).length;
+  const withinDays = (iso: string, days: number) =>
+    now - new Date(iso).getTime() <= days * 86400000;
+  const attemptsSince = (days: number) =>
+    rows.filter((r) => withinDays(r.created_at, days)).length;
+  // A person counts in the window if any of their attempts happened in it.
+  const peopleIn = (days: number) =>
+    [...all, ...incomplete].filter((p) => p.attemptDates.some((d) => withinDays(d, days)));
 
   return {
     cardSaved: visible.filter((a) => a.status === "succeeded"),
     noCard: visible.filter((a) => a.status !== "succeeded"),
-    filtered: all.filter((a) => a.filterReason !== "none"),
+    appliedLater: all.filter((a) => a.filterReason === "already_applied"),
+    memberLater: all.filter((a) => a.filterReason === "already_member"),
+    testRows: all.filter((a) => a.filterReason === "test_email"),
     incomplete,
     totals: {
       rows: rows.length,
@@ -180,8 +211,12 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       alreadyMember: all.filter((a) => a.filterReason === "already_member").length,
       testRows: all.filter((a) => a.filterReason === "test_email").length,
       lastAttemptAt: rows[0]?.created_at ?? null,
-      last7: since(7),
-      last30: since(30),
+      last7: attemptsSince(7),
+      last30: attemptsSince(30),
+      people7: peopleIn(7).length,
+      people30: peopleIn(30).length,
+      unfinished7: peopleIn(7).filter((p) => p.filterReason === "none").length,
+      unfinished30: peopleIn(30).filter((p) => p.filterReason === "none").length,
       memberCardUpdates: memberUpdatesRes.count ?? 0,
     },
   };
