@@ -91,7 +91,12 @@ export function computeQuote(opts: {
       ? Math.round((Number(opts.depositValue) || 0) * 100)
       : Math.round((totalCents * (Number(opts.depositValue) || 0)) / 100);
 
-  const balanceCents = Math.max(0, totalCents - Math.min(depositCents, totalCents) - (opts.paidCents ?? 0));
+  // Remaining balance = total less whatever is actually covered so far. The deposit
+  // only counts until it is paid; once paid it is already inside paidCents.
+  const cappedDeposit = Math.min(depositCents, totalCents);
+  const coveredCents = Math.max(cappedDeposit, opts.paidCents ?? 0);
+  const balanceCents = Math.max(0, totalCents - coveredCents);
+
 
   return {
     subtotalCents,

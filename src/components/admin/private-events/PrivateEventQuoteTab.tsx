@@ -213,7 +213,7 @@ export function PrivateEventQuoteTab({ event, lineItems, paidCents }: Props) {
             </div>
             <Row label="Deposit" value={formatMoney(totals.depositCents)} />
             {paidCents > 0 && <Row label="Paid to date" value={`− ${formatMoney(paidCents)}`} />}
-            <Row label="Balance after deposit" value={formatMoney(totals.balanceCents)} />
+            <Row label="Remaining balance" value={formatMoney(totals.balanceCents)} />
 
             <div className="flex flex-col gap-2 pt-3">
               <Button onClick={save} disabled={saveLineItems.isPending}>
