@@ -2,7 +2,9 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { PartyPopper } from "lucide-react";
 import {
+
   DollarSign,
   LayoutDashboard,
   Users,
@@ -232,7 +234,7 @@ export function AdminSidebar() {
   const [hasMembership, setHasMembership] = useState(false);
   const unresolvedFailedCount = useUnresolvedFailedCount();
   const abandonedApplicationsCount = useAbandonedApplicationsCount();
-  const { data: newPrivateEventRequests = 0 } = useNewPrivateEventRequestCount();
+  const newPrivateEventRequests = useNewPrivateEventRequestCount() ?? 0;
 
   const { data: abandonedData } = useAbandonedApplications();
   const abandonedHiddenCount = abandonedData?.filtered.length ?? 0;
