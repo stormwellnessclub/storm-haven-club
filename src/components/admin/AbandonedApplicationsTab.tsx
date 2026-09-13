@@ -506,17 +506,34 @@ export function AbandonedApplicationsTab() {
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Started this week</p>
-            <p className="text-sm font-semibold">{totals.last7}</p>
+            <p className="text-sm font-semibold">
+              {totals.people7} {totals.people7 === 1 ? "person" : "people"}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {totals.last7} attempts · {totals.unfinished7} still unfinished
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Started this month</p>
-            <p className="text-sm font-semibold">{totals.last30}</p>
+            <p className="text-sm font-semibold">
+              {totals.people30} {totals.people30 === 1 ? "person" : "people"}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {totals.last30} attempts · {totals.unfinished30} still unfinished
+            </p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Finished later (not leads)</p>
             <p className="text-sm font-semibold">
               {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
             </p>
+            <button
+              type="button"
+              className="text-[11px] underline text-muted-foreground"
+              onClick={() => revealResolved("applied")}
+            >
+              {totals.alreadyApplied} applied · {totals.alreadyMember} members
+            </button>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Card updates by existing members</p>
@@ -536,13 +553,15 @@ export function AbandonedApplicationsTab() {
             {totals && (
               <>
                 {" "}
-                Set aside: {totals.alreadyApplied} already applied, {totals.alreadyMember} already
-                members, {totals.testRows} test entries.
+                {totals.people30} people started in the last 30 days and {totals.unfinished30} are
+                still unfinished. Set aside overall: {totals.alreadyApplied} applied afterwards,{" "}
+                {totals.alreadyMember} became members, {totals.testRows} test entries.
               </>
             )}
           </AlertDescription>
         </Alert>
       )}
+
 
 
       {/* 1. Failed submits */}
