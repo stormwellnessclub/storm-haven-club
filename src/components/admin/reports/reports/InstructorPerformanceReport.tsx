@@ -20,10 +20,8 @@ export function InstructorPerformanceReport({ dateRange }: InstructorPerformance
       const endDate = format(dateRange.end, 'yyyy-MM-dd');
 
       // Fetch instructors
-      const { data: instructors, error: instructorsError } = await supabase
-        .from('instructors')
-        .select('id, first_name, last_name, photo_url, specialties')
-        .eq('is_active', true);
+      const { data: instructors, error: instructorsError } = await (supabase as any)
+        .rpc('get_public_instructors');
 
       if (instructorsError) throw instructorsError;
 

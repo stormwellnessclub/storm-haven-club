@@ -189,11 +189,7 @@ export default function Classes() {
   const { data: allInstructors = [] } = useQuery({
     queryKey: ["admin-instructors-active"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, is_active")
-        .eq("is_active", true)
-        .order("first_name");
+      const { data, error } = await (supabase as any).rpc("get_public_instructors");
       if (error) throw error;
       return data as { id: string; first_name: string; last_name: string }[];
     },
