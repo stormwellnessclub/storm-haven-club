@@ -12887,30 +12887,6 @@ export type Database = {
         }
         Relationships: []
       }
-      kids_care_hour_slots_public: {
-        Row: {
-          close_time: string | null
-          id: string | null
-          label: string | null
-          open_time: string | null
-          slot_date: string | null
-        }
-        Insert: {
-          close_time?: string | null
-          id?: string | null
-          label?: string | null
-          open_time?: string | null
-          slot_date?: string | null
-        }
-        Update: {
-          close_time?: string | null
-          id?: string | null
-          label?: string | null
-          open_time?: string | null
-          slot_date?: string | null
-        }
-        Relationships: []
-      }
       member_check_in_view: {
         Row: {
           email: string | null
@@ -13858,6 +13834,26 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_my_mothers_day_vouchers: {
+        Args: never
+        Returns: {
+          amount_paid_cents: number
+          buyer_email: string
+          buyer_name: string
+          buyer_user_id: string
+          code: string
+          expires_at: string
+          id: string
+          is_gift_to_me: boolean
+          is_purchaser: boolean
+          massage_choice: string
+          massage_duration: number
+          purchased_at: string
+          recipient_email: string
+          recipient_name: string
+          status: Database["public"]["Enums"]["mothers_day_voucher_status"]
+        }[]
+      }
       get_next_waitlist_position: {
         Args: { p_session_id: string }
         Returns: number
@@ -13905,6 +13901,16 @@ export type Database = {
           last_name: string
           photo_url: string
           specialties: string[]
+        }[]
+      }
+      get_public_kids_care_hour_slots: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          close_time: string
+          id: string
+          label: string
+          open_time: string
+          slot_date: string
         }[]
       }
       get_public_spa_therapists: {

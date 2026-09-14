@@ -69,7 +69,7 @@ export default function PersonalTrainingSchedule() {
   const { data: instructors = [] } = useQuery({
     queryKey: ["pt-instructors"],
     queryFn: async () => {
-      const { data } = await supabase.from("instructors").select("id, first_name, last_name").eq("is_active", true).order("first_name");
+      const { data } = await (supabase as any).rpc("get_public_instructors");
       return data ?? [];
     },
   });

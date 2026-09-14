@@ -108,11 +108,7 @@ export function useInstructorsLite() {
   return useQuery({
     queryKey: ["class-studio-instructors"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, is_active")
-        .eq("is_active", true)
-        .order("first_name");
+      const { data, error } = await (supabase as any).rpc("get_public_instructors");
       if (error) throw error;
       return data || [];
     },

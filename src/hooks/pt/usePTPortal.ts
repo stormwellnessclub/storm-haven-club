@@ -84,11 +84,7 @@ export function usePTTrainers() {
     queryKey: ["pt-trainers-list"],
     staleTime: 300_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, is_active")
-        .eq("is_active", true)
-        .order("first_name");
+      const { data, error } = await (supabase as any).rpc("get_public_instructors");
       if (error) throw error;
       return (data ?? []).map((i: any) => ({ id: i.id, name: `${i.first_name} ${i.last_name}`.trim() }));
     },

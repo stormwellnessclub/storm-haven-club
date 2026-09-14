@@ -168,10 +168,8 @@ export function usePTMClientSummary(userId?: string) {
       ) as string[];
       let trainerNames: Record<string, string> = {};
       if (instructorIds.length) {
-        const { data: instructors } = await (supabase as any)
-          .from("instructors")
-          .select("id, first_name, last_name")
-          .in("id", instructorIds);
+        const { data: allInstructors } = await (supabase as any).rpc("get_public_instructors");
+        const instructors = (allInstructors ?? []).filter((row: any) => instructorIds.includes(row.id));
         (instructors ?? []).forEach((i: any) => {
           trainerNames[i.id] = nameFromParts(i.first_name, i.last_name) || "Trainer";
         });

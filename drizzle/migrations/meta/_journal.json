@@ -162,6 +162,13 @@
       "when": 1789120278047,
       "tag": "0022_private_events_system",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1789415094118,
+      "tag": "0023_enforce_all_active_security_findings",
+      "breakpoints": true
     }
   ]
 }

@@ -67,10 +67,7 @@ export function InstructorSessionsReport({ dateRange }: Props) {
   const { data: instructors = [] } = useQuery({
     queryKey: ["instructor-sessions-report-instructors"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("instructors")
-        .select("id, first_name, last_name, is_active")
-        .order("first_name");
+      const { data, error } = await (supabase as any).rpc("get_public_instructors");
       if (error) throw error;
       return data || [];
     },

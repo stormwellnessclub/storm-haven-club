@@ -28,11 +28,7 @@ export function InstructorModeSwitcher() {
   useEffect(() => {
     if (!isAdmin) return;
     (async () => {
-      const { data } = await supabase
-        .from("instructors")
-        .select("id,first_name,last_name,is_active")
-        .eq("is_active", true)
-        .order("first_name");
+      const { data } = await (supabase as any).rpc("get_public_instructors");
       setInstructors((data as Row[]) ?? []);
     })();
   }, [isAdmin]);
