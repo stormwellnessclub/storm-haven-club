@@ -96,7 +96,7 @@ export function usePTMToday(opts: { isAdmin: boolean }) {
           ? (supabase as any).from("pt_locations").select("id, name").in("id", locIds)
           : Promise.resolve({ data: [] }),
         trainerIds.length
-          ? (supabase as any).from("instructors").select("id, first_name, last_name").in("id", trainerIds)
+          ? (supabase as any).rpc("get_active_instructors_public")
           : Promise.resolve({ data: [] }),
         (supabase as any).from("pt_session_notes").select("appointment_id, is_draft"),
         (supabase as any).from("pt_passes")
