@@ -111,7 +111,7 @@ export function usePTMNextSession(appointmentId?: string) {
 
       let trainer: PTMNextSessionData["trainer"] = null;
       if (appt.instructor_id) {
-        const { data: trainers } = await (supabase as any).rpc("get_active_instructors_public");
+        const { data: trainers } = await (supabase as any).rpc("get_public_instructors");
         const t = (trainers ?? []).find((row: any) => row.id === appt.instructor_id);
         if (t) trainer = { id: t.id, name: [t.first_name, t.last_name].filter(Boolean).join(" ") || "Trainer" };
       }
