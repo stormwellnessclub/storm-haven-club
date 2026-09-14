@@ -101,7 +101,7 @@ export function usePTReportLookups() {
     staleTime: 300_000,
     queryFn: async () => {
       const [trainers, locations, sessionTypes] = await Promise.all([
-        (supabase as any).from("instructors").select("id, first_name, last_name, is_active").order("first_name"),
+        (supabase as any).rpc("get_public_instructors"),
         (supabase as any).from("pt_locations").select("id, name, is_active").order("display_order"),
         (supabase as any).from("pt_session_types").select("id, name, is_active").order("display_order"),
       ]);

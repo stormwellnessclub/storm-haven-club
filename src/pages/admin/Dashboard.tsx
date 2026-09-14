@@ -251,7 +251,7 @@ export default function Dashboard() {
           ? supabase.from('profiles').select('user_id, first_name, last_name, email').in('user_id', userIds)
           : Promise.resolve({ data: [] as any[] }),
         instructorIds.length
-          ? supabase.from('instructors').select('id, first_name, last_name').in('id', instructorIds)
+          ? (supabase as any).rpc('get_public_instructors')
           : Promise.resolve({ data: [] as any[] }),
       ]);
       const nameMap: Record<string, string> = {};
