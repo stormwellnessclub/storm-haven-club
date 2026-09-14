@@ -30,25 +30,12 @@ export function useMyMothersDayVouchers() {
     queryKey: ["my-mothers-day-vouchers", user?.id],
     enabled: !!user,
     queryFn: async (): Promise<MothersDayVoucher[]> => {
-      const { data, error } = await supabase
-        .from("mothers_day_vouchers")
-        .select(
-          "id, code, status, buyer_user_id, buyer_name, buyer_email, recipient_name, recipient_email, massage_choice, massage_duration, expires_at, amount_paid_cents"
-        )
-        .in("status", ["active"])
-        .order("purchased_at", { ascending: false });
+      const { data, error } = await (supabase as any).rpc("get_my_mothers_day_vouchers");
       if (error) {
         console.error("[useMyMothersDayVouchers]", error);
         return [];
       }
-      const email = (user?.email || "").toLowerCase();
-      return (data || []).map((v: any) => ({
-        ...v,
-        is_gift_to_me:
-          !!v.recipient_email && v.recipient_email.toLowerCase() === email,
-        is_purchaser:
-          v.buyer_user_id === user?.id || v.buyer_email?.toLowerCase() === email,
-      }));
+      return (data || []).filter((v: any) => v.status === "active") as MothersDayVoucher[];
     },
     refetchInterval: 60_000,
   });

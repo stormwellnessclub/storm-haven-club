@@ -88,10 +88,10 @@ export function useKidsCareHourSlotsForDate(date: Date | undefined) {
     queryKey: ["kids-care-hour-slots", dateStr],
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
       if (!dateStr) return [];
-      const { data, error } = await (supabase.from as any)("kids_care_hour_slots_public")
-        .select("id, slot_date, open_time, close_time, label")
-        .eq("slot_date", dateStr)
-        .order("open_time", { ascending: true });
+      const { data, error } = await (supabase as any).rpc("get_public_kids_care_hour_slots", {
+        p_start: dateStr,
+        p_end: dateStr,
+      });
 
       if (error) throw error;
       return (data || []).map((s: any) => ({ ...s, notes: null, staff_name: null })) as KidsCareHourSlot[];
@@ -133,10 +133,11 @@ export function useKidsCareHourSlotsForMonth(year: number, month: number) {
       const endYear = month === 12 ? year + 1 : year;
       const endDate = `${endYear}-${String(endMonth).padStart(2, "0")}-01`;
 
-      const { data, error } = await (supabase.from as any)("kids_care_hour_slots_public")
-        .select("slot_date")
-        .gte("slot_date", startDate)
-        .lt("slot_date", endDate);
+      const inclusiveEndDate = format(new Date(Number(new Date(`${endDate}T12:00:00`)) - 86400000), "yyyy-MM-dd");
+      const { data, error } = await (supabase as any).rpc("get_public_kids_care_hour_slots", {
+        p_start: startDate,
+        p_end: inclusiveEndDate,
+      });
 
       if (error) throw error;
       return (data || []) as { slot_date: string }[];
@@ -154,12 +155,11 @@ export function useUpcomingKidsCareSlots(days = 7) {
   return useQuery({
     queryKey: ["kids-care-hour-slots-upcoming", today, days],
     queryFn: async (): Promise<KidsCareHourSlot[]> => {
-      const { data, error } = await (supabase.from as any)("kids_care_hour_slots_public")
-        .select("id, slot_date, open_time, close_time, label")
-        .gte("slot_date", today)
-        .lt("slot_date", endDate)
-        .order("slot_date", { ascending: true })
-        .order("open_time", { ascending: true });
+      const inclusiveEndDate = format(new Date(Number(new Date(`${endDate}T12:00:00`)) - 86400000), "yyyy-MM-dd");
+      const { data, error } = await (supabase as any).rpc("get_public_kids_care_hour_slots", {
+        p_start: today,
+        p_end: inclusiveEndDate,
+      });
 
       if (error) throw error;
       return (data || []).map((s: any) => ({ ...s, notes: null, staff_name: null })) as KidsCareHourSlot[];
