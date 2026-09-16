@@ -87,7 +87,9 @@ export function AbandonedApplicationsTab() {
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
   const [showResolved, setShowResolved] = useState(true);
-  const [showIncomplete, setShowIncomplete] = useState(false);
+  // Shown by default: these records are counted in the "with no email" figures above,
+  // so hiding them would make the headline numbers unverifiable on screen.
+  const [showIncomplete, setShowIncomplete] = useState(true);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
   const appliedRef = useRef<HTMLElement | null>(null);
   const memberRef = useRef<HTMLElement | null>(null);
@@ -544,6 +546,7 @@ export function AbandonedApplicationsTab() {
             </p>
             <p className="text-[11px] text-muted-foreground">
               {totals.last7} attempts · {totals.unfinished7} still unfinished
+              {totals.incomplete7 > 0 && <> · {totals.incomplete7} with no email</>}
             </p>
           </div>
           <div>
@@ -553,6 +556,7 @@ export function AbandonedApplicationsTab() {
             </p>
             <p className="text-[11px] text-muted-foreground">
               {totals.last30} attempts · {totals.unfinished30} still unfinished
+              {totals.incomplete30 > 0 && <> · {totals.incomplete30} with no email</>}
             </p>
           </div>
           <div>

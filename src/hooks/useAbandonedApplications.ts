@@ -47,12 +47,15 @@ export interface AbandonedApplicationsResult {
     /** Raw attempt rows in the window. */
     last7: number;
     last30: number;
-    /** Distinct people in the window. */
+    /** Distinct identifiable people in the window — matches what the lists show. */
     people7: number;
     people30: number;
     /** Of the people in the window, how many are still unfinished. */
     unfinished7: number;
     unfinished30: number;
+    /** Records in the window with no email captured — shown in their own section. */
+    incomplete7: number;
+    incomplete30: number;
     /** Card saves/updates by existing members — excluded from the lead list. */
     memberCardUpdates: number;
   };
@@ -193,8 +196,14 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
   const attemptsSince = (days: number) =>
     rows.filter((r) => withinDays(r.created_at, days)).length;
   // A person counts in the window if any of their attempts happened in it.
-  const peopleIn = (days: number) =>
-    [...all, ...incomplete].filter((p) => p.attemptDates.some((d) => withinDays(d, days)));
+  // Only identifiable people (grouped by email) are counted here, because those are
+  // the only ones that appear in the lists below. Records with no email captured are
+  // counted separately as incompleteIn(), so the headline never promises names the
+  // staff cannot find on screen.
+  const inWindow = (p: AbandonedAttempt, days: number) =>
+    p.attemptDates.some((d) => withinDays(d, days));
+  const peopleIn = (days: number) => all.filter((p) => inWindow(p, days));
+  const incompleteIn = (days: number) => incomplete.filter((p) => inWindow(p, days));
 
   return {
     cardSaved: visible.filter((a) => a.status === "succeeded"),
@@ -217,6 +226,8 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       people30: peopleIn(30).length,
       unfinished7: peopleIn(7).filter((p) => p.filterReason === "none").length,
       unfinished30: peopleIn(30).filter((p) => p.filterReason === "none").length,
+      incomplete7: incompleteIn(7).length,
+      incomplete30: incompleteIn(30).length,
       memberCardUpdates: memberUpdatesRes.count ?? 0,
     },
   };
