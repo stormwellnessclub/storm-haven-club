@@ -179,7 +179,7 @@ serve(async (req) => {
 
         // Default card from the customer when the sub doesn't carry one.
         if (!snap.card_last4) {
-          const customer = await stripe.customers.retrieve(m.stripe_customer_id, {
+          const customer = await stripe.customers.retrieve(billingCustomerId, {
             expand: ["invoice_settings.default_payment_method"],
           });
           if (customer && !("deleted" in customer && customer.deleted)) {
@@ -195,7 +195,7 @@ serve(async (req) => {
         }
 
         // Invoices are the real payment record — not the local tables.
-        const invoices = await stripe.invoices.list({ customer: m.stripe_customer_id, limit: 24 });
+        const invoices = await stripe.invoices.list({ customer: billingCustomerId, limit: 24 });
         const paid = invoices.data.find((i) => i.status === "paid" && (i.amount_paid ?? 0) > 0);
         const failed = invoices.data.find(
           (i) => i.status === "open" || i.status === "uncollectible",
