@@ -87,7 +87,9 @@ export function AbandonedApplicationsTab() {
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
   const [showResolved, setShowResolved] = useState(true);
-  const [showIncomplete, setShowIncomplete] = useState(false);
+  // Shown by default: these records are counted in the "with no email" figures above,
+  // so hiding them would make the headline numbers unverifiable on screen.
+  const [showIncomplete, setShowIncomplete] = useState(true);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
   const appliedRef = useRef<HTMLElement | null>(null);
   const memberRef = useRef<HTMLElement | null>(null);
@@ -761,7 +763,7 @@ export function AbandonedApplicationsTab() {
 
 
       {/* 5. Incomplete records — no email captured on the attempt */}
-      {incomplete.length > 0 && (
+      {showIncomplete && incomplete.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
