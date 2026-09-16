@@ -273,12 +273,27 @@ serve(async (req) => {
         .eq("id", fix.id);
     }
 
-    log("Sync complete", { synced: snapshots.length, fixed: statusFixes.length, errors });
+    // Point the member at the customer their subscription actually bills, so
+    // payment history, card on file and retries all read the right record.
+    for (const fix of customerFixes) {
+      await supabase
+        .from("members")
+        .update({ stripe_customer_id: fix.stripe_customer_id })
+        .eq("id", fix.id);
+    }
+
+    log("Sync complete", {
+      synced: snapshots.length,
+      fixed: statusFixes.length,
+      customerFixes: customerFixes.length,
+      errors,
+    });
 
     return json({
       success: true,
       synced: snapshots.length,
       status_corrections: statusFixes.length,
+      customer_corrections: customerFixes.length,
       errors,
       synced_at: new Date().toISOString(),
     });
