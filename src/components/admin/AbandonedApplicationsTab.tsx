@@ -761,7 +761,7 @@ export function AbandonedApplicationsTab() {
 
 
       {/* 5. Incomplete records — no email captured on the attempt */}
-      {showIncomplete && incomplete.length > 0 && (
+      {incomplete.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
