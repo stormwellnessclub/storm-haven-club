@@ -114,8 +114,38 @@ serve(async (req) => {
         const isAnnual = (s: Stripe.Subscription) =>
           s.items.data.some((i) => i.price?.recurring?.interval === "year");
 
-        const dues = live.find((s) => !isAnnual(s)) ?? subs.data.find((s) => !isAnnual(s)) ?? null;
-        const annual = live.find(isAnnual) ?? subs.data.find(isAnnual) ?? null;
+        let dues = live.find((s) => !isAnnual(s)) ?? subs.data.find((s) => !isAnnual(s)) ?? null;
+        let annual = live.find(isAnnual) ?? subs.data.find(isAnnual) ?? null;
+
+        // Some members exist twice in Stripe: the subscription bills a different
+        // customer record than the one saved on the member. When the customer
+        // lookup finds nothing, fall back to the subscription ID we already store
+        // and treat its customer as the authoritative one.
+        const byId = async (subId?: string | null) => {
+          if (!subId) return null;
+          try {
+            return await stripe.subscriptions.retrieve(subId, {
+              expand: ["default_payment_method"],
+            });
+          } catch {
+            return null;
+          }
+        };
+
+        if (!dues) dues = await byId(m.stripe_subscription_id);
+        if (!annual) annual = await byId(m.annual_fee_subscription_id);
+
+        // Everything else (card on file, invoice history) must be read from the
+        // customer the dues subscription actually bills.
+        const subCustomer =
+          (typeof dues?.customer === "string" ? dues.customer : dues?.customer?.id) ??
+          (typeof annual?.customer === "string" ? annual.customer : annual?.customer?.id) ??
+          null;
+        const billingCustomerId = subCustomer ?? m.stripe_customer_id;
+        if (subCustomer && subCustomer !== m.stripe_customer_id) {
+          customerFixes.push({ id: m.id, stripe_customer_id: subCustomer });
+          snap.stripe_customer_id = subCustomer;
+        }
 
         snap.dues_subscription_id = dues?.id ?? null;
         snap.dues_status = dues?.status ?? null;
