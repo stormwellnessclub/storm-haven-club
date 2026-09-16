@@ -544,6 +544,7 @@ export function AbandonedApplicationsTab() {
             </p>
             <p className="text-[11px] text-muted-foreground">
               {totals.last7} attempts · {totals.unfinished7} still unfinished
+              {totals.incomplete7 > 0 && <> · {totals.incomplete7} with no email</>}
             </p>
           </div>
           <div>
@@ -553,6 +554,7 @@ export function AbandonedApplicationsTab() {
             </p>
             <p className="text-[11px] text-muted-foreground">
               {totals.last30} attempts · {totals.unfinished30} still unfinished
+              {totals.incomplete30 > 0 && <> · {totals.incomplete30} with no email</>}
             </p>
           </div>
           <div>
