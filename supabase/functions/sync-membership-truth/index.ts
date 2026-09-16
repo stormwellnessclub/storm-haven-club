@@ -58,7 +58,7 @@ serve(async (req) => {
     let query = supabase
       .from("members")
       .select(
-        "id, first_name, last_name, email, status, subscription_status, stripe_customer_id, stripe_subscription_id, membership_type, is_founding_member",
+        "id, first_name, last_name, email, status, subscription_status, stripe_customer_id, stripe_subscription_id, annual_fee_subscription_id, membership_type, is_founding_member",
       );
 
     if (body.memberId) {
