@@ -74,6 +74,9 @@ serve(async (req) => {
 
     const snapshots: Record<string, unknown>[] = [];
     const statusFixes: { id: string; subscription_status: string }[] = [];
+    // Members whose saved Stripe customer disagrees with the customer their
+    // subscription actually bills — the stored ID gets corrected below.
+    const customerFixes: { id: string; stripe_customer_id: string }[] = [];
     let errors = 0;
 
     for (const m of members ?? []) {
