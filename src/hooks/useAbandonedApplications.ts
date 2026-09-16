@@ -47,12 +47,15 @@ export interface AbandonedApplicationsResult {
     /** Raw attempt rows in the window. */
     last7: number;
     last30: number;
-    /** Distinct people in the window. */
+    /** Distinct identifiable people in the window — matches what the lists show. */
     people7: number;
     people30: number;
     /** Of the people in the window, how many are still unfinished. */
     unfinished7: number;
     unfinished30: number;
+    /** Records in the window with no email captured — shown in their own section. */
+    incomplete7: number;
+    incomplete30: number;
     /** Card saves/updates by existing members — excluded from the lead list. */
     memberCardUpdates: number;
   };
