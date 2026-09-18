@@ -197,6 +197,13 @@
       "when": 1789751833708,
       "tag": "0027_member_growth_report_role_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1789752239700,
+      "tag": "0028_grant_spa_therapists_table_access",
+      "breakpoints": true
     }
   ]
 }
