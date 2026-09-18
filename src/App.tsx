@@ -85,6 +85,7 @@ import MilestoneMockup from "./pages/mockup/MilestoneMockup";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
 import CancelledMembers from "./pages/admin/CancelledMembers";
+import MemberGrowthReport from "./pages/admin/MemberGrowthReport";
 import MemberDetail from "./pages/admin/MemberDetail";
 import MemberCreditsAdmin from "./pages/admin/MemberCredits";
 import CheckIn from "./pages/admin/CheckIn";
