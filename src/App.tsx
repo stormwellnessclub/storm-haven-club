@@ -446,6 +446,7 @@ const App = () => (
               <Route path="/admin/scanner" element={<ProtectedAdminRoute><Scanner /></ProtectedAdminRoute>} />
               <Route path="/admin/members" element={<ProtectedAdminRoute><Members /></ProtectedAdminRoute>} />
               <Route path="/admin/cancelled-members" element={<ProtectedAdminRoute><CancelledMembers /></ProtectedAdminRoute>} />
+              <Route path="/admin/member-growth" element={<ProtectedAdminRoute><MemberGrowthReport /></ProtectedAdminRoute>} />
               <Route path="/admin/members/:id" element={<ProtectedAdminRoute><MemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/member-credits" element={<ProtectedAdminRoute><MemberCreditsAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/applications" element={<ProtectedAdminRoute><Applications /></ProtectedAdminRoute>} />
