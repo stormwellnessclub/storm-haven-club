@@ -84,9 +84,9 @@ export interface SubmitReviewInput {
 }
 
 async function uploadReviewPhoto(file: File, userId: string | null): Promise<string> {
+  if (!userId) throw new Error("Please sign in to add a photo to your review.");
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const folder = userId || "guest";
-  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from("cafe-review-photos")
     .upload(path, file, { cacheControl: "3600", upsert: false });
