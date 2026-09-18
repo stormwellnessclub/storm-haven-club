@@ -169,6 +169,13 @@
       "when": 1789415094118,
       "tag": "0023_enforce_all_active_security_findings",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1789718028820,
+      "tag": "0024_tighten_permissive_rls_and_review_photo_storage",
+      "breakpoints": true
     }
   ]
 }

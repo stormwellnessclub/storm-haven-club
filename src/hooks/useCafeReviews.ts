@@ -84,9 +84,9 @@ export interface SubmitReviewInput {
 }
 
 async function uploadReviewPhoto(file: File, userId: string | null): Promise<string> {
+  if (!userId) throw new Error("Please sign in to add a photo to your review.");
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const folder = userId || "guest";
-  const path = `${folder}/${crypto.randomUUID()}.${ext}`;
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from("cafe-review-photos")
     .upload(path, file, { cacheControl: "3600", upsert: false });
@@ -145,11 +145,14 @@ export function useReviewPhotoUrl(path: string | null) {
       return;
     }
     let active = true;
-    supabase.storage
-      .from("cafe-review-photos")
-      .createSignedUrl(path, 60 * 60)
-      .then(({ data }) => {
-        if (active) setUrl(data?.signedUrl ?? null);
+    supabase.functions
+      .invoke("cafe-review-photo", { body: { path } })
+      .then(({ data, error }) => {
+        if (!active) return;
+        setUrl(error ? null : ((data as { url?: string } | null)?.url ?? null));
+      })
+      .catch(() => {
+        if (active) setUrl(null);
       });
     return () => {
       active = false;
