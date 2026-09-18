@@ -65,9 +65,12 @@ export function useAdminCafeNotifications() {
         return { pendingCount: 0, preparingCount: 0, totalActiveCount: 0, latestOrderAt: null };
       }
     },
-    // Background windows must keep polling — the café screen is rarely focused.
-    refetchInterval: 15000,
+    // Realtime delivers new orders instantly; this poll is the safety net and
+    // runs once a minute. Background windows must keep polling — the café
+    // screen is rarely focused.
+    refetchInterval: 60000,
     refetchIntervalInBackground: true,
+
     // Keep polling through brief network/offline blips instead of pausing.
     networkMode: "always" as const,
     // Check immediately when the window comes back to the front.

@@ -97,10 +97,12 @@ export function useAdminSupportNotifications() {
         };
       }
     },
-    // Keep checking even when this window is behind another one — a front desk
-    // or admin tab is almost never the focused window when a request lands.
-    refetchInterval: 15000,
+    // Realtime is the primary path; this poll is only the safety net, so it
+    // runs once a minute. Background windows keep polling — a front desk or
+    // admin tab is almost never the focused window when a request lands.
+    refetchInterval: 60000,
     refetchIntervalInBackground: true,
+
     // Keep polling through brief network/offline blips instead of pausing.
     networkMode: "always" as const,
     // Check immediately when the window comes back to the front.

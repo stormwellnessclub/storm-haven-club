@@ -283,9 +283,21 @@ export function useUnifiedAttendance() {
     if (!authReady || !user) return;
 
     fetchAll();
-    const interval = setInterval(fetchAll, 15000);
-    return () => clearInterval(interval);
+    // Refresh once a minute, and only while the screen is actually visible.
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchAll();
+    }, 60000);
+    const onVisible = () => {
+      if (typeof document !== "undefined" && !document.hidden) fetchAll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [authReady, fetchAll, user]);
+
 
   return {
     entries,
