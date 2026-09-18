@@ -274,10 +274,10 @@ export default function MemberGrowthReport() {
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Members count in the month they were activated. {totals.legacy} records predate activation
-            tracking (mostly the founding group from December 2025 and January 2026) and use their
-            membership start date instead, so their payment column may look incomplete. People still
-            waiting to be activated are not counted. All dates use Michigan time.
+            Members count in the month they were activated. The "Pre-opening list" line is the
+            pre-sale group entered before the club opened in February 2026 — those {totals.legacy}
+            records have no activation date, so their payment column may look incomplete. People
+            still waiting to be activated are not counted. All dates use Michigan time.
           </AlertDescription>
         </Alert>
       </div>
