@@ -100,7 +100,7 @@ export default function MemberGrowthReport() {
     ];
     const lines = rows.map((r) =>
       [
-        monthLabel(r.month),
+        rowLabel(r.month),
         r.new_members,
         r.still_active,
         r.frozen,
@@ -232,7 +232,7 @@ export default function MemberGrowthReport() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.month}>
-                    <TableCell className="font-medium">{monthLabel(r.month)}</TableCell>
+                    <TableCell className="font-medium">{rowLabel(r.month)}</TableCell>
                     <TableCell className="text-right">{r.new_members}</TableCell>
                     <TableCell className="text-right">{r.still_active}</TableCell>
                     <TableCell className="text-right">{r.frozen}</TableCell>
