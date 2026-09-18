@@ -28,17 +28,39 @@ export default function MemberGrowthReport() {
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
 
-  const { data: rows = [], isLoading, error } = useMemberGrowth(start || undefined, end || undefined);
+  const { data: rawRows = [], isLoading, error } = useMemberGrowth(start || undefined, end || undefined);
+
+  // Everything before the February 2026 opening is the pre-sale list that was
+  // imported the night before we opened, so it is shown as one "Pre-opening" line
+  // rather than as December and January months the club was not open for.
+  const rows = useMemo<MemberGrowthRow[]>(() => {
+    const pre = rawRows.filter((r) => r.month < "2026-02-01");
+    const rest = rawRows.filter((r) => r.month >= "2026-02-01");
+    if (!pre.length) return rest;
+    const merged: MemberGrowthRow = {
+      month: "2026-01-01",
+      new_members: pre.reduce((a, r) => a + r.new_members, 0),
+      still_active: pre.reduce((a, r) => a + r.still_active, 0),
+      frozen: pre.reduce((a, r) => a + r.frozen, 0),
+      cancelled: pre.reduce((a, r) => a + r.cancelled, 0),
+      legacy_backfilled: pre.reduce((a, r) => a + r.legacy_backfilled, 0),
+      with_recorded_payment: pre.reduce((a, r) => a + r.with_recorded_payment, 0),
+    };
+    return [merged, ...rest];
+  }, [rawRows]);
+
+  const rowLabel = (iso: string) => (iso < "2026-02-01" ? "Pre-opening list" : monthLabel(iso));
 
   const chartData = useMemo(
     () =>
       rows.map((r) => ({
-        month: monthLabel(r.month),
+        month: rowLabel(r.month),
         newMembers: r.new_members,
         net: r.new_members - r.cancelled,
       })),
     [rows]
   );
+
 
   const totals = useMemo(() => {
     const sum = (key: keyof MemberGrowthRow) =>
