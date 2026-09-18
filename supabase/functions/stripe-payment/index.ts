@@ -2157,7 +2157,18 @@ serve(async (req) => {
 
       case 'charge_saved_card': {
         const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
-        await assertOwnerOrStaff(memberId, ['super_admin', 'admin', 'manager', 'front_desk']);
+        // Ownership: a caller may charge their OWN saved card even when they
+        // send only stripeCustomerId (Storm Shop, spa booking, cafe credit
+        // top-up). The customer id must belong to the authenticated user via
+        // members.user_id / non_member_profiles.user_id — never by email.
+        let ownsDirectCustomer = false;
+        if (!kioskMode && typeof directCustomerId === 'string' && directCustomerId) {
+          const owned = await callerStripeCustomerIds();
+          ownsDirectCustomer = owned.includes(directCustomerId);
+        }
+        if (!ownsDirectCustomer) {
+          await assertOwnerOrStaff(memberId, ['super_admin', 'admin', 'manager', 'front_desk']);
+        }
 
         if (!amount || !description) {
           throw new Error("Amount and description are required");
