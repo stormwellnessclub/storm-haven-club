@@ -145,11 +145,14 @@ export function useReviewPhotoUrl(path: string | null) {
       return;
     }
     let active = true;
-    supabase.storage
-      .from("cafe-review-photos")
-      .createSignedUrl(path, 60 * 60)
-      .then(({ data }) => {
-        if (active) setUrl(data?.signedUrl ?? null);
+    supabase.functions
+      .invoke("cafe-review-photo", { body: { path } })
+      .then(({ data, error }) => {
+        if (!active) return;
+        setUrl(error ? null : ((data as { url?: string } | null)?.url ?? null));
+      })
+      .catch(() => {
+        if (active) setUrl(null);
       });
     return () => {
       active = false;
