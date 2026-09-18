@@ -183,6 +183,13 @@
       "when": 1789750138552,
       "tag": "0025_optimize_rls_evaluation_support_and_checkins",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1789751792077,
+      "tag": "0026_member_growth_report",
+      "breakpoints": true
     }
   ]
 }
