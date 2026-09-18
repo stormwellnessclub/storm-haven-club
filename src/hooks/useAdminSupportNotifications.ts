@@ -40,13 +40,8 @@ export function useAdminSupportNotifications() {
           };
         }
 
-        const { count: openCount, error: openError } = await supabase
-          .from('email_conversations')
-          .select('*', { count: 'exact', head: true })
-          .in('status', ['open', 'in_progress']);
-
-        if (openError) throw openError;
-
+        // One read covers both the open count and the acknowledgement state —
+        // an extra exact-count request would scan the table a second time.
         const { data: activeConvos, error: activeError } = await supabase
           .from('email_conversations')
           .select('id, acknowledged_at')
@@ -54,23 +49,26 @@ export function useAdminSupportNotifications() {
 
         if (activeError) throw activeError;
 
+        const openCount = (activeConvos || []).length;
         const activeIds = (activeConvos || []).map(c => c.id);
         const unacknowledgedIds = (activeConvos || [])
           .filter((c: any) => !c.acknowledged_at)
           .map(c => c.id);
 
+
         let unreadCount = 0;
         if (activeIds.length > 0) {
-          const { count, error: unreadError } = await supabase
+          const { data: unreadRows, error: unreadError } = await supabase
             .from('email_messages')
-            .select('*', { count: 'exact', head: true })
+            .select('id')
             .eq('sender_type', 'member')
             .eq('is_read', false)
             .in('conversation_id', activeIds);
 
           if (unreadError) throw unreadError;
-          unreadCount = count || 0;
+          unreadCount = (unreadRows || []).length;
         }
+
 
         // Newest member message overall — catches a new message even when the
         // counts stay flat (e.g. staff opened the thread on another station).
@@ -99,10 +97,12 @@ export function useAdminSupportNotifications() {
         };
       }
     },
-    // Keep checking even when this window is behind another one — a front desk
-    // or admin tab is almost never the focused window when a request lands.
-    refetchInterval: 15000,
+    // Realtime is the primary path; this poll is only the safety net, so it
+    // runs once a minute. Background windows keep polling — a front desk or
+    // admin tab is almost never the focused window when a request lands.
+    refetchInterval: 60000,
     refetchIntervalInBackground: true,
+
     // Keep polling through brief network/offline blips instead of pausing.
     networkMode: "always" as const,
     // Check immediately when the window comes back to the front.
