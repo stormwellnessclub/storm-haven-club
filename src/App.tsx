@@ -85,6 +85,7 @@ import MilestoneMockup from "./pages/mockup/MilestoneMockup";
 import Dashboard from "./pages/admin/Dashboard";
 import Members from "./pages/admin/Members";
 import CancelledMembers from "./pages/admin/CancelledMembers";
+import MemberGrowthReport from "./pages/admin/MemberGrowthReport";
 import MemberDetail from "./pages/admin/MemberDetail";
 import MemberCreditsAdmin from "./pages/admin/MemberCredits";
 import CheckIn from "./pages/admin/CheckIn";
@@ -445,6 +446,7 @@ const App = () => (
               <Route path="/admin/scanner" element={<ProtectedAdminRoute><Scanner /></ProtectedAdminRoute>} />
               <Route path="/admin/members" element={<ProtectedAdminRoute><Members /></ProtectedAdminRoute>} />
               <Route path="/admin/cancelled-members" element={<ProtectedAdminRoute><CancelledMembers /></ProtectedAdminRoute>} />
+              <Route path="/admin/member-growth" element={<ProtectedAdminRoute><MemberGrowthReport /></ProtectedAdminRoute>} />
               <Route path="/admin/members/:id" element={<ProtectedAdminRoute><MemberDetail /></ProtectedAdminRoute>} />
               <Route path="/admin/member-credits" element={<ProtectedAdminRoute><MemberCreditsAdmin /></ProtectedAdminRoute>} />
               <Route path="/admin/applications" element={<ProtectedAdminRoute><Applications /></ProtectedAdminRoute>} />

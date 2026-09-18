@@ -13775,6 +13775,18 @@ export type Database = {
         Args: { p_days?: number; p_member_id: string }
         Returns: Json
       }
+      get_monthly_member_growth: {
+        Args: { _end_date?: string; _start_date?: string }
+        Returns: {
+          cancelled: number
+          frozen: number
+          legacy_backfilled: number
+          month: string
+          new_members: number
+          still_active: number
+          with_recorded_payment: number
+        }[]
+      }
       get_my_gift_cards: {
         Args: never
         Returns: {
