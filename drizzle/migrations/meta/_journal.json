@@ -176,6 +176,13 @@
       "when": 1789718028820,
       "tag": "0024_tighten_permissive_rls_and_review_photo_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789750138552,
+      "tag": "0025_optimize_rls_evaluation_support_and_checkins",
+      "breakpoints": true
     }
   ]
 }
