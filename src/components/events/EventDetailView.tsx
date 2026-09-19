@@ -57,7 +57,7 @@ export function EventDetailView({ event }: { event: EventDetailRecord }) {
           ) : (
             <Badge variant="outline">Open to all</Badge>
           )}
-          {membersOnly && <Badge variant="secondary">Included with your membership</Badge>}
+          {membersOnly && <Badge variant="secondary">Your place is part of your membership</Badge>}
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
             <CalendarDays className="h-4 w-4 text-primary" />
             {formatInTimeZone(new Date(event.starts_at), CLUB_TZ, "MMMM d, yyyy · h:mm a 'ET'")}
@@ -131,7 +131,7 @@ export function EventDetailView({ event }: { event: EventDetailRecord }) {
             </div>
           ) : (
             <Button size="lg" className="w-full" onClick={() => setBuyOpen(true)}>
-              Buy tickets <ArrowRight className="h-4 w-4 ml-2" />
+              Reserve tickets <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}
           <BuyTicketsDialog
