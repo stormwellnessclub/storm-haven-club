@@ -114,7 +114,7 @@ export function EventRequestsPanel({ eventId }: { eventId: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {requests.map((r: Record<string, string>) => (
+                {requests.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
                       <div className="font-medium">
@@ -191,7 +191,7 @@ export function EventRequestsPanel({ eventId }: { eventId: string }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {waitlist.map((w: Record<string, string>) => (
+                {waitlist.map((w) => (
                   <TableRow key={w.id}>
                     <TableCell>{w.position}</TableCell>
                     <TableCell>
