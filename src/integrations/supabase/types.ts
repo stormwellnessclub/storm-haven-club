@@ -13500,6 +13500,7 @@ export type Database = {
         Returns: boolean
       }
       cancel_class_booking: { Args: { _booking_id: string }; Returns: Json }
+      cancel_event_reservation: { Args: { _slug: string }; Returns: Json }
       cancel_pt_appointment: {
         Args: {
           p_appointment_id: string
