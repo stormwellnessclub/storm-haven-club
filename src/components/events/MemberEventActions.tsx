@@ -215,7 +215,7 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
         </Button>
       ) : (
         <Button size="lg" className="w-full" onClick={reserve} disabled={busy}>
-          {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reserve my seat
+          {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reserve my place
         </Button>
       )}
 
