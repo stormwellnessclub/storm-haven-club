@@ -431,7 +431,7 @@ export default function EventsIndex() {
                   restorative evenings and seasonal rituals.
                 </p>
                 <div className="mt-7">
-                  <Button variant="outline" asChild>
+                  <Button variant="outline" asChild className="h-auto whitespace-normal py-3 text-center">
                     <Link to="/rituals">See what members experience</Link>
                   </Button>
                 </div>
