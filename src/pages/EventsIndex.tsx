@@ -232,7 +232,7 @@ export default function EventsIndex() {
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-y border-border/70 py-4 mb-12">
-            <div className="flex gap-6 overflow-x-auto -mx-6 px-6 sm:mx-0 sm:px-0 [&>*]:shrink-0">
+            <div className="flex gap-6 overflow-x-auto min-w-0 max-w-full -mx-6 px-6 pb-1 sm:mx-0 sm:px-0 sm:pb-0 [&>*]:shrink-0">
               {(
                 [
                   ["all", "All Events"],
@@ -444,7 +444,7 @@ export default function EventsIndex() {
       {/* 4 — Member Rituals editorial feature */}
       <section className="bg-primary text-primary-foreground">
         <div className="grid lg:grid-cols-2">
-          <div className="relative min-h-[18rem] lg:min-h-[34rem] order-1 lg:order-none">
+          <div className="relative min-h-[18rem] lg:min-h-[34rem]">
             <img
               src={supperClubImage.url}
               alt="A candlelit table set for an intimate members' dinner"
