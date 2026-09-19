@@ -50,20 +50,36 @@ export function MemberEventActions({
   const [guestNote, setGuestNote] = useState("");
   const [guestSubmitting, setGuestSubmitting] = useState(false);
 
-  if (!user) {
-    return (
-      <div className={className}>
-        <Button asChild size="lg" className="w-full">
-          <Link to="/auth">Sign in to reserve your place</Link>
-        </Button>
-        <p className="mt-3 text-sm text-muted-foreground text-center">
-          This experience is held exclusively for Storm members.{" "}
-          <Link to="/apply" className="underline underline-offset-4">
-            Apply for membership
-          </Link>
-          .
+  const accessPanel = (heading: string, body: string, showSignIn: boolean) => (
+    <div className={className}>
+      <div className="rounded-xl border border-primary/25 bg-primary/5 p-6 text-center">
+        <p className="text-xs uppercase tracking-[0.2em] text-primary">
+          {eligibilityLabel ?? "Members only"}
         </p>
+        <p className="font-serif text-xl mt-2">{heading}</p>
+        <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">{body}</p>
+        <div className="mt-5 flex flex-col sm:flex-row gap-2 justify-center">
+          <Button asChild>
+            <Link to="/memberships">Explore membership</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/apply">Apply for membership</Link>
+          </Button>
+          {showSignIn && (
+            <Button asChild variant="ghost">
+              <Link to="/auth">Already a member? Sign in</Link>
+            </Button>
+          )}
+        </div>
       </div>
+    </div>
+  );
+
+  if (!user) {
+    return accessPanel(
+      "Held for Storm members",
+      "This gathering is part of belonging to Storm Wellness Club. Members reserve their place from inside the club portal.",
+      true,
     );
   }
 
@@ -78,15 +94,43 @@ export function MemberEventActions({
   }
 
   if (state && !state.is_member) {
+    return accessPanel(
+      "Held for Storm members",
+      "This gathering is part of belonging to Storm Wellness Club. We would love to welcome you.",
+      false,
+    );
+  }
+
+  if (state && !state.is_eligible) {
     return (
       <div className={className}>
-        <div className="rounded-lg border bg-muted/40 p-5 text-center">
-          <p className="text-sm text-foreground/90">
-            This circle is held exclusively for Storm members.
+        <div className="rounded-xl border bg-muted/40 p-6 text-center">
+          <p className="text-xs uppercase tracking-[0.2em] text-primary">
+            {eligibilityLabel ?? "Limited membership access"}
           </p>
-          <Button asChild variant="outline" className="mt-4">
-            <Link to="/apply">Apply for membership</Link>
+          <p className="font-serif text-xl mt-2">An invitation reserved for select memberships</p>
+          <p className="text-sm text-muted-foreground mt-2 max-w-sm mx-auto">
+            This gathering is held for {eligibilityLabel ?? "select members"}. Speak with the
+            concierge about moving up to this level of membership.
+          </p>
+          <Button asChild variant="outline" className="mt-5">
+            <Link to="/portal/support">Speak with the concierge</Link>
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (state && !state.booking_open && !state.has_reservation && !state.is_waitlisted) {
+    return (
+      <div className={className}>
+        <div className="rounded-xl border bg-muted/40 p-6 text-center">
+          <Clock className="h-5 w-5 mx-auto text-primary mb-2" />
+          <p className="font-medium">Reservations open shortly</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Diamond and Founding members are welcomed first. We'll let you know the moment your
+            window opens.
+          </p>
         </div>
       </div>
     );
