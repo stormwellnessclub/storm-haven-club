@@ -64,14 +64,14 @@ export default function EventsIndex() {
     },
   });
 
-  const featured = (events ?? [])[0] ?? null;
-
   const filtered = useMemo(() => {
     const list = events ?? [];
     if (filter === "rituals") return list.filter((e) => e.is_ritual);
     if (filter === "open") return list.filter((e) => !e.is_ritual && !isMembersOnlyEvent(e));
     return list;
   }, [events, filter]);
+
+  const featured = filtered[0] ?? null;
 
   const gridEvents = useMemo(
     () => filtered.filter((e) => !featured || (e.id ?? e.slug) !== (featured.id ?? featured.slug)),

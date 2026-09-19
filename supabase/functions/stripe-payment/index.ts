@@ -236,6 +236,9 @@ async function resolveClassPassPromotion(
     _code: code ?? null,
   });
   if (error) {
+    console.error('[stripe-payment] resolve_class_pass_promotion failed', {
+      pricingId, hasCode: !!code, message: error.message, details: error.details, hint: error.hint, code: error.code,
+    });
     if (code) throw new Error('Could not validate promo code');
     return null;
   }
