@@ -113,7 +113,24 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
     }
   };
 
+  const releaseSeat = async () => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("cancel_event_reservation", { _slug: slug });
+      if (error) throw error;
+      const res = data as { ok?: boolean } | null;
+      if (res?.ok) toast.success("Your place has been released.");
+      else toast.error("We could not release your place. Please call the club.");
+      invalidate(slug);
+    } catch (e) {
+      toast.error((e as Error).message || "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const joinWaitlist = async () => {
+
     setBusy(true);
     try {
       const { data, error } = await supabase.rpc("join_event_waitlist", { _slug: slug });
