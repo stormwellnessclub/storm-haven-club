@@ -142,7 +142,6 @@ import PrivateEventsPage from "./pages/PrivateEvents";
 import PrivateEventInvoicePay from "./pages/PrivateEventInvoicePay";
 import AdminPrivateEvents from "./pages/admin/PrivateEvents";
 
-import EventDetail from "./pages/admin/EventDetail";
 import EventPage from "./pages/EventPage";
 import EventsIndex from "./pages/EventsIndex";
 import MemberRituals from "./pages/MemberRituals";
