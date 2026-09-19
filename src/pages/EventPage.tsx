@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EventDetailView, type EventDetailRecord } from "@/components/events/EventDetailView";
+import { RITUAL_EVENT_COLUMNS } from "@/hooks/useRituals";
 
 export default function EventPage() {
   const { slug = "" } = useParams();
@@ -15,9 +16,7 @@ export default function EventPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select(
-          "id, slug, title, subtitle, description, details, what_to_bring, starts_at, venue, status, member_price_cents, non_member_price_cents, image_url, members_only, allow_guest_requests",
-        )
+        .select(RITUAL_EVENT_COLUMNS)
         .eq("slug", slug)
         .maybeSingle();
       if (error) throw error;
