@@ -76,6 +76,12 @@ export default function EventsIndex() {
     setActive(e);
     window.history.replaceState(null, "", `/events/${e.slug}`);
   };
+  const showFiltered = (mode: FilterMode) => {
+    setFilter(mode);
+    requestAnimationFrame(() => {
+      document.getElementById("event-listing")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
   const closeEvent = () => {
     setActive(null);
     window.history.replaceState(null, "", "/events");
@@ -134,7 +140,7 @@ export default function EventsIndex() {
               the Storm Wellness Club membership community.
             </p>
             <div className="pt-6">
-              <Button onClick={() => setFilter("open")}>Explore Public Experiences</Button>
+              <Button onClick={() => showFiltered("open")}>Explore Public Experiences</Button>
             </div>
           </div>
           <div className="rounded-2xl border border-primary/30 bg-primary/5 p-8 flex flex-col">
@@ -146,16 +152,19 @@ export default function EventsIndex() {
               A private calendar of gatherings designed to deepen connection, encourage discovery
               and create a more meaningful sense of belonging within the club.
             </p>
-            <div className="pt-6">
+            <div className="pt-6 flex flex-wrap gap-3">
               <Button asChild>
                 <Link to="/rituals">Discover Member Rituals</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/rituals/calendar">View the Ritual Calendar</Link>
               </Button>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="container mx-auto px-4 pb-20">
+      <section id="event-listing" className="container mx-auto px-4 pb-20 scroll-mt-24">
         {/* Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3 max-w-5xl mx-auto mb-8">
           <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0 [&>*]:shrink-0">
@@ -170,7 +179,7 @@ export default function EventsIndex() {
                 key={key}
                 size="sm"
                 variant={filter === key ? "default" : "outline"}
-                onClick={() => setFilter(key)}
+                onClick={() => showFiltered(key)}
               >
                 {label}
               </Button>
