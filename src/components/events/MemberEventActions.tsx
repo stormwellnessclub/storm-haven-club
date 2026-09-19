@@ -45,7 +45,7 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
     return (
       <div className={className}>
         <Button asChild size="lg" className="w-full">
-          <Link to="/auth">Sign in to reserve your seat</Link>
+          <Link to="/auth">Sign in to reserve your place</Link>
         </Button>
         <p className="mt-3 text-sm text-muted-foreground text-center">
           This experience is held exclusively for Storm members.{" "}
@@ -113,7 +113,24 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
     }
   };
 
+  const releaseSeat = async () => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.rpc("cancel_event_reservation", { _slug: slug });
+      if (error) throw error;
+      const res = data as { ok?: boolean } | null;
+      if (res?.ok) toast.success("Your place has been released.");
+      else toast.error("We could not release your place. Please call the club.");
+      invalidate(slug);
+    } catch (e) {
+      toast.error((e as Error).message || "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const joinWaitlist = async () => {
+
     setBusy(true);
     try {
       const { data, error } = await supabase.rpc("join_event_waitlist", { _slug: slug });
@@ -169,26 +186,36 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
       {state?.has_reservation ? (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-5 text-center">
           <CheckCircle2 className="h-5 w-5 mx-auto text-primary mb-2" />
-          <p className="font-medium">Your seat is reserved</p>
+          <p className="font-medium">Your place in the circle is held</p>
           <p className="text-sm text-muted-foreground mt-1">
-            We'll see you there. Let us know if your plans change.
+            You'll find the details in your portal.
           </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-3 text-muted-foreground"
+            onClick={releaseSeat}
+            disabled={busy}
+          >
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Release my place
+          </Button>
         </div>
       ) : state?.is_waitlisted ? (
         <div className="rounded-lg border bg-muted/40 p-5 text-center">
           <Clock className="h-5 w-5 mx-auto text-primary mb-2" />
           <p className="font-medium">You're on the waitlist</p>
           <p className="text-sm text-muted-foreground mt-1">
-            We'll reach out the moment a seat opens.
+            We'll reach out the moment a place opens.
           </p>
         </div>
       ) : state?.is_full ? (
+
         <Button size="lg" className="w-full" onClick={joinWaitlist} disabled={busy}>
           {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Join the waitlist
         </Button>
       ) : (
         <Button size="lg" className="w-full" onClick={reserve} disabled={busy}>
-          {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reserve my seat
+          {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reserve my place
         </Button>
       )}
 
