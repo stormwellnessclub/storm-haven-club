@@ -414,7 +414,7 @@ export default function EventsIndex() {
 
               {/* Intentional composition when the calendar is light */}
               <div
-                className={`bg-secondary/40 p-10 md:p-12 flex flex-col justify-center min-h-[18rem] ${
+                className={`bg-secondary/40 min-w-0 p-8 md:p-12 flex flex-col justify-center min-h-[18rem] ${
                   gridEvents.length % 2 === 0 ? "md:col-span-2 md:items-start" : ""
                 }`}
               >
