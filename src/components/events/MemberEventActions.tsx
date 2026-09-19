@@ -45,7 +45,7 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
     return (
       <div className={className}>
         <Button asChild size="lg" className="w-full">
-          <Link to="/auth">Sign in to reserve your seat</Link>
+          <Link to="/auth">Sign in to reserve your place</Link>
         </Button>
         <p className="mt-3 text-sm text-muted-foreground text-center">
           This experience is held exclusively for Storm members.{" "}
