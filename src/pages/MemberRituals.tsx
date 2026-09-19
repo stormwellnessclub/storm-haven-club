@@ -73,10 +73,10 @@ export default function MemberRituals() {
             Access and availability vary by event and membership tier.
           </p>
           <div className="mt-10 flex flex-wrap gap-3">
-            <Button asChild size="lg">
+            <Button asChild size="lg" className="w-full sm:w-auto">
               <Link to="/rituals/calendar">Explore the Ritual Calendar</Link>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            <Button asChild size="lg" variant="outline" className="w-full sm:w-auto">
               <Link to="/auth">Sign In to Your Member Portal</Link>
             </Button>
           </div>
@@ -159,9 +159,6 @@ export default function MemberRituals() {
                       <h2 className="font-serif text-4xl md:text-5xl text-primary leading-tight">
                         {c.name}
                       </h2>
-                      {c.tagline && (
-                        <p className="font-serif italic text-lg text-foreground/75">{c.tagline}</p>
-                      )}
                     </div>
                     <div className="space-y-4">
                       {c.description && (
