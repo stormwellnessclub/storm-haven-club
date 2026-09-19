@@ -1,70 +1,86 @@
-# Women's Healing Circle — Sunday, September 27 · 6:00 PM
+# Under the Harvest Moon — Sunday, September 27 · 6:00 PM
 
-A members-only evening facilitated by Savannah Rae Alawieh, closing with a fire cleansing ritual. Included with membership, 30 seats held internally, waitlist when full, guest seats by request.
+A Women's Release & Renewal Circle. Members-only, complimentary with membership, 30 seats (count kept internal), waitlist when full, guest seats by request.
 
-## The full copy, exactly as it will appear
+## The copy, exactly as it will appear
 
-### Listing card (events page & member portal)
+**Under the Harvest Moon**
+*A Women's Release & Renewal Circle*
+Sunday, September 27 at 6:00 PM
+**An exclusive members-only experience**
 
-**Women's Healing Circle**
-Sunday, September 27 · 6:00 PM
-An intimate evening of energy work, intuitive guidance and fire ceremony — held for the women of Storm.
-*Included with membership · By reservation*
+Step into an intimate, restorative space designed to help you slow down, turn inward, and reconnect with yourself.
 
-### Event page
+Facilitated by Savannah Rae Alawieh, Shaman, Reiki Master, Astrologer, and Psychic Medium. This guided experience will introduce guests to energy healing: a gentle practice centered on restoring balance, releasing emotional heaviness, and bringing awareness to where stress or stagnant energy may be held within the body.
 
-**Women's Healing Circle**
-Sunday, September 27 · 6:00 PM · Storm Wellness Club
-*Members only · Included with your membership · Seating is intentionally limited*
+Envision a softly lit circle, grounding guidance, intentional stillness, and the shared energy of women gathering in a safe, supportive space. The evening will culminate in a symbolic fire-cleansing ritual, inviting each guest to identify what she is ready to release and offer it to the fire creating space for renewed clarity, intention, and personal transformation.
 
-There is a particular kind of quiet that only happens when women gather with intention. This evening is that: a private circle, candlelight, and space to set down what you have been carrying.
+This is an invitation to pause, soften, and leave feeling lighter, more grounded, and deeply connected to yourself.
 
-The circle is facilitated by **Savannah Rae Alawieh** — shaman, Reiki Master, astrologer and psychic medium — who guides the room through grounding, energy work and intuitive insight at an unhurried pace. Nothing is required of you but your presence; participation is always yours to choose.
+**What to bring:** comfortable clothing you can sit and move in, a water bottle, and an open mind. Everything else is provided.
+**Included with your membership · By reservation · Seating intentionally limited**
 
-The evening closes with a **fire cleansing ritual**. You will write down what you are ready to release, and let the flame carry it — a simple, ancient practice for stepping into the next season lighter than you arrived.
-
-**What to bring**
-Comfortable clothing you can sit and move in, a water bottle, and an open mind. Everything else is provided.
-
-**Good to know**
-Doors open at 5:45 PM so the circle can begin on time. Seating is intentionally limited to keep the evening intimate — reservations are first come, and a waitlist opens once the circle is full. Members may request a seat for a guest, granted based on availability.
-
-**About Savannah Rae Alawieh**
-Savannah Rae Alawieh is a shaman, Reiki Master, astrologer and psychic medium. Her work centers on energy healing, intuitive readings and ceremony, guiding women through release, clarity and reconnection with themselves.
-
-### Buttons and messages members will see
+## What members see (no numbers, ever)
 
 - Member, seats open: **Reserve my seat** → "Your seat is reserved. We'll see you Sunday, September 27 at 6:00 PM."
 - Member, circle full: **Join the waitlist** → "You're on the waitlist. We'll reach out the moment a seat opens."
-- Guest: **Request a seat for a guest** → "Request received. We'll confirm by email based on availability."
-- Not a member: "This circle is held exclusively for Storm members." with a link to apply.
+- Bringing a guest: **Request a seat for a guest** → "Request received. We'll confirm by email based on availability."
+- Non-member: "This circle is held exclusively for Storm members," with a link to apply.
 
-No numbers anywhere on the member-facing side — no "12 spots left", no capacity, no counts. Only you and staff see the numbers.
+No capacity, no "spots left", no counts anywhere member-facing. Reserved / remaining / waitlist / guest requests are visible only to you and staff in the admin event page, alongside a Sunday-evening check-in list.
 
-### Confirmation email (sent on reservation)
+## The events page & community calendar
 
-Subject: **Your seat is reserved — Women's Healing Circle**
-Body: date, time, doors at 5:45 PM, what to bring, the facilitator line, and a note to let us know if plans change so the seat can go to someone on the waitlist. Signed *The Storm Wellness Club Team*.
+```text
+/events
+┌──────────────────────────────────────────────┐
+│  Events at Storm            [ Grid | Month ] │
+│  Filters: All · Members only · Open to all   │
+├──────────────────────────────────────────────┤
+│ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│ │  image   │ │  image   │ │  image   │       │
+│ │ SEP 27   │ │ OCT 11   │ │ OCT 25   │       │
+│ │ Under the│ │  ...     │ │  ...     │       │
+│ │ Harvest  │ │          │ │          │       │
+│ │ Moon     │ │          │ │          │       │
+│ │ 6:00 PM  │ │          │ │          │       │
+│ │ Members  │ │          │ │          │       │
+│ └──────────┘ └──────────┘ └──────────┘       │
+└──────────────────────────────────────────────┘
+        │ click a card
+        ▼
+┌──────────────────────────────────────────────┐
+│  [image banner]                         [X]  │
+│  SUNDAY, SEPTEMBER 27 · 6:00 PM              │
+│  Under the Harvest Moon                      │
+│  A Women's Release & Renewal Circle          │
+│  Members only · Included with membership     │
+│                                              │
+│  Full description, facilitator, ritual,      │
+│  what to bring                               │
+│                                              │
+│  [ Reserve my seat ]  [ Request a guest seat]│
+└──────────────────────────────────────────────┘
+```
 
-### Announcement email to members
+- **Grid view** — large image cards with a date chip, title, time and a "Members only" or "Open to all" tag. Nothing about availability.
+- **Month view** — a proper community calendar: events sit on their day, click a day to see what's on. Same card click behavior.
+- **Click a card** — it opens enlarged in place, as an overlay with the full write-up and the reserve buttons, without leaving the page. Closing returns you exactly where you were.
+- **Shareable** — the overlay also has its own address (`/events/under-the-harvest-moon`), so a link from an email or text opens straight to the full event, and the same page renders for search engines and link previews.
+- **Past events** roll into a "Recently at Storm" strip so the page never looks empty between events.
 
-I'll draft it and show you in full. It will not send until the event is live and you approve the wording.
+## Emails
 
-## How it works
-
-- **Members** reserve with one tap — no card, no checkout, nothing to pay.
-- **Non-members** cannot reserve; the page invites them to apply for membership.
-- **Guests** are requested by a member through a short form; you approve or decline based on availability, and approval emails the guest their confirmation.
-- **Waitlist** opens automatically once the circle fills, held in order; you release a seat and that member is emailed.
-- **Admin page** (Events → Women's Healing Circle) is where all the numbers live: reserved, remaining, waitlist in order, pending guest requests, plus a check-in list for Sunday evening.
+- **Reservation confirmation** — sent instantly: date, time, doors at 5:45 PM, what to bring, and a note to tell us if plans change so the seat can pass to the waitlist.
+- **Guest approved / waitlist seat released** — sent when you approve from admin.
+- **Announcement to members** — I'll draft it in full and show you. It does not send until the event is live and you approve the wording.
 
 ## Technical notes
 
-- `events`: add `members_only` (boolean, default false), `allow_guest_requests` (boolean, default false), `hide_capacity` (boolean, default false). Existing events unaffected.
-- Complimentary reservation path: new `reserve-event-ticket` edge function — verifies via JWT that the caller is an active/frozen member, checks `get_event_availability`, inserts a confirmed `event_tickets` row with `amount_cents = 0`, `ticket_type = 'member'`. Stripe is not involved. `create-event-ticket-checkout` gains a guard rejecting checkout on a `members_only` event.
-- New `event_waitlist` (event_id, user_id, name/email/phone, position, status) and `event_guest_requests` (event_id, requesting member, guest name/email/phone, note, status, decided_by, decided_at). RLS: members read/insert only their own rows; staff (super_admin, admin, manager, front_desk) manage all. Explicit GRANTs on both.
-- Admin RPCs `approve_event_guest_request` and `offer_event_waitlist_seat` so issuing the ticket, consuming availability and marking the row happen atomically.
-- Frontend: `EventsIndex.tsx`, `EventPage.tsx`, `PortalUpcomingEvents.tsx`, `BuyTicketsDialog.tsx` branch on `members_only` / `hide_capacity` and suppress all remaining-count text; new `ReserveSeatDialog`, `GuestSeatRequestDialog`, `WaitlistJoinDialog`; admin `EventDetail.tsx` gains Guest requests and Waitlist tabs with the live counts.
-- Emails (confirmation, guest approval, waitlist seat released) through the existing `send-email` function and Storm template.
-- Times stored UTC, displayed `America/Detroit`.
-- The event row is created as data after the structure lands: slug `womens-healing-circle`, capacity 30, status `on_sale`, member price 0.
+- `events`: add `members_only`, `allow_guest_requests`, `hide_capacity`, `subtitle` (all nullable / defaulted false). Existing events unaffected.
+- Complimentary reservation: new `reserve-event-ticket` edge function verifying via JWT that the caller is an active/frozen member, checking `get_event_availability`, inserting a confirmed `event_tickets` row at `amount_cents = 0`, `ticket_type = 'member'`. Stripe not involved. `create-event-ticket-checkout` gains a guard rejecting checkout on a `members_only` event.
+- New tables `event_waitlist` (event_id, user_id, contact, position, status) and `event_guest_requests` (event_id, requesting member, guest contact, note, status, decided_by/at), both with member-own-row RLS, staff-manage RLS (super_admin, admin, manager, front_desk) and explicit GRANTs.
+- Admin RPCs `approve_event_guest_request` and `offer_event_waitlist_seat` so ticket issue + availability + row status change atomically.
+- Frontend: rebuild `EventsIndex.tsx` with grid/month toggle and the expanding detail overlay (shared `EventDetailView` used by both the overlay and `/events/:slug`); `PortalUpcomingEvents.tsx`, `EventPage.tsx`, `BuyTicketsDialog.tsx` branch on `members_only` / `hide_capacity` and suppress remaining-count text; new `ReserveSeatDialog`, `GuestSeatRequestDialog`, `WaitlistJoinDialog`; admin `EventDetail.tsx` gains Guest requests and Waitlist tabs with the live numbers.
+- Emails through the existing `send-email` function and Storm template. Times stored UTC, shown `America/Detroit`.
+- Event row created as data after the structure lands: slug `under-the-harvest-moon`, capacity 30, status `on_sale`, member price 0, members_only true, guest requests on, capacity hidden.
