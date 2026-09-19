@@ -158,7 +158,7 @@ export default function EventsIndex() {
       <section className="container mx-auto px-4 pb-20">
         {/* Controls */}
         <div className="flex flex-wrap items-center justify-between gap-3 max-w-5xl mx-auto mb-8">
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 sm:mx-0 sm:px-0 sm:pb-0 [&>*]:shrink-0">
             {(
               [
                 ["all", "All events"],

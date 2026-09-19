@@ -110,7 +110,7 @@ export default function RitualsCalendar() {
           </p>
           <h1 className="font-serif text-4xl md:text-5xl text-primary">The Ritual Calendar</h1>
           <p className="mt-4 text-muted-foreground max-w-xl mx-auto">
-            Gatherings held through the season for members of Storm Wellness Club.
+            Upcoming Member Rituals. Access and availability vary by event and membership tier.
           </p>
         </div>
       </section>
