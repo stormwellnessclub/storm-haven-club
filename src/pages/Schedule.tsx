@@ -58,6 +58,14 @@ export default function Schedule() {
               </Link>
               .
             </p>
+            <p className="mt-4">
+              <Link
+                to="/reviews"
+                className="text-accent underline underline-offset-4 text-sm"
+              >
+                Read member reviews of our classes
+              </Link>
+            </p>
           </div>
         </div>
       </section>
