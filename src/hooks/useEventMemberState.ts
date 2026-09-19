@@ -6,6 +6,10 @@ export interface EventMemberState {
   has_reservation: boolean;
   is_waitlisted: boolean;
   is_full: boolean;
+  is_eligible: boolean;
+  booking_open: boolean;
+  early_access_only: boolean;
+  has_priority: boolean;
 }
 
 /**
@@ -26,6 +30,10 @@ export function useEventMemberState(slug?: string, enabled = true) {
         has_reservation: !!row?.has_reservation,
         is_waitlisted: !!row?.is_waitlisted,
         is_full: !!row?.is_full,
+        is_eligible: !!row?.is_eligible,
+        booking_open: row?.booking_open !== false,
+        early_access_only: !!row?.early_access_only,
+        has_priority: !!row?.has_priority,
       };
     },
   });
@@ -36,5 +44,8 @@ export function useInvalidateEventState() {
   return (slug?: string) => {
     qc.invalidateQueries({ queryKey: ["event-member-state", slug] });
     qc.invalidateQueries({ queryKey: ["public-events"] });
+    qc.invalidateQueries({ queryKey: ["upcoming-events"] });
+    qc.invalidateQueries({ queryKey: ["my-ritual-bookings"] });
+    qc.invalidateQueries({ queryKey: ["my-ritual-waitlist"] });
   };
 }
