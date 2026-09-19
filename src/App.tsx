@@ -137,6 +137,9 @@ import AdminPrivateEvents from "./pages/admin/PrivateEvents";
 import EventDetail from "./pages/admin/EventDetail";
 import EventPage from "./pages/EventPage";
 import EventsIndex from "./pages/EventsIndex";
+import MemberRituals from "./pages/MemberRituals";
+import RitualsCalendar from "./pages/RitualsCalendar";
+import MyRituals from "@/pages/portal/MyRituals";
 import EventSuccess from "./pages/EventSuccess";
 import NonMemberAccounts from "./pages/admin/NonMemberAccounts";
 import NonMemberDetail from "./pages/admin/NonMemberDetail";
@@ -422,6 +425,7 @@ const App = () => (
               <Route path="/member/referrals" element={<ProtectedMemberRoute><MemberReferrals /></ProtectedMemberRoute>} />
               <Route path="/member/cafe" element={<ProtectedMemberRoute><MemberCafe /></ProtectedMemberRoute>} />
               <Route path="/member/tickets" element={<ProtectedMemberRoute><PortalMyEventTickets /></ProtectedMemberRoute>} />
+              <Route path="/member/rituals" element={<ProtectedMemberRoute><MyRituals /></ProtectedMemberRoute>} />
               
               {/* Portal Routes - Non-Member Class Portal */}
               <Route path="/portal" element={<ProtectedPortalRoute><PortalDashboard /></ProtectedPortalRoute>} />
@@ -436,6 +440,7 @@ const App = () => (
               <Route path="/portal/wellness" element={<ProtectedPortalRoute><PortalRecovery /></ProtectedPortalRoute>} />
               <Route path="/portal/cafe" element={<ProtectedPortalRoute><PortalCafe /></ProtectedPortalRoute>} />
               <Route path="/portal/my-tickets" element={<ProtectedPortalRoute><PortalMyEventTickets /></ProtectedPortalRoute>} />
+              <Route path="/portal/rituals" element={<ProtectedPortalRoute><MyRituals /></ProtectedPortalRoute>} />
               <Route path="/portal/gift-cards" element={<ProtectedPortalRoute><PortalGiftCards /></ProtectedPortalRoute>} />
 
               
@@ -504,6 +509,8 @@ const App = () => (
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/events/:slug" element={<EventPage />} />
               <Route path="/events" element={<EventsIndex />} />
+              <Route path="/rituals" element={<MemberRituals />} />
+              <Route path="/rituals/calendar" element={<RitualsCalendar />} />
               <Route path="/events/:slug/success" element={<EventSuccess />} />
               <Route path="/admin/non-member-accounts" element={<ProtectedAdminRoute><NonMemberAccounts /></ProtectedAdminRoute>} />
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />

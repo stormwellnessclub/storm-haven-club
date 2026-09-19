@@ -25,11 +25,13 @@ import { CalendarDays, MapPin, ChevronLeft, ChevronRight, LayoutGrid, Calendar }
 import { SEOHead } from "@/components/SEOHead";
 import { buildBreadcrumbLd, buildEventLd } from "@/lib/seo/schemas";
 import { EventDetailView, type EventDetailRecord } from "@/components/events/EventDetailView";
+import { RITUAL_EVENT_COLUMNS } from "@/hooks/useRituals";
+import { eligibilityLabel, isMembersOnlyEvent } from "@/lib/rituals";
 
 const CLUB_TZ = "America/Detroit";
 
 type ViewMode = "grid" | "month";
-type FilterMode = "all" | "members" | "open";
+type FilterMode = "all" | "rituals" | "open";
 
 export default function EventsIndex() {
   const navigate = useNavigate();
@@ -43,9 +45,7 @@ export default function EventsIndex() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select(
-          "id, slug, title, subtitle, description, details, what_to_bring, starts_at, ends_at, venue, status, member_price_cents, non_member_price_cents, image_url, members_only, allow_guest_requests",
-        )
+        .select(RITUAL_EVENT_COLUMNS)
         .in("status", ["published", "on_sale"])
         .gte("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true });
@@ -56,8 +56,8 @@ export default function EventsIndex() {
 
   const filtered = useMemo(() => {
     const list = events ?? [];
-    if (filter === "members") return list.filter((e) => e.members_only);
-    if (filter === "open") return list.filter((e) => !e.members_only);
+    if (filter === "rituals") return list.filter((e) => e.is_ritual);
+    if (filter === "open") return list.filter((e) => !e.is_ritual && !isMembersOnlyEvent(e));
     return list;
   }, [events, filter]);
 
@@ -119,6 +119,13 @@ export default function EventsIndex() {
           <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
             Curated gatherings, healing circles, sound baths and member celebrations at the club.
           </p>
+          <p className="text-muted-foreground max-w-2xl mx-auto mt-4">
+            Members also have{" "}
+            <Link to="/rituals" className="text-primary underline underline-offset-4">
+              Member Rituals
+            </Link>{" "}
+            — recurring gatherings held for the club alone.
+          </p>
           <p className="text-muted-foreground max-w-2xl mx-auto text-sm mt-4">
             Looking for something weekly instead?{" "}
             <Link to="/schedule" className="text-primary underline underline-offset-4">
@@ -140,8 +147,8 @@ export default function EventsIndex() {
             {(
               [
                 ["all", "All events"],
-                ["members", "Members only"],
-                ["open", "Open to all"],
+                ["open", "Public experiences"],
+                ["rituals", "Member Rituals"],
               ] as [FilterMode, string][]
             ).map(([key, label]) => (
               <Button
@@ -247,9 +254,14 @@ export default function EventsIndex() {
                   <div className="flex items-center justify-between pt-1">
                     <Badge
                       variant="outline"
-                      className={event.members_only ? "border-primary/40 text-primary" : ""}
+                      className={
+                        isMembersOnlyEvent(event) ? "border-primary/40 text-primary" : ""
+                      }
                     >
-                      {event.members_only ? "Members only" : "Open to all"}
+                      {eligibilityLabel(
+                        event.eligibility ?? (event.members_only ? "all_members" : "public"),
+                        event.eligible_tiers,
+                      )}
                     </Badge>
                     <span className="text-sm text-primary underline underline-offset-4">
                       View details
