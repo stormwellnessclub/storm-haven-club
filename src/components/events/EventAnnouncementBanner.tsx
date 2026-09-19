@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BuyTicketsDialog } from "@/components/events/BuyTicketsDialog";
+import { MemberEventActions } from "@/components/events/MemberEventActions";
 
 const CLUB_TZ = "America/Detroit";
 
@@ -18,7 +19,9 @@ export function EventAnnouncementBanner() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, slug, title, starts_at, venue, status, member_price_cents, non_member_price_cents")
+        .select(
+          "id, slug, title, subtitle, starts_at, venue, status, member_price_cents, non_member_price_cents, members_only, allow_guest_requests",
+        )
         .eq("status", "on_sale")
         .gt("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true })
@@ -32,6 +35,7 @@ export function EventAnnouncementBanner() {
 
   if (!event) return null;
 
+  const membersOnly = !!event.members_only;
   const memberPrice = (event.member_price_cents / 100).toFixed(0);
   const nonMemberPrice = (event.non_member_price_cents / 100).toFixed(0);
   const soldOut = event.status === "sold_out";
@@ -47,48 +51,70 @@ export function EventAnnouncementBanner() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[11px] uppercase tracking-[0.2em] text-gold font-semibold mb-1">
-              Upcoming Event
+              {membersOnly ? "A Members-Only Evening" : "Upcoming Event"}
             </div>
             <h3 className="font-serif text-xl sm:text-2xl leading-tight text-foreground">
               {event.title}
             </h3>
+            {event.subtitle && (
+              <p className="font-serif italic text-sm text-muted-foreground mt-0.5">
+                {event.subtitle}
+              </p>
+            )}
             <p className="text-sm text-muted-foreground mt-1">
               {formatInTimeZone(new Date(event.starts_at), CLUB_TZ, "EEEE, MMMM d · h:mm a 'ET'")}
               {event.venue ? ` · ${event.venue}` : ""}
             </p>
             <div className="flex flex-wrap items-center gap-2 mt-3">
-              <span className="text-xs px-2.5 py-1 rounded-full bg-background/70 border border-border/60 text-foreground">
-                Members ${memberPrice}
-              </span>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-background/70 border border-border/60 text-foreground">
-                Guests ${nonMemberPrice}
-              </span>
-              {soldOut && (
+              {membersOnly ? (
+                <span className="text-xs px-2.5 py-1 rounded-full bg-background/70 border border-gold/40 text-foreground">
+                  Your place is part of your membership
+                </span>
+              ) : (
+                <>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-background/70 border border-border/60 text-foreground">
+                    Members ${memberPrice}
+                  </span>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-background/70 border border-border/60 text-foreground">
+                    Guests ${nonMemberPrice}
+                  </span>
+                </>
+              )}
+              {soldOut && !membersOnly && (
                 <span className="text-xs px-2.5 py-1 rounded-full bg-destructive/15 border border-destructive/30 text-destructive font-medium">
                   Sold out
                 </span>
               )}
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
-            <Button asChild size="lg" variant="outline" className="border-gold/40">
-              <Link to={`/events/${event.slug}`}>More info</Link>
-            </Button>
-            <Button
-              size="lg"
-              variant="gold"
-              disabled={soldOut}
-              onClick={() => setOpen(true)}
-            >
-              <Ticket className="h-4 w-4 mr-1" />
-              Buy Tickets
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
+          <div className="flex flex-col gap-2 shrink-0 w-full sm:w-auto sm:min-w-[260px]">
+            {membersOnly ? (
+              <>
+                <MemberEventActions
+                  slug={event.slug}
+                  allowGuestRequests={event.allow_guest_requests}
+                />
+                <Button asChild variant="ghost" size="sm" className="w-full">
+                  <Link to={`/events/${event.slug}`}>Read the full invitation</Link>
+                </Button>
+              </>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button asChild size="lg" variant="outline" className="border-gold/40">
+                  <Link to={`/events/${event.slug}`}>More info</Link>
+                </Button>
+                <Button size="lg" variant="gold" disabled={soldOut} onClick={() => setOpen(true)}>
+                  <Ticket className="h-4 w-4 mr-1" />
+                  Reserve tickets
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </Card>
 
-      <BuyTicketsDialog event={event} open={open} onOpenChange={setOpen} />
+      {!membersOnly && <BuyTicketsDialog event={event} open={open} onOpenChange={setOpen} />}
     </>
   );
 }
