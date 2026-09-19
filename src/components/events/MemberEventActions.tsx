@@ -155,6 +155,10 @@ export function MemberEventActions({
         toast.info("The circle just filled. You can join the waitlist.");
       } else if (res?.reason === "not_member") {
         toast.error("This experience is reserved for Storm members.");
+      } else if (res?.reason === "not_eligible") {
+        toast.error("This gathering is held for select memberships.");
+      } else if (res?.reason === "not_yet_open") {
+        toast.info("Reservations for this gathering open shortly.");
       } else {
         toast.error("We could not reserve your seat. Please try again.");
       }
