@@ -18,7 +18,7 @@ export function PortalUpcomingEvents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, slug, title, starts_at, venue, status, member_price_cents, non_member_price_cents, image_url")
+        .select("id, slug, title, subtitle, starts_at, venue, status, member_price_cents, non_member_price_cents, image_url, members_only, allow_guest_requests")
         .eq("status", "on_sale")
         .gt("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true });
