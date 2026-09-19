@@ -225,6 +225,13 @@
       "when": 1789808935417,
       "tag": "0031_member_rituals",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1789810014657,
+      "tag": "0032_event_images_storage_policies",
+      "breakpoints": true
     }
   ]
 }
