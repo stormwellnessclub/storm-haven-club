@@ -167,9 +167,9 @@ export default function Reviews() {
       </section>
 
       {/* Filters */}
-      <section className="py-5 border-b border-border bg-background sticky top-20 z-30">
+      <section className="py-4 md:py-5 border-b border-border bg-background md:sticky md:top-20 z-30">
         <div className="container mx-auto px-6 space-y-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto -mx-6 px-6 pb-1 md:mx-0 md:px-0 md:pb-0 md:flex-wrap md:overflow-visible [&>*]:shrink-0">
             <button
               onClick={() => setParam("class", "all")}
               className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
@@ -197,7 +197,7 @@ export default function Reviews() {
           </div>
 
           {instructors.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto -mx-6 px-6 pb-1 md:mx-0 md:px-0 md:pb-0 md:flex-wrap md:overflow-visible [&>*]:shrink-0">
               <button
                 onClick={() => setParam("instructor", "all")}
                 className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
