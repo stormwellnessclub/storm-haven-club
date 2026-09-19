@@ -24,6 +24,7 @@ import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
 import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { ClassMilestonesCard } from "@/components/ClassMilestonesCard";
 import { EventAnnouncementBanner } from "@/components/events/EventAnnouncementBanner";
+import { UpcomingRitualsSection } from "@/components/events/UpcomingRitualsSection";
 import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 
@@ -151,6 +152,7 @@ export default function PortalDashboard() {
 
         {/* Upcoming Event Announcement */}
         <EventAnnouncementBanner />
+        <UpcomingRitualsSection basePath="/portal" />
 
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />
