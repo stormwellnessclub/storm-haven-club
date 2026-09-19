@@ -17,6 +17,8 @@ interface CollectionPlateProps {
   tagline?: string | null;
   index?: number;
   className?: string;
+  /** Hide the name inside the plate when the section already leads with it. */
+  showName?: boolean;
   /** Real photography, when it exists, always wins. */
   imageUrl?: string | null;
 }
@@ -26,6 +28,7 @@ export function CollectionPlate({
   tagline,
   index = 0,
   className,
+  showName = true,
   imageUrl,
 }: CollectionPlateProps) {
   if (imageUrl) {
@@ -51,8 +54,17 @@ export function CollectionPlate({
       <span className="absolute -right-6 -top-10 font-serif text-[9rem] leading-none opacity-[0.07] select-none">
         {name.replace(/^(The|A)\s+/i, "").charAt(0)}
       </span>
-      <p className="font-serif text-2xl md:text-3xl leading-tight">{name}</p>
-      {tagline && <p className="mt-2 text-sm opacity-70 max-w-sm leading-relaxed">{tagline}</p>}
+      {showName && <p className="font-serif text-2xl md:text-3xl leading-tight">{name}</p>}
+      {tagline && (
+        <p
+          className={cn(
+            "max-w-sm leading-relaxed opacity-70",
+            showName ? "mt-2 text-sm" : "font-serif italic text-lg md:text-xl",
+          )}
+        >
+          {tagline}
+        </p>
+      )}
     </div>
   );
 }

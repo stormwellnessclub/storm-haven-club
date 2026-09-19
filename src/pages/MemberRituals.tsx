@@ -151,7 +151,8 @@ export default function MemberRituals() {
                     tagline={c.tagline}
                     index={i}
                     imageUrl={c.image_url}
-                    className="aspect-[21/9] rounded-2xl"
+                    showName={false}
+                    className="aspect-[3/1] md:aspect-[4/1] rounded-2xl"
                   />
                   <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-start">
                     <div className="space-y-3">
