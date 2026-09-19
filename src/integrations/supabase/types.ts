@@ -2767,14 +2767,24 @@ export type Database = {
       events: {
         Row: {
           allow_guest_requests: boolean
+          cancellation_policy: string | null
           capacity: number
+          collection_id: string | null
           created_at: string
           description: string | null
           details: string | null
+          duration_minutes: number | null
+          early_access_starts_at: string | null
+          eligibility: string
+          eligible_tiers: string[]
           ends_at: string | null
+          facilitator: string | null
+          general_access_starts_at: string | null
           hide_capacity: boolean
           id: string
           image_url: string | null
+          is_included: boolean
+          is_ritual: boolean
           member_price_cents: number
           member_stripe_price_id: string | null
           members_only: boolean
@@ -2787,18 +2797,30 @@ export type Database = {
           title: string
           updated_at: string
           venue: string | null
+          visibility: string
+          waitlist_enabled: boolean
           what_to_bring: string | null
         }
         Insert: {
           allow_guest_requests?: boolean
+          cancellation_policy?: string | null
           capacity?: number
+          collection_id?: string | null
           created_at?: string
           description?: string | null
           details?: string | null
+          duration_minutes?: number | null
+          early_access_starts_at?: string | null
+          eligibility?: string
+          eligible_tiers?: string[]
           ends_at?: string | null
+          facilitator?: string | null
+          general_access_starts_at?: string | null
           hide_capacity?: boolean
           id?: string
           image_url?: string | null
+          is_included?: boolean
+          is_ritual?: boolean
           member_price_cents?: number
           member_stripe_price_id?: string | null
           members_only?: boolean
@@ -2811,18 +2833,30 @@ export type Database = {
           title: string
           updated_at?: string
           venue?: string | null
+          visibility?: string
+          waitlist_enabled?: boolean
           what_to_bring?: string | null
         }
         Update: {
           allow_guest_requests?: boolean
+          cancellation_policy?: string | null
           capacity?: number
+          collection_id?: string | null
           created_at?: string
           description?: string | null
           details?: string | null
+          duration_minutes?: number | null
+          early_access_starts_at?: string | null
+          eligibility?: string
+          eligible_tiers?: string[]
           ends_at?: string | null
+          facilitator?: string | null
+          general_access_starts_at?: string | null
           hide_capacity?: boolean
           id?: string
           image_url?: string | null
+          is_included?: boolean
+          is_ritual?: boolean
           member_price_cents?: number
           member_stripe_price_id?: string | null
           members_only?: boolean
@@ -2835,9 +2869,19 @@ export type Database = {
           title?: string
           updated_at?: string
           venue?: string | null
+          visibility?: string
+          waitlist_enabled?: boolean
           what_to_bring?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "ritual_collections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gift_card_redemptions: {
         Row: {
@@ -10709,6 +10753,54 @@ export type Database = {
           },
         ]
       }
+      ritual_collections: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          description: string | null
+          eligibility_note: string | null
+          expectation: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          tagline: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          eligibility_note?: string | null
+          expectation?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          tagline?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          description?: string | null
+          eligibility_note?: string | null
+          expectation?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          tagline?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       scanner_access_logs: {
         Row: {
           access_denied_reason: string | null
@@ -13831,7 +13923,11 @@ export type Database = {
       get_event_member_state: {
         Args: { _slug: string }
         Returns: {
+          booking_open: boolean
+          early_access_only: boolean
+          has_priority: boolean
           has_reservation: boolean
+          is_eligible: boolean
           is_full: boolean
           is_member: boolean
           is_waitlisted: boolean
@@ -14451,6 +14547,14 @@ export type Database = {
       mark_member_achievement_celebrated: {
         Args: { _achievement_id: string; _achievement_type: string }
         Returns: number
+      }
+      member_meets_event_eligibility: {
+        Args: {
+          _eligibility: string
+          _eligible_tiers: string[]
+          _member: Database["public"]["Tables"]["members"]["Row"]
+        }
+        Returns: boolean
       }
       move_class_booking: {
         Args: { p_booking_id: string; p_target_session_id: string }
