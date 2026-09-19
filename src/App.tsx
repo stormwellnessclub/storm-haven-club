@@ -501,10 +501,19 @@ const App = () => (
               <Route path="/admin/front-desk" element={<ProtectedAdminRoute><FrontDeskPOS /></ProtectedAdminRoute>} />
               <Route path="/admin/class-roster/:sessionId" element={<ProtectedAdminRoute><ClassRoster /></ProtectedAdminRoute>} />
               <Route path="/admin/marketing" element={<ProtectedAdminRoute><Marketing /></ProtectedAdminRoute>} />
-              <Route path="/admin/events" element={<ProtectedAdminRoute><EventsHub /></ProtectedAdminRoute>} />
+              <Route path="/admin/events" element={<Navigate to="/events-portal" replace />} />
               <Route path="/admin/private-events" element={<ProtectedAdminRoute><AdminPrivateEvents /></ProtectedAdminRoute>} />
 
-              <Route path="/admin/events/:slug" element={<ProtectedAdminRoute><EventDetail /></ProtectedAdminRoute>} />
+              <Route path="/admin/events/:slug" element={<AdminEventRedirect />} />
+
+              <Route path="/events-portal" element={<ProtectedEventsPortalRoute><EventsPortalDashboard /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/calendar" element={<ProtectedEventsPortalRoute><EventsPortalCalendar /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/events" element={<ProtectedEventsPortalRoute><EventsPortalList /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/rituals" element={<ProtectedEventsPortalRoute><EventsPortalList ritualsOnly /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/events/:slug" element={<ProtectedEventsPortalRoute><EventsPortalEventDetail /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/collections" element={<ProtectedEventsPortalRoute><EventsPortalCollections /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/requests" element={<ProtectedEventsPortalRoute><EventsPortalRequests /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/attendance" element={<ProtectedEventsPortalRoute><EventsPortalAttendance /></ProtectedEventsPortalRoute>} />
               <Route path="/admin/event-votes" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/events/:slug" element={<EventPage />} />
