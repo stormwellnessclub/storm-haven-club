@@ -301,7 +301,10 @@ export default function EventDetail() {
                 </Table>
               </CardContent>
             </Card>
+
+            <EventRequestsPanel eventId={event.id} />
           </>
+
         )}
       </div>
     </AdminLayout>
