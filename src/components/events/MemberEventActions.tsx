@@ -266,10 +266,18 @@ export function MemberEventActions({
           </p>
         </div>
       ) : state?.is_full ? (
-
-        <Button size="lg" className="w-full" onClick={joinWaitlist} disabled={busy}>
-          {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Join the waitlist
-        </Button>
+        waitlistEnabled === false ? (
+          <div className="rounded-lg border bg-muted/40 p-5 text-center">
+            <p className="font-medium">Fully reserved</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              This gathering is at capacity. Another date will be announced soon.
+            </p>
+          </div>
+        ) : (
+          <Button size="lg" className="w-full" onClick={joinWaitlist} disabled={busy}>
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Join the waitlist
+          </Button>
+        )
       ) : (
         <Button size="lg" className="w-full" onClick={reserve} disabled={busy}>
           {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Reserve my place
