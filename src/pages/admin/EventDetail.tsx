@@ -12,6 +12,8 @@ import { formatInTimeZone } from "date-fns-tz";
 import { ArrowLeft, Ticket, DollarSign, Users, Clock, Download, Ban, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { EventEmailBlastControls } from "@/components/admin/EventEmailBlastControls";
+import { EventRequestsPanel } from "@/components/admin/events/EventRequestsPanel";
+
 import { toast } from "sonner";
 
 const CLUB_TZ = "America/Detroit";
@@ -301,7 +303,10 @@ export default function EventDetail() {
                 </Table>
               </CardContent>
             </Card>
+
+            <EventRequestsPanel eventId={event.id} />
           </>
+
         )}
       </div>
     </AdminLayout>

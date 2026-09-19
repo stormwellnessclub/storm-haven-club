@@ -2524,6 +2524,71 @@ export type Database = {
         }
         Relationships: []
       }
+      event_guest_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          event_id: string
+          guest_email: string | null
+          guest_first_name: string
+          guest_last_name: string
+          guest_phone: string | null
+          id: string
+          note: string | null
+          requested_by_user_id: string | null
+          requester_email: string
+          requester_name: string | null
+          status: string
+          ticket_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          event_id: string
+          guest_email?: string | null
+          guest_first_name: string
+          guest_last_name: string
+          guest_phone?: string | null
+          id?: string
+          note?: string | null
+          requested_by_user_id?: string | null
+          requester_email: string
+          requester_name?: string | null
+          status?: string
+          ticket_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          event_id?: string
+          guest_email?: string | null
+          guest_first_name?: string
+          guest_last_name?: string
+          guest_phone?: string | null
+          id?: string
+          note?: string | null
+          requested_by_user_id?: string | null
+          requester_email?: string
+          requester_name?: string | null
+          status?: string
+          ticket_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_guest_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_tickets: {
         Row: {
           abandon_reason: string | null
@@ -2646,62 +2711,127 @@ export type Database = {
         }
         Relationships: []
       }
+      event_waitlist: {
+        Row: {
+          created_at: string
+          email: string
+          event_id: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          notified_at: string | null
+          phone: string | null
+          position: number
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          event_id: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notified_at?: string | null
+          phone?: string | null
+          position?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          event_id?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          notified_at?: string | null
+          phone?: string | null
+          position?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_waitlist_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
+          allow_guest_requests: boolean
           capacity: number
           created_at: string
           description: string | null
           details: string | null
           ends_at: string | null
+          hide_capacity: boolean
           id: string
           image_url: string | null
           member_price_cents: number
           member_stripe_price_id: string | null
+          members_only: boolean
           non_member_price_cents: number
           non_member_stripe_price_id: string | null
           slug: string
           starts_at: string
           status: string
+          subtitle: string | null
           title: string
           updated_at: string
           venue: string | null
           what_to_bring: string | null
         }
         Insert: {
+          allow_guest_requests?: boolean
           capacity?: number
           created_at?: string
           description?: string | null
           details?: string | null
           ends_at?: string | null
+          hide_capacity?: boolean
           id?: string
           image_url?: string | null
           member_price_cents?: number
           member_stripe_price_id?: string | null
+          members_only?: boolean
           non_member_price_cents?: number
           non_member_stripe_price_id?: string | null
           slug: string
           starts_at: string
           status?: string
+          subtitle?: string | null
           title: string
           updated_at?: string
           venue?: string | null
           what_to_bring?: string | null
         }
         Update: {
+          allow_guest_requests?: boolean
           capacity?: number
           created_at?: string
           description?: string | null
           details?: string | null
           ends_at?: string | null
+          hide_capacity?: boolean
           id?: string
           image_url?: string | null
           member_price_cents?: number
           member_stripe_price_id?: string | null
+          members_only?: boolean
           non_member_price_cents?: number
           non_member_stripe_price_id?: string | null
           slug?: string
           starts_at?: string
           status?: string
+          subtitle?: string | null
           title?: string
           updated_at?: string
           venue?: string | null
@@ -13259,6 +13389,10 @@ export type Database = {
         }
         Returns: Json
       }
+      approve_event_guest_request: {
+        Args: { _amount_cents?: number; _request_id: string }
+        Returns: Json
+      }
       assert_kiosk_staff: { Args: never; Returns: undefined }
       award_class_milestones: {
         Args: { p_booking_id: string }
@@ -13495,6 +13629,10 @@ export type Database = {
       }
       current_user_email: { Args: never; Returns: string }
       current_user_email_lower: { Args: never; Returns: string }
+      decline_event_guest_request: {
+        Args: { _request_id: string }
+        Returns: Json
+      }
       delete_class_type: {
         Args: { _class_type_id: string; _force?: boolean }
         Returns: Json
@@ -13687,6 +13825,15 @@ export type Database = {
           remaining: number
           sold: number
           status: string
+        }[]
+      }
+      get_event_member_state: {
+        Args: { _slug: string }
+        Returns: {
+          has_reservation: boolean
+          is_full: boolean
+          is_member: boolean
+          is_waitlisted: boolean
         }[]
       }
       get_instructor_portal_status: {
@@ -14098,6 +14245,10 @@ export type Database = {
         Args: { p_guest_pass_id: string }
         Returns: string
       }
+      join_event_waitlist: {
+        Args: { _phone?: string; _slug: string }
+        Returns: Json
+      }
       join_waitlist_with_hold: {
         Args: {
           p_credit_id?: string
@@ -14302,6 +14453,10 @@ export type Database = {
       }
       move_class_booking: {
         Args: { p_booking_id: string; p_target_session_id: string }
+        Returns: Json
+      }
+      offer_event_waitlist_seat: {
+        Args: { _waitlist_id: string }
         Returns: Json
       }
       post_concierge_auto_reply: {
@@ -15069,8 +15224,23 @@ export type Database = {
         Args: { p_waitlist_id: string }
         Returns: undefined
       }
+      request_event_guest_seat: {
+        Args: {
+          _guest_email?: string
+          _guest_first_name: string
+          _guest_last_name: string
+          _guest_phone?: string
+          _note?: string
+          _slug: string
+        }
+        Returns: Json
+      }
       reschedule_gift_card: {
         Args: { p_gift_card_id: string; p_new_time: string }
+        Returns: Json
+      }
+      reserve_event_seat: {
+        Args: { _phone?: string; _slug: string }
         Returns: Json
       }
       resolve_class_pass_promotion: {

@@ -204,6 +204,13 @@
       "when": 1789752239700,
       "tag": "0028_grant_spa_therapists_table_access",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1789806706701,
+      "tag": "0029_members_only_events_waitlist_guest_requests",
+      "breakpoints": true
     }
   ]
 }

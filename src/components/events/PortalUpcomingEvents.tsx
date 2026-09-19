@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BuyTicketsDialog, type BuyTicketsDialogEvent } from "@/components/events/BuyTicketsDialog";
+import { MemberEventActions } from "@/components/events/MemberEventActions";
+
 
 const CLUB_TZ = "America/Detroit";
 
@@ -18,7 +20,7 @@ export function PortalUpcomingEvents() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("events")
-        .select("id, slug, title, starts_at, venue, status, member_price_cents, non_member_price_cents, image_url")
+        .select("id, slug, title, subtitle, starts_at, venue, status, member_price_cents, non_member_price_cents, image_url, members_only, allow_guest_requests")
         .eq("status", "on_sale")
         .gt("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true });
@@ -47,6 +49,9 @@ export function PortalUpcomingEvents() {
               <CardContent className="p-5 space-y-3">
                 <div>
                   <h3 className="font-semibold text-lg">{ev.title}</h3>
+                  {ev.subtitle && (
+                    <p className="font-serif italic text-sm text-muted-foreground">{ev.subtitle}</p>
+                  )}
                   <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
                     <CalendarDays className="h-4 w-4" />
                     {formatInTimeZone(new Date(ev.starts_at), CLUB_TZ, "EEE, MMM d · h:mm a 'ET'")}
@@ -57,28 +62,41 @@ export function PortalUpcomingEvents() {
                     </div>
                   )}
                   <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
-                    <Ticket className="h-4 w-4" /> Members ${memberPrice} · Non-Members ${nonMemberPrice}
+                    <Ticket className="h-4 w-4" />
+                    {ev.members_only
+                      ? "Members only · included with your membership"
+                      : `Members $${memberPrice} · Non-Members $${nonMemberPrice}`}
                   </div>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Button asChild variant="outline">
-                    <Link to={`/events/${ev.slug}`}>More info</Link>
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      setBuyEvent({
-                        slug: ev.slug,
-                        title: ev.title,
-                        starts_at: ev.starts_at,
-                        venue: ev.venue,
-                        member_price_cents: ev.member_price_cents,
-                        non_member_price_cents: ev.non_member_price_cents,
-                      })
-                    }
-                  >
-                    Buy Tickets
-                  </Button>
-                </div>
+                {ev.members_only ? (
+                  <div className="space-y-2">
+                    <MemberEventActions slug={ev.slug} allowGuestRequests={ev.allow_guest_requests} />
+                    <Button asChild variant="ghost" className="w-full">
+                      <Link to={`/events/${ev.slug}`}>More info</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button asChild variant="outline">
+                      <Link to={`/events/${ev.slug}`}>More info</Link>
+                    </Button>
+                    <Button
+                      onClick={() =>
+                        setBuyEvent({
+                          slug: ev.slug,
+                          title: ev.title,
+                          starts_at: ev.starts_at,
+                          venue: ev.venue,
+                          member_price_cents: ev.member_price_cents,
+                          non_member_price_cents: ev.non_member_price_cents,
+                        })
+                      }
+                    >
+                      Buy Tickets
+                    </Button>
+                  </div>
+                )}
+
               </CardContent>
             </Card>
           );

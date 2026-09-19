@@ -58,11 +58,15 @@ serve(async (req) => {
     // Fetch event
     const { data: event, error: evErr } = await supabase
       .from("events")
-      .select("id, slug, title, status, capacity, member_price_cents, non_member_price_cents, member_stripe_price_id, non_member_stripe_price_id")
+      .select("id, slug, title, status, capacity, members_only, member_price_cents, non_member_price_cents, member_stripe_price_id, non_member_stripe_price_id")
       .eq("slug", body.slug)
       .maybeSingle();
     if (evErr || !event) throw new Error("Event not found");
     if (event.status !== "on_sale") throw new Error("This event is not currently on sale");
+    if (event.members_only) {
+      throw new Error("This experience is reserved for Storm members and is not sold through checkout");
+    }
+
 
     // Availability
     const { data: avail } = await supabase.rpc("get_event_availability", { _slug: body.slug });
