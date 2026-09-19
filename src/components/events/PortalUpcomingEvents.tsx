@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BuyTicketsDialog, type BuyTicketsDialogEvent } from "@/components/events/BuyTicketsDialog";
+import { MemberEventActions } from "@/components/events/MemberEventActions";
+
 
 const CLUB_TZ = "America/Detroit";
 
