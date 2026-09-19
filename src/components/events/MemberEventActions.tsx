@@ -22,13 +22,22 @@ interface Props {
   slug: string;
   allowGuestRequests?: boolean | null;
   className?: string;
+  /** Member-facing eligibility wording, e.g. "Diamond & Founding Members". */
+  eligibilityLabel?: string;
+  waitlistEnabled?: boolean | null;
 }
 
 /**
  * Reserve / waitlist / guest-request actions for a members-only event.
  * Never renders seat counts — availability is staff-only information.
  */
-export function MemberEventActions({ slug, allowGuestRequests, className }: Props) {
+export function MemberEventActions({
+  slug,
+  allowGuestRequests,
+  className,
+  eligibilityLabel,
+  waitlistEnabled = true,
+}: Props) {
   const { user } = useAuth();
   const { data: state, isLoading } = useEventMemberState(slug);
   const invalidate = useInvalidateEventState();
