@@ -169,20 +169,30 @@ export function MemberEventActions({ slug, allowGuestRequests, className }: Prop
       {state?.has_reservation ? (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-5 text-center">
           <CheckCircle2 className="h-5 w-5 mx-auto text-primary mb-2" />
-          <p className="font-medium">Your seat is reserved</p>
+          <p className="font-medium">Your place in the circle is held</p>
           <p className="text-sm text-muted-foreground mt-1">
-            We'll see you there. Let us know if your plans change.
+            You'll find the details in your portal.
           </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-3 text-muted-foreground"
+            onClick={releaseSeat}
+            disabled={busy}
+          >
+            {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Release my place
+          </Button>
         </div>
       ) : state?.is_waitlisted ? (
         <div className="rounded-lg border bg-muted/40 p-5 text-center">
           <Clock className="h-5 w-5 mx-auto text-primary mb-2" />
           <p className="font-medium">You're on the waitlist</p>
           <p className="text-sm text-muted-foreground mt-1">
-            We'll reach out the moment a seat opens.
+            We'll reach out the moment a place opens.
           </p>
         </div>
       ) : state?.is_full ? (
+
         <Button size="lg" className="w-full" onClick={joinWaitlist} disabled={busy}>
           {busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Join the waitlist
         </Button>
