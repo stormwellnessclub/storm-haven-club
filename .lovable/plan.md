@@ -26,6 +26,15 @@ Closing: *By reservation · Seating intentionally limited* and "With warmth, The
 
 No prices, no seat counts, no ticket language anywhere.
 
+## The links
+
+Only two links appear in the email, and both are checked before sending:
+
+- **Reserve my place** (the gold button) and the small "View the invitation" line both go to `https://stormwellnessclub.com/events/under-the-harvest-moon` — the event's own page, which already exists publicly and opens straight to the full write-up with the reserve button.
+- The footer email address opens a message to admin@stormwellnessclub.com.
+
+Before you send, I'll open the live address in a browser and confirm it loads the event directly, signed in and signed out, on desktop and phone — no redirect to the events list, no sign-in wall, no missing-page state. A signed-out member landing there sees the invitation and is asked to sign in to reserve; she returns to the same event afterwards.
+
 ## Technical notes
 
 - New edge function `send-harvest-moon-blast`, modelled on `send-sound-bath-event-blast`: `requireStaff(['admin','super_admin'])`, modes `preview` (returns HTML), `testEmail` (single send), default blast. Idempotent on `email_type = 'harvest_moon_sep_27_2026'` against the existing sent-email log; recipients are members with `status = 'active'` and an email on file.
