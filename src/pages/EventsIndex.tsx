@@ -93,8 +93,8 @@ export default function EventsIndex() {
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
-        title="Events & Community Calendar in Livonia, MI"
-        description="Sound baths, healing circles, workshops and member celebrations at Storm Wellness Club in Livonia, MI. Browse the community calendar and reserve your seat."
+        title="Events at Storm Wellness Club in Livonia, MI"
+        description="Thoughtfully curated experiences centered on wellness, culture, conversation and connection at Storm Wellness Club in Livonia, MI. Explore public experiences and Member Rituals."
         path="/events"
         image="/og/og-default.jpg"
         imageAlt="Storm Wellness Club in Livonia, Michigan"
@@ -113,30 +113,45 @@ export default function EventsIndex() {
           <Badge variant="outline" className="mb-4 border-primary/40 text-primary">
             Storm Wellness Club
           </Badge>
-          <h1 className="font-serif text-4xl md:text-6xl mb-4 text-primary">
-            Events & Community Calendar
+          <h1 className="font-serif text-4xl md:text-6xl mb-6 text-primary">
+            Events at Storm Wellness Club
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-lg">
-            Curated gatherings, healing circles, sound baths and member celebrations at the club.
+          <p className="text-foreground/85 max-w-2xl mx-auto text-lg leading-relaxed">
+            Storm Wellness Club brings members together through thoughtfully curated experiences
+            centered on wellness, culture, conversation and connection. Explore upcoming public
+            experiences and discover the private rituals created for the membership community.
           </p>
-          <p className="text-muted-foreground max-w-2xl mx-auto mt-4">
-            Members also have{" "}
-            <Link to="/rituals" className="text-primary underline underline-offset-4">
-              Member Rituals
-            </Link>{" "}
-            — recurring gatherings held for the club alone.
-          </p>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-sm mt-4">
-            Looking for something weekly instead?{" "}
-            <Link to="/schedule" className="text-primary underline underline-offset-4">
-              Browse the class schedule
-            </Link>{" "}
-            or unwind at the{" "}
-            <Link to="/spa" className="text-primary underline underline-offset-4">
-              Aella Recovery Spa
-            </Link>
-            .
-          </p>
+        </div>
+      </section>
+
+      {/* Two pathways */}
+      <section className="container mx-auto px-4 pb-12">
+        <div className="grid gap-6 md:grid-cols-2 max-w-5xl mx-auto">
+          <div className="rounded-2xl border border-primary/15 bg-background p-8 flex flex-col">
+            <h2 className="font-serif text-2xl md:text-3xl text-primary">Public Experiences</h2>
+            <p className="mt-3 text-muted-foreground leading-relaxed flex-1">
+              Special classes, workshops, collaborations and wellness experiences available beyond
+              the Storm Wellness Club membership community.
+            </p>
+            <div className="pt-6">
+              <Button onClick={() => setFilter("open")}>Explore Public Experiences</Button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-primary/30 bg-primary/5 p-8 flex flex-col">
+            <p className="text-xs uppercase tracking-[0.3em] text-primary mb-3">
+              For the membership community
+            </p>
+            <h2 className="font-serif text-2xl md:text-3xl text-primary">Member Rituals</h2>
+            <p className="mt-3 text-foreground/80 leading-relaxed flex-1">
+              A private calendar of gatherings designed to deepen connection, encourage discovery
+              and create a more meaningful sense of belonging within the club.
+            </p>
+            <div className="pt-6">
+              <Button asChild>
+                <Link to="/rituals">Discover Member Rituals</Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
 
