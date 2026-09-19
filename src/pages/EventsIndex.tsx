@@ -211,10 +211,25 @@ export default function EventsIndex() {
         ) : filtered.length === 0 ? (
           <div className="max-w-xl mx-auto text-center py-16">
             <CalendarDays className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="font-serif text-2xl mb-2">No upcoming events</h2>
+            <h2 className="font-serif text-2xl mb-2">
+              {filter === "open"
+                ? "No public experiences on the calendar right now"
+                : filter === "rituals"
+                  ? "No Member Rituals on the calendar right now"
+                  : "No upcoming events"}
+            </h2>
             <p className="text-muted-foreground">
-              Check back soon — new experiences are announced each month.
+              {filter === "open"
+                ? "New public experiences are announced through the season."
+                : "Check back soon — new experiences are announced each month."}
             </p>
+            {filter === "open" && (
+              <div className="pt-6">
+                <Button asChild variant="outline">
+                  <Link to="/rituals">Discover Member Rituals</Link>
+                </Button>
+              </div>
+            )}
           </div>
         ) : view === "grid" ? (
           <div className="grid gap-8 md:grid-cols-2 max-w-5xl mx-auto">
