@@ -64,7 +64,7 @@ export function PortalUpcomingEvents() {
                   <div className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
                     <Ticket className="h-4 w-4" />
                     {ev.members_only
-                      ? "Members only · included with your membership"
+                      ? "An exclusive members-only evening"
                       : `Members $${memberPrice} · Non-Members $${nonMemberPrice}`}
                   </div>
                 </div>
