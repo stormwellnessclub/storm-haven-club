@@ -47,6 +47,7 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState("deposit");
   const [dueDate, setDueDate] = useState("");
+  const [sendTo, setSendTo] = useState(event.client_email ?? "");
 
   const suggested = kind === "deposit" ? totals.depositCents : Math.max(0, totals.totalCents - paidCents);
 
