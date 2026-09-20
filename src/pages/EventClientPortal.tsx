@@ -295,6 +295,13 @@ export default function EventClientPortal() {
               {data.event.client_name && (
                 <p className="mt-3 text-sm text-muted-foreground">Prepared for {data.event.client_name}</p>
               )}
+              {data.event.event_date && (
+                <p className="mt-4 text-sm tracking-wide text-foreground/80">
+                  {eventDayLabel(data.event.event_date)}
+                  {data.event.start_time ? ` · ${clockLabel(data.event.start_time)}` : ""}
+                  {data.event.start_time && data.event.end_time ? `–${clockLabel(data.event.end_time)}` : ""}
+                </p>
+              )}
               {data.event.client_intro && (
                 <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-foreground/80">
                   {data.event.client_intro}
