@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,18 @@ import { toast } from "sonner";
 import { computeQuote, formatMoney } from "@/lib/privateEvents";
 import type { PrivateEvent, PrivateEventInvoice, PrivateEventLineItem } from "@/hooks/usePrivateEvents";
 import { usePrivateEventMutations } from "@/hooks/usePrivateEvents";
+
+const confirmationNoteDefault = (eventDate?: string | null) => {
+  const pretty = eventDate
+    ? new Date(`${eventDate}T12:00:00`).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "your date";
+  return `Because the event date has already been changed twice, and planning, staffing and blocking the date requires work on our end, we are not able to block ${pretty} until the deposit is received.`;
+};
+
 
 interface Props {
   event: PrivateEvent;
@@ -48,6 +61,7 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
   const [kind, setKind] = useState("deposit");
   const [dueDate, setDueDate] = useState("");
   const [sendTo, setSendTo] = useState(event.client_email ?? "");
+  const [confirmationNote, setConfirmationNote] = useState(confirmationNoteDefault(event.event_date));
 
   const suggested = kind === "deposit" ? totals.depositCents : Math.max(0, totals.totalCents - paidCents);
 
@@ -135,6 +149,17 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
             <p className="mt-1 text-xs text-muted-foreground">
               Defaults to the client. Put your own address here to send yourself a test copy.
             </p>
+            <div className="mt-3">
+              <Label>Deposit / date-hold note</Label>
+              <Textarea
+                rows={4}
+                value={confirmationNote}
+                onChange={(e) => setConfirmationNote(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Shown under "The event is not confirmed until the deposit is received." Edit or clear it.
+              </p>
+            </div>
           </div>
           {invoices.length === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">No invoices yet.</p>
@@ -161,7 +186,7 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
                       size="sm"
                       variant="outline"
                       disabled={!sendTo.trim() || sendInvoice.isPending}
-                      onClick={() => sendInvoice.mutate({ invoiceId: inv.id, eventId: event.id, email: sendTo.trim() })}
+                      onClick={() => sendInvoice.mutate({ invoiceId: inv.id, eventId: event.id, email: sendTo.trim(), confirmationNote: confirmationNote.trim() })}
                     >
                       <Mail className="mr-1 h-4 w-4" /> Email pay link
                     </Button>

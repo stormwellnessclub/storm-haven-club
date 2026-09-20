@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,18 @@ import { Plus, Send, Trash2, Save } from "lucide-react";
 import { computeQuote, formatMoney, lineTotalCents, type QuoteLineItem } from "@/lib/privateEvents";
 import type { PrivateEvent, PrivateEventLineItem } from "@/hooks/usePrivateEvents";
 import { usePrivateEventMutations } from "@/hooks/usePrivateEvents";
+
+const confirmationNoteDefault = (eventDate?: string | null) => {
+  const pretty = eventDate
+    ? new Date(`${eventDate}T12:00:00`).toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+      })
+    : "your date";
+  return `Because the event date has already been changed twice, and planning, staffing and blocking the date requires work on our end, we are not able to block ${pretty} until the deposit is received.`;
+};
+
 
 interface Props {
   event: PrivateEvent;
@@ -34,6 +47,7 @@ export function PrivateEventQuoteTab({ event, lineItems, paidCents }: Props) {
   const [depositValue, setDepositValue] = useState(String(event.deposit_value ?? 25));
   const [balanceDue, setBalanceDue] = useState(event.balance_due_date ?? "");
   const [sendTo, setSendTo] = useState(event.client_email ?? "");
+  const [confirmationNote, setConfirmationNote] = useState(confirmationNoteDefault(event.event_date));
 
   useEffect(() => {
     setItems(
@@ -232,6 +246,17 @@ export function PrivateEventQuoteTab({ event, lineItems, paidCents }: Props) {
                   Defaults to the client. Put your own address here to send yourself a test copy.
                 </p>
               </div>
+              <div>
+                <Label>Deposit / date-hold note</Label>
+                <Textarea
+                  rows={4}
+                  value={confirmationNote}
+                  onChange={(e) => setConfirmationNote(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Shown under "The event is not confirmed until the deposit is received." Edit or clear it.
+                </p>
+              </div>
               <Button
                 variant="outline"
                 disabled={!sendTo.trim() || sendQuote.isPending}
@@ -241,6 +266,7 @@ export function PrivateEventQuoteTab({ event, lineItems, paidCents }: Props) {
                     email: sendTo.trim(),
                     totalCents: totals.totalCents,
                     depositCents: totals.depositCents,
+                    confirmationNote: confirmationNote.trim(),
                   })
                 }
               >
