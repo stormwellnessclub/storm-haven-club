@@ -259,7 +259,7 @@ export default function EventClientPortal() {
   };
 
   return (
-    <Layout>
+    <div className="min-h-screen bg-background">
       <SEOHead
         title="Your Event Portal"
         description="Review your Storm Wellness Club private event details, proposal, contract, and payments."
