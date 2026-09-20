@@ -47,6 +47,7 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState("deposit");
   const [dueDate, setDueDate] = useState("");
+  const [sendTo, setSendTo] = useState(event.client_email ?? "");
 
   const suggested = kind === "deposit" ? totals.depositCents : Math.max(0, totals.totalCents - paidCents);
 
@@ -123,6 +124,18 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">Invoices</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          <div className="max-w-sm">
+            <Label>Email pay links to</Label>
+            <Input
+              type="email"
+              value={sendTo}
+              placeholder="client@email.com"
+              onChange={(e) => setSendTo(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Defaults to the client. Put your own address here to send yourself a test copy.
+            </p>
+          </div>
           {invoices.length === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">No invoices yet.</p>
           )}
@@ -147,8 +160,8 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={!event.client_email || sendInvoice.isPending}
-                      onClick={() => sendInvoice.mutate({ invoiceId: inv.id, eventId: event.id })}
+                      disabled={!sendTo.trim() || sendInvoice.isPending}
+                      onClick={() => sendInvoice.mutate({ invoiceId: inv.id, eventId: event.id, email: sendTo.trim() })}
                     >
                       <Mail className="mr-1 h-4 w-4" /> Email pay link
                     </Button>

@@ -33,6 +33,7 @@ export function PrivateEventQuoteTab({ event, lineItems, paidCents }: Props) {
   const [depositType, setDepositType] = useState(event.deposit_type);
   const [depositValue, setDepositValue] = useState(String(event.deposit_value ?? 25));
   const [balanceDue, setBalanceDue] = useState(event.balance_due_date ?? "");
+  const [sendTo, setSendTo] = useState(event.client_email ?? "");
 
   useEffect(() => {
     setItems(
@@ -219,18 +220,34 @@ export function PrivateEventQuoteTab({ event, lineItems, paidCents }: Props) {
               <Button onClick={save} disabled={saveLineItems.isPending}>
                 <Save className="mr-2 h-4 w-4" /> Save quote
               </Button>
+              <div>
+                <Label>Send proposal to</Label>
+                <Input
+                  type="email"
+                  value={sendTo}
+                  placeholder="client@email.com"
+                  onChange={(e) => setSendTo(e.target.value)}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Defaults to the client. Put your own address here to send yourself a test copy.
+                </p>
+              </div>
               <Button
                 variant="outline"
-                disabled={!event.client_email || sendQuote.isPending}
+                disabled={!sendTo.trim() || sendQuote.isPending}
                 onClick={() =>
                   sendQuote.mutate({
                     eventId: event.id,
+                    email: sendTo.trim(),
                     totalCents: totals.totalCents,
                     depositCents: totals.depositCents,
                   })
                 }
               >
-                <Send className="mr-2 h-4 w-4" /> Email proposal to client
+                <Send className="mr-2 h-4 w-4" />
+                {sendTo.trim().toLowerCase() === (event.client_email ?? "").toLowerCase()
+                  ? "Email proposal to client"
+                  : `Email proposal to ${sendTo.trim()}`}
               </Button>
             </div>
           </CardContent>
