@@ -58,7 +58,8 @@ function computeFinancials(settings: FinancialSettings, items: FinancialItem[]) 
   let baseCents = 0;
   switch (settings.pricing_mode) {
     case "flat":
-      baseCents = settings.package_price_cents;
+      // the package price, plus anything priced separately alongside it
+      baseCents = settings.package_price_cents + pricedSum;
       break;
     case "hourly":
       baseCents = Math.round(settings.hourly_rate_cents * (Number(settings.hours) || 0)) + pricedSum;
