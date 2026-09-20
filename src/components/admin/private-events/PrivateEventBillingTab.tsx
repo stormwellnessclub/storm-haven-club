@@ -124,6 +124,18 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">Invoices</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          <div className="max-w-sm">
+            <Label>Email pay links to</Label>
+            <Input
+              type="email"
+              value={sendTo}
+              placeholder="client@email.com"
+              onChange={(e) => setSendTo(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Defaults to the client. Put your own address here to send yourself a test copy.
+            </p>
+          </div>
           {invoices.length === 0 && (
             <p className="py-4 text-center text-sm text-muted-foreground">No invoices yet.</p>
           )}
