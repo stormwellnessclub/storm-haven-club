@@ -355,8 +355,7 @@ export default function EventClientPortal() {
                         </p>
                       )}
                     </div>
-                  ))
-                )}
+                ))}
               </div>
             </section>
 
