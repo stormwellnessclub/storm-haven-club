@@ -73,7 +73,13 @@ export function SendFinancialDialog({
     });
   };
 
+  const blockedContract = !!document && document.kind === "contract" && !document.terms_approved;
+
   const send = async () => {
+    if (blockedContract) {
+      toast.error("This agreement still uses placeholder terms and cannot be sent to a client.");
+      return;
+    }
     setBusy(true);
     const { data, error } = await supabase.functions.invoke("send-event-financial-email", {
       body: {
@@ -107,6 +113,12 @@ export function SendFinancialDialog({
         </DialogHeader>
 
         <Tabs defaultValue="compose">
+          {blockedContract && (
+            <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Attorney-approved template required. This agreement still contains placeholder terms, so it cannot be
+              sent to a client and the event cannot be treated as legally contracted.
+            </div>
+          )}
           <TabsList>
             <TabsTrigger value="compose">Compose</TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -209,7 +221,7 @@ export function SendFinancialDialog({
           >
             <CalendarClock className="mr-2 h-4 w-4" /> Schedule
           </Button>
-          <Button onClick={send} disabled={busy || !to}>
+          <Button onClick={send} disabled={busy || !to || blockedContract}>
             {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />} Send now
           </Button>
         </DialogFooter>

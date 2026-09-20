@@ -2597,6 +2597,9 @@ export type Database = {
           signer_name: string | null
           status: string
           template_slug: string | null
+          terms_approved: boolean
+          terms_approved_at: string | null
+          terms_approved_by: string | null
           terms_body: string | null
           title: string
           updated_at: string
@@ -2620,6 +2623,9 @@ export type Database = {
           signer_name?: string | null
           status?: string
           template_slug?: string | null
+          terms_approved?: boolean
+          terms_approved_at?: string | null
+          terms_approved_by?: string | null
           terms_body?: string | null
           title?: string
           updated_at?: string
@@ -2643,6 +2649,9 @@ export type Database = {
           signer_name?: string | null
           status?: string
           template_slug?: string | null
+          terms_approved?: boolean
+          terms_approved_at?: string | null
+          terms_approved_by?: string | null
           terms_body?: string | null
           title?: string
           updated_at?: string
@@ -2953,6 +2962,7 @@ export type Database = {
           hours: number
           id: string
           internal_notes: string | null
+          is_test: boolean
           legacy_source: string | null
           minimum_spend_cents: number
           needs_review: boolean
@@ -2965,6 +2975,7 @@ export type Database = {
           pricing_mode: string
           private_event_id: string | null
           reminder_offsets: number[]
+          reminders_paused: boolean
           requires_contract: boolean
           requires_deposit: boolean
           requires_proposal: boolean
@@ -2999,6 +3010,7 @@ export type Database = {
           hours?: number
           id?: string
           internal_notes?: string | null
+          is_test?: boolean
           legacy_source?: string | null
           minimum_spend_cents?: number
           needs_review?: boolean
@@ -3011,6 +3023,7 @@ export type Database = {
           pricing_mode?: string
           private_event_id?: string | null
           reminder_offsets?: number[]
+          reminders_paused?: boolean
           requires_contract?: boolean
           requires_deposit?: boolean
           requires_proposal?: boolean
@@ -3045,6 +3058,7 @@ export type Database = {
           hours?: number
           id?: string
           internal_notes?: string | null
+          is_test?: boolean
           legacy_source?: string | null
           minimum_spend_cents?: number
           needs_review?: boolean
@@ -3057,6 +3071,7 @@ export type Database = {
           pricing_mode?: string
           private_event_id?: string | null
           reminder_offsets?: number[]
+          reminders_paused?: boolean
           requires_contract?: boolean
           requires_deposit?: boolean
           requires_proposal?: boolean
@@ -15351,6 +15366,7 @@ export type Database = {
         Returns: string
       }
       preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
+      preview_private_event_financial_import: { Args: never; Returns: Json }
       private_event_conflicts: {
         Args: {
           p_date: string
@@ -16146,6 +16162,10 @@ export type Database = {
         }[]
       }
       roll_instructor_pay_periods: { Args: never; Returns: number }
+      rollback_private_event_financial_import: {
+        Args: { p_financial_id: string }
+        Returns: undefined
+      }
       schedule_labor_cost: {
         Args: { p_end: string; p_start: string }
         Returns: {

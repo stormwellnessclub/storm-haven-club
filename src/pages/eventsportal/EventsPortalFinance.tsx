@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
-import { useAllEventInvoices, useEnsurePrivateEventFinancials } from "@/hooks/useEventFinancials";
+import { useAllEventInvoices } from "@/hooks/useEventFinancials";
+import { LegacyImportDialog } from "@/components/eventsportal/finance/LegacyImportDialog";
 import {
   INVOICE_STATUS_LABEL,
   INVOICE_STATUS_TONE,
@@ -19,7 +20,6 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Search, Download } from "lucide-react";
-import { toast } from "sonner";
 
 const SUMMARY_CARDS = [
   { key: "outstanding", label: "Total outstanding" },
@@ -34,7 +34,7 @@ const SUMMARY_CARDS = [
 export default function EventsPortalFinance() {
   const navigate = useNavigate();
   const { data: invoices = [], isLoading } = useAllEventInvoices();
-  const ensure = useEnsurePrivateEventFinancials();
+  const [importOpen, setImportOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [kind, setKind] = useState<string>("all");
@@ -127,19 +127,6 @@ export default function EventsPortalFinance() {
     URL.revokeObjectURL(url);
   };
 
-  const importLegacy = async () => {
-    let ok = 0;
-    for (const e of unmapped as any[]) {
-      try {
-        await ensure.mutateAsync(e.id);
-        ok += 1;
-      } catch {
-        /* reported by the mutation */
-      }
-    }
-    toast.success(`${ok} event${ok === 1 ? "" : "s"} brought into the financial portal`);
-    refetchUnmapped();
-  };
 
   return (
     <EventsPortalShell
@@ -148,9 +135,8 @@ export default function EventsPortalFinance() {
       actions={
         <div className="flex flex-wrap gap-2">
           {unmapped.length > 0 && (
-            <Button variant="outline" onClick={importLegacy} disabled={ensure.isPending}>
-              {ensure.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Bring in {unmapped.length} existing event{unmapped.length === 1 ? "" : "s"}
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              Review {unmapped.length} existing event{unmapped.length === 1 ? "" : "s"}
             </Button>
           )}
           <Button variant="outline" onClick={exportCsv}>
@@ -274,6 +260,7 @@ export default function EventsPortalFinance() {
           )}
         </CardContent>
       </Card>
+      <LegacyImportDialog open={importOpen} onOpenChange={setImportOpen} onImported={() => refetchUnmapped()} />
     </EventsPortalShell>
   );
 }

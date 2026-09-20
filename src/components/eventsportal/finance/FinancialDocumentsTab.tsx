@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Send, Plus, Link2 } from "lucide-react";
+import { FileText, Send, Plus, Link2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useFinancialMutations } from "@/hooks/useEventFinancials";
 import { SendFinancialDialog } from "./SendFinancialDialog";
@@ -66,8 +66,35 @@ export function FinancialDocumentsTab({ financial, documents }: { financial: any
             {group.docs.length === 0 && (
               <p className="py-3 text-center text-sm text-muted-foreground">Nothing prepared yet.</p>
             )}
-            {group.docs.map((doc: any) => (
+            {group.docs.map((doc: any) => {
+              const placeholder =
+                doc.kind === "contract" && String(doc.terms_body ?? "").includes("[PLACEHOLDER");
+              const blocked = doc.kind === "contract" && !doc.terms_approved;
+              return (
               <div key={doc.id} className="space-y-2 rounded-md border p-3">
+                {blocked && (
+                  <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      <p className="font-medium">Attorney-approved template required</p>
+                      <p className="mt-1">
+                        {placeholder
+                          ? "This agreement still contains placeholder wording. It cannot be sent, signed or treated as a legal contract until your attorney's terms replace it."
+                          : "Mark these terms as attorney-approved before this agreement can be sent or signed."}
+                      </p>
+                      {!placeholder && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2"
+                          onClick={() => saveDocument.mutate({ id: doc.id, terms_approved: true })}
+                        >
+                          These terms are attorney-approved
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4 text-muted-foreground" />
@@ -79,6 +106,7 @@ export function FinancialDocumentsTab({ financial, documents }: { financial: any
                     <Badge variant="secondary" className="capitalize">
                       {doc.status}
                     </Badge>
+                    {blocked && <Badge variant="destructive">Attorney-approved template required</Badge>}
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -91,7 +119,7 @@ export function FinancialDocumentsTab({ financial, documents }: { financial: any
                     >
                       <Link2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setSendFor(doc)}>
+                    <Button variant="outline" size="sm" disabled={blocked} onClick={() => setSendFor(doc)}>
                       <Send className="mr-1 h-4 w-4" /> Send
                     </Button>
                   </div>
@@ -121,7 +149,8 @@ export function FinancialDocumentsTab({ financial, documents }: { financial: any
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       ))}

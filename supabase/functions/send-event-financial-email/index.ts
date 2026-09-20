@@ -50,6 +50,17 @@ serve(async (req) => {
       document = data;
     }
 
+    if (document?.kind === "contract" && !document.terms_approved) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Attorney-approved template required. This agreement still uses placeholder terms and cannot be sent to a client.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+
     const portalUrl = `https://stormwellnessclub.com/event-portal/${financial.portal_token}`;
     const rows: { label: string; value: string }[] = [];
     if (invoice) {
