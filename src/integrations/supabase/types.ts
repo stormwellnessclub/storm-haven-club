@@ -14037,6 +14037,22 @@ export type Database = {
         Args: { _amount_cents: number; _member_id: string; _reason: string }
         Returns: string
       }
+      admin_add_event_attendee: {
+        Args: {
+          _amount_cents?: number
+          _email?: string
+          _event_id: string
+          _first_name: string
+          _last_name: string
+          _override?: boolean
+          _override_reason?: string
+          _payment_note?: string
+          _phone?: string
+          _ticket_type?: string
+          _user_id?: string
+        }
+        Returns: Json
+      }
       admin_cancel_class_session: {
         Args: {
           _cancellation_reason?: string
@@ -14168,6 +14184,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_remove_event_attendee: {
+        Args: { _reason?: string; _ticket_id: string }
+        Returns: Json
       }
       admin_set_pt_session_payment: {
         Args: {

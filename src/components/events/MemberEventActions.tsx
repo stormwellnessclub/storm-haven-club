@@ -175,8 +175,12 @@ export function MemberEventActions({
     try {
       const { data, error } = await supabase.rpc("cancel_event_reservation", { _slug: slug });
       if (error) throw error;
-      const res = data as { ok?: boolean } | null;
+      const res = data as { ok?: boolean; reason?: string } | null;
       if (res?.ok) toast.success("Your place has been released.");
+      else if (res?.reason === "paid_ticket")
+        toast.error("This place was purchased. Please contact the club so we can arrange a refund.");
+      else if (res?.reason === "no_reservation")
+        toast.info("We don't see a place held for you on this gathering.");
       else toast.error("We could not release your place. Please call the club.");
       invalidate(slug);
     } catch (e) {

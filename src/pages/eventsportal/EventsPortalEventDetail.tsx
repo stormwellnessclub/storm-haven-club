@@ -3,10 +3,11 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
 import { toast } from "sonner";
-import { Check, Copy, Download, ExternalLink, Pencil } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Pencil, UserPlus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
 import { EventEditorDialog } from "@/components/eventsportal/EventEditorDialog";
+import { AddEventAttendeeDialog } from "@/components/eventsportal/AddEventAttendeeDialog";
 import { useEventsPortalManager } from "@/components/eventsportal/ProtectedEventsPortalRoute";
 import { EventRequestsPanel } from "@/components/admin/events/EventRequestsPanel";
 import { HarvestMoonEmailControls } from "@/components/eventsportal/HarvestMoonEmailControls";
@@ -32,6 +33,7 @@ export default function EventsPortalEventDetail() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [duplicate, setDuplicate] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["events-portal-tickets", event?.id],
@@ -66,6 +68,29 @@ export default function EventsPortalEventDetail() {
     });
     setBusy(null);
     if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["events-portal-tickets", event?.id] });
+  };
+
+  const removeAttendee = async (t: any) => {
+    const who = name(t);
+    const reason = window.prompt(`Remove ${who} from this event?\n\nShort reason:`, "");
+    if (reason === null) return;
+    setBusy(t.id);
+    const { data, error } = await supabase.rpc("admin_remove_event_attendee" as any, {
+      _ticket_id: t.id,
+      _reason: reason.trim() || null,
+    });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    const res = data as { ok?: boolean; reason?: string } | null;
+    if (!res?.ok) {
+      return toast.error(
+        res?.reason === "not_authorized"
+          ? "You don't have permission to remove people."
+          : "We could not remove them.",
+      );
+    }
+    toast.success(`${who} removed.`);
     qc.invalidateQueries({ queryKey: ["events-portal-tickets", event?.id] });
   };
 
@@ -178,8 +203,12 @@ export default function EventsPortalEventDetail() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="font-serif">Reservations</CardTitle>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add someone
+          </Button>
         </CardHeader>
         <CardContent>
           {held.length === 0 ? (
@@ -209,15 +238,27 @@ export default function EventsPortalEventDetail() {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant={t.checked_in_at ? "ghost" : "outline"}
-                        disabled={busy === t.id}
-                        onClick={() => toggleCheckIn(t)}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        {t.checked_in_at ? "Undo" : "Check in"}
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant={t.checked_in_at ? "ghost" : "outline"}
+                          disabled={busy === t.id}
+                          onClick={() => toggleCheckIn(t)}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          {t.checked_in_at ? "Undo" : "Check in"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground"
+                          disabled={busy === t.id}
+                          onClick={() => removeAttendee(t)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -230,6 +271,15 @@ export default function EventsPortalEventDetail() {
       {isManager && event.slug === "under-the-harvest-moon" && <HarvestMoonEmailControls />}
 
       <EventRequestsPanel eventId={event.id} />
+
+      <AddEventAttendeeDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        eventId={event.id}
+        eventTitle={event.title}
+        canOverride={isManager}
+        onAdded={() => qc.invalidateQueries({ queryKey: ["events-portal-tickets", event.id] })}
+      />
 
       <EventEditorDialog
         open={editorOpen}

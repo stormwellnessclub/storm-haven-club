@@ -302,6 +302,20 @@
       "when": 1789941249214,
       "tag": "0042_event_comms_sending_state",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1789948215221,
+      "tag": "0043_event_attendee_admin_and_release_fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1789948254742,
+      "tag": "0044_event_attendee_rpc_fixups",
+      "breakpoints": true
     }
   ]
 }
