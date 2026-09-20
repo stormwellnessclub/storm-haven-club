@@ -33,6 +33,7 @@ export default function EventsPortalEventDetail() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [duplicate, setDuplicate] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["events-portal-tickets", event?.id],
@@ -67,6 +68,29 @@ export default function EventsPortalEventDetail() {
     });
     setBusy(null);
     if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["events-portal-tickets", event?.id] });
+  };
+
+  const removeAttendee = async (t: any) => {
+    const who = name(t);
+    const reason = window.prompt(`Remove ${who} from this event?\n\nShort reason:`, "");
+    if (reason === null) return;
+    setBusy(t.id);
+    const { data, error } = await supabase.rpc("admin_remove_event_attendee" as any, {
+      _ticket_id: t.id,
+      _reason: reason.trim() || null,
+    });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    const res = data as { ok?: boolean; reason?: string } | null;
+    if (!res?.ok) {
+      return toast.error(
+        res?.reason === "not_authorized"
+          ? "You don't have permission to remove people."
+          : "We could not remove them.",
+      );
+    }
+    toast.success(`${who} removed.`);
     qc.invalidateQueries({ queryKey: ["events-portal-tickets", event?.id] });
   };
 
