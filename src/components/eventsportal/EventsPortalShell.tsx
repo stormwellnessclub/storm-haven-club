@@ -8,6 +8,7 @@ import {
   Layers,
   Inbox,
   ClipboardCheck,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const NAV = [
   { to: "/events-portal", label: "Dashboard", icon: LayoutGrid, end: true },
   { to: "/events-portal/calendar", label: "Calendar", icon: CalendarDays, end: false },
   { to: "/events-portal/events", label: "All events", icon: Sparkles, end: false },
+  { to: "/events-portal/finance", label: "Finance", icon: Receipt, end: false },
   { to: "/events-portal/collections", label: "Collections", icon: Layers, end: false },
   { to: "/events-portal/requests", label: "Requests & waitlists", icon: Inbox, end: false },
   { to: "/events-portal/attendance", label: "Attendance", icon: ClipboardCheck, end: false },
