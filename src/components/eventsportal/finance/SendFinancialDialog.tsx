@@ -171,10 +171,14 @@ export function SendFinancialDialog({
                 <div className="mt-4 rounded-md border p-4 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{invoice.label ?? "Amount due"}</span>
-                    <span className="font-medium">{money(invoice.amount_cents - invoice.amount_paid_cents)}</span>
+                    <span className="font-medium">
+                      {invoice.amount_cents - invoice.amount_paid_cents > 0
+                        ? money(invoice.amount_cents - invoice.amount_paid_cents)
+                        : "Paid in full"}
+                    </span>
                   </div>
                   {invoice.due_date && (
-                    <div className="mt-1 text-xs text-muted-foreground">Due {invoice.due_date}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">Due {formatDay(invoice.due_date)}</div>
                   )}
                 </div>
               )}
