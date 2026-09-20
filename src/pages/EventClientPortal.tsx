@@ -91,6 +91,9 @@ type PortalData = {
     requires_proposal: boolean;
     requires_contract: boolean;
     confirmed_at: string | null;
+    event_date: string | null;
+    start_time: string | null;
+    end_time: string | null;
   };
   items: Item[];
   totals: Totals;
