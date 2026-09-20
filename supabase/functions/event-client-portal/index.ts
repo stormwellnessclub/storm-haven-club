@@ -536,7 +536,7 @@ serve(async (req) => {
         if (financial.client_email) {
           await sendBrandedEmail({
             to: financial.client_email,
-            replyTo: "events@stormwellnessclub.com",
+            replyTo: "admin@stormwellnessclub.com",
             subject: `Receipt — ${financial.title}`,
             html: eventEmailShell({
               heading: "Payment received",

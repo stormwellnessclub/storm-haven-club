@@ -92,6 +92,7 @@ serve(async (req) => {
       ctaLabel,
       ctaUrl: portalUrl,
       outro: "Everything for your event lives in this private portal — documents, payments and receipts.",
+      terms: purpose !== "receipt",
     });
 
     const sent = await sendBrandedEmail({ to, subject, html, replyTo: reply_to });

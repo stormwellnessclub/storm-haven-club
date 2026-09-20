@@ -27,7 +27,7 @@ export function SendFinancialDialog({
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [replyTo, setReplyTo] = useState("events@stormwellnessclub.com");
+  const [replyTo, setReplyTo] = useState("admin@stormwellnessclub.com");
   const [scheduleFor, setScheduleFor] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -187,6 +187,32 @@ export function SendFinancialDialog({
                   {document ? (document.kind === "contract" ? "Review and sign" : "Review your proposal") : "View and pay"}
                 </span>
               </div>
+              {purpose !== "receipt" && (
+                <div className="mt-6 border-t pt-5 text-left">
+                  <h4 className="font-serif text-lg">Reservation Terms</h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Clear terms allow Storm to reserve the date, schedule the team and prepare the guest experience
+                    with intention.
+                  </p>
+                  <p className="mt-3 text-[10px] uppercase tracking-[0.14em] text-muted-foreground">To reserve the date</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+                    <li>50% nonrefundable deposit required to secure the event date and time</li>
+                    <li>Remaining balance due 72 hours before the event</li>
+                    <li>Final guest count due 7 days before the event</li>
+                    <li>Final dietary restrictions due 7 days before the event</li>
+                    <li>Date is not held until the proposal is accepted and the deposit is received</li>
+                    <li>Outside vendors, sponsors and branded materials require prior approval</li>
+                  </ul>
+                  <div className="mt-3 rounded-md border-l-4 border-primary bg-primary/10 p-3 text-sm font-semibold">
+                    All participants must complete Storm waivers before use of the wet spa.
+                  </div>
+                  <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+                    This proposal includes designated use of the agreed event areas for the contracted event. It does
+                    not include full-facility closure or exclusive use of the entire club. If the event is scheduled
+                    within regular business hours, use will be coordinated alongside normal member areas.
+                  </p>
+                </div>
+              )}
               <p className="mt-5 text-center text-xs text-muted-foreground">
                 Storm Wellness Club · Livonia, Michigan · (248) 232-8487
               </p>

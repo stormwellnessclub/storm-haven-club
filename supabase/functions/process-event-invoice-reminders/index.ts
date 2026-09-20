@@ -123,7 +123,7 @@ serve(async (req) => {
         outro,
       });
 
-      const result = await sendBrandedEmail({ to: financial.client_email, subject, html, replyTo: "events@stormwellnessclub.com" });
+      const result = await sendBrandedEmail({ to: financial.client_email, subject, html, replyTo: "admin@stormwellnessclub.com" });
       const nowIso = new Date().toISOString();
 
       await supabase.from("event_financial_communications").insert({

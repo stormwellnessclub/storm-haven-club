@@ -13,7 +13,22 @@ import { formatDay } from "@/lib/eventFinancials";
 
 const PROPOSAL_STARTER = `Thank you for considering Storm Wellness Club.
 
-This proposal outlines the experience we have designed for you, the spaces reserved, and the investment. Once accepted, we will prepare your agreement and payment schedule.`;
+This proposal outlines the experience we have designed for you, the spaces reserved, and the investment. Once accepted, we will prepare your agreement and payment schedule.
+
+RESERVATION TERMS
+
+Clear terms allow Storm to reserve the date, schedule the team and prepare the guest experience with intention.
+
+To reserve the date:
+• 50% nonrefundable deposit required to secure the event date and time
+• Remaining balance due 72 hours before the event
+• Final guest count due 7 days before the event
+• Final dietary restrictions due 7 days before the event
+• Date is not held until the proposal is accepted and the deposit is received
+• Outside vendors, sponsors and branded materials require prior approval
+• ALL PARTICIPANTS MUST COMPLETE STORM WAIVERS BEFORE USE OF THE WET SPA
+
+This proposal includes designated use of the agreed event areas for the contracted event. It does not include full-facility closure or exclusive use of the entire club. If the event is scheduled within regular business hours, use will be coordinated alongside normal member areas.`;
 
 // Placeholder only — to be replaced with attorney-approved Storm Wellness Club terms.
 const CONTRACT_PLACEHOLDER = `[PLACEHOLDER — PENDING ATTORNEY-APPROVED LANGUAGE]
