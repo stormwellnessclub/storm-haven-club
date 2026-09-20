@@ -73,6 +73,7 @@ serve(async (req) => {
           intro: `Hello${ev.client_first_name ? ` ${ev.client_first_name}` : ""}, thank you for considering Storm Wellness Club. Here is the proposal for your event${ev.event_date ? ` on ${ev.event_date}` : ""}${ev.guest_count ? ` for ${ev.guest_count} guests` : ""}.`,
           rows,
           outro: "Reply to this email to confirm and we'll send your deposit invoice to hold the date.",
+          terms: true,
         }),
       });
       if (!sentQuote.ok) return fail(sentQuote.error || "Email could not be sent.");
@@ -127,6 +128,7 @@ serve(async (req) => {
           ctaLabel: "Pay securely",
           ctaUrl: payUrl,
           outro: "Your date is held once the deposit is received. Reply to this email with any questions.",
+          terms: true,
         }),
       });
       if (!sent.ok) return fail(sent.error || "Email could not be sent.");
