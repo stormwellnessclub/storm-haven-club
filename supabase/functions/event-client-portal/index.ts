@@ -514,6 +514,7 @@ serve(async (req) => {
         if (financial.client_email) {
           await sendBrandedEmail({
             to: financial.client_email,
+            replyTo: "events@stormwellnessclub.com",
             subject: `Receipt — ${financial.title}`,
             html: eventEmailShell({
               heading: "Payment received",
@@ -522,6 +523,8 @@ serve(async (req) => {
                 { label: "Invoice", value: invoice.label || "Payment" },
                 { label: "Amount", value: money(amountPaid) },
               ],
+              ctaLabel: "View your event",
+              ctaUrl: `https://stormwellnessclub.com/event-portal/${financial.portal_token}`,
               outro: "We look forward to hosting you. Reach out any time with questions.",
             }),
           });
