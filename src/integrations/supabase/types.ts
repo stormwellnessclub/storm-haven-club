@@ -2960,8 +2960,11 @@ export type Database = {
           package_price_cents: number
           pass_processing_fee: boolean
           per_person_cents: number
+          portal_token: string
+          portal_viewed_at: string | null
           pricing_mode: string
           private_event_id: string | null
+          reminder_offsets: number[]
           requires_contract: boolean
           requires_deposit: boolean
           requires_proposal: boolean
@@ -3003,8 +3006,11 @@ export type Database = {
           package_price_cents?: number
           pass_processing_fee?: boolean
           per_person_cents?: number
+          portal_token?: string
+          portal_viewed_at?: string | null
           pricing_mode?: string
           private_event_id?: string | null
+          reminder_offsets?: number[]
           requires_contract?: boolean
           requires_deposit?: boolean
           requires_proposal?: boolean
@@ -3046,8 +3052,11 @@ export type Database = {
           package_price_cents?: number
           pass_processing_fee?: boolean
           per_person_cents?: number
+          portal_token?: string
+          portal_viewed_at?: string | null
           pricing_mode?: string
           private_event_id?: string | null
+          reminder_offsets?: number[]
           requires_contract?: boolean
           requires_deposit?: boolean
           requires_proposal?: boolean

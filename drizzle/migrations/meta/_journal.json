@@ -260,6 +260,13 @@
       "when": 1789896976129,
       "tag": "0036_event_financials_logic_and_legacy",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1789897116006,
+      "tag": "0037_event_financials_portal_token",
+      "breakpoints": true
     }
   ]
 }
