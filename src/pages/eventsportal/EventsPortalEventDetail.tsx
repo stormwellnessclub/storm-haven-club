@@ -238,15 +238,27 @@ export default function EventsPortalEventDetail() {
                         : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant={t.checked_in_at ? "ghost" : "outline"}
-                        disabled={busy === t.id}
-                        onClick={() => toggleCheckIn(t)}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        {t.checked_in_at ? "Undo" : "Check in"}
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant={t.checked_in_at ? "ghost" : "outline"}
+                          disabled={busy === t.id}
+                          onClick={() => toggleCheckIn(t)}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          {t.checked_in_at ? "Undo" : "Check in"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-muted-foreground"
+                          disabled={busy === t.id}
+                          onClick={() => removeAttendee(t)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
