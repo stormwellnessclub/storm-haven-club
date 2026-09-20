@@ -36,24 +36,24 @@ export function reservationTermsHtml(confirmationNote?: string): string {
   ]
     .map(
       (t) =>
-        `<li style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.6;">${t}</li>`,
+        `<li style="margin:0 0 8px;color:#4A3D2C;font-size:14px;line-height:1.6;">${t}</li>`,
     )
     .join("");
 
   return `
-  <div style="margin:28px 0 0;border-top:1px solid #e5e7eb;padding-top:22px;">
-    <h2 style="margin:0 0 8px;font-size:17px;color:#111827;">Reservation Terms</h2>
-    <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#6b7280;">Clear terms allow Storm to reserve the date, schedule the team and prepare the guest experience with intention.</p>
-    <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.14em;color:#9ca3af;">TO RESERVE THE DATE</p>
+  <div style="margin:28px 0 0;border-top:1px solid #DDD6C7;padding-top:22px;">
+    <h2 style="margin:0 0 8px;font-size:17px;color:#1A1610;">Reservation Terms</h2>
+    <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#6B5A3D;">Clear terms allow Storm to reserve the date, schedule the team and prepare the guest experience with intention.</p>
+    <p style="margin:0 0 8px;font-size:12px;letter-spacing:0.14em;color:#8A7B63;">TO RESERVE THE DATE</p>
     <ul style="margin:0 0 16px;padding-left:20px;">${items}</ul>
-    <div style="background:#fdf6e3;border:1px solid #c9a86a;border-left:4px solid #c9a86a;border-radius:6px;padding:14px 16px;margin:0 0 18px;">
-      <p style="margin:0;font-size:14px;line-height:1.6;color:#3a2e1a;font-weight:700;">All participants must complete Storm waivers before use of the wet spa.</p>
+    <div style="background:#F3EADA;border:1px solid #9B7D4A;border-left:4px solid #9B7D4A;border-radius:6px;padding:14px 16px;margin:0 0 18px;">
+      <p style="margin:0;font-size:14px;line-height:1.6;color:#3A2E1A;font-weight:700;">All participants must complete Storm waivers before use of the wet spa.</p>
     </div>
-    <div style="background:#111827;border-radius:6px;padding:16px 18px;margin:0 0 18px;">
+    <div style="background:#1A1610;border-radius:6px;padding:16px 18px;margin:0 0 18px;">
       <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#ffffff;font-weight:700;">The event is not confirmed until the deposit is received.</p>
-      <p style="margin:0;font-size:14px;line-height:1.6;color:#d1d5db;">${confirmationNote?.trim() || DEFAULT_CONFIRMATION_NOTE}</p>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:#DDDAD0;">${confirmationNote?.trim() || DEFAULT_CONFIRMATION_NOTE}</p>
     </div>
-    <p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">This proposal includes designated use of the agreed event areas for the contracted event. It does not include full-facility closure or exclusive use of the entire club. If the event is scheduled within regular business hours, use will be coordinated alongside normal member areas.</p>
+    <p style="margin:0;font-size:12px;line-height:1.6;color:#8A7B63;">This proposal includes designated use of the agreed event areas for the contracted event. It does not include full-facility closure or exclusive use of the entire club. If the event is scheduled within regular business hours, use will be coordinated alongside normal member areas.</p>
   </div>`;
 }
 
@@ -75,8 +75,8 @@ export function eventEmailShell(opts: {
     .map(
       (r) => `
       <tr>
-        <td style="padding:8px 0;color:#6b7280;font-size:14px;">${r.label}</td>
-        <td style="padding:8px 0;color:#111827;font-size:14px;text-align:right;font-weight:600;">${r.value}</td>
+        <td style="padding:8px 0;color:#6B5A3D;font-size:14px;">${r.label}</td>
+        <td style="padding:8px 0;color:#1A1610;font-size:14px;text-align:right;font-weight:600;">${r.value}</td>
       </tr>`,
     )
     .join("");
@@ -84,26 +84,26 @@ export function eventEmailShell(opts: {
   const cta =
     opts.ctaUrl && opts.ctaLabel
       ? `<div style="margin:28px 0;text-align:center;">
-           <a href="${opts.ctaUrl}" style="background:#1f2937;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:15px;letter-spacing:0.04em;display:inline-block;">${opts.ctaLabel}</a>
+           <a href="${opts.ctaUrl}" style="background:#1A1610;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:6px;font-size:15px;letter-spacing:0.04em;display:inline-block;">${opts.ctaLabel}</a>
          </div>`
       : "";
 
   return `
-  <div style="background:#f6f5f2;padding:32px 0;font-family:Georgia,'Times New Roman',serif;">
-    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-      <div style="background:#111827;padding:24px;text-align:center;">
+  <div style="background:#E6E2D7;padding:32px 0;font-family:Georgia,'Times New Roman',serif;">
+    <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #DDD6C7;">
+      <div style="background:#1A1610;padding:24px;text-align:center;">
         <div style="color:#ffffff;font-size:20px;letter-spacing:0.18em;">STORM WELLNESS CLUB</div>
-        <div style="color:#9ca3af;font-size:11px;letter-spacing:0.22em;margin-top:6px;">PRIVATE EVENTS</div>
+        <div style="color:#8A7B63;font-size:11px;letter-spacing:0.22em;margin-top:6px;">PRIVATE EVENTS</div>
       </div>
       <div style="padding:32px;">
-        <h1 style="margin:0 0 16px;font-size:22px;color:#111827;">${opts.heading}</h1>
-        <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#374151;">${opts.intro}</p>
-        ${rows ? `<table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb;">${rows}</table>` : ""}
+        <h1 style="margin:0 0 16px;font-size:22px;color:#1A1610;">${opts.heading}</h1>
+        <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#4A3D2C;">${opts.intro}</p>
+        ${rows ? `<table style="width:100%;border-collapse:collapse;border-top:1px solid #DDD6C7;">${rows}</table>` : ""}
         ${cta}
-        ${opts.outro ? `<p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:#6b7280;">${opts.outro}</p>` : ""}
+        ${opts.outro ? `<p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:#6B5A3D;">${opts.outro}</p>` : ""}
         ${opts.terms ? reservationTermsHtml(opts.confirmationNote) : ""}
       </div>
-      <div style="padding:20px 32px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;text-align:center;">
+      <div style="padding:20px 32px;border-top:1px solid #DDD6C7;color:#8A7B63;font-size:12px;text-align:center;">
         Storm Wellness Club &middot; stormwellnessclub.com &middot; (248) 232-8487
       </div>
     </div>
