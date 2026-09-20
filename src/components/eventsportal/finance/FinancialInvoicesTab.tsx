@@ -273,6 +273,12 @@ export function FinancialInvoicesTab({
                 </div>
                 <div>
                   <Label className="text-xs">Status</Label>
+                  {["paid", "partially_paid", "refunded"].includes(inv.status) ? (
+                    // payment-derived statuses are set by the ledger, never edited by hand
+                    <div className="flex h-10 items-center rounded-md border border-input px-3 text-sm text-muted-foreground">
+                      {INVOICE_STATUS_LABEL[inv.status as InvoiceStatus]}
+                    </div>
+                  ) : (
                   <Select value={inv.status} onValueChange={(v) => saveInvoice.mutate({ id: inv.id, status: v })}>
                     <SelectTrigger>
                       <SelectValue />
