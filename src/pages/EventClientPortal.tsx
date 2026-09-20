@@ -577,13 +577,22 @@ export default function EventClientPortal() {
               </section>
             )}
 
-            <footer className="pt-6 text-center text-xs text-muted-foreground">
-              Questions about your event? Call us at (248) 232-8487.
+            <footer className="border-t border-border/60 pt-8 text-center">
+              <p className="font-serif text-lg tracking-[0.35em] text-foreground">STORM</p>
+              <p className="mt-1 text-[0.65rem] uppercase tracking-[0.3em] text-muted-foreground">
+                Wellness Club
+              </p>
+              <p className="mt-4 text-xs text-muted-foreground">
+                18340 Middlebelt Rd, Livonia, MI 48152 &middot; (248) 232-8487
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Questions about your event? We're here for you.
+              </p>
             </footer>
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 }
 
