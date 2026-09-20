@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Copy, Loader2, Send, CalendarClock, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { money } from "@/lib/eventFinancials";
+import { formatDay, money } from "@/lib/eventFinancials";
 
 export function SendFinancialDialog({
   financial,
