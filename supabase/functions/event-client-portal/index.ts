@@ -192,11 +192,16 @@ serve(async (req) => {
         .not("status", "in", "(draft,void)")
         .order("issue_date", { ascending: true });
 
-      const { data: documents } = await supabase
+      const { data: allDocuments } = await supabase
         .from("event_documents")
-        .select("id, kind, title, body, terms_body, status, access_token, sent_at, viewed_at, accepted_at, signed_at, signer_name, signer_email, signature_text, invoice_id")
+        .select("id, kind, title, body, terms_body, status, access_token, sent_at, viewed_at, accepted_at, signed_at, signer_name, signer_email, signature_text, invoice_id, terms_approved")
         .eq("financial_id", financial.id)
         .in("kind", ["proposal", "contract"]);
+
+      // Contracts that still hold placeholder wording are never shown to a client.
+      const documents = (allDocuments ?? [])
+        .filter((d) => d.kind !== "contract" || d.terms_approved === true)
+        .map(({ terms_approved: _ignored, ...rest }) => rest);
 
       const { data: payments } = await supabase
         .from("event_payments")
