@@ -160,8 +160,8 @@ export function PrivateEventBillingTab({ event, invoices, lineItems }: Props) {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={!event.client_email || sendInvoice.isPending}
-                      onClick={() => sendInvoice.mutate({ invoiceId: inv.id, eventId: event.id })}
+                      disabled={!sendTo.trim() || sendInvoice.isPending}
+                      onClick={() => sendInvoice.mutate({ invoiceId: inv.id, eventId: event.id, email: sendTo.trim() })}
                     >
                       <Mail className="mr-1 h-4 w-4" /> Email pay link
                     </Button>
