@@ -613,3 +613,24 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
     </div>
   );
 }
+
+/** Club-local day and clock labels. Stored values are already America/Detroit wall time. */
+function eventDayLabel(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return date;
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function clockLabel(time: string): string {
+  const [hRaw, min] = time.split(":");
+  const h = Number(hRaw);
+  if (!Number.isFinite(h)) return time;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${min ?? "00"} ${suffix}`;
+}
