@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { handleEventInvoicePayment, handleEventInvoiceRefund, handleEventInvoicePaymentFailed } from "../_shared/eventFinancialsWebhook.ts";
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -762,6 +763,21 @@ serve(async (req) => {
             logStep("Mother's Day confirm response", { status: resp.status, body: body.slice(0, 500) });
           }
 
+          if (md.event_invoice_id) {
+            try {
+              await handleEventInvoicePayment(supabase, {
+                invoiceId: md.event_invoice_id,
+                paymentIntentId: pi.id,
+                amountCents: pi.amount_received || pi.amount || 0,
+                method: 'card_online',
+                occurredAt: new Date((pi.created || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+              });
+              logStep('Event invoice payment recorded from payment_intent.succeeded', { invoiceId: md.event_invoice_id, piId: pi.id });
+            } catch (e) {
+              logError(e, 'EVENT_INVOICE_PAYMENT_INTENT_SUCCEEDED');
+            }
+          }
+
           if (md.type === 'event_ticket') {
             logStep("Event ticket PI succeeded — invoking finalize", { piId: pi.id });
             const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -788,6 +804,22 @@ serve(async (req) => {
           const metadata = session.metadata || {};
           
           logStep("Checkout completed", { sessionId: session.id, type: metadata.type });
+
+          if (metadata.event_invoice_id) {
+            try {
+              const piId = typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as Stripe.PaymentIntent | null)?.id;
+              await handleEventInvoicePayment(supabase, {
+                invoiceId: metadata.event_invoice_id,
+                paymentIntentId: piId ?? null,
+                amountCents: session.amount_total ?? 0,
+                method: 'card_online',
+              });
+              logStep('Event invoice payment recorded from checkout.session.completed', { invoiceId: metadata.event_invoice_id, sessionId: session.id });
+            } catch (e) {
+              logError(e, 'EVENT_INVOICE_CHECKOUT_COMPLETED');
+            }
+            return successResponse({ event_invoice_paid: metadata.event_invoice_id });
+          }
 
           if (metadata.type === 'pt_session_payment' && metadata.appointment_id) {
             try {
@@ -4294,6 +4326,83 @@ serve(async (req) => {
           }
         } catch (finalizedErr) {
           logError(finalizedErr, 'INVOICE_FINALIZED');
+        }
+        break;
+      }
+
+      case 'payment_intent.payment_failed': {
+        try {
+          const pi = event.data.object as Stripe.PaymentIntent;
+          const md = pi.metadata || {};
+          if (md.event_invoice_id) {
+            await handleEventInvoicePaymentFailed(supabase, {
+              invoiceId: md.event_invoice_id,
+              paymentIntentId: pi.id,
+              reason: pi.last_payment_error?.message ?? null,
+            });
+            logStep('Event invoice payment_failed recorded', { invoiceId: md.event_invoice_id, piId: pi.id });
+          }
+        } catch (e) {
+          logError(e, 'EVENT_INVOICE_PAYMENT_FAILED');
+        }
+        break;
+      }
+
+      case 'charge.refunded': {
+        try {
+          const charge = event.data.object as Stripe.Charge;
+          const piId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+          if (piId) {
+            const { data: matchedInvoice } = await supabase
+              .from('event_invoices')
+              .select('id')
+              .eq('stripe_payment_intent_id', piId)
+              .maybeSingle();
+            if (matchedInvoice) {
+              const refunds = charge.refunds?.data ?? [];
+              const latestRefund = refunds[refunds.length - 1];
+              if (latestRefund) {
+                await handleEventInvoiceRefund(supabase, {
+                  invoiceId: matchedInvoice.id,
+                  paymentIntentId: piId,
+                  refundId: latestRefund.id,
+                  amountCents: latestRefund.amount,
+                  occurredAt: new Date((latestRefund.created || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+                });
+                logStep('Event invoice refund recorded from charge.refunded', { invoiceId: matchedInvoice.id, refundId: latestRefund.id });
+              }
+            }
+          }
+        } catch (e) {
+          logError(e, 'EVENT_INVOICE_CHARGE_REFUNDED');
+        }
+        break;
+      }
+
+      case 'refund.created':
+      case 'refund.updated': {
+        try {
+          const refund = event.data.object as Stripe.Refund;
+          const piId = typeof refund.payment_intent === 'string' ? refund.payment_intent : refund.payment_intent?.id;
+          if (piId && refund.status === 'succeeded') {
+            const { data: matchedInvoice } = await supabase
+              .from('event_invoices')
+              .select('id')
+              .eq('stripe_payment_intent_id', piId)
+              .maybeSingle();
+            if (matchedInvoice) {
+              await handleEventInvoiceRefund(supabase, {
+                invoiceId: matchedInvoice.id,
+                paymentIntentId: piId,
+                refundId: refund.id,
+                amountCents: refund.amount,
+                occurredAt: new Date((refund.created || Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+              });
+              logStep('Event invoice refund recorded from refund event', { invoiceId: matchedInvoice.id, refundId: refund.id });
+            }
+          }
+        } catch (e) {
+          logError(e, 'EVENT_INVOICE_REFUND_EVENT');
         }
         break;
       }
