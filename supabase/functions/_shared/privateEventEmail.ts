@@ -18,9 +18,14 @@ To reserve the date:
 • Outside vendors, sponsors and branded materials require prior approval
 • ALL PARTICIPANTS MUST COMPLETE STORM WAIVERS BEFORE USE OF THE WET SPA
 
+THE EVENT IS NOT CONFIRMED UNTIL THE DEPOSIT IS RECEIVED. Planning, staffing and holding a date requires work on our end, so the date remains open on our calendar until the deposit is paid.
+
 This proposal includes designated use of the agreed event areas for the contracted event. It does not include full-facility closure or exclusive use of the entire club. If the event is scheduled within regular business hours, use will be coordinated alongside normal member areas.`;
 
-export function reservationTermsHtml(): string {
+export const DEFAULT_CONFIRMATION_NOTE =
+  "Planning, staffing and blocking a date requires work on our end, so the date stays open on our calendar until the deposit is paid.";
+
+export function reservationTermsHtml(confirmationNote?: string): string {
   const items = [
     "50% nonrefundable deposit required to secure the event date and time",
     "Remaining balance due 72 hours before the event",
@@ -44,6 +49,10 @@ export function reservationTermsHtml(): string {
     <div style="background:#fdf6e3;border:1px solid #c9a86a;border-left:4px solid #c9a86a;border-radius:6px;padding:14px 16px;margin:0 0 18px;">
       <p style="margin:0;font-size:14px;line-height:1.6;color:#3a2e1a;font-weight:700;">All participants must complete Storm waivers before use of the wet spa.</p>
     </div>
+    <div style="background:#111827;border-radius:6px;padding:16px 18px;margin:0 0 18px;">
+      <p style="margin:0 0 6px;font-size:15px;line-height:1.6;color:#ffffff;font-weight:700;">The event is not confirmed until the deposit is received.</p>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:#d1d5db;">${confirmationNote?.trim() || DEFAULT_CONFIRMATION_NOTE}</p>
+    </div>
     <p style="margin:0;font-size:12px;line-height:1.6;color:#9ca3af;">This proposal includes designated use of the agreed event areas for the contracted event. It does not include full-facility closure or exclusive use of the entire club. If the event is scheduled within regular business hours, use will be coordinated alongside normal member areas.</p>
   </div>`;
 }
@@ -60,6 +69,7 @@ export function eventEmailShell(opts: {
   ctaUrl?: string;
   outro?: string;
   terms?: boolean;
+  confirmationNote?: string;
 }): string {
   const rows = (opts.rows ?? [])
     .map(
@@ -91,7 +101,7 @@ export function eventEmailShell(opts: {
         ${rows ? `<table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb;">${rows}</table>` : ""}
         ${cta}
         ${opts.outro ? `<p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:#6b7280;">${opts.outro}</p>` : ""}
-        ${opts.terms ? reservationTermsHtml() : ""}
+        ${opts.terms ? reservationTermsHtml(opts.confirmationNote) : ""}
       </div>
       <div style="padding:20px 32px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;text-align:center;">
         Storm Wellness Club &middot; stormwellnessclub.com &middot; (248) 232-8487
