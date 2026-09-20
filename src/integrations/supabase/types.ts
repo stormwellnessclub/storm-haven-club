@@ -2566,6 +2566,13 @@ export type Database = {
             foreignKeyName: "event_budget_items_financial_id_fkey"
             columns: ["financial_id"]
             isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_budget_items_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
             referencedRelation: "event_financials"
             referencedColumns: ["id"]
           },
@@ -2646,6 +2653,13 @@ export type Database = {
             foreignKeyName: "event_documents_financial_id_fkey"
             columns: ["financial_id"]
             isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_documents_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
             referencedRelation: "event_financials"
             referencedColumns: ["id"]
           },
@@ -2687,6 +2701,13 @@ export type Database = {
           meta?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "event_financial_activity_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
           {
             foreignKeyName: "event_financial_activity_financial_id_fkey"
             columns: ["financial_id"]
@@ -2775,6 +2796,13 @@ export type Database = {
             foreignKeyName: "event_financial_communications_financial_id_fkey"
             columns: ["financial_id"]
             isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_financial_communications_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
             referencedRelation: "event_financials"
             referencedColumns: ["id"]
           },
@@ -2850,6 +2878,13 @@ export type Database = {
             foreignKeyName: "event_financial_items_financial_id_fkey"
             columns: ["financial_id"]
             isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_financial_items_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
             referencedRelation: "event_financials"
             referencedColumns: ["id"]
           },
@@ -2920,6 +2955,7 @@ export type Database = {
           internal_notes: string | null
           legacy_source: string | null
           minimum_spend_cents: number
+          needs_review: boolean
           package_name: string | null
           package_price_cents: number
           pass_processing_fee: boolean
@@ -2929,6 +2965,7 @@ export type Database = {
           requires_contract: boolean
           requires_deposit: boolean
           requires_proposal: boolean
+          review_note: string | null
           service_charge_label: string | null
           service_charge_pct: number
           tax_enabled: boolean
@@ -2961,6 +2998,7 @@ export type Database = {
           internal_notes?: string | null
           legacy_source?: string | null
           minimum_spend_cents?: number
+          needs_review?: boolean
           package_name?: string | null
           package_price_cents?: number
           pass_processing_fee?: boolean
@@ -2970,6 +3008,7 @@ export type Database = {
           requires_contract?: boolean
           requires_deposit?: boolean
           requires_proposal?: boolean
+          review_note?: string | null
           service_charge_label?: string | null
           service_charge_pct?: number
           tax_enabled?: boolean
@@ -3002,6 +3041,7 @@ export type Database = {
           internal_notes?: string | null
           legacy_source?: string | null
           minimum_spend_cents?: number
+          needs_review?: boolean
           package_name?: string | null
           package_price_cents?: number
           pass_processing_fee?: boolean
@@ -3011,6 +3051,7 @@ export type Database = {
           requires_contract?: boolean
           requires_deposit?: boolean
           requires_proposal?: boolean
+          review_note?: string | null
           service_charge_label?: string | null
           service_charge_pct?: number
           tax_enabled?: boolean
@@ -3196,6 +3237,13 @@ export type Database = {
             foreignKeyName: "event_invoices_financial_id_fkey"
             columns: ["financial_id"]
             isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_invoices_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
             referencedRelation: "event_financials"
             referencedColumns: ["id"]
           },
@@ -3248,6 +3296,13 @@ export type Database = {
           stripe_refund_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "event_payments_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
           {
             foreignKeyName: "event_payments_financial_id_fkey"
             columns: ["financial_id"]
@@ -13705,6 +13760,44 @@ export type Database = {
           },
         ]
       }
+      event_financial_rollup: {
+        Row: {
+          assigned_staff_id: string | null
+          client_email: string | null
+          client_name: string | null
+          confirmed_at: string | null
+          event_date: string | null
+          event_id: string | null
+          event_kind: string | null
+          event_title: string | null
+          final_due_date: string | null
+          financial_id: string | null
+          invoiced_cents: number | null
+          needs_review: boolean | null
+          next_due_date: string | null
+          outstanding_cents: number | null
+          overdue_cents: number | null
+          paid_cents: number | null
+          private_event_id: string | null
+          refunded_cents: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financials_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_financials_private_event_id_fkey"
+            columns: ["private_event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_vote_tallies: {
         Row: {
           event_slug: string | null
@@ -14414,6 +14507,10 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      ensure_private_event_financials: {
+        Args: { p_private_event_id: string }
+        Returns: string
       }
       ensure_spa_review_token: {
         Args: { _appointment_id: string }
@@ -15223,6 +15320,7 @@ export type Database = {
         Args: { _achievement_id: string; _achievement_type: string }
         Returns: number
       }
+      mark_overdue_event_invoices: { Args: never; Returns: number }
       member_meets_event_eligibility: {
         Args: {
           _eligibility: string
@@ -15917,6 +16015,10 @@ export type Database = {
         Returns: Json
       }
       publish_schedule_week: { Args: { p_week_start: string }; Returns: number }
+      recalc_event_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       recompute_marketing_contact_segment: {
         Args: { _email: string }
         Returns: undefined
