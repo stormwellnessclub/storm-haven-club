@@ -330,15 +330,15 @@ export default function EventClientPortal() {
                 {data.event.pricing_mode === "flat" ? "Your Package" : "Services"}
               </h2>
               <div className="mt-6 space-y-4">
-                {data.event.pricing_mode === "flat" ? (
+                {data.event.pricing_mode === "flat" && (
                   <div className="flex items-baseline justify-between gap-6 border-b border-border/60 pb-4">
                     <p className="text-base text-foreground">{data.event.package_name || data.event.title}</p>
                     <p className="whitespace-nowrap font-serif text-lg text-foreground">
                       {money(data.event.package_price_cents)}
                     </p>
                   </div>
-                ) : (
-                  priced.map((item) => (
+                )}
+                {priced.map((item) => (
                     <div key={item.id} className="flex items-baseline justify-between gap-6 border-b border-border/60 pb-4">
                       <div>
                         <p className="text-base text-foreground">
