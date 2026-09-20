@@ -59,6 +59,7 @@ export function eventEmailShell(opts: {
   ctaLabel?: string;
   ctaUrl?: string;
   outro?: string;
+  terms?: boolean;
 }): string {
   const rows = (opts.rows ?? [])
     .map(
@@ -90,6 +91,7 @@ export function eventEmailShell(opts: {
         ${rows ? `<table style="width:100%;border-collapse:collapse;border-top:1px solid #e5e7eb;">${rows}</table>` : ""}
         ${cta}
         ${opts.outro ? `<p style="margin:20px 0 0;font-size:14px;line-height:1.7;color:#6b7280;">${opts.outro}</p>` : ""}
+        ${opts.terms ? reservationTermsHtml() : ""}
       </div>
       <div style="padding:20px 32px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:12px;text-align:center;">
         Storm Wellness Club &middot; stormwellnessclub.com &middot; (248) 232-8487
@@ -119,7 +121,7 @@ export async function sendBrandedEmail(params: {
         to: [params.to],
         subject: params.subject,
         html: params.html,
-        ...(params.replyTo ? { reply_to: params.replyTo } : {}),
+        reply_to: params.replyTo || REPLY_TO,
       }),
     });
     return res;

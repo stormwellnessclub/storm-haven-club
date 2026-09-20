@@ -27,7 +27,7 @@ export function SendFinancialDialog({
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [replyTo, setReplyTo] = useState("events@stormwellnessclub.com");
+  const [replyTo, setReplyTo] = useState("admin@stormwellnessclub.com");
   const [scheduleFor, setScheduleFor] = useState("");
   const [busy, setBusy] = useState(false);
 
