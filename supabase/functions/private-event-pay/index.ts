@@ -154,7 +154,10 @@ serve(async (req) => {
                 { label: "Amount", value: money(invoice.amount_cents) },
                 { label: "Event date", value: event.event_date ?? "To be confirmed" },
               ],
-              outro: "We'll be in touch with the remaining details as your event approaches.",
+              outro:
+                invoice.kind === "deposit"
+                  ? `Your date is now confirmed and held${event.event_date ? ` for ${event.event_date}` : ""}. We'll be in touch with the remaining details as your event approaches.`
+                  : "We'll be in touch with the remaining details as your event approaches.",
             }),
           });
         }
