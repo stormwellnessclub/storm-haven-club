@@ -291,6 +291,7 @@ export function FinancialInvoicesTab({
                       ))}
                     </SelectContent>
                   </Select>
+                  )}
                 </div>
               </div>
               <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
