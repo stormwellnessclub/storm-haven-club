@@ -251,7 +251,9 @@ export function useFinancialMutations(financialId?: string) {
         const { error } = await supabase.from("event_documents").update(patch).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("event_documents").insert({ ...doc, financial_id: financialId! });
+        const { error } = await supabase
+          .from("event_documents")
+          .insert({ ...doc, financial_id: financialId! } as any);
         if (error) throw error;
       }
       await log("document", doc.id ? "Document updated." : "Document created.");
