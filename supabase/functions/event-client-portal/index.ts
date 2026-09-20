@@ -230,6 +230,24 @@ serve(async (req) => {
 
       const amountPaidCents = (invoices ?? []).reduce((s, i) => s + (i.amount_paid_cents ?? 0), 0);
 
+      // Event day and hours come straight from the stored club-local values — never converted.
+      let schedule: { event_date: string | null; start_time: string | null; end_time: string | null } | null = null;
+      if (financial.private_event_id) {
+        const { data: pe } = await supabase
+          .from("private_events")
+          .select("event_date, start_time, end_time")
+          .eq("id", financial.private_event_id)
+          .maybeSingle();
+        if (pe) schedule = pe;
+      } else if (financial.event_id) {
+        const { data: ev } = await supabase
+          .from("events")
+          .select("event_date, start_time, end_time")
+          .eq("id", financial.event_id)
+          .maybeSingle();
+        if (ev) schedule = ev;
+      }
+
       return new Response(
         JSON.stringify({
           event: {
