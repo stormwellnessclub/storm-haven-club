@@ -306,9 +306,9 @@ export function usePrivateEventMutations() {
   });
 
   const sendInvoice = useMutation({
-    mutationFn: async ({ invoiceId, email }: { invoiceId: string; email?: string; eventId: string }) => {
+    mutationFn: async ({ invoiceId, email, confirmationNote }: { invoiceId: string; email?: string; eventId: string; confirmationNote?: string }) => {
       const { data, error } = await supabase.functions.invoke("private-event-invoice", {
-        body: { action: "send_link", invoice_id: invoiceId, email },
+        body: { action: "send_link", invoice_id: invoiceId, email, confirmation_note: confirmationNote },
       });
       if (error) throw error;
       if (data?.success === false) throw new Error(data.error);
@@ -343,6 +343,7 @@ export function usePrivateEventMutations() {
       email?: string;
       totalCents: number;
       depositCents: number;
+      confirmationNote?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke("private-event-invoice", {
         body: {
@@ -351,6 +352,7 @@ export function usePrivateEventMutations() {
           email: payload.email,
           total_cents: payload.totalCents,
           deposit_cents: payload.depositCents,
+          confirmation_note: payload.confirmationNote,
         },
       });
       if (error) throw error;

@@ -74,6 +74,7 @@ serve(async (req) => {
           rows,
           outro: "Reply to this email to confirm and we'll send your deposit invoice to hold the date.",
           terms: true,
+          confirmationNote: String(body.confirmation_note ?? "").trim() || undefined,
         }),
       });
       if (!sentQuote.ok) return fail(sentQuote.error || "Email could not be sent.");
@@ -129,6 +130,7 @@ serve(async (req) => {
           ctaUrl: payUrl,
           outro: "Your date is held once the deposit is received. Reply to this email with any questions.",
           terms: true,
+          confirmationNote: String(body.confirmation_note ?? "").trim() || undefined,
         }),
       });
       if (!sent.ok) return fail(sent.error || "Email could not be sent.");
