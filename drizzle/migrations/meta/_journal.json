@@ -239,6 +239,13 @@
       "when": 1789851947039,
       "tag": "0033_fix_resolve_class_pass_promotion_ambiguity",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1789892558353,
+      "tag": "0034_restrict_event_images_reads_to_staff",
+      "breakpoints": true
     }
   ]
 }
