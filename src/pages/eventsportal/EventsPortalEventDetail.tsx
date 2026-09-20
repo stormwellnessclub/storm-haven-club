@@ -272,6 +272,15 @@ export default function EventsPortalEventDetail() {
 
       <EventRequestsPanel eventId={event.id} />
 
+      <AddEventAttendeeDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        eventId={event.id}
+        eventTitle={event.title}
+        canOverride={isManager}
+        onAdded={() => qc.invalidateQueries({ queryKey: ["events-portal-tickets", event.id] })}
+      />
+
       <EventEditorDialog
         open={editorOpen}
         onOpenChange={setEditorOpen}
