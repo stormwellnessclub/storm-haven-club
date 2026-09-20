@@ -1,0 +1,1 @@
+ALTER TABLE public.event_financials ADD COLUMN IF NOT EXISTS reminders_paused boolean NOT NULL DEFAULT false;

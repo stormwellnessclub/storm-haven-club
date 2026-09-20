@@ -32,7 +32,7 @@ export function FinancialInvoicesTab({
   totalCents: number;
   eventDate?: string | null;
 }) {
-  const { saveInvoice, deleteInvoice, recordPayment } = useFinancialMutations(financial.id);
+  const { saveInvoice, deleteInvoice, recordPayment, updateFinancial } = useFinancialMutations(financial.id);
   const [payFor, setPayFor] = useState<any | null>(null);
   const [sendFor, setSendFor] = useState<any | null>(null);
   const [payAmount, setPayAmount] = useState("");
@@ -85,8 +85,55 @@ export function FinancialInvoicesTab({
     setPayReference("");
   };
 
+  const offsets: number[] =
+    Array.isArray(financial.reminder_offsets) && financial.reminder_offsets.length > 0
+      ? financial.reminder_offsets
+      : [-7, 0, 3, 10];
+
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="font-serif">Reminder schedule</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            Reminders only ever go out for invoices you have actually sent. A draft invoice never triggers a
+            reminder, and nothing is sent for internal test events.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <Label className="text-xs">Days relative to the due date</Label>
+              <Input
+                className="w-64"
+                defaultValue={offsets.join(", ")}
+                onBlur={(e) => {
+                  const next = e.target.value
+                    .split(",")
+                    .map((v) => parseInt(v.trim(), 10))
+                    .filter((v) => Number.isFinite(v));
+                  updateFinancial.mutate({ reminder_offsets: next.length ? next : [-7, 0, 3, 10] });
+                }}
+              />
+            </div>
+            <label className="flex items-center gap-2 pb-2 text-sm">
+              <input
+                type="checkbox"
+                checked={!!financial.reminders_paused}
+                onChange={(e) => updateFinancial.mutate({ reminders_paused: e.target.checked })}
+              />
+              Pause all reminders for this event
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {offsets.map((o) => (
+              <Badge key={o} variant="secondary">
+                {o < 0 ? `${Math.abs(o)} days before due` : o === 0 ? "On the due date" : `${o} days overdue`}
+              </Badge>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Contracted" value={money(totalCents)} />
         <Stat label="Invoiced" value={money(invoicedCents)} />

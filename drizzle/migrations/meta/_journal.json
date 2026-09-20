@@ -274,6 +274,20 @@
       "when": 1789898842507,
       "tag": "0038_event_invoice_reminders_index_and_cron",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1789899603200,
+      "tag": "0039_event_financials_safety_controls",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1789899833531,
+      "tag": "0040_event_financials_reminders_paused",
+      "breakpoints": true
     }
   ]
 }

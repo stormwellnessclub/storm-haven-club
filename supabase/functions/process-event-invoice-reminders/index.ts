@@ -57,9 +57,13 @@ serve(async (req) => {
 
       const { data: financial } = await supabase
         .from("event_financials")
-        .select("id, title, client_email, client_name, portal_token, reminder_offsets")
+        .select("id, title, client_email, client_name, portal_token, reminder_offsets, reminders_paused, is_test")
         .eq("id", invoice.financial_id)
         .maybeSingle();
+      if (financial?.is_test || financial?.reminders_paused) {
+        results.skipped++;
+        continue;
+      }
       if (!financial?.client_email) {
         results.skipped++;
         continue;

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
 import { useFinancialMutations, useFinancialWorkspace } from "@/hooks/useEventFinancials";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +20,7 @@ import { FinancialDocumentsTab } from "@/components/eventsportal/finance/Financi
 
 export default function EventsPortalFinancialWorkspace() {
   const { financialId = "" } = useParams();
+  const navigate = useNavigate();
   const { data, isLoading } = useFinancialWorkspace(financialId);
   const { updateFinancial } = useFinancialMutations(financialId);
   const [overrideReason, setOverrideReason] = useState("");
@@ -76,13 +78,37 @@ export default function EventsPortalFinancialWorkspace() {
       title={f.title ?? "Event financials"}
       description={`${f.client_name || "Client"}${eventDate ? ` · ${formatDay(eventDate)}` : ""}`}
       actions={
-        <Button variant="outline" asChild>
-          <a href={portalUrl} target="_blank" rel="noreferrer">
-            <ExternalLink className="mr-2 h-4 w-4" /> Client portal
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {f.legacy_source === "private_events" && (
+            <Button
+              variant="outline"
+              onClick={async () => {
+                if (!window.confirm("Roll back this import? The original event, its invoices and payment history stay untouched — only this financial workspace is removed.")) return;
+                const { error } = await supabase.rpc("rollback_private_event_financial_import", {
+                  p_financial_id: f.id,
+                });
+                if (error) return toast.error(error.message);
+                toast.success("Import rolled back");
+                navigate("/events-portal/finance");
+              }}
+            >
+              Roll back import
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <a href={portalUrl} target="_blank" rel="noreferrer">
+              <ExternalLink className="mr-2 h-4 w-4" /> Client portal
+            </a>
+          </Button>
+        </div>
       }
     >
+      {f.is_test && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          Internal test event — no automatic reminders are sent for this record.
+        </div>
+      )}
+
       {f.needs_review && (
         <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
           Needs review: {f.review_note}
