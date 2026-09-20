@@ -203,8 +203,12 @@ export default function EventsPortalEventDetail() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="font-serif">Reservations</CardTitle>
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add someone
+          </Button>
         </CardHeader>
         <CardContent>
           {held.length === 0 ? (
