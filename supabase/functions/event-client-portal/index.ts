@@ -266,6 +266,9 @@ serve(async (req) => {
             requires_contract: financial.requires_contract,
             requires_deposit: financial.requires_deposit,
             confirmed_at: financial.confirmed_at,
+            event_date: schedule?.event_date ?? null,
+            start_time: schedule?.start_time ?? null,
+            end_time: schedule?.end_time ?? null,
           },
           items: (items ?? []).map((i) => ({
             id: i.id,
