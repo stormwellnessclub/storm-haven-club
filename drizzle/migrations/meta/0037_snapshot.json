@@ -1,0 +1,18 @@
+{
+  "id": "3892ceed-cfda-4551-b742-d30fe2364603",
+  "prevId": "5124f7bf-9338-4990-8945-983463f38a60",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {},
+  "enums": {},
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

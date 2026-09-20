@@ -2524,6 +2524,567 @@ export type Database = {
         }
         Relationships: []
       }
+      event_budget_items: {
+        Row: {
+          actual_cents: number | null
+          category: string
+          created_at: string
+          estimated_cents: number
+          financial_id: string
+          id: string
+          label: string
+          notes: string | null
+          sort_order: number
+          vendor: string | null
+        }
+        Insert: {
+          actual_cents?: number | null
+          category?: string
+          created_at?: string
+          estimated_cents?: number
+          financial_id: string
+          id?: string
+          label?: string
+          notes?: string | null
+          sort_order?: number
+          vendor?: string | null
+        }
+        Update: {
+          actual_cents?: number | null
+          category?: string
+          created_at?: string
+          estimated_cents?: number
+          financial_id?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          sort_order?: number
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_budget_items_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_budget_items_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_documents: {
+        Row: {
+          accepted_at: string | null
+          access_token: string
+          body: string | null
+          created_at: string
+          created_by: string | null
+          financial_id: string
+          id: string
+          invoice_id: string | null
+          kind: string
+          sent_at: string | null
+          signature_ip: string | null
+          signature_text: string | null
+          signed_at: string | null
+          signer_email: string | null
+          signer_name: string | null
+          status: string
+          template_slug: string | null
+          terms_body: string | null
+          title: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          access_token?: string
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          financial_id: string
+          id?: string
+          invoice_id?: string | null
+          kind: string
+          sent_at?: string | null
+          signature_ip?: string | null
+          signature_text?: string | null
+          signed_at?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          status?: string
+          template_slug?: string | null
+          terms_body?: string | null
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          access_token?: string
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          financial_id?: string
+          id?: string
+          invoice_id?: string | null
+          kind?: string
+          sent_at?: string | null
+          signature_ip?: string | null
+          signature_text?: string | null
+          signed_at?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          status?: string
+          template_slug?: string | null
+          terms_body?: string | null
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_documents_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_documents_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_documents_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "event_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_financial_activity: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          financial_id: string
+          id: string
+          kind: string
+          message: string
+          meta: Json | null
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          financial_id: string
+          id?: string
+          kind?: string
+          message: string
+          meta?: Json | null
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          financial_id?: string
+          id?: string
+          kind?: string
+          message?: string
+          meta?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financial_activity_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_financial_activity_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_financial_communications: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          document_id: string | null
+          error_message: string | null
+          financial_id: string
+          from_email: string
+          from_name: string
+          id: string
+          invoice_id: string | null
+          message: string | null
+          opened_at: string | null
+          portal_url: string | null
+          purpose: string
+          reply_to: string | null
+          scheduled_for: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          to_email: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          document_id?: string | null
+          error_message?: string | null
+          financial_id: string
+          from_email?: string
+          from_name?: string
+          id?: string
+          invoice_id?: string | null
+          message?: string | null
+          opened_at?: string | null
+          portal_url?: string | null
+          purpose?: string
+          reply_to?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          to_email: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          document_id?: string | null
+          error_message?: string | null
+          financial_id?: string
+          from_email?: string
+          from_name?: string
+          id?: string
+          invoice_id?: string | null
+          message?: string | null
+          opened_at?: string | null
+          portal_url?: string | null
+          purpose?: string
+          reply_to?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          to_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financial_communications_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "event_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_financial_communications_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_financial_communications_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_financial_communications_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "event_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_financial_items: {
+        Row: {
+          classification: string
+          client_description: string | null
+          client_selectable: boolean
+          created_at: string
+          financial_id: string
+          id: string
+          internal_note: string | null
+          label: string
+          legacy_line_item_id: string | null
+          quantity: number
+          section: string | null
+          selected: boolean
+          show_price: boolean
+          show_quantity: boolean
+          sort_order: number
+          taxable: boolean
+          unit_price_cents: number
+        }
+        Insert: {
+          classification?: string
+          client_description?: string | null
+          client_selectable?: boolean
+          created_at?: string
+          financial_id: string
+          id?: string
+          internal_note?: string | null
+          label?: string
+          legacy_line_item_id?: string | null
+          quantity?: number
+          section?: string | null
+          selected?: boolean
+          show_price?: boolean
+          show_quantity?: boolean
+          sort_order?: number
+          taxable?: boolean
+          unit_price_cents?: number
+        }
+        Update: {
+          classification?: string
+          client_description?: string | null
+          client_selectable?: boolean
+          created_at?: string
+          financial_id?: string
+          id?: string
+          internal_note?: string | null
+          label?: string
+          legacy_line_item_id?: string | null
+          quantity?: number
+          section?: string | null
+          selected?: boolean
+          show_price?: boolean
+          show_quantity?: boolean
+          sort_order?: number
+          taxable?: boolean
+          unit_price_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financial_items_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_financial_items_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_financial_templates: {
+        Row: {
+          config: Json
+          created_at: string
+          description: string | null
+          event_kind: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          event_kind?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          description?: string | null
+          event_kind?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      event_financials: {
+        Row: {
+          assigned_staff_id: string | null
+          client_email: string | null
+          client_intro: string | null
+          client_name: string | null
+          client_phone: string | null
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          credit_cents: number
+          currency: string
+          discount_cents: number
+          discount_label: string | null
+          event_id: string | null
+          event_kind: string
+          gate_override_at: string | null
+          gate_override_by: string | null
+          gate_override_reason: string | null
+          headcount: number
+          hourly_rate_cents: number
+          hours: number
+          id: string
+          internal_notes: string | null
+          legacy_source: string | null
+          minimum_spend_cents: number
+          needs_review: boolean
+          package_name: string | null
+          package_price_cents: number
+          pass_processing_fee: boolean
+          per_person_cents: number
+          portal_token: string
+          portal_viewed_at: string | null
+          pricing_mode: string
+          private_event_id: string | null
+          reminder_offsets: number[]
+          requires_contract: boolean
+          requires_deposit: boolean
+          requires_proposal: boolean
+          review_note: string | null
+          service_charge_label: string | null
+          service_charge_pct: number
+          tax_enabled: boolean
+          tax_rate: number
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_staff_id?: string | null
+          client_email?: string | null
+          client_intro?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_cents?: number
+          currency?: string
+          discount_cents?: number
+          discount_label?: string | null
+          event_id?: string | null
+          event_kind?: string
+          gate_override_at?: string | null
+          gate_override_by?: string | null
+          gate_override_reason?: string | null
+          headcount?: number
+          hourly_rate_cents?: number
+          hours?: number
+          id?: string
+          internal_notes?: string | null
+          legacy_source?: string | null
+          minimum_spend_cents?: number
+          needs_review?: boolean
+          package_name?: string | null
+          package_price_cents?: number
+          pass_processing_fee?: boolean
+          per_person_cents?: number
+          portal_token?: string
+          portal_viewed_at?: string | null
+          pricing_mode?: string
+          private_event_id?: string | null
+          reminder_offsets?: number[]
+          requires_contract?: boolean
+          requires_deposit?: boolean
+          requires_proposal?: boolean
+          review_note?: string | null
+          service_charge_label?: string | null
+          service_charge_pct?: number
+          tax_enabled?: boolean
+          tax_rate?: number
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_staff_id?: string | null
+          client_email?: string | null
+          client_intro?: string | null
+          client_name?: string | null
+          client_phone?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          credit_cents?: number
+          currency?: string
+          discount_cents?: number
+          discount_label?: string | null
+          event_id?: string | null
+          event_kind?: string
+          gate_override_at?: string | null
+          gate_override_by?: string | null
+          gate_override_reason?: string | null
+          headcount?: number
+          hourly_rate_cents?: number
+          hours?: number
+          id?: string
+          internal_notes?: string | null
+          legacy_source?: string | null
+          minimum_spend_cents?: number
+          needs_review?: boolean
+          package_name?: string | null
+          package_price_cents?: number
+          pass_processing_fee?: boolean
+          per_person_cents?: number
+          portal_token?: string
+          portal_viewed_at?: string | null
+          pricing_mode?: string
+          private_event_id?: string | null
+          reminder_offsets?: number[]
+          requires_contract?: boolean
+          requires_deposit?: boolean
+          requires_proposal?: boolean
+          review_note?: string | null
+          service_charge_label?: string | null
+          service_charge_pct?: number
+          tax_enabled?: boolean
+          tax_rate?: number
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financials_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_financials_private_event_id_fkey"
+            columns: ["private_event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_guest_requests: {
         Row: {
           created_at: string
@@ -2585,6 +3146,184 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_invoices: {
+        Row: {
+          amount_cents: number
+          amount_paid_cents: number
+          amount_refunded_cents: number
+          assigned_staff_id: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          financial_id: string
+          id: string
+          invoice_number: string
+          invoice_type: string
+          issue_date: string | null
+          label: string | null
+          last_reminder_at: string | null
+          legacy_invoice_id: string | null
+          notes: string | null
+          paid_at: string | null
+          pay_token: string
+          payment_method: string | null
+          reminders_paused: boolean
+          scheduled_send_at: string | null
+          sent_at: string | null
+          sort_order: number
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          amount_cents?: number
+          amount_paid_cents?: number
+          amount_refunded_cents?: number
+          assigned_staff_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          financial_id: string
+          id?: string
+          invoice_number?: string
+          invoice_type?: string
+          issue_date?: string | null
+          label?: string | null
+          last_reminder_at?: string | null
+          legacy_invoice_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          pay_token?: string
+          payment_method?: string | null
+          reminders_paused?: boolean
+          scheduled_send_at?: string | null
+          sent_at?: string | null
+          sort_order?: number
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          amount_paid_cents?: number
+          amount_refunded_cents?: number
+          assigned_staff_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          financial_id?: string
+          id?: string
+          invoice_number?: string
+          invoice_type?: string
+          issue_date?: string | null
+          label?: string | null
+          last_reminder_at?: string | null
+          legacy_invoice_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          pay_token?: string
+          payment_method?: string | null
+          reminders_paused?: boolean
+          scheduled_send_at?: string | null
+          sent_at?: string | null
+          sort_order?: number
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_invoices_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_invoices_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_payments: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          direction: string
+          financial_id: string
+          id: string
+          invoice_id: string | null
+          method: string
+          notes: string | null
+          occurred_at: string
+          recorded_by: string | null
+          reference: string | null
+          stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          direction?: string
+          financial_id: string
+          id?: string
+          invoice_id?: string | null
+          method?: string
+          notes?: string | null
+          occurred_at?: string
+          recorded_by?: string | null
+          reference?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          direction?: string
+          financial_id?: string
+          id?: string
+          invoice_id?: string | null
+          method?: string
+          notes?: string | null
+          occurred_at?: string
+          recorded_by?: string | null
+          reference?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_payments_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financial_rollup"
+            referencedColumns: ["financial_id"]
+          },
+          {
+            foreignKeyName: "event_payments_financial_id_fkey"
+            columns: ["financial_id"]
+            isOneToOne: false
+            referencedRelation: "event_financials"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "event_invoices"
             referencedColumns: ["id"]
           },
         ]
@@ -13030,6 +13769,44 @@ export type Database = {
           },
         ]
       }
+      event_financial_rollup: {
+        Row: {
+          assigned_staff_id: string | null
+          client_email: string | null
+          client_name: string | null
+          confirmed_at: string | null
+          event_date: string | null
+          event_id: string | null
+          event_kind: string | null
+          event_title: string | null
+          final_due_date: string | null
+          financial_id: string | null
+          invoiced_cents: number | null
+          needs_review: boolean | null
+          next_due_date: string | null
+          outstanding_cents: number | null
+          overdue_cents: number | null
+          paid_cents: number | null
+          private_event_id: string | null
+          refunded_cents: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_financials_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_financials_private_event_id_fkey"
+            columns: ["private_event_id"]
+            isOneToOne: false
+            referencedRelation: "private_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_vote_tallies: {
         Row: {
           event_slug: string | null
@@ -13739,6 +14516,10 @@ export type Database = {
           status: string
           user_id: string
         }[]
+      }
+      ensure_private_event_financials: {
+        Args: { p_private_event_id: string }
+        Returns: string
       }
       ensure_spa_review_token: {
         Args: { _appointment_id: string }
@@ -14548,6 +15329,7 @@ export type Database = {
         Args: { _achievement_id: string; _achievement_type: string }
         Returns: number
       }
+      mark_overdue_event_invoices: { Args: never; Returns: number }
       member_meets_event_eligibility: {
         Args: {
           _eligibility: string
@@ -15242,6 +16024,10 @@ export type Database = {
         Returns: Json
       }
       publish_schedule_week: { Args: { p_week_start: string }; Returns: number }
+      recalc_event_invoice: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       recompute_marketing_contact_segment: {
         Args: { _email: string }
         Returns: undefined

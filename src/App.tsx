@@ -140,6 +140,7 @@ import EventsPortalAttendance from "./pages/eventsportal/EventsPortalAttendance"
 import { AdminEventRedirect } from "./components/eventsportal/AdminEventRedirect";
 import PrivateEventsPage from "./pages/PrivateEvents";
 import PrivateEventInvoicePay from "./pages/PrivateEventInvoicePay";
+import EventClientPortal from "./pages/EventClientPortal";
 import AdminPrivateEvents from "./pages/admin/PrivateEvents";
 
 import EventPage from "./pages/EventPage";
@@ -301,6 +302,7 @@ const App = () => (
               <Route path="/schedule" element={<Schedule />} />
               <Route path="/private-events" element={<PrivateEventsPage />} />
               <Route path="/private-events/pay/:token" element={<PrivateEventInvoicePay />} />
+              <Route path="/event-portal/:token" element={<EventClientPortal />} />
 
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />
