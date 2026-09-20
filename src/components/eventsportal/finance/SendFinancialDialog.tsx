@@ -47,7 +47,7 @@ export function SendFinancialDialog({
       setSubject(`${invoice.label ?? "Invoice"} — ${financial.title ?? "Storm Wellness Club"}`);
       setMessage(
         `Your ${String(invoice.label ?? "invoice").toLowerCase()} of ${money(invoice.amount_cents)} is ready in your private event portal${
-          invoice.due_date ? `, due ${invoice.due_date}` : ""
+          invoice.due_date ? `, due ${formatDay(invoice.due_date)}` : ""
         }.`,
       );
     }
