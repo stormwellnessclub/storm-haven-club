@@ -28,6 +28,9 @@ export function SendFinancialDialog({
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [replyTo, setReplyTo] = useState("admin@stormwellnessclub.com");
+  const [confirmationNote, setConfirmationNote] = useState(
+    "Planning, staffing and blocking a date requires work on our end, so the date stays open on our calendar until the deposit is paid.",
+  );
   const [scheduleFor, setScheduleFor] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -91,6 +94,7 @@ export function SendFinancialDialog({
         reply_to: replyTo,
         subject,
         message,
+        confirmation_note: confirmationNote,
       },
     });
     setBusy(false);
@@ -151,6 +155,15 @@ export function SendFinancialDialog({
               <Label>Message</Label>
               <Textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
             </div>
+            {purpose !== "receipt" && (
+              <div>
+                <Label>Deposit / date-hold note</Label>
+                <Textarea rows={3} value={confirmationNote} onChange={(e) => setConfirmationNote(e.target.value)} />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Shown under "The event is not confirmed until the deposit is received."
+                </p>
+              </div>
+            )}
             <div>
               <Label>Schedule for later (optional)</Label>
               <Input type="datetime-local" value={scheduleFor} onChange={(e) => setScheduleFor(e.target.value)} />
@@ -205,6 +218,10 @@ export function SendFinancialDialog({
                   </ul>
                   <div className="mt-3 rounded-md border-l-4 border-primary bg-primary/10 p-3 text-sm font-semibold">
                     All participants must complete Storm waivers before use of the wet spa.
+                  </div>
+                  <div className="mt-3 rounded-md bg-foreground p-3 text-background">
+                    <p className="text-sm font-semibold">The event is not confirmed until the deposit is received.</p>
+                    <p className="mt-1 text-xs leading-relaxed opacity-80">{confirmationNote}</p>
                   </div>
                   <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
                     This proposal includes designated use of the agreed event areas for the contracted event. It does

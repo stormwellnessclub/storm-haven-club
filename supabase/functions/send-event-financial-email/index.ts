@@ -93,6 +93,7 @@ serve(async (req) => {
       ctaUrl: portalUrl,
       outro: "Everything for your event lives in this private portal — documents, payments and receipts.",
       terms: purpose !== "receipt",
+      confirmationNote: String(body.confirmation_note ?? "").trim() || undefined,
     });
 
     const sent = await sendBrandedEmail({ to, subject, html, replyTo: reply_to });
