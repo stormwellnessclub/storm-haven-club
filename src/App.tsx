@@ -137,6 +137,8 @@ import EventsPortalEventDetail from "./pages/eventsportal/EventsPortalEventDetai
 import EventsPortalCollections from "./pages/eventsportal/EventsPortalCollections";
 import EventsPortalRequests from "./pages/eventsportal/EventsPortalRequests";
 import EventsPortalAttendance from "./pages/eventsportal/EventsPortalAttendance";
+import EventsPortalFinance from "./pages/eventsportal/EventsPortalFinance";
+import EventsPortalFinancialWorkspace from "./pages/eventsportal/EventsPortalFinancialWorkspace";
 import { AdminEventRedirect } from "./components/eventsportal/AdminEventRedirect";
 import PrivateEventsPage from "./pages/PrivateEvents";
 import PrivateEventInvoicePay from "./pages/PrivateEventInvoicePay";
@@ -523,6 +525,8 @@ const App = () => (
               <Route path="/events-portal/collections" element={<ProtectedEventsPortalRoute><EventsPortalCollections /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/requests" element={<ProtectedEventsPortalRoute><EventsPortalRequests /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/attendance" element={<ProtectedEventsPortalRoute><EventsPortalAttendance /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/finance" element={<ProtectedEventsPortalRoute><EventsPortalFinance /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/finance/:financialId" element={<ProtectedEventsPortalRoute><EventsPortalFinancialWorkspace /></ProtectedEventsPortalRoute>} />
               <Route path="/admin/event-votes" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/admin/event-votes/:slug" element={<ProtectedAdminRoute><EventVoteTracking /></ProtectedAdminRoute>} />
               <Route path="/events/:slug" element={<EventPage />} />
