@@ -63,9 +63,20 @@ serve(async (req) => {
 
     const portalUrl = `https://stormwellnessclub.com/event-portal/${financial.portal_token}`;
     const rows: { label: string; value: string }[] = [];
+    const dayLabel = (d: string) =>
+      new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+        timeZone: "America/Detroit",
+      });
     if (invoice) {
-      rows.push({ label: invoice.label ?? "Amount due", value: money(invoice.amount_cents - invoice.amount_paid_cents) });
-      if (invoice.due_date) rows.push({ label: "Due", value: invoice.due_date });
+      const outstanding = invoice.amount_cents - invoice.amount_paid_cents;
+      rows.push({
+        label: invoice.label ?? "Amount due",
+        value: outstanding > 0 ? money(outstanding) : "Paid in full",
+      });
+      if (invoice.due_date) rows.push({ label: "Due", value: dayLabel(invoice.due_date) });
     }
 
     const ctaLabel = document
