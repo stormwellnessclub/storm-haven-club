@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -92,6 +91,9 @@ type PortalData = {
     requires_proposal: boolean;
     requires_contract: boolean;
     confirmed_at: string | null;
+    event_date: string | null;
+    start_time: string | null;
+    end_time: string | null;
   };
   items: Item[];
   totals: Totals;
@@ -259,7 +261,7 @@ export default function EventClientPortal() {
   };
 
   return (
-    <Layout>
+    <div className="min-h-screen bg-background">
       <SEOHead
         title="Your Event Portal"
         description="Review your Storm Wellness Club private event details, proposal, contract, and payments."
@@ -292,6 +294,13 @@ export default function EventClientPortal() {
               <h1 className="mt-4 font-serif text-4xl leading-tight text-foreground sm:text-5xl">{data.event.title}</h1>
               {data.event.client_name && (
                 <p className="mt-3 text-sm text-muted-foreground">Prepared for {data.event.client_name}</p>
+              )}
+              {data.event.event_date && (
+                <p className="mt-4 text-sm tracking-wide text-foreground/80">
+                  {eventDayLabel(data.event.event_date)}
+                  {data.event.start_time ? ` · ${clockLabel(data.event.start_time)}` : ""}
+                  {data.event.start_time && data.event.end_time ? `–${clockLabel(data.event.end_time)}` : ""}
+                </p>
               )}
               {data.event.client_intro && (
                 <p className="mx-auto mt-6 max-w-xl text-base leading-relaxed text-foreground/80">
@@ -330,15 +339,15 @@ export default function EventClientPortal() {
                 {data.event.pricing_mode === "flat" ? "Your Package" : "Services"}
               </h2>
               <div className="mt-6 space-y-4">
-                {data.event.pricing_mode === "flat" ? (
+                {data.event.pricing_mode === "flat" && (
                   <div className="flex items-baseline justify-between gap-6 border-b border-border/60 pb-4">
                     <p className="text-base text-foreground">{data.event.package_name || data.event.title}</p>
                     <p className="whitespace-nowrap font-serif text-lg text-foreground">
                       {money(data.event.package_price_cents)}
                     </p>
                   </div>
-                ) : (
-                  priced.map((item) => (
+                )}
+                {priced.map((item) => (
                     <div key={item.id} className="flex items-baseline justify-between gap-6 border-b border-border/60 pb-4">
                       <div>
                         <p className="text-base text-foreground">
@@ -355,8 +364,7 @@ export default function EventClientPortal() {
                         </p>
                       )}
                     </div>
-                  ))
-                )}
+                ))}
               </div>
             </section>
 
@@ -578,13 +586,22 @@ export default function EventClientPortal() {
               </section>
             )}
 
-            <footer className="pt-6 text-center text-xs text-muted-foreground">
-              Questions about your event? Call us at (248) 232-8487.
+            <footer className="border-t border-border/60 pt-8 text-center">
+              <p className="font-serif text-lg tracking-[0.35em] text-foreground">STORM</p>
+              <p className="mt-1 text-[0.65rem] uppercase tracking-[0.3em] text-muted-foreground">
+                Wellness Club
+              </p>
+              <p className="mt-4 text-xs text-muted-foreground">
+                18340 Middlebelt Rd, Livonia, MI 48152 &middot; (248) 232-8487
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Questions about your event? We're here for you.
+              </p>
             </footer>
           </div>
         )}
       </div>
-    </Layout>
+    </div>
   );
 }
 
@@ -595,4 +612,25 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
       <span>{value}</span>
     </div>
   );
+}
+
+/** Club-local day and clock labels. Stored values are already America/Detroit wall time. */
+function eventDayLabel(date: string): string {
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return date;
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function clockLabel(time: string): string {
+  const [hRaw, min] = time.split(":");
+  const h = Number(hRaw);
+  if (!Number.isFinite(h)) return time;
+  const suffix = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${min ?? "00"} ${suffix}`;
 }

@@ -192,11 +192,16 @@ serve(async (req) => {
         .not("status", "in", "(draft,void)")
         .order("issue_date", { ascending: true });
 
-      const { data: documents } = await supabase
+      const { data: allDocuments } = await supabase
         .from("event_documents")
-        .select("id, kind, title, body, terms_body, status, access_token, sent_at, viewed_at, accepted_at, signed_at, signer_name, signer_email, signature_text, invoice_id")
+        .select("id, kind, title, body, terms_body, status, access_token, sent_at, viewed_at, accepted_at, signed_at, signer_name, signer_email, signature_text, invoice_id, terms_approved")
         .eq("financial_id", financial.id)
         .in("kind", ["proposal", "contract"]);
+
+      // Contracts that still hold placeholder wording are never shown to a client.
+      const documents = (allDocuments ?? [])
+        .filter((d) => d.kind !== "contract" || d.terms_approved === true)
+        .map(({ terms_approved: _ignored, ...rest }) => rest);
 
       const { data: payments } = await supabase
         .from("event_payments")
@@ -225,6 +230,24 @@ serve(async (req) => {
 
       const amountPaidCents = (invoices ?? []).reduce((s, i) => s + (i.amount_paid_cents ?? 0), 0);
 
+      // Event day and hours come straight from the stored club-local values — never converted.
+      let schedule: { event_date: string | null; start_time: string | null; end_time: string | null } | null = null;
+      if (financial.private_event_id) {
+        const { data: pe } = await supabase
+          .from("private_events")
+          .select("event_date, start_time, end_time")
+          .eq("id", financial.private_event_id)
+          .maybeSingle();
+        if (pe) schedule = pe;
+      } else if (financial.event_id) {
+        const { data: ev } = await supabase
+          .from("events")
+          .select("event_date, start_time, end_time")
+          .eq("id", financial.event_id)
+          .maybeSingle();
+        if (ev) schedule = ev;
+      }
+
       return new Response(
         JSON.stringify({
           event: {
@@ -243,6 +266,9 @@ serve(async (req) => {
             requires_contract: financial.requires_contract,
             requires_deposit: financial.requires_deposit,
             confirmed_at: financial.confirmed_at,
+            event_date: schedule?.event_date ?? null,
+            start_time: schedule?.start_time ?? null,
+            end_time: schedule?.end_time ?? null,
           },
           items: (items ?? []).map((i) => ({
             id: i.id,
@@ -353,13 +379,19 @@ serve(async (req) => {
       }
       const { data: doc } = await supabase
         .from("event_documents")
-        .select("id, financial_id, kind")
+        .select("id, financial_id, kind, terms_approved")
         .eq("id", documentId)
         .eq("financial_id", financial.id)
         .eq("kind", "contract")
         .maybeSingle();
       if (!doc) {
         return new Response(JSON.stringify({ error: "Contract not found." }), { status: 404, headers: corsHeaders });
+      }
+      if (doc.terms_approved !== true) {
+        return new Response(
+          JSON.stringify({ error: "This agreement is not ready for signature yet." }),
+          { status: 400, headers: corsHeaders },
+        );
       }
       const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
       await supabase
@@ -503,6 +535,7 @@ serve(async (req) => {
         if (financial.client_email) {
           await sendBrandedEmail({
             to: financial.client_email,
+            replyTo: "events@stormwellnessclub.com",
             subject: `Receipt — ${financial.title}`,
             html: eventEmailShell({
               heading: "Payment received",
@@ -511,6 +544,8 @@ serve(async (req) => {
                 { label: "Invoice", value: invoice.label || "Payment" },
                 { label: "Amount", value: money(amountPaid) },
               ],
+              ctaLabel: "View your event",
+              ctaUrl: `https://stormwellnessclub.com/event-portal/${financial.portal_token}`,
               outro: "We look forward to hosting you. Reach out any time with questions.",
             }),
           });
