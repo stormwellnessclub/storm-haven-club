@@ -358,13 +358,19 @@ serve(async (req) => {
       }
       const { data: doc } = await supabase
         .from("event_documents")
-        .select("id, financial_id, kind")
+        .select("id, financial_id, kind, terms_approved")
         .eq("id", documentId)
         .eq("financial_id", financial.id)
         .eq("kind", "contract")
         .maybeSingle();
       if (!doc) {
         return new Response(JSON.stringify({ error: "Contract not found." }), { status: 404, headers: corsHeaders });
+      }
+      if (doc.terms_approved !== true) {
+        return new Response(
+          JSON.stringify({ error: "This agreement is not ready for signature yet." }),
+          { status: 400, headers: corsHeaders },
+        );
       }
       const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
       await supabase
