@@ -9,6 +9,7 @@ import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
 import { EventEditorDialog } from "@/components/eventsportal/EventEditorDialog";
 import { useEventsPortalManager } from "@/components/eventsportal/ProtectedEventsPortalRoute";
 import { EventRequestsPanel } from "@/components/admin/events/EventRequestsPanel";
+import { HarvestMoonEmailControls } from "@/components/eventsportal/HarvestMoonEmailControls";
 import { useStaffEvent } from "@/hooks/useEventsPortal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -225,6 +226,8 @@ export default function EventsPortalEventDetail() {
           )}
         </CardContent>
       </Card>
+
+      {isManager && event.slug === "under-the-harvest-moon" && <HarvestMoonEmailControls />}
 
       <EventRequestsPanel eventId={event.id} />
 
