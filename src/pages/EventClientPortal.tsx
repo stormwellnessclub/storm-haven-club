@@ -110,9 +110,18 @@ function money(cents: number | null | undefined): string {
 
 function formatDate(date?: string | null): string {
   if (!date) return "—";
-  const d = new Date(date);
+  // Plain calendar dates (YYYY-MM-DD) are club-local days: never shift them through UTC.
+  const plain = /^\d{4}-\d{2}-\d{2}$/.exec(date);
+  const d = plain
+    ? new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)))
+    : new Date(date);
   if (Number.isNaN(d.getTime())) return date;
-  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    ...(plain ? {} : { timeZone: "America/Detroit" }),
+  });
 }
 
 const STATUS_LABEL: Record<string, string> = {

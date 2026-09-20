@@ -259,10 +259,26 @@ export function SendFinancialDialog({
           </Button>
           <Button
             variant="outline"
-            disabled={!scheduleFor}
+            disabled={!scheduleFor || !to || blockedContract}
             onClick={async () => {
+              if (blockedContract) {
+                toast.error("This agreement still uses placeholder terms and cannot be sent to a client.");
+                return;
+              }
+              const when = new Date(scheduleFor);
+              if (Number.isNaN(when.getTime()) || when.getTime() < Date.now() - 60_000) {
+                toast.error("Choose a send time in the future.");
+                return;
+              }
               await record("scheduled");
-              toast.success("Scheduled");
+              toast.success(
+                `Scheduled — this will send automatically on ${when.toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}`,
+              );
               onOpenChange(false);
             }}
           >
