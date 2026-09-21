@@ -46,29 +46,47 @@ export function KidsCareHoursEditor() {
 
   // Local editing state
   const [localSlots, setLocalSlots] = useState<LocalSlot[]>([]);
-  const [initialized, setInitialized] = useState<string>("");
+  const [dirty, setDirty] = useState(false);
+  const [syncedKey, setSyncedKey] = useState<string>("");
 
-  if (!isLoading && initialized !== dateStr) {
-    if (savedSlots && savedSlots.length > 0) {
-      setLocalSlots(
-        savedSlots.map((s) => ({
-          open_time: s.open_time.slice(0, 5),
-          close_time: s.close_time.slice(0, 5),
-          label: s.label || "",
-          notes: s.notes || "",
-          staff_name: s.staff_name || "",
-        }))
-      );
-    } else {
-      setLocalSlots([]);
-    }
-    setInitialized(dateStr);
-  }
+  const savedSignature = savedSlots
+    ? savedSlots
+        .map((s) => `${s.open_time}|${s.close_time}|${s.label || ""}|${s.notes || ""}|${s.staff_name || ""}`)
+        .join(";")
+    : null;
+  const syncKey = savedSignature === null ? null : `${dateStr}::${savedSignature}`;
 
-  const addSlot = () => setLocalSlots((prev) => [...prev, { ...DEFAULT_SLOT }]);
-  const removeSlot = (index: number) => setLocalSlots((prev) => prev.filter((_, i) => i !== index));
-  const updateSlot = (index: number, updates: Partial<LocalSlot>) =>
+  // Keep the editor in step with what is actually saved, without ever
+  // discarding edits the user has not saved yet.
+  useEffect(() => {
+    if (isLoading || syncKey === null) return;
+    if (syncKey === syncedKey) return;
+    if (dirty && syncedKey.startsWith(`${dateStr}::`)) return;
+    setLocalSlots(
+      (savedSlots || []).map((s) => ({
+        open_time: s.open_time.slice(0, 5),
+        close_time: s.close_time.slice(0, 5),
+        label: s.label || "",
+        notes: s.notes || "",
+        staff_name: s.staff_name || "",
+      }))
+    );
+    setDirty(false);
+    setSyncedKey(syncKey);
+  }, [isLoading, syncKey, syncedKey, dirty, dateStr, savedSlots]);
+
+  const addSlot = () => {
+    setDirty(true);
+    setLocalSlots((prev) => [...prev, { ...DEFAULT_SLOT }]);
+  };
+  const removeSlot = (index: number) => {
+    setDirty(true);
+    setLocalSlots((prev) => prev.filter((_, i) => i !== index));
+  };
+  const updateSlot = (index: number, updates: Partial<LocalSlot>) => {
+    setDirty(true);
     setLocalSlots((prev) => prev.map((s, i) => (i === index ? { ...s, ...updates } : s)));
+  };
 
   const handleSave = () => {
     saveSlots.mutate(
@@ -83,7 +101,7 @@ export function KidsCareHoursEditor() {
           staff_name: s.staff_name || null,
         })),
       },
-      { onSuccess: () => setInitialized("") }
+      { onSuccess: () => { setDirty(false); setSyncedKey(""); } }
     );
   };
 
