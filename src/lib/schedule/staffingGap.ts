@@ -27,7 +27,8 @@ export const DEFAULT_ASSUMPTIONS: GapAssumptions = {
     kids_care: BENCHMARKS.wage_kids_care.value!,
   },
   weeksOpen: 39,
-  ownerFloorHours: 60,
+  // Owner's stated load: about 13 hours a day at the club, seven days a week.
+  ownerFloorHours: 91,
   activeMembers: 130,
   revenuePerMember: BENCHMARKS.revenue_per_member_multipurpose.value!,
   hoursPerHire: 17,
