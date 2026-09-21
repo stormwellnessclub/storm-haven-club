@@ -127,7 +127,7 @@ export default function StaffingGap() {
       `- US clubs retain ${BENCHMARKS.retention_annual.display} of members a year (${BENCHMARKS.retention_annual.source}, ${BENCHMARKS.retention_annual.year}).`,
       `- ${BENCHMARKS.childcare_demand.display} of parents would use the club more with childcare (${BENCHMARKS.childcare_demand.source}).`,
       `- Replacing a burned-out employee costs ${BENCHMARKS.turnover_cost.display} (${BENCHMARKS.turnover_cost.source}).`,
-    ];
+    );
     return l.join('\n');
   }, [report, weekLabel, assumptions]);
 
