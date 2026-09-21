@@ -269,6 +269,7 @@ export default function EventsPortalEventDetail() {
       </Card>
 
       {isManager && event.slug === "under-the-harvest-moon" && <HarvestMoonEmailControls />}
+      {isManager && event.slug === "under-the-harvest-moon" && <HarvestMoonReminderControls />}
 
       <EventRequestsPanel eventId={event.id} />
 
