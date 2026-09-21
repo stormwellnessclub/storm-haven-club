@@ -402,18 +402,23 @@ function BookOnBehalfDialog({
       const { data, error } = await supabase
         .from("class_sessions")
         .select(
-          `id, session_date, start_time, end_time, room, spots_remaining, is_cancelled,
+          `id, session_date, start_time, end_time, room, max_capacity, current_enrollment, is_cancelled,
            class_type:class_types!inner(name, is_heated),
            instructor:instructors(first_name, last_name)`
         )
         .gte("session_date", today)
         .eq("is_cancelled", false)
-        .gt("spots_remaining", 0)
         .order("session_date", { ascending: true })
         .order("start_time", { ascending: true })
-        .limit(60);
+        .limit(120);
       if (error) throw error;
-      return (data as any) || [];
+      return ((data as any[]) || [])
+        .map((s) => ({
+          ...s,
+          spots_remaining: (s.max_capacity ?? 0) - (s.current_enrollment ?? 0),
+        }))
+        .filter((s) => s.spots_remaining > 0)
+        .slice(0, 60) as UpcomingSession[];
     },
   });
 
