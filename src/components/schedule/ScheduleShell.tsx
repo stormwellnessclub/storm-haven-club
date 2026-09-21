@@ -12,6 +12,7 @@ const NAV = [
   { to: '/schedule/time-off', label: 'Time off', icon: PlaneTakeoff, end: false },
   { to: '/schedule/hours', label: 'Hours & cost', icon: DollarSign, end: false },
   { to: '/schedule/staffing-plan', label: 'Staffing plan', icon: ClipboardList, end: false },
+  { to: '/schedule/staffing-gap', label: 'Staffing gap', icon: TrendingDown, end: false },
 ];
 
 export function ScheduleShell({
