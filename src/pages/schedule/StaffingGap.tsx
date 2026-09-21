@@ -41,7 +41,8 @@ export default function StaffingGap() {
   const [copied, setCopied] = useState(false);
   const [assumptions, setAssumptions] = usePersistedState<GapAssumptions>(
     'staffing-gap-assumptions',
-    DEFAULT_ASSUMPTIONS
+    DEFAULT_ASSUMPTIONS,
+    'local'
   );
 
   const dates = useMemo(() => {
