@@ -169,6 +169,7 @@ import ScheduleTimeOff from "./pages/schedule/ScheduleTimeOff";
 import ScheduleHours from "./pages/schedule/ScheduleHours";
 import ScheduleStaffingPlan from "./pages/schedule/StaffingPlan";
 import ScheduleStaffingGap from "./pages/schedule/StaffingGap";
+import ScheduleLaunchCost from "./pages/schedule/LaunchCost";
 import MerchManager from "./pages/admin/MerchManager";
 import SpaManagement from "./pages/admin/SpaManagement";
 import MothersDayAdmin from "./pages/admin/MothersDayAdmin";
@@ -505,6 +506,7 @@ const App = () => (
               <Route path="/schedule/hours" element={<ProtectedScheduleRoute><ScheduleHours /></ProtectedScheduleRoute>} />
               <Route path="/schedule/staffing-plan" element={<ProtectedScheduleRoute><ScheduleStaffingPlan /></ProtectedScheduleRoute>} />
               <Route path="/schedule/staffing-gap" element={<ProtectedScheduleRoute><ScheduleStaffingGap /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/launch-cost" element={<ProtectedScheduleRoute><ScheduleLaunchCost /></ProtectedScheduleRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/chime-diagnostics" element={<ProtectedAdminRoute><ChimeDiagnostics /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />

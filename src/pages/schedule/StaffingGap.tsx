@@ -40,7 +40,7 @@ export default function StaffingGap() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [copied, setCopied] = useState(false);
   const [assumptions, setAssumptions] = usePersistedState<GapAssumptions>(
-    'staffing-gap-assumptions',
+    'staffing-gap-assumptions-v2',
     DEFAULT_ASSUMPTIONS,
     'local'
   );
