@@ -11,6 +11,7 @@ const NAV = [
   { to: '/schedule/coverage', label: 'Coverage rules', icon: ShieldCheck, end: false },
   { to: '/schedule/time-off', label: 'Time off', icon: PlaneTakeoff, end: false },
   { to: '/schedule/hours', label: 'Hours & cost', icon: DollarSign, end: false },
+  { to: '/schedule/staffing-plan', label: 'Staffing plan', icon: ClipboardList, end: false },
 ];
 
 export function ScheduleShell({
