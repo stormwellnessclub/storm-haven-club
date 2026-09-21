@@ -44,6 +44,8 @@ export interface OperationalLaunchReport {
     fillPct: number;
     instructors: number;
     studios: number;
+    directPassRevenue: number;
+    passesSold: number;
   };
   spa: {
     completed: number;
@@ -137,6 +139,13 @@ export function buildOperationalLaunchReport(
   const classGoal = weekdays * 20;
   const offeredSpots = sum(delivered, (s) => s.max_capacity || 0);
   const bookedSpots = sum(delivered, (s) => s.current_enrollment || 0);
+  const classPasses = data.classPasses.filter(
+    (pass) =>
+      pass.purchased_at.slice(0, 10) >= openingDate &&
+      pass.purchased_at.slice(0, 10) <= throughDate &&
+      pass.status !== 'refunded' &&
+      pass.status !== 'cancelled'
+  );
 
   const spaRows = data.spaAppointments.filter((a) => a.appointment_date >= openingDate && a.appointment_date <= throughDate);
   const completed = spaRows.filter((a) => a.status === 'completed');
@@ -204,9 +213,9 @@ export function buildOperationalLaunchReport(
       key: 'evidence',
       name: 'Evidence-based ramp',
       cafeMonthly: round(cafePeak / 0.7),
-      spaMonthly: round(spaPeak * Math.min(2, roomScale)),
-      combinedMonthly: round(cafePeak / 0.7 + spaPeak * Math.min(2, roomScale)),
-      note: 'Café peak treated as 70% of mature operation; spa capped at twice demonstrated output.',
+      spaMonthly: round(spaPeak * Math.min(1.25, roomScale)),
+      combinedMonthly: round(cafePeak / 0.7 + spaPeak * Math.min(1.25, roomScale)),
+      note: 'Café peak treated as 70% of mature operation; spa adds a moderated 25% to demonstrated peak output.',
     },
     {
       key: 'capacity',
@@ -231,6 +240,8 @@ export function buildOperationalLaunchReport(
       fillPct: offeredSpots ? round((bookedSpots / offeredSpots) * 100, 1) : 0,
       instructors: unique(delivered.map((s: LaunchSession) => s.instructor_id)),
       studios: unique(delivered.map((s: LaunchSession) => s.room)),
+      directPassRevenue: round(sum(classPasses, (pass) => Number(pass.price_paid ?? 0)), 2),
+      passesSold: classPasses.length,
     },
     spa: {
       completed: completed.length,

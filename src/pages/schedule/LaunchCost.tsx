@@ -81,8 +81,8 @@ export default function LaunchCost() {
 
   const copyText = async () => {
     const lines = [
-      'STORM WELLNESS CLUB — NINE-MONTH LAUNCH DIAGNOSIS',
-      `Classes: ${actual.classes.delivered.toLocaleString()} delivered of ${actual.classes.goal.toLocaleString()} weekday target (${actual.classes.goalPct}%).`,
+      'STORM WELLNESS CLUB — STRETCHED LAUNCH DIAGNOSIS',
+      `Classes: ${actual.classes.delivered.toLocaleString()} delivered of ${actual.classes.goal.toLocaleString()} weekday target (${actual.classes.goalPct}%); ${money(actual.classes.directPassRevenue)} in direct class-pass purchases.`,
       `Spa: ${actual.spa.completed} completed appointments, ${money(actual.spa.serviceRevenue)} service revenue, ${actual.spa.returningClients} returning clients, ${actual.spa.usedRooms}/${actual.spa.activeRooms} rooms used.`,
       `Cafe: ${actual.cafe.transactions} reconciled transactions, ${money(actual.cafe.revenue)}, ${actual.cafe.purchasingMembers} purchasing members.`,
       `Core staffing: ${labor.gap.totals.uncoveredPct}% uncovered; ${labor.gap.totals.uncovered} hours short each week.`,
@@ -100,7 +100,7 @@ export default function LaunchCost() {
 
   return (
     <ScheduleShell
-      title="Nine-month launch diagnosis"
+      title="Stretched launch diagnosis"
       description="Actual revenue, unrealized operating capacity, and the recovery path"
       actions={<div className="flex items-center gap-2 print:hidden"><Button variant="outline" size="sm" onClick={copyText}>{copied ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}{copied ? 'Copied' : 'Copy as text'}</Button><Button size="sm" onClick={() => window.print()}><Printer className="mr-1.5 h-4 w-4" />Print / PDF</Button></div>}
     >
@@ -108,7 +108,7 @@ export default function LaunchCost() {
       {error && <Alert variant="destructive"><AlertTriangle className="h-4 w-4" /><AlertDescription>Some operating records could not be loaded: {error}</AlertDescription></Alert>}
 
       <section className="border-y border-destructive/40 py-7">
-        <div className="text-xs uppercase tracking-widest text-muted-foreground">Nine months in</div>
+        <div className="text-xs uppercase tracking-widest text-muted-foreground">Since opening</div>
         <h2 className="mt-2 max-w-4xl text-2xl font-semibold leading-snug sm:text-4xl">
           Storm has been open, but its classes, spa and café have not had the staffing or founder capacity to complete a real launch.
         </h2>
@@ -120,7 +120,7 @@ export default function LaunchCost() {
       <section className="space-y-4">
         <SectionTitle eyebrow="What actually operated" title="The launch gap is visible in Storm’s own records" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Stat label="Weekday class goal reached" value={loading ? '…' : `${actual.classes.goalPct}%`} sub={`${actual.classes.delivered.toLocaleString()} of ${actual.classes.goal.toLocaleString()} target classes`} tone="danger" />
+          <Stat label="Weekday class goal reached" value={loading ? '…' : `${actual.classes.goalPct}%`} sub={`${actual.classes.delivered.toLocaleString()} of ${actual.classes.goal.toLocaleString()} target classes · ${money(actual.classes.directPassRevenue)} direct pass revenue`} tone="danger" />
           <Stat label="Spa service revenue" value={loading ? '…' : money(actual.spa.serviceRevenue)} sub={`${actual.spa.completed} completed appointments · tips excluded`} />
           <Stat label="Café revenue reconciled" value={loading ? '…' : money(actual.cafe.revenue)} sub={`${actual.cafe.transactions} transactions · ${actual.cafe.purchasingMembers} purchasing members`} />
           <Stat label="Core staffed week uncovered" value={loading ? '…' : `${labor.gap.totals.uncoveredPct}%`} sub={`${labor.gap.totals.uncovered} hours short every week`} tone="danger" />
@@ -152,8 +152,8 @@ export default function LaunchCost() {
       <section className="space-y-4">
         <SectionTitle eyebrow="What could not launch" title="Three revenue engines were constrained at the same time" />
         <div className="grid gap-4 lg:grid-cols-3">
-          <Department title="Classes" headline={`${actual.classes.shortfall.toLocaleString()} classes below goal`} facts={[`${actual.classes.delivered} delivered; ${actual.classes.cancelled} cancelled`, `${actual.classes.bookedSpots.toLocaleString()} bookings across ${actual.classes.offeredSpots.toLocaleString()} offered places`, `${actual.classes.fillPct}% recorded fill rate`, `${actual.classes.instructors} instructors and ${actual.classes.studios} studios appear in delivered sessions`]} note="A class community cannot build rapport around inventory that was never consistently offered. Low early fill does not prove a class should disappear; it shows the ramp was interrupted." />
-          <Department title="Spa" headline={`${actual.spa.usedRooms} of ${actual.spa.activeRooms} rooms used`} facts={[`${actual.spa.completed} completed; ${actual.spa.cancelled} cancelled`, `${actual.spa.clients} recorded clients; ${actual.spa.returningClients} returned`, `${actual.spa.repeatClientPct}% of recorded clients became repeat clients`, `${actual.spa.usedTherapists} therapists appear in completed appointments`]} note="The repeat behavior demonstrates that demand can build once a service is activated. Room capacity and therapist capacity are shown separately; six rooms do not mean one therapist can serve six clients at once." />
+          <Department title="Classes" headline={`${actual.classes.shortfall.toLocaleString()} classes below goal`} facts={[`${actual.classes.delivered} delivered; ${actual.classes.cancelled} cancelled`, `${actual.classes.bookedSpots.toLocaleString()} bookings across ${actual.classes.offeredSpots.toLocaleString()} offered places`, `${actual.classes.fillPct}% recorded fill rate`, `${money(actual.classes.directPassRevenue)} from ${actual.classes.passesSold} direct pass purchases`, `${actual.classes.instructors} instructors and ${actual.classes.studios} studios appear in delivered sessions`]} note="A class community cannot build rapport around inventory that was never consistently offered. Low early fill does not prove a class should disappear; it shows the ramp was interrupted." />
+          <Department title="Spa" headline={`${actual.spa.usedRooms} of ${actual.spa.activeRooms} rooms used`} facts={[`${actual.spa.completed} completed; ${actual.spa.cancelled} cancelled`, `${actual.spa.clients} recorded clients; ${actual.spa.returningClients} returned`, `${actual.spa.repeatClientPct}% of recorded clients became repeat clients`, `${actual.spa.activeTherapists} currently active; ${actual.spa.usedTherapists} appear in completed history`]} note="The repeat behavior demonstrates that demand can build once a service is activated. Room capacity and therapist capacity are shown separately; six rooms do not mean one therapist can serve six clients at once." />
           <Department title="Café" headline={`${money(actual.cafe.revenue)} actually generated`} facts={[`${actual.cafe.transactions} reconciled transactions`, `${actual.cafe.averageTicket.toFixed(2)} average ticket`, `${actual.cafe.repeatMembers} repeat purchasing members`, `${actual.cafe.ordersPerBuyer} transactions per identified buyer`]} note="This includes member-account/card charges, not only the café order screen. Matching payment references removes duplicate order tickets." />
         </div>
       </section>

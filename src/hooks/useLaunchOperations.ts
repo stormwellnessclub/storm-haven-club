@@ -44,11 +44,20 @@ export interface LaunchTherapist {
   is_active: boolean;
 }
 
+export interface LaunchClassPass {
+  id: string;
+  purchased_at: string;
+  price_paid: number;
+  status: string;
+  stripe_payment_intent_id: string | null;
+}
+
 export interface LaunchOperationsData {
   sessions: LaunchSession[];
   spaAppointments: LaunchSpaAppointment[];
   rooms: LaunchRoom[];
   therapists: LaunchTherapist[];
+  classPasses: LaunchClassPass[];
   cafeSales: CafeSale[];
 }
 
@@ -57,6 +66,7 @@ const empty: LaunchOperationsData = {
   spaAppointments: [],
   rooms: [],
   therapists: [],
+  classPasses: [],
   cafeSales: [],
 };
 
@@ -73,7 +83,7 @@ export function useLaunchOperations() {
       const start = new Date(`${STORM_OPENING_DATE}T00:00:00-05:00`);
       const end = new Date();
       try {
-        const [sessions, spa, rooms, therapists, cafeSales] = await Promise.all([
+        const [sessions, spa, rooms, therapists, classPasses, cafeSales] = await Promise.all([
           (supabase as any)
             .from('class_sessions')
             .select('id,session_date,room,instructor_id,current_enrollment,max_capacity,is_cancelled,is_hidden,is_fundraiser')
@@ -86,9 +96,14 @@ export function useLaunchOperations() {
             .lte('appointment_date', end.toLocaleDateString('en-CA', { timeZone: 'America/Detroit' })),
           (supabase as any).from('spa_rooms').select('id,name,room_type,is_active').eq('is_active', true),
           (supabase as any).from('spa_therapists').select('id,full_name,is_active').eq('is_active', true),
+          (supabase as any)
+            .from('class_passes')
+            .select('id,purchased_at,price_paid,status,stripe_payment_intent_id')
+            .gte('purchased_at', start.toISOString())
+            .lte('purchased_at', end.toISOString()),
           fetchCafeSales(start, end),
         ]);
-        const failures = [sessions, spa, rooms, therapists].filter((r) => r.error);
+        const failures = [sessions, spa, rooms, therapists, classPasses].filter((r) => r.error);
         if (failures.length) throw failures[0].error;
         if (!active) return;
         setData({
@@ -96,6 +111,7 @@ export function useLaunchOperations() {
           spaAppointments: (spa.data ?? []) as LaunchSpaAppointment[],
           rooms: (rooms.data ?? []) as LaunchRoom[],
           therapists: (therapists.data ?? []) as LaunchTherapist[],
+          classPasses: (classPasses.data ?? []) as LaunchClassPass[],
           cafeSales,
         });
       } catch (err) {
