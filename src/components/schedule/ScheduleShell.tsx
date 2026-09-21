@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Users, ShieldCheck, PlaneTakeoff, DollarSign, ArrowLeft } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Users, ShieldCheck, PlaneTakeoff, DollarSign, ClipboardList, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
