@@ -116,7 +116,7 @@ export function KidsCareHoursEditor() {
         sourceDate: dateStr,
         targetDates: copyDates.map((d) => format(d, "yyyy-MM-dd")),
       },
-      { onSuccess: () => { setShowCopy(false); setCopyDates([]); setInitialized(""); } }
+      { onSuccess: () => { setShowCopy(false); setCopyDates([]); setDirty(false); setSyncedKey(""); } }
     );
   };
 
