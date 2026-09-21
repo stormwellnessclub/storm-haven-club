@@ -167,6 +167,7 @@ import ScheduleTeam from "./pages/schedule/ScheduleTeam";
 import ScheduleCoverage from "./pages/schedule/ScheduleCoverage";
 import ScheduleTimeOff from "./pages/schedule/ScheduleTimeOff";
 import ScheduleHours from "./pages/schedule/ScheduleHours";
+import ScheduleStaffingPlan from "./pages/schedule/StaffingPlan";
 import MerchManager from "./pages/admin/MerchManager";
 import SpaManagement from "./pages/admin/SpaManagement";
 import MothersDayAdmin from "./pages/admin/MothersDayAdmin";
