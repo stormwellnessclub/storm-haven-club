@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { CalendarDays, LayoutGrid, Users, ShieldCheck, PlaneTakeoff, DollarSign, ClipboardList, ArrowLeft } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Users, ShieldCheck, PlaneTakeoff, DollarSign, ClipboardList, TrendingDown, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/schedule/time-off', label: 'Time off', icon: PlaneTakeoff, end: false },
   { to: '/schedule/hours', label: 'Hours & cost', icon: DollarSign, end: false },
   { to: '/schedule/staffing-plan', label: 'Staffing plan', icon: ClipboardList, end: false },
+  { to: '/schedule/staffing-gap', label: 'Staffing gap', icon: TrendingDown, end: false },
 ];
 
 export function ScheduleShell({
