@@ -504,6 +504,7 @@ const App = () => (
               <Route path="/schedule/time-off" element={<ProtectedScheduleRoute><ScheduleTimeOff /></ProtectedScheduleRoute>} />
               <Route path="/schedule/hours" element={<ProtectedScheduleRoute><ScheduleHours /></ProtectedScheduleRoute>} />
               <Route path="/schedule/staffing-plan" element={<ProtectedScheduleRoute><ScheduleStaffingPlan /></ProtectedScheduleRoute>} />
+              <Route path="/schedule/staffing-gap" element={<ProtectedScheduleRoute><ScheduleStaffingGap /></ProtectedScheduleRoute>} />
               <Route path="/admin/settings" element={<ProtectedAdminRoute><Settings /></ProtectedAdminRoute>} />
               <Route path="/admin/chime-diagnostics" element={<ProtectedAdminRoute><ChimeDiagnostics /></ProtectedAdminRoute>} />
               <Route path="/admin/emails" element={<ProtectedAdminRoute><EmailManagement /></ProtectedAdminRoute>} />
