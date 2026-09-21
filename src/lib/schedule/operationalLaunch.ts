@@ -148,7 +148,12 @@ export function buildOperationalLaunchReport(
   const repeatAppointments = [...memberVisits.values()].reduce((total, count) => total + Math.max(0, count - 1), 0);
   const serviceRevenue = sum(completed, (a) => Number(a.amount_paid ?? 0) + Number(a.addons_total ?? 0));
 
-  const cafeSales = data.cafeSales.filter((sale) => sale.created_at.slice(0, 10) >= openingDate && sale.created_at.slice(0, 10) <= throughDate);
+  const cafeSales = data.cafeSales.filter(
+    (sale) =>
+      sale.created_at.slice(0, 10) >= openingDate &&
+      sale.created_at.slice(0, 10) <= throughDate &&
+      (sale.status === 'succeeded' || sale.status === 'completed')
+  );
   const buyerCounts = new Map<string, number>();
   cafeSales.forEach((sale) => {
     if (sale.memberId) buyerCounts.set(sale.memberId, (buyerCounts.get(sale.memberId) ?? 0) + 1);
