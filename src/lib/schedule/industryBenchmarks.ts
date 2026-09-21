@@ -1,0 +1,238 @@
+// Published industry figures used by the staffing gap report.
+// Every number rendered on that page as a benchmark must come from here so each
+// claim carries its source, year and link, and can be audited or updated in one place.
+
+export type Confidence = 'strong' | 'directional';
+
+export interface Benchmark {
+  id: string;
+  label: string;
+  /** Numeric value where one applies (percent as 0-100, money in dollars). */
+  value?: number;
+  display: string;
+  note: string;
+  source: string;
+  year: string;
+  url: string;
+  confidence: Confidence;
+}
+
+export const BENCHMARKS: Record<string, Benchmark> = {
+  retention_annual: {
+    id: 'retention_annual',
+    label: 'Average annual member retention',
+    value: 66.4,
+    display: '66.4%',
+    note: 'Roughly one in three members leave every year across 175 operators and 17,000+ facilities.',
+    source: 'Health & Fitness Association, Fitness Industry Benchmarking Report',
+    year: '2025',
+    url: 'https://www.healthandfitness.org/health-fitness-association-releases-2025-fitness-industry-benchmarking-report/',
+    confidence: 'strong',
+  },
+  retention_independent: {
+    id: 'retention_independent',
+    label: 'Independent clubs vs chains',
+    value: 73.2,
+    display: '73.2% vs 62.3%',
+    note: 'Independent clubs, which rely on personal staffed service, retain members better than chains.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.healthandfitness.org/ihrsa-2019-profiles-of-success/',
+    confidence: 'strong',
+  },
+  membership_length: {
+    id: 'membership_length',
+    label: 'Average length of membership',
+    value: 20.2,
+    display: '20.2 months',
+    note: 'From a 36-month study tracking 1.5 million members.',
+    source: 'IHRSA "One Million Strong" (Dr Paul Bedford)',
+    year: '2015',
+    url: 'https://www.fittechglobal.com/fit-tech-features/IHRSA-update-One-million-strong/30115',
+    confidence: 'strong',
+  },
+  revenue_per_member_fitness: {
+    id: 'revenue_per_member_fitness',
+    label: 'Annual revenue per member — fitness-only clubs',
+    value: 582,
+    display: '$582',
+    note: 'Used as the conservative revenue-per-member figure.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.healthandfitness.org/ihrsa-2019-profiles-of-success/',
+    confidence: 'strong',
+  },
+  revenue_per_member_multipurpose: {
+    id: 'revenue_per_member_multipurpose',
+    label: 'Annual revenue per member — multipurpose clubs',
+    value: 842.4,
+    display: '$842',
+    note: 'Clubs with spa, cafe, childcare and classes — the closest match to Storm.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.healthandfitness.org/ihrsa-2019-profiles-of-success/',
+    confidence: 'strong',
+  },
+  mix_fb: {
+    id: 'mix_fb',
+    label: 'Food and beverage share of club revenue',
+    value: 3.9,
+    display: '3.9%',
+    note: 'Share of total revenue at multipurpose clubs.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.fittechglobal.com/fit-tech-features/The-numbers-are-in/34259',
+    confidence: 'strong',
+  },
+  mix_kids: {
+    id: 'mix_kids',
+    label: 'Children and youth programs share of club revenue',
+    value: 1.9,
+    display: '1.9%',
+    note: 'Share of total revenue at multipurpose clubs.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.fittechglobal.com/fit-tech-features/The-numbers-are-in/34259',
+    confidence: 'strong',
+  },
+  mix_spa: {
+    id: 'mix_spa',
+    label: 'Spa share of club revenue',
+    value: 4.3,
+    display: '4.3%',
+    note: 'Share of total revenue at multipurpose clubs.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.fittechglobal.com/fit-tech-features/The-numbers-are-in/34259',
+    confidence: 'strong',
+  },
+  mix_pt: {
+    id: 'mix_pt',
+    label: 'Personal training share of club revenue',
+    value: 7.7,
+    display: '7.7%',
+    note: 'Share of total revenue at multipurpose clubs.',
+    source: 'IHRSA Profiles of Success',
+    year: '2019',
+    url: 'https://www.fittechglobal.com/fit-tech-features/The-numbers-are-in/34259',
+    confidence: 'strong',
+  },
+  childcare_demand: {
+    id: 'childcare_demand',
+    label: 'Parents who would use the gym more with childcare',
+    value: 34,
+    display: '34%',
+    note: 'Widely cited IHRSA survey figure; repeated across trade coverage rather than published as a standalone dataset.',
+    source: 'IHRSA survey, via trade coverage',
+    year: '2023',
+    url: 'https://www.gymstracker.com/amenities-tracker/gyms-with-childcare-near-me',
+    confidence: 'directional',
+  },
+  first_year_failure: {
+    id: 'first_year_failure',
+    label: 'Fitness studios that fail in year one',
+    value: 81,
+    display: '81%',
+    note: 'Named causes include undercapitalisation and owners carrying the business alone.',
+    source: 'Health & Fitness Association',
+    year: '2018',
+    url: 'https://www.healthandfitness.org/why-most-startup-fitness-studios-fail/',
+    confidence: 'strong',
+  },
+  owner_hours: {
+    id: 'owner_hours',
+    label: 'Average small-business owner work week',
+    value: 52,
+    display: '52 hours',
+    note: '62% work 50+ hours a week; 26% of self-employed work 60 or more.',
+    source: 'Gallup / Wells Fargo Small Business Index',
+    year: '2005-2009',
+    url: 'https://news.gallup.com/poll/18088/work-labor-love-smallbusiness-owners.aspx',
+    confidence: 'strong',
+  },
+  founder_burnout: {
+    id: 'founder_burnout',
+    label: 'Founders reporting anxiety, depression or burnout',
+    value: 87,
+    display: '87%',
+    note: 'Survey of entrepreneurs reported in Fortune.',
+    source: 'The Lonely Entrepreneur, via Fortune',
+    year: '2025',
+    url: 'https://fortune.com/2025/09/12/we-studied-entrepreneurs-burnout-anxious-depressed-wellbeing/',
+    confidence: 'directional',
+  },
+  turnover_cost: {
+    id: 'turnover_cost',
+    label: 'Cost to replace an employee',
+    value: 100,
+    display: '50-200% of salary',
+    note: 'The cost of losing the few people you already have.',
+    source: 'Gallup / SHRM',
+    year: '2024-2025',
+    url: 'https://www.shrm.org/topics-tools/news/talent-acquisition/real-costs-recruitment',
+    confidence: 'strong',
+  },
+  cost_per_hire: {
+    id: 'cost_per_hire',
+    label: 'Average cost per hire',
+    value: 4700,
+    display: '$4,700',
+    note: 'Recruiting, advertising and onboarding cost for one role.',
+    source: 'SHRM benchmarking',
+    year: '2022',
+    url: 'https://www.shrm.org/topics-tools/news/talent-acquisition/real-costs-recruitment',
+    confidence: 'strong',
+  },
+  service_quality: {
+    id: 'service_quality',
+    label: 'Service quality and reviews drive revenue',
+    display: '442 hotels studied',
+    note: 'Peer-reviewed hospitality evidence that staff-driven service quality and online reviews measurably affect occupancy and revenue. There is no equivalent fitness-specific study, so this stands as an analogy only.',
+    source: 'Phillips, Barnes, Zigan & Schegg, Journal of Travel Research',
+    year: '2016',
+    url: 'https://www.researchgate.net/publication/291164180_Understanding_the_Impact_of_Online_Reviews_on_Hotel_Performance',
+    confidence: 'directional',
+  },
+  wage_front_desk: {
+    id: 'wage_front_desk',
+    label: 'Receptionists and information clerks — median wage',
+    value: 17.23,
+    display: '$17.23/hr',
+    note: 'National median hourly wage.',
+    source: 'US Bureau of Labor Statistics, OEWS',
+    year: '2023',
+    url: 'https://www.bls.gov/oes/2023/may/oes434171.htm',
+    confidence: 'strong',
+  },
+  wage_cafe: {
+    id: 'wage_cafe',
+    label: 'Food and beverage serving workers — median wage',
+    value: 14.92,
+    display: '$14.92/hr',
+    note: 'National median hourly wage.',
+    source: 'US Bureau of Labor Statistics, Occupational Outlook Handbook',
+    year: '2024',
+    url: 'https://www.bls.gov/ooh/food-preparation-and-serving/food-and-beverage-serving-and-related-workers.htm',
+    confidence: 'strong',
+  },
+  wage_kids_care: {
+    id: 'wage_kids_care',
+    label: 'Childcare workers — median wage',
+    value: 15.41,
+    display: '$15.41/hr',
+    note: 'National median hourly wage.',
+    source: 'US Bureau of Labor Statistics, Occupational Outlook Handbook',
+    year: '2024',
+    url: 'https://www.bls.gov/ooh/Personal-Care-and-Service/Childcare-workers.htm',
+    confidence: 'strong',
+  },
+};
+
+export const BENCHMARK_LIST = Object.values(BENCHMARKS);
+
+/** Honest statement of what the research could not establish. */
+export const EVIDENCE_GAPS = [
+  'No published study links a club\u2019s staffed hours directly to member churn. The closest evidence is the retention difference between independently run and chain clubs.',
+  'No study measures the revenue forfeited when an amenity is closed for lack of staff. The cafe and kids care figures on this page are modelled from published revenue-mix shares, not observed losses.',
+  'No fitness-specific research connects understaffing to reviews or member satisfaction scores. The hospitality study cited is the strongest available proxy.',
+];
