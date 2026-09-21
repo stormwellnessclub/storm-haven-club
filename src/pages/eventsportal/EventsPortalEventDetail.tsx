@@ -11,6 +11,7 @@ import { AddEventAttendeeDialog } from "@/components/eventsportal/AddEventAttend
 import { useEventsPortalManager } from "@/components/eventsportal/ProtectedEventsPortalRoute";
 import { EventRequestsPanel } from "@/components/admin/events/EventRequestsPanel";
 import { HarvestMoonEmailControls } from "@/components/eventsportal/HarvestMoonEmailControls";
+import { HarvestMoonReminderControls } from "@/components/eventsportal/HarvestMoonReminderControls";
 import { useStaffEvent } from "@/hooks/useEventsPortal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -269,6 +270,7 @@ export default function EventsPortalEventDetail() {
       </Card>
 
       {isManager && event.slug === "under-the-harvest-moon" && <HarvestMoonEmailControls />}
+      {isManager && event.slug === "under-the-harvest-moon" && <HarvestMoonReminderControls />}
 
       <EventRequestsPanel eventId={event.id} />
 
