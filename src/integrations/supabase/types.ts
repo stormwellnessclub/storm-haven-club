@@ -15731,6 +15731,10 @@ export type Database = {
         Args: { p_first_autopay: string; p_idempotency_key: string }
         Returns: Json
       }
+      pt_bind_plan_subscription: {
+        Args: { p_sale_ref: string; p_subscription_id: string }
+        Returns: Json
+      }
       pt_build_plan_schedule: {
         Args: {
           p_first_autopay: string
