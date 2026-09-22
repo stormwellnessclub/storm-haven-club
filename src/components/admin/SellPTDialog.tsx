@@ -13,6 +13,7 @@ import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
+import { usePTPackPaymentPlans, FREQUENCY_LABEL } from "@/hooks/pt/usePTPackPaymentPlans";
 import { calculateProcessingFee } from "@/lib/processingFee";
 
 type PtPackExt = PtPack & {
@@ -63,7 +64,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [adminNotes, setAdminNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
-  const [usePaymentPlan, setUsePaymentPlan] = useState(false);
+  /** "" = pay in full; otherwise the id of a named payment plan on the pack. */
+  const [selectedPlanId, setSelectedPlanId] = useState("");
   /** Stable reference for the current sale attempt — reused on retry. */
   const saleKeyRef = useRef<string | null>(null);
 
