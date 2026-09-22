@@ -193,15 +193,24 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setPaymentChoice("card_on_file");
   }, [cards.map((c) => c.id).join(",")]);
 
+  // ----- Payment plans on the selected package -----
+  const { data: allPlans = [] } = usePTPackPaymentPlans();
+  const packPlans = useMemo(
+    () => allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id),
+    [allPlans, selectedPack?.id],
+  );
+  useEffect(() => {
+    if (selectedPlanId && !packPlans.find((p) => p.id === selectedPlanId)) setSelectedPlanId("");
+  }, [packPlans, selectedPlanId]);
+  const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
+
   // ----- Totals -----
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
-  const planEligible = !!selectedPack?.allow_payment_plan && !!selectedPack?.payment_plan_months && (selectedPack?.payment_plan_months ?? 0) >= 2;
-  const planActive = willCharge && usePaymentPlan && planEligible;
-  const planMonths = selectedPack?.payment_plan_months ?? 0;
-  const perInstallmentCents = planActive && planMonths > 0
-    ? Math.ceil(subtotalCents / planMonths)
-    : 0;
+  const planActive = willCharge && !!selectedPlan;
+  const planMonths = selectedPlan?.installment_count ?? 0;
+  const perInstallmentCents = selectedPlan ? selectedPlan.installment_cents * quantity : 0;
+  const dueTodayCents = selectedPlan ? selectedPlan.down_payment_cents * quantity : 0;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
 
@@ -218,7 +227,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setSelectedCardId("");
     setAdminNotes("");
     setChargeError(null);
-    setUsePaymentPlan(false);
+    setSelectedPlanId("");
     saleKeyRef.current = null;
   }
 
