@@ -75,7 +75,7 @@ export function usePTPacks() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("pt_packs")
-        .select("id, name, format, sessions, price_cents, expiration_days, is_active, is_public, display_order, allow_payment_plan, payment_plan_months")
+        .select("id, name, format, sessions, price_cents, expiration_days, is_active, is_public, display_order, allow_pay_in_full, allow_payment_plans, allow_payment_plan, payment_plan_months")
         .order("display_order", { ascending: true });
       if (error) throw error;
       return data ?? [];
