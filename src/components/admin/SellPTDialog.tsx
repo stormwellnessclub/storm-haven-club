@@ -599,14 +599,19 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   <span>{formatCents(processingFeeCents)}</span>
                 </div>
               )}
-              {planActive ? (
+              {planActive && selectedPlan ? (
                 <>
                   <div className="flex justify-between font-semibold text-base pt-1 border-t">
-                    <span>Monthly (× {planMonths})</span>
-                    <span>{formatCents(perInstallmentCents)}/mo</span>
+                    <span>Due at sale</span>
+                    <span>{formatCents(dueTodayCents)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Future payments</span>
+                    <span>{planMonths - 1} × {formatCents(perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    First installment charges today. Auto-cancels after {planMonths} payments.
+                    {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
+                    {" "}charges the card on file automatically and ends after the final payment.
                   </div>
                 </>
               ) : (
@@ -632,7 +637,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {planActive
-              ? `Start plan · ${formatCents(perInstallmentCents)}/mo × ${planMonths}`
+              ? `Start plan · ${formatCents(dueTodayCents)} today`
               : willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
           </Button>
         </DialogFooter>
