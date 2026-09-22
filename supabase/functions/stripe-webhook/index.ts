@@ -3207,6 +3207,13 @@ serve(async (req) => {
               : (getInvoiceSubscriptionId(invoice) as any).id;
             const sub = await stripe.subscriptions.retrieve(subId);
             if (sub.metadata?.type === 'pt_payment_plan') {
+              const saleRef = sub.metadata.pt_sale_ref ?? null;
+              if (saleRef) {
+                const { error: bindErr } = await supabase.rpc('pt_bind_plan_subscription', {
+                  p_sale_ref: saleRef, p_subscription_id: subId,
+                });
+                if (bindErr) logError(bindErr, 'PT_PLAN_BIND_FAILED_INVOICE');
+              }
               const passIds = (sub.metadata.pt_pass_ids ?? '')
                 .split(',').map((s: string) => s.trim()).filter(Boolean);
               if (passIds.length > 0) {
@@ -3214,6 +3221,16 @@ serve(async (req) => {
                   .update({ payment_plan_status: 'past_due' })
                   .in('id', passIds);
               }
+              // Phase 2C.5B2: the same authoritative installment carries the failure,
+              // so the failed-payment center and retries act on one obligation.
+              const { error: recErr } = await supabase.rpc('pt_reconcile_installment', {
+                p_subscription_id: subId,
+                p_stripe_invoice_id: invoice.id,
+                p_outcome: 'failed',
+                p_amount_cents: invoice.amount_due ?? 0,
+                p_failure_reason: (invoice as any).last_payment_error?.message ?? 'Card was declined',
+              });
+              if (recErr) logError(recErr, 'PT_INSTALLMENT_RECONCILE_FAILED');
               // Phase 2C: register the failed installment as a PT-scoped dunning
               // obligation so it appears in the failed-payment center with attempt
               // counts, and so membership dunning never chases it.
