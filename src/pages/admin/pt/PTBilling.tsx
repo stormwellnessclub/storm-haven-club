@@ -675,8 +675,26 @@ function PlanDetailModal({
   clientName: string;
   onClose: () => void;
 }) {
+  // Storm owns the dated schedule: authoritative installment rows are shown as
+  // recorded. Older plans sold before those rows existed fall back to an estimate.
+  const { data: installments = [] } = usePTPlanInstallments(plan?.id);
+
   const schedule = useMemo(() => {
     if (!plan) return [];
+    if (installments.length > 0) {
+      return installments
+        .filter((i) => i.installment_number > 0 || i.status === "paid")
+        .map((i) => {
+          const [y, mo, d] = i.due_date.split("-").map((v) => parseInt(v, 10));
+          return {
+            index: i.installment_number,
+            date: new Date(y, mo - 1, d),
+            cents: i.amount_cents,
+            state: INSTALLMENT_STATE_LABEL[i.status] ?? i.status.toUpperCase(),
+            estimated: false,
+          };
+        });
+    }
     const total = plan.payment_plan_total_installments ?? 0;
     const paid = plan.payment_plan_installments_paid ?? 0;
     const amount = plan.payment_plan_installment_cents ?? 0;
@@ -697,9 +715,10 @@ function PlanDetailModal({
         date,
         cents,
         state: isPaid ? "SUCCESSFUL" : plan.payment_plan_status === "past_due" && i === paid ? "PAST DUE" : "UPCOMING",
+        estimated: true,
       };
     });
-  }, [plan]);
+  }, [plan, installments]);
 
   return (
     <PTModal
