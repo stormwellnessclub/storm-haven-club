@@ -13,6 +13,7 @@ import {
   usePTPasses, usePTPacks, usePTPassAdjustments, usePTPassUsage, usePTPackageMutations,
   daysUntil, PTPassRow,
 } from "@/hooks/pt/usePTPackages";
+import { usePTPackPaymentPlans } from "@/hooks/pt/usePTPackPaymentPlans";
 import { downloadCsv } from "@/lib/ptExport";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,14 @@ export default function PTPackages() {
   const { data: passes = [], isLoading: loadingPasses } = usePTPasses();
   const { data: packs = [], isLoading: loadingPacks } = usePTPacks();
   const { data: adjustments = [], isLoading: loadingAdj } = usePTPassAdjustments();
+  const { data: allPlans = [] } = usePTPackPaymentPlans();
+  const plansByPack = useMemo(() => {
+    const map: Record<string, typeof allPlans> = {};
+    for (const pl of allPlans.filter((p) => p.is_active)) {
+      (map[pl.pack_id] ??= []).push(pl);
+    }
+    return map;
+  }, [allPlans]);
   const { data: usage = [], isLoading: loadingUsage } = usePTPassUsage();
   const { adjust, transfer, logReminder } = usePTPackageMutations();
 
