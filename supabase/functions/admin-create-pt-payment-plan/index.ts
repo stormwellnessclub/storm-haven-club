@@ -157,6 +157,7 @@ Deno.serve(async (req) => {
       p_sale_type: "payment_plan",
       p_installment_count: months,
       p_installment_cents: installmentCents,
+      p_payment_plan_template_id: plan.id,
     });
     if (intentErr) throw intentErr;
 
