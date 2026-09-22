@@ -52,11 +52,53 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (packErr) throw packErr;
     if (!pack) throw new Error("Pack not found");
-    if (!pack.allow_payment_plan || !pack.payment_plan_months || !pack.payment_plan_stripe_price_id) {
-      throw new Error("Payment plan not configured for this pack");
+
+    // Named plan (current) or the deprecated single-shape plan on the pack.
+    let plan: {
+      id: string | null;
+      name: string;
+      installment_count: number;
+      down_payment_cents: number;
+      installment_cents: number;
+      frequency: string;
+      stripe_price_id: string;
+    };
+
+    if (planId) {
+      const { data: row, error: planErr } = await supabase
+        .from("pt_pack_payment_plans").select("*").eq("id", planId).maybeSingle();
+      if (planErr) throw planErr;
+      if (!row) throw new Error("Payment plan not found");
+      if (row.pack_id !== pack.id) throw new Error("Payment plan does not belong to this package");
+      if (!row.is_active) throw new Error("Payment plan is archived");
+      if (!row.stripe_price_id) throw new Error("Payment plan has no Stripe price — save it again to sync");
+      plan = {
+        id: row.id,
+        name: row.name,
+        installment_count: row.installment_count,
+        down_payment_cents: row.down_payment_cents,
+        installment_cents: row.installment_cents,
+        frequency: row.frequency,
+        stripe_price_id: row.stripe_price_id,
+      };
+    } else {
+      if (!pack.allow_payment_plan || !pack.payment_plan_months || !pack.payment_plan_stripe_price_id) {
+        throw new Error("Payment plan not configured for this pack");
+      }
+      const n = pack.payment_plan_months;
+      const each = Math.ceil(pack.price_cents / n);
+      plan = {
+        id: null,
+        name: `${n} Monthly Payments`,
+        installment_count: n,
+        down_payment_cents: each,
+        installment_cents: each,
+        frequency: "monthly",
+        stripe_price_id: pack.payment_plan_stripe_price_id,
+      };
     }
 
-    const months = pack.payment_plan_months;
+    const months = plan.installment_count;
 
     // Resolve customer stripe id + email
     let email: string | null = null;
