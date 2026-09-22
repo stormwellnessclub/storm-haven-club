@@ -315,9 +315,11 @@ export default function PTPackages() {
       return;
     }
     if (tab === "catalog") {
-      downloadCsv("pt-package-catalog", packs.map((p: any) => ({
+      downloadCsv("pt-package-catalog", catalogRows.map((p: any) => ({
         name: p.name, format: p.format, sessions: p.sessions, price: (p.price_cents || 0) / 100,
+        price_per_session: p.sessions ? Math.round(p.price_cents / p.sessions) / 100 : "",
         expiration_days: p.expiration_days, active: p.is_active, public: p.is_public,
+        payment_options: paymentOptionsLabel(p),
       })));
       return;
     }
@@ -411,9 +413,21 @@ export default function PTPackages() {
             empty={<PTEmptyState icon={SlidersHorizontal} title="No adjustments" description="Manual balance changes and transfers appear here with full audit detail." />} />
         )}
         {tab === "catalog" && (
-          <PTTable columns={packColumns} rows={packs} loading={loadingPacks} getRowKey={(p) => p.id}
-            onRowClick={(p: any) => navigate(`/admin/pt/packages/${p.id}`)}
-            empty={<PTEmptyState icon={Package} title="No packages in the catalog" />} />
+          <>
+            <div className="px-3 pb-2 flex flex-wrap items-center gap-2">
+              <CatalogFilter value={catalogStatus} onChange={(v) => setCatalogStatus(v as any)}
+                options={[["all", "All statuses"], ["active", "Active"], ["archived", "Archived"]]} />
+              <CatalogFilter value={catalogFormat} onChange={setCatalogFormat}
+                options={[["all", "All formats"], ...Object.entries(PT_FORMAT_LABEL)] as [string, string][]} />
+              <CatalogFilter value={catalogVisibility} onChange={(v) => setCatalogVisibility(v as any)}
+                options={[["all", "Public & private"], ["public", "Public"], ["private", "Private"]]} />
+              <CatalogFilter value={catalogPlans} onChange={(v) => setCatalogPlans(v as any)}
+                options={[["all", "Any payment option"], ["with", "Has payment plans"], ["without", "Pay in full only"]]} />
+            </div>
+            <PTTable columns={packColumns} rows={catalogRows} loading={loadingPacks} getRowKey={(p) => p.id}
+              onRowClick={(p: any) => navigate(`/admin/pt/packages/${p.id}`)}
+              empty={<PTEmptyState icon={Package} title="No packages match these filters" />} />
+          </>
         )}
       </PTCard>
 
