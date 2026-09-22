@@ -9582,14 +9582,19 @@ export type Database = {
       pt_passes: {
         Row: {
           activated_at: string
+          amount_due_at_sale_cents: number | null
           amount_outstanding_cents: number
           amount_paid_cents: number
           catalog_price_cents: number | null
           catalog_sessions: number | null
           created_at: string
           expires_at: string
+          final_installment_cents: number | null
           financial_status: string
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval: number | null
+          frequency_unit: string | null
+          future_installment_count: number | null
           historical_value_cents: number | null
           id: string
           internal_notes: string | null
@@ -9604,11 +9609,14 @@ export type Database = {
           payment_method: string | null
           payment_plan_installment_cents: number | null
           payment_plan_installments_paid: number
+          payment_plan_name_snapshot: string | null
           payment_plan_next_payment_date: string | null
           payment_plan_status: string
           payment_plan_subscription_id: string | null
+          payment_plan_template_id: string | null
           payment_plan_total_cents: number | null
           payment_plan_total_installments: number | null
+          plan_total_cents: number | null
           price_cents_charged: number
           price_override_cents: number | null
           purchased_at: string
@@ -9630,14 +9638,19 @@ export type Database = {
         }
         Insert: {
           activated_at?: string
+          amount_due_at_sale_cents?: number | null
           amount_outstanding_cents?: number
           amount_paid_cents?: number
           catalog_price_cents?: number | null
           catalog_sessions?: number | null
           created_at?: string
           expires_at: string
+          final_installment_cents?: number | null
           financial_status?: string
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval?: number | null
+          frequency_unit?: string | null
+          future_installment_count?: number | null
           historical_value_cents?: number | null
           id?: string
           internal_notes?: string | null
@@ -9652,11 +9665,14 @@ export type Database = {
           payment_method?: string | null
           payment_plan_installment_cents?: number | null
           payment_plan_installments_paid?: number
+          payment_plan_name_snapshot?: string | null
           payment_plan_next_payment_date?: string | null
           payment_plan_status?: string
           payment_plan_subscription_id?: string | null
+          payment_plan_template_id?: string | null
           payment_plan_total_cents?: number | null
           payment_plan_total_installments?: number | null
+          plan_total_cents?: number | null
           price_cents_charged?: number
           price_override_cents?: number | null
           purchased_at?: string
@@ -9678,14 +9694,19 @@ export type Database = {
         }
         Update: {
           activated_at?: string
+          amount_due_at_sale_cents?: number | null
           amount_outstanding_cents?: number
           amount_paid_cents?: number
           catalog_price_cents?: number | null
           catalog_sessions?: number | null
           created_at?: string
           expires_at?: string
+          final_installment_cents?: number | null
           financial_status?: string
           format?: Database["public"]["Enums"]["pt_format"]
+          frequency_interval?: number | null
+          frequency_unit?: string | null
+          future_installment_count?: number | null
           historical_value_cents?: number | null
           id?: string
           internal_notes?: string | null
@@ -9700,11 +9721,14 @@ export type Database = {
           payment_method?: string | null
           payment_plan_installment_cents?: number | null
           payment_plan_installments_paid?: number
+          payment_plan_name_snapshot?: string | null
           payment_plan_next_payment_date?: string | null
           payment_plan_status?: string
           payment_plan_subscription_id?: string | null
+          payment_plan_template_id?: string | null
           payment_plan_total_cents?: number | null
           payment_plan_total_installments?: number | null
+          plan_total_cents?: number | null
           price_cents_charged?: number
           price_override_cents?: number | null
           purchased_at?: string
@@ -9730,6 +9754,13 @@ export type Database = {
             columns: ["pack_id"]
             isOneToOne: false
             referencedRelation: "pt_packs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_passes_payment_plan_template_id_fkey"
+            columns: ["payment_plan_template_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pack_payment_plans"
             referencedColumns: ["id"]
           },
           {
@@ -10464,16 +10495,21 @@ export type Database = {
         Row: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_at_sale_cents: number | null
           amount_due_today_cents: number | null
           catalog_price_cents: number | null
           catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
+          final_installment_cents: number | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval: number | null
+          frequency_unit: string | null
+          future_installment_count: number | null
           historical_value_cents: number | null
           id: string
           idempotency_key: string
@@ -10489,6 +10525,9 @@ export type Database = {
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          payment_plan_name_snapshot: string | null
+          payment_plan_template_id: string | null
+          plan_total_cents: number | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -10507,16 +10546,21 @@ export type Database = {
         Insert: {
           activated_at: string
           amount_charged_cents?: number | null
+          amount_due_at_sale_cents?: number | null
           amount_due_today_cents?: number | null
           catalog_price_cents?: number | null
           catalog_sessions?: number | null
           created_at?: string
           created_by?: string | null
           expires_at: string
+          final_installment_cents?: number | null
           finalize_error?: string | null
           finalized_at?: string | null
           first_installment_date?: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval?: number | null
+          frequency_unit?: string | null
+          future_installment_count?: number | null
           historical_value_cents?: number | null
           id?: string
           idempotency_key: string
@@ -10532,6 +10576,9 @@ export type Database = {
           paid_at?: string | null
           pass_ids?: string[]
           payment_method?: string
+          payment_plan_name_snapshot?: string | null
+          payment_plan_template_id?: string | null
+          plan_total_cents?: number | null
           previously_paid_cents?: number | null
           price_override_cents?: number | null
           quantity?: number
@@ -10550,16 +10597,21 @@ export type Database = {
         Update: {
           activated_at?: string
           amount_charged_cents?: number | null
+          amount_due_at_sale_cents?: number | null
           amount_due_today_cents?: number | null
           catalog_price_cents?: number | null
           catalog_sessions?: number | null
           created_at?: string
           created_by?: string | null
           expires_at?: string
+          final_installment_cents?: number | null
           finalize_error?: string | null
           finalized_at?: string | null
           first_installment_date?: string | null
           format?: Database["public"]["Enums"]["pt_format"]
+          frequency_interval?: number | null
+          frequency_unit?: string | null
+          future_installment_count?: number | null
           historical_value_cents?: number | null
           id?: string
           idempotency_key?: string
@@ -10575,6 +10627,9 @@ export type Database = {
           paid_at?: string | null
           pass_ids?: string[]
           payment_method?: string
+          payment_plan_name_snapshot?: string | null
+          payment_plan_template_id?: string | null
+          plan_total_cents?: number | null
           previously_paid_cents?: number | null
           price_override_cents?: number | null
           quantity?: number
@@ -10590,7 +10645,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pt_sale_intents_payment_plan_template_id_fkey"
+            columns: ["payment_plan_template_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pack_payment_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pt_saved_views: {
         Row: {
@@ -15644,16 +15707,21 @@ export type Database = {
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_at_sale_cents: number | null
           amount_due_today_cents: number | null
           catalog_price_cents: number | null
           catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
+          final_installment_cents: number | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval: number | null
+          frequency_unit: string | null
+          future_installment_count: number | null
           historical_value_cents: number | null
           id: string
           idempotency_key: string
@@ -15669,6 +15737,9 @@ export type Database = {
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          payment_plan_name_snapshot: string | null
+          payment_plan_template_id: string | null
+          plan_total_cents: number | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -15816,16 +15887,21 @@ export type Database = {
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_at_sale_cents: number | null
           amount_due_today_cents: number | null
           catalog_price_cents: number | null
           catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
+          final_installment_cents: number | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval: number | null
+          frequency_unit: string | null
+          future_installment_count: number | null
           historical_value_cents: number | null
           id: string
           idempotency_key: string
@@ -15841,6 +15917,9 @@ export type Database = {
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          payment_plan_name_snapshot: string | null
+          payment_plan_template_id: string | null
+          plan_total_cents: number | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -15876,6 +15955,7 @@ export type Database = {
           p_override_reason?: string
           p_pack_id: string
           p_payment_method?: string
+          p_payment_plan_template_id?: string
           p_price_override_cents?: number
           p_quantity?: number
           p_sale_type?: string
@@ -15885,16 +15965,21 @@ export type Database = {
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_at_sale_cents: number | null
           amount_due_today_cents: number | null
           catalog_price_cents: number | null
           catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
+          final_installment_cents: number | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval: number | null
+          frequency_unit: string | null
+          future_installment_count: number | null
           historical_value_cents: number | null
           id: string
           idempotency_key: string
@@ -15910,6 +15995,9 @@ export type Database = {
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          payment_plan_name_snapshot: string | null
+          payment_plan_template_id: string | null
+          plan_total_cents: number | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -16008,16 +16096,21 @@ export type Database = {
         Returns: {
           activated_at: string
           amount_charged_cents: number | null
+          amount_due_at_sale_cents: number | null
           amount_due_today_cents: number | null
           catalog_price_cents: number | null
           catalog_sessions: number | null
           created_at: string
           created_by: string | null
           expires_at: string
+          final_installment_cents: number | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
+          frequency_interval: number | null
+          frequency_unit: string | null
+          future_installment_count: number | null
           historical_value_cents: number | null
           id: string
           idempotency_key: string
@@ -16033,6 +16126,9 @@ export type Database = {
           paid_at: string | null
           pass_ids: string[]
           payment_method: string
+          payment_plan_name_snapshot: string | null
+          payment_plan_template_id: string | null
+          plan_total_cents: number | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
