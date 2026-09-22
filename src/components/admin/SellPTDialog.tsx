@@ -484,6 +484,45 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     }
   }
 
+  if (confirmation) {
+    const nextRow = confirmation.schedule.installments.find((r) => r.installment_number === 1);
+    const remaining = confirmation.schedule.total_cents - confirmation.schedule.amount_due_at_sale_cents;
+    return (
+      <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" /> Package sold
+            </DialogTitle>
+            <DialogDescription>{confirmation.packName}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span>Payment plan</span><span>{confirmation.planName}</span></div>
+            <div className="flex justify-between font-semibold"><span>Paid today</span><span>{formatCents(confirmation.chargedTodayCents)}</span></div>
+            {nextRow && (
+              <div className="flex justify-between">
+                <span>Next autopay</span>
+                <span>{businessDate(nextRow.due_date)} · {formatCents(nextRow.amount_cents)}</span>
+              </div>
+            )}
+            <div className="flex justify-between"><span>Remaining scheduled</span><span>{formatCents(remaining)}</span></div>
+            <div className="flex justify-between"><span>Final payment</span><span>{businessDate(confirmation.schedule.final_payment_date)}</span></div>
+            <div className="flex justify-between"><span>Card</span><span>{confirmation.cardLabel}</span></div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => window.open(`/admin/pt/clients/${selectedUserId}`, "_blank")}>
+              View client
+            </Button>
+            <Button variant="outline" onClick={() => window.open("/admin/pt/billing", "_blank")}>
+              View billing
+            </Button>
+            <Button onClick={() => { reset(); onOpenChange(false); }}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -493,6 +532,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             Record a PT pack sale and (optionally) charge the customer's card on file.
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-4 py-2">
           {/* Customer */}
