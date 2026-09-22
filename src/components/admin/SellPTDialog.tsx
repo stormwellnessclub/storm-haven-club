@@ -646,6 +646,31 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                         ))}
                       </div>
                     )}
+                    <div className="mt-2">
+                      {addCardSecret ? (
+                        <div className="border rounded-md p-3 bg-background">
+                          <div className="text-xs font-medium mb-2">Add a card for this client</div>
+                          <StripeProvider clientSecret={addCardSecret}>
+                            <AdminAddCardForm
+                              stripeCustomerId={addCardCustomerId || undefined}
+                              onCancel={() => setAddCardSecret(null)}
+                              onSuccess={() => {
+                                setAddCardSecret(null);
+                                qc.invalidateQueries({ queryKey: ["pt-user-payment-methods", selectedUserId] });
+                                toast.success("Card saved — it is now selectable for this sale");
+                              }}
+                            />
+                          </StripeProvider>
+                        </div>
+                      ) : (
+                        <Button type="button" variant="outline" size="sm" onClick={startAddCard} disabled={creatingSetupIntent}>
+                          {creatingSetupIntent
+                            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            : <Plus className="h-4 w-4 mr-2" />}
+                          Add new card
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </label>
 
@@ -672,12 +697,33 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                       >
                         <div className="font-medium">{pl.name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {formatCents(pl.down_payment_cents * quantity)} due at sale, then{" "}
-                          {pl.installment_count - 1} × {formatCents(pl.installment_cents * quantity)}{" "}
+                          {formatCents(pl.amount_due_at_sale_cents * quantity)} due at sale, then{" "}
+                          {pl.future_installment_count} × {formatCents(pl.installment_cents * quantity)}
+                          {pl.final_installment_cents !== pl.installment_cents &&
+                            ` (final ${formatCents(pl.final_installment_cents * quantity)})`}{" "}
                           · {FREQUENCY_LABEL[pl.frequency].toLowerCase()}
                         </div>
                       </button>
                     ))}
+
+                    {planActive && (
+                      <div className="space-y-2 border rounded-md p-3">
+                        <Label className="text-xs">First future autopay date</Label>
+                        <Input
+                          type="date"
+                          value={firstAutopayDate}
+                          min={fmtDate(addDays(new Date(), 1), "yyyy-MM-dd")}
+                          onChange={(e) => setFirstAutopayDate(e.target.value)}
+                        />
+                        <div className="text-[11px] text-muted-foreground">
+                          Future payments repeat on this day each period. Short months bill on the
+                          last day and return to the chosen day afterwards.
+                        </div>
+                        {scheduleError && (
+                          <div className="text-xs text-destructive">{(scheduleError as Error).message}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
