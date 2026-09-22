@@ -251,11 +251,36 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
   const planActive = willCharge && !!selectedPlan;
-  const planMonths = selectedPlan?.installment_count ?? 0;
+  const futureCount = selectedPlan?.future_installment_count ?? 0;
   const perInstallmentCents = selectedPlan ? selectedPlan.installment_cents * quantity : 0;
-  const dueTodayCents = selectedPlan ? selectedPlan.down_payment_cents * quantity : 0;
+  const dueTodayCents = selectedPlan ? selectedPlan.amount_due_at_sale_cents * quantity : 0;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
+  const selectedCard = cards.find((c) => c.id === selectedCardId);
+  const cardLabel = selectedCard
+    ? `${(selectedCard.brand ?? "Card").replace(/^./, (s) => s.toUpperCase())} •••• ${selectedCard.last4}`
+    : "Card on file";
+
+  // ----- Storm's dated schedule, calculated server-side before anything is charged -----
+  const {
+    data: schedulePreview,
+    error: scheduleError,
+    isFetching: scheduleLoading,
+  } = useQuery({
+    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate],
+    enabled: planActive && !!selectedPack && !!selectedPlanId && !!firstAutopayDate,
+    retry: false,
+    queryFn: async (): Promise<PlanSchedule> => {
+      const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview", {
+        p_pack_id: selectedPack!.id,
+        p_plan_id: selectedPlanId,
+        p_quantity: quantity,
+        p_first_autopay: firstAutopayDate,
+      });
+      if (error) throw new Error(error.message.replace(/^.*PT_AUTOPAY_DATE_INVALID: /, ""));
+      return data as PlanSchedule;
+    },
+  });
 
   function reset() {
     setSelectedUserId(presetUserId);
@@ -271,7 +296,34 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setAdminNotes("");
     setChargeError(null);
     setSelectedPlanId("");
+    setFirstAutopayDate(fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"));
+    setAddCardSecret(null);
+    setAddCardCustomerId(null);
+    setConfirmation(null);
     saleKeyRef.current = null;
+  }
+
+  /** Add a card without leaving checkout — Stripe SetupIntent, no raw card data here. */
+  async function startAddCard() {
+    if (!selectedUserId) return;
+    setCreatingSetupIntent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_admin_setup_intent",
+          applicantEmail: cardsData?.memberEmail,
+          applicantName: selectedUserLabel,
+        },
+      });
+      if (error) throw error;
+      if (!data?.clientSecret) throw new Error("Could not open the card form");
+      setAddCardSecret(data.clientSecret);
+      setAddCardCustomerId(data.customerId ?? null);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not open the card form");
+    } finally {
+      setCreatingSetupIntent(false);
+    }
   }
 
   /**
