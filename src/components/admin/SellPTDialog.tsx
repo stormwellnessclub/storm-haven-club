@@ -366,16 +366,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
   async function submit() {
     setChargeError(null);
+    if (submitting) return;
     if (!selectedUserId) return toast.error("Select a customer");
     if (!selectedPack) return toast.error("Select a pack");
     if (!expiresAt) return toast.error("Expiration date required");
     if (paymentChoice === "card_on_file" && !selectedCardId) {
       return toast.error("Choose a card on file");
     }
+    if (planActive && !schedulePreview) {
+      return toast.error(scheduleError ? (scheduleError as Error).message : "Choose a valid first autopay date");
+    }
 
     setSubmitting(true);
     try {
       if (paymentChoice === "card_on_file" && planActive) {
+        // One stable sale reference — a second click reuses it and never re-charges.
+        const key = saleKeyRef.current ?? crypto.randomUUID();
+        saleKeyRef.current = key;
         const { data, error } = await supabase.functions.invoke("admin-create-pt-payment-plan", {
           body: {
             userId: selectedUserId,
@@ -385,6 +392,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             paymentMethodId: selectedCardId,
             activatedAt,
             expiresAt,
+            firstAutopayDate,
+            saleRef: key,
             adminNotes: adminNotes || null,
           },
         });
@@ -394,7 +403,17 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           setSubmitting(false);
           return;
         }
-        toast.success(`Payment plan started — ${planMonths} × ${formatCents(perInstallmentCents)}`);
+        qc.invalidateQueries({ queryKey: ["pt-passes"] });
+        qc.invalidateQueries({ queryKey: ["pt-sale-intents"] });
+        setConfirmation({
+          packName: `${quantity} × ${selectedPack.name}`,
+          planName: selectedPlan!.name,
+          chargedTodayCents: (data as any).charged_today_cents ?? dueTodayCents,
+          schedule: (data as any).schedule as PlanSchedule,
+          cardLabel,
+        });
+        setSubmitting(false);
+        return;
       } else if (paymentChoice === "card_on_file") {
         const { key, sale } = await openSaleIntent("card_on_file");
         const alreadyPaid = sale?.status === "paid" || sale?.status === "finalized";
