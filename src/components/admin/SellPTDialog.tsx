@@ -285,6 +285,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           body: {
             userId: selectedUserId,
             packId: selectedPack.id,
+            planId: selectedPlan?.id ?? null,
             quantity,
             paymentMethodId: selectedCardId,
             activatedAt,
