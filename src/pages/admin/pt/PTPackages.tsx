@@ -604,3 +604,20 @@ function TransferDialog({
     </PTModal>
   );
 }
+
+function CatalogFilter({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 w-auto min-w-[10rem] border-pt-line bg-white text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map(([v, label]) => <SelectItem key={v} value={v}>{label}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+}
