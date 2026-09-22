@@ -351,6 +351,13 @@
       "when": 1790048571300,
       "tag": "0049_pt_payment_plan_installments",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790048633098,
+      "tag": "0050_pt_plan_schedule_and_reconciliation",
+      "breakpoints": true
     }
   ]
 }

@@ -15727,6 +15727,20 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_attach_plan_schedule: {
+        Args: { p_first_autopay: string; p_idempotency_key: string }
+        Returns: Json
+      }
+      pt_build_plan_schedule: {
+        Args: {
+          p_first_autopay: string
+          p_pack_id: string
+          p_plan_id: string
+          p_quantity: number
+          p_sale_date?: string
+        }
+        Returns: Json
+      }
       pt_can_coach_client: {
         Args: { _client: string; _uid: string }
         Returns: boolean
@@ -16179,6 +16193,18 @@ export type Database = {
         Returns: Json
       }
       pt_recalc_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
+      pt_reconcile_installment: {
+        Args: {
+          p_amount_cents?: number
+          p_failure_reason?: string
+          p_occurred_at?: string
+          p_outcome: string
+          p_payment_intent_id?: string
+          p_stripe_invoice_id: string
+          p_subscription_id: string
+        }
+        Returns: Json
+      }
       pt_record_historical_session: {
         Args: {
           p_idempotency_key?: string
