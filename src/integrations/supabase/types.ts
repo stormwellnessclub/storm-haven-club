@@ -9381,44 +9381,68 @@ export type Database = {
       }
       pt_pack_payment_plans: {
         Row: {
+          allow_staff_first_autopay_date_selection: boolean
+          amount_due_at_sale_cents: number | null
           created_at: string
+          created_by: string | null
           display_order: number
           down_payment_cents: number
+          final_installment_cents: number | null
           frequency: string
+          frequency_interval: number
+          frequency_unit: string
+          future_installment_count: number | null
           id: string
           installment_cents: number
           installment_count: number
           is_active: boolean
           name: string
           pack_id: string
+          plan_total_cents: number | null
           stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
+          allow_staff_first_autopay_date_selection?: boolean
+          amount_due_at_sale_cents?: number | null
           created_at?: string
+          created_by?: string | null
           display_order?: number
           down_payment_cents?: number
+          final_installment_cents?: number | null
           frequency?: string
+          frequency_interval?: number
+          frequency_unit?: string
+          future_installment_count?: number | null
           id?: string
           installment_cents?: number
           installment_count?: number
           is_active?: boolean
           name: string
           pack_id: string
+          plan_total_cents?: number | null
           stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
+          allow_staff_first_autopay_date_selection?: boolean
+          amount_due_at_sale_cents?: number | null
           created_at?: string
+          created_by?: string | null
           display_order?: number
           down_payment_cents?: number
+          final_installment_cents?: number | null
           frequency?: string
+          frequency_interval?: number
+          frequency_unit?: string
+          future_installment_count?: number | null
           id?: string
           installment_cents?: number
           installment_count?: number
           is_active?: boolean
           name?: string
           pack_id?: string
+          plan_total_cents?: number | null
           stripe_price_id?: string | null
           updated_at?: string
         }
@@ -9434,7 +9458,9 @@ export type Database = {
       }
       pt_packs: {
         Row: {
+          allow_pay_in_full: boolean
           allow_payment_plan: boolean
+          allow_payment_plans: boolean
           created_at: string
           display_order: number
           expiration_days: number
@@ -9451,7 +9477,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          allow_pay_in_full?: boolean
           allow_payment_plan?: boolean
+          allow_payment_plans?: boolean
           created_at?: string
           display_order?: number
           expiration_days: number
@@ -9468,7 +9496,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          allow_pay_in_full?: boolean
           allow_payment_plan?: boolean
+          allow_payment_plans?: boolean
           created_at?: string
           display_order?: number
           expiration_days?: number
