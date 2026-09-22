@@ -328,6 +328,7 @@ export default function PTPackages() {
         )}
         {tab === "catalog" && (
           <PTTable columns={packColumns} rows={packs} loading={loadingPacks} getRowKey={(p) => p.id}
+            onRowClick={(p: any) => navigate(`/admin/pt/packages/${p.id}`)}
             empty={<PTEmptyState icon={Package} title="No packages in the catalog" />} />
         )}
       </PTCard>
