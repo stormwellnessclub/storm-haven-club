@@ -337,6 +337,13 @@
       "when": 1790048043145,
       "tag": "0047_pt_payment_plan_template_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790048140314,
+      "tag": "0048_pt_finalize_copy_installment_snapshot",
+      "breakpoints": true
     }
   ]
 }
