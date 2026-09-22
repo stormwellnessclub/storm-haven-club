@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format as fmtDate } from "date-fns";
 import { Package, Plus, Download, ArrowLeftRight, SlidersHorizontal, BellRing, History, CalendarCheck, ClipboardList } from "lucide-react";
 import {
@@ -35,6 +38,11 @@ export default function PTPackages() {
   const [applyPastPass, setApplyPastPass] = useState<PTPassRow | null>(null);
   const [historicalPass, setHistoricalPass] = useState<PTPassRow | null>(null);
   const [historyPass, setHistoryPass] = useState<PTPassRow | null>(null);
+  const [catalogStatus, setCatalogStatus] = useState<"all" | "active" | "archived">("all");
+  const [catalogFormat, setCatalogFormat] = useState<string>("all");
+  const [catalogVisibility, setCatalogVisibility] = useState<"all" | "public" | "private">("all");
+  const [catalogPlans, setCatalogPlans] = useState<"all" | "with" | "without">("all");
+  const qc = useQueryClient();
 
   const { data: passes = [], isLoading: loadingPasses } = usePTPasses();
   const { data: packs = [], isLoading: loadingPacks } = usePTPacks();
@@ -184,31 +192,107 @@ export default function PTPackages() {
     { key: "staff", header: "Staff", render: (a) => nameOf(a.created_by) !== "—" ? nameOf(a.created_by) : (a.created_by ? "Staff" : "System") },
   ];
 
+  function paymentOptionsLabel(p: any) {
+    const list = plansByPack[p.id] ?? [];
+    const payInFull = p.allow_pay_in_full ?? true;
+    const plansOn = (p.allow_payment_plans ?? true) && list.length > 0;
+    if (!plansOn) return payInFull ? "Pay in Full Only" : "—";
+    const plansPart = list.length === 1 ? list[0].name : `${list.length} Plans`;
+    return payInFull ? `Pay in Full + ${plansPart}` : plansPart;
+  }
+
+  const catalogRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (packs as any[]).filter((p) => {
+      if (q && !(`${p.name} ${p.format}`.toLowerCase().includes(q))) return false;
+      if (catalogStatus === "active" && !p.is_active) return false;
+      if (catalogStatus === "archived" && p.is_active) return false;
+      if (catalogFormat !== "all" && p.format !== catalogFormat) return false;
+      if (catalogVisibility === "public" && !p.is_public) return false;
+      if (catalogVisibility === "private" && p.is_public) return false;
+      const hasPlans = (p.allow_payment_plans ?? true) && (plansByPack[p.id] ?? []).length > 0;
+      if (catalogPlans === "with" && !hasPlans) return false;
+      if (catalogPlans === "without" && hasPlans) return false;
+      return true;
+    });
+  }, [packs, search, catalogStatus, catalogFormat, catalogVisibility, catalogPlans, plansByPack]);
+
+  async function togglePackActive(p: any) {
+    const { error } = await (supabase as any)
+      .from("pt_packs").update({ is_active: !p.is_active }).eq("id", p.id);
+    if (error) return toast.error(error.message);
+    toast.success(p.is_active ? "Package archived" : "Package reactivated");
+    qc.invalidateQueries({ queryKey: ["pt-packages-catalog-v2"] });
+  }
+
+  async function duplicatePack(p: any) {
+    try {
+      const { data: created, error } = await (supabase as any)
+        .from("pt_packs")
+        .insert({
+          format: p.format, name: `${p.name} (copy)`, sessions: p.sessions,
+          price_cents: p.price_cents, expiration_days: p.expiration_days,
+          is_public: false, is_active: false, display_order: p.display_order,
+          allow_pay_in_full: p.allow_pay_in_full ?? true,
+          allow_payment_plans: p.allow_payment_plans ?? true,
+        })
+        .select("id").single();
+      if (error) throw error;
+      for (const pl of allPlans.filter((x) => x.pack_id === p.id)) {
+        const { error: planErr } = await (supabase as any).from("pt_pack_payment_plans").insert({
+          pack_id: created.id, name: pl.name,
+          plan_total_cents: pl.plan_total_cents,
+          amount_due_at_sale_cents: pl.amount_due_at_sale_cents,
+          future_installment_count: pl.future_installment_count,
+          installment_cents: pl.installment_cents,
+          final_installment_cents: pl.final_installment_cents,
+          frequency: pl.frequency, is_active: pl.is_active, display_order: pl.display_order,
+        });
+        if (planErr) throw planErr;
+      }
+      qc.invalidateQueries({ queryKey: ["pt-packages-catalog-v2"] });
+      qc.invalidateQueries({ queryKey: ["pt-pack-payment-plans"] });
+      toast.success("Package duplicated — the copy starts inactive and private");
+      navigate(`/admin/pt/packages/${created.id}`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not duplicate the package");
+    }
+  }
+
   const packColumns: PTColumn<any>[] = [
     { key: "name", header: "Package", render: (p) => p.name },
     { key: "format", header: "Format", render: (p) => PT_FORMAT_LABEL[p.format as PtFormat] ?? p.format },
     { key: "sessions", header: "Sessions", align: "right", render: (p) => p.sessions },
     { key: "price", header: "Price", align: "right", render: (p) => formatCents(p.price_cents) },
-    { key: "exp", header: "Valid for", align: "right", render: (p) => `${p.expiration_days} days` },
     {
-      key: "plan", header: "Payment plans",
-      render: (p) => {
-        const list = plansByPack[p.id] ?? [];
-        if (list.length === 0) return "—";
-        return list.map((pl) => pl.name).join(" · ");
-      },
+      key: "per", header: "Price / session", align: "right",
+      render: (p) => (p.sessions ? formatCents(Math.round(p.price_cents / p.sessions)) : "—"),
     },
+    { key: "exp", header: "Valid for", align: "right", render: (p) => `${p.expiration_days} days` },
+    { key: "plan", header: "Payment options", render: (p) => paymentOptionsLabel(p) },
     {
       key: "state", header: "", align: "right",
       render: (p) => (
         <div className="flex justify-end items-center gap-2">
-          {p.is_public && <PTBadge tone="gold">Public</PTBadge>}
+          <PTBadge tone={p.is_public ? "gold" : "neutral"}>{p.is_public ? "Public" : "Private"}</PTBadge>
           <PTBadge tone={p.is_active ? "green" : "neutral"}>{p.is_active ? "Active" : "Archived"}</PTBadge>
           <button
             className="text-xs text-pt-muted hover:text-pt-gold"
             onClick={(e) => { e.stopPropagation(); navigate(`/admin/pt/packages/${p.id}`); }}
           >
             Edit
+          </button>
+          <button
+            className="text-xs text-pt-muted hover:text-pt-gold"
+            onClick={(e) => { e.stopPropagation(); duplicatePack(p); }}
+          >
+            Duplicate
+          </button>
+          <button
+            className="text-xs text-pt-muted hover:text-pt-gold"
+            onClick={(e) => { e.stopPropagation(); togglePackActive(p); }}
+          >
+            {p.is_active ? "Archive" : "Reactivate"}
           </button>
         </div>
       ),
@@ -231,9 +315,11 @@ export default function PTPackages() {
       return;
     }
     if (tab === "catalog") {
-      downloadCsv("pt-package-catalog", packs.map((p: any) => ({
+      downloadCsv("pt-package-catalog", catalogRows.map((p: any) => ({
         name: p.name, format: p.format, sessions: p.sessions, price: (p.price_cents || 0) / 100,
+        price_per_session: p.sessions ? Math.round(p.price_cents / p.sessions) / 100 : "",
         expiration_days: p.expiration_days, active: p.is_active, public: p.is_public,
+        payment_options: paymentOptionsLabel(p),
       })));
       return;
     }
@@ -327,9 +413,21 @@ export default function PTPackages() {
             empty={<PTEmptyState icon={SlidersHorizontal} title="No adjustments" description="Manual balance changes and transfers appear here with full audit detail." />} />
         )}
         {tab === "catalog" && (
-          <PTTable columns={packColumns} rows={packs} loading={loadingPacks} getRowKey={(p) => p.id}
-            onRowClick={(p: any) => navigate(`/admin/pt/packages/${p.id}`)}
-            empty={<PTEmptyState icon={Package} title="No packages in the catalog" />} />
+          <>
+            <div className="px-3 pb-2 flex flex-wrap items-center gap-2">
+              <CatalogFilter value={catalogStatus} onChange={(v) => setCatalogStatus(v as any)}
+                options={[["all", "All statuses"], ["active", "Active"], ["archived", "Archived"]]} />
+              <CatalogFilter value={catalogFormat} onChange={setCatalogFormat}
+                options={[["all", "All formats"], ...Object.entries(PT_FORMAT_LABEL)] as [string, string][]} />
+              <CatalogFilter value={catalogVisibility} onChange={(v) => setCatalogVisibility(v as any)}
+                options={[["all", "Public & private"], ["public", "Public"], ["private", "Private"]]} />
+              <CatalogFilter value={catalogPlans} onChange={(v) => setCatalogPlans(v as any)}
+                options={[["all", "Any payment option"], ["with", "Has payment plans"], ["without", "Pay in full only"]]} />
+            </div>
+            <PTTable columns={packColumns} rows={catalogRows} loading={loadingPacks} getRowKey={(p) => p.id}
+              onRowClick={(p: any) => navigate(`/admin/pt/packages/${p.id}`)}
+              empty={<PTEmptyState icon={Package} title="No packages match these filters" />} />
+          </>
         )}
       </PTCard>
 
@@ -504,5 +602,22 @@ function TransferDialog({
         </div>
       </div>
     </PTModal>
+  );
+}
+
+function CatalogFilter({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 w-auto min-w-[10rem] border-pt-line bg-white text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map(([v, label]) => <SelectItem key={v} value={v}>{label}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }

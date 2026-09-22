@@ -323,6 +323,13 @@
       "when": 1790035727648,
       "tag": "0045_pt_pack_payment_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1790037003786,
+      "tag": "0046_pt_payment_plan_model_b1",
+      "breakpoints": true
     }
   ]
 }
