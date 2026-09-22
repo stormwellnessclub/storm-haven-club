@@ -9590,13 +9590,16 @@ export type Database = {
           created_at: string
           expires_at: string
           final_installment_cents: number | null
+          final_payment_date: string | null
           financial_status: string
+          first_autopay_date: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval: number | null
           frequency_unit: string | null
           future_installment_count: number | null
           historical_value_cents: number | null
           id: string
+          intended_billing_day: number | null
           internal_notes: string | null
           new_revenue_cents: number
           notes: string | null
@@ -9646,13 +9649,16 @@ export type Database = {
           created_at?: string
           expires_at: string
           final_installment_cents?: number | null
+          final_payment_date?: string | null
           financial_status?: string
+          first_autopay_date?: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval?: number | null
           frequency_unit?: string | null
           future_installment_count?: number | null
           historical_value_cents?: number | null
           id?: string
+          intended_billing_day?: number | null
           internal_notes?: string | null
           new_revenue_cents?: number
           notes?: string | null
@@ -9702,13 +9708,16 @@ export type Database = {
           created_at?: string
           expires_at?: string
           final_installment_cents?: number | null
+          final_payment_date?: string | null
           financial_status?: string
+          first_autopay_date?: string | null
           format?: Database["public"]["Enums"]["pt_format"]
           frequency_interval?: number | null
           frequency_unit?: string | null
           future_installment_count?: number | null
           historical_value_cents?: number | null
           id?: string
+          intended_billing_day?: number | null
           internal_notes?: string | null
           new_revenue_cents?: number
           notes?: string | null
@@ -9957,6 +9966,94 @@ export type Database = {
             columns: ["payment_id"]
             isOneToOne: false
             referencedRelation: "pt_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_payment_plan_installments: {
+        Row: {
+          amount_cents: number
+          attempt_count: number
+          created_at: string
+          due_date: string
+          dunning_id: string | null
+          failed_at: string | null
+          id: string
+          installment_number: number
+          last_failure_reason: string | null
+          paid_at: string | null
+          pass_id: string
+          payment_plan_template_id: string | null
+          sale_intent_id: string | null
+          status: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          attempt_count?: number
+          created_at?: string
+          due_date: string
+          dunning_id?: string | null
+          failed_at?: string | null
+          id?: string
+          installment_number: number
+          last_failure_reason?: string | null
+          paid_at?: string | null
+          pass_id: string
+          payment_plan_template_id?: string | null
+          sale_intent_id?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          attempt_count?: number
+          created_at?: string
+          due_date?: string
+          dunning_id?: string | null
+          failed_at?: string | null
+          id?: string
+          installment_number?: number
+          last_failure_reason?: string | null
+          paid_at?: string | null
+          pass_id?: string
+          payment_plan_template_id?: string | null
+          sale_intent_id?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_payment_plan_installments_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_passes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_plan_installments_payment_plan_template_id_fkey"
+            columns: ["payment_plan_template_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pack_payment_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_plan_installments_sale_intent_id_fkey"
+            columns: ["sale_intent_id"]
+            isOneToOne: false
+            referencedRelation: "pt_sale_intents"
             referencedColumns: ["id"]
           },
         ]
@@ -10503,6 +10600,7 @@ export type Database = {
           created_by: string | null
           expires_at: string
           final_installment_cents: number | null
+          final_payment_date: string | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
@@ -10515,6 +10613,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
           override_at: string | null
@@ -10528,6 +10627,7 @@ export type Database = {
           payment_plan_name_snapshot: string | null
           payment_plan_template_id: string | null
           plan_total_cents: number | null
+          planned_schedule: Json | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -10554,6 +10654,7 @@ export type Database = {
           created_by?: string | null
           expires_at: string
           final_installment_cents?: number | null
+          final_payment_date?: string | null
           finalize_error?: string | null
           finalized_at?: string | null
           first_installment_date?: string | null
@@ -10566,6 +10667,7 @@ export type Database = {
           idempotency_key: string
           installment_cents?: number | null
           installment_count?: number | null
+          intended_billing_day?: number | null
           new_revenue_cents?: number | null
           notes?: string | null
           override_at?: string | null
@@ -10579,6 +10681,7 @@ export type Database = {
           payment_plan_name_snapshot?: string | null
           payment_plan_template_id?: string | null
           plan_total_cents?: number | null
+          planned_schedule?: Json | null
           previously_paid_cents?: number | null
           price_override_cents?: number | null
           quantity?: number
@@ -10605,6 +10708,7 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           final_installment_cents?: number | null
+          final_payment_date?: string | null
           finalize_error?: string | null
           finalized_at?: string | null
           first_installment_date?: string | null
@@ -10617,6 +10721,7 @@ export type Database = {
           idempotency_key?: string
           installment_cents?: number | null
           installment_count?: number | null
+          intended_billing_day?: number | null
           new_revenue_cents?: number | null
           notes?: string | null
           override_at?: string | null
@@ -10630,6 +10735,7 @@ export type Database = {
           payment_plan_name_snapshot?: string | null
           payment_plan_template_id?: string | null
           plan_total_cents?: number | null
+          planned_schedule?: Json | null
           previously_paid_cents?: number | null
           price_override_cents?: number | null
           quantity?: number
@@ -15715,6 +15821,7 @@ export type Database = {
           created_by: string | null
           expires_at: string
           final_installment_cents: number | null
+          final_payment_date: string | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
@@ -15727,6 +15834,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
           override_at: string | null
@@ -15740,6 +15848,7 @@ export type Database = {
           payment_plan_name_snapshot: string | null
           payment_plan_template_id: string | null
           plan_total_cents: number | null
+          planned_schedule: Json | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -15867,6 +15976,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      pt_materialize_plan_installments: {
+        Args: { p_idempotency_key: string; p_subscription_id?: string }
+        Returns: Json
+      }
       pt_my_financial_history: { Args: never; Returns: Json }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       pt_open_sale_intent: {
@@ -15895,6 +16008,7 @@ export type Database = {
           created_by: string | null
           expires_at: string
           final_installment_cents: number | null
+          final_payment_date: string | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
@@ -15907,6 +16021,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
           override_at: string | null
@@ -15920,6 +16035,7 @@ export type Database = {
           payment_plan_name_snapshot: string | null
           payment_plan_template_id: string | null
           plan_total_cents: number | null
+          planned_schedule: Json | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -15973,6 +16089,7 @@ export type Database = {
           created_by: string | null
           expires_at: string
           final_installment_cents: number | null
+          final_payment_date: string | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
@@ -15985,6 +16102,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
           override_at: string | null
@@ -15998,6 +16116,7 @@ export type Database = {
           payment_plan_name_snapshot: string | null
           payment_plan_template_id: string | null
           plan_total_cents: number | null
+          planned_schedule: Json | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
@@ -16039,6 +16158,25 @@ export type Database = {
       pt_pick_pass_for_appointment: {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
+      }
+      pt_plan_schedule_dates: {
+        Args: {
+          p_count: number
+          p_first: string
+          p_interval: number
+          p_unit: string
+        }
+        Returns: string[]
+      }
+      pt_plan_schedule_preview: {
+        Args: {
+          p_first_autopay: string
+          p_pack_id: string
+          p_plan_id: string
+          p_quantity: number
+          p_sale_date?: string
+        }
+        Returns: Json
       }
       pt_recalc_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       pt_record_historical_session: {
@@ -16104,6 +16242,7 @@ export type Database = {
           created_by: string | null
           expires_at: string
           final_installment_cents: number | null
+          final_payment_date: string | null
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
@@ -16116,6 +16255,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
           override_at: string | null
@@ -16129,6 +16269,7 @@ export type Database = {
           payment_plan_name_snapshot: string | null
           payment_plan_template_id: string | null
           plan_total_cents: number | null
+          planned_schedule: Json | null
           previously_paid_cents: number | null
           price_override_cents: number | null
           quantity: number
