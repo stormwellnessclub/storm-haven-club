@@ -215,7 +215,6 @@ Deno.serve(async (req) => {
         default_settings: {
           default_payment_method: paymentMethodId,
           collection_method: "charge_automatically",
-          metadata: planMeta,
         },
         phases,
         metadata: planMeta,
