@@ -147,19 +147,49 @@ Deno.serve(async (req) => {
     });
     if (intentErr) throw intentErr;
 
-    // The Stripe subscription is created FIRST so a payment-setup failure can never
-    // leave a granted package behind. Stripe and Postgres are separate systems: the
-    // sale record is the bridge that makes the flow recoverable.
+    // The amount due at sale is charged as its own payment so plans with a larger
+    // (or smaller) first payment than the installments are expressed exactly.
+    let downPaymentIntentId: string | null = null;
+    if (downCents > 0) {
+      const pi = await stripe.paymentIntents.create({
+        amount: downCents,
+        currency: "usd",
+        customer: stripeCustomerId,
+        payment_method: paymentMethodId,
+        confirm: true,
+        off_session: true,
+        description: `Personal Training: ${quantity} × ${pack.name} — ${plan.name} (due at sale)`,
+        metadata: {
+          type: "pt_payment_plan_down_payment",
+          pt_pack_id: pack.id,
+          pt_plan_id: plan.id ?? "",
+          user_id: userId,
+          member_id: memberRecordId ?? "",
+          pt_sale_ref: saleRef,
+        },
+      }, { idempotencyKey: `pt_plan_down:${saleRef}` });
+      if (pi.status !== "succeeded") {
+        throw new Error(`Card was not charged (status: ${pi.status})`);
+      }
+      downPaymentIntentId = pi.id;
+    }
+
+    // Remaining installments run on a dedicated subscription that starts one full
+    // period after the sale, so the client is never double-charged today.
+    const futureCount = Math.max(0, months - 1);
+    const firstFuture = addPeriod(new Date(), plan.frequency, 1);
+    const lastFuture = addPeriod(new Date(), plan.frequency, futureCount);
     const subscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
-      items: [{ price: pack.payment_plan_stripe_price_id!, quantity }],
+      items: [{ price: plan.stripe_price_id, quantity }],
       default_payment_method: paymentMethodId,
       collection_method: "charge_automatically",
-      payment_behavior: "error_if_incomplete",
-      off_session: true,
+      trial_end: Math.floor(firstFuture.getTime() / 1000),
+      cancel_at: Math.floor(addPeriod(lastFuture, plan.frequency, 1).getTime() / 1000),
       metadata: {
         type: "pt_payment_plan",
         pt_pack_id: pack.id,
+        pt_plan_id: plan.id ?? "",
         installment_total: String(months),
         user_id: userId,
         member_id: memberRecordId ?? "",
@@ -173,22 +203,9 @@ Deno.serve(async (req) => {
     // fails, the sale stays "paid" and appears under "Incomplete PT sales".
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
-      p_stripe_payment_intent_id: subscription.id,
+      p_stripe_payment_intent_id: downPaymentIntentId ?? subscription.id,
       p_amount_cents: totalCents,
     });
-
-    // Schedule auto-cancel after N cycles.
-    try {
-      const periodEnd = (subscription as any).current_period_end;
-      if (periodEnd && months > 1) {
-        const cancelAt = periodEnd + (months - 1) * 30 * 24 * 3600;
-        await stripe.subscriptions.update(subscription.id, { cancel_at: cancelAt });
-      } else if (months === 1) {
-        await stripe.subscriptions.update(subscription.id, { cancel_at_period_end: true });
-      }
-    } catch (e) {
-      console.error("Failed to schedule cancel_at:", (e as Error).message);
-    }
 
     const { data: finalizeRes, error: finalizeErr } = await supabase.rpc("pt_finalize_package_sale", {
       p_idempotency_key: saleRef,
