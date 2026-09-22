@@ -92,6 +92,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [chargeError, setChargeError] = useState<string | null>(null);
   /** "" = pay in full; otherwise the id of a named payment plan on the pack. */
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  /** Client-specific first future autopay date — never stored on the package. */
+  const [firstAutopayDate, setFirstAutopayDate] = useState<string>(
+    fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"),
+  );
+  const [addCardSecret, setAddCardSecret] = useState<string | null>(null);
+  const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
+  const [creatingSetupIntent, setCreatingSetupIntent] = useState(false);
+  const [confirmation, setConfirmation] = useState<
+    | null
+    | {
+        packName: string;
+        planName: string;
+        chargedTodayCents: number;
+        schedule: PlanSchedule;
+        cardLabel: string;
+      }
+  >(null);
   /** Stable reference for the current sale attempt — reused on retry. */
   const saleKeyRef = useRef<string | null>(null);
 
