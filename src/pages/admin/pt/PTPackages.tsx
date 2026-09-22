@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { format as fmtDate } from "date-fns";
 import { Package, Plus, Download, ArrowLeftRight, SlidersHorizontal, BellRing, History, CalendarCheck, ClipboardList } from "lucide-react";
 import {
@@ -35,6 +38,11 @@ export default function PTPackages() {
   const [applyPastPass, setApplyPastPass] = useState<PTPassRow | null>(null);
   const [historicalPass, setHistoricalPass] = useState<PTPassRow | null>(null);
   const [historyPass, setHistoryPass] = useState<PTPassRow | null>(null);
+  const [catalogStatus, setCatalogStatus] = useState<"all" | "active" | "archived">("all");
+  const [catalogFormat, setCatalogFormat] = useState<string>("all");
+  const [catalogVisibility, setCatalogVisibility] = useState<"all" | "public" | "private">("all");
+  const [catalogPlans, setCatalogPlans] = useState<"all" | "with" | "without">("all");
+  const qc = useQueryClient();
 
   const { data: passes = [], isLoading: loadingPasses } = usePTPasses();
   const { data: packs = [], isLoading: loadingPacks } = usePTPacks();
