@@ -125,9 +125,12 @@ Deno.serve(async (req) => {
     // idempotent sale path — never by a direct insert.
     const saleRef = body.saleRef ?? crypto.randomUUID();
 
-    // Phase 2B: the server derives name/format/sessions/price from pt_packs.
-    const totalCents = pack.price_cents * quantity;
-    const installmentCents = Math.ceil(totalCents / months);
+    // Phase 2B: the server derives name/format/sessions/price from pt_packs and
+    // the amounts from the selected plan — never from the client.
+    const downCents = plan.down_payment_cents * quantity;
+    const installmentCents = plan.installment_cents * quantity;
+    const totalCents = downCents + (months - 1) * installmentCents;
+
 
     const { error: intentErr } = await supabase.rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: saleRef,
