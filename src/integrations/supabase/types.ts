@@ -9379,6 +9379,59 @@ export type Database = {
           },
         ]
       }
+      pt_pack_payment_plans: {
+        Row: {
+          created_at: string
+          display_order: number
+          down_payment_cents: number
+          frequency: string
+          id: string
+          installment_cents: number
+          installment_count: number
+          is_active: boolean
+          name: string
+          pack_id: string
+          stripe_price_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          down_payment_cents?: number
+          frequency?: string
+          id?: string
+          installment_cents?: number
+          installment_count?: number
+          is_active?: boolean
+          name: string
+          pack_id: string
+          stripe_price_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          down_payment_cents?: number
+          frequency?: string
+          id?: string
+          installment_cents?: number
+          installment_count?: number
+          is_active?: boolean
+          name?: string
+          pack_id?: string
+          stripe_price_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_pack_payment_plans_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "pt_packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_packs: {
         Row: {
           allow_payment_plan: boolean

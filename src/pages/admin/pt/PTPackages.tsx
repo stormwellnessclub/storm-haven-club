@@ -13,6 +13,7 @@ import {
   usePTPasses, usePTPacks, usePTPassAdjustments, usePTPassUsage, usePTPackageMutations,
   daysUntil, PTPassRow,
 } from "@/hooks/pt/usePTPackages";
+import { usePTPackPaymentPlans } from "@/hooks/pt/usePTPackPaymentPlans";
 import { downloadCsv } from "@/lib/ptExport";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,14 @@ export default function PTPackages() {
   const { data: passes = [], isLoading: loadingPasses } = usePTPasses();
   const { data: packs = [], isLoading: loadingPacks } = usePTPacks();
   const { data: adjustments = [], isLoading: loadingAdj } = usePTPassAdjustments();
+  const { data: allPlans = [] } = usePTPackPaymentPlans();
+  const plansByPack = useMemo(() => {
+    const map: Record<string, typeof allPlans> = {};
+    for (const pl of allPlans.filter((p) => p.is_active)) {
+      (map[pl.pack_id] ??= []).push(pl);
+    }
+    return map;
+  }, [allPlans]);
   const { data: usage = [], isLoading: loadingUsage } = usePTPassUsage();
   const { adjust, transfer, logReminder } = usePTPackageMutations();
 
@@ -181,13 +190,26 @@ export default function PTPackages() {
     { key: "sessions", header: "Sessions", align: "right", render: (p) => p.sessions },
     { key: "price", header: "Price", align: "right", render: (p) => formatCents(p.price_cents) },
     { key: "exp", header: "Valid for", align: "right", render: (p) => `${p.expiration_days} days` },
-    { key: "plan", header: "Payment plan", render: (p) => (p.allow_payment_plan ? `${p.payment_plan_months} mo` : "—") },
+    {
+      key: "plan", header: "Payment plans",
+      render: (p) => {
+        const list = plansByPack[p.id] ?? [];
+        if (list.length === 0) return "—";
+        return list.map((pl) => pl.name).join(" · ");
+      },
+    },
     {
       key: "state", header: "", align: "right",
       render: (p) => (
-        <div className="flex justify-end gap-1">
+        <div className="flex justify-end items-center gap-2">
           {p.is_public && <PTBadge tone="gold">Public</PTBadge>}
           <PTBadge tone={p.is_active ? "green" : "neutral"}>{p.is_active ? "Active" : "Archived"}</PTBadge>
+          <button
+            className="text-xs text-pt-muted hover:text-pt-gold"
+            onClick={(e) => { e.stopPropagation(); navigate(`/admin/pt/packages/${p.id}`); }}
+          >
+            Edit
+          </button>
         </div>
       ),
     },
@@ -235,8 +257,8 @@ export default function PTPackages() {
             <button className={ptButtonClass("outline")} onClick={exportCurrent}>
               <Download className="h-4 w-4" /> Export
             </button>
-            <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/personal-training/packs")}>
-              Edit catalog
+            <button className={ptButtonClass("outline")} onClick={() => navigate("/admin/pt/packages/new")}>
+              <Plus className="h-4 w-4" /> New package
             </button>
             <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("transfer")}>
               Transferred package
@@ -306,6 +328,7 @@ export default function PTPackages() {
         )}
         {tab === "catalog" && (
           <PTTable columns={packColumns} rows={packs} loading={loadingPacks} getRowKey={(p) => p.id}
+            onRowClick={(p: any) => navigate(`/admin/pt/packages/${p.id}`)}
             empty={<PTEmptyState icon={Package} title="No packages in the catalog" />} />
         )}
       </PTCard>

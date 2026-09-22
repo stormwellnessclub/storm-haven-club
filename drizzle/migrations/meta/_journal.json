@@ -316,6 +316,13 @@
       "when": 1789948254742,
       "tag": "0044_event_attendee_rpc_fixups",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1790035727648,
+      "tag": "0045_pt_pack_payment_plans",
+      "breakpoints": true
     }
   ]
 }

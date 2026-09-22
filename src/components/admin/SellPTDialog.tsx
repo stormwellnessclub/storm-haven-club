@@ -13,6 +13,7 @@ import { Loader2, CreditCard, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { addDays, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
+import { usePTPackPaymentPlans, FREQUENCY_LABEL } from "@/hooks/pt/usePTPackPaymentPlans";
 import { calculateProcessingFee } from "@/lib/processingFee";
 
 type PtPackExt = PtPack & {
@@ -63,7 +64,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [adminNotes, setAdminNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [chargeError, setChargeError] = useState<string | null>(null);
-  const [usePaymentPlan, setUsePaymentPlan] = useState(false);
+  /** "" = pay in full; otherwise the id of a named payment plan on the pack. */
+  const [selectedPlanId, setSelectedPlanId] = useState("");
   /** Stable reference for the current sale attempt — reused on retry. */
   const saleKeyRef = useRef<string | null>(null);
 
@@ -191,15 +193,24 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setPaymentChoice("card_on_file");
   }, [cards.map((c) => c.id).join(",")]);
 
+  // ----- Payment plans on the selected package -----
+  const { data: allPlans = [] } = usePTPackPaymentPlans();
+  const packPlans = useMemo(
+    () => allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id),
+    [allPlans, selectedPack?.id],
+  );
+  useEffect(() => {
+    if (selectedPlanId && !packPlans.find((p) => p.id === selectedPlanId)) setSelectedPlanId("");
+  }, [packPlans, selectedPlanId]);
+  const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
+
   // ----- Totals -----
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
-  const planEligible = !!selectedPack?.allow_payment_plan && !!selectedPack?.payment_plan_months && (selectedPack?.payment_plan_months ?? 0) >= 2;
-  const planActive = willCharge && usePaymentPlan && planEligible;
-  const planMonths = selectedPack?.payment_plan_months ?? 0;
-  const perInstallmentCents = planActive && planMonths > 0
-    ? Math.ceil(subtotalCents / planMonths)
-    : 0;
+  const planActive = willCharge && !!selectedPlan;
+  const planMonths = selectedPlan?.installment_count ?? 0;
+  const perInstallmentCents = selectedPlan ? selectedPlan.installment_cents * quantity : 0;
+  const dueTodayCents = selectedPlan ? selectedPlan.down_payment_cents * quantity : 0;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
 
@@ -216,7 +227,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setSelectedCardId("");
     setAdminNotes("");
     setChargeError(null);
-    setUsePaymentPlan(false);
+    setSelectedPlanId("");
     saleKeyRef.current = null;
   }
 
@@ -274,6 +285,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           body: {
             userId: selectedUserId,
             packId: selectedPack.id,
+            planId: selectedPlan?.id ?? null,
             quantity,
             paymentMethodId: selectedCardId,
             activatedAt,
@@ -523,22 +535,36 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                 </label>
 
-                {planEligible && paymentChoice === "card_on_file" && (
-                  <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ml-6 ${planActive ? "border-emerald-600 bg-emerald-500/5" : ""}`}>
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={usePaymentPlan}
-                      onChange={(e) => setUsePaymentPlan(e.target.checked)}
-                      disabled={cards.length === 0}
-                    />
-                    <div className="text-sm">
-                      <div className="font-medium">Split into {planMonths} monthly payments</div>
+                {packPlans.length > 0 && paymentChoice === "card_on_file" && (
+                  <div className="ml-6 space-y-2">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Payment option</div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanId("")}
+                      className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <div className="font-medium">Pay in full</div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        Auto-charges the card on file each month; ends automatically after the final installment.
+                        {formatCents(subtotalCents)} charged at checkout
                       </div>
-                    </div>
-                  </label>
+                    </button>
+                    {packPlans.map((pl) => (
+                      <button
+                        type="button"
+                        key={pl.id}
+                        onClick={() => setSelectedPlanId(pl.id)}
+                        disabled={cards.length === 0}
+                        className={`w-full text-left border rounded-md p-3 text-sm ${selectedPlanId === pl.id ? "border-primary bg-primary/5" : ""}`}
+                      >
+                        <div className="font-medium">{pl.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {formatCents(pl.down_payment_cents * quantity)} due at sale, then{" "}
+                          {pl.installment_count - 1} × {formatCents(pl.installment_cents * quantity)}{" "}
+                          · {FREQUENCY_LABEL[pl.frequency].toLowerCase()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 )}
 
                 <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "offline" ? "border-primary bg-primary/5" : ""}`}>
@@ -573,14 +599,19 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   <span>{formatCents(processingFeeCents)}</span>
                 </div>
               )}
-              {planActive ? (
+              {planActive && selectedPlan ? (
                 <>
                   <div className="flex justify-between font-semibold text-base pt-1 border-t">
-                    <span>Monthly (× {planMonths})</span>
-                    <span>{formatCents(perInstallmentCents)}/mo</span>
+                    <span>Due at sale</span>
+                    <span>{formatCents(dueTodayCents)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span>Future payments</span>
+                    <span>{planMonths - 1} × {formatCents(perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    First installment charges today. Auto-cancels after {planMonths} payments.
+                    {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
+                    {" "}charges the card on file automatically and ends after the final payment.
                   </div>
                 </>
               ) : (
@@ -606,7 +637,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {planActive
-              ? `Start plan · ${formatCents(perInstallmentCents)}/mo × ${planMonths}`
+              ? `Start plan · ${formatCents(dueTodayCents)} today`
               : willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
           </Button>
         </DialogFooter>

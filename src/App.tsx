@@ -242,6 +242,7 @@ import PTPortalReassessments from "@/pages/admin/pt/PTReassessments";
 import PTPortalSessionNotes from "@/pages/admin/pt/PTSessionNotes";
 import PTPortalProgress from "@/pages/admin/pt/PTProgress";
 import PTPortalPackages from "@/pages/admin/pt/PTPackages";
+import PTPortalPackageEdit from "@/pages/admin/pt/PTPackageEdit";
 import PTPortalBilling from "@/pages/admin/pt/PTBilling";
 import PTPortalTrainers from "@/pages/admin/pt/PTTrainers";
 import PTPortalTasks from "@/pages/admin/pt/PTTasks";
@@ -583,6 +584,7 @@ const App = () => (
               <Route path="/admin/pt/session-notes" element={<ProtectedAdminRoute><PTPortalSessionNotes /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/progress" element={<ProtectedAdminRoute><PTPortalProgress /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/packages" element={<ProtectedAdminRoute><PTPortalPackages /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/packages/:packId" element={<ProtectedAdminRoute><PTPortalPackageEdit /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/billing" element={<ProtectedAdminRoute><PTPortalBilling /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/trainers" element={<ProtectedAdminRoute><PTPortalTrainers /></ProtectedAdminRoute>} />
 
