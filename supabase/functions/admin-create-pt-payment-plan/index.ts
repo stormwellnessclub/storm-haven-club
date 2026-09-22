@@ -10,6 +10,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Advance a date by n plan periods. Monthly clamps to the last day of short months. */
+function addPeriod(from: Date, frequency: string, n: number): Date {
+  const d = new Date(from.getTime());
+  if (frequency === "weekly") { d.setUTCDate(d.getUTCDate() + 7 * n); return d; }
+  if (frequency === "biweekly") { d.setUTCDate(d.getUTCDate() + 14 * n); return d; }
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + n);
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
+  return d;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
