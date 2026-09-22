@@ -28,6 +28,7 @@ import { PTInvoiceDialog } from "@/components/admin/pt/PTInvoiceDialog";
 import { PTInvoiceDetailDialog } from "@/components/admin/pt/PTInvoiceDetailDialog";
 import { PTRefundDialog, PTRefundTarget } from "@/components/admin/pt/PTRefundDialog";
 import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
+import { usePTPlanInstallments, INSTALLMENT_STATE_LABEL } from "@/hooks/pt/usePTPlanInstallments";
 
 type Tab = "autopay" | "unpaid" | "activity" | "invoices" | "failed" | "refunds";
 type AgeFilter = "all" | "today" | "7" | "8-30" | "31";
