@@ -218,14 +218,12 @@ Deno.serve(async (req) => {
 
     // Phase 2B: plan linkage goes through the sanctioned RPC so the dedicated
     // subscription id, totals and installment schedule are recorded consistently.
-    const nextPaymentDate = (subscription as any).current_period_end
-      ? new Date((subscription as any).current_period_end * 1000).toISOString().slice(0, 10)
-      : null;
+    const nextPaymentDate = firstFuture.toISOString().slice(0, 10);
     const { error: linkErr } = await supabase.rpc("pt_link_payment_plan", {
       p_pass_ids: passIds,
       p_subscription_id: subscription.id,
       p_total_installments: months,
-      p_installments_paid: 1, // first invoice charged
+      p_installments_paid: 1, // amount due at sale charged
       p_installment_cents: installmentCents,
       p_total_cents: totalCents,
       p_next_payment_date: nextPaymentDate,
