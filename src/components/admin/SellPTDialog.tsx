@@ -767,7 +767,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Future payments</span>
-                    <span>{planMonths - 1} × {formatCents(perInstallmentCents)}</span>
+                    <span>{futureCount} × {formatCents(perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
@@ -784,6 +784,40 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             </div>
           )}
 
+          {/* Exact dated schedule, shown before anything is charged */}
+          {planActive && schedulePreview && (
+            <div className="rounded-md border px-4 py-3 space-y-2 text-sm">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Payment schedule {scheduleLoading && "· updating…"}
+              </div>
+              <div className="space-y-1">
+                {schedulePreview.installments.map((row) => (
+                  <div key={row.installment_number} className="flex items-center justify-between gap-2">
+                    <span className="w-28 shrink-0">
+                      {row.installment_number === 0 ? "Today" : businessDate(row.due_date)}
+                    </span>
+                    <span className="w-20 text-right">{formatCents(row.amount_cents)}</span>
+                    <span className="flex-1 text-xs text-muted-foreground truncate">
+                      {row.installment_number === 0 ? cardLabel : "AutoPay"}
+                    </span>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {row.installment_number === 0 ? "Due now" : "Scheduled"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 border-t space-y-1 text-sm">
+                <div className="flex justify-between"><span>Total package price</span><span>{formatCents(schedulePreview.total_cents)}</span></div>
+                <div className="flex justify-between"><span>Charged today</span><span>{formatCents(schedulePreview.amount_due_at_sale_cents)}</span></div>
+                <div className="flex justify-between">
+                  <span>Future scheduled</span>
+                  <span>{formatCents(schedulePreview.total_cents - schedulePreview.amount_due_at_sale_cents)}</span>
+                </div>
+                <div className="flex justify-between"><span>Final payment date</span><span>{businessDate(schedulePreview.final_payment_date)}</span></div>
+              </div>
+            </div>
+          )}
+
           {chargeError && (
             <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 mt-0.5" />
@@ -794,7 +828,10 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
+          <Button
+            onClick={submit}
+            disabled={submitting || !selectedUserId || !selectedPack || (planActive && !schedulePreview)}
+          >
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {planActive
               ? `Start plan · ${formatCents(dueTodayCents)} today`
