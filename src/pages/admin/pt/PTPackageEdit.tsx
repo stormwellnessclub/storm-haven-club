@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Loader2, CheckCircle2 } from "lucide-react";
-import { PTShell, PTPageHeader, PTCard, PTBadge, PTModal, ptButtonClass } from "@/components/admin/pt/PTUI";
+import { PTShell, PTPageHeader, PTCard, PTSectionTitle, PTBadge, PTModal, ptButtonClass } from "@/components/admin/pt/PTUI";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -26,7 +26,6 @@ interface PackDraft {
   is_active: boolean;
   display_order: number;
   notes: string;
-  pay_in_full: boolean;
 }
 
 const EMPTY: PackDraft = {
@@ -39,7 +38,6 @@ const EMPTY: PackDraft = {
   is_active: true,
   display_order: 10,
   notes: "",
-  pay_in_full: true,
 };
 
 export default function PTPackageEdit() {
@@ -75,7 +73,6 @@ export default function PTPackageEdit() {
       is_active: pack.is_active,
       display_order: pack.display_order,
       notes: pack.notes ?? "",
-      pay_in_full: pack.allow_pay_in_full !== false,
     });
   }, [pack?.id]);
 
@@ -151,7 +148,8 @@ export default function PTPackageEdit() {
         <div className="flex justify-center py-20"><Loader2 className="h-5 w-5 animate-spin" /></div>
       ) : (
         <div className="space-y-6 max-w-4xl">
-          <PTCard title="Package details">
+          <PTCard>
+            <PTSectionTitle>Package details</PTSectionTitle>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Name</Label>
@@ -212,7 +210,8 @@ export default function PTPackageEdit() {
             </div>
           </PTCard>
 
-          <PTCard title="Payment options">
+          <PTCard>
+            <PTSectionTitle>Payment options</PTSectionTitle>
             {isNew ? (
               <p className="text-sm text-pt-muted">Save the package first, then add its payment plans.</p>
             ) : (
