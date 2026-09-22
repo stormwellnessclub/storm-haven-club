@@ -9,12 +9,38 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { addDays, format as fmtDate } from "date-fns";
+import { addDays, addMonths, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
 import { usePTPackPaymentPlans, FREQUENCY_LABEL } from "@/hooks/pt/usePTPackPaymentPlans";
 import { calculateProcessingFee } from "@/lib/processingFee";
+import { StripeProvider } from "@/components/StripeProvider";
+import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
+
+/** Renders a YYYY-MM-DD business date without timezone drift. */
+function businessDate(iso: string) {
+  const [y, m, d] = iso.split("-").map((v) => parseInt(v, 10));
+  return fmtDate(new Date(y, m - 1, d), "MMM d, yyyy");
+}
+
+interface ScheduleRow {
+  installment_number: number;
+  due_date: string;
+  amount_cents: number;
+  status: string;
+}
+
+interface PlanSchedule {
+  plan_name: string;
+  sale_date: string;
+  first_autopay_date: string;
+  final_payment_date: string;
+  amount_due_at_sale_cents: number;
+  future_installment_count: number;
+  total_cents: number;
+  installments: ScheduleRow[];
+}
 
 type PtPackExt = PtPack & {
   allow_payment_plan?: boolean;
