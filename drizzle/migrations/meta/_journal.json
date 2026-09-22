@@ -344,6 +344,27 @@
       "when": 1790048140314,
       "tag": "0048_pt_finalize_copy_installment_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1790048571300,
+      "tag": "0049_pt_payment_plan_installments",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1790048633098,
+      "tag": "0050_pt_plan_schedule_and_reconciliation",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1790048698979,
+      "tag": "0051_pt_bind_plan_subscription",
+      "breakpoints": true
     }
   ]
 }

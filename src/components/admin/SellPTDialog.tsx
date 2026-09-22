@@ -9,12 +9,38 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { addDays, format as fmtDate } from "date-fns";
+import { addDays, addMonths, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
 import { usePTPackPaymentPlans, FREQUENCY_LABEL } from "@/hooks/pt/usePTPackPaymentPlans";
 import { calculateProcessingFee } from "@/lib/processingFee";
+import { StripeProvider } from "@/components/StripeProvider";
+import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
+
+/** Renders a YYYY-MM-DD business date without timezone drift. */
+function businessDate(iso: string) {
+  const [y, m, d] = iso.split("-").map((v) => parseInt(v, 10));
+  return fmtDate(new Date(y, m - 1, d), "MMM d, yyyy");
+}
+
+interface ScheduleRow {
+  installment_number: number;
+  due_date: string;
+  amount_cents: number;
+  status: string;
+}
+
+interface PlanSchedule {
+  plan_name: string;
+  sale_date: string;
+  first_autopay_date: string;
+  final_payment_date: string;
+  amount_due_at_sale_cents: number;
+  future_installment_count: number;
+  total_cents: number;
+  installments: ScheduleRow[];
+}
 
 type PtPackExt = PtPack & {
   allow_payment_plan?: boolean;
@@ -66,6 +92,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [chargeError, setChargeError] = useState<string | null>(null);
   /** "" = pay in full; otherwise the id of a named payment plan on the pack. */
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  /** Client-specific first future autopay date — never stored on the package. */
+  const [firstAutopayDate, setFirstAutopayDate] = useState<string>(
+    fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"),
+  );
+  const [addCardSecret, setAddCardSecret] = useState<string | null>(null);
+  const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
+  const [creatingSetupIntent, setCreatingSetupIntent] = useState(false);
+  const [confirmation, setConfirmation] = useState<
+    | null
+    | {
+        packName: string;
+        planName: string;
+        chargedTodayCents: number;
+        schedule: PlanSchedule;
+        cardLabel: string;
+      }
+  >(null);
   /** Stable reference for the current sale attempt — reused on retry. */
   const saleKeyRef = useRef<string | null>(null);
 
@@ -208,11 +251,36 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
   const planActive = willCharge && !!selectedPlan;
-  const planMonths = selectedPlan?.installment_count ?? 0;
+  const futureCount = selectedPlan?.future_installment_count ?? 0;
   const perInstallmentCents = selectedPlan ? selectedPlan.installment_cents * quantity : 0;
-  const dueTodayCents = selectedPlan ? selectedPlan.down_payment_cents * quantity : 0;
+  const dueTodayCents = selectedPlan ? selectedPlan.amount_due_at_sale_cents * quantity : 0;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
+  const selectedCard = cards.find((c) => c.id === selectedCardId);
+  const cardLabel = selectedCard
+    ? `${(selectedCard.brand ?? "Card").replace(/^./, (s) => s.toUpperCase())} •••• ${selectedCard.last4}`
+    : "Card on file";
+
+  // ----- Storm's dated schedule, calculated server-side before anything is charged -----
+  const {
+    data: schedulePreview,
+    error: scheduleError,
+    isFetching: scheduleLoading,
+  } = useQuery({
+    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate],
+    enabled: planActive && !!selectedPack && !!selectedPlanId && !!firstAutopayDate,
+    retry: false,
+    queryFn: async (): Promise<PlanSchedule> => {
+      const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview", {
+        p_pack_id: selectedPack!.id,
+        p_plan_id: selectedPlanId,
+        p_quantity: quantity,
+        p_first_autopay: firstAutopayDate,
+      });
+      if (error) throw new Error(error.message.replace(/^.*PT_AUTOPAY_DATE_INVALID: /, ""));
+      return data as PlanSchedule;
+    },
+  });
 
   function reset() {
     setSelectedUserId(presetUserId);
@@ -228,7 +296,34 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setAdminNotes("");
     setChargeError(null);
     setSelectedPlanId("");
+    setFirstAutopayDate(fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"));
+    setAddCardSecret(null);
+    setAddCardCustomerId(null);
+    setConfirmation(null);
     saleKeyRef.current = null;
+  }
+
+  /** Add a card without leaving checkout — Stripe SetupIntent, no raw card data here. */
+  async function startAddCard() {
+    if (!selectedUserId) return;
+    setCreatingSetupIntent(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: {
+          action: "create_admin_setup_intent",
+          applicantEmail: cardsData?.memberEmail,
+          applicantName: selectedUserLabel,
+        },
+      });
+      if (error) throw error;
+      if (!data?.clientSecret) throw new Error("Could not open the card form");
+      setAddCardSecret(data.clientSecret);
+      setAddCardCustomerId(data.customerId ?? null);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Could not open the card form");
+    } finally {
+      setCreatingSetupIntent(false);
+    }
   }
 
   /**
@@ -271,16 +366,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
   async function submit() {
     setChargeError(null);
+    if (submitting) return;
     if (!selectedUserId) return toast.error("Select a customer");
     if (!selectedPack) return toast.error("Select a pack");
     if (!expiresAt) return toast.error("Expiration date required");
     if (paymentChoice === "card_on_file" && !selectedCardId) {
       return toast.error("Choose a card on file");
     }
+    if (planActive && !schedulePreview) {
+      return toast.error(scheduleError ? (scheduleError as Error).message : "Choose a valid first autopay date");
+    }
 
     setSubmitting(true);
     try {
       if (paymentChoice === "card_on_file" && planActive) {
+        // One stable sale reference — a second click reuses it and never re-charges.
+        const key = saleKeyRef.current ?? crypto.randomUUID();
+        saleKeyRef.current = key;
         const { data, error } = await supabase.functions.invoke("admin-create-pt-payment-plan", {
           body: {
             userId: selectedUserId,
@@ -290,6 +392,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             paymentMethodId: selectedCardId,
             activatedAt,
             expiresAt,
+            firstAutopayDate,
+            saleRef: key,
             adminNotes: adminNotes || null,
           },
         });
@@ -299,7 +403,17 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           setSubmitting(false);
           return;
         }
-        toast.success(`Payment plan started — ${planMonths} × ${formatCents(perInstallmentCents)}`);
+        qc.invalidateQueries({ queryKey: ["pt-passes"] });
+        qc.invalidateQueries({ queryKey: ["pt-sale-intents"] });
+        setConfirmation({
+          packName: `${quantity} × ${selectedPack.name}`,
+          planName: selectedPlan!.name,
+          chargedTodayCents: (data as any).charged_today_cents ?? dueTodayCents,
+          schedule: (data as any).schedule as PlanSchedule,
+          cardLabel,
+        });
+        setSubmitting(false);
+        return;
       } else if (paymentChoice === "card_on_file") {
         const { key, sale } = await openSaleIntent("card_on_file");
         const alreadyPaid = sale?.status === "paid" || sale?.status === "finalized";
@@ -370,6 +484,45 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     }
   }
 
+  if (confirmation) {
+    const nextRow = confirmation.schedule.installments.find((r) => r.installment_number === 1);
+    const remaining = confirmation.schedule.total_cents - confirmation.schedule.amount_due_at_sale_cents;
+    return (
+      <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" /> Package sold
+            </DialogTitle>
+            <DialogDescription>{confirmation.packName}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between"><span>Payment plan</span><span>{confirmation.planName}</span></div>
+            <div className="flex justify-between font-semibold"><span>Paid today</span><span>{formatCents(confirmation.chargedTodayCents)}</span></div>
+            {nextRow && (
+              <div className="flex justify-between">
+                <span>Next autopay</span>
+                <span>{businessDate(nextRow.due_date)} · {formatCents(nextRow.amount_cents)}</span>
+              </div>
+            )}
+            <div className="flex justify-between"><span>Remaining scheduled</span><span>{formatCents(remaining)}</span></div>
+            <div className="flex justify-between"><span>Final payment</span><span>{businessDate(confirmation.schedule.final_payment_date)}</span></div>
+            <div className="flex justify-between"><span>Card</span><span>{confirmation.cardLabel}</span></div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => window.open(`/admin/pt/clients/${selectedUserId}`, "_blank")}>
+              View client
+            </Button>
+            <Button variant="outline" onClick={() => window.open("/admin/pt/billing", "_blank")}>
+              View billing
+            </Button>
+            <Button onClick={() => { reset(); onOpenChange(false); }}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
@@ -379,6 +532,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             Record a PT pack sale and (optionally) charge the customer's card on file.
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-4 py-2">
           {/* Customer */}
@@ -532,6 +686,31 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                         ))}
                       </div>
                     )}
+                    <div className="mt-2">
+                      {addCardSecret ? (
+                        <div className="border rounded-md p-3 bg-background">
+                          <div className="text-xs font-medium mb-2">Add a card for this client</div>
+                          <StripeProvider clientSecret={addCardSecret}>
+                            <AdminAddCardForm
+                              stripeCustomerId={addCardCustomerId || undefined}
+                              onCancel={() => setAddCardSecret(null)}
+                              onSuccess={() => {
+                                setAddCardSecret(null);
+                                qc.invalidateQueries({ queryKey: ["pt-user-payment-methods", selectedUserId] });
+                                toast.success("Card saved — it is now selectable for this sale");
+                              }}
+                            />
+                          </StripeProvider>
+                        </div>
+                      ) : (
+                        <Button type="button" variant="outline" size="sm" onClick={startAddCard} disabled={creatingSetupIntent}>
+                          {creatingSetupIntent
+                            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            : <Plus className="h-4 w-4 mr-2" />}
+                          Add new card
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </label>
 
@@ -558,12 +737,33 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                       >
                         <div className="font-medium">{pl.name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
-                          {formatCents(pl.down_payment_cents * quantity)} due at sale, then{" "}
-                          {pl.installment_count - 1} × {formatCents(pl.installment_cents * quantity)}{" "}
+                          {formatCents(pl.amount_due_at_sale_cents * quantity)} due at sale, then{" "}
+                          {pl.future_installment_count} × {formatCents(pl.installment_cents * quantity)}
+                          {pl.final_installment_cents !== pl.installment_cents &&
+                            ` (final ${formatCents(pl.final_installment_cents * quantity)})`}{" "}
                           · {FREQUENCY_LABEL[pl.frequency].toLowerCase()}
                         </div>
                       </button>
                     ))}
+
+                    {planActive && (
+                      <div className="space-y-2 border rounded-md p-3">
+                        <Label className="text-xs">First future autopay date</Label>
+                        <Input
+                          type="date"
+                          value={firstAutopayDate}
+                          min={fmtDate(addDays(new Date(), 1), "yyyy-MM-dd")}
+                          onChange={(e) => setFirstAutopayDate(e.target.value)}
+                        />
+                        <div className="text-[11px] text-muted-foreground">
+                          Future payments repeat on this day each period. Short months bill on the
+                          last day and return to the chosen day afterwards.
+                        </div>
+                        {scheduleError && (
+                          <div className="text-xs text-destructive">{(scheduleError as Error).message}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -607,7 +807,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Future payments</span>
-                    <span>{planMonths - 1} × {formatCents(perInstallmentCents)}</span>
+                    <span>{futureCount} × {formatCents(perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
@@ -624,6 +824,40 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             </div>
           )}
 
+          {/* Exact dated schedule, shown before anything is charged */}
+          {planActive && schedulePreview && (
+            <div className="rounded-md border px-4 py-3 space-y-2 text-sm">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                Payment schedule {scheduleLoading && "· updating…"}
+              </div>
+              <div className="space-y-1">
+                {schedulePreview.installments.map((row) => (
+                  <div key={row.installment_number} className="flex items-center justify-between gap-2">
+                    <span className="w-28 shrink-0">
+                      {row.installment_number === 0 ? "Today" : businessDate(row.due_date)}
+                    </span>
+                    <span className="w-20 text-right">{formatCents(row.amount_cents)}</span>
+                    <span className="flex-1 text-xs text-muted-foreground truncate">
+                      {row.installment_number === 0 ? cardLabel : "AutoPay"}
+                    </span>
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {row.installment_number === 0 ? "Due now" : "Scheduled"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2 border-t space-y-1 text-sm">
+                <div className="flex justify-between"><span>Total package price</span><span>{formatCents(schedulePreview.total_cents)}</span></div>
+                <div className="flex justify-between"><span>Charged today</span><span>{formatCents(schedulePreview.amount_due_at_sale_cents)}</span></div>
+                <div className="flex justify-between">
+                  <span>Future scheduled</span>
+                  <span>{formatCents(schedulePreview.total_cents - schedulePreview.amount_due_at_sale_cents)}</span>
+                </div>
+                <div className="flex justify-between"><span>Final payment date</span><span>{businessDate(schedulePreview.final_payment_date)}</span></div>
+              </div>
+            </div>
+          )}
+
           {chargeError && (
             <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
               <AlertCircle className="h-4 w-4 mt-0.5" />
@@ -634,7 +868,10 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={submitting || !selectedUserId || !selectedPack}>
+          <Button
+            onClick={submit}
+            disabled={submitting || !selectedUserId || !selectedPack || (planActive && !schedulePreview)}
+          >
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {planActive
               ? `Start plan · ${formatCents(dueTodayCents)} today`
