@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
     const {
       userId,
       packId,
+      planId = null,
       paymentMethodId,
       activatedAt,
       expiresAt,
