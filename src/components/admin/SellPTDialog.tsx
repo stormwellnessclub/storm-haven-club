@@ -535,22 +535,36 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                 </label>
 
-                {planEligible && paymentChoice === "card_on_file" && (
-                  <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ml-6 ${planActive ? "border-emerald-600 bg-emerald-500/5" : ""}`}>
-                    <input
-                      type="checkbox"
-                      className="mt-1"
-                      checked={usePaymentPlan}
-                      onChange={(e) => setUsePaymentPlan(e.target.checked)}
-                      disabled={cards.length === 0}
-                    />
-                    <div className="text-sm">
-                      <div className="font-medium">Split into {planMonths} monthly payments</div>
+                {packPlans.length > 0 && paymentChoice === "card_on_file" && (
+                  <div className="ml-6 space-y-2">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">Payment option</div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPlanId("")}
+                      className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <div className="font-medium">Pay in full</div>
                       <div className="text-xs text-muted-foreground mt-0.5">
-                        Auto-charges the card on file each month; ends automatically after the final installment.
+                        {formatCents(subtotalCents)} charged at checkout
                       </div>
-                    </div>
-                  </label>
+                    </button>
+                    {packPlans.map((pl) => (
+                      <button
+                        type="button"
+                        key={pl.id}
+                        onClick={() => setSelectedPlanId(pl.id)}
+                        disabled={cards.length === 0}
+                        className={`w-full text-left border rounded-md p-3 text-sm ${selectedPlanId === pl.id ? "border-primary bg-primary/5" : ""}`}
+                      >
+                        <div className="font-medium">{pl.name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {formatCents(pl.down_payment_cents * quantity)} due at sale, then{" "}
+                          {pl.installment_count - 1} × {formatCents(pl.installment_cents * quantity)}{" "}
+                          · {FREQUENCY_LABEL[pl.frequency].toLowerCase()}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 )}
 
                 <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "offline" ? "border-primary bg-primary/5" : ""}`}>
