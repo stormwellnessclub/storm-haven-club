@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { IssueGiftCardDialog } from "@/components/admin/IssueGiftCardDialog";
+import { GiftCardEmailDialog, resendGiftCardEmail } from "@/components/admin/GiftCardEmailCopy";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -104,26 +105,7 @@ export default function GiftCardHub() {
   });
 
   const resendMutation = useMutation({
-    mutationFn: async (row: Row) => {
-      const { error } = await supabase.functions.invoke("send-email", {
-        body: {
-          type: "gift_card_delivery",
-          to: row.recipient_email,
-          data: {
-            name: row.recipient_name,
-            recipientName: row.recipient_name,
-            senderName: row.purchaser_name || "A Storm Wellness Club member",
-            customMessage: row.custom_message || "",
-            code: row.code,
-            amount: (row.amount_cents / 100).toFixed(2),
-            serviceLabel: row.service_label || "",
-            hideAmount: (row as any).hide_amount === true,
-            expiresAt: row.expires_at,
-          },
-        },
-      });
-      if (error) throw error;
-    },
+    mutationFn: async (row: Row) => { await resendGiftCardEmail(row as any); },
     onSuccess: () => toast.success("Gift card email resent"),
     onError: (e: Error) => toast.error(e.message),
   });
@@ -307,7 +289,8 @@ function GiftCardDetailSheet({
                 <Field label="Redeemed" value={`${money(row.redeemed_cents)} · ${row.redemption_count}x`} />
                 <Field label="Status" value={row.derived_status} />
                 <Field label="Recipient" value={`${row.recipient_name} (${row.recipient_email})`} />
-                <Field label="Purchaser" value={row.purchaser_name || row.purchaser_email || "—"} />
+                <Field label="Bought by" value={[row.purchaser_name, row.purchaser_email].filter(Boolean).join(" · ") || "—"} />
+                <Field label="Gift" value={row.service_label || money(row.amount_cents)} />
                 <Field label="Payment" value={row.payment_method || "—"} />
                 <Field label="Source" value={row.purchase_source || "—"} />
                 <Field
@@ -334,6 +317,9 @@ function GiftCardDetailSheet({
                   onClick={() => { navigator.clipboard.writeText(row.code); toast.success("Code copied"); }}
                 >
                   <Copy className="mr-1 h-3.5 w-3.5" /> Copy code
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)}>
+                  <Mail className="mr-1 h-3.5 w-3.5" /> View email
                 </Button>
                 <Button variant="outline" size="sm" onClick={onResend} disabled={resending}>
                   {resending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1 h-3.5 w-3.5" />}

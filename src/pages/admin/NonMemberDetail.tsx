@@ -1,4 +1,5 @@
 import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
+import { PurchasedGiftCardsList } from "@/components/admin/GiftCardEmailCopy";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -722,6 +723,16 @@ export default function NonMemberDetail() {
           {/* ===== PASSES & BOOKINGS TAB ===== */}
           <TabsContent value="passes">
             <div className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Gift className="h-4 w-4" /> Gift Cards Purchased
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <PurchasedGiftCardsList userId={profile?.user_id} email={profile?.email} />
+                </CardContent>
+              </Card>
               {/* Class Passes with Progress Bars */}
               <Card>
                 <CardHeader className="pb-3">
