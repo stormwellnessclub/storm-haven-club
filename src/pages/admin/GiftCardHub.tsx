@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Gift, Loader2, RefreshCw, Search, Copy, Send, Ban } from "lucide-react";
+import { Gift, Loader2, RefreshCw, Search, Copy, Send, Ban, Mail } from "lucide-react";
 import { formatInTimeZone } from "date-fns-tz";
 import { toast } from "sonner";
 
@@ -270,6 +270,7 @@ function GiftCardDetailSheet({
   resending: boolean;
 }) {
   const [notes, setNotes] = useState("");
+  const [emailOpen, setEmailOpen] = useState(false);
 
   return (
     <Sheet open={!!row} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -343,6 +344,7 @@ function GiftCardDetailSheet({
             </div>
           </>
         )}
+        <GiftCardEmailDialog row={row as any} open={emailOpen && !!row} onOpenChange={setEmailOpen} />
       </SheetContent>
     </Sheet>
   );
