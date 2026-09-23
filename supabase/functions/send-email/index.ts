@@ -3380,7 +3380,7 @@ serve(async (req) => {
                   <tr><td style="padding: 26px 30px 8px 30px; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #88766B; text-align: center;">How to Redeem</td></tr>
                   <tr><td style="padding: 6px 30px 26px 30px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.8; color: #4A4037; text-align: center;">
                     ${data.serviceLabel
-                      ? `This gift is for your <strong>${data.serviceLabel}</strong> at the Storm Spa. Call or email us to book your appointment, then share your code with the front desk when you arrive — we'll take care of everything else.`
+                      ? `This gift is for your <strong>${data.serviceLabel}</strong> at the Storm Spa. Book online by creating an account at <a href="${BASE_URL}/spa" style="color:#1C170F;">stormwellnessclub.com</a>, or call or email us at <a href="mailto:admin@stormwellnessclub.com" style="color:#1C170F;">admin@stormwellnessclub.com</a> and we'll find a time for you. Share your code with the front desk when you arrive — we'll take care of everything else.`
                       : `Share your code with the front desk at checkout. It can be used toward spa services, classes, the café and the shop — any remaining balance stays on your card.`}
                     ${expiresFmt ? `<br/><br/><span style="color:#88766B;">Please redeem by <strong>${expiresFmt}</strong> — this gift expires 8 months from purchase.</span>` : ''}
                   </td></tr>
