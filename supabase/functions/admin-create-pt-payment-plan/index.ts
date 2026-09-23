@@ -216,12 +216,16 @@ Deno.serve(async (req) => {
       finalPriceId = created.id;
     }
 
+    // Phase metadata is copied onto the subscription when the phase starts. Without
+    // it the installment invoice reaches the webhook looking like a membership
+    // invoice and never reaches the PT reconciliation branch.
     const phases: any[] = [];
     if (futureCount > 1) {
       phases.push({
         items: [{ price: basePriceId, quantity }],
         iterations: futureCount - 1,
         proration_behavior: "none",
+        metadata: planMeta,
       });
     }
     if (futureCount >= 1) {
@@ -229,6 +233,7 @@ Deno.serve(async (req) => {
         items: [{ price: finalPriceId, quantity }],
         iterations: 1,
         proration_behavior: "none",
+        metadata: planMeta,
       });
     }
 
