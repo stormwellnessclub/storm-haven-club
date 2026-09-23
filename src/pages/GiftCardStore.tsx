@@ -17,7 +17,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { CalendarIcon, CheckCircle2, Copy, Gift, Loader2 } from "lucide-react";
+import { CalendarIcon, CheckCircle2, Copy, Gift, Loader2, Mail } from "lucide-react";
+import { SpaServiceGrid, TherapistTipPicker } from "@/components/gift-cards/SpaGiftPicker";
 
 const AMOUNT_PRESETS = [50, 100, 150, 250];
 
@@ -31,8 +32,10 @@ const SERVICE_PRESETS = [
 const DRAFT_KEY = "gift_card_draft_v1";
 
 type Draft = {
-  mode: "amount" | "service";
+  mode: "amount" | "service" | "spa";
   amount: number;
+  spaServiceId?: string | null;
+  tipCents?: number;
   serviceLabel: string | null;
   recipientName: string;
   recipientEmail: string;
@@ -49,7 +52,9 @@ export default function GiftCardStore() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [buyerName, setBuyerName] = useState("");
 
-  const [mode, setMode] = useState<"amount" | "service">("amount");
+  const [mode, setMode] = useState<"amount" | "service" | "spa">("amount");
+  const [spaServiceId, setSpaServiceId] = useState<string | null>(null);
+  const [tipCents, setTipCents] = useState(0);
   const [amount, setAmount] = useState(100);
   const [customAmount, setCustomAmount] = useState("");
   const [serviceLabel, setServiceLabel] = useState<string | null>(null);
@@ -69,6 +74,10 @@ export default function GiftCardStore() {
     recipientName: string;
     scheduled: boolean;
     scheduledSendAt?: string | null;
+    emailSent: boolean;
+    recipientEmail: string;
+    tipCents: number;
+    serviceLabel: string | null;
   }>(null);
 
   // Restore a draft after sign-in
@@ -95,6 +104,8 @@ export default function GiftCardStore() {
           setMode(d.mode);
           setAmount(d.amount);
           setServiceLabel(d.serviceLabel);
+          setSpaServiceId(d.spaServiceId ?? null);
+          setTipCents(d.tipCents ?? 0);
           setRecipientName(d.recipientName);
           setRecipientEmail(d.recipientEmail);
           setCustomMessage(d.customMessage);
@@ -118,6 +129,8 @@ export default function GiftCardStore() {
   }, [scheduleEnabled, scheduleDate, scheduleTime]);
 
   const amountCents = Math.round(amount * 100);
+  const effectiveTipCents = mode === "spa" ? tipCents : 0;
+  const totalCents = amountCents + effectiveTipCents;
   const validAmount = amount >= 25 && amount <= 1000;
 
   const saveDraft = () => {
@@ -125,6 +138,8 @@ export default function GiftCardStore() {
       mode,
       amount,
       serviceLabel,
+      spaServiceId,
+      tipCents,
       recipientName,
       recipientEmail,
       customMessage,
@@ -136,6 +151,7 @@ export default function GiftCardStore() {
   };
 
   const startCheckout = async () => {
+    if (mode === "spa" && !spaServiceId) return toast.error("Choose a spa service");
     if (!validAmount) return toast.error("Choose an amount between $25 and $1,000");
     if (!recipientName.trim()) return toast.error("Enter the recipient's name");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail.trim())) {
@@ -159,7 +175,9 @@ export default function GiftCardStore() {
           recipientName: recipientName.trim(),
           recipientEmail: recipientEmail.trim(),
           customMessage: customMessage.trim() || undefined,
-          serviceLabel: mode === "service" ? serviceLabel : undefined,
+          serviceLabel: mode !== "amount" ? serviceLabel : undefined,
+          spaServiceId: mode === "spa" ? spaServiceId : undefined,
+          tipCents: effectiveTipCents || undefined,
           purchaserName: buyerName || undefined,
           scheduledSendAt: scheduledSendAt ? scheduledSendAt.toISOString() : undefined,
         },
@@ -184,6 +202,8 @@ export default function GiftCardStore() {
     setCustomMessage("");
     setScheduleEnabled(false);
     setScheduleDate(undefined);
+    setTipCents(0);
+    setSpaServiceId(null);
   };
 
   return (
@@ -210,14 +230,25 @@ export default function GiftCardStore() {
           <Card className="mx-auto max-w-lg">
             <CardContent className="space-y-4 p-8 text-center">
               <CheckCircle2 className="mx-auto h-10 w-10 text-primary" />
-              <h2 className="text-2xl font-semibold">Gift card purchased</h2>
+              <h2 className="text-2xl font-semibold">Payment successful</h2>
               <p className="text-sm text-muted-foreground">
-                {purchased.scheduled
-                  ? `We'll email it to ${purchased.recipientName} on ${
-                      purchased.scheduledSendAt ? format(new Date(purchased.scheduledSendAt), "PPP") : "the scheduled date"
-                    }.`
-                  : `We just emailed it to ${purchased.recipientName}.`}
+                Your {purchased.serviceLabel ? <strong>{purchased.serviceLabel}</strong> : "gift card"} for{" "}
+                {purchased.recipientName} is confirmed
+                {purchased.tipCents > 0 ? `, including a $${(purchased.tipCents / 100).toFixed(2)} therapist tip` : ""}.
               </p>
+              <div className="flex items-start gap-2 rounded-md bg-muted/50 p-3 text-left text-sm">
+                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <span>
+                  {purchased.scheduled
+                    ? `Scheduled — we'll email it to ${purchased.recipientEmail} on ${
+                        purchased.scheduledSendAt ? format(new Date(purchased.scheduledSendAt), "PPP 'at' p") : "the scheduled date"
+                      }.`
+                    : purchased.emailSent
+                    ? `Gift email sent to ${purchased.recipientEmail}.`
+                    : `Your purchase is saved. The gift email to ${purchased.recipientEmail} didn't go through — our team will resend it.`}
+                  {" "}A receipt is on its way to your inbox, and this gift is saved in your account history.
+                </span>
+              </div>
               <div className="rounded-md border border-dashed p-4">
                 <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Gift code</div>
                 <div className="mt-1 font-mono text-lg font-semibold tracking-[0.25em]">{purchased.code}</div>
@@ -255,11 +286,18 @@ export default function GiftCardStore() {
                         Choose an amount
                       </Button>
                       <Button
+                        variant={mode === "spa" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => { setMode("spa"); setServiceLabel(null); setSpaServiceId(null); }}
+                      >
+                        Spa service
+                      </Button>
+                      <Button
                         variant={mode === "service" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => setMode("service")}
+                        onClick={() => { setMode("service"); setSpaServiceId(null); }}
                       >
-                        Gift a service
+                        Gift an experience
                       </Button>
                     </div>
 
@@ -295,6 +333,22 @@ export default function GiftCardStore() {
                             }}
                           />
                         </div>
+                      </div>
+                    ) : mode === "spa" ? (
+                      <div className="space-y-4">
+                        <SpaServiceGrid
+                          selectedId={spaServiceId}
+                          onSelect={(svc) => {
+                            setSpaServiceId(svc.id);
+                            setServiceLabel(svc.name);
+                            setAmount(Number(svc.price));
+                            setCustomAmount("");
+                            setTipCents(0);
+                          }}
+                        />
+                        {spaServiceId && (
+                          <TherapistTipPicker baseCents={amountCents} tipCents={tipCents} onChange={setTipCents} />
+                        )}
                       </div>
                     ) : (
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -392,7 +446,7 @@ export default function GiftCardStore() {
                     {submitting ? (
                       <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing…</>
                     ) : isAuthed ? (
-                      `Continue to payment · $${validAmount ? amount.toFixed(2) : "0.00"}`
+                      `Continue to payment · $${validAmount ? (totalCents / 100).toFixed(2) : "0.00"}`
                     ) : (
                       "Sign in to continue"
                     )}
@@ -407,15 +461,19 @@ export default function GiftCardStore() {
                 <StripeProvider key={clientSecret} clientSecret={clientSecret}>
                   <GiftCardPayment
                     paymentIntentId={paymentIntentId!}
-                    totalCents={amountCents}
+                    totalCents={totalCents}
                     onBack={() => { setClientSecret(null); setPaymentIntentId(null); }}
-                    onComplete={(card, scheduled) =>
+                    onComplete={(card, scheduled, emailSent) =>
                       setPurchased({
                         code: card.code,
                         amountCents: card.amount_cents,
                         recipientName: card.recipient_name,
                         scheduled,
                         scheduledSendAt: card.scheduled_send_at,
+                        emailSent,
+                        recipientEmail: card.recipient_email,
+                        tipCents: card.tip_cents ?? 0,
+                        serviceLabel: card.service_label ?? null,
                       })
                     }
                   />
@@ -435,7 +493,12 @@ export default function GiftCardStore() {
                 customMessage={customMessage}
                 scheduledSendAt={scheduledSendAt ? scheduledSendAt.toISOString() : null}
               />
-              {mode === "service" && serviceLabel && (
+              {effectiveTipCents > 0 && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Includes a <strong>${(effectiveTipCents / 100).toFixed(2)}</strong> therapist tip · Total ${(totalCents / 100).toFixed(2)}
+                </p>
+              )}
+              {mode !== "amount" && serviceLabel && (
                 <p className="mt-3 text-xs text-muted-foreground">
                   Gifted as <strong>{serviceLabel}</strong> — the balance can be used toward anything at the club.
                 </p>
@@ -457,7 +520,7 @@ function GiftCardPayment({
   paymentIntentId: string;
   totalCents: number;
   onBack: () => void;
-  onComplete: (card: any, scheduled: boolean) => void;
+  onComplete: (card: any, scheduled: boolean, emailSent: boolean) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -481,7 +544,7 @@ function GiftCardPayment({
       if (confirmErr) throw confirmErr;
       if (!data?.success) throw new Error(data?.error || "Could not finalize the gift card");
       toast.success("Gift card purchased");
-      onComplete(data.card, !!data.scheduled);
+      onComplete(data.card, !!data.scheduled, !!data.emailSent);
     } catch (e: any) {
       toast.error(e.message || "Payment failed");
     } finally {

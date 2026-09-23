@@ -80,6 +80,7 @@ serve(async (req) => {
               code: finalCard.code,
               amount: (Number(finalCard.amount_cents) / 100).toFixed(2),
               expiresAt: finalCard.expires_at,
+              tipCents: Number(finalCard.tip_cents) || 0,
             },
           },
         });
@@ -113,6 +114,7 @@ serve(async (req) => {
               recipientEmail: finalCard.recipient_email,
               code: finalCard.code,
               scheduledSendAt: scheduled ? finalCard.scheduled_send_at : null,
+              tipCents: Number(finalCard.tip_cents) || 0,
             },
           },
         });
@@ -140,5 +142,6 @@ function publicCard(c: Record<string, unknown>) {
     custom_message: c.custom_message,
     scheduled_send_at: c.scheduled_send_at,
     expires_at: c.expires_at,
+    tip_cents: c.tip_cents,
   };
 }

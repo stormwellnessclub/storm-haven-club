@@ -62,7 +62,11 @@ serve(async (req) => {
       serviceLabel,
       hideAmount,
       purchaseSource,
+      tipCents: rawTip,
+      spaServiceId,
     } = body as {
+      tipCents?: number;
+      spaServiceId?: string;
       purchaserMemberId?: string;
       purchaserUserId?: string;
       scheduledSendAt?: string;
@@ -117,13 +121,15 @@ serve(async (req) => {
       expires_at: expiresAt || null,
       service_label: serviceLabel?.trim() || null,
       hide_amount: hideAmount === true,
+      tip_cents: Math.max(0, Math.round(Number(rawTip) || 0)),
+      spa_service_id: spaServiceId || null,
       purchase_source: purchaseSource || (purchaserMemberId ? "front_desk" : "admin"),
     };
 
     const { data: card, error: insertErr } = await supabase
       .from("gift_cards")
       .insert(insertPayload)
-      .select("id, code, amount_cents, expires_at, recipient_name, recipient_email, custom_message, purchaser_name, purchaser_email, scheduled_send_at, status, service_label, hide_amount")
+      .select("id, code, amount_cents, expires_at, recipient_name, recipient_email, custom_message, purchaser_name, purchaser_email, scheduled_send_at, status, service_label, hide_amount, tip_cents")
       .single();
     if (insertErr) throw insertErr;
 
@@ -147,6 +153,7 @@ serve(async (req) => {
               serviceLabel: card.service_label || "",
               hideAmount: card.hide_amount === true,
               expiresAt: card.expires_at,
+              tipCents: Number(card.tip_cents) || 0,
             },
           },
         });
@@ -161,6 +168,31 @@ serve(async (req) => {
         }
       } catch (e) {
         log("Email send threw", { err: String(e) });
+      }
+    }
+
+    // Purchaser confirmation (non-fatal)
+    if (card.purchaser_email && card.purchaser_email.toLowerCase() !== card.recipient_email) {
+      try {
+        await supabase.functions.invoke("send-email", {
+          body: {
+            type: "gift_card_purchase_receipt",
+            to: card.purchaser_email,
+            data: {
+              purchaserName: card.purchaser_name || "there",
+              amount: (Number(card.amount_cents) / 100).toFixed(2),
+              serviceLabel: card.service_label || "",
+              hideAmount: card.hide_amount === true,
+              recipientName: card.recipient_name,
+              recipientEmail: card.recipient_email,
+              code: card.code,
+              scheduledSendAt: isScheduled ? card.scheduled_send_at : null,
+              tipCents: Number(card.tip_cents) || 0,
+            },
+          },
+        });
+      } catch (e) {
+        log("Receipt email threw", { err: String(e) });
       }
     }
 
