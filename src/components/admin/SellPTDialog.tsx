@@ -733,16 +733,18 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 {packPlans.length > 0 && paymentChoice === "card_on_file" && (
                   <div className="ml-6 space-y-2">
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">Payment option</div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanId("")}
-                      className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
-                    >
-                      <div className="font-medium">Pay in full</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {formatCents(subtotalCents)} charged at checkout
-                      </div>
-                    </button>
+                    {allowPayInFull && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlanId("")}
+                        className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
+                      >
+                        <div className="font-medium">Pay in full</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {formatCents(subtotalCents)} charged at checkout
+                        </div>
+                      </button>
+                    )}
                     {packPlans.map((pl) => (
                       <button
                         type="button"
