@@ -238,13 +238,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
   // ----- Payment plans on the selected package -----
   const { data: allPlans = [] } = usePTPackPaymentPlans();
+  const allowPlans = (selectedPack as any)?.allow_payment_plans ?? true;
+  const allowPayInFull = (selectedPack as any)?.allow_pay_in_full ?? true;
   const packPlans = useMemo(
-    () => allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id),
-    [allPlans, selectedPack?.id],
+    () =>
+      allowPlans
+        ? allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id)
+        : [],
+    [allPlans, selectedPack?.id, allowPlans],
   );
   useEffect(() => {
-    if (selectedPlanId && !packPlans.find((p) => p.id === selectedPlanId)) setSelectedPlanId("");
-  }, [packPlans, selectedPlanId]);
+    if (selectedPlanId && !packPlans.find((p) => p.id === selectedPlanId)) {
+      setSelectedPlanId("");
+      return;
+    }
+    // Package sold on plans only — never default to a full charge.
+    if (!allowPayInFull && !selectedPlanId && packPlans.length > 0) setSelectedPlanId(packPlans[0].id);
+  }, [packPlans, selectedPlanId, allowPayInFull]);
   const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
 
   // ----- Totals -----
