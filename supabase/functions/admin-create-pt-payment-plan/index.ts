@@ -200,26 +200,26 @@ Deno.serve(async (req) => {
       pt_sale_ref: saleRef,
     };
 
-    const interval = plan.frequency_unit === "week" ? "week" : plan.frequency_unit === "day" ? "day" : "month";
-    const intervalCount = (plan.frequency_interval ?? 1) as number;
+    const interval = planInterval;
+    const intervalCount = planIntervalCount;
 
-    let finalPriceId = plan.stripe_price_id as string;
+    let finalPriceId = basePriceId;
     if (finalCents !== installmentCents) {
-      const basePrice = await stripe.prices.retrieve(plan.stripe_price_id as string);
+      const basePrice = await stripe.prices.retrieve(basePriceId);
       const created = await stripe.prices.create({
         product: typeof basePrice.product === "string" ? basePrice.product : (basePrice.product as any).id,
         currency: "usd",
         unit_amount: plan.final_installment_cents,
         recurring: { interval, interval_count: intervalCount },
         metadata: { pt_plan_id: plan.id, role: "final_installment" },
-      }, { idempotencyKey: `pt_plan_final_price:${plan.id}:${plan.final_installment_cents}` });
+      }, { idempotencyKey: `pt_plan_final_price:${testMode ? "test:" : ""}${plan.id}:${plan.final_installment_cents}` });
       finalPriceId = created.id;
     }
 
     const phases: any[] = [];
     if (futureCount > 1) {
       phases.push({
-        items: [{ price: plan.stripe_price_id, quantity }],
+        items: [{ price: basePriceId, quantity }],
         iterations: futureCount - 1,
         proration_behavior: "none",
       });
