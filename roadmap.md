@@ -14,3 +14,10 @@
 - [x] Early closing notice (Wed Sep 2, 9:00 PM urgent maintenance): email template + preview/test controls, member & public site banner
 - [x] Rebuild Admin / Front Desk / Kiosk notification chime as one persistent service
 - [x] Make the main front desk computer chime self-recovering, visible, and diagnosable
+
+## PT Future Autopay Validation (Phase 2C.5B2 gap closure)
+- [ ] Route PT payment functions + webhook through Stripe test mode when flagged
+- [ ] Create test-mode webhook endpoint + store signing secret
+- [ ] Build disposable test client, pack, plan ($1200: $300 + 3x$300) with Stripe test clock
+- [ ] T1 second installment, T2 third, T3 reconciliation, T4 duplicate webhook, T5 failure, T6 retry, T7 completion
+- [ ] Clean up all disposable data; report gates A-J

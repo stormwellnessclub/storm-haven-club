@@ -635,7 +635,7 @@ serve(async (req) => {
     });
   }
 
-  const stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-08-27.basil' });
+  let stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-08-27.basil' });
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
@@ -661,16 +661,34 @@ serve(async (req) => {
       // CRITICAL: Use constructEventAsync for Deno's async-only SubtleCrypto environment
       event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
     } catch (signatureError) {
-      logError(signatureError, "SECURITY");
-      // Return 401 for invalid signature - security failure
-      return new Response(JSON.stringify({ 
-        received: false, 
-        error: "Invalid signature",
-        security: true,
-      }), { 
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-        status: 401,
-      });
+      // A second, sandbox-only endpoint exists for payment-flow verification. Its
+      // events are signed with a different secret and must be answered with the
+      // test API key; live traffic is unaffected because the live secret is tried first.
+      const testWebhookSecret = Deno.env.get('STRIPE_TEST_WEBHOOK_SECRET');
+      const testSecretKey = Deno.env.get('STRIPE_TEST_SECRET_KEY');
+      let sandboxEvent: Stripe.Event | null = null;
+      if (testWebhookSecret && testSecretKey) {
+        try {
+          sandboxEvent = await stripe.webhooks.constructEventAsync(body, signature, testWebhookSecret);
+        } catch (_testSigError) {
+          sandboxEvent = null;
+        }
+      }
+      if (!sandboxEvent) {
+        logError(signatureError, "SECURITY");
+        // Return 401 for invalid signature - security failure
+        return new Response(JSON.stringify({
+          received: false,
+          error: "Invalid signature",
+          security: true,
+        }), {
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          status: 401,
+        });
+      }
+      event = sandboxEvent;
+      stripe = new Stripe(testSecretKey!, { apiVersion: '2025-08-27.basil' });
+      logStep('Sandbox (test mode) event accepted', { eventId: event.id, type: event.type });
     }
 
     logStep(`Received event: ${event.type}`, { eventId: event.id });

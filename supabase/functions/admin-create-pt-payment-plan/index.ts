@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
       firstAutopayDate = null,
       quantity = 1,
       adminNotes = null,
+      testMode = false,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
@@ -46,8 +47,13 @@ Deno.serve(async (req) => {
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
+    // Verification-only sandbox route. Never used by the live sell dialog; when it
+    // is set the function talks exclusively to Stripe's test account, so no real
+    // money can move regardless of which customer or card is referenced.
+    const stripeKey = testMode
+      ? Deno.env.get("STRIPE_TEST_SECRET_KEY")
+      : Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error(testMode ? "STRIPE_TEST_SECRET_KEY not set" : "STRIPE_SECRET_KEY not set");
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     const supabase = createClient(
@@ -67,7 +73,27 @@ Deno.serve(async (req) => {
     if (!plan) throw new Error("Payment plan not found");
     if (plan.pack_id !== pack.id) throw new Error("Payment plan does not belong to this package");
     if (!plan.is_active) throw new Error("Payment plan is archived");
-    if (!plan.stripe_price_id) throw new Error("Payment plan has no Stripe price — save it again to sync");
+    if (!testMode && !plan.stripe_price_id) {
+      throw new Error("Payment plan has no Stripe price — save it again to sync");
+    }
+
+    // In sandbox verification the catalogue's live price id is meaningless, so an
+    // equivalent test-account price is minted deterministically from the plan.
+    const planInterval = plan.frequency_unit === "week" ? "week" : plan.frequency_unit === "day" ? "day" : "month";
+    const planIntervalCount = (plan.frequency_interval ?? 1) as number;
+    let basePriceId: string = plan.stripe_price_id as string;
+    if (testMode) {
+      const testPrice = await stripe.prices.create({
+        currency: "usd",
+        unit_amount: plan.installment_cents,
+        recurring: { interval: planInterval, interval_count: planIntervalCount },
+        product_data: { name: `TEST — ${pack.name} · ${plan.name} installment` },
+        metadata: { pt_plan_id: plan.id, role: "installment", sandbox: "true" },
+      }, { idempotencyKey: `pt_test_price:${plan.id}:${plan.installment_cents}` });
+      basePriceId = testPrice.id;
+    }
+
+
 
     // Resolve customer stripe id + email
     let email: string | null = null;
@@ -174,26 +200,26 @@ Deno.serve(async (req) => {
       pt_sale_ref: saleRef,
     };
 
-    const interval = plan.frequency_unit === "week" ? "week" : plan.frequency_unit === "day" ? "day" : "month";
-    const intervalCount = (plan.frequency_interval ?? 1) as number;
+    const interval = planInterval;
+    const intervalCount = planIntervalCount;
 
-    let finalPriceId = plan.stripe_price_id as string;
+    let finalPriceId = basePriceId;
     if (finalCents !== installmentCents) {
-      const basePrice = await stripe.prices.retrieve(plan.stripe_price_id as string);
+      const basePrice = await stripe.prices.retrieve(basePriceId);
       const created = await stripe.prices.create({
         product: typeof basePrice.product === "string" ? basePrice.product : (basePrice.product as any).id,
         currency: "usd",
         unit_amount: plan.final_installment_cents,
         recurring: { interval, interval_count: intervalCount },
         metadata: { pt_plan_id: plan.id, role: "final_installment" },
-      }, { idempotencyKey: `pt_plan_final_price:${plan.id}:${plan.final_installment_cents}` });
+      }, { idempotencyKey: `pt_plan_final_price:${testMode ? "test:" : ""}${plan.id}:${plan.final_installment_cents}` });
       finalPriceId = created.id;
     }
 
     const phases: any[] = [];
     if (futureCount > 1) {
       phases.push({
-        items: [{ price: plan.stripe_price_id, quantity }],
+        items: [{ price: basePriceId, quantity }],
         iterations: futureCount - 1,
         proration_behavior: "none",
       });
