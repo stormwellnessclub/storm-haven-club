@@ -257,6 +257,11 @@ export default function GiftCardHub() {
         saving={updateMutation.isPending}
         resending={resendMutation.isPending}
       />
+      <IssueGiftCardDialog
+        open={issueOpen}
+        onOpenChange={setIssueOpen}
+        onSuccess={() => refetch()}
+      />
     </AdminLayout>
   );
 }

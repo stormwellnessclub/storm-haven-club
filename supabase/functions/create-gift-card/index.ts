@@ -76,7 +76,7 @@ serve(async (req) => {
       recipientEmail: string;
       customMessage?: string;
       amountCents: number;
-      paymentMethod: "card_on_file" | "cash" | "clover" | "external";
+      paymentMethod: "card_on_file" | "cash" | "clover" | "external" | "check" | "venmo" | "comp";
       paymentReference?: string;
       expiresAt?: string;
       notes?: string;
@@ -87,8 +87,8 @@ serve(async (req) => {
 
     if (!recipientName?.trim()) throw new Error("Recipient name is required");
     if (!recipientEmail?.trim()) throw new Error("Recipient email is required");
-    if (!Number.isFinite(amountCents) || amountCents < 500) throw new Error("Amount must be at least $5.00");
-    if (!["card_on_file", "cash", "clover", "external"].includes(paymentMethod)) {
+    if (!Number.isFinite(amountCents) || amountCents < 100) throw new Error("Amount must be at least $1.00");
+    if (!["card_on_file", "cash", "clover", "external", "check", "venmo", "comp"].includes(paymentMethod)) {
       throw new Error("Invalid payment method");
     }
 
