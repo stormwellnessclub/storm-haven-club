@@ -2366,6 +2366,7 @@ serve(async (req) => {
                 ? getInvoiceSubscriptionId(invoice)
                 : getInvoiceSubscriptionId(invoice).id;
               const sub = await stripe.subscriptions.retrieve(subId);
+              await inheritScheduleMetadata(stripe, sub);
               if (sub.metadata?.type === 'pt_payment_plan') {
                 // Phase 2C.5B2: a subscription schedule only materializes the
                 // subscription when the first future installment bills, so bind it
