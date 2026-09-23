@@ -2398,34 +2398,18 @@ serve(async (req) => {
                   });
                   if (bindErr) logError(bindErr, 'PT_PLAN_BIND');
                 }
-                const passIds = (sub.metadata.pt_pass_ids ?? '')
-                  .split(',').map((s: string) => s.trim()).filter(Boolean);
-                const total = parseInt(sub.metadata.installment_total ?? '0', 10) || 0;
-                if (passIds.length > 0) {
-                  // Increment installments_paid atomically per pass
-                  const { data: rows } = await supabase
-                    .from('pt_passes')
-                    .select('id, payment_plan_installments_paid, payment_plan_total_installments')
-                    .in('id', passIds);
-                  for (const r of (rows ?? [])) {
-                    const paid = (r.payment_plan_installments_paid ?? 0) + 1;
-                    const cap = r.payment_plan_total_installments ?? total;
-                    const done = cap > 0 && paid >= cap;
-                    await supabase.from('pt_passes').update({
-                      payment_plan_installments_paid: paid,
-                      payment_plan_status: done ? 'completed' : 'active',
-                    }).eq('id', r.id);
-                  }
-                  logStep('PT payment plan installment recorded', { subId, passIds, total });
-                }
                 // Phase 2C.5B2: mark Storm's authoritative installment row paid.
                 // Idempotent on the Stripe invoice id — replays update once logically.
+                // The paid/remaining rollup onto the package is derived from the
+                // installment rows inside this RPC; nothing increments counters here,
+                // otherwise a replay would inflate the client's paid total.
+                const invoicePaymentIntentId = getInvoicePaymentIntentId(invoice);
                 const { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
                   p_subscription_id: subId,
                   p_stripe_invoice_id: invoice.id,
                   p_outcome: 'paid',
                   p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
-                  p_payment_intent_id: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : null,
+                  p_payment_intent_id: invoicePaymentIntentId,
                 });
                 if (recErr) logError(recErr, 'PT_INSTALLMENT_RECONCILE');
                 else logStep('PT installment reconciled', recRes);
@@ -2437,7 +2421,7 @@ serve(async (req) => {
                   p_stripe_invoice_id: invoice.id,
                   p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
                   p_paid_at: new Date().toISOString(),
-                  p_payment_intent_id: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : null,
+                  p_payment_intent_id: invoicePaymentIntentId,
                 });
                 if (instErr) logError(instErr, 'PT_INSTALLMENT_RECORD');
                 else logStep('PT installment money recorded', instRes);
