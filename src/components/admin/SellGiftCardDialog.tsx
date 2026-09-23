@@ -17,6 +17,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Loader2, Gift, CheckCircle2, Copy, Eye, CalendarClock } from "lucide-react";
 import { GiftCardPreview } from "@/components/gift-cards/GiftCardPreview";
+import { SpaServiceGrid, TherapistTipPicker } from "@/components/gift-cards/SpaGiftPicker";
 
 type PaymentMethod = "card_on_file" | "cash" | "clover" | "external";
 
@@ -31,16 +32,23 @@ interface Props {
     email?: string | null;
     stripe_customer_id?: string | null;
   };
+  /** Set when selling from a non-member account (charges their saved card directly). */
+  isNonMember?: boolean;
   onSuccess?: () => void;
 }
 
 const PRESETS = [25, 50, 75, 100, 150, 200];
 
-export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Props) {
+export function SellGiftCardDialog({ open, onOpenChange, member, isNonMember, onSuccess }: Props) {
   const queryClient = useQueryClient();
   const memberName = `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim();
 
   const [amount, setAmount] = useState<number>(50);
+  const [giftType, setGiftType] = useState<"amount" | "spa">("amount");
+  const [spaService, setSpaService] = useState<{ id: string; name: string } | null>(null);
+  const [tipCents, setTipCents] = useState(0);
+  const effectiveTip = giftType === "spa" ? tipCents : 0;
+  const totalCharge = amount + effectiveTip / 100;
   const [isGift, setIsGift] = useState(true);
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -62,7 +70,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
     return d;
   })();
 
-  const [issued, setIssued] = useState<{ code: string; amount: number } | null>(null);
+  const [issued, setIssued] = useState<{ code: string; amount: number; emailSent: boolean; scheduled: boolean } | null>(null);
 
   const effectiveRecipientName = isGift ? recipientName.trim() : memberName;
   const effectiveRecipientEmail = isGift ? recipientEmail.trim() : (member.email || "");
@@ -71,6 +79,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
     mutationFn: async () => {
       if (!effectiveRecipientName) throw new Error("Recipient name required");
       if (!effectiveRecipientEmail) throw new Error("Recipient email required");
+      if (giftType === "spa" && !spaService) throw new Error("Choose a spa service");
       const amountCents = Math.round(amount * 100);
       if (amountCents < 500) throw new Error("Amount must be at least $5");
 
@@ -78,15 +87,15 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
 
       // 1) Charge the card on file via the existing stripe-payment path.
       if (paymentMethod === "card_on_file") {
-        if (!member.id) throw new Error("Member required for card on file charge");
+        if (!member.id && !member.stripe_customer_id) throw new Error("No card on file");
         const chargeBody: any = {
           action: "charge_saved_card_with_3ds",
-          amount: amountCents,
-          description: `Gift card for ${effectiveRecipientName}`,
+          amount: amountCents + effectiveTip,
+          description: `Gift card for ${effectiveRecipientName}${spaService && giftType === "spa" ? ` — ${spaService.name}` : ""}${effectiveTip ? ` (incl. $${(effectiveTip / 100).toFixed(2)} therapist tip)` : ""}`,
           chargeType: "gift_card",
           payment_type: "gift_card",
           note: `Gift card $${amount.toFixed(2)} to ${effectiveRecipientName} <${effectiveRecipientEmail}>`,
-          memberId: member.id,
+          ...(isNonMember ? { stripeCustomerId: member.stripe_customer_id } : { memberId: member.id }),
           recipientEmail: member.email || undefined,
           recipientName: memberName || undefined,
         };
@@ -101,7 +110,11 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
       // 2) Create the gift card row + send delivery email.
       const { data, error } = await supabase.functions.invoke("create-gift-card", {
         body: {
-          purchaserMemberId: member.id,
+          purchaserMemberId: isNonMember ? undefined : member.id,
+          purchaseSource: "front_desk",
+          serviceLabel: giftType === "spa" ? spaService?.name : undefined,
+          spaServiceId: giftType === "spa" ? spaService?.id : undefined,
+          tipCents: effectiveTip || undefined,
           purchaserUserId: member.user_id || undefined,
           purchaserName: memberName || undefined,
           purchaserEmail: member.email || undefined,
@@ -119,7 +132,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
       if (error) throw error;
       if (!data?.success) throw new Error(data?.error || "Failed to create gift card");
 
-      return { code: data.code as string, amount };
+      return { code: data.code as string, amount, emailSent: !!data.emailSent, scheduled: !!data.scheduled };
     },
     onSuccess: (result) => {
       setIssued(result);
@@ -137,6 +150,9 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
 
   const reset = () => {
     setAmount(50);
+    setGiftType("amount");
+    setSpaService(null);
+    setTipCents(0);
     setIsGift(true);
     setRecipientName("");
     setRecipientEmail("");
@@ -190,7 +206,12 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
               </Button>
             </div>
             <p className="text-sm text-muted-foreground">
-              Delivery email sent to <strong>{effectiveRecipientEmail}</strong>.
+              {issued.scheduled
+                ? <>Delivery email scheduled for <strong>{effectiveRecipientEmail}</strong>.</>
+                : issued.emailSent
+                ? <>Delivery email sent to <strong>{effectiveRecipientEmail}</strong>.</>
+                : <>Card saved, but the email to <strong>{effectiveRecipientEmail}</strong> didn't send — resend it from Admin → Gift Cards.</>}
+              {" "}It now shows in {memberName || "the customer"}'s gift card history.
             </p>
             <DialogFooter>
               <Button onClick={close} className="w-full">Done</Button>
@@ -199,8 +220,28 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
         ) : (
           <>
             <div className="space-y-4 py-2">
+              <div className="flex gap-2">
+                <Button type="button" size="sm" variant={giftType === "amount" ? "default" : "outline"}
+                  onClick={() => { setGiftType("amount"); setSpaService(null); }}>Dollar amount</Button>
+                <Button type="button" size="sm" variant={giftType === "spa" ? "default" : "outline"}
+                  onClick={() => setGiftType("spa")}>Spa service</Button>
+              </div>
+
+              {giftType === "spa" && (
+                <div className="space-y-3">
+                  <SpaServiceGrid
+                    compact
+                    selectedId={spaService?.id ?? null}
+                    onSelect={(svc) => { setSpaService({ id: svc.id, name: svc.name }); setAmount(Number(svc.price)); setTipCents(0); }}
+                  />
+                  {spaService && (
+                    <TherapistTipPicker baseCents={Math.round(amount * 100)} tipCents={tipCents} onChange={setTipCents} />
+                  )}
+                </div>
+              )}
+
               {/* Amount */}
-              <div className="space-y-2">
+              <div className={cn("space-y-2", giftType === "spa" && "hidden")}>
                 <Label className="text-sm font-medium">Amount</Label>
                 <div className="flex flex-wrap gap-2">
                   {PRESETS.map((p) => (
@@ -367,6 +408,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
                 disabled={
                   sellMutation.isPending
                   || !amount
+                  || (giftType === "spa" && !spaService)
                   || (isGift && (!recipientName.trim() || !recipientEmail.trim()))
                   || (scheduleEnabled && (!scheduleDate || (scheduledSendAt?.getTime() ?? 0) <= Date.now()))
                 }
@@ -374,9 +416,9 @@ export function SellGiftCardDialog({ open, onOpenChange, member, onSuccess }: Pr
                 {sellMutation.isPending ? (
                   <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Processing…</>
                 ) : scheduleEnabled ? (
-                  <><CalendarClock className="h-4 w-4 mr-1" /> Schedule ${amount.toFixed(2)} Gift Card</>
+                  <><CalendarClock className="h-4 w-4 mr-1" /> Schedule ${totalCharge.toFixed(2)} Gift Card</>
                 ) : (
-                  <><Gift className="h-4 w-4 mr-1" /> Sell ${amount.toFixed(2)} Gift Card</>
+                  <><Gift className="h-4 w-4 mr-1" /> Sell ${totalCharge.toFixed(2)} Gift Card</>
                 )}
               </Button>
             </DialogFooter>
