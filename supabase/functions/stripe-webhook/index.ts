@@ -372,7 +372,28 @@ async function inheritScheduleMetadata(stripe: Stripe, sub: Stripe.Subscription)
     }
   } catch (_e) {
     // Schedule unreadable — leave metadata as-is and fall through to normal routing.
+}
+
+/**
+ * Stripe API 2025-08-27.basil dropped `invoice.payment_intent`. The PaymentIntent
+ * now hangs off the invoice's payment records, so read every known shape to keep
+ * the installment receipt traceable back to the charge.
+ */
+function getInvoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
+  const anyInvoice = invoice as any;
+  const direct = anyInvoice.payment_intent;
+  if (typeof direct === 'string') return direct;
+  if (direct?.id) return direct.id;
+  const payments = anyInvoice.payments?.data ?? [];
+  for (const p of payments) {
+    const pi = p?.payment?.payment_intent;
+    if (typeof pi === 'string') return pi;
+    if (pi?.id) return pi.id;
   }
+  const charge = anyInvoice.charge;
+  if (typeof charge === 'string') return null; // a charge id is not a PaymentIntent id
+  return charge?.payment_intent ?? null;
+}
 }
 
 const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
