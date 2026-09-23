@@ -3322,64 +3322,80 @@ serve(async (req) => {
           ? `${data.serviceLabel ? `${data.serviceLabel} — a` : 'A'} Storm Wellness Club gift for you`
           : `You've received a $${amountFmt} Storm Wellness Club gift card`;
 
+        const recipientFirst = data.recipientName || data.name || 'there';
+        const tipLine = Number(data.tipCents) > 0
+          ? `<tr><td colspan="2" style="padding: 0 36px 22px 36px; text-align: center; font-family: Georgia, serif; font-size: 13px; color: #C1B19C; font-style: italic;">Therapist gratuity of $${(Number(data.tipCents)/100).toFixed(2)} already included</td></tr>`
+          : '';
         html = `
-          <div style="${emailStyles.container}">
-            ${getEmailHeader()}
-            <div style="${emailStyles.content}">
-              <h2 style="${emailStyles.heading}">A gift, just for you</h2>
-              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                Hi ${data.recipientName || data.name || 'there'},
-              </p>
-              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
-                <strong>${senderName}</strong> has sent you a Storm Wellness Club gift card.
-              </p>
+          <div style="background: #F6F1E8; padding: 32px 12px; font-family: Georgia, 'Times New Roman', serif;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
+              <tr><td style="text-align: center; padding-bottom: 22px;">
+                <img src="${BASE_URL}/storm-logo-gold.png" alt="Storm Wellness Club" height="64" style="display: inline-block;" />
+              </td></tr>
+
+              <tr><td style="text-align: center; padding: 0 20px 26px 20px;">
+                <div style="font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: #88766B; margin-bottom: 12px;">An E-Gift for ${recipientFirst}</div>
+                <div style="font-size: 34px; line-height: 1.2; color: #1C170F;">Something beautiful<br/>is waiting for you</div>
+                <div style="width: 48px; height: 1px; background: #B8A068; margin: 20px auto 0 auto;"></div>
+              </td></tr>
+
+              <!-- The card -->
+              <tr><td style="padding: 0 8px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #1C170F; background-image: linear-gradient(135deg, #2A221A 0%, #1C170F 55%, #120E09 100%); border-radius: 18px; border: 1px solid #B8A068; box-shadow: 0 18px 40px rgba(28,23,15,.28);">
+                  <tr>
+                    <td style="padding: 26px 32px 0 32px; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #B8A068;">Storm Wellness Club</td>
+                    <td style="padding: 26px 32px 0 32px; text-align: right; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #88766B;">E-Gift Card</td>
+                  </tr>
+                  <tr><td colspan="2" style="padding: 46px 32px 10px 32px; text-align: center;">
+                    ${hideAmount ? `
+                      <div style="font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #C1B19C; margin-bottom: 12px;">Your Gift</div>
+                      <div style="font-size: 30px; line-height: 1.25; color: #FFF8E7;">${data.serviceLabel || 'A Storm Wellness Experience'}</div>
+                    ` : `
+                      <div style="font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #C1B19C; margin-bottom: 6px;">Value</div>
+                      <div style="font-size: 58px; line-height: 1; color: #FFF8E7; letter-spacing: -1px;">$${amountFmt}</div>
+                      ${data.serviceLabel ? `<div style="font-size: 16px; color: #C1B19C; margin-top: 12px; font-style: italic;">${data.serviceLabel}</div>` : ''}
+                    `}
+                  </td></tr>
+                  <tr><td colspan="2" style="padding: 30px 32px 8px 32px; text-align: center;">
+                    <div style="font-size: 10px; letter-spacing: .3em; text-transform: uppercase; color: #88766B; margin-bottom: 10px;">Redemption Code</div>
+                    <div style="display: inline-block; border: 1px dashed #B8A068; border-radius: 8px; padding: 12px 22px; font-family: 'Courier New', monospace; font-size: 22px; font-weight: 700; letter-spacing: 4px; color: #FFF8E7;">${data.code}</div>
+                  </td></tr>
+                  ${tipLine}
+                  <tr>
+                    <td style="padding: 18px 32px 26px 32px; font-size: 12px; color: #88766B;">From <span style="color: #DEDACE;">${senderName}</span></td>
+                    <td style="padding: 18px 32px 26px 32px; text-align: right; font-size: 12px; color: #88766B;">${expiresFmt ? `Valid through ${expiresFmt}` : ''}</td>
+                  </tr>
+                </table>
+              </td></tr>
 
               ${data.customMessage ? `
-                <div style="background: #FFF8E7; border-left: 4px solid #C1B19C; padding: 18px 20px; border-radius: 6px; margin: 24px 0;">
-                  <div style="font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: #88766B; margin-bottom: 8px;">A note from ${senderName}</div>
-                  <div style="color: #1C170F; font-size: 16px; line-height: 1.7; font-style: italic;">"${data.customMessage}"</div>
-                </div>
-              ` : ''}
+              <tr><td style="padding: 34px 28px 6px 28px; text-align: center;">
+                <div style="font-size: 44px; line-height: .6; color: #B8A068;">&ldquo;</div>
+                <div style="font-size: 22px; line-height: 1.5; color: #1C170F; font-style: italic; margin-top: 6px;">${data.customMessage}</div>
+                <div style="font-size: 12px; letter-spacing: .24em; text-transform: uppercase; color: #88766B; margin-top: 14px;">&mdash; ${senderName}</div>
+              </td></tr>` : ''}
 
-              <div style="background: #1C170F; color: #FFF8E7; border-radius: 12px; padding: 28px 24px; margin: 28px 0; text-align: center; font-family: Georgia, serif;">
-                ${hideAmount ? `
-                  <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 10px;">Your Gift</div>
-                  <div style="font-size: 28px; font-weight: 700; line-height: 1.3; margin-bottom: 22px;">${data.serviceLabel || 'A Storm Wellness Club Experience'}</div>
-                ` : `
-                  <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Gift Card Value</div>
-                  <div style="font-size: 42px; font-weight: 700; margin-bottom: ${data.serviceLabel ? '6px' : '20px'};">$${amountFmt}</div>
-                  ${data.serviceLabel ? `<div style="font-size: 15px; color: #C1B19C; margin-bottom: 20px;">${data.serviceLabel}</div>` : ''}
-                `}
-                <div style="font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: #C1B19C; margin-bottom: 8px;">Redemption Code</div>
-                <div style="font-size: 22px; font-weight: 700; letter-spacing: 3px; background: #FFF8E7; color: #1C170F; padding: 12px 16px; border-radius: 6px; display: inline-block;">${data.code}</div>
-                ${expiresFmt ? `<div style="font-size: 13px; color: #C1B19C; margin-top: 18px;">Valid through ${expiresFmt}</div>` : ''}
-              </div>
-              ${Number(data.tipCents) > 0 ? `<p style="color: #374151; font-size: 15px; text-align: center; margin-top: 18px;">Your therapist's gratuity of $${(Number(data.tipCents)/100).toFixed(2)} has already been taken care of.</p>` : ''}
+              <tr><td style="padding: 34px 20px 0 20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #FFFFFF; border-radius: 14px; border: 1px solid #E6DED2;">
+                  <tr><td style="padding: 26px 30px 8px 30px; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #88766B; text-align: center;">How to Redeem</td></tr>
+                  <tr><td style="padding: 6px 30px 26px 30px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.8; color: #4A4037; text-align: center;">
+                    ${hideAmount
+                      ? `Call or email us to schedule your visit, then share your code with the front desk when you arrive. We'll take care of everything else.`
+                      : `Share your code with the front desk at checkout. It can be used toward spa services, classes, the café and the shop — any remaining balance stays on your card.`}
+                  </td></tr>
+                </table>
+              </td></tr>
 
+              <tr><td style="text-align: center; padding: 30px 20px 10px 20px;">
+                <a href="${BASE_URL}/spa" style="display: inline-block; background: #1C170F; color: #FFF8E7; text-decoration: none; padding: 14px 34px; border-radius: 999px; font-size: 13px; letter-spacing: .2em; text-transform: uppercase;">Explore the Spa</a>
+              </td></tr>
 
-              <h3 style="color: #1C170F; font-family: Georgia, serif; margin-top: 30px;">How to redeem</h3>
-              ${hideAmount ? `
-                <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
-                  <li>Give this code to the front desk when you come in and we'll take care of the rest.</li>
-                  <li>Call or email us any time to schedule — we'll help you find a time that works.</li>
-                </ul>
-              ` : `
-                <ul style="color: #374151; font-size: 15px; line-height: 1.8; padding-left: 20px;">
-                  <li>Visit us in person and give this code to the front desk at checkout.</li>
-                  <li>Use it toward classes, the café, spa services, or shop items.</li>
-                  <li>Balance will be applied to your purchase; any remaining balance stays on the card.</li>
-                </ul>
-              `}
-
-
-              <div style="text-align: center; margin: 32px 0;">
-                <a href="${BASE_URL}" style="${emailStyles.button}">Visit Storm Wellness Club</a>
-              </div>
-
-              <p style="margin: 30px 0 5px 0; color: #1C170F;">See you soon,</p>
-              <p style="font-weight: 600; color: #1f2937; margin: 0;">— The Storm Wellness Club Team</p>
-            </div>
-            ${getEmailFooter()}
+              <tr><td style="text-align: center; padding: 26px 20px 0 20px; font-size: 12px; color: #88766B; line-height: 1.8;">
+                Storm Wellness Club &middot; Livonia, Michigan<br/>
+                <a href="mailto:admin@stormwellnessclub.com" style="color: #88766B;">admin@stormwellnessclub.com</a> &middot;
+                <a href="${BASE_URL}" style="color: #88766B;">stormwellnessclub.com</a>
+              </td></tr>
+            </table>
           </div>
         `;
         break;
