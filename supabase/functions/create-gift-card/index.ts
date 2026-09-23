@@ -118,7 +118,7 @@ serve(async (req) => {
       scheduled_send_at: isScheduled ? scheduledDate!.toISOString() : null,
       issued_by: user.id,
       notes: notes?.trim() || null,
-      expires_at: expiresAt || null,
+      expires_at: expiresAt || (() => { const d = new Date(); d.setMonth(d.getMonth() + 8); return d.toISOString(); })(),
       service_label: serviceLabel?.trim() || null,
       hide_amount: hideAmount === true,
       tip_cents: Math.max(0, Math.round(Number(rawTip) || 0)),
