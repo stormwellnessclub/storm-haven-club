@@ -108,7 +108,8 @@ serve(async (req) => {
     const code = codeData as unknown as string;
     if (!code) throw new Error("Failed to generate gift card code");
 
-    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const _exp = new Date(); _exp.setMonth(_exp.getMonth() + 8);
+    const expiresAt = _exp.toISOString();
 
     const { data: card, error: insErr } = await supabase
       .from("gift_cards")

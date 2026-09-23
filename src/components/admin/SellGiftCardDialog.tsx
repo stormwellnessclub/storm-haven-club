@@ -55,7 +55,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, isNonMember, on
   const [customMessage, setCustomMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card_on_file");
   const [paymentReference, setPaymentReference] = useState("");
-  const [expiresAt, setExpiresAt] = useState<Date | undefined>(addMonths(new Date(), 12));
+  const [expiresAt, setExpiresAt] = useState<Date | undefined>(addMonths(new Date(), 8));
   const [notes, setNotes] = useState("");
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
@@ -159,7 +159,7 @@ export function SellGiftCardDialog({ open, onOpenChange, member, isNonMember, on
     setCustomMessage("");
     setPaymentMethod("card_on_file");
     setPaymentReference("");
-    setExpiresAt(addMonths(new Date(), 12));
+    setExpiresAt(addMonths(new Date(), 8));
     setNotes("");
     setIssued(null);
   };
