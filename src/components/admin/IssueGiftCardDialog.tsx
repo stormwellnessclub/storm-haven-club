@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GiftCardPersonSearch, type PickedPerson } from "@/components/admin/GiftCardPersonSearch";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,6 +34,8 @@ export function IssueGiftCardDialog({ open, onOpenChange, onSuccess }: Props) {
   const [hideAmount, setHideAmount] = useState(true);
   const [serviceLabel, setServiceLabel] = useState("");
   const [buyerName, setBuyerName] = useState("");
+  const [buyer, setBuyer] = useState<PickedPerson | null>(null);
+  const [recipient, setRecipient] = useState<PickedPerson | null>(null);
   const [buyerEmail, setBuyerEmail] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
@@ -101,6 +104,8 @@ export function IssueGiftCardDialog({ open, onOpenChange, onSuccess }: Props) {
         body: {
           purchaserName: buyerName.trim() || undefined,
           purchaserEmail: buyerEmail.trim() || undefined,
+          purchaserMemberId: buyer?.memberId || undefined,
+          purchaserUserId: buyer?.userId || undefined,
           recipientName: recipientName.trim(),
           recipientEmail: recipientEmail.trim(),
           customMessage: customMessage.trim() || undefined,
@@ -149,6 +154,8 @@ export function IssueGiftCardDialog({ open, onOpenChange, onSuccess }: Props) {
     setScheduleDate(undefined);
     setEmailHtml(null);
     setIssued(null);
+    setBuyer(null);
+    setRecipient(null);
   };
 
   const close = () => {
@@ -238,6 +245,14 @@ export function IssueGiftCardDialog({ open, onOpenChange, onSuccess }: Props) {
               </div>
 
               {/* Buyer */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Find buyer (member or non-member)</Label>
+                <GiftCardPersonSearch
+                  placeholder="Search by name or email — or type below for someone new"
+                  picked={buyer}
+                  onPick={(p) => { setBuyer(p); if (p) { setBuyerName(p.name); setBuyerEmail(p.email); } }}
+                />
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Buyer name</Label>
@@ -250,6 +265,14 @@ export function IssueGiftCardDialog({ open, onOpenChange, onSuccess }: Props) {
               </div>
 
               {/* Recipient */}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Find recipient (member or non-member)</Label>
+                <GiftCardPersonSearch
+                  placeholder="Search by name or email — or type below for someone new"
+                  picked={recipient}
+                  onPick={(p) => { setRecipient(p); if (p) { setRecipientName(p.name); setRecipientEmail(p.email); } }}
+                />
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Recipient name *</Label>
