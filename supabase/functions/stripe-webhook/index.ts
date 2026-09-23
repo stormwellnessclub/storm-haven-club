@@ -397,7 +397,8 @@ function getInvoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
   if (typeof charge === 'string') return null; // a charge id is not a PaymentIntent id
   return charge?.payment_intent ?? null;
 }
-}
+
+
 
 const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
   // Stripe API 2025-08-27.basil removed `invoice.subscription`. The subscription now lives on
