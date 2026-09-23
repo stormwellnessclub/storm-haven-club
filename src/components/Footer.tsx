@@ -21,6 +21,7 @@ const footerLinks = {
     { label: "Guest Day Pass", href: "/guest-pass" },
     { label: "Member Amenities", href: "/amenities" },
     { label: "Storm Shop", href: "/shop" },
+    { label: "Gift Cards", href: "/gift-cards" },
     { label: "FAQ", href: "/faq" },
   ],
 };
