@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
       firstAutopayDate = null,
       quantity = 1,
       adminNotes = null,
+      testMode = false,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
@@ -46,8 +47,13 @@ Deno.serve(async (req) => {
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY not set");
+    // Verification-only sandbox route. Never used by the live sell dialog; when it
+    // is set the function talks exclusively to Stripe's test account, so no real
+    // money can move regardless of which customer or card is referenced.
+    const stripeKey = testMode
+      ? Deno.env.get("STRIPE_TEST_SECRET_KEY")
+      : Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error(testMode ? "STRIPE_TEST_SECRET_KEY not set" : "STRIPE_SECRET_KEY not set");
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     const supabase = createClient(
