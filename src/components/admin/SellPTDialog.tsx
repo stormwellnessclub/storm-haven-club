@@ -386,6 +386,12 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     if (planActive && !schedulePreview) {
       return toast.error(scheduleError ? (scheduleError as Error).message : "Choose a valid first autopay date");
     }
+    if (paymentChoice === "card_on_file" && !planActive && !allowPayInFull) {
+      return toast.error("This package can only be sold on a payment plan");
+    }
+    if (planActive && !allowPlans) {
+      return toast.error("This package cannot be sold on a payment plan");
+    }
 
     setSubmitting(true);
     try {
