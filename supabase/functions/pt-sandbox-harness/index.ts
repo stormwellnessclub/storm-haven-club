@@ -97,6 +97,16 @@ Deno.serve(async (req) => {
           invoice_settings: { default_payment_method: args.payment_method },
         });
         break;
+      case "set_subscription_payment_method":
+        result = await stripe.subscriptions.update(args.subscription, {
+          default_payment_method: args.payment_method,
+        });
+        break;
+      case "pay_invoice":
+        result = await stripe.invoices.pay(args.invoice, {
+          ...(args.payment_method ? { payment_method: args.payment_method } : {}),
+        });
+        break;
       case "list_invoices":
         result = await stripe.invoices.list({
           customer: args.customer,

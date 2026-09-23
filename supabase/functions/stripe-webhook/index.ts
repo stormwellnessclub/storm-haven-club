@@ -355,6 +355,63 @@ type SubscriptionInvoiceType = 'membership_dues' | 'annual_fee';
 
 const ANNUAL_FEE_PRICE_IDS = new Set(['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN']);
 
+/**
+ * A subscription created by a subscription schedule does not always carry the
+ * schedule's metadata. Without it a PT installment invoice looks like an
+ * ordinary membership invoice, so the PT branch never runs. Fill the gap from
+ * the parent schedule before any routing decision is made.
+ */
+async function inheritScheduleMetadata(stripe: Stripe, sub: Stripe.Subscription): Promise<void> {
+  if (sub.metadata?.type) return;
+  const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : (sub.schedule as any)?.id ?? null;
+  if (!scheduleId) return;
+  try {
+    const sched = await stripe.subscriptionSchedules.retrieve(scheduleId);
+    if (sched.metadata && Object.keys(sched.metadata).length > 0) {
+      sub.metadata = { ...sched.metadata, ...(sub.metadata ?? {}) };
+    }
+  } catch (_e) {
+    // Schedule unreadable — leave metadata as-is and fall through to normal routing.
+  }
+}
+
+
+
+/**
+ * Stripe API 2025-08-27.basil dropped `invoice.payment_intent`. The PaymentIntent
+ * now hangs off the invoice's payment records, so read every known shape to keep
+ * the installment receipt traceable back to the charge.
+ */
+async function resolveInvoicePaymentIntentId(stripe: Stripe, invoice: Stripe.Invoice): Promise<string | null> {
+  const direct = getInvoicePaymentIntentId(invoice);
+  if (direct) return direct;
+  try {
+    // Webhook payloads arrive unexpanded, so the payment records must be fetched.
+    const full = await stripe.invoices.retrieve(invoice.id as string, { expand: ['payments'] });
+    return getInvoicePaymentIntentId(full as Stripe.Invoice);
+  } catch (_e) {
+    return null;
+  }
+}
+
+function getInvoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
+  const anyInvoice = invoice as any;
+  const direct = anyInvoice.payment_intent;
+  if (typeof direct === 'string') return direct;
+  if (direct?.id) return direct.id;
+  const payments = anyInvoice.payments?.data ?? [];
+  for (const p of payments) {
+    const pi = p?.payment?.payment_intent;
+    if (typeof pi === 'string') return pi;
+    if (pi?.id) return pi.id;
+  }
+  const charge = anyInvoice.charge;
+  if (typeof charge === 'string') return null; // a charge id is not a PaymentIntent id
+  return charge?.payment_intent ?? null;
+}
+
+
+
 const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
   // Stripe API 2025-08-27.basil removed `invoice.subscription`. The subscription now lives on
   // `invoice.parent.subscription_details.subscription`, with a per-line fallback. Read all shapes
@@ -2366,6 +2423,7 @@ serve(async (req) => {
                 ? getInvoiceSubscriptionId(invoice)
                 : getInvoiceSubscriptionId(invoice).id;
               const sub = await stripe.subscriptions.retrieve(subId);
+              await inheritScheduleMetadata(stripe, sub);
               if (sub.metadata?.type === 'pt_payment_plan') {
                 // Phase 2C.5B2: a subscription schedule only materializes the
                 // subscription when the first future installment bills, so bind it
@@ -2377,34 +2435,18 @@ serve(async (req) => {
                   });
                   if (bindErr) logError(bindErr, 'PT_PLAN_BIND');
                 }
-                const passIds = (sub.metadata.pt_pass_ids ?? '')
-                  .split(',').map((s: string) => s.trim()).filter(Boolean);
-                const total = parseInt(sub.metadata.installment_total ?? '0', 10) || 0;
-                if (passIds.length > 0) {
-                  // Increment installments_paid atomically per pass
-                  const { data: rows } = await supabase
-                    .from('pt_passes')
-                    .select('id, payment_plan_installments_paid, payment_plan_total_installments')
-                    .in('id', passIds);
-                  for (const r of (rows ?? [])) {
-                    const paid = (r.payment_plan_installments_paid ?? 0) + 1;
-                    const cap = r.payment_plan_total_installments ?? total;
-                    const done = cap > 0 && paid >= cap;
-                    await supabase.from('pt_passes').update({
-                      payment_plan_installments_paid: paid,
-                      payment_plan_status: done ? 'completed' : 'active',
-                    }).eq('id', r.id);
-                  }
-                  logStep('PT payment plan installment recorded', { subId, passIds, total });
-                }
                 // Phase 2C.5B2: mark Storm's authoritative installment row paid.
                 // Idempotent on the Stripe invoice id — replays update once logically.
+                // The paid/remaining rollup onto the package is derived from the
+                // installment rows inside this RPC; nothing increments counters here,
+                // otherwise a replay would inflate the client's paid total.
+                const invoicePaymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
                 const { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
                   p_subscription_id: subId,
                   p_stripe_invoice_id: invoice.id,
                   p_outcome: 'paid',
                   p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
-                  p_payment_intent_id: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : null,
+                  p_payment_intent_id: invoicePaymentIntentId,
                 });
                 if (recErr) logError(recErr, 'PT_INSTALLMENT_RECONCILE');
                 else logStep('PT installment reconciled', recRes);
@@ -2416,7 +2458,7 @@ serve(async (req) => {
                   p_stripe_invoice_id: invoice.id,
                   p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
                   p_paid_at: new Date().toISOString(),
-                  p_payment_intent_id: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : null,
+                  p_payment_intent_id: invoicePaymentIntentId,
                 });
                 if (instErr) logError(instErr, 'PT_INSTALLMENT_RECORD');
                 else logStep('PT installment money recorded', instRes);
@@ -3224,6 +3266,7 @@ serve(async (req) => {
               ? getInvoiceSubscriptionId(invoice)
               : (getInvoiceSubscriptionId(invoice) as any).id;
             const sub = await stripe.subscriptions.retrieve(subId);
+            await inheritScheduleMetadata(stripe, sub);
             if (sub.metadata?.type === 'pt_payment_plan') {
               const saleRef = sub.metadata.pt_sale_ref ?? null;
               if (saleRef) {
