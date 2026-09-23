@@ -238,13 +238,23 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
 
   // ----- Payment plans on the selected package -----
   const { data: allPlans = [] } = usePTPackPaymentPlans();
+  const allowPlans = (selectedPack as any)?.allow_payment_plans ?? true;
+  const allowPayInFull = (selectedPack as any)?.allow_pay_in_full ?? true;
   const packPlans = useMemo(
-    () => allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id),
-    [allPlans, selectedPack?.id],
+    () =>
+      allowPlans
+        ? allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id)
+        : [],
+    [allPlans, selectedPack?.id, allowPlans],
   );
   useEffect(() => {
-    if (selectedPlanId && !packPlans.find((p) => p.id === selectedPlanId)) setSelectedPlanId("");
-  }, [packPlans, selectedPlanId]);
+    if (selectedPlanId && !packPlans.find((p) => p.id === selectedPlanId)) {
+      setSelectedPlanId("");
+      return;
+    }
+    // Package sold on plans only — never default to a full charge.
+    if (!allowPayInFull && !selectedPlanId && packPlans.length > 0) setSelectedPlanId(packPlans[0].id);
+  }, [packPlans, selectedPlanId, allowPayInFull]);
   const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
 
   // ----- Totals -----
@@ -375,6 +385,12 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     }
     if (planActive && !schedulePreview) {
       return toast.error(scheduleError ? (scheduleError as Error).message : "Choose a valid first autopay date");
+    }
+    if (paymentChoice === "card_on_file" && !planActive && !allowPayInFull) {
+      return toast.error("This package can only be sold on a payment plan");
+    }
+    if (planActive && !allowPlans) {
+      return toast.error("This package cannot be sold on a payment plan");
     }
 
     setSubmitting(true);
@@ -717,16 +733,18 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 {packPlans.length > 0 && paymentChoice === "card_on_file" && (
                   <div className="ml-6 space-y-2">
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">Payment option</div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPlanId("")}
-                      className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
-                    >
-                      <div className="font-medium">Pay in full</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {formatCents(subtotalCents)} charged at checkout
-                      </div>
-                    </button>
+                    {allowPayInFull && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPlanId("")}
+                        className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
+                      >
+                        <div className="font-medium">Pay in full</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {formatCents(subtotalCents)} charged at checkout
+                        </div>
+                      </button>
+                    )}
                     {packPlans.map((pl) => (
                       <button
                         type="button"
