@@ -9981,9 +9981,15 @@ export type Database = {
           id: string
           installment_number: number
           last_failure_reason: string | null
+          original_due_date: string | null
           paid_at: string | null
           pass_id: string
+          payment_method_brand: string | null
+          payment_method_id: string | null
+          payment_method_last4: string | null
           payment_plan_template_id: string | null
+          rescheduled_at: string | null
+          rescheduled_by: string | null
           sale_intent_id: string | null
           status: string
           stripe_invoice_id: string | null
@@ -10002,9 +10008,15 @@ export type Database = {
           id?: string
           installment_number: number
           last_failure_reason?: string | null
+          original_due_date?: string | null
           paid_at?: string | null
           pass_id: string
+          payment_method_brand?: string | null
+          payment_method_id?: string | null
+          payment_method_last4?: string | null
           payment_plan_template_id?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
           sale_intent_id?: string | null
           status?: string
           stripe_invoice_id?: string | null
@@ -10023,9 +10035,15 @@ export type Database = {
           id?: string
           installment_number?: number
           last_failure_reason?: string | null
+          original_due_date?: string | null
           paid_at?: string | null
           pass_id?: string
+          payment_method_brand?: string | null
+          payment_method_id?: string | null
+          payment_method_last4?: string | null
           payment_plan_template_id?: string | null
+          rescheduled_at?: string | null
+          rescheduled_by?: string | null
           sale_intent_id?: string | null
           status?: string
           stripe_invoice_id?: string | null
@@ -16177,6 +16195,17 @@ export type Database = {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
       }
+      pt_plan_reschedule: {
+        Args: {
+          p_apply?: boolean
+          p_installment_number: number
+          p_mode?: string
+          p_new_date: string
+          p_pass_id: string
+          p_reason?: string
+        }
+        Returns: Json
+      }
       pt_plan_schedule_dates: {
         Args: {
           p_count: number
@@ -16193,6 +16222,15 @@ export type Database = {
           p_plan_id: string
           p_quantity: number
           p_sale_date?: string
+        }
+        Returns: Json
+      }
+      pt_plan_set_future_payment_method: {
+        Args: {
+          p_brand?: string
+          p_last4?: string
+          p_pass_id: string
+          p_payment_method_id: string
         }
         Returns: Json
       }

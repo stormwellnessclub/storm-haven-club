@@ -506,7 +506,7 @@ export default function PTBilling() {
               rows={unpaidRows}
               loading={loadingUnpaid}
               getRowKey={(u) => u.id}
-              onRowClick={(u) => navigate(`/admin/pt/clients/${u.user_id}`)}
+              onRowClick={(u) => navigate(`/admin/pt/clients/${u.user_id}/billing`)}
               empty={<PTEmptyState icon={CheckCircle2} title="Nothing outstanding" description="Every completed PT session has been settled." />}
             />
           </>
@@ -576,7 +576,7 @@ export default function PTBilling() {
                 ].filter(Boolean).join(" · "),
                 when: d.first_failed_at ? fmtDate(new Date(d.first_failed_at), "MMM d, yyyy") : "—",
                 amount: formatCents(d.amount_cents ?? 0),
-                onOpen: () => d.user_id && navigate(`/admin/pt/clients/${d.user_id}`),
+                onOpen: () => d.user_id && navigate(`/admin/pt/clients/${d.user_id}/billing`),
                 action: (
                   <button
                     className={ptButtonClass("outline")}
@@ -598,7 +598,7 @@ export default function PTBilling() {
                 detail: `${p.pack_name} · ${p.payment_plan_installments_paid ?? 0}/${p.payment_plan_total_installments ?? 0} installments`,
                 when: p.payment_plan_next_payment_date ?? "—",
                 amount: formatCents(p.payment_plan_installment_cents ?? 0),
-                onOpen: () => navigate(`/admin/pt/clients/${p.user_id}`),
+                onOpen: () => navigate(`/admin/pt/clients/${p.user_id}/billing`),
               }))}
               loading={loadingFailed}
             />
