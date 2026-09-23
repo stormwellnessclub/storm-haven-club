@@ -280,11 +280,11 @@ export function PTSalesSection({ data, ctx }: SectionProps) {
 export function PTCashSection({ data, ctx }: SectionProps) {
   const f = useFinancials(data, ctx);
 
+  // Refunds attach to the exact payment they reversed — never spread across a package.
   const refundsByPayment = useMemo(() => {
     const m = new Map<string, number>();
-    data.cash.filter((c) => c.direction === "refunded").forEach((r) => {
-      const key = r.pass_id ?? r.source_id;
-      m.set(key, (m.get(key) ?? 0) + Math.abs(r.amount_cents));
+    data.cash.filter((c) => c.direction === "refunded" && c.related_payment_id).forEach((r) => {
+      m.set(r.related_payment_id, (m.get(r.related_payment_id) ?? 0) + Math.abs(r.amount_cents));
     });
     return m;
   }, [data.cash]);
@@ -294,9 +294,10 @@ export function PTCashSection({ data, ctx }: SectionProps) {
     .sort((a, b) => String(b.occurred_at).localeCompare(String(a.occurred_at)))
     .map((c) => {
       const pass = c.pass_id ? ctx.passById[c.pass_id] : undefined;
-      const refund = refundsByPayment.get(c.pass_id ?? c.source_id) ?? 0;
+      const refund = refundsByPayment.get(c.source_id) ?? 0;
       return { ...c, packName: pass?.pack_name ?? "—", refund, netCents: c.amount_cents - refund };
     });
+
 
   const packageSettled = data.appointments.filter(
     (a) => a.status === "completed" && (a.package_deducted || a.payment_status === "pass")
