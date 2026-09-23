@@ -2440,7 +2440,7 @@ serve(async (req) => {
                 // The paid/remaining rollup onto the package is derived from the
                 // installment rows inside this RPC; nothing increments counters here,
                 // otherwise a replay would inflate the client's paid total.
-                const invoicePaymentIntentId = getInvoicePaymentIntentId(invoice);
+                const invoicePaymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
                 const { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
                   p_subscription_id: subId,
                   p_stripe_invoice_id: invoice.id,
