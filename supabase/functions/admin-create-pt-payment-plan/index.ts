@@ -281,6 +281,24 @@ Deno.serve(async (req) => {
     });
     if (matErr) console.error("Failed to materialize installments:", matErr.message);
 
+    // Record which card the future installments will be collected on, so staff
+    // see the real card on the schedule instead of guessing from the default.
+    try {
+      const pmDetails = await stripe.paymentMethods.retrieve(paymentMethodId);
+      await supabase
+        .from("pt_payment_plan_installments")
+        .update({
+          payment_method_id: paymentMethodId,
+          payment_method_brand: pmDetails.card?.brand ?? null,
+          payment_method_last4: pmDetails.card?.last4 ?? null,
+        })
+        .in("pass_id", passIds)
+        .in("status", ["scheduled", "paid"]);
+    } catch (e) {
+      console.error("Could not stamp card on installments:", (e as Error).message);
+    }
+
+
     return new Response(
       JSON.stringify({
         success: true,
