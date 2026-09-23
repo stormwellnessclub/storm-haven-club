@@ -102,22 +102,62 @@ Deno.serve(async (req) => {
     let email: string | null = null;
     let stripeCustomerId: string | null = null;
     let memberRecordId: string | null = null;
+    let nonMemberProfile = false;
+    let fullName: string | null = null;
 
     const { data: m } = await supabase
-      .from("members").select("id, email, stripe_customer_id")
+      .from("members").select("id, email, stripe_customer_id, first_name, last_name")
       .eq("user_id", userId).maybeSingle();
-    if (m) { email = m.email; stripeCustomerId = m.stripe_customer_id; memberRecordId = m.id; }
-    if (!email) {
+    if (m) {
+      email = m.email;
+      stripeCustomerId = m.stripe_customer_id;
+      memberRecordId = m.id;
+      fullName = [(m as any).first_name, (m as any).last_name].filter(Boolean).join(" ") || null;
+    }
+    if (!email || !stripeCustomerId) {
       const { data: nm } = await supabase
-        .from("non_member_profiles").select("email, stripe_customer_id")
+        .from("non_member_profiles").select("email, stripe_customer_id, first_name, last_name")
         .eq("user_id", userId).maybeSingle();
-      if (nm) { email = nm.email; stripeCustomerId = stripeCustomerId || (nm as any).stripe_customer_id; }
+      if (nm) {
+        nonMemberProfile = true;
+        email = email || (nm as any).email;
+        stripeCustomerId = stripeCustomerId || (nm as any).stripe_customer_id;
+        fullName = fullName || ([(nm as any).first_name, (nm as any).last_name].filter(Boolean).join(" ") || null);
+      }
+    }
+    if (!email) {
+      const { data: p } = await supabase
+        .from("profiles").select("email, first_name, last_name")
+        .eq("user_id", userId).maybeSingle();
+      if (p) {
+        email = (p as any).email;
+        fullName = fullName || ([(p as any).first_name, (p as any).last_name].filter(Boolean).join(" ") || null);
+      }
+    }
+    if (!email) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId);
+      email = authUser?.user?.email ?? null;
     }
     if (!stripeCustomerId && email) {
       const customers = await stripe.customers.list({ email, limit: 1 });
       if (customers.data.length > 0) stripeCustomerId = customers.data[0].id;
     }
-    if (!stripeCustomerId) throw new Error("No Stripe customer on file for this user");
+    // No Stripe customer yet (first time this client is billed) — create one on
+    // demand and persist it so every later charge reuses the same customer.
+    if (!stripeCustomerId) {
+      if (!email) throw new Error("This client has no email on file — add an email before selling a payment plan");
+      const created = await stripe.customers.create({
+        email,
+        name: fullName ?? undefined,
+        metadata: { user_id: userId, source: "pt_payment_plan" },
+      }, { idempotencyKey: `pt_customer:${userId}` });
+      stripeCustomerId = created.id;
+      if (memberRecordId) {
+        await supabase.from("members").update({ stripe_customer_id: stripeCustomerId }).eq("id", memberRecordId);
+      } else if (nonMemberProfile) {
+        await supabase.from("non_member_profiles").update({ stripe_customer_id: stripeCustomerId }).eq("user_id", userId);
+      }
+    }
 
     // One stable reference per sale attempt — retries reuse it end to end.
     const saleRef: string = body.saleRef ?? crypto.randomUUID();
