@@ -73,7 +73,27 @@ Deno.serve(async (req) => {
     if (!plan) throw new Error("Payment plan not found");
     if (plan.pack_id !== pack.id) throw new Error("Payment plan does not belong to this package");
     if (!plan.is_active) throw new Error("Payment plan is archived");
-    if (!plan.stripe_price_id) throw new Error("Payment plan has no Stripe price — save it again to sync");
+    if (!testMode && !plan.stripe_price_id) {
+      throw new Error("Payment plan has no Stripe price — save it again to sync");
+    }
+
+    // In sandbox verification the catalogue's live price id is meaningless, so an
+    // equivalent test-account price is minted deterministically from the plan.
+    const planInterval = plan.frequency_unit === "week" ? "week" : plan.frequency_unit === "day" ? "day" : "month";
+    const planIntervalCount = (plan.frequency_interval ?? 1) as number;
+    let basePriceId: string = plan.stripe_price_id as string;
+    if (testMode) {
+      const testPrice = await stripe.prices.create({
+        currency: "usd",
+        unit_amount: plan.installment_cents,
+        recurring: { interval: planInterval, interval_count: planIntervalCount },
+        product_data: { name: `TEST — ${pack.name} · ${plan.name} installment` },
+        metadata: { pt_plan_id: plan.id, role: "installment", sandbox: "true" },
+      }, { idempotencyKey: `pt_test_price:${plan.id}:${plan.installment_cents}` });
+      basePriceId = testPrice.id;
+    }
+
+
 
     // Resolve customer stripe id + email
     let email: string | null = null;
