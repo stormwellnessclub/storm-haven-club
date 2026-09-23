@@ -46,11 +46,27 @@ serve(async (req) => {
     const customMessage = String(body.customMessage ?? "").trim().slice(0, 500);
     const serviceLabel = body.serviceLabel ? String(body.serviceLabel).trim().slice(0, 120) : null;
     const purchaserName = String(body.purchaserName ?? "").trim().slice(0, 120);
+    const tipCents = Math.max(0, Math.round(Number(body.tipCents) || 0));
+    const spaServiceIdRaw = body.spaServiceId ? String(body.spaServiceId) : null;
     const scheduledSendAtRaw = body.scheduledSendAt ? String(body.scheduledSendAt) : null;
 
     // ---- Validation ----
     if (!Number.isFinite(amountCents) || amountCents < MIN_CENTS || amountCents > MAX_CENTS) {
       return json({ success: false, error: `Amount must be between $${MIN_CENTS / 100} and $${MAX_CENTS / 100}` });
+    }
+    if (tipCents > 50000) return json({ success: false, error: "Tip is too large" });
+    // Spa service gifts: price comes from the service record, never the browser.
+    let spaServiceId: string | null = null;
+    let resolvedServiceLabel = serviceLabel;
+    if (spaServiceIdRaw) {
+      const { data: svc } = await supabase
+        .from("spa_services").select("id, name, price, is_active").eq("id", spaServiceIdRaw).maybeSingle();
+      if (!svc || !svc.is_active) return json({ success: false, error: "That spa service isn't available" });
+      if (Math.round(Number(svc.price) * 100) !== amountCents) {
+        return json({ success: false, error: "Service price changed — please refresh and try again" });
+      }
+      spaServiceId = svc.id;
+      resolvedServiceLabel = svc.name;
     }
     if (!recipientName) return json({ success: false, error: "Recipient name is required" });
     if (!EMAIL_RE.test(recipientEmail)) return json({ success: false, error: "Enter a valid recipient email" });
@@ -107,7 +123,9 @@ serve(async (req) => {
         recipient_name: recipientName,
         recipient_email: recipientEmail,
         custom_message: customMessage || null,
-        service_label: serviceLabel,
+        service_label: resolvedServiceLabel,
+        spa_service_id: spaServiceId,
+        tip_cents: tipCents,
         payment_method: "stripe_online",
         purchase_source: "online",
         status: "pending",
@@ -131,17 +149,18 @@ serve(async (req) => {
     }
 
     const intent = await stripe.paymentIntents.create({
-      amount: amountCents,
+      amount: amountCents + tipCents,
       currency: "usd",
       customer: customerId,
       receipt_email: buyerEmail || undefined,
       automatic_payment_methods: { enabled: true },
-      description: `Storm Wellness Club Gift Card${serviceLabel ? ` — ${serviceLabel}` : ""} ($${(amountCents / 100).toFixed(2)})`,
+      description: `Storm Wellness Club Gift Card${resolvedServiceLabel ? ` — ${resolvedServiceLabel}` : ""} ($${(amountCents / 100).toFixed(2)})${tipCents ? ` + $${(tipCents / 100).toFixed(2)} therapist tip` : ""}`,
       metadata: {
         purpose: "gift_card",
         gift_card_id: card.id,
         gift_card_code: card.code,
         recipient_email: recipientEmail,
+        tip_cents: String(tipCents),
       },
     });
 
@@ -155,7 +174,7 @@ serve(async (req) => {
       giftCardId: card.id,
       clientSecret: intent.client_secret,
       paymentIntentId: intent.id,
-      totalCents: amountCents,
+      totalCents: amountCents + tipCents,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

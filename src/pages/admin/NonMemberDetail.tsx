@@ -1,3 +1,4 @@
+import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -50,6 +51,7 @@ export default function NonMemberDetail() {
   const [editingPass, setEditingPass] = useState<any>(null);
   const [editingCredit, setEditingCredit] = useState<any>(null);
   const [showChargeSelector, setShowChargeSelector] = useState(false);
+  const [showGiftCard, setShowGiftCard] = useState(false);
   const [showGrantDialog, setShowGrantDialog] = useState(false);
   const [showBookPT, setShowBookPT] = useState(false);
   const [showSellPT, setShowSellPT] = useState(false);
@@ -479,6 +481,9 @@ export default function NonMemberDetail() {
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowSellPT(true)}>
               <DollarSign className="h-4 w-4 mr-2" /> Sell PT Pack
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowGiftCard(true)}>
+              <Gift className="h-4 w-4 mr-2" /> Sell Gift Card
             </Button>
             <Button size="sm" onClick={() => setShowBookPT(true)}>
               <Dumbbell className="h-4 w-4 mr-2" /> Book PT Session
@@ -1258,6 +1263,22 @@ export default function NonMemberDetail() {
         </Tabs>
       </div>
     </AdminLayout>
+
+    {showGiftCard && profile && (
+      <SellGiftCardDialog
+        open={showGiftCard}
+        onOpenChange={setShowGiftCard}
+        isNonMember
+        member={{
+          id: "",
+          user_id: userId,
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          email: profile.email,
+          stripe_customer_id: profile.stripe_customer_id || null,
+        }}
+      />
+    )}
 
     {/* ChargeItemSelector Dialog */}
     <ChargeItemSelector

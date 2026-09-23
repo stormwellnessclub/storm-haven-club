@@ -3354,6 +3354,7 @@ serve(async (req) => {
                 <div style="font-size: 22px; font-weight: 700; letter-spacing: 3px; background: #FFF8E7; color: #1C170F; padding: 12px 16px; border-radius: 6px; display: inline-block;">${data.code}</div>
                 ${expiresFmt ? `<div style="font-size: 13px; color: #C1B19C; margin-top: 18px;">Valid through ${expiresFmt}</div>` : ''}
               </div>
+              ${Number(data.tipCents) > 0 ? `<p style="color: #374151; font-size: 15px; text-align: center; margin-top: 18px;">Your therapist's gratuity of $${(Number(data.tipCents)/100).toFixed(2)} has already been taken care of.</p>` : ''}
 
 
               <h3 style="color: #1C170F; font-family: Georgia, serif; margin-top: 30px;">How to redeem</h3>
@@ -3408,6 +3409,7 @@ serve(async (req) => {
                 <table style="width: 100%; font-size: 15px; color: #374151;">
                   ${hideAmountReceipt ? '' : `<tr><td style="padding: 6px 0; color: #88766B;">Amount</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">$${amountFmt}</td></tr>`}
 
+                  ${Number(data.tipCents) > 0 ? `<tr><td style="padding: 6px 0; color: #88766B;">Therapist gratuity</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">$${(Number(data.tipCents)/100).toFixed(2)}</td></tr>` : ''}
                   ${data.serviceLabel ? `<tr><td style="padding: 6px 0; color: #88766B;">Gift</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${data.serviceLabel}</td></tr>` : ''}
                   <tr><td style="padding: 6px 0; color: #88766B;">Recipient</td><td style="padding: 6px 0; text-align: right; font-weight: 600;">${data.recipientName || ''}${data.recipientEmail ? ` (${data.recipientEmail})` : ''}</td></tr>
                   <tr><td style="padding: 6px 0; color: #88766B;">Code</td><td style="padding: 6px 0; text-align: right; font-family: monospace; font-weight: 700;">${data.code || ''}</td></tr>
