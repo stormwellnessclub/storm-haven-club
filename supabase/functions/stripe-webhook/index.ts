@@ -355,6 +355,26 @@ type SubscriptionInvoiceType = 'membership_dues' | 'annual_fee';
 
 const ANNUAL_FEE_PRICE_IDS = new Set(['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN']);
 
+/**
+ * A subscription created by a subscription schedule does not always carry the
+ * schedule's metadata. Without it a PT installment invoice looks like an
+ * ordinary membership invoice, so the PT branch never runs. Fill the gap from
+ * the parent schedule before any routing decision is made.
+ */
+async function inheritScheduleMetadata(stripe: Stripe, sub: Stripe.Subscription): Promise<void> {
+  if (sub.metadata?.type) return;
+  const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : (sub.schedule as any)?.id ?? null;
+  if (!scheduleId) return;
+  try {
+    const sched = await stripe.subscriptionSchedules.retrieve(scheduleId);
+    if (sched.metadata && Object.keys(sched.metadata).length > 0) {
+      sub.metadata = { ...sched.metadata, ...(sub.metadata ?? {}) };
+    }
+  } catch (_e) {
+    // Schedule unreadable — leave metadata as-is and fall through to normal routing.
+  }
+}
+
 const getInvoiceSubscriptionId = (invoice: Stripe.Invoice): string | null => {
   // Stripe API 2025-08-27.basil removed `invoice.subscription`. The subscription now lives on
   // `invoice.parent.subscription_details.subscription`, with a per-line fallback. Read all shapes
