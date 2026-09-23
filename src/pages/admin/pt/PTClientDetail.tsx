@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { format as fmtDate, parseISO, differenceInCalendarDays } from "date-fns";
 import {
   ArrowLeft, Mail, Phone, Plus, CalendarPlus, ClipboardList, LineChart, UserCog,
@@ -26,6 +26,7 @@ import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { usePTClientBilling } from "@/hooks/pt/usePTFinancials";
 import { PTClientFinancialCenter } from "@/components/admin/pt/PTClientFinancialCenter";
+import { PTClientBillingWorkspace } from "@/components/admin/pt/billing/PTClientBillingWorkspace";
 
 const TABS = [
   "Overview", "Sessions", "Programs", "Progress", "Notes",
@@ -71,7 +72,8 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 
 export default function PTClientDetail() {
   const { userId = "" } = useParams();
-  const [tab, setTab] = useState<Tab>("Overview");
+  const { pathname } = useLocation();
+  const [tab, setTab] = useState<Tab>(pathname.endsWith("/billing") ? "Billing" : "Overview");
   const [bookOpen, setBookOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
