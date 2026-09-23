@@ -3225,6 +3225,7 @@ serve(async (req) => {
               ? getInvoiceSubscriptionId(invoice)
               : (getInvoiceSubscriptionId(invoice) as any).id;
             const sub = await stripe.subscriptions.retrieve(subId);
+            await inheritScheduleMetadata(stripe, sub);
             if (sub.metadata?.type === 'pt_payment_plan') {
               const saleRef = sub.metadata.pt_sale_ref ?? null;
               if (saleRef) {
