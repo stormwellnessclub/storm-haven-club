@@ -382,6 +382,18 @@ async function inheritScheduleMetadata(stripe: Stripe, sub: Stripe.Subscription)
  * now hangs off the invoice's payment records, so read every known shape to keep
  * the installment receipt traceable back to the charge.
  */
+async function resolveInvoicePaymentIntentId(stripe: Stripe, invoice: Stripe.Invoice): Promise<string | null> {
+  const direct = getInvoicePaymentIntentId(invoice);
+  if (direct) return direct;
+  try {
+    // Webhook payloads arrive unexpanded, so the payment records must be fetched.
+    const full = await stripe.invoices.retrieve(invoice.id as string, { expand: ['payments'] });
+    return getInvoicePaymentIntentId(full as Stripe.Invoice);
+  } catch (_e) {
+    return null;
+  }
+}
+
 function getInvoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
   const anyInvoice = invoice as any;
   const direct = anyInvoice.payment_intent;
