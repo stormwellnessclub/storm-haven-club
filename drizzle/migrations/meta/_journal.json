@@ -393,6 +393,13 @@
       "when": 1790137990396,
       "tag": "0055_pt_cash_transactions_reporting_view",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1790138425201,
+      "tag": "0056_pt_cash_transactions_add_payment_link",
+      "breakpoints": true
     }
   ]
 }

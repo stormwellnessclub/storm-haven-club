@@ -14277,6 +14277,7 @@ export type Database = {
           occurred_at: string | null
           pass_id: string | null
           payment_type: string | null
+          related_payment_id: string | null
           source_id: string | null
           source_table: string | null
           status: string | null
