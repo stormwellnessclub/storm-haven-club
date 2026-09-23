@@ -386,6 +386,13 @@
       "when": 1790133492115,
       "tag": "0054_pt_dunning_allow_non_member_clients",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1790137990396,
+      "tag": "0055_pt_cash_transactions_reporting_view",
+      "breakpoints": true
     }
   ]
 }

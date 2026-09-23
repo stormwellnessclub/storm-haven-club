@@ -14267,6 +14267,25 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_cash_transactions: {
+        Row: {
+          amount_cents: number | null
+          direction: string | null
+          installment_id: string | null
+          invoice_id: string | null
+          method: string | null
+          occurred_at: string | null
+          pass_id: string | null
+          payment_type: string | null
+          source_id: string | null
+          source_table: string | null
+          status: string | null
+          stripe_payment_intent_id: string | null
+          transaction_key: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       public_instructors_view: {
         Row: {
           bio: string | null
