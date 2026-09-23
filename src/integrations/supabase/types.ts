@@ -7039,7 +7039,7 @@ export type Database = {
           first_failed_at: string
           id: string
           last_retry_at: string | null
-          member_id: string
+          member_id: string | null
           metadata: Json
           next_email_day: number | null
           next_email_due_at: string | null
@@ -7065,7 +7065,7 @@ export type Database = {
           first_failed_at?: string
           id?: string
           last_retry_at?: string | null
-          member_id: string
+          member_id?: string | null
           metadata?: Json
           next_email_day?: number | null
           next_email_due_at?: string | null
@@ -7091,7 +7091,7 @@ export type Database = {
           first_failed_at?: string
           id?: string
           last_retry_at?: string | null
-          member_id?: string
+          member_id?: string | null
           metadata?: Json
           next_email_day?: number | null
           next_email_due_at?: string | null
