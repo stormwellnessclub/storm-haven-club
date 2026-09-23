@@ -372,7 +372,10 @@ async function inheritScheduleMetadata(stripe: Stripe, sub: Stripe.Subscription)
     }
   } catch (_e) {
     // Schedule unreadable — leave metadata as-is and fall through to normal routing.
+  }
 }
+
+
 
 /**
  * Stripe API 2025-08-27.basil dropped `invoice.payment_intent`. The PaymentIntent
