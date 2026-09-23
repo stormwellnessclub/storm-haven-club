@@ -572,45 +572,22 @@ export default function PTClientDetail() {
       {/* --------------------------------------------------------- billing */}
       {tab === "Billing" && (
         <>
-        <PTClientBillingSnapshot userId={userId} />
-        <div className="mt-4">
-          <PTClientFinancialCenter
-            userId={userId}
-            clientName={name}
-            passes={passes as any[]}
-          />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2 mt-4">
-
-          <PTCard padded={false}>
-            <div className="p-4 pb-0"><PTSectionTitle action={<button className={ptButtonClass("ghost")} onClick={() => setSellOpen(true)}>Sell package</button>}>Packages</PTSectionTitle></div>
-            <PTTable
-              rows={passes}
-              getRowKey={(p: any) => p.id}
-              empty={<p className="text-[13px] text-pt-muted p-4">No packages.</p>}
-              columns={[
-                { key: "n", header: "Package", render: (p: any) => p.pack_name },
-                { key: "s", header: "Status", render: (p: any) => <PTStatus status={p.status} /> },
-                { key: "r", header: "Remaining", align: "right", render: (p: any) => `${p.sessions_remaining}/${p.sessions_total}` },
-                { key: "e", header: "Expires", render: (p: any) => fmt(p.expires_at) },
-              ]}
+          <div className="flex justify-end mb-3">
+            <button className={ptButtonClass("outline")} onClick={() => setSellOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />Sell package
+            </button>
+          </div>
+          <PTClientBillingWorkspace userId={userId} clientName={name} />
+          <div className="mt-4">
+            <PTClientFinancialCenter
+              userId={userId}
+              clientName={name}
+              passes={passes as any[]}
             />
-          </PTCard>
-          <PTCard padded={false}>
-            <div className="p-4 pb-0"><PTSectionTitle>Unpaid sessions</PTSectionTitle></div>
-            <PTTable
-              rows={appts.filter((a: any) => a.payment_status === "unpaid")}
-              getRowKey={(a: any) => a.id}
-              empty={<p className="text-[13px] text-pt-muted p-4">Nothing outstanding.</p>}
-              columns={[
-                { key: "d", header: "Session", render: (a: any) => dt(a.starts_at) },
-                { key: "amt", header: "Owed", align: "right", render: (a: any) => formatCents(a.amount_due_cents ?? 0) },
-              ]}
-            />
-          </PTCard>
-        </div>
+          </div>
         </>
       )}
+
 
       {/* --------------------------------------------------- communication */}
       {tab === "Communication" && (
