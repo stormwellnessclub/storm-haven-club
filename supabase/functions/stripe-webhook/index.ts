@@ -721,16 +721,23 @@ serve(async (req) => {
       // A second, sandbox-only endpoint exists for payment-flow verification. Its
       // events are signed with a different secret and must be answered with the
       // test API key; live traffic is unaffected because the live secret is tried first.
-      const testWebhookSecret = Deno.env.get('STRIPE_TEST_WEBHOOK_SECRET');
+      const testWebhookSecrets = [
+        Deno.env.get('STRIPE_TEST_WEBHOOK_SECRET'),
+        Deno.env.get('STRIPE_TEST_WEBHOOK_SECRET_B3'),
+      ].filter(Boolean) as string[];
       const testSecretKey = Deno.env.get('STRIPE_TEST_SECRET_KEY');
       let sandboxEvent: Stripe.Event | null = null;
-      if (testWebhookSecret && testSecretKey) {
-        try {
-          sandboxEvent = await stripe.webhooks.constructEventAsync(body, signature, testWebhookSecret);
-        } catch (_testSigError) {
-          sandboxEvent = null;
+      if (testSecretKey) {
+        for (const secret of testWebhookSecrets) {
+          try {
+            sandboxEvent = await stripe.webhooks.constructEventAsync(body, signature, secret);
+            break;
+          } catch (_testSigError) {
+            sandboxEvent = null;
+          }
         }
       }
+
       if (!sandboxEvent) {
         logError(signatureError, "SECURITY");
         // Return 401 for invalid signature - security failure
