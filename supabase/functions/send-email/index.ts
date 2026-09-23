@@ -3324,7 +3324,7 @@ serve(async (req) => {
 
         const recipientFirst = data.recipientName || data.name || 'there';
         const tipLine = Number(data.tipCents) > 0
-          ? `<tr><td style="padding: 0 36px 22px 36px; text-align: center; font-family: Georgia, serif; font-size: 13px; color: #C1B19C; font-style: italic;">Therapist gratuity of $${(Number(data.tipCents)/100).toFixed(2)} already included</td></tr>`
+          ? `<tr><td colspan="2" style="padding: 0 36px 22px 36px; text-align: center; font-family: Georgia, serif; font-size: 13px; color: #C1B19C; font-style: italic;">Therapist gratuity of $${(Number(data.tipCents)/100).toFixed(2)} already included</td></tr>`
           : '';
         html = `
           <div style="background: #F6F1E8; padding: 32px 12px; font-family: Georgia, 'Times New Roman', serif;">
