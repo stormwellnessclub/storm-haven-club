@@ -66,6 +66,9 @@ Deno.serve(async (req) => {
       .from("pt_packs").select("*").eq("id", packId).maybeSingle();
     if (packErr) throw packErr;
     if (!pack) throw new Error("Pack not found");
+    if ((pack as any).allow_payment_plans === false) {
+      throw new Error("This package is not sold on payment plans");
+    }
 
     const { data: plan, error: planErr } = await supabase
       .from("pt_pack_payment_plans").select("*").eq("id", planId).maybeSingle();
