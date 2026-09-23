@@ -82,9 +82,18 @@ export interface PTFinancialData {
  * second ledger: sales come from pt_passes, cash from pt_cash_transactions
  * (pt_payments + pt_refunds), the schedule from pt_payment_plan_installments.
  */
+/**
+ * A date input emits "" while the user clears or hand-types a date. Never let a
+ * partial value produce an Invalid Date — fall back to a wide bound instead.
+ */
+const safeIso = (day: string, time: string, fallback: string) => {
+  const d = new Date(`${day}T${time}`);
+  return Number.isNaN(d.getTime()) ? fallback : d.toISOString();
+};
+
 export function usePTFinancialReportData(filters: PTFinFilters) {
-  const fromIso = new Date(`${filters.from}T00:00:00`).toISOString();
-  const toIso = new Date(`${filters.to}T23:59:59`).toISOString();
+  const fromIso = safeIso(filters.from, "00:00:00", "1970-01-01T00:00:00.000Z");
+  const toIso = safeIso(filters.to, "23:59:59", "2999-12-31T23:59:59.000Z");
 
   return useQuery({
     queryKey: ["pt-financial-reports", filters.from, filters.to],
