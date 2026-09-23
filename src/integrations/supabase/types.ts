@@ -3731,8 +3731,10 @@ export type Database = {
           recipient_name: string
           scheduled_send_at: string | null
           service_label: string | null
+          spa_service_id: string | null
           status: string
           stripe_payment_intent_id: string | null
+          tip_cents: number
           updated_at: string
         }
         Insert: {
@@ -3760,8 +3762,10 @@ export type Database = {
           recipient_name: string
           scheduled_send_at?: string | null
           service_label?: string | null
+          spa_service_id?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
+          tip_cents?: number
           updated_at?: string
         }
         Update: {
@@ -3789,8 +3793,10 @@ export type Database = {
           recipient_name?: string
           scheduled_send_at?: string | null
           service_label?: string | null
+          spa_service_id?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
+          tip_cents?: number
           updated_at?: string
         }
         Relationships: [
@@ -3813,6 +3819,13 @@ export type Database = {
             columns: ["purchaser_member_id"]
             isOneToOne: false
             referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gift_cards_spa_service_id_fkey"
+            columns: ["spa_service_id"]
+            isOneToOne: false
+            referencedRelation: "spa_services"
             referencedColumns: ["id"]
           },
         ]
@@ -15150,6 +15163,7 @@ export type Database = {
           email_sent_at: string
           expires_at: string
           first_redeemed_at: string
+          hide_amount: boolean
           id: string
           payment_method: string
           recipient_email: string
@@ -15157,7 +15171,9 @@ export type Database = {
           redeemed_cents: number
           redemption_count: number
           scheduled_send_at: string
+          service_label: string
           status: string
+          tip_cents: number
         }[]
       }
       get_my_instructor_profile: {
