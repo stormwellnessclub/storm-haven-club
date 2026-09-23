@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { GiftCardPreview } from "@/components/gift-cards/GiftCardPreview";
 import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 
 const TZ = "America/Detroit";
 
@@ -41,6 +42,9 @@ type CardRow = {
   created_at: string;
   payment_method: string;
   delivery_status: "scheduled" | "sent" | "delivered" | "pending";
+  service_label: string | null;
+  tip_cents: number;
+  hide_amount: boolean;
 };
 
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
@@ -143,9 +147,14 @@ export default function GiftCards() {
               Track cards you&apos;ve gifted — delivery status, redemptions, and remaining balance.
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="mr-1 h-4 w-4" /> Refresh
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="mr-1 h-4 w-4" /> Refresh
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/gift-cards"><Gift className="mr-1 h-4 w-4" /> Send a gift card</Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -310,11 +319,13 @@ function CardListItem({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{card.recipient_name}</span>
+            {card.service_label && <Badge variant="outline">{card.service_label}</Badge>}
             <StatusBadge card={card} />
           </div>
           <div className="truncate text-xs text-muted-foreground">{card.recipient_email}</div>
           <div className="text-xs text-muted-foreground">
-            {scheduled ? "Sends " : card.email_sent_at ? "Sent " : "Created "}{sendTime}
+            {scheduled ? "Email sends " : card.email_sent_at ? "Email sent " : "Created "}{sendTime}
+            {card.tip_cents > 0 && ` · Therapist tip ${money(card.tip_cents)}`}
             {card.first_redeemed_at && (
               <>
                 {" · First redeemed "}
