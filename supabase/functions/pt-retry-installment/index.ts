@@ -55,7 +55,17 @@ Deno.serve(async (req) => {
       return json({ success: false, error: "No Stripe invoice on this obligation" });
     }
 
-    const invoice = await stripe.invoices.retrieve(row.stripe_invoice_id);
+    // Sandbox verification obligations live in the Stripe test account; the live
+    // account simply does not know those invoice ids, so fall back to the test key.
+    let invoice: Stripe.Invoice;
+    try {
+      invoice = await stripe.invoices.retrieve(row.stripe_invoice_id);
+    } catch (lookupErr) {
+      const testKey = Deno.env.get("STRIPE_TEST_SECRET_KEY");
+      if (!testKey || (lookupErr as any)?.code !== "resource_missing") throw lookupErr;
+      stripe = new Stripe(testKey, { apiVersion: "2025-08-27.basil" });
+      invoice = await stripe.invoices.retrieve(row.stripe_invoice_id);
+    }
     if (invoice.status === "paid") {
       await supabase
         .from("payment_dunning_state")
