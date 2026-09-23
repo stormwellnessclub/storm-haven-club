@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, Star, Users, Info, ShieldCheck, CreditCard, ExternalLink, Loader2, Gift } from "lucide-react";
 import { RedeemVoucherDialog } from "@/components/spa/RedeemVoucherDialog";
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 import { useSpaServices, type SpaService } from "@/hooks/useSpaManagement";
@@ -367,9 +367,17 @@ export default function Spa() {
               red light therapy, cold plunge, cryotherapy and licensed massage are available to
               book today.
             </p>
-            <Button variant="gold" size="lg">
-              Book a Treatment
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="gold" size="lg">
+                Book a Treatment
+              </Button>
+              <Button variant="outline" size="lg" asChild className="bg-transparent text-primary-foreground border-primary-foreground/60 hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                <Link to="/gift-cards">
+                  <Gift className="w-4 h-4 mr-2" />
+                  Give the Gift of Storm
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       </section>
