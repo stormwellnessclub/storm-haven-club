@@ -15,6 +15,7 @@ import {
   PTStatus, PTTimeline, ptButtonClass,
 } from "@/components/admin/pt/PTUI";
 import { formatCents } from "@/lib/ptFormat";
+import { PTBalanceBreakdown } from "@/components/admin/pt/PTBalanceBreakdown";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -207,7 +208,13 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mt-4">
+        <div className="mt-4">
+          <div className="pt-eyebrow mb-1.5">Client PT balance (all packages)</div>
+          <PTBalanceBreakdown userId={userId} />
+        </div>
+
+        <div className="pt-eyebrow mt-4 mb-1.5">This package</div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Stat label="Package total" value={formatCents(fin.totalCents)} />
           <Stat label="Paid" value={formatCents(fin.paidCents)} tone="text-pt-green" />
           <Stat label="Scheduled" value={formatCents(fin.scheduledCents)} />

@@ -12,6 +12,7 @@ import {
 import { usePTPayments, PT_PAYMENT_METHOD_LABEL } from "@/hooks/pt/usePTFinancials";
 import { PTInvoiceDialog } from "@/components/admin/pt/PTInvoiceDialog";
 import { PTInvoiceDetailDialog } from "@/components/admin/pt/PTInvoiceDetailDialog";
+import { PTBalanceBreakdown } from "@/components/admin/pt/PTBalanceBreakdown";
 import { PTRefundDialog, PTRefundTarget } from "@/components/admin/pt/PTRefundDialog";
 
 const dt = (v?: string | null) => (v ? fmtDate(new Date(v), "MMM d, yyyy h:mm a") : "—");
@@ -63,24 +64,7 @@ export function PTClientFinancialCenter({
         >
           Outstanding balance
         </PTSectionTitle>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          {breakdown.map((b) => (
-            <div key={b.label} className="rounded-lg border border-pt-line p-3">
-              <div className="text-[11px] uppercase tracking-wide text-pt-muted">{b.label}</div>
-              <div className="text-[15px] font-medium mt-1">{formatCents(b.value)}</div>
-            </div>
-          ))}
-          <div className="rounded-lg border border-pt-line bg-pt-beige/40 p-3">
-            <div className="text-[11px] uppercase tracking-wide text-pt-muted">Total owed</div>
-            <div className={`text-[15px] font-medium mt-1 ${(outstanding?.total_outstanding_cents ?? 0) > 0 ? "text-pt-red" : "text-pt-green"}`}>
-              {formatCents(outstanding?.total_outstanding_cents ?? 0)}
-            </div>
-          </div>
-        </div>
-        <p className="text-[11px] text-pt-muted mt-2">
-          Each dollar is counted once: an invoiced session is not also counted as an uninvoiced session,
-          and a financed package is not counted twice against its plan.
-        </p>
+        <div className="mt-2"><PTBalanceBreakdown userId={userId} /></div>
       </PTCard>
 
       <div className="grid gap-4 lg:grid-cols-2 mt-4">

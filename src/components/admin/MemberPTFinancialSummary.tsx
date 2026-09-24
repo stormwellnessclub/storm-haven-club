@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { usePTInvoices, usePTOutstanding } from "@/hooks/pt/usePTBillingCenter";
+import { PTBalanceBreakdown } from "@/components/admin/pt/PTBalanceBreakdown";
 
 const money = (cents: number) => `$${((cents ?? 0) / 100).toFixed(2)}`;
 
@@ -52,12 +53,7 @@ export function MemberPTFinancialSummary({ memberId }: { memberId: string }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <Stat label="Open invoices" value={money(outstanding?.open_invoices_cents ?? 0)} />
-          <Stat label="Uninvoiced sessions" value={money(outstanding?.uninvoiced_sessions_cents ?? 0)} />
-          <Stat label="Package balance" value={money(outstanding?.package_balance_cents ?? 0)} />
-          <Stat label="Total PT owed" value={money(total)} highlight={total > 0} />
-        </div>
+        <PTBalanceBreakdown userId={userId} variant="admin" />
 
         {openInvoices.length > 0 && (
           <div className="rounded-lg border divide-y">
