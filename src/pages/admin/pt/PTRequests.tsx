@@ -4,7 +4,7 @@ import { format as fmt } from "date-fns";
 import { Inbox } from "lucide-react";
 import { toast } from "sonner";
 import { PTShell, PTPageHeader, PTCard, PTBadge, PTEmptyState, ptButtonClass, PTAlert } from "@/components/admin/pt/PTUI";
-import { usePTTrainers } from "@/hooks/pt/usePTPortal";
+import { usePTTrainers, usePTPeople } from "@/hooks/pt/usePTPortal";
 import { usePTRequests, usePTSessionTypes, usePTRequestContext, usePTRequestActions, REQUEST_STATUS_LABEL } from "@/hooks/pt/usePTRequests";
 import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,9 @@ export default function PTRequests() {
   const { data: requests = [], isLoading } = usePTRequests();
   const { data: trainers = [] } = usePTTrainers();
   const { data: types = [] } = usePTSessionTypes();
+  // Membership comes from the linked account, not the self-reported form checkbox.
+  const { data: people = {} } = usePTPeople(requests.map((r: any) => r.client_user_id).filter(Boolean));
+  const memberOf = (r: any) => (r.client_user_id && people[r.client_user_id] ? people[r.client_user_id].isMember : !!r.is_member);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("open");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -69,7 +72,7 @@ export default function PTRequests() {
                       <td className="px-3 py-2 text-muted-foreground">{pos >= 0 ? pos + 1 : "—"}</td>
                       <td className="px-3 py-2">
                         <div className="font-medium">{r.full_name || r.email}</div>
-                        <PTBadge tone={r.is_member ? "gold" : "neutral"}>{r.is_member ? "Member" : "Non-member"}</PTBadge>
+                        <PTBadge tone={memberOf(r) ? "gold" : "neutral"}>{memberOf(r) ? "Member" : "Non-member"}</PTBadge>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">{fmt(new Date(r.created_at), "MMM d, h:mm a")}</td>
                       <td className="px-3 py-2">{trainerName(r.requested_trainer_id)}</td>

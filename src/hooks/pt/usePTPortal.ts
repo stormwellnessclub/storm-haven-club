@@ -53,7 +53,7 @@ export function usePTPeople(userIds: string[]) {
     queryFn: async (): Promise<Record<string, PTPerson>> => {
       const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
         supabase.from("profiles").select("user_id, email, first_name, last_name, phone").in("user_id", ids),
-        supabase.from("members").select("user_id, email, first_name, last_name, phone, photo_url").in("user_id", ids),
+        supabase.from("members").select("user_id, email, first_name, last_name, phone, photo_url").in("user_id", ids).neq("status", "cancelled"),
         supabase.from("non_member_profiles").select("user_id, email, first_name, last_name, phone").in("user_id", ids),
       ]);
       const map: Record<string, PTPerson> = {};
