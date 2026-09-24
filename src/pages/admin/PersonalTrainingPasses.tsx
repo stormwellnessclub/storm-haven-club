@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { format as fmtDate, parseISO, differenceInDays } from "date-fns";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
-import { GrantLegacyPtPackDialog } from "@/components/admin/GrantLegacyPtPackDialog";
+import { AddExistingPackageDialog } from "@/components/admin/pt/PTPackageWorkflows";
 import { IncompletePTSales } from "@/components/admin/IncompletePTSales";
 import { PT_FORMAT_LABEL, PtFormat, PtPass, formatCents } from "@/lib/ptFormat";
 import { Link } from "react-router-dom";
@@ -263,7 +263,7 @@ export default function PersonalTrainingPasses() {
               <Calendar className="h-4 w-4 mr-2" /> Book Session
             </Button>
             <Button variant="outline" onClick={() => { setLegacyPreset(undefined); setLegacyOpen(true); }}>
-              <Archive className="h-4 w-4 mr-2" /> Grant legacy pack
+              <Archive className="h-4 w-4 mr-2" /> Transfer legacy package
             </Button>
             <Button onClick={() => { setSellPreset(undefined); setSellOpen(true); }}>
               <Plus className="h-4 w-4 mr-2" /> Sell PT
@@ -591,12 +591,14 @@ export default function PersonalTrainingPasses() {
         presetUserName={bookPreset?.label}
         onSellPack={(id, label) => { setBookOpen(false); setSellPreset({ id, label }); setSellOpen(true); }}
       />
-      <GrantLegacyPtPackDialog
-        open={legacyOpen}
-        onOpenChange={(v) => { setLegacyOpen(v); if (!v) setLegacyPreset(undefined); }}
-        presetUserId={legacyPreset?.id}
-        presetUserLabel={legacyPreset?.label}
-      />
+      {legacyOpen && (
+        <AddExistingPackageDialog
+          open={legacyOpen}
+          mode="transfer"
+          presetUser={legacyPreset}
+          onOpenChange={(v) => { setLegacyOpen(v); if (!v) setLegacyPreset(undefined); }}
+        />
+      )}
     </AdminLayout>
   );
 }
