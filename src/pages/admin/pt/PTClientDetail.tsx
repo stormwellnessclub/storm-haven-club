@@ -885,11 +885,6 @@ function PTClientBillingSnapshot({ userId }: { userId?: string }) {
   const items: Array<{ label: string; value: string; tone?: string }> = [
     { label: "Sessions remaining", value: String(data.activePass?.sessions_remaining ?? 0) },
     {
-      label: "Unpaid sessions",
-      value: `${data.unpaidCount} · ${formatCents(data.unpaidCents)}`,
-      tone: data.unpaidCount > 0 ? "text-pt-red" : undefined,
-    },
-    {
       label: "Payment plan",
       value: plan
         ? `${plan.payment_plan_installments_paid ?? 0}/${plan.payment_plan_total_installments ?? 0} paid · ${formatCents(plan.payment_plan_installment_cents ?? 0)}/mo`
