@@ -233,7 +233,7 @@ export default function PTClients() {
                 <span className="flex flex-wrap gap-1">
                   {r.highAlerts > 0 && <PTBadge tone="red">{r.highAlerts} urgent</PTBadge>}
                   {r.openAlerts - r.highAlerts > 0 && <PTBadge tone="amber">{r.openAlerts - r.highAlerts} open</PTBadge>}
-                  {r.owedCents > 0 && <PTBadge tone="red">{formatCents(r.owedCents)} due</PTBadge>}
+                  {r.owedCents > 0 && <PTBadge tone="red">{formatCents(r.owedCents)} unpaid sessions</PTBadge>}
                   {r.reassessmentDue && differenceInCalendarDays(parseISO(r.reassessmentDue), new Date()) <= 14 && (
                     <PTBadge tone="gold">Reassess</PTBadge>
                   )}

@@ -45,13 +45,6 @@ export function PTClientFinancialCenter({
 
   if (!userId) return null;
 
-  const breakdown = [
-    { label: "Open invoices", value: outstanding?.open_invoices_cents ?? 0 },
-    { label: "Uninvoiced sessions", value: outstanding?.uninvoiced_sessions_cents ?? 0 },
-    { label: "Package balance", value: outstanding?.package_balance_cents ?? 0 },
-    { label: "Plan remaining", value: outstanding?.plan_remaining_cents ?? 0 },
-  ];
-
   return (
     <>
       <PTCard>
