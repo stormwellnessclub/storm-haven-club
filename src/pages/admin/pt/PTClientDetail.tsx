@@ -26,6 +26,7 @@ import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { usePTClientBilling } from "@/hooks/pt/usePTFinancials";
 import { PTClientFinancialCenter } from "@/components/admin/pt/PTClientFinancialCenter";
+import { PTBalanceBreakdown } from "@/components/admin/pt/PTBalanceBreakdown";
 import { PTClientBillingWorkspace } from "@/components/admin/pt/billing/PTClientBillingWorkspace";
 
 const TABS = [
@@ -357,7 +358,6 @@ export default function PTClientDetail() {
                 <Field label="Rate" value={row?.attendanceRate === null || row?.attendanceRate === undefined ? "—" : `${row.attendanceRate}%`} />
                 <Field label="Sessions counted" value={row?.attendanceCounted ?? 0} />
                 <Field label="No-shows" value={row?.noShows ?? 0} />
-                <Field label="Balance due" value={formatCents(row?.owedCents ?? 0)} />
               </div>
             </PTCard>
 
@@ -899,12 +899,6 @@ function PTClientBillingSnapshot({ userId }: { userId?: string }) {
       label: "Next autopay",
       value: plan?.payment_plan_next_payment_date ? fmt(plan.payment_plan_next_payment_date) : "—",
     },
-    {
-      label: "Outstanding on packages",
-      value: formatCents(
-        (data.passes as any[]).reduce((s, p) => s + (p.amount_outstanding_cents || 0), 0),
-      ),
-    },
   ];
 
   return (
@@ -918,6 +912,7 @@ function PTClientBillingSnapshot({ userId }: { userId?: string }) {
           </div>
         ))}
       </div>
+      <div className="mt-3"><PTBalanceBreakdown userId={userId} /></div>
       <div className="mt-3">
         <Link to="/admin/pt/billing" className="text-[13px] text-pt-gold hover:underline">
           Open Billing &amp; Autopay →
