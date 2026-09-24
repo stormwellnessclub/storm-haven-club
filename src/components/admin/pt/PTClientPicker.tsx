@@ -31,24 +31,24 @@ export function PTClientPicker({
       const q = query.trim();
       const [members, nonMembers, profiles] = await Promise.all([
         supabase.from("members").select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).limit(8),
+          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).neq("status", "cancelled").limit(8),
         supabase.from("non_member_profiles").select("user_id, email, first_name, last_name")
           .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).limit(8),
         supabase.from("profiles").select("user_id, email, first_name, last_name")
           .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).limit(8),
       ]);
       const list: PTClientOption[] = [
-        ...(members.data ?? []).map((m: any) => ({
-          id: m.user_id, email: m.email,
-          name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, kind: "Member" as const,
+        ...(profiles.data ?? []).map((p: any) => ({
+          id: p.user_id, email: p.email,
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, kind: "Client" as const,
         })),
         ...(nonMembers.data ?? []).map((n: any) => ({
           id: n.user_id, email: n.email,
           name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email, kind: "Non-member" as const,
         })),
-        ...(profiles.data ?? []).map((p: any) => ({
-          id: p.user_id, email: p.email,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, kind: "Client" as const,
+        ...(members.data ?? []).map((m: any) => ({
+          id: m.user_id, email: m.email,
+          name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, kind: "Member" as const,
         })),
       ].filter((c) => c.id);
       return Array.from(new Map(list.map((c) => [c.id, c])).values());

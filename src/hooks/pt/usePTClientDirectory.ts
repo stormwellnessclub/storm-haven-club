@@ -69,7 +69,7 @@ export function usePTClientDirectory() {
         const [{ data: m }, { data: n }, { data: pr }] = await Promise.all([
           supabase.from("members")
             .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, created_at")
-            .in("user_id", part),
+            .in("user_id", part).neq("status", "cancelled"),
           supabase.from("non_member_profiles").select("user_id, email, first_name, last_name, phone, created_at").in("user_id", part),
           supabase.from("profiles").select("user_id, email, first_name, last_name, phone, created_at").in("user_id", part),
         ]);

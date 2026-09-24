@@ -98,6 +98,9 @@ export function usePTMClientSummary(userId?: string) {
           .from("members")
           .select("user_id, email, first_name, last_name, phone, photo_url, status, subscription_status, created_at")
           .eq("user_id", userId!)
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle(),
         supabase
           .from("non_member_profiles")

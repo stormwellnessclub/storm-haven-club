@@ -22,7 +22,7 @@ const FINANCIAL_STATUS = [
   { value: "other", label: "Other authorized status" },
 ];
 
-const SOURCE_SYSTEMS = ["Mindbody", "Previous Storm system", "Spreadsheet / manual record", "Other"];
+const SOURCE_SYSTEMS = ["Former location", "Mindbody", "Previous Storm system", "Spreadsheet / manual record", "Other"];
 
 const toDollars = (v: string) => Math.round((Number(v) || 0) * 100);
 
@@ -58,7 +58,7 @@ export function AddExistingPackageDialog({
   const [outstanding, setOutstanding] = useState("");
   const [newRevenue, setNewRevenue] = useState("0");
   const [originalPurchaseDate, setOriginalPurchaseDate] = useState("");
-  const [sourceSystem, setSourceSystem] = useState(isTransfer ? "Mindbody" : "");
+  const [sourceSystem, setSourceSystem] = useState(isTransfer ? "Former location" : "");
   const [sourceReference, setSourceReference] = useState("");
   const [notes, setNotes] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
@@ -78,9 +78,11 @@ export function AddExistingPackageDialog({
     setRemaining(String(Math.max(0, pack.sessions - (Number(used) || 0))));
   }, [packId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const nOriginal = Number(original) || 0;
   const nUsed = Number(used) || 0;
   const nRemaining = Number(remaining) || 0;
+  // Original count is optional for transfers — when unknown it is used + remaining.
+  const originalKnown = original.trim() !== "";
+  const nOriginal = originalKnown ? Number(original) || 0 : nUsed + nRemaining;
   const mathOk = nOriginal > 0 && nOriginal === nUsed + nRemaining;
 
   const packageName = pack?.name ?? customName.trim();
@@ -182,7 +184,7 @@ export function AddExistingPackageDialog({
         <div className="rounded-xl border border-pt-line p-3 space-y-3">
           <div className="text-[13px] font-medium text-pt-ink">Existing usage</div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <NumField label="Original sessions purchased" value={original} onChange={setOriginal} />
+            <NumField label="Original sessions (blank if unknown)" value={original} onChange={setOriginal} />
             <NumField label="Sessions already completed" value={used} onChange={setUsed} />
             <NumField label="Sessions remaining" value={remaining} onChange={setRemaining} />
           </div>
@@ -221,26 +223,26 @@ export function AddExistingPackageDialog({
             </Select>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <MoneyField label="Original package value" value={packageValue} onChange={setPackageValue} />
-            <MoneyField label="Amount previously paid" value={paid} onChange={setPaid} />
-            <MoneyField label="Amount currently outstanding" value={outstanding} onChange={setOutstanding} />
+            <MoneyField label="Total package value (if known)" value={packageValue} onChange={setPackageValue} />
+            <MoneyField label="Historically paid (if known)" value={paid} onChange={setPaid} />
+            <MoneyField label="Actual amount still owed" value={outstanding} onChange={setOutstanding} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <MoneyField label="New Storm revenue collected NOW" value={newRevenue} onChange={setNewRevenue} />
             <div>
-              <FieldLabel>Original purchase date</FieldLabel>
+              <FieldLabel>Original purchase / effective date</FieldLabel>
               <Input type="date" value={originalPurchaseDate} onChange={(e) => setOriginalPurchaseDate(e.target.value)} className="border-pt-line bg-white" />
             </div>
           </div>
           <PTAlert tone="info" title="Historical value is not new revenue">
             Historical package value and previously collected money stay separate from Storm revenue recorded today.
-            New revenue defaults to $0 for transfers and existing packages.
+            New revenue defaults to $0 for transfers and existing packages. No card is charged and no sale is created.
           </PTAlert>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <FieldLabel>Source system</FieldLabel>
+            <FieldLabel>Source / location</FieldLabel>
             <Select value={sourceSystem || "none"} onValueChange={(v) => setSourceSystem(v === "none" ? "" : v)}>
               <SelectTrigger className="border-pt-line bg-white"><SelectValue placeholder="Select" /></SelectTrigger>
               <SelectContent>

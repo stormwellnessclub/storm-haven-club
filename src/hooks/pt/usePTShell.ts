@@ -52,7 +52,7 @@ export function usePTGlobalSearch(term: string) {
       const [members, nonMembers, trainers, programs, packs, passes] = await Promise.all([
         supabase.from("members").select("user_id, first_name, last_name, email").or(
           `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`
-        ).limit(6),
+        ).neq("status", "cancelled").limit(6),
         supabase.from("non_member_profiles").select("user_id, first_name, last_name, email").or(
           `first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like}`
         ).limit(6),
@@ -74,8 +74,9 @@ export function usePTGlobalSearch(term: string) {
           to: `/admin/pt/clients/${m.user_id}`,
         });
       });
+      const memberIds = new Set((members.data ?? []).map((m: any) => m.user_id));
       (nonMembers.data ?? []).forEach((m: any) => {
-        if (!m.user_id) return;
+        if (!m.user_id || memberIds.has(m.user_id)) return;
         results.push({
           id: `nonmember-${m.user_id}`,
           group: "Clients",

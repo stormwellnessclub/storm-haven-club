@@ -268,7 +268,8 @@ export function usePackageFinancials(pass: any, installments: PTPlanInstallmentR
         totalCents: total,
         paidCents: pass.amount_paid_cents ?? 0,
         scheduledCents: 0,
-        pastDueCents: pass.amount_outstanding_cents ?? 0,
+        // Without stored installments an outstanding balance is not an autopay failure.
+        pastDueCents: 0,
         nextDueDate: null, nextAmountCents: null, finalDate: null,
       };
     }
