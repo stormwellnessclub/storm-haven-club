@@ -242,7 +242,7 @@ export function AddExistingPackageDialog({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <FieldLabel>Source system</FieldLabel>
+            <FieldLabel>Source / location</FieldLabel>
             <Select value={sourceSystem || "none"} onValueChange={(v) => setSourceSystem(v === "none" ? "" : v)}>
               <SelectTrigger className="border-pt-line bg-white"><SelectValue placeholder="Select" /></SelectTrigger>
               <SelectContent>
