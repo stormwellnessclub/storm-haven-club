@@ -52,7 +52,7 @@ export default function PTRequests() {
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-        <PTCard className="p-0 overflow-x-auto">
+        <PTCard padded={false} className="overflow-x-auto">
           {isLoading ? <div className="p-6 text-sm text-muted-foreground">Loading…</div> : rows.length === 0 ? (
             <PTEmptyState icon={Inbox} title="No requests" description="Nothing matches this filter." />
           ) : (
@@ -157,7 +157,7 @@ function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
         <Link className={ptButtonClass("outline")} to={`/admin/pt/schedule`}>View in PT schedule</Link>
       )}
 
-      {error && <PTAlert tone="red">{error}</PTAlert>}
+      {error && <PTAlert tone="danger">{error}</PTAlert>}
 
       {open && (
         <>
