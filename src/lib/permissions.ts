@@ -38,6 +38,7 @@ export const PAGE_PERMISSIONS: Record<string, AppRole[]> = {
   '/admin/pt/m/clients': ['super_admin', 'admin', 'manager', 'class_instructor'],
   '/admin/pt/m/progress': ['super_admin', 'admin', 'manager', 'class_instructor'],
   '/admin/pt/m/more': ['super_admin', 'admin', 'manager', 'class_instructor'],
+  '/admin/pt/requests': ['super_admin', 'admin', 'manager'],
   '/admin/dashboard': ['super_admin', 'admin', 'manager'],
   '/admin/check-in': ['super_admin', 'admin', 'manager', 'front_desk'],
   '/admin/check-in-history': ['super_admin', 'admin', 'manager', 'front_desk'],

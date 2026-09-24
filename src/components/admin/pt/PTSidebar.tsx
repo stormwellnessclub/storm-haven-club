@@ -3,7 +3,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, CalendarDays, Users, Dumbbell, NotebookPen, TrendingUp, Package,
   UserCog, ListChecks, MessageSquare, BarChart3, Settings, ChevronLeft, ChevronRight, CreditCard,
-  LogOut, User, ArrowLeft, LucideIcon,
+  LogOut, User, ArrowLeft, LucideIcon, Inbox,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ export interface PTNavItem {
 export const PT_NAV: PTNavItem[] = [
   { label: "Dashboard", to: "/admin/pt", icon: LayoutDashboard, end: true },
   { label: "Schedule", to: "/admin/pt/schedule", icon: CalendarDays },
+  { label: "Requests", to: "/admin/pt/requests", icon: Inbox },
   { label: "Clients", to: "/admin/pt/clients", icon: Users },
   { label: "Programs", to: "/admin/pt/programs", icon: Dumbbell },
   { label: "Session Notes", to: "/admin/pt/session-notes", icon: NotebookPen },

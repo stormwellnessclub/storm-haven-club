@@ -8618,6 +8618,39 @@ export type Database = {
           },
         ]
       }
+      pt_appointments_snapshot_2d1: {
+        Row: {
+          ends_at: string | null
+          id: string | null
+          instructor_id: string | null
+          snapshot_at: string | null
+          starts_at: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ends_at?: string | null
+          id?: string | null
+          instructor_id?: string | null
+          snapshot_at?: string | null
+          starts_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ends_at?: string | null
+          id?: string | null
+          instructor_id?: string | null
+          snapshot_at?: string | null
+          starts_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       pt_audit_log: {
         Row: {
           action: string
@@ -13616,15 +13649,35 @@ export type Database = {
       training_requests: {
         Row: {
           admin_notes: string | null
+          alt_date: string | null
+          alt_note: string | null
+          alt_time: string | null
+          alt_trainer_id: string | null
+          appointment_id: string | null
+          client_note: string | null
+          client_user_id: string | null
           created_at: string
+          decline_reason: string | null
           email: string
           experience_level: string | null
+          flexibility_note: string | null
           full_name: string
           goals: string | null
           id: string
           is_member: boolean
+          offered_at: string | null
+          offered_by: string | null
           phone: string
+          preferred_date: string | null
+          preferred_time: string | null
           preferred_times: string | null
+          pt_session_type_id: string | null
+          request_status: string
+          requested_trainer_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           service: string
           status: string
           submitted_by_user_id: string | null
@@ -13632,15 +13685,35 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          alt_date?: string | null
+          alt_note?: string | null
+          alt_time?: string | null
+          alt_trainer_id?: string | null
+          appointment_id?: string | null
+          client_note?: string | null
+          client_user_id?: string | null
           created_at?: string
+          decline_reason?: string | null
           email: string
           experience_level?: string | null
+          flexibility_note?: string | null
           full_name: string
           goals?: string | null
           id?: string
           is_member?: boolean
+          offered_at?: string | null
+          offered_by?: string | null
           phone: string
+          preferred_date?: string | null
+          preferred_time?: string | null
           preferred_times?: string | null
+          pt_session_type_id?: string | null
+          request_status?: string
+          requested_trainer_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           service: string
           status?: string
           submitted_by_user_id?: string | null
@@ -13648,21 +13721,98 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          alt_date?: string | null
+          alt_note?: string | null
+          alt_time?: string | null
+          alt_trainer_id?: string | null
+          appointment_id?: string | null
+          client_note?: string | null
+          client_user_id?: string | null
           created_at?: string
+          decline_reason?: string | null
           email?: string
           experience_level?: string | null
+          flexibility_note?: string | null
           full_name?: string
           goals?: string | null
           id?: string
           is_member?: boolean
+          offered_at?: string | null
+          offered_by?: string | null
           phone?: string
+          preferred_date?: string | null
+          preferred_time?: string | null
           preferred_times?: string | null
+          pt_session_type_id?: string | null
+          request_status?: string
+          requested_trainer_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           service?: string
           status?: string
           submitted_by_user_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "training_requests_alt_trainer_id_fkey"
+            columns: ["alt_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_alt_trainer_id_fkey"
+            columns: ["alt_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_alt_trainer_id_fkey"
+            columns: ["alt_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "pt_appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_pt_session_type_id_fkey"
+            columns: ["pt_session_type_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_requested_trainer_id_fkey"
+            columns: ["requested_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_requested_trainer_id_fkey"
+            columns: ["requested_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_requests_requested_trainer_id_fkey"
+            columns: ["requested_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_class_achievements: {
         Row: {
@@ -16420,7 +16570,81 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_request_can_act: {
+        Args: { _r: Database["public"]["Tables"]["training_requests"]["Row"] }
+        Returns: boolean
+      }
+      pt_request_confirm: {
+        Args: { p_request_id: string; p_use_alternate?: boolean }
+        Returns: Json
+      }
+      pt_request_create: {
+        Args: {
+          p_client_note?: string
+          p_flexibility_note?: string
+          p_preferred_date: string
+          p_preferred_time: string
+          p_session_type_id: string
+          p_trainer_id: string
+        }
+        Returns: string
+      }
+      pt_request_is_manager: { Args: never; Returns: boolean }
       pt_request_role: { Args: never; Returns: string }
+      pt_request_update: {
+        Args: {
+          p_action: string
+          p_alt_date?: string
+          p_alt_time?: string
+          p_client_user_id?: string
+          p_reason?: string
+          p_request_id: string
+          p_session_type_id?: string
+          p_trainer_id?: string
+        }
+        Returns: {
+          admin_notes: string | null
+          alt_date: string | null
+          alt_note: string | null
+          alt_time: string | null
+          alt_trainer_id: string | null
+          appointment_id: string | null
+          client_note: string | null
+          client_user_id: string | null
+          created_at: string
+          decline_reason: string | null
+          email: string
+          experience_level: string | null
+          flexibility_note: string | null
+          full_name: string
+          goals: string | null
+          id: string
+          is_member: boolean
+          offered_at: string | null
+          offered_by: string | null
+          phone: string
+          preferred_date: string | null
+          preferred_time: string | null
+          preferred_times: string | null
+          pt_session_type_id: string | null
+          request_status: string
+          requested_trainer_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service: string
+          status: string
+          submitted_by_user_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "training_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pt_reschedule_appointment: {
         Args: {
           p_appointment_id: string
