@@ -16243,6 +16243,34 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_historical_unresolved_list: {
+        Args: never
+        Returns: {
+          allocation_count: number
+          amount_due_cents: number
+          consumed_usage_count: number
+          eligible_pack_name: string
+          eligible_pass_id: string
+          eligible_sessions_remaining: number
+          format: string
+          id: string
+          instructor_id: string
+          invoice_count: number
+          needs_review: boolean
+          pack_name: string
+          package_deducted: boolean
+          pass_id: string
+          payment_status: string
+          reservation_state: string
+          review_reasons: string[]
+          session_type_name: string
+          sessions_remaining: number
+          sessions_total: number
+          starts_at: string
+          status: string
+          user_id: string
+        }[]
+      }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_manager: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_staff: { Args: { _uid: string }; Returns: boolean }
@@ -16878,6 +16906,24 @@ export type Database = {
       }
       pt_resolve_historical_appointment: {
         Args: { p_appointment_id: string; p_note?: string; p_outcome: string }
+        Returns: Json
+      }
+      pt_resolve_historical_appointment_v2: {
+        Args: {
+          p_appointment_id: string
+          p_note?: string
+          p_outcome: string
+          p_use_package?: boolean
+        }
+        Returns: Json
+      }
+      pt_resolve_historical_appointments_batch: {
+        Args: {
+          p_ids: string[]
+          p_note?: string
+          p_outcome: string
+          p_use_package?: boolean
+        }
         Returns: Json
       }
       pt_sale_payment_record: {
