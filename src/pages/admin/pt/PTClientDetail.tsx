@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/pt/PTUI";
 import { usePTTrainers, usePTTrainerMap, usePTClientProfile, useSavePTClientProfile } from "@/hooks/pt/usePTPortal";
 import { usePTClientDirectory } from "@/hooks/pt/usePTClientDirectory";
+import { usePTPassBalances, passBalanceText } from "@/hooks/pt/usePTPassBalances";
 import {
   usePTClientAppointments, usePTClientPassesFull, usePTClientSessionNotes, usePTClientMetrics,
   usePTClientPhotos, usePTClientDocuments, usePTClientPrograms, usePTClientPrs, usePTClientMilestones,
@@ -72,6 +73,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 /* ------------------------------------------------------------------- page */
 
 export default function PTClientDetail() {
+  const { data: balances = {} } = usePTPassBalances();
   const { userId = "" } = useParams();
   const { pathname } = useLocation();
   const [tab, setTab] = useState<Tab>(pathname.endsWith("/billing") ? "Billing" : "Overview");
@@ -344,7 +346,7 @@ export default function PTClientDetail() {
                       </span>
                       <span className="text-right">
                         <PTStatus status={p.status} />
-                        <span className="block text-xs text-pt-muted mt-0.5">{p.sessions_remaining}/{p.sessions_total}</span>
+                        <span className="block text-xs text-pt-muted mt-0.5">{passBalanceText(balances[p.id], { remaining: p.sessions_remaining, total: p.sessions_total })}</span>
                       </span>
                     </li>
                   ))}
@@ -883,7 +885,7 @@ function PTClientBillingSnapshot({ userId }: { userId?: string }) {
 
   const plan: any = data.plan;
   const items: Array<{ label: string; value: string; tone?: string }> = [
-    { label: "Sessions remaining", value: String(data.activePass?.sessions_remaining ?? 0) },
+    { label: "Entitlement remaining", value: String(data.activePass?.sessions_remaining ?? 0) },
     {
       label: "Payment plan",
       value: plan

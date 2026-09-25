@@ -249,6 +249,7 @@ import PTPortalTasks from "@/pages/admin/pt/PTTasks";
 import PTPortalMessages from "@/pages/admin/pt/PTMessages";
 import PTPortalReports from "@/pages/admin/pt/PTReports";
 import PTPortalRequests from "@/pages/admin/pt/PTRequests";
+import PTPortalLeads from "@/pages/admin/pt/PTLeads";
 import PTPortalSettings from "@/pages/admin/pt/PTSettings";
 import PTMToday from "@/pages/admin/pt/mobile/PTMToday";
 import PTMClients from "@/pages/admin/pt/mobile/PTMClients";
@@ -593,6 +594,7 @@ const App = () => (
 
               <Route path="/admin/pt/tasks" element={<ProtectedAdminRoute><PTPortalTasks /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/messages" element={<ProtectedAdminRoute><PTPortalMessages /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/leads" element={<ProtectedAdminRoute><PTPortalLeads /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/requests" element={<ProtectedAdminRoute><PTPortalRequests /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/reports" element={<ProtectedAdminRoute><PTPortalReports /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/settings" element={<ProtectedAdminRoute><PTPortalSettings /></ProtectedAdminRoute>} />

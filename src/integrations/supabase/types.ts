@@ -8456,6 +8456,9 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reservation_resolved_at: string | null
+          reservation_state: string
+          reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -8506,6 +8509,9 @@ export type Database = {
           pre_session_note?: string | null
           pre_session_note_updated_at?: string | null
           prep_checklist?: Json
+          reservation_resolved_at?: string | null
+          reservation_state?: string
+          reserved_at?: string | null
           session_type_id?: string | null
           started_at?: string | null
           starts_at: string
@@ -8556,6 +8562,9 @@ export type Database = {
           pre_session_note?: string | null
           pre_session_note_updated_at?: string | null
           prep_checklist?: Json
+          reservation_resolved_at?: string | null
+          reservation_state?: string
+          reserved_at?: string | null
           session_type_id?: string | null
           started_at?: string | null
           starts_at?: string
@@ -8594,6 +8603,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pt_locations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_appointments_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
           },
           {
             foreignKeyName: "pt_appointments_pass_id_fkey"
@@ -9201,6 +9217,13 @@ export type Database = {
             foreignKeyName: "pt_invoice_line_items_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "pt_invoice_line_items_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pt_passes"
             referencedColumns: ["id"]
           },
@@ -9286,6 +9309,13 @@ export type Database = {
           voided_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pt_invoices_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
+          },
           {
             foreignKeyName: "pt_invoices_pass_id_fkey"
             columns: ["pass_id"]
@@ -9613,8 +9643,22 @@ export type Database = {
             foreignKeyName: "pt_pass_adjustments_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "pt_pass_adjustments_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pt_passes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_pass_adjustments_transfer_pass_id_fkey"
+            columns: ["transfer_pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
           },
           {
             foreignKeyName: "pt_pass_adjustments_transfer_pass_id_fkey"
@@ -9874,6 +9918,13 @@ export type Database = {
             foreignKeyName: "pt_payment_allocations_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "pt_payment_allocations_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pt_passes"
             referencedColumns: ["id"]
           },
@@ -9945,6 +9996,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pt_invoices"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_payment_communications_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
           },
           {
             foreignKeyName: "pt_payment_communications_pass_id_fkey"
@@ -10099,6 +10157,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pt_payment_plan_installments_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
+          },
           {
             foreignKeyName: "pt_payment_plan_installments_pass_id_fkey"
             columns: ["pass_id"]
@@ -10635,6 +10700,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pt_invoices"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_refunds_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
           },
           {
             foreignKeyName: "pt_refunds_pass_id_fkey"
@@ -11262,6 +11334,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pt_appointments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_session_usage_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pt_pass_balances"
+            referencedColumns: ["pass_id"]
           },
           {
             foreignKeyName: "pt_session_usage_pass_id_fkey"
@@ -13656,6 +13735,8 @@ export type Database = {
           appointment_id: string | null
           client_note: string | null
           client_user_id: string | null
+          converted_at: string | null
+          converted_by: string | null
           created_at: string
           decline_reason: string | null
           email: string
@@ -13667,11 +13748,13 @@ export type Database = {
           is_member: boolean
           offered_at: string | null
           offered_by: string | null
+          origin: string
           phone: string
           preferred_date: string | null
           preferred_time: string | null
           preferred_times: string | null
           pt_session_type_id: string | null
+          request_kind: string
           request_status: string
           requested_trainer_id: string | null
           resolved_at: string | null
@@ -13692,6 +13775,8 @@ export type Database = {
           appointment_id?: string | null
           client_note?: string | null
           client_user_id?: string | null
+          converted_at?: string | null
+          converted_by?: string | null
           created_at?: string
           decline_reason?: string | null
           email: string
@@ -13703,11 +13788,13 @@ export type Database = {
           is_member?: boolean
           offered_at?: string | null
           offered_by?: string | null
+          origin?: string
           phone: string
           preferred_date?: string | null
           preferred_time?: string | null
           preferred_times?: string | null
           pt_session_type_id?: string | null
+          request_kind?: string
           request_status?: string
           requested_trainer_id?: string | null
           resolved_at?: string | null
@@ -13728,6 +13815,8 @@ export type Database = {
           appointment_id?: string | null
           client_note?: string | null
           client_user_id?: string | null
+          converted_at?: string | null
+          converted_by?: string | null
           created_at?: string
           decline_reason?: string | null
           email?: string
@@ -13739,11 +13828,13 @@ export type Database = {
           is_member?: boolean
           offered_at?: string | null
           offered_by?: string | null
+          origin?: string
           phone?: string
           preferred_date?: string | null
           preferred_time?: string | null
           preferred_times?: string | null
           pt_session_type_id?: string | null
+          request_kind?: string
           request_status?: string
           requested_trainer_id?: string | null
           resolved_at?: string | null
@@ -14450,6 +14541,18 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_pass_balances: {
+        Row: {
+          available_to_book: number | null
+          entitlement_remaining: number | null
+          pass_id: string | null
+          sessions_consumed: number | null
+          sessions_purchased: number | null
+          sessions_reserved: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       public_instructors_view: {
         Row: {
           bio: string | null
@@ -14691,6 +14794,9 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reservation_resolved_at: string | null
+          reservation_state: string
+          reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -14813,6 +14919,9 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reservation_resolved_at: string | null
+          reservation_state: string
+          reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -14905,6 +15014,9 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reservation_resolved_at: string | null
+          reservation_state: string
+          reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -16181,6 +16293,9 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reservation_resolved_at: string | null
+          reservation_state: string
+          reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
           starts_at: string
@@ -16377,6 +16492,7 @@ export type Database = {
           source: string
         }[]
       }
+      pt_pass_reserved_count: { Args: { p_pass_id: string }; Returns: number }
       pt_pick_pass_for_appointment: {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
@@ -16578,6 +16694,55 @@ export type Database = {
         Args: { p_request_id: string; p_use_alternate?: boolean }
         Returns: Json
       }
+      pt_request_convert_inquiry: {
+        Args: { p_client_user_id: string; p_request_id: string }
+        Returns: {
+          admin_notes: string | null
+          alt_date: string | null
+          alt_note: string | null
+          alt_time: string | null
+          alt_trainer_id: string | null
+          appointment_id: string | null
+          client_note: string | null
+          client_user_id: string | null
+          converted_at: string | null
+          converted_by: string | null
+          created_at: string
+          decline_reason: string | null
+          email: string
+          experience_level: string | null
+          flexibility_note: string | null
+          full_name: string
+          goals: string | null
+          id: string
+          is_member: boolean
+          offered_at: string | null
+          offered_by: string | null
+          origin: string
+          phone: string
+          preferred_date: string | null
+          preferred_time: string | null
+          preferred_times: string | null
+          pt_session_type_id: string | null
+          request_kind: string
+          request_status: string
+          requested_trainer_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service: string
+          status: string
+          submitted_by_user_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "training_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       pt_request_create: {
         Args: {
           p_client_note?: string
@@ -16611,6 +16776,8 @@ export type Database = {
           appointment_id: string | null
           client_note: string | null
           client_user_id: string | null
+          converted_at: string | null
+          converted_by: string | null
           created_at: string
           decline_reason: string | null
           email: string
@@ -16622,11 +16789,13 @@ export type Database = {
           is_member: boolean
           offered_at: string | null
           offered_by: string | null
+          origin: string
           phone: string
           preferred_date: string | null
           preferred_time: string | null
           preferred_times: string | null
           pt_session_type_id: string | null
+          request_kind: string
           request_status: string
           requested_trainer_id: string | null
           resolved_at: string | null
@@ -16655,6 +16824,19 @@ export type Database = {
           p_starts_at?: string
         }
         Returns: Json
+      }
+      pt_reservation_consume: {
+        Args: {
+          p_actor: string
+          p_appointment_id: string
+          p_key: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      pt_reservation_release: {
+        Args: { p_actor: string; p_appointment_id: string; p_reason: string }
+        Returns: boolean
       }
       pt_resolve_failed_obligation: {
         Args: {
