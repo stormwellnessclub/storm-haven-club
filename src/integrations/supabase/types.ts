@@ -8437,6 +8437,10 @@ export type Database = {
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_resolution: string | null
+          historical_resolution_note: string | null
+          historical_resolved_at: string | null
+          historical_resolved_by: string | null
           id: string
           instructor_id: string | null
           internal_notes: string | null
@@ -8490,6 +8494,10 @@ export type Database = {
           duration_minutes?: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_resolution?: string | null
+          historical_resolution_note?: string | null
+          historical_resolved_at?: string | null
+          historical_resolved_by?: string | null
           id?: string
           instructor_id?: string | null
           internal_notes?: string | null
@@ -8543,6 +8551,10 @@ export type Database = {
           duration_minutes?: number
           ends_at?: string
           format?: Database["public"]["Enums"]["pt_format"]
+          historical_resolution?: string | null
+          historical_resolution_note?: string | null
+          historical_resolved_at?: string | null
+          historical_resolved_by?: string | null
           id?: string
           instructor_id?: string | null
           internal_notes?: string | null
@@ -14775,6 +14787,10 @@ export type Database = {
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_resolution: string | null
+          historical_resolution_note: string | null
+          historical_resolved_at: string | null
+          historical_resolved_by: string | null
           id: string
           instructor_id: string | null
           internal_notes: string | null
@@ -14900,6 +14916,10 @@ export type Database = {
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_resolution: string | null
+          historical_resolution_note: string | null
+          historical_resolved_at: string | null
+          historical_resolved_by: string | null
           id: string
           instructor_id: string | null
           internal_notes: string | null
@@ -14995,6 +15015,10 @@ export type Database = {
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_resolution: string | null
+          historical_resolution_note: string | null
+          historical_resolved_at: string | null
+          historical_resolved_by: string | null
           id: string
           instructor_id: string | null
           internal_notes: string | null
@@ -16274,6 +16298,10 @@ export type Database = {
           duration_minutes: number
           ends_at: string
           format: Database["public"]["Enums"]["pt_format"]
+          historical_resolution: string | null
+          historical_resolution_note: string | null
+          historical_resolved_at: string | null
+          historical_resolved_by: string | null
           id: string
           instructor_id: string | null
           internal_notes: string | null
@@ -16848,6 +16876,10 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_resolve_historical_appointment: {
+        Args: { p_appointment_id: string; p_note?: string; p_outcome: string }
+        Returns: Json
+      }
       pt_sale_payment_record: {
         Args: { p_idempotency_key: string }
         Returns: string
@@ -16880,6 +16912,23 @@ export type Database = {
           p_to_pass_id: string
         }
         Returns: Json
+      }
+      pt_unresolved_past_appointments: {
+        Args: never
+        Returns: {
+          consumed_usage_count: number
+          format: string
+          id: string
+          instructor_id: string
+          pack_name: string
+          package_deducted: boolean
+          pass_id: string
+          sessions_remaining: number
+          sessions_total: number
+          starts_at: string
+          status: string
+          user_id: string
+        }[]
       }
       pt_void_invoice: {
         Args: { p_invoice_id: string; p_reason: string }

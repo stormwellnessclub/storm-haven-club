@@ -442,6 +442,13 @@
       "when": 1790349135612,
       "tag": "0062_pt_appt_guard_trust_sanctioned_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790371348758,
+      "tag": "0063_pt_historical_appointment_resolution",
+      "breakpoints": true
     }
   ]
 }
