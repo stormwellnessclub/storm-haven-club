@@ -91,11 +91,22 @@ export default function PTPackages() {
     { key: "format", header: "Format", render: (p) => PT_FORMAT_LABEL[p.format as PtFormat] ?? p.format },
     {
       key: "sessions", header: "Balance", align: "right",
-      render: (p) => (
-        <span className={p.sessions_remaining <= 2 ? "text-pt-red font-medium" : ""}>
-          {p.sessions_remaining} / {p.sessions_total}
-        </span>
-      ),
+      render: (p) => {
+        const b = balances[p.id];
+        const avail = b?.available_to_book ?? p.sessions_remaining;
+        return (
+          <span className={avail <= 2 ? "text-pt-red font-medium" : ""} title="Purchased / consumed / reserved / available / entitlement remaining">
+            {b ? (
+              <>
+                {b.available_to_book} available
+                <span className="block text-xs text-pt-muted font-normal">
+                  {b.sessions_purchased} purchased · {b.sessions_consumed} consumed · {b.sessions_reserved} reserved · {b.entitlement_remaining} remaining
+                </span>
+              </>
+            ) : `${p.sessions_remaining} / ${p.sessions_total}`}
+          </span>
+        );
+      },
     },
     { key: "activated", header: "Activated", render: (p) => (p.activated_at ? fmtDate(new Date(`${p.activated_at}T12:00:00`), "MMM d, yyyy") : "—") },
     {
