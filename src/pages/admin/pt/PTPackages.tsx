@@ -10,6 +10,7 @@ import {
   PTKpiCard, PTModal, ptButtonClass,
 } from "@/components/admin/pt/PTUI";
 import { usePTPeople } from "@/hooks/pt/usePTPortal";
+import { usePTPassBalances } from "@/hooks/pt/usePTPassBalances";
 import { PT_FORMAT_LABEL, formatCents, PtFormat } from "@/lib/ptFormat";
 import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import {
@@ -28,6 +29,7 @@ import {
 type Tab = "active" | "expiring" | "expired" | "usage" | "adjustments" | "catalog";
 
 export default function PTPackages() {
+  const { data: balances = {} } = usePTPassBalances();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("active");
   const [sellOpen, setSellOpen] = useState(false);

@@ -12,6 +12,7 @@ import {
 } from "@/components/admin/pt/PTUI";
 import { usePTTrainers, usePTTrainerMap, usePTClientProfile, useSavePTClientProfile } from "@/hooks/pt/usePTPortal";
 import { usePTClientDirectory } from "@/hooks/pt/usePTClientDirectory";
+import { usePTPassBalances, passBalanceText } from "@/hooks/pt/usePTPassBalances";
 import {
   usePTClientAppointments, usePTClientPassesFull, usePTClientSessionNotes, usePTClientMetrics,
   usePTClientPhotos, usePTClientDocuments, usePTClientPrograms, usePTClientPrs, usePTClientMilestones,
@@ -72,6 +73,7 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 /* ------------------------------------------------------------------- page */
 
 export default function PTClientDetail() {
+  const { data: balances = {} } = usePTPassBalances();
   const { userId = "" } = useParams();
   const { pathname } = useLocation();
   const [tab, setTab] = useState<Tab>(pathname.endsWith("/billing") ? "Billing" : "Overview");

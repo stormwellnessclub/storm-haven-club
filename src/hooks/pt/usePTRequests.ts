@@ -10,13 +10,14 @@ export const REQUEST_STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-export function usePTRequests() {
+export function usePTRequests(kind: "appointment_request" | "inquiry" = "appointment_request") {
   return useQuery({
-    queryKey: ["pt-requests"],
+    queryKey: ["pt-requests", kind],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("training_requests")
         .select("*")
+        .eq("request_kind", kind)
         .order("created_at", { ascending: true })
         .limit(2000);
       if (error) throw error;
@@ -85,5 +86,12 @@ export function usePTRequestActions() {
     },
     onSuccess: done,
   });
-  return { update, confirm };
+  const convert = useMutation({
+    mutationFn: async (args: { id: string; clientUserId: string }) => {
+      const { error } = await (supabase as any).rpc("pt_request_convert_inquiry", { p_request_id: args.id, p_client_user_id: args.clientUserId });
+      if (error) throw new Error(errMsg(error));
+    },
+    onSuccess: done,
+  });
+  return { update, confirm, convert };
 }

@@ -62,7 +62,7 @@ export default function PTRequests() {
 
   return (
     <PTShell>
-      <PTPageHeader title="Requests" subtitle="Client training requests, oldest first. Queue position is visible to staff only." />
+      <PTPageHeader title="Requests" subtitle="Appointment requests from signed-in clients (or converted leads), oldest first. Website inquiries live under Leads." />
       <div className="flex flex-wrap gap-2 mb-4">
         {FILTERS.map((f) => (
           <button key={f} onClick={() => setFilter(f)} className={ptButtonClass(filter === f ? "primary" : "outline")}>
