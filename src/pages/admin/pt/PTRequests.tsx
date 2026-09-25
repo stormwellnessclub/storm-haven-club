@@ -9,6 +9,7 @@ import { PTShell, PTPageHeader, PTCard, PTBadge, PTEmptyState, ptButtonClass, PT
 import { usePTTrainers, usePTPeople } from "@/hooks/pt/usePTPortal";
 import { usePTRequests, usePTSessionTypes, usePTRequestContext, usePTRequestActions, REQUEST_STATUS_LABEL } from "@/hooks/pt/usePTRequests";
 import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
+import { PTHistoricalReconciliation } from "@/components/admin/pt/PTHistoricalReconciliation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -63,6 +64,7 @@ export default function PTRequests() {
   return (
     <PTShell>
       <PTPageHeader title="Requests" subtitle="Appointment requests from signed-in clients (or converted leads), oldest first. Website inquiries live under Leads." />
+      <PTHistoricalReconciliation />
       <div className="flex flex-wrap gap-2 mb-4">
         {FILTERS.map((f) => (
           <button key={f} onClick={() => setFilter(f)} className={ptButtonClass(filter === f ? "primary" : "outline")}>
