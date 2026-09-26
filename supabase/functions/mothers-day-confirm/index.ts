@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +14,7 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { session_id, payment_intent_id } = await req.json();
+    const { session_id, payment_intent_id, client_secret } = await req.json();
     if (!session_id && !payment_intent_id)
       throw new Error("payment_intent_id or session_id required");
 
@@ -29,10 +30,19 @@ serve(async (req) => {
     let intentId = payment_intent_id as string | undefined;
     let paid = false;
 
+    const server = isServerCaller(req);
+    const unauthorized = () =>
+      new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     if (intentId) {
       const pi = await stripe.paymentIntents.retrieve(intentId);
+      if (!server && (!client_secret || client_secret !== pi.client_secret)) return unauthorized();
       paid = pi.status === "succeeded";
     } else {
+      // Legacy Checkout Session path: server callers (webhooks/reconcile) only.
+      if (!server) return unauthorized();
       const session = await stripe.checkout.sessions.retrieve(session_id);
       paid = session.payment_status === "paid";
       intentId = (session.payment_intent as string) || undefined;
