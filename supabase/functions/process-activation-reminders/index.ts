@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { maskEmail } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -116,12 +117,12 @@ serve(async (req) => {
         ? new Date(member.activation_deadline) 
         : new Date(approvedAt.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      console.log(`Processing member ${member.email}: ${daysSinceApproval} days since approval`);
+      console.log(`Processing member ${maskEmail(member.email)}: ${daysSinceApproval} days since approval`);
 
       try {
         // Day 3 reminder (between 3-4 days)
         if (daysSinceApproval >= 3 && daysSinceApproval < 4) {
-          console.log(`Sending day 3 reminder to ${member.email}`);
+          console.log(`Sending day 3 reminder to ${maskEmail(member.email)}`);
           await supabase.functions.invoke('send-email', {
             body: {
               type: 'activation_reminder_day3',
@@ -135,7 +136,7 @@ serve(async (req) => {
         }
         // Day 5 reminder (between 5-6 days)
         else if (daysSinceApproval >= 5 && daysSinceApproval < 6) {
-          console.log(`Sending day 5 reminder to ${member.email}`);
+          console.log(`Sending day 5 reminder to ${maskEmail(member.email)}`);
           await supabase.functions.invoke('send-email', {
             body: {
               type: 'activation_reminder_day5',
@@ -154,7 +155,7 @@ serve(async (req) => {
         }
         // Auto-activate on day 7+
         else if (daysSinceApproval >= 7) {
-          console.log(`Auto-activating membership for ${member.email}`);
+          console.log(`Auto-activating membership for ${maskEmail(member.email)}`);
           
           // Check current status to prevent race condition with manual activation
           const { data: currentMember, error: checkError } = await supabase
@@ -164,14 +165,14 @@ serve(async (req) => {
             .single();
 
           if (checkError) {
-            console.error(`Failed to check member status for ${member.email}:`, checkError);
+            console.error(`Failed to check member status for ${maskEmail(member.email)}:`, checkError);
             results.errors++;
             continue;
           }
 
           // Only auto-activate if still pending (prevent conflict with manual activation)
           if (currentMember?.status !== 'pending_activation') {
-            console.log(`Member ${member.email} is no longer pending activation (current status: ${currentMember?.status}), skipping auto-activation`);
+            console.log(`Member ${maskEmail(member.email)} is no longer pending activation (current status: ${currentMember?.status}), skipping auto-activation`);
             continue;
           }
           
@@ -190,7 +191,7 @@ serve(async (req) => {
             .eq('status', 'pending_activation'); // Only update if still pending
 
           if (updateError) {
-            console.error(`Failed to auto-activate ${member.email}:`, updateError);
+            console.error(`Failed to auto-activate ${maskEmail(member.email)}:`, updateError);
             results.errors++;
             continue;
           }
@@ -203,7 +204,7 @@ serve(async (req) => {
             .single();
 
           if (verifyError || updatedMember?.status !== 'active') {
-            console.log(`Member ${member.email} was not activated (may have been activated by another process)`);
+            console.log(`Member ${maskEmail(member.email)} was not activated (may have been activated by another process)`);
             continue;
           }
 
@@ -227,7 +228,7 @@ serve(async (req) => {
           results.autoActivated++;
         }
       } catch (error) {
-        console.error(`Error processing member ${member.email}:`, error);
+        console.error(`Error processing member ${maskEmail(member.email)}:`, error);
         results.errors++;
       }
     }

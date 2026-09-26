@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { maskEmail } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,7 +92,7 @@ serve(async (req) => {
         });
 
         if (emailError) {
-          console.error(`Failed to send feedback email to ${guest.guest_email}:`, emailError);
+          console.error(`Failed to send feedback email to ${maskEmail(guest.guest_email)}:`, emailError);
           errors++;
           continue;
         }
@@ -109,7 +110,7 @@ serve(async (req) => {
         }
 
         sent++;
-        console.log(`Feedback email sent to ${guest.guest_email}`);
+        console.log(`Feedback email sent to ${maskEmail(guest.guest_email)}`);
       } catch (err) {
         console.error(`Error processing guest ${guest.id}:`, err);
         errors++;
