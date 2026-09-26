@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
+import { relationshipMap } from "@/lib/ptIdentity";
 import { toast } from "sonner";
 import { addDays, addMonths, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
@@ -61,6 +62,7 @@ interface UserOption {
   name: string;
   isMember: boolean;
   isNonMember?: boolean;
+  isFormer?: boolean;
 }
 
 interface SavedCard {
@@ -170,7 +172,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           .limit(10),
         supabase
           .from("members")
-          .select("user_id, email, first_name, last_name")
+          .select("user_id, email, first_name, last_name, status")
           .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
           .limit(10),
         supabase
@@ -179,28 +181,34 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
           .limit(10),
       ]);
-      const list: UserOption[] = [
-        ...(profiles ?? []).map((p: any) => ({
+      // Resolve current membership for every matched account (one person = one user_id).
+      const ids = Array.from(new Set([
+        ...(profiles ?? []).map((p: any) => p.user_id),
+        ...(nonMembers ?? []).map((n: any) => n.user_id),
+        ...(members ?? []).map((m: any) => m.user_id),
+      ].filter(Boolean)));
+      const { data: memRows } = ids.length
+        ? await supabase.from("members").select("user_id, status").in("user_id", ids)
+        : { data: [] as any[] };
+      const rel = relationshipMap((memRows ?? []) as any[]);
+      const base = [
+        ...(profiles ?? []), ...(nonMembers ?? []), ...(members ?? []).filter((m: any) => m.status !== "cancelled"),
+      ] as any[];
+      const list: UserOption[] = base.map((p) => {
+        const r = rel[p.user_id] ?? "Non-member";
+        return {
           id: p.user_id,
           email: p.email,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email,
-          isMember: false,
-        })),
-        ...(nonMembers ?? []).map((n: any) => ({
-          id: n.user_id,
-          email: n.email,
-          name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email,
-          isMember: false,
-          isNonMember: true,
-        })),
-        ...(members ?? []).map((m: any) => ({
-          id: m.user_id,
-          email: m.email,
-          name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email,
-          isMember: true,
-        })),
-      ].filter((u) => u.id);
-      return Array.from(new Map(list.map((u) => [u.id, u])).values());
+          name: [p.first_name, p.last_name].filter(Boolean).join(" ").trim() || p.email,
+          isMember: r === "Member",
+          isNonMember: r === "Non-member",
+          isFormer: r === "Former member",
+        };
+      }).filter((u) => u.id);
+      // Prefer a named row per user.
+      const map = new Map<string, UserOption>();
+      list.forEach((u) => { const prev = map.get(u.id); if (!prev || (prev.name === prev.email && u.name !== u.email)) map.set(u.id, u); });
+      return Array.from(map.values());
     },
     enabled: !selectedUserId && searchQuery.length >= 2,
   });
@@ -573,7 +581,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     >
                       <div className="font-medium">{u.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {u.email} {u.isMember ? "· Member" : u.isNonMember ? "· Non-member" : ""}
+                        {u.email} {u.isMember ? "· Member" : u.isFormer ? "· Former member" : "· Non-member"}
                       </div>
                     </button>
                   ))}

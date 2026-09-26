@@ -470,6 +470,13 @@
       "when": 1790404845199,
       "tag": "0066_remove_self_activation_and_self_achievements",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1790408262620,
+      "tag": "0067_pt_canonical_identity",
+      "breakpoints": true
     }
   ]
 }

@@ -129,7 +129,7 @@ export function PTAppointmentDrawer({
               <div className="text-sm text-pt-ink">{person?.name ?? "—"}</div>
               <div className="text-xs text-pt-muted">{person?.email ?? "—"}{person?.phone ? ` · ${person.phone}` : ""}</div>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                <PTBadge tone={person?.isMember ? "gold" : "neutral"}>{person?.isMember ? "Member" : "Non-member"}</PTBadge>
+                <PTBadge tone={person?.isMember ? "gold" : "neutral"}>{person?.relationship ?? (person?.isMember ? "Member" : "Non-member")}</PTBadge>
                 <PTBadge>{sessionType?.name ?? PT_FORMAT_LABEL[a.format]}</PTBadge>
                 {sessionType && <PTBadge>Capacity {sessionType.capacity}</PTBadge>}
                 {location && <PTBadge><MapPin className="h-3 w-3" />{location.name}</PTBadge>}

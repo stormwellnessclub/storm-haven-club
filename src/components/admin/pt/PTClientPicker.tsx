@@ -3,12 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
+import { PTRelationship, relationshipMap } from "@/lib/ptIdentity";
 
 export interface PTClientOption {
   id: string;
   email: string;
   name: string;
-  kind: "Member" | "Non-member" | "Client";
+  kind: PTRelationship;
 }
 
 /**
@@ -29,29 +30,27 @@ export function PTClientPicker({
     enabled: !value && query.trim().length >= 2,
     queryFn: async (): Promise<PTClientOption[]> => {
       const q = query.trim();
+      const f = `email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`;
       const [members, nonMembers, profiles] = await Promise.all([
-        supabase.from("members").select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).neq("status", "cancelled").limit(8),
-        supabase.from("non_member_profiles").select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).limit(8),
-        supabase.from("profiles").select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`).limit(8),
+        supabase.from("members").select("user_id, email, first_name, last_name").or(f).neq("status", "cancelled").limit(8),
+        supabase.from("non_member_profiles").select("user_id, email, first_name, last_name").or(f).limit(8),
+        supabase.from("profiles").select("user_id, email, first_name, last_name").or(f).limit(8),
       ]);
-      const list: PTClientOption[] = [
-        ...(profiles.data ?? []).map((p: any) => ({
-          id: p.user_id, email: p.email,
-          name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, kind: "Client" as const,
-        })),
-        ...(nonMembers.data ?? []).map((n: any) => ({
-          id: n.user_id, email: n.email,
-          name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email, kind: "Non-member" as const,
-        })),
-        ...(members.data ?? []).map((m: any) => ({
-          id: m.user_id, email: m.email,
-          name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, kind: "Member" as const,
-        })),
-      ].filter((c) => c.id);
-      return Array.from(new Map(list.map((c) => [c.id, c])).values());
+      const rows = [...(profiles.data ?? []), ...(nonMembers.data ?? []), ...(members.data ?? [])] as any[];
+      const ids = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
+      const { data: memRows } = ids.length
+        ? await supabase.from("members").select("user_id, status").in("user_id", ids)
+        : { data: [] as any[] };
+      const rel = relationshipMap((memRows ?? []) as any[]);
+      const map = new Map<string, PTClientOption>();
+      rows.forEach((r) => {
+        if (!r.user_id) return;
+        const name = [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || r.email;
+        const prev = map.get(r.user_id);
+        if (prev && prev.name !== prev.email) return;
+        map.set(r.user_id, { id: r.user_id, email: r.email, name, kind: rel[r.user_id] ?? "Non-member" });
+      });
+      return Array.from(map.values());
     },
   });
 
