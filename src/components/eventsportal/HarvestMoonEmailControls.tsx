@@ -84,10 +84,10 @@ export function HarvestMoonEmailControls() {
     }
   };
 
-  const sendAll = async () => {
+  const sendAll = async (resend = false) => {
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke(FN, { body: {} });
+      const { data, error } = await supabase.functions.invoke(FN, { body: resend ? { resend: true } : {} });
       if (error) throw error;
       setResult(data);
       toast.success(`Invitation sent to ${data.queued} members (${data.skipped} skipped)`);
@@ -143,7 +143,20 @@ export function HarvestMoonEmailControls() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={sending}>Not yet</AlertDialogCancel>
-                <AlertDialogAction onClick={sendAll} disabled={sending}>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    if (!confirm("Send again to everyone, including people who already received it?")) {
+                      e.preventDefault();
+                      return;
+                    }
+                    sendAll(true);
+                  }}
+                  disabled={sending}
+                  className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                >
+                  Send again to everyone
+                </AlertDialogAction>
+                <AlertDialogAction onClick={() => sendAll(false)} disabled={sending}>
                   {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                   Send the invitation
                 </AlertDialogAction>
