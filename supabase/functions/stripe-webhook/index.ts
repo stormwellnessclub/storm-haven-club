@@ -887,6 +887,23 @@ serve(async (req) => {
           
           logStep("Checkout completed", { sessionId: session.id, type: metadata.type });
 
+          // Gut Reset purchases are fulfilled here (the success page is read-only for anonymous buyers).
+          if (metadata.purchase_id && (metadata.option === '3day' || metadata.option === '5day')) {
+            try {
+              const resp = await fetch(`${Deno.env.get("SUPABASE_URL") ?? ""}/functions/v1/gut-reset-verify-payment`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`,
+                },
+                body: JSON.stringify({ stripe_session_id: session.id }),
+              });
+              logStep("Gut Reset fulfillment response", { status: resp.status });
+            } catch (e) {
+              logError(e, 'GUT_RESET_FULFILL');
+            }
+          }
+
           if (metadata.event_invoice_id) {
             try {
               const piId = typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as Stripe.PaymentIntent | null)?.id;
