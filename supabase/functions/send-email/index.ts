@@ -184,6 +184,16 @@ serve(async (req) => {
       }
     }
 
+    // Gift-card emails carry buyer-typed text: escape those fields as plain text.
+    if ((type as string) === 'gift_card_delivery' && data && typeof data === 'object') {
+      const escT = (v: unknown) => String(v ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;').slice(0, 1000);
+      for (const k of ['customMessage', 'senderName', 'recipientName', 'name', 'serviceLabel', 'code']) {
+        if (typeof (data as any)[k] === 'string') (data as any)[k] = escT((data as any)[k]);
+      }
+    }
+
     const maskedTo = String(to ?? '').replace(/^(.).*(@.*)$/, '$1***$2');
     console.log(`Processing email type: ${type} for: ${maskedTo}`);
 
