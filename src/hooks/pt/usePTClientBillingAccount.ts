@@ -120,14 +120,14 @@ export function usePTClientUnpaidSessions(userId?: string) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("pt_appointments")
-        .select("id, starts_at, instructor_id, format, session_type_name, amount_due_cents, payment_status, status")
+        .select("id, starts_at, instructor_id, format, session_type_id, amount_due_cents, payment_status, status, pt_session_types(name)")
         .eq("user_id", userId)
         .is("pass_id", null)
         .in("payment_status", ["unpaid", "past_due"])
         .or(`status.eq.completed,and(status.eq.scheduled,starts_at.lt.${new Date().toISOString()})`)
         .order("starts_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return (data ?? []).map((a: any) => ({ ...a, session_type_name: a.pt_session_types?.name ?? null })) as any[];
     },
   });
 }

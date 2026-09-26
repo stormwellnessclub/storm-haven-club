@@ -41,7 +41,21 @@ serve(async (req) => {
       authorized = !!user && !!sessionEmail && user.email === sessionEmail;
     }
     if (!authorized) {
-      return new Response(JSON.stringify({ paid, tickets: [] }), {
+      // Guest buyer returning from Stripe: show a read-only summary only
+      // (no ticket IDs or QR codes, email partly hidden, nothing is changed).
+      const { data: summary } = await supabase
+        .from("event_tickets")
+        .select("buyer_first_name, buyer_last_name, buyer_email, events(title, starts_at, venue)")
+        .eq("stripe_session_id", session_id);
+      const mask = (e: string | null) => {
+        if (!e) return e;
+        const [u, d] = e.split("@");
+        return d ? `${u.slice(0, 2)}${"*".repeat(Math.max(u.length - 2, 1))}@${d}` : e;
+      };
+      const safe = paid
+        ? (summary ?? []).map((t: any) => ({ ...t, buyer_last_name: t.buyer_last_name?.slice(0, 1) ?? "", buyer_email: mask(t.buyer_email) }))
+        : [];
+      return new Response(JSON.stringify({ paid, tickets: safe }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
