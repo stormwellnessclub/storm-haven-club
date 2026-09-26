@@ -91,6 +91,7 @@ function formatTierDisplay(rawPlan: string): string {
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { syncCardMetadataWithRetry } from "@/hooks/useCardSyncStatus";
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 
 
 type Application = {
@@ -1596,7 +1597,7 @@ export default function Applications() {
 
     const escapeCSV = (value: string | null | undefined) => {
       if (value === null || value === undefined) return "";
-      const str = String(value);
+      const str = neutralizeCsvFormula(value);
       if (str.includes(",") || str.includes('"') || str.includes("\n")) {
         return `"${str.replace(/"/g, '""')}"`;
       }

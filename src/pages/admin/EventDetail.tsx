@@ -15,6 +15,7 @@ import { EventEmailBlastControls } from "@/components/admin/EventEmailBlastContr
 import { EventRequestsPanel } from "@/components/admin/events/EventRequestsPanel";
 
 import { toast } from "sonner";
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 
 const CLUB_TZ = "America/Detroit";
 
@@ -112,7 +113,7 @@ export default function EventDetail() {
       purchased_at: format(new Date(t.created_at), "yyyy-MM-dd HH:mm"),
     }));
     const header = ["Name", "Email", "Phone", "Type", "Gift", "Account", "Amount", "Purchased"];
-    const escape = (v: string) => `"${String(v).replace(/"/g, '""')}"`;
+    const escape = (v: string) => `"${neutralizeCsvFormula(v).replace(/"/g, '""')}"`;
     const csv = [
       header.join(","),
       ...rows.map((r) => [r.name, r.email, r.phone, r.type, r.gift, r.account, r.amount, r.purchased_at].map(escape).join(",")),
