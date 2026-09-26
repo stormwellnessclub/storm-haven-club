@@ -3352,7 +3352,7 @@ export type Database = {
           attendee_first_name: string | null
           attendee_last_name: string | null
           attendee_phone: string | null
-          buyer_email: string
+          buyer_email: string | null
           buyer_first_name: string | null
           buyer_last_name: string | null
           buyer_phone: string | null
@@ -3379,7 +3379,7 @@ export type Database = {
           attendee_first_name?: string | null
           attendee_last_name?: string | null
           attendee_phone?: string | null
-          buyer_email: string
+          buyer_email?: string | null
           buyer_first_name?: string | null
           buyer_last_name?: string | null
           buyer_phone?: string | null
@@ -3406,7 +3406,7 @@ export type Database = {
           attendee_first_name?: string | null
           attendee_last_name?: string | null
           attendee_phone?: string | null
-          buyer_email?: string
+          buyer_email?: string | null
           buyer_first_name?: string | null
           buyer_last_name?: string | null
           buyer_phone?: string | null

@@ -484,6 +484,13 @@
       "when": 1790451613739,
       "tag": "0068_pt_past_sessions_owed_and_credit_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1790458830114,
+      "tag": "0069_event_tickets_allow_no_email",
+      "breakpoints": true
     }
   ]
 }
