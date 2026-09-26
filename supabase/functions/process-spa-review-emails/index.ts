@@ -79,7 +79,7 @@ serve(async (req) => {
         });
 
         if (emailError) {
-          console.error(`Failed to send spa review email for token id ${t.id ?? "unknown"}:`, emailError);
+          console.error(`Failed to send spa review email for appointment ${t.appointment_id}:`, emailError);
           errors++;
           continue;
         }
@@ -91,7 +91,7 @@ serve(async (req) => {
 
         sent++;
       } catch (err) {
-        console.error(`Error processing token id ${t.id ?? "unknown"}:`, err);
+        console.error(`Error processing appointment ${t.appointment_id}:`, err);
         errors++;
       }
     }
