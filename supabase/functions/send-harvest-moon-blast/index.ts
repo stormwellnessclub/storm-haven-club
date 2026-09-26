@@ -167,7 +167,7 @@ serve(async (req) => {
     .from("email_audit_log")
     .select("recipient_email")
     .eq("email_type", TEMPLATE_KEY);
-  const alreadySent = new Set(
+  const alreadySent: Set<string> = (body as any)?.resend === true ? new Set() : new Set(
     (sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()),
   );
 
