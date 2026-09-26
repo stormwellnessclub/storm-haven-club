@@ -45,6 +45,15 @@ const supabase = createClient(
   { auth: { persistSession: false } },
 );
 
+function detroitDateISO(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Detroit",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 /** Pause dues collection and verify it actually took effect in Stripe. */
 async function pauseVerified(subscriptionId: string, resumesAtISO?: string | null) {
   const pause_collection: Record<string, unknown> = { behavior: "keep_as_draft" };
@@ -108,6 +117,10 @@ async function activateFreeze(freezeId: string, waiveFee: boolean) {
 
   const startDate = freeze.actual_start_date ?? freeze.requested_start_date;
   const endDate = freeze.actual_end_date ?? freeze.requested_end_date;
+
+  if (startDate && startDate > detroitDateISO()) {
+    throw new Error(`Freeze cannot activate before its scheduled start date (${startDate}).`);
+  }
 
   let pausedSubscription: string | null = null;
   if (member.stripe_subscription_id) {
@@ -177,7 +190,7 @@ async function endFreezeEarly(freezeId: string) {
 
 /** Cron: activate APPROVED freezes whose start date has arrived. Pending never auto-activates. */
 async function runActivations() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = detroitDateISO();
   const { data: due, error } = await supabase
     .from("member_freezes")
     .select("id, member_id, requested_start_date, actual_start_date, fee_paid, freeze_fee_total")
