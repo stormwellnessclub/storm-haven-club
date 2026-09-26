@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
+import { relationshipMap } from "@/lib/ptIdentity";
 import { toast } from "sonner";
 import { addDays, addMonths, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
@@ -61,6 +62,7 @@ interface UserOption {
   name: string;
   isMember: boolean;
   isNonMember?: boolean;
+  isFormer?: boolean;
 }
 
 interface SavedCard {
@@ -579,7 +581,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     >
                       <div className="font-medium">{u.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {u.email} {u.isMember ? "· Member" : u.isNonMember ? "· Non-member" : ""}
+                        {u.email} {u.isMember ? "· Member" : u.isFormer ? "· Former member" : "· Non-member"}
                       </div>
                     </button>
                   ))}

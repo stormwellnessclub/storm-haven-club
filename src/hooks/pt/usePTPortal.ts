@@ -3,6 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PtFormat } from "@/lib/ptFormat";
 import { toast } from "sonner";
+import { PTRelationship, relationshipMap } from "@/lib/ptIdentity";
 
 export interface PTPerson {
   user_id: string;
@@ -10,6 +11,8 @@ export interface PTPerson {
   email: string;
   phone: string | null;
   isMember: boolean;
+  /** Current membership relationship; PT access never depends on it. */
+  relationship: PTRelationship;
   photo_url?: string | null;
 }
 
@@ -51,29 +54,27 @@ export function usePTPeople(userIds: string[]) {
     enabled: ids.length > 0,
     staleTime: 60_000,
     queryFn: async (): Promise<Record<string, PTPerson>> => {
-      const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
+      const [{ data: profiles }, { data: allMembers }, { data: nonMembers }] = await Promise.all([
         supabase.from("profiles").select("user_id, email, first_name, last_name, phone").in("user_id", ids),
-        supabase.from("members").select("user_id, email, first_name, last_name, phone, photo_url").in("user_id", ids).neq("status", "cancelled"),
+        supabase.from("members").select("user_id, email, first_name, last_name, phone, photo_url, status").in("user_id", ids),
         supabase.from("non_member_profiles").select("user_id, email, first_name, last_name, phone").in("user_id", ids),
       ]);
+      const rel = relationshipMap((allMembers ?? []) as any[]);
+      const members = (allMembers ?? []).filter((m: any) => m.status !== "cancelled");
       const map: Record<string, PTPerson> = {};
-      (profiles ?? []).forEach((p: any) => {
-        map[p.user_id] = { user_id: p.user_id, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, email: p.email, phone: p.phone ?? null, isMember: false };
-      });
-      (nonMembers ?? []).forEach((n: any) => {
-        map[n.user_id] = {
-          user_id: n.user_id,
-          name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email,
-          email: n.email, phone: n.phone ?? null, isMember: false,
+      const put = (r: any, extra: Partial<PTPerson> = {}) => {
+        const relationship = rel[r.user_id] ?? "Non-member";
+        map[r.user_id] = {
+          user_id: r.user_id,
+          name: [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || r.email,
+          email: r.email, phone: r.phone ?? null,
+          relationship, isMember: relationship === "Member",
+          ...extra,
         };
-      });
-      (members ?? []).forEach((m: any) => {
-        map[m.user_id] = {
-          user_id: m.user_id,
-          name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email,
-          email: m.email, phone: m.phone ?? null, isMember: true, photo_url: m.photo_url ?? null,
-        };
-      });
+      };
+      (profiles ?? []).forEach((p: any) => put(p));
+      (nonMembers ?? []).forEach((n: any) => put(n));
+      members.forEach((m: any) => put(m, { photo_url: m.photo_url ?? null }));
       return map;
     },
   });
