@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -68,7 +69,7 @@ const REASON_LABEL: Record<FilterReason, string> = {
 
 function downloadCsv(filename: string, rows: string[][]) {
   const csv = rows
-    .map((r) => r.map((c) => `"${(c ?? "").replace(/"/g, '""')}"`).join(","))
+    .map((r) => r.map((c) => `"${neutralizeCsvFormula(c ?? "").replace(/"/g, '""')}"`).join(","))
     .join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
