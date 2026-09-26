@@ -57,6 +57,11 @@ serve(async (req) => {
       return json({ success: true, alreadyProcessed: true, card: publicCard(card) });
     }
 
+    // Activation is webhook-only; buyers get a read-only view until the webhook lands.
+    if (!isServerCaller(req)) {
+      return json({ success: true, processing: true, scheduled: !!scheduled, card: publicCard(card) });
+    }
+
     const { data: updated, error: upErr } = await supabase
       .from("gift_cards")
       .update({ status: scheduled ? "scheduled" : "active" })

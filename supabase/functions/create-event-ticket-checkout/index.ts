@@ -76,6 +76,7 @@ serve(async (req) => {
 
     // Optional auth (used to link ticket to user)
     let userId: string | null = null;
+    let userEmail: string | null = null;
     const auth = req.headers.get("Authorization");
     if (auth?.startsWith("Bearer ")) {
       const anon = createClient(
@@ -83,7 +84,7 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_ANON_KEY") ?? ""
       );
       const { data } = await anon.auth.getUser(auth.slice(7));
-      if (data?.user) userId = data.user.id;
+      if (data?.user) { userId = data.user.id; userEmail = (data.user.email || "").toLowerCase() || null; }
     }
 
     // Member detection: match members table by user or email, must be active/frozen (not cancelled)
@@ -117,7 +118,9 @@ serve(async (req) => {
       .eq("buyer_email", email)
       .eq("status", "pending")
       .lt("created_at", fifteenMinAgo);
-    if (stalePending && stalePending.length > 0) {
+    // Only clean up (and cancel Stripe payments for) attempts the signed-in buyer provably owns.
+    const ownsEmail = !!userEmail && userEmail === email;
+    if (ownsEmail && stalePending && stalePending.length > 0) {
       await Promise.allSettled(
         stalePending.map(async (row: any) => {
           let reason = "no_payment_intent";

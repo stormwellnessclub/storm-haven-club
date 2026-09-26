@@ -1,3 +1,4 @@
+import { isAllowedTestRecipient } from "../_shared/security.ts";
 // Promotion (class pass sale) emails.
 // Actions:
 //   preview  -> returns rendered HTML for a job/promotion (staff)
@@ -268,6 +269,7 @@ serve(async (req) => {
       if (!promo) return json({ error: "Sale not found" }, 404);
       const to = String(body.testEmail || "").trim().toLowerCase();
       if (!to) return json({ error: "testEmail is required" }, 400);
+      if (!(await isAllowedTestRecipient(req, to))) return json({ error: "Test emails can only go to club addresses or your own email" }, 403);
       const resp = await resend.emails.send({
         from: FROM,
         to: [to],

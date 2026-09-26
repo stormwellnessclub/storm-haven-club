@@ -2,6 +2,7 @@
 // Call: POST /functions/v1/indexnow-ping with { urls: ["https://stormwellnessclub.com/foo"] }
 // or no body to ping the full sitemap top URLs.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,11 +29,15 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   let urlList = DEFAULT_URLS;
-  if (req.method === "POST") {
+  // Custom URL lists are only accepted from the server; public callers ping the fixed sitemap list.
+  if (req.method === "POST" && isServerCaller(req)) {
     try {
       const body = await req.json().catch(() => ({}));
       if (Array.isArray(body?.urls) && body.urls.length) {
-        urlList = body.urls.filter((u: unknown) => typeof u === "string" && u.startsWith(`https://${HOST}`));
+        urlList = body.urls.filter((u: unknown) => {
+          if (typeof u !== "string") return false;
+          try { const p = new URL(u); return p.protocol === "https:" && p.hostname === HOST; } catch { return false; }
+        }).slice(0, 100);
       }
     } catch { /* ignore */ }
   }

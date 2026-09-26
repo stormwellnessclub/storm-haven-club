@@ -1,3 +1,4 @@
+import { trustedOrigin } from "../_shared/security.ts";
 // Staff-only: email a private event invoice pay link, or charge a member's saved card.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
@@ -107,7 +108,7 @@ serve(async (req) => {
       .maybeSingle();
     if (!event) return fail("Event not found.", 404);
 
-    const origin = req.headers.get("origin") || "https://stormwellnessclub.com";
+    const origin = trustedOrigin(req);
     const payUrl = `${origin}/private-events/pay/${invoice.pay_token}`;
     const kindLabel = invoice.kind === "deposit" ? "Deposit" : invoice.label || "Balance";
 

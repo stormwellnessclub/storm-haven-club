@@ -111,7 +111,7 @@ serve(async (req) => {
       try {
         // === SYNC CUSTOMER IDs ===
         if (options.syncCustomerIds && !member.stripe_customer_id && member.email) {
-          logStep("Member missing Stripe customer ID, searching by email", { memberId: member.id, email: member.email });
+          logStep("Member missing Stripe customer ID, searching by email", { memberId: member.id });
           
           const customers = await stripe.customers.list({ email: member.email, limit: 1 });
           

@@ -44,6 +44,24 @@ serve(async (req) => {
     const { to, name, product_kind, reminder_step }: Body = await req.json();
     if (!to || !product_kind || !reminder_step) throw new Error("missing fields");
 
+    // Only send to a buyer who actually has an unfinished checkout on file.
+    {
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.57.2");
+      const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "", { auth: { persistSession: false } });
+      const { data: pending } = await admin
+        .from("pending_class_pass_checkouts")
+        .select("id")
+        .ilike("email", String(to).trim())
+        .eq("status", "pending")
+        .limit(1)
+        .maybeSingle();
+      if (!pending) {
+        return new Response(JSON.stringify({ error: "No pending checkout for this recipient" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const link =
       product_kind === "mothers_day_pack"
         ? `${SITE}/class-passes#mothers-day`

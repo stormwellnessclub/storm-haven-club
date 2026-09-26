@@ -114,13 +114,22 @@ serve(async (req) => {
       return !!data;
     };
 
-    if (body.is_gift) {
-      recipientIsMember = await checkMemberByEmail(body.recipient_email!);
-    } else {
-      selfIsMember = await checkMemberByEmail(body.buyer_email);
+    // Membership is never looked up by a typed email (prevents membership probing).
+    // Member pricing applies only to a signed-in active member buyer.
+    void checkMemberByEmail;
+    if (buyerUserId) {
+      const { data: m } = await supabase
+        .from("members")
+        .select("id")
+        .eq("user_id", buyerUserId)
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle();
+      selfIsMember = !!m;
     }
+    recipientIsMember = false;
 
-    const tierIsMember = body.is_gift ? recipientIsMember : selfIsMember;
+    const tierIsMember = selfIsMember;
     const tier = tierIsMember ? PRICES.member : PRICES.nonMember;
     const baseCents = tier.amount;
 

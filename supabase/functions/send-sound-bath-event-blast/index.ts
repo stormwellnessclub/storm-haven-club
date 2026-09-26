@@ -1,3 +1,4 @@
+import { isAllowedTestRecipient } from "../_shared/security.ts";
 // Send Sound Bath ticket announcement email.
 // Admin-only. Modes: preview (return HTML), testEmail (single send), else blast all active members.
 // Idempotent on email_type='sound_bath_event_jul_25_2026'.
@@ -103,6 +104,9 @@ serve(async (req) => {
   // Test send: one email to specified address
   if (body?.testEmail) {
     const email = String(body.testEmail).trim().toLowerCase();
+    if (!(await isAllowedTestRecipient(req, email))) {
+      return new Response(JSON.stringify({ error: "Test emails can only go to club addresses or your own email" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     try {
       const resp = await resend.emails.send({
         from: "Storm Wellness Club <admin@stormwellnessclub.com>",
