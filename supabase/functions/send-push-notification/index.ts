@@ -332,6 +332,15 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Only staff (or the server) may initialize the push key pair.
+      const genAuth = await requireStaff(req);
+      if (!genAuth.ok) {
+        return new Response(
+          JSON.stringify({ error: "Push notifications are not configured yet" }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       // Generate new key pair
       const keys = await generateVapidKeys();
       await supabase.from("system_config").upsert([

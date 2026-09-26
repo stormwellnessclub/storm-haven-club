@@ -68,7 +68,8 @@ serve(async (req) => {
     if (fetchErr) throw fetchErr;
     if (!tickets || tickets.length === 0) throw new Error("No tickets found for this session");
 
-    if (paid) {
+    // Fulfillment happens only in the signature-verified Stripe webhook (or server callers).
+    if (paid && isServerCaller(req)) {
       await supabase
         .from("event_tickets")
         .update({
