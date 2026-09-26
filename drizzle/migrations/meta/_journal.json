@@ -463,6 +463,13 @@
       "when": 1790377581255,
       "tag": "0065_pt_historical_list_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790404845199,
+      "tag": "0066_remove_self_activation_and_self_achievements",
+      "breakpoints": true
     }
   ]
 }

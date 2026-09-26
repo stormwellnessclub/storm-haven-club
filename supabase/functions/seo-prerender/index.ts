@@ -372,7 +372,9 @@ serve(async (req) => {
   }
 
   const url = new URL(req.url);
-  const path = url.searchParams.get('path') || '/';
+  const rawPath = url.searchParams.get('path') || '/';
+  // Only same-site relative paths: must start with a single '/', no scheme/host tricks.
+  const path = /^\/(?![\/\\])[A-Za-z0-9\-._~\/%?=&]*$/.test(rawPath) ? rawPath : '/';
   const userAgent = req.headers.get('user-agent') || '';
 
   // If not a crawler, redirect to the actual site

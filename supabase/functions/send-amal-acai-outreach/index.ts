@@ -2,6 +2,7 @@
 // Idempotent: safeguarded by a hardcoded token check to prevent accidental re-sends.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { requireStaff } from "../_shared/requireStaff.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,9 +14,11 @@ const ONE_SHOT_TOKEN = "amal-acai-2026-07-07";
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  // Staff-only: the URL token alone is not a credential.
+  const staff = await requireStaff(req);
+  if (!staff.ok) return staff.response;
   const url = new URL(req.url);
-  const token = url.searchParams.get('token');
-  if (token !== ONE_SHOT_TOKEN) {
+  if (url.searchParams.get('token') !== ONE_SHOT_TOKEN) {
     return new Response(JSON.stringify({ error: 'forbidden' }), {
       status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

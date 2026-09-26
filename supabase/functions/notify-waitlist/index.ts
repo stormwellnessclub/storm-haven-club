@@ -49,7 +49,7 @@ async function validateRequest(req: Request, supabase: any): Promise<boolean> {
 
     // Any authenticated user may trigger promotion — this endpoint only reads
     // the target session and promotes the next waitlist entry (no privilege escalation).
-    console.log(`Authorized user: ${user.id}`);
+    (req as any).__userId = user.id;
     return true;
 
   } catch (err) {
@@ -95,6 +95,26 @@ serve(async (req) => {
         JSON.stringify({ error: 'Invalid session_id format' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
+    }
+
+    // Signed-in (non-server) callers may only trigger promotion for a session
+    // they were booked into (e.g. after cancelling), or if they are staff.
+    const callerId: string | undefined = (req as any).__userId;
+    if (callerId) {
+      const { data: staffRoles } = await supabase
+        .from('user_roles').select('role').eq('user_id', callerId)
+        .in('role', ['super_admin', 'admin', 'manager', 'front_desk', 'class_instructor']);
+      if (!staffRoles || staffRoles.length === 0) {
+        const { data: ownBooking } = await supabase
+          .from('class_bookings').select('id')
+          .eq('user_id', callerId).eq('session_id', session_id).limit(1);
+        if (!ownBooking || ownBooking.length === 0) {
+          return new Response(
+            JSON.stringify({ error: 'Unauthorized' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+          );
+        }
+      }
     }
 
     console.log(`Checking waitlist for session: ${session_id}`);

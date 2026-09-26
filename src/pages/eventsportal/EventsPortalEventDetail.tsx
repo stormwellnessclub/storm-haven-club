@@ -1,3 +1,4 @@
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -107,7 +108,7 @@ export default function EventsPortalEventDetail() {
         t.checked_in_at ? formatInTimeZone(new Date(t.checked_in_at), CLUB_TZ, "PPp") : "",
       ]),
     ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = rows.map((r) => r.map((v) => `"${neutralizeCsvFormula(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;

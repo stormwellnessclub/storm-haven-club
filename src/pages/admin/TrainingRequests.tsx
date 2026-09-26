@@ -1,3 +1,4 @@
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 import { useEffect, useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -222,7 +223,7 @@ export default function TrainingRequestsAdmin() {
       EXPORT_HEADERS.join("\t"),
       ...exportRows.map((r) =>
         EXPORT_HEADERS.map((h) =>
-          String((r as Record<string, string>)[h] ?? "").replace(/[\t\n\r]+/g, " ")
+          neutralizeCsvFormula((r as Record<string, string>)[h] ?? "").replace(/[\t\n\r]+/g, " ")
         ).join("\t")
       ),
     ].join("\n");

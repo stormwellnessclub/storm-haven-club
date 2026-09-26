@@ -5,6 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { escapeHtml, isAllowedTestRecipient } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +21,7 @@ const SUBJECT = "An Invitation: Under the Harvest Moon — Sunday, September 27"
 const FROM = "Storm Wellness Club <admin@stormwellnessclub.com>";
 
 function buildHtml(firstName: string | null): string {
-  const greeting = firstName ? `Dear ${firstName},` : "Dear Member,";
+  const greeting = firstName ? `Dear ${escapeHtml(firstName)},` : "Dear Member,";
   return `
     <div style="font-family:Georgia,'Times New Roman',Times,serif;max-width:600px;margin:0 auto;padding:0;">
       <div style="background:#DEDACE;padding:40px 30px;text-align:center;">
@@ -106,12 +107,18 @@ serve(async (req) => {
 
   if (body?.testEmail) {
     const email = String(body.testEmail).trim().toLowerCase();
+    if (!(await isAllowedTestRecipient(req, email))) {
+      return new Response(JSON.stringify({ error: "Test emails can only go to club addresses or your own email" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     try {
       const resp = await resend.emails.send({
         from: FROM,
         to: [email],
         subject: `[TEST] ${SUBJECT}`,
-        html: buildHtml(body.firstName ?? "Team"),
+        html: buildHtml(typeof body.firstName === "string" ? body.firstName.slice(0, 60) : "Team"),
         reply_to: "admin@stormwellnessclub.com",
       });
       const status = (resp as any)?.error ? "failed" : "sent";

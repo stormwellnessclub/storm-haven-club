@@ -94,10 +94,11 @@ serve(async (req) => {
         .select("id, status")
         .in("status", ["active", "frozen"])
         .limit(1);
-      const { data: memRows } = userId
-        ? await q.eq("user_id", userId)
-        : await q.eq("email", email);
-      if (memRows && memRows.length > 0) isMember = true;
+      // Only a signed-in account can claim member pricing; never reveal membership by typed email.
+      if (userId) {
+        const { data: memRows } = await q.eq("user_id", userId);
+        if (memRows && memRows.length > 0) isMember = true;
+      }
     }
 
     const ticketType = isMember ? "member" : "non_member";

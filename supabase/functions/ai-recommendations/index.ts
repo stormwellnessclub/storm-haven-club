@@ -56,7 +56,33 @@ serve(async (req) => {
     const userId = user.id;
     console.log(`Authenticated user: ${userId}`);
 
-    const { type, preferences }: RecommendationRequest = await req.json();
+    const { type, preferences: rawPreferences }: RecommendationRequest = await req.json();
+    // Preferences flow into model prompts: keep only short, plain values.
+    const cleanStr = (v: unknown, max = 40) =>
+      typeof v === "string" ? v.replace(/[^A-Za-z0-9 _\-]/g, "").slice(0, max).trim() || undefined : undefined;
+    const cleanNum = (v: unknown, min: number, max: number) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : undefined;
+    };
+    const cleanList = (v: unknown, n = 12) =>
+      Array.isArray(v) ? v.map((x) => cleanStr(x)).filter(Boolean).slice(0, n) as string[] : [];
+    const rp: any = rawPreferences && typeof rawPreferences === "object" ? rawPreferences : {};
+    const preferences: Record<string, any> = {
+      workoutType: cleanStr(rp.workoutType),
+      targetBodyParts: cleanList(rp.targetBodyParts),
+      duration: cleanNum(rp.duration, 5, 180),
+      intensity: cleanStr(rp.intensity),
+      programType: cleanStr(rp.programType),
+      daysPerWeek: cleanNum(rp.daysPerWeek, 1, 7),
+      durationWeeks: cleanNum(rp.durationWeeks, 1, 16),
+      splitType: cleanStr(rp.splitType),
+      customSplit: Array.isArray(rp.customSplit)
+        ? rp.customSplit.slice(0, 7).map((d: any) => ({ day: cleanNum(d?.day, 1, 7) ?? 1, muscles: cleanList(d?.muscles) }))
+        : [],
+      goals: cleanList(rp.goals),
+      preferredTimes: cleanList(rp.preferredTimes),
+    };
+    for (const k of Object.keys(preferences)) if (preferences[k] === undefined) delete preferences[k];
     console.log(`Processing AI recommendation type: ${type} for user: ${userId}`);
 
     // Validate request type

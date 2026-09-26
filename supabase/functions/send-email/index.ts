@@ -15,7 +15,7 @@ const PUBLIC_EMAIL_TYPES = new Set<string>([
 
 
 
-async function authorizeRequest(req: Request, type: string): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+async function authorizeRequest(req: Request, type: string, to?: string): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
@@ -25,8 +25,22 @@ async function authorizeRequest(req: Request, type: string): Promise<{ ok: true 
     return { ok: true };
   }
 
-  // Public email types are allowed without auth (e.g., application submission).
+  // Public email types are allowed without auth, but only to an address that
+  // just submitted an application (prevents using our domain to mail anyone).
   if (PUBLIC_EMAIL_TYPES.has(type)) {
+    const email = String(to || '').trim().toLowerCase();
+    if (!email) return { ok: false, status: 400, error: 'Recipient required' };
+    const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: apps } = await admin
+      .from('membership_applications')
+      .select('id')
+      .ilike('email', email)
+      .gte('created_at', since)
+      .limit(1);
+    if (!apps || apps.length === 0) {
+      return { ok: false, status: 403, error: 'Unauthorized' };
+    }
     return { ok: true };
   }
 
@@ -151,7 +165,7 @@ serve(async (req) => {
     const { type, to, data, preview }: EmailRequest & { preview?: boolean } = await req.json();
 
     // Authorize: require service-role key or valid JWT, except for whitelisted public types
-    const authz = await authorizeRequest(req, type);
+    const authz = await authorizeRequest(req, type, to);
     if (!authz.ok) {
       console.warn(`Unauthorized send-email request for type: ${type}`);
       return new Response(
@@ -160,7 +174,18 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing email type: ${type} for: ${to}`);
+    // Unauthenticated callers supply plain text only: escape every string field.
+    if (PUBLIC_EMAIL_TYPES.has(type) && data && typeof data === 'object') {
+      const esc = (v: unknown) => String(v ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;').slice(0, 200);
+      for (const k of Object.keys(data)) {
+        if (typeof (data as any)[k] === 'string') (data as any)[k] = esc((data as any)[k]);
+      }
+    }
+
+    const maskedTo = String(to ?? '').replace(/^(.).*(@.*)$/, '$1***$2');
+    console.log(`Processing email type: ${type} for: ${maskedTo}`);
 
     let subject = '';
     let html = '';
