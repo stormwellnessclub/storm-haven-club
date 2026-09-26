@@ -1,3 +1,4 @@
+import { isAllowedTestRecipient } from "../_shared/security.ts";
 // Under the Harvest Moon — "this Sunday" reminder email to members.
 // Admin-only. Modes: preview (return HTML), testEmail (single send), else blast to members.
 // Idempotent on email_type='harvest_moon_sep_27_2026_reminder' (independent of the invitation).
@@ -101,6 +102,9 @@ serve(async (req) => {
 
   if (body?.testEmail) {
     const email = String(body.testEmail).trim().toLowerCase();
+    if (!(await isAllowedTestRecipient(req, email))) {
+      return new Response(JSON.stringify({ error: "Test emails can only go to club addresses or your own email" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     try {
       const resp = await resend.emails.send({
         from: FROM,
