@@ -72,7 +72,8 @@ serve(async (req) => {
 
       const { error } = await supabase
         .from("application_submit_attempts")
-        .upsert(row, { onConflict: "client_key" });
+        // Never overwrite an existing attempt: first writer wins.
+        .upsert(row, { onConflict: "client_key", ignoreDuplicates: true });
       if (error) throw error;
       return json({ success: true });
     }
@@ -89,7 +90,9 @@ serve(async (req) => {
     const { error } = await supabase
       .from("application_submit_attempts")
       .update(update)
-      .eq("client_key", clientKey);
+      .eq("client_key", clientKey)
+      // Only a still-pending attempt can be resolved, and only once.
+      .eq("status", "pending");
     if (error) throw error;
 
     return json({ success: true });
