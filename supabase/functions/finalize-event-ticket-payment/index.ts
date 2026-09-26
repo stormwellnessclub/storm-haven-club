@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +15,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_intent_id } = await req.json();
+    const { payment_intent_id, client_secret } = await req.json();
     if (!payment_intent_id || typeof payment_intent_id !== "string") {
       throw new Error("payment_intent_id is required");
     }
@@ -32,6 +33,13 @@ serve(async (req) => {
     );
 
     const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    // Only the buyer (holds the PaymentIntent client secret) or a server caller may finalize.
+    if (!isServerCaller(req) && (!client_secret || client_secret !== paymentIntent.client_secret)) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
     const paid = paymentIntent.status === "succeeded";
 
     const { data: tickets, error: fetchErr } = await supabase

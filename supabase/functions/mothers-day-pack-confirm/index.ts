@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { payment_intent_id } = await req.json();
+    const { payment_intent_id, client_secret } = await req.json();
     if (!payment_intent_id) throw new Error("payment_intent_id required");
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -30,6 +31,12 @@ serve(async (req) => {
     );
 
     const pi = await stripe.paymentIntents.retrieve(payment_intent_id);
+    if (!isServerCaller(req) && (!client_secret || client_secret !== pi.client_secret)) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
     if (pi.status !== "succeeded") {
       return new Response(
         JSON.stringify({ success: false, status: "not_paid" }),

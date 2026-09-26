@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { trustedOrigin } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -102,7 +103,7 @@ serve(async (req) => {
       .single();
     if (insErr) throw insErr;
 
-    const origin = req.headers.get("origin") || "https://stormwellnessclub.com";
+    const origin = trustedOrigin(req);
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
       customer_email: email,

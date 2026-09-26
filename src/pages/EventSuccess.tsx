@@ -13,6 +13,7 @@ export default function EventSuccess() {
   const [params] = useSearchParams();
   const sessionId = params.get("session_id");
   const paymentIntentId = params.get("payment_intent_id") || params.get("payment_intent");
+  const paymentIntentSecret = params.get("payment_intent_client_secret");
   const [loading, setLoading] = useState(true);
   const [paid, setPaid] = useState(false);
   const [tickets, setTickets] = useState<any[]>([]);
@@ -29,7 +30,7 @@ export default function EventSuccess() {
       try {
         const fn = paymentIntentId ? "finalize-event-ticket-payment" : "verify-event-ticket";
         const body = paymentIntentId
-          ? { payment_intent_id: paymentIntentId }
+          ? { payment_intent_id: paymentIntentId, client_secret: paymentIntentSecret }
           : { session_id: sessionId };
         const { data, error } = await supabase.functions.invoke(fn, { body });
         if (error) throw error;

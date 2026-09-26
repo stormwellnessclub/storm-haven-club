@@ -199,7 +199,7 @@ export function MothersDayClassPackSection() {
     setConfirming(true);
     try {
       const { data, error } = await supabase.functions.invoke("mothers-day-pack-confirm", {
-        body: { payment_intent_id: intentId },
+        body: { payment_intent_id: intentId, client_secret: clientSecret },
       });
       if (error) throw error;
       if (data?.success) {

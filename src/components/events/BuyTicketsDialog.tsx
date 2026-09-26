@@ -412,7 +412,7 @@ function EmbeddedTicketPayment({
       }
 
       const { data, error: finalizeError } = await supabase.functions.invoke("finalize-event-ticket-payment", {
-        body: { payment_intent_id: paymentIntent.id || paymentIntentId },
+        body: { payment_intent_id: paymentIntent.id || paymentIntentId, client_secret: paymentIntent.client_secret },
       });
       if (finalizeError) throw finalizeError;
       if (!data?.paid) throw new Error(data?.error || "Payment was not finalized");

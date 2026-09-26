@@ -11,6 +11,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { escapeHtml } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,11 +46,11 @@ function shell(inner: string) {
 function buildGiftHtml(v: any) {
   const inner = `
   <h1 style="font-size:38px;color:#a17e3a;margin:8px 0 4px;font-weight:500;font-style:italic;">A Gift For You</h1>
-  <p style="font-size:18px;color:#8a6d3b;margin:0 0 28px;">from <strong>${v.buyer_name}</strong></p>
+  <p style="font-size:18px;color:#8a6d3b;margin:0 0 28px;">from <strong>${escapeHtml(v.buyer_name)}</strong></p>
 
   <div style="margin:8px 0 28px;padding:28px 24px;background:#fff;border:2px dashed #c9a86a;border-radius:8px;">
     <p style="font-size:14px;letter-spacing:4px;color:#a17e3a;margin:0 0 6px;">MOTHER'S DAY SPECIAL</p>
-    <p style="font-size:24px;color:#1c170f;margin:6px 0 4px;font-weight:600;">${v.massage_choice}</p>
+    <p style="font-size:24px;color:#1c170f;margin:6px 0 4px;font-weight:600;">${escapeHtml(v.massage_choice)}</p>
     <p style="font-size:14px;color:#6b5a3b;margin:0 0 14px;">${v.massage_duration} min</p>
     <p style="font-size:14px;color:#a17e3a;margin:0 0 4px;font-weight:600;">+ Exclusive Wet Spa Access</p>
     <p style="font-size:13px;color:#8a6d3b;margin:0;">Sauna · Steam · Himalayan Salt Room</p>
@@ -57,14 +58,14 @@ function buildGiftHtml(v: any) {
 
   <div style="margin:8px 0 24px;padding:20px;background:#fdfaf3;border:1px solid #c9a86a;border-radius:6px;">
     <div style="font-size:11px;letter-spacing:3px;color:#a17e3a;">YOUR VOUCHER CODE</div>
-    <div style="font-family:monospace;font-size:30px;letter-spacing:5px;color:#1c170f;margin-top:6px;">${v.code}</div>
+    <div style="font-family:monospace;font-size:30px;letter-spacing:5px;color:#1c170f;margin-top:6px;">${escapeHtml(v.code)}</div>
   </div>
 
   ${
     v.gift_message
       ? `<div style="margin:24px 0;padding:18px 24px;background:#fff;border-left:3px solid #c9a86a;text-align:left;">
-           <p style="font-style:italic;color:#6b5a3b;margin:0;font-size:16px;">"${v.gift_message}"</p>
-           <p style="margin:10px 0 0;font-size:13px;color:#8a6d3b;text-align:right;">— ${v.buyer_name}</p>
+           <p style="font-style:italic;color:#6b5a3b;margin:0;font-size:16px;">"${escapeHtml(v.gift_message)}"</p>
+           <p style="margin:10px 0 0;font-size:13px;color:#8a6d3b;text-align:right;">— ${escapeHtml(v.buyer_name)}</p>
          </div>`
       : ""
   }
@@ -81,14 +82,14 @@ function buildGiftHtml(v: any) {
     ★ SAVE THIS CODE — you'll need it at check-in
   </p>
 
-  <a href="${SITE}/auth?mode=signup&voucher=${encodeURIComponent(v.code)}&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${v.code}`)}"
+  <a href="${SITE}/auth?mode=signup&voucher=${encodeURIComponent(v.code)}&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${escapeHtml(v.code)}`)}"
      style="display:inline-block;background:#a17e3a;color:#fff;padding:14px 32px;border-radius:4px;text-decoration:none;font-weight:600;letter-spacing:2px;font-size:14px;margin:8px 0;">
     CLAIM &amp; SAVE YOUR GIFT
   </a>
 
   <p style="font-size:12px;color:#6b5a3b;margin:10px 0 0;">
     Already have an account?
-    <a href="${SITE}/auth?mode=signin&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${v.code}`)}" style="color:#a17e3a;text-decoration:underline;">Sign in</a>
+    <a href="${SITE}/auth?mode=signin&redirect=${encodeURIComponent(`/mothers-day/redeem?code=${escapeHtml(v.code)}`)}" style="color:#a17e3a;text-decoration:underline;">Sign in</a>
   </p>
 
   <p style="font-size:13px;color:#6b5a3b;margin-top:18px;">
@@ -110,26 +111,26 @@ function buildGiftHtml(v: any) {
 // ---------- Receipt email — for the buyer ----------
 function buildBuyerHtml(v: any, opts: { isGift: boolean }) {
   const greeting = opts.isGift
-    ? `Your gift is on its way to <strong>${v.recipient_name}</strong>.`
+    ? `Your gift is on its way to <strong>${escapeHtml(v.recipient_name)}</strong>.`
     : `Your Mother's Day voucher is ready.`;
 
   const cta = opts.isGift
-    ? `<p style="font-size:13px;color:#6b5a3b;margin-top:8px;">We've also sent ${v.recipient_name} their own gift email at ${v.recipient_email}.</p>`
+    ? `<p style="font-size:13px;color:#6b5a3b;margin-top:8px;">We've also sent ${escapeHtml(v.recipient_name)} their own gift email at ${escapeHtml(v.recipient_email)}.</p>`
     : `<a href="${SITE}/spa?category=Massage"
          style="display:inline-block;background:#a17e3a;color:#fff;padding:14px 32px;border-radius:4px;text-decoration:none;font-weight:600;letter-spacing:2px;font-size:14px;margin:16px 0 8px;">
          BOOK YOUR MASSAGE
        </a>`;
 
   const inner = `
-  <h1 style="font-size:34px;color:#a17e3a;margin:8px 0 4px;font-weight:500;">Thank You${v.buyer_first_name ? `, ${v.buyer_first_name}` : ""}</h1>
+  <h1 style="font-size:34px;color:#a17e3a;margin:8px 0 4px;font-weight:500;">Thank You${v.buyer_first_name ? `, ${escapeHtml(v.buyer_first_name)}` : ""}</h1>
   <p style="font-size:16px;color:#6b5a3b;margin:0 0 24px;">${greeting}</p>
 
   <div style="margin:8px 0 24px;padding:24px 20px;background:#fff;border:2px dashed #c9a86a;border-radius:8px;">
     <p style="font-size:13px;letter-spacing:3px;color:#a17e3a;margin:0 0 6px;">MOTHER'S DAY SPECIAL</p>
-    <p style="font-size:22px;color:#1c170f;margin:6px 0 4px;font-weight:600;">${v.massage_choice}</p>
+    <p style="font-size:22px;color:#1c170f;margin:6px 0 4px;font-weight:600;">${escapeHtml(v.massage_choice)}</p>
     <p style="font-size:14px;color:#6b5a3b;margin:0 0 12px;">${v.massage_duration} min · + Wet Spa Access</p>
     <div style="font-size:11px;letter-spacing:3px;color:#a17e3a;margin-top:14px;">VOUCHER CODE</div>
-    <div style="font-family:monospace;font-size:26px;letter-spacing:4px;color:#1c170f;margin-top:4px;">${v.code}</div>
+    <div style="font-family:monospace;font-size:26px;letter-spacing:4px;color:#1c170f;margin-top:4px;">${escapeHtml(v.code)}</div>
   </div>
 
   ${cta}

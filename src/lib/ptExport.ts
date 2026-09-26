@@ -1,8 +1,9 @@
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 /** CSV export helpers for the Personal Training portal reports. */
 
 function escapeCell(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const s = String(value);
+  const s = neutralizeCsvFormula(value);
   if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
   return s;
 }

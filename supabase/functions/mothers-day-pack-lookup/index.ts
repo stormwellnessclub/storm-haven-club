@@ -2,6 +2,7 @@
 // Privacy: only returns minimal pass info when the email matches an existing gift.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getSignedInUser } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,6 +16,14 @@ serve(async (req) => {
     const { email } = await req.json();
     const e = String(email || "").trim().toLowerCase();
     if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error("Valid email required");
+
+    // Only the signed-in owner of this email may look up the gift.
+    const user = await getSignedInUser(req);
+    if (!user || user.email !== e) {
+      return new Response(JSON.stringify({ found: false, sign_in_required: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",

@@ -5,6 +5,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { escapeHtml } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -28,7 +30,7 @@ function shell(inner: string) {
 
 function buildHtml(v: any) {
   const giftLine = v.recipient_name
-    ? `<p style="font-size:16px;color:#6b5a3b;margin:0 0 18px;">Your gift for <strong>${v.recipient_name}</strong> is just one step away.</p>`
+    ? `<p style="font-size:16px;color:#6b5a3b;margin:0 0 18px;">Your gift for <strong>${escapeHtml(v.recipient_name)}</strong> is just one step away.</p>`
     : `<p style="font-size:16px;color:#6b5a3b;margin:0 0 18px;">Your Mother's Day gift is just one step away.</p>`;
   const inner = `
   <h1 style="font-size:34px;color:#a17e3a;margin:8px 0 6px;font-weight:500;font-style:italic;">Finish your checkout</h1>
@@ -36,7 +38,7 @@ function buildHtml(v: any) {
 
   <div style="margin:8px 0 24px;padding:24px;background:#fff;border:2px dashed #c9a86a;border-radius:8px;">
     <p style="font-size:12px;letter-spacing:4px;color:#a17e3a;margin:0 0 6px;">MOTHER'S DAY SPECIAL</p>
-    <p style="font-size:22px;color:#1c170f;margin:6px 0 4px;font-weight:600;">${v.massage_choice || "Custom Massage"}</p>
+    <p style="font-size:22px;color:#1c170f;margin:6px 0 4px;font-weight:600;">${escapeHtml(v.massage_choice || "Custom Massage")}</p>
     <p style="font-size:14px;color:#6b5a3b;margin:0 0 10px;">${v.massage_duration || 60} min · + Wet Spa Access</p>
   </div>
 
@@ -53,6 +55,8 @@ function buildHtml(v: any) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const trusted = await requireTrustedCaller(req, ["super_admin", "admin", "manager", "spa_staff", "front_desk"]);
+  if (!trusted.ok) return trusted.response;
 
   try {
     const { voucher_id, preview } = await req.json();

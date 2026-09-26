@@ -15,6 +15,7 @@ const TEXT = "#6b5a3b";
 
 type LookupResult = {
   found: boolean;
+  sign_in_required?: boolean;
   pass_id?: string;
   classes_remaining?: number;
   classes_total?: number;
@@ -39,6 +40,7 @@ export default function MothersDayPackRedeem() {
     let mounted = true;
     (async () => {
       if (!emailParam) { setLoading(false); return; }
+      if (authLoading) return;
       try {
         const { data } = await supabase.functions.invoke("mothers-day-pack-lookup", {
           body: { email: emailParam },
@@ -51,7 +53,7 @@ export default function MothersDayPackRedeem() {
       }
     })();
     return () => { mounted = false; };
-  }, [emailParam]);
+  }, [emailParam, authLoading, user?.id]);
 
   const userEmail = (user?.email || "").trim().toLowerCase();
   const emailMatches = userEmail && emailParam && userEmail === emailParam;
@@ -112,6 +114,15 @@ export default function MothersDayPackRedeem() {
                 <Button asChild style={{ background: GOLD }}>
                   <Link to="/">Back to home</Link>
                 </Button>
+              </div>
+            ) : lookup?.sign_in_required ? (
+              <div className="text-center">
+                <Gift className="w-10 h-10 mx-auto mb-3" style={{ color: GOLD }} />
+                <h1 className="font-serif text-3xl mb-3" style={{ color: GOLD }}>Sign in to view your gift</h1>
+                <p style={{ color: TEXT }} className="mb-6">
+                  Please sign in with <strong>{emailParam}</strong> to see and claim your Mother's Day Class Pack.
+                </p>
+                <Button onClick={handleClaim} style={{ background: GOLD }}>Sign in</Button>
               </div>
             ) : !lookup?.found ? (
               <div className="text-center">

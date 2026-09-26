@@ -3,6 +3,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { escapeHtml } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +55,23 @@ function buildHtml(opts: {
   attendeeNames?: string[] | null;
   isAttendeeCopy?: boolean;
 }) {
+  const esc = (v: string | null | undefined) => (v == null ? v : escapeHtml(v));
+  opts = {
+    ...opts,
+    firstName: esc(opts.firstName) as string,
+    eventName: esc(opts.eventName) as string,
+    eventDate: esc(opts.eventDate) as string,
+    eventTime: esc(opts.eventTime) as string,
+    venue: esc(opts.venue) as string,
+    tierLabel: esc(opts.tierLabel) as string,
+    total: esc(opts.total) as string,
+    orderId: esc(opts.orderId) as string,
+    whatToBring: esc(opts.whatToBring),
+    details: esc(opts.details),
+    giftFromName: esc(opts.giftFromName),
+    attendeeNames: opts.attendeeNames?.map((n) => escapeHtml(n)) ?? null,
+    portalTicketsUrl: encodeURI(opts.portalTicketsUrl),
+  };
   const extras = (s?: string | null) =>
     s && s.trim() ? `<p style="margin:0 0 16px;white-space:pre-line;color:#3a2e1a;font-family:Georgia,serif;">${s}</p>` : "";
   const row = (label: string, value: string, mono = false) => `
@@ -128,6 +147,8 @@ const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const trusted = await requireTrustedCaller(req);
+  if (!trusted.ok) return trusted.response;
 
   try {
     const { session_id, payment_intent_id } = await req.json();

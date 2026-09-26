@@ -79,7 +79,7 @@ ${lifestyleText ? `Their lifestyle: "${lifestyleText}"` : ""}
 
 Remember: Keep it elegant, warm, and under 200 words. Return only the letter body text.`;
 
-    console.log("Generating approval letter for:", applicant.name);
+    console.log("Generating approval letter");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -123,7 +123,7 @@ Remember: Keep it elegant, warm, and under 200 words. Return only the letter bod
       throw new Error("No content generated");
     }
 
-    console.log("Letter generated successfully for:", applicant.name);
+    console.log("Letter generated successfully");
 
     return new Response(
       JSON.stringify({

@@ -539,7 +539,7 @@ function GiftCardPayment({
       if (paymentIntent?.status !== "succeeded") throw new Error("Payment was not completed. Please try again.");
 
       const { data, error: confirmErr } = await supabase.functions.invoke("confirm-gift-card-purchase", {
-        body: { payment_intent_id: paymentIntent.id || paymentIntentId },
+        body: { payment_intent_id: paymentIntent.id || paymentIntentId, client_secret: paymentIntent.client_secret },
       });
       if (confirmErr) throw confirmErr;
       if (!data?.success) throw new Error(data?.error || "Could not finalize the gift card");

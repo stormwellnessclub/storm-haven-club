@@ -15,6 +15,7 @@ import { Loader2, Search, Heart, Mail, Plus, Eye, Send } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { MothersDaySellDialog } from "./MothersDaySellDialog";
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 
 const GOAL = 50;
 
@@ -184,7 +185,7 @@ export function MothersDayTab() {
         v.purchased_at, v.expires_at, v.redeemed_at || "",
       ]),
     ];
-    const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = rows.map((r) => r.map((c) => `"${neutralizeCsvFormula(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

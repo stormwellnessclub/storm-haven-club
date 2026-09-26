@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { eventEmailShell, sendBrandedEmail } from "../_shared/privateEventEmail.ts";
+import { escapeHtml } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,19 +72,20 @@ serve(async (req) => {
       });
     }
 
+    const e = escapeHtml;
     const rows = [
-      { label: "Event type", value: record.event_type ?? "—" },
-      { label: "Preferred date", value: record.preferred_date ?? "Flexible" },
-      { label: "Preferred time", value: record.preferred_time ?? "Flexible" },
-      { label: "Guests", value: record.guest_count ? String(record.guest_count) : "—" },
-      { label: "Spaces", value: record.spaces.length ? record.spaces.join(", ") : "—" },
+      { label: "Event type", value: e(record.event_type ?? "—") },
+      { label: "Preferred date", value: e(record.preferred_date ?? "Flexible") },
+      { label: "Preferred time", value: e(record.preferred_time ?? "Flexible") },
+      { label: "Guests", value: record.guest_count ? e(String(record.guest_count)) : "—" },
+      { label: "Spaces", value: record.spaces.length ? e(record.spaces.join(", ")) : "—" },
     ];
 
     await sendBrandedEmail({
       to: email,
       subject: "We received your private event request",
       html: eventEmailShell({
-        heading: `Thank you, ${firstName}`,
+        heading: `Thank you, ${e(firstName)}`,
         intro:
           "We've received your private event request at Storm Wellness Club. Our events team will review the details and reach out personally with availability and a quote.",
         rows,
@@ -97,9 +99,9 @@ serve(async (req) => {
       replyTo: email,
       html: eventEmailShell({
         heading: "New private event request",
-        intro: `${firstName} ${lastName} (${email}${record.phone ? `, ${record.phone}` : ""}) submitted a private event request.`,
-        rows: [...rows, { label: "Budget", value: record.budget_range ?? "—" }],
-        outro: record.notes ? `Notes: ${record.notes}` : undefined,
+        intro: `${e(firstName)} ${e(lastName)} (${e(email)}${record.phone ? `, ${e(record.phone)}` : ""}) submitted a private event request.`,
+        rows: [...rows, { label: "Budget", value: e(record.budget_range ?? "—") }],
+        outro: record.notes ? `Notes: ${e(record.notes)}` : undefined,
       }),
     });
 

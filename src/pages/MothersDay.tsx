@@ -203,7 +203,7 @@ export default function MothersDay() {
     setConfirming(true);
     try {
       const { data, error } = await supabase.functions.invoke("mothers-day-confirm", {
-        body: { payment_intent_id: intentId },
+        body: { payment_intent_id: intentId, client_secret: clientSecret },
       });
       if (error) throw error;
       if (data?.success) setConfirmedVoucher(data.voucher);

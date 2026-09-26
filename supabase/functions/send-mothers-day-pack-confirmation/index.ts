@@ -2,6 +2,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { escapeHtml } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +25,7 @@ function buyerReceiptHtml(opts: {
   tier: "member" | "nonMember";
   pricePaid: number;
 }) {
+  opts = { ...opts, buyerName: escapeHtml(opts.buyerName), recipientName: opts.recipientName ? escapeHtml(opts.recipientName) : null };
   const tierLabel = opts.tier === "member" ? "Member ($150)" : "Non-Member ($265)";
   const giftLine = opts.isGift && opts.recipientName
     ? `<p style="margin:0 0 12px;color:#6b5a3b;">Gifted to <strong>${opts.recipientName}</strong></p>`
@@ -61,6 +64,7 @@ function recipientGiftHtml(opts: {
   recipientEmail: string;
   expiresAt: string;
 }) {
+  opts = { ...opts, buyerName: escapeHtml(opts.buyerName), recipientName: escapeHtml(opts.recipientName) };
   const redeemUrl = `${SITE}/mothers-day-pack-redeem?email=${encodeURIComponent(opts.recipientEmail)}`;
   return `
   <div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;">
@@ -94,6 +98,8 @@ async function send(to: string, subject: string, html: string) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const trusted = await requireTrustedCaller(req, ["super_admin", "admin", "manager", "front_desk"]);
+  if (!trusted.ok) return trusted.response;
 
   try {
     const { pass_id } = await req.json();

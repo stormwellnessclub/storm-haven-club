@@ -3,6 +3,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getSignedInUser, isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,10 +25,27 @@ serve(async (req) => {
     );
 
     const { session_id } = await req.json();
-    if (!session_id) throw new Error("session_id is required");
+    if (!session_id || typeof session_id !== "string" || !session_id.startsWith("cs_")) {
+      throw new Error("session_id is required");
+    }
 
     const session = await stripe.checkout.sessions.retrieve(session_id);
     const paid = session.payment_status === "paid";
+
+    // Only a server caller or the signed-in buyer may finalize or view ticket details.
+    // Anyone else only learns whether the payment went through (the Stripe webhook fulfills).
+    const sessionEmail = (session.customer_details?.email || session.customer_email || "").toLowerCase();
+    let authorized = isServerCaller(req);
+    if (!authorized) {
+      const user = await getSignedInUser(req);
+      authorized = !!user && !!sessionEmail && user.email === sessionEmail;
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ paid, tickets: [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
     const { data: tickets, error: fetchErr } = await supabase
       .from("event_tickets")
