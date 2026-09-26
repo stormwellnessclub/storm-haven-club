@@ -76,7 +76,8 @@ serve(async (req) => {
     if (!voucher) throw new Error("Voucher not found");
 
     let updated = voucher;
-    if (voucher.status === "pending") {
+    // Activation is webhook-only (server callers); buyers get a read-only view.
+    if (voucher.status === "pending" && server) {
       const { data: u } = await supabase
         .from("mothers_day_vouchers")
         .update({

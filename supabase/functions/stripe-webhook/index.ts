@@ -860,6 +860,32 @@ serve(async (req) => {
             }
           }
 
+          // Gift cards & Mother's Day vouchers: activation happens only here (signature-verified).
+          try {
+            const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+            const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+            const { data: gc } = await supabase.from('gift_cards').select('id').eq('stripe_payment_intent_id', pi.id).eq('status', 'pending').maybeSingle();
+            if (gc) {
+              const r = await fetch(`${supabaseUrl}/functions/v1/confirm-gift-card-purchase`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+                body: JSON.stringify({ payment_intent_id: pi.id }),
+              });
+              logStep("Gift card confirm response", { status: r.status });
+            }
+            const { data: v } = await supabase.from('mothers_day_vouchers').select('id').eq('stripe_payment_intent_id', pi.id).eq('status', 'pending').maybeSingle();
+            if (v) {
+              const r = await fetch(`${supabaseUrl}/functions/v1/mothers-day-confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+                body: JSON.stringify({ payment_intent_id: pi.id }),
+              });
+              logStep("Mother's Day voucher confirm response", { status: r.status });
+            }
+          } catch (e) {
+            logError(e, 'GIFT_VOUCHER_PI_SUCCEEDED');
+          }
+
           if (md.type === 'event_ticket') {
             logStep("Event ticket PI succeeded — invoking finalize", { piId: pi.id });
             const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";

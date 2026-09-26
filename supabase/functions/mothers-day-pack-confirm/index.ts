@@ -69,6 +69,20 @@ serve(async (req) => {
       );
     }
 
+    // Fulfillment is webhook-only; buyers see a read-only "processing" state until the webhook lands.
+    if (!isServerCaller(req)) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          processing: true,
+          is_gift: m.is_gift === "true",
+          recipient_name: m.recipient_name || null,
+          tier: m.tier === "member" ? "member" : "nonMember",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     const isGift = m.is_gift === "true";
     const tier = m.tier === "member" ? "member" : "nonMember";
     const buyerUserId = m.buyer_user_id || null;

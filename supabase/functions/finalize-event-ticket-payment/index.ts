@@ -49,7 +49,8 @@ serve(async (req) => {
     if (fetchErr) throw fetchErr;
     if (!tickets || tickets.length === 0) throw new Error("No tickets found for this payment");
 
-    if (paid) {
+    // Fulfillment is webhook-only (the Stripe webhook calls this function as a server caller).
+    if (paid && isServerCaller(req)) {
       await supabase
         .from("event_tickets")
         .update({
