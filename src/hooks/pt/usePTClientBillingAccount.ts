@@ -112,7 +112,7 @@ export function usePTClientCards(userId?: string) {
   });
 }
 
-/** Completed but unsettled PT sessions for this client. */
+/** Completed or past-but-not-closed-out PT sessions with no payment or package. */
 export function usePTClientUnpaidSessions(userId?: string) {
   return useQuery({
     queryKey: ["pt-client-unpaid-sessions", userId],
@@ -122,8 +122,9 @@ export function usePTClientUnpaidSessions(userId?: string) {
         .from("pt_appointments")
         .select("id, starts_at, instructor_id, format, session_type_name, amount_due_cents, payment_status, status")
         .eq("user_id", userId)
-        .eq("status", "completed")
-        .eq("payment_status", "unpaid")
+        .is("pass_id", null)
+        .in("payment_status", ["unpaid", "past_due"])
+        .or(`status.eq.completed,and(status.eq.scheduled,starts_at.lt.${new Date().toISOString()})`)
         .order("starts_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as any[];
