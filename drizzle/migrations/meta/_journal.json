@@ -491,6 +491,13 @@
       "when": 1790458830114,
       "tag": "0069_event_tickets_allow_no_email",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1790460177016,
+      "tag": "0070_prevent_future_freeze_early_activation",
+      "breakpoints": true
     }
   ]
 }

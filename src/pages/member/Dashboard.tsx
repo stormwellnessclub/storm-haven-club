@@ -188,7 +188,7 @@ export default function MemberDashboard() {
         <LeaveSpaReviewBanner />
 
         {/* Frozen Benefits Notice */}
-        {hasFrozenBenefits && (
+        {hasFrozenBenefits && frozenReason !== "frozen" && (
           <AnimatedSection animation="fade-in">
             <Alert className="bg-amber-50 dark:bg-amber-900/20 border-amber-300 dark:border-amber-700 shadow-sm">
               <Lock className="h-4 w-4 text-amber-600" />

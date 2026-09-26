@@ -209,7 +209,8 @@ export default function FreezeRequest() {
 
 
   const pendingRequest = freezes?.find(f => f.status === 'pending');
-  const approvedRequest = freezes?.find(f => f.status === 'approved');
+  const approvedRequest = freezes?.find(f => f.status === 'approved' && !f.fee_paid);
+  const scheduledFreeze = freezes?.find(f => f.status === 'approved' && f.fee_paid);
   const activeFreeze = freezes?.find(f => f.status === 'active');
 
   return (
@@ -324,6 +325,18 @@ export default function FreezeRequest() {
                     </Button>
                     <p className="text-xs text-muted-foreground">Opens Stripe in a new tab. Return here after paying.</p>
 
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {scheduledFreeze && (
+                <Alert className="border-accent/30 bg-accent/10">
+                  <CheckCircle2 className="h-4 w-4 text-accent" />
+                  <AlertTitle>Freeze Scheduled</AlertTitle>
+                  <AlertDescription>
+                    Your fee is paid. Your membership stays active until{" "}
+                    <strong>{format(new Date(`${scheduledFreeze.actual_start_date ?? scheduledFreeze.requested_start_date}T12:00:00`), "MMMM d, yyyy")}</strong>,
+                    when the freeze begins automatically.
                   </AlertDescription>
                 </Alert>
               )}

@@ -116,7 +116,7 @@ export function useApplicationStatus() {
 
       // If member found and linked, check their status
       if (memberData) {
-        if (memberData.status === "active") {
+        if (["active", "frozen", "past_due"].includes(memberData.status)) {
           return {
             status: "active_member",
             memberData,
@@ -140,7 +140,7 @@ export function useApplicationStatus() {
         if (linkResult.success && linkResult.linkedMember) {
           const linkedMember = linkResult.linkedMember;
           
-          if (linkedMember.status === "active") {
+          if (["active", "frozen", "past_due"].includes(linkedMember.status)) {
             return {
               status: "active_member",
               memberData: linkedMember,

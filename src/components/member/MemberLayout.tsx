@@ -21,8 +21,9 @@ import { AchievementCelebrationHost } from "./AchievementCelebrationHost";
 
 import { WifiBanner } from "./WifiBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
-import { User, MessageCircle } from "lucide-react";
+import { User, MessageCircle, Snowflake } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -109,6 +110,18 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
 
         {/* Consolidated notification bar */}
         <NotificationBar items={notifications} />
+
+        {membership?.status === "frozen" && (
+          <div className="border-b border-border bg-muted/40 px-4 py-3">
+            <Alert className="mx-auto max-w-7xl border-accent/30 bg-background">
+              <Snowflake className="h-4 w-4 text-accent" />
+              <AlertTitle>Membership frozen</AlertTitle>
+              <AlertDescription>
+                Your portal and the Storm Wellness website remain available. Membership credits, club access, and member discounts are paused during your freeze.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
         
         {/* Info banners */}
         

@@ -1526,10 +1526,11 @@ serve(async (req) => {
             }
 
             try {
-              // Get the freeze request to get member_id
+              // Record payment only. A future freeze must stay approved until
+              // freeze-billing activates it on its Detroit-local start date.
               const { data: freezeData, error: fetchError } = await supabase
                 .from('member_freezes')
-                .select('member_id, actual_start_date')
+                .select('member_id, actual_start_date, requested_start_date')
                 .eq('id', freezeId)
                 .single();
 
@@ -1538,13 +1539,14 @@ serve(async (req) => {
                 return errorResponse(fetchError || new Error("Freeze not found"), "FREEZE_FEE_FETCH");
               }
 
-              // Update freeze request to paid and active
+              // Payment never activates the freeze by itself. The authoritative
+              // activation sweep pauses dues and changes member status together.
               const { error: freezeUpdateError } = await supabase
                 .from('member_freezes')
                 .update({
                   fee_paid: true,
                   stripe_payment_intent_id: session.payment_intent as string,
-                  status: 'active',
+                  status: 'approved',
                   updated_at: new Date().toISOString(),
                 })
                 .eq('id', freezeId);
@@ -1554,24 +1556,11 @@ serve(async (req) => {
                 return errorResponse(freezeUpdateError, "FREEZE_FEE_UPDATE");
               }
 
-              // Update member status to frozen (handle partial failure)
-              try {
-                const { error: memberUpdateError } = await supabase
-                  .from('members')
-                  .update({
-                    status: 'frozen',
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('id', freezeData.member_id);
-
-                if (memberUpdateError) {
-                  logError(memberUpdateError, "FREEZE_MEMBER_UPDATE");
-                }
-              } catch (memberError) {
-                logError(memberError, "FREEZE_MEMBER_UPDATE");
-              }
-
-              logStep("Freeze fee payment processed", { freezeId, memberId: freezeData.member_id });
+              logStep("Freeze fee payment recorded; activation remains date-driven", {
+                freezeId,
+                memberId: freezeData.member_id,
+                startDate: freezeData.actual_start_date ?? freezeData.requested_start_date,
+              });
             } catch (freezeError) {
               logError(freezeError, "FREEZE_FEE");
               return errorResponse(freezeError, "FREEZE_FEE");
