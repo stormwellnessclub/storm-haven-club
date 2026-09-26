@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getSignedInUser, isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,17 @@ serve(async (req) => {
         JSON.stringify({ success: false, error: "Not a class pass session" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
+    }
+
+    // Only the signed-in buyer (or a server caller) may view pass details for this checkout.
+    if (!isServerCaller(req)) {
+      const user = await getSignedInUser(req);
+      if (!user || !md.user_id || user.id !== md.user_id) {
+        return new Response(
+          JSON.stringify({ success: true, paid: true, pass: null }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
     }
 
     // Mark pending checkout completed (idempotent)

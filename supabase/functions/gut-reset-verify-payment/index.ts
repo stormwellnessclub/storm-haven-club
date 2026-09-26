@@ -81,6 +81,14 @@ serve(async (req) => {
       );
     }
 
+    if (!mayFulfill) {
+      // Anonymous/other callers only learn the payment status — no purchase details.
+      return new Response(
+        JSON.stringify({ status: paid ? "paid" : checkout.payment_status }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
     return new Response(
       JSON.stringify({
         status: paid ? "paid" : checkout.payment_status,
