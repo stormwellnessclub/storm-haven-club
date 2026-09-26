@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { escapeHtml } from "../_shared/security.ts";
 
 
 const corsHeaders = {
@@ -76,7 +77,7 @@ serve(async (req) => {
           </div>
           <div style="height: 4px; background: linear-gradient(90deg, #B8A068, #C1B19C, #B8A068);"></div>
           <div style="${emailStyles.content}">
-            <h2 style="${emailStyles.heading}">Hi ${firstName},</h2>
+            <h2 style="${emailStyles.heading}">Hi ${escapeHtml(firstName)},</h2>
             <p>We noticed you started a membership application with Storm Wellness Club but didn't finish submitting it.</p>
             <p>Your spot is still available! Complete your application to join our exclusive wellness community.</p>
             <div style="${emailStyles.infoBox}">
