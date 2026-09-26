@@ -16549,6 +16549,7 @@ export type Database = {
         }[]
       }
       pt_pass_reserved_count: { Args: { p_pass_id: string }; Returns: number }
+      pt_person_relationship: { Args: { _user_id: string }; Returns: string }
       pt_pick_pass_for_appointment: {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
