@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +54,8 @@ function buildHtml(v: any) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const trusted = await requireTrustedCaller(req, ["super_admin", "admin", "manager", "spa_staff", "front_desk"]);
+  if (!trusted.ok) return trusted.response;
 
   try {
     const { voucher_id, preview } = await req.json();
