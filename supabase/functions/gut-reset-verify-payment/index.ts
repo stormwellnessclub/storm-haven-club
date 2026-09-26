@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { getSignedInUser, isServerCaller } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,7 +24,9 @@ serve(async (req) => {
     );
 
     const { stripe_session_id } = await req.json();
-    if (!stripe_session_id) throw new Error("Missing stripe_session_id");
+    if (!stripe_session_id || typeof stripe_session_id !== "string" || !stripe_session_id.startsWith("cs_")) {
+      throw new Error("Missing stripe_session_id");
+    }
 
     const checkout = await stripe.checkout.sessions.retrieve(stripe_session_id);
     if (!checkout) throw new Error("Checkout session not found");
@@ -38,7 +41,14 @@ serve(async (req) => {
     const wasPending = purchase.status === "pending";
     const paid = checkout.payment_status === "paid";
 
-    if (paid && wasPending) {
+    // Only a server caller (Stripe webhook) or the signed-in buyer may record fulfillment.
+    let mayFulfill = isServerCaller(req);
+    if (!mayFulfill) {
+      const user = await getSignedInUser(req);
+      mayFulfill = !!user && user.email === String(purchase.customer_email || "").toLowerCase();
+    }
+
+    if (paid && wasPending && mayFulfill) {
       await supabase
         .from("gut_reset_purchases")
         .update({
