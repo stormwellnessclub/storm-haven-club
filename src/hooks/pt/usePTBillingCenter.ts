@@ -62,6 +62,7 @@ export interface PTOutstanding {
   total_outstanding_cents: number;
   past_due_cents?: number;
   unpaid_completed_sessions_cents?: number;
+  unclosed_past_sessions_cents?: number;
   future_scheduled_autopay_cents?: number;
   total_remaining_contract_balance_cents?: number;
 }
