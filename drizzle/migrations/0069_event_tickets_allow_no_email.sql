@@ -1,0 +1,1 @@
+ALTER TABLE public.event_tickets ALTER COLUMN buyer_email DROP NOT NULL;
