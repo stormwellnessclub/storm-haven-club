@@ -29,6 +29,7 @@ import { usePTClientBilling } from "@/hooks/pt/usePTFinancials";
 import { PTClientFinancialCenter } from "@/components/admin/pt/PTClientFinancialCenter";
 import { PTBalanceBreakdown } from "@/components/admin/pt/PTBalanceBreakdown";
 import { PTClientBillingWorkspace } from "@/components/admin/pt/billing/PTClientBillingWorkspace";
+import { AddExistingPackageDialog } from "@/components/admin/pt/PTPackageWorkflows";
 
 const TABS = [
   "Overview", "Sessions", "Programs", "Progress", "Notes",
@@ -79,6 +80,7 @@ export default function PTClientDetail() {
   const [tab, setTab] = useState<Tab>(pathname.endsWith("/billing") ? "Billing" : "Overview");
   const [bookOpen, setBookOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
   const [checkInOpen, setCheckInOpen] = useState(false);
   const [trainerOpen, setTrainerOpen] = useState(false);
@@ -175,6 +177,7 @@ export default function PTClientDetail() {
                 { label: "Raise alert", icon: ShieldAlert, onSelect: () => setAlertOpen(true), separatorBefore: true },
                 { label: "Add document", icon: FileText, onSelect: () => setDocOpen(true) },
                 { label: "Sell package", icon: Plus, onSelect: () => setSellOpen(true) },
+                { label: "Transfer legacy package", icon: Plus, onSelect: () => setTransferOpen(true) },
               ]}
             />
           </div>
@@ -577,6 +580,9 @@ export default function PTClientDetail() {
       {tab === "Billing" && (
         <>
           <div className="flex justify-end mb-3">
+            <button className={ptButtonClass("outline")} onClick={() => setTransferOpen(true)}>
+              Transfer legacy package
+            </button>
             <button className={ptButtonClass("outline")} onClick={() => setSellOpen(true)}>
               <Plus className="h-4 w-4 mr-1.5" />Sell package
             </button>
@@ -667,7 +673,13 @@ export default function PTClientDetail() {
 
       {/* --------------------------------------------------------- dialogs */}
       <BookPTSessionDialog open={bookOpen} onOpenChange={setBookOpen} />
-      <SellPTDialog open={sellOpen} onOpenChange={setSellOpen} />
+      <SellPTDialog open={sellOpen} onOpenChange={setSellOpen} presetUserId={userId} presetUserName={name} />
+      <AddExistingPackageDialog
+        open={transferOpen}
+        onOpenChange={setTransferOpen}
+        mode="transfer"
+        presetUser={userId ? { id: userId, label: name } : undefined}
+      />
 
       <AddNoteModal open={noteOpen} onOpenChange={setNoteOpen} onSave={(v) => actions.addSessionNote.mutate(v, { onSuccess: () => setNoteOpen(false) })} />
       <CheckInModal open={checkInOpen} onOpenChange={setCheckInOpen} onSave={(v) => actions.addMetrics.mutate(v, { onSuccess: () => setCheckInOpen(false) })} />

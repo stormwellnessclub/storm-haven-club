@@ -115,8 +115,9 @@ export function usePTUnpaidSessions() {
         .select(
           "id, user_id, starts_at, instructor_id, format, status, payment_status, amount_due_cents, pass_id, session_type_id, package_deducted",
         )
-        .eq("status", "completed")
-        .in("payment_status", ["unpaid"])
+        .is("pass_id", null)
+        .in("payment_status", ["unpaid", "past_due"])
+        .or(`status.eq.completed,and(status.eq.scheduled,starts_at.lt.${new Date().toISOString()})`)
         .order("starts_at", { ascending: true })
         .limit(500);
       if (error) throw error;

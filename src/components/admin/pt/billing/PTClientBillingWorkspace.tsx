@@ -173,7 +173,7 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
   /* --------------------------------------------------------------- alerts */
   const alerts: Array<{ tone: "danger" | "warning" | "info"; title: string; body: string }> = [];
   if (fin.pastDueCents > 0) alerts.push({ tone: "danger", title: "Payment failed", body: `${formatCents(fin.pastDueCents)} past due on ${activePass?.pack_name ?? "this package"}.` });
-  if (unpaidCents > 0) alerts.push({ tone: "warning", title: "Unpaid session", body: `${unpaid.length} completed session(s) · ${formatCents(unpaidCents)} due.` });
+  if (unpaidCents > 0) alerts.push({ tone: "warning", title: "Unpaid session", body: `${unpaid.length} unpaid session(s) · ${formatCents(unpaidCents)} due.` });
   if (fin.nextDueDate && fin.nextDueDate <= new Date(Date.now() + 86400000).toISOString().slice(0, 10)) {
     alerts.push({ tone: "info", title: "AutoPay tomorrow", body: `${formatCents(fin.nextAmountCents ?? 0)} scheduled ${day(fin.nextDueDate)}.` });
   }
@@ -317,7 +317,7 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
                   Unpaid PT sessions
                 </PTSectionTitle>
                 <div className="text-[15px] font-medium text-pt-red">{formatCents(unpaidCents)}</div>
-                <div className="text-[13px] text-pt-muted">{unpaid.length} completed session(s) awaiting settlement.</div>
+                <div className="text-[13px] text-pt-muted">{unpaid.length} unpaid past session(s) awaiting payment or a package credit.</div>
               </PTCard>
             )}
 

@@ -360,7 +360,7 @@ export default function PTPackages() {
               <Plus className="h-4 w-4" /> New package
             </button>
             <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("transfer")}>
-              Transferred package
+              Transfer legacy package
             </button>
             <button className={ptButtonClass("outline")} onClick={() => setAddExistingMode("existing")}>
               <Plus className="h-4 w-4" /> Existing package
