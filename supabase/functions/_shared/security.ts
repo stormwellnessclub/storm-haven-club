@@ -66,8 +66,8 @@ const DEFAULT_ORIGIN = "https://stormwellnessclub.com";
 export function trustedOrigin(req: Request): string {
   const origin = (req.headers.get("origin") ?? "").replace(/\/$/, "");
   if (ALLOWED_ORIGINS.includes(origin)) return origin;
-  if (/^https:\/\/[a-z0-9-]+\.lovable\.app$/i.test(origin)) return origin;
-  if (/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/i.test(origin)) return origin;
+  // This project's own preview hosts only.
+  if (/^https:\/\/([a-z0-9-]+--)?a24a7b8b-d6e4-4c2f-81d9-9f3c79a7b031\.(lovable\.app|lovableproject\.com)$/i.test(origin)) return origin;
   if (/^http:\/\/localhost(:\d+)?$/.test(origin)) return origin;
   return DEFAULT_ORIGIN;
 }
