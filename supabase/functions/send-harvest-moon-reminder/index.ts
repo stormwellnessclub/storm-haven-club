@@ -45,7 +45,7 @@ function buildHtml(firstName: string | null): string {
 
         <p style="margin:0 0 16px;">An intimate, softly lit circle guided by Savannah Rae Alawieh &mdash; grounding guidance, intentional stillness, and a closing fire-cleansing ritual, inviting each guest to release what she is ready to leave behind.</p>
 
-        <p style="margin:0 0 16px;">If you have already reserved, simply arrive a few minutes before six in comfortable clothing, with a water bottle. Everything else is provided.</p>
+        <p style="margin:0 0 16px;">If you have already reserved, simply arrive a few minutes before six in comfortable clothing. Everything else is provided.</p>
 
         <p style="margin:0 0 24px;">If you have not yet reserved, a few places remain.</p>
 
