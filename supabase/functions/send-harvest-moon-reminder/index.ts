@@ -45,9 +45,9 @@ function buildHtml(firstName: string | null): string {
 
         <p style="margin:0 0 16px;">An intimate, softly lit circle guided by Savannah Rae Alawieh &mdash; grounding guidance, intentional stillness, and a closing fire-cleansing ritual, inviting each guest to release what she is ready to leave behind.</p>
 
-        <p style="margin:0 0 16px;">If you have already reserved, simply arrive a few minutes before six in comfortable clothing. Everything else is provided.</p>
+        <p style="margin:0 0 16px;">There is still time to join us. We kindly ask that you reserve ahead so everything can be thoughtfully prepared for each guest.</p>
 
-        <p style="margin:0 0 24px;">If you have not yet reserved, a few places remain.</p>
+        <p style="margin:0 0 24px;">If you have already reserved, we look forward to welcoming you. Everything you need is provided.</p>
 
         <div style="text-align:center;margin:30px 0;">
           <a href="${EVENT_URL}" style="display:inline-block;background:#1C170F;color:#DEDACE;padding:15px 34px;text-decoration:none;border-radius:4px;font-weight:600;font-family:Georgia,serif;letter-spacing:0.5px;min-width:240px;">Reserve my place</a>
