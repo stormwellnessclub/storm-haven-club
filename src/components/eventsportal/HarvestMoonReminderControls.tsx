@@ -142,15 +142,15 @@ export function HarvestMoonReminderControls() {
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button size="sm">
-                <Mail className="h-4 w-4 mr-2" /> Send to members
+                <Mail className="h-4 w-4 mr-2" /> Send again to members
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Send the reminder to members?</AlertDialogTitle>
+                <AlertDialogTitle>Send the reminder again to all members?</AlertDialogTitle>
                 <AlertDialogDescription>
                   One email per current member with an address on file. Cancelled members are never
-                  included, and anyone already sent this reminder is skipped if it is run again.
+                  included. This sends a new copy even if they already received this reminder.
                   {result && (
                     <span className="mt-3 block rounded bg-muted p-2 text-xs">
                       Last run: sent {result.queued}, skipped {result.skipped}
@@ -162,21 +162,15 @@ export function HarvestMoonReminderControls() {
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={sending}>Not yet</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={(e) => {
-                    if (!confirm("Send again to everyone, including people who already received it?")) {
-                      e.preventDefault();
-                      return;
-                    }
-                    sendAll(true);
-                  }}
+                  onClick={() => sendAll(false)}
                   disabled={sending}
                   className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
                 >
-                  Send again to everyone
+                  Send only to anyone missed
                 </AlertDialogAction>
-                <AlertDialogAction onClick={() => sendAll(false)} disabled={sending}>
+                <AlertDialogAction onClick={() => sendAll(true)} disabled={sending}>
                   {sending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                  Send the reminder
+                  Send again to all members
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
