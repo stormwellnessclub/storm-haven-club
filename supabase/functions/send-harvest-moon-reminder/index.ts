@@ -1,4 +1,4 @@
-import { isAllowedTestRecipient } from "../_shared/security.ts";
+import { escapeHtml, isAllowedTestRecipient } from "../_shared/security.ts";
 // Under the Harvest Moon — "this Sunday" reminder email to members.
 // Admin-only. Modes: preview (return HTML), testEmail (single send), else blast to members.
 // Idempotent on email_type='harvest_moon_sep_27_2026_reminder' (independent of the invitation).
@@ -21,7 +21,7 @@ const SUBJECT = "This Sunday: Under the Harvest Moon — 6:00 PM";
 const FROM = "Storm Wellness Club <admin@stormwellnessclub.com>";
 
 function buildHtml(firstName: string | null): string {
-  const greeting = firstName ? `Dear ${firstName},` : "Dear Member,";
+  const greeting = firstName ? `Dear ${escapeHtml(firstName)},` : "Dear Member,";
   return `
     <div style="font-family:Georgia,'Times New Roman',Times,serif;max-width:600px;margin:0 auto;padding:0;">
       <div style="background:#DEDACE;padding:40px 30px;text-align:center;">
@@ -155,11 +155,20 @@ serve(async (req) => {
     });
   }
 
-  const { data: sentRows } = await supabase
+  const resendAll = body?.action === "resend_all" || body?.resend === true;
+  const { data: sentRows, error: sentErr } = await supabase
     .from("email_audit_log")
     .select("recipient_email")
     .eq("email_type", TEMPLATE_KEY);
-  const alreadySent: Set<string> = (body as any)?.resend === true ? new Set() : new Set(
+
+  if (sentErr) {
+    return new Response(JSON.stringify({ error: sentErr.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const alreadySent: Set<string> = resendAll ? new Set() : new Set(
     (sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()),
   );
 
@@ -186,7 +195,7 @@ serve(async (req) => {
         recipient_email: email,
         recipient_name: [m.first_name, m.last_name].filter(Boolean).join(" ") || null,
         email_type: TEMPLATE_KEY,
-        trigger_source: "admin_blast",
+        trigger_source: resendAll ? "admin_resend" : "admin_blast",
         triggered_by: gate.userId === "service_role" ? null : gate.userId,
         member_id: m.id,
         subject: SUBJECT,
@@ -210,6 +219,7 @@ serve(async (req) => {
       queued,
       skipped,
       total_members: members?.length ?? 0,
+      mode: resendAll ? "resend_all" : "skip_previously_sent",
       errors: errors.slice(0, 20),
     }),
     { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },

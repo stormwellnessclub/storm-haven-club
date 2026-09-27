@@ -38,7 +38,13 @@ export function HarvestMoonReminderControls() {
   const [testSending, setTestSending] = useState(false);
 
   const [sending, setSending] = useState(false);
-  const [result, setResult] = useState<{ queued: number; skipped: number } | null>(null);
+  const [result, setResult] = useState<{
+    queued: number;
+    skipped: number;
+    total_members?: number;
+    mode?: "resend_all" | "skip_previously_sent";
+    errors?: Array<{ email: string; error: string }>;
+  } | null>(null);
 
   const loadPreview = async () => {
     setPreviewLoading(true);
@@ -87,10 +93,21 @@ export function HarvestMoonReminderControls() {
   const sendAll = async (resend = false) => {
     setSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke(FN, { body: resend ? { resend: true } : {} });
+      const { data, error } = await supabase.functions.invoke(FN, {
+        body: resend ? { action: "resend_all" } : { action: "send_unsent" },
+      });
       if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Send failed");
+      if (resend && data.mode !== "resend_all") {
+        throw new Error("The send-again override was not accepted. No resend was confirmed.");
+      }
       setResult(data);
-      toast.success(`Reminder sent to ${data.queued} members (${data.skipped} skipped)`);
+      const failed = data.errors?.length ?? 0;
+      if (data.queued === 0) {
+        toast.warning(`No reminders sent (${data.skipped} skipped${failed ? `, ${failed} failed` : ""})`);
+      } else {
+        toast.success(`Reminder sent to ${data.queued} members (${data.skipped} skipped${failed ? `, ${failed} failed` : ""})`);
+      }
     } catch (e: any) {
       toast.error(e?.message || "Send failed");
     } finally {
@@ -137,6 +154,7 @@ export function HarvestMoonReminderControls() {
                   {result && (
                     <span className="mt-3 block rounded bg-muted p-2 text-xs">
                       Last run: sent {result.queued}, skipped {result.skipped}
+                      {result.mode === "resend_all" ? " — send-again override used" : ""}
                     </span>
                   )}
                 </AlertDialogDescription>
