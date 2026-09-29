@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { CheckCircle2, Sparkles, Crown, Gem, Star } from "lucide-react";
-import lounge from "@/assets/memberships/lounge.webp";
+import stairsA from "@/assets/membership/stairs.webp.asset.json";
+const lounge = stairsA.url;
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import {
   buildBreadcrumbLd,
@@ -12,12 +13,13 @@ import {
   buildProductLd,
 } from "@/lib/seo/schemas";
 
-// Amenity banner images
-import gymArea1 from "@/assets/memberships/gym.webp";
-import saunaInterior from "@/assets/memberships/sauna.webp";
-import steamRoom from "@/assets/memberships/steam.webp";
-import saltRoom from "@/assets/memberships/salt.webp";
-import coldPlunge from "@/assets/memberships/cold-plunge.webp";
+// Club photos (retouched originals)
+import gymA from "@/assets/membership/gym.webp.asset.json";
+import saunaA from "@/assets/membership/sauna.webp.asset.json";
+import steamA from "@/assets/membership/steam.webp.asset.json";
+import saltA from "@/assets/membership/salt.webp.asset.json";
+import spaLoungeA from "@/assets/membership/lounge.webp.asset.json";
+const gymArea1 = gymA.url, saunaInterior = saunaA.url, steamRoom = steamA.url, saltRoom = saltA.url, spaLounge = spaLoungeA.url;
 
 interface MembershipTier {
   name: string;
@@ -34,7 +36,7 @@ interface MembershipTier {
 const membershipTiers: MembershipTier[] = [
   {
     name: "Silver",
-    tagline: "Essential",
+    tagline: "The house, the heat, the cold.",
     price: "$200",
     annualFee: "$300",
     icon: Star,
@@ -44,48 +46,48 @@ const membershipTiers: MembershipTier[] = [
       "Sauna, steam, salt room and cold plunge",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
-    classesNote: "Purchase classes à la carte or through class credits",
+    classesNote: "Classes by the visit or with class credits",
   },
   {
     name: "Gold",
-    tagline: "Restore",
+    tagline: "Light and cold, woven into your month.",
     price: "$250",
     annualFee: "$300",
     icon: Sparkles,
     features: [
       "Everything in Silver",
-      "Red light therapy, four sessions a month",
+      "Red light, four sessions a month",
       "Dry cryo, two sessions a month",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
-    classesNote: "Purchase classes à la carte or through class credits",
+    classesNote: "Classes by the visit or with class credits",
   },
   {
     name: "Platinum",
-    tagline: "Recover",
+    tagline: "More time under the light.",
     price: "$350",
     annualFee: "$300",
     icon: Crown,
     features: [
       "Everything in Gold",
-      "Red light therapy, six sessions a month",
+      "Red light, six sessions a month",
       "Dry cryo, four sessions a month",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
-    classesNote: "Purchase classes à la carte or through class credits",
+    classesNote: "Classes by the visit or with class credits",
   },
   {
     name: "Diamond",
-    tagline: "Complete",
+    tagline: "The full rhythm.",
     price: "$500",
     annualFee: "$300",
     icon: Gem,
     features: [
       "The full club",
       "Ten classes a month",
-      "Red light therapy, ten sessions a month",
+      "Red light, ten sessions a month",
       "Dry cryo, six sessions a month",
-      "Priority booking and member evenings",
+      "First access to every gathering",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
     classesNote: "10 classes included monthly",
@@ -104,27 +106,27 @@ const coreAmenities = [
 const luxuriousSpaAmenities = [
   {
     name: "Himalayan Salt Room",
-    description: "Promotes respiratory health and skin rejuvenation",
+    description: "Warm amber light and mineral air.",
   },
   {
     name: "Steam Room",
-    description: "Detoxify your body and relax your muscles",
+    description: "Gold mosaic, soft heat, slow breath.",
   },
   {
     name: "Sauna",
-    description: "Improve circulation and promote healthy perspiration",
+    description: "Dry cedar heat that loosens the day.",
   },
   {
     name: "Cold Plunge",
-    description: "Reduce inflammation and accelerate recovery",
+    description: "A sharp, clarifying cold.",
   },
   {
     name: "Dry Cryo Bed",
-    description: "Enhanced recovery without getting wet",
+    description: "Deep cold, fully dressed, in minutes.",
   },
   {
     name: "Red Light Therapy",
-    description: "Rejuvenate skin and support cellular health",
+    description: "Quiet time under restorative light.",
   },
 ];
 
@@ -167,7 +169,7 @@ export default function Memberships() {
             },
             {
               q: "What's included in Silver vs Diamond?",
-              a: "Silver includes full gym + wet spa access. Diamond adds 10 monthly classes, 10 Red Light sessions, 6 Dry Cryo sessions, priority booking, and exclusive events.",
+              a: "Silver includes the gym and the wet spa. Diamond adds 10 monthly classes, 10 Red Light sessions, 6 Dry Cryo sessions, priority booking, and exclusive events.",
             },
           ]),
         ]}
@@ -178,21 +180,21 @@ export default function Memberships() {
           <div className="flex items-center px-6 sm:px-12 lg:px-20 py-16 lg:py-24">
             <AnimatedSection animation="fade-up" className="max-w-xl">
               <p className="text-gold-light text-xs uppercase tracking-[0.3em] mb-6">
-                Membership by application
+                Membership
               </p>
               <h1 className="font-serif text-5xl md:text-6xl xl:text-7xl leading-[1.05] mb-8">
-                Membership at Storm Wellness Club.
+                A quieter way to be well.
               </h1>
               <p className="text-primary-foreground/70 text-lg leading-relaxed mb-10">
-                Four tiers. Each includes the gym, the wet spa and member pricing across the club.
+                Heat, cold, movement and rest, held in one circular house in Livonia. Membership is how you come back to it.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link to="/apply">
-                  <Button variant="gold" size="lg">Apply for Membership</Button>
+                  <Button variant="gold" size="lg">Request an invitation</Button>
                 </Link>
                 <a href="#tiers">
                   <Button variant="outline" size="lg" className="bg-transparent text-primary-foreground border-primary-foreground/40 hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                    Compare tiers
+                    View the tiers
                   </Button>
                 </a>
               </div>
@@ -201,7 +203,7 @@ export default function Memberships() {
           <div className="relative min-h-[420px] lg:min-h-0 overflow-hidden">
             <img
               src={lounge}
-              alt="Storm Wellness Club gym floor with gold dumbbells in Livonia, Michigan"
+              alt="Stairway through an arch toward the glowing salt room at Storm Wellness Club"
               className="absolute inset-0 h-full w-full object-cover"
               fetchPriority="high"
               decoding="async"
@@ -216,25 +218,23 @@ export default function Memberships() {
         <div className="container mx-auto container-padding">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end mb-14">
             <div className="lg:col-span-5">
-              <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Every tier includes</p>
-              <h2 className="font-serif text-4xl md:text-5xl leading-tight">What every member has.</h2>
+              <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Always yours</p>
+              <h2 className="font-serif text-4xl md:text-5xl leading-tight">The house, in full.</h2>
             </div>
-            <ul className="lg:col-span-7 grid sm:grid-cols-2 gap-x-10 gap-y-4">
-              {coreAmenities.map((amenity) => (
-                <li key={amenity} className="flex items-center gap-3 border-b border-border pb-3 text-foreground">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                  {amenity}
-                </li>
-              ))}
-            </ul>
+            <p className="lg:col-span-7 font-serif text-2xl md:text-3xl leading-relaxed text-muted-foreground">
+              The gym floor at first light. Cedar heat, then steam, then the salt room.
+              The cold plunge, and the stillness after. Member pricing in the spa,
+              whenever you need more.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-2 gap-3 md:h-[620px]">
+          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-3 gap-3 md:h-[900px]">
             {[
-              { src: gymArea1, label: "The gym floor", alt: "Strength and cardio equipment on the Storm Wellness Club gym floor", cls: "col-span-2 row-span-2 aspect-[4/3] md:aspect-auto" },
-              { src: saltRoom, label: "Himalayan salt room", alt: "Himalayan salt room for halotherapy at Storm Wellness Club", cls: "col-span-2 aspect-[16/9] md:aspect-auto" },
-              { src: steamRoom, label: "Steam room", alt: "Steam room in the wet spa at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
-              { src: coldPlunge, label: "Cold plunge", alt: "Cold plunge for recovery at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
+              { src: gymArea1, label: "The gym", alt: "Strength and cardio equipment on the Storm Wellness Club gym floor", cls: "col-span-2 row-span-2 aspect-[4/3] md:aspect-auto" },
+              { src: saltRoom, label: "Salt room", alt: "Glowing Himalayan salt room at Storm Wellness Club", cls: "col-span-2 aspect-[16/9] md:aspect-auto" },
+              { src: steamRoom, label: "Steam room", alt: "Gold mosaic steam room at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
+              { src: saunaInterior, label: "Cedar sauna", alt: "Cedar sauna at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
+              { src: spaLounge, label: "The wet spa", alt: "Wet spa lounge with slatted wood ceiling at Storm Wellness Club", cls: "col-span-2 md:col-span-4 aspect-[16/9] md:aspect-auto" },
             ].map((t) => (
               <figure key={t.label} className={`group relative overflow-hidden rounded-sm bg-secondary ${t.cls}`}>
                 <img
@@ -272,9 +272,9 @@ export default function Memberships() {
       <section id="tiers" className="section-padding bg-background scroll-mt-24">
         <div className="container mx-auto container-padding">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">The tiers</p>
-            <h2 className="font-serif text-4xl md:text-5xl mb-5">Membership tiers</h2>
-            <p className="text-muted-foreground">Each tier adds recovery sessions. Annual fee {membershipTiers[0].annualFee} on every tier.</p>
+            <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Membership</p>
+            <h2 className="font-serif text-4xl md:text-5xl mb-5">Four ways to belong.</h2>
+            <p className="text-muted-foreground">Each tier deepens your recovery. A {membershipTiers[0].annualFee} annual fee applies to every tier.</p>
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-4 border border-border rounded-sm overflow-hidden">
@@ -285,7 +285,7 @@ export default function Memberships() {
                   key={tier.name}
                   className={`flex flex-col p-8 ${top ? "bg-primary text-primary-foreground" : "bg-card"} ${i > 0 ? "border-t md:border-t-0 xl:border-l border-border" : ""} ${i % 2 === 1 ? "md:border-l" : ""} ${i >= 2 ? "md:border-t xl:border-t-0" : ""}`}
                 >
-                  <p className={`min-h-[2.5rem] text-xs uppercase tracking-[0.3em] mb-3 ${top ? "text-gold-light" : "text-accent"}`}>{tier.tagline}</p>
+                  <p className={`min-h-[2.5rem] font-serif italic text-base mb-3 ${top ? "text-gold-light" : "text-accent"}`}>{tier.tagline}</p>
                   <h3 className="font-serif text-3xl mb-6">{tier.name}</h3>
                   <p className="font-serif text-5xl leading-none">
                     {tier.price}
@@ -295,7 +295,7 @@ export default function Memberships() {
                   <ul className="space-y-3 flex-1">
                     {tier.features.map((f) => (
                       <li key={f} className="flex items-start gap-3 text-sm leading-relaxed">
-                        <CheckCircle2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${top ? "text-gold-light" : "text-accent"}`} />
+                        <span className={`mt-2.5 h-px w-3 flex-shrink-0 ${top ? "bg-gold-light" : "bg-accent"}`} />
                         {f}
                       </li>
                     ))}
@@ -305,7 +305,7 @@ export default function Memberships() {
                     <p><span className="uppercase tracking-wider">Childcare · </span>{tier.childcareNote}</p>
                   </div>
                   <Link to="/apply" className="mt-8">
-                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Apply</Button>
+                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Enquire</Button>
                   </Link>
                 </div>
               );
@@ -322,12 +322,12 @@ export default function Memberships() {
               Founding members
             </p>
             <h2 className="heading-section text-primary-foreground mb-6">
-              Founding Membership
+              Those who were here first.
             </h2>
             <p className="text-primary-foreground/80 mb-8 leading-relaxed text-lg">
-              Members who pay annually in advance join as founding members. Founding
-              members receive a member card, club apparel, a gym bag and priority
-              access to private events.
+              Founding members pay annually and are with us from the beginning. They
+              carry a founding card and club pieces, and they are first to every
+              private evening.
             </p>
             <Link to="/apply">
               <Button variant="gold" size="lg" className="hover-lift">
@@ -375,15 +375,15 @@ export default function Memberships() {
         <div className="container mx-auto container-padding text-center">
           <AnimatedSection animation="fade-up">
             <h2 className="heading-section text-primary-foreground mb-6">
-              Membership is by application.
+              Come and see the house.
             </h2>
             <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10 text-lg">
-              Our team reviews each application and will be in touch within 48 hours
-              to arrange a visit.
+              Membership is by application. We will be in touch within two days to
+              arrange a quiet visit.
             </p>
             <Link to="/apply">
               <Button variant="gold" size="lg" className="hover-lift">
-                Apply for Membership
+                Request an invitation
               </Button>
             </Link>
           </AnimatedSection>
