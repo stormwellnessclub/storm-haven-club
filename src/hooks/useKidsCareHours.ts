@@ -177,29 +177,18 @@ export function useSaveKidsCareHourSlots() {
     mutationFn: async ({ date, slots }: { date: string; slots: Omit<KidsCareHourSlot, "id" | "created_by" | "created_at" | "updated_at">[] }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Delete existing slots for this date
-      const { error: deleteError } = await (supabase.from as any)("kids_care_hour_slots")
-        .delete()
-        .eq("slot_date", date);
-      if (deleteError) throw deleteError;
-
-      // Insert new slots (if any)
-      if (slots.length > 0) {
-        const rows = slots.map((s) => ({
-          slot_date: date,
+      // Atomic server-side replace (prevents duplicate stacking)
+      const { error } = await (supabase as any).rpc("replace_kids_care_hour_slots", {
+        p_date: date,
+        p_slots: slots.map((s) => ({
           open_time: s.open_time,
           close_time: s.close_time,
           label: s.label || null,
           notes: s.notes || null,
           staff_name: s.staff_name || null,
-          created_by: user.id,
-          updated_at: new Date().toISOString(),
-        }));
-
-        const { error: insertError } = await (supabase.from as any)("kids_care_hour_slots")
-          .insert(rows);
-        if (insertError) throw insertError;
-      }
+        })),
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
@@ -223,30 +212,11 @@ export function useCopyKidsCareHourSlots() {
     mutationFn: async ({ sourceDate, targetDates }: { sourceDate: string; targetDates: string[] }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Fetch source slots
-      const { data: sourceSlots, error: fetchError } = await (supabase as any).rpc(
-        "get_kids_care_hour_slots_staff",
-        { p_start: sourceDate, p_end: sourceDate },
-      );
-      if (fetchError) throw fetchError;
-      if (!sourceSlots || sourceSlots.length === 0) throw new Error("No slots to copy from source date");
-
-      for (const targetDate of targetDates) {
-        // Delete existing
-        await (supabase.from as any)("kids_care_hour_slots").delete().eq("slot_date", targetDate);
-        // Insert copied
-        const rows = sourceSlots.map((s: any) => ({
-          slot_date: targetDate,
-          open_time: s.open_time,
-          close_time: s.close_time,
-          label: s.label,
-          notes: s.notes,
-          staff_name: s.staff_name,
-          created_by: user.id,
-        }));
-        const { error } = await (supabase.from as any)("kids_care_hour_slots").insert(rows);
-        if (error) throw error;
-      }
+      const { error } = await (supabase as any).rpc("copy_kids_care_hour_slots", {
+        p_source: sourceDate,
+        p_targets: targetDates,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-hour-slots"] });
