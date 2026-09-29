@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus } from "@/hooks/useHigherSelfSociety";
-import { csvSafe } from "@/lib/csvSafe";
+import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 
 export default function EventsPortalSociety() {
   const { data: rows = [], isLoading } = useSocietyRoster();

@@ -32,6 +32,7 @@ import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppoin
 import { UpcomingSpaAppointmentsCard } from "@/components/portal/UpcomingSpaAppointmentsCard";
 import { EventAnnouncementBanner } from "@/components/events/EventAnnouncementBanner";
 import { UpcomingRitualsSection } from "@/components/events/UpcomingRitualsSection";
+import { HigherSelfSocietyCard } from "@/components/events/HigherSelfSocietyCard";
 
 import {
   CreditCard,
@@ -174,6 +175,7 @@ export default function MemberDashboard() {
         {/* Upcoming Event Announcement */}
         <EventAnnouncementBanner />
         <UpcomingRitualsSection basePath="/member" />
+        <HigherSelfSocietyCard />
 
         {/* Live cafe order tracker */}
         <MyCafeOrdersCard />

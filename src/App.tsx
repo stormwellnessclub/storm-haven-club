@@ -148,6 +148,8 @@ import AdminPrivateEvents from "./pages/admin/PrivateEvents";
 import EventPage from "./pages/EventPage";
 import EventsIndex from "./pages/EventsIndex";
 import MemberRituals from "./pages/MemberRituals";
+import HigherSelfSociety from "./pages/HigherSelfSociety";
+import EventsPortalSociety from "./pages/eventsportal/EventsPortalSociety";
 import RitualsCalendar from "./pages/RitualsCalendar";
 import MyRituals from "@/pages/portal/MyRituals";
 import EventSuccess from "./pages/EventSuccess";
@@ -533,6 +535,7 @@ const App = () => (
               <Route path="/events-portal/events/:slug" element={<ProtectedEventsPortalRoute><EventsPortalEventDetail /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/collections" element={<ProtectedEventsPortalRoute><EventsPortalCollections /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/requests" element={<ProtectedEventsPortalRoute><EventsPortalRequests /></ProtectedEventsPortalRoute>} />
+              <Route path="/events-portal/society" element={<ProtectedEventsPortalRoute><EventsPortalSociety /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/attendance" element={<ProtectedEventsPortalRoute><EventsPortalAttendance /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/finance" element={<ProtectedEventsPortalRoute><EventsPortalFinance /></ProtectedEventsPortalRoute>} />
               <Route path="/events-portal/finance/:financialId" element={<ProtectedEventsPortalRoute><EventsPortalFinancialWorkspace /></ProtectedEventsPortalRoute>} />
@@ -542,6 +545,7 @@ const App = () => (
               <Route path="/events" element={<EventsIndex />} />
               <Route path="/rituals" element={<MemberRituals />} />
               <Route path="/rituals/calendar" element={<RitualsCalendar />} />
+              <Route path="/rituals/higher-self-society" element={<HigherSelfSociety />} />
               <Route path="/events/:slug/success" element={<EventSuccess />} />
               <Route path="/admin/non-member-accounts" element={<ProtectedAdminRoute><NonMemberAccounts /></ProtectedAdminRoute>} />
               <Route path="/admin/non-member-accounts/:userId" element={<ProtectedAdminRoute><NonMemberDetail /></ProtectedAdminRoute>} />
