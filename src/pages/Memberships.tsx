@@ -34,62 +34,58 @@ interface MembershipTier {
 const membershipTiers: MembershipTier[] = [
   {
     name: "Silver",
-    tagline: "The Foundation",
+    tagline: "Essential",
     price: "$200",
     annualFee: "$300",
     icon: Star,
     features: [
-      "Full access to state-of-the-art gym",
-      "Luxurious wet spa amenities",
-      "Sauna & Steam Room",
-      "Himalayan Salt Room",
-      "Cold Plunge",
+      "The gym",
+      "The wet spa",
+      "Sauna, steam, salt room and cold plunge",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
     classesNote: "Purchase classes à la carte or through class credits",
   },
   {
     name: "Gold",
-    tagline: "The Enhanced Experience",
+    tagline: "Restore",
     price: "$250",
     annualFee: "$300",
     icon: Sparkles,
     features: [
-      "All Silver benefits included",
-      "Red Light Therapy x4/month",
-      "Dry Cryo x2/month",
-      "Enhanced wellness treatments",
+      "Everything in Silver",
+      "Red light therapy, four sessions a month",
+      "Dry cryo, two sessions a month",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
     classesNote: "Purchase classes à la carte or through class credits",
   },
   {
     name: "Platinum",
-    tagline: "The Pinnacle of Luxury",
+    tagline: "Recover",
     price: "$350",
     annualFee: "$300",
     icon: Crown,
     features: [
-      "All Silver & Gold benefits",
-      "Red Light Therapy x6/month",
-      "Dry Cryo x4/month",
-      "Premium wellness experience",
+      "Everything in Gold",
+      "Red light therapy, six sessions a month",
+      "Dry cryo, four sessions a month",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
     classesNote: "Purchase classes à la carte or through class credits",
   },
   {
     name: "Diamond",
-    tagline: "The Ultimate Commitment",
+    tagline: "Complete",
     price: "$500",
     annualFee: "$300",
     icon: Gem,
     features: [
-      "Full access to luxurious facilities",
-      "10 classes per month included",
-      "10 Red Light Therapy sessions/month",
-      "6 Dry Cryo sessions/month",
-      "Priority booking & exclusive events",
+      "The full club",
+      "Ten classes a month",
+      "Red light therapy, ten sessions a month",
+      "Dry cryo, six sessions a month",
+      "Priority booking and member evenings",
     ],
     childcareNote: "$75/month add-on (2 hrs/day, 4 days/week)",
     classesNote: "10 classes included monthly",
@@ -97,12 +93,12 @@ const membershipTiers: MembershipTier[] = [
 ];
 
 const coreAmenities = [
-  "State-of-the-art gym facilities",
+  "The gym",
   "Sauna & Steam Room",
   "Himalayan Salt Room",
-  "Cold Plunge Pool",
-  "Luxury Locker Rooms",
-  "Preferred pricing on spa services",
+  "Cold Plunge",
+  "Locker rooms",
+  "Member pricing at the spa",
 ];
 
 const luxuriousSpaAmenities = [
@@ -185,11 +181,10 @@ export default function Memberships() {
                 Membership by application
               </p>
               <h1 className="font-serif text-5xl md:text-6xl xl:text-7xl leading-[1.05] mb-8">
-                A private club for the way you want to feel.
+                Membership at Storm Wellness Club.
               </h1>
               <p className="text-primary-foreground/70 text-lg leading-relaxed mb-10">
-                Four tiers, one standard. Every member enjoys the full gym, the wet spa and
-                preferred pricing across the club.
+                Four tiers. Each includes the gym, the wet spa and member pricing across the club.
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link to="/apply">
@@ -222,7 +217,7 @@ export default function Memberships() {
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end mb-14">
             <div className="lg:col-span-5">
               <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Every tier includes</p>
-              <h2 className="font-serif text-4xl md:text-5xl leading-tight">The full club, from your first visit.</h2>
+              <h2 className="font-serif text-4xl md:text-5xl leading-tight">What every member has.</h2>
             </div>
             <ul className="lg:col-span-7 grid sm:grid-cols-2 gap-x-10 gap-y-4">
               {coreAmenities.map((amenity) => (
@@ -278,8 +273,8 @@ export default function Memberships() {
         <div className="container mx-auto container-padding">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">The tiers</p>
-            <h2 className="font-serif text-4xl md:text-5xl mb-5">Choose your rhythm</h2>
-            <p className="text-muted-foreground">Each tier adds more recovery and more ritual. Annual fee {membershipTiers[0].annualFee} on every tier.</p>
+            <h2 className="font-serif text-4xl md:text-5xl mb-5">Membership tiers</h2>
+            <p className="text-muted-foreground">Each tier adds recovery sessions. Annual fee {membershipTiers[0].annualFee} on every tier.</p>
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-4 border border-border rounded-sm overflow-hidden">
@@ -310,7 +305,7 @@ export default function Memberships() {
                     <p><span className="uppercase tracking-wider">Childcare · </span>{tier.childcareNote}</p>
                   </div>
                   <Link to="/apply" className="mt-8">
-                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Apply for Invitation</Button>
+                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Apply</Button>
                   </Link>
                 </div>
               );
@@ -324,20 +319,19 @@ export default function Memberships() {
         <div className="container mx-auto container-padding">
           <AnimatedSection animation="fade-up" className="max-w-3xl mx-auto text-center">
             <p className="text-gold-light text-sm uppercase tracking-widest mb-4">
-              Limited Opportunity
+              Founding members
             </p>
             <h2 className="heading-section text-primary-foreground mb-6">
-              Founding Member Privilege
+              Founding Membership
             </h2>
             <p className="text-primary-foreground/80 mb-8 leading-relaxed text-lg">
-              Apply now and pay your membership annually in advance to become one
-              of our elite founding members. This status grants you a special
-              founding member card, exclusive branded apparel, a premium gym bag,
-              and priority access to all private events.
+              Members who pay annually in advance join as founding members. Founding
+              members receive a member card, club apparel, a gym bag and priority
+              access to private events.
             </p>
             <Link to="/apply">
-              <Button variant="gold" size="lg" className="hover-lift pulse-soft">
-                Apply to Be a Founding Member
+              <Button variant="gold" size="lg" className="hover-lift">
+                Enquire about founding membership
               </Button>
             </Link>
           </AnimatedSection>
@@ -381,11 +375,11 @@ export default function Memberships() {
         <div className="container mx-auto container-padding text-center">
           <AnimatedSection animation="fade-up">
             <h2 className="heading-section text-primary-foreground mb-6">
-              Ready to Transform?
+              Membership is by application.
             </h2>
             <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10 text-lg">
-              Select the membership tier that resonates with your vision of
-              wellness and begin your journey at Storm Wellness Club.
+              Our team reviews each application and will be in touch within 48 hours
+              to arrange a visit.
             </p>
             <Link to="/apply">
               <Button variant="gold" size="lg" className="hover-lift">
