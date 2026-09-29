@@ -1031,3 +1031,16 @@
     margin: 0.4in;
   }
 }
+
+/* Higher Self Society — deep maroon & espresso palette */
+.society-theme {
+  --society-bg: 345 50% 8%;
+  --society-surface: 350 38% 13%;
+  --society-espresso: 20 30% 12%;
+  --society-cream: 36 40% 90%;
+  --society-muted: 30 18% 68%;
+  --society-gold: 38 52% 58%;
+  --society-line: 38 30% 35%;
+  background: hsl(var(--society-bg));
+  color: hsl(var(--society-cream));
+}

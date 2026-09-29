@@ -505,6 +505,13 @@
       "when": 1790648234235,
       "tag": "0071_kids_care_slots_atomic_replace",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1790670610225,
+      "tag": "0072_higher_self_society_interest",
+      "breakpoints": true
     }
   ]
 }
