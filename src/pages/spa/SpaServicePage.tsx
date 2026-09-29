@@ -56,6 +56,7 @@ export default function SpaServicePage({ category }: Props) {
       serviceName={service.name}
       ctaHref={`/spa?service=${service.slug}&category=${encodeURIComponent(cat.dbCategory)}`}
       ctaLabel={`Book ${service.name}`}
+      giftHref={`/shop?serviceName=${encodeURIComponent(service.name)}#gift-cards`}
       eyebrow={cat.name}
       extraBreadcrumbs={[{ label: cat.name, path: `/spa/${cat.slug}` }]}
       relatedHeading={`Other ${cat.name.toLowerCase()} & related services`}

@@ -63,7 +63,7 @@ import PortalCafe from "./pages/portal/Cafe";
 import Amenities from "./pages/Amenities";
 import KidsCare from "./pages/KidsCare";
 import Reviews from "./pages/Reviews";
-import ClassPasses from "./pages/ClassPasses";
+import { HashRedirect } from "@/components/HashRedirect";
 import Memberships from "./pages/Memberships";
 import Apply from "./pages/Apply";
 import Auth from "./pages/Auth";
@@ -231,7 +231,6 @@ import PortalSupport from "@/pages/portal/Support";
 import PortalRecovery from "@/pages/portal/Recovery";
 import PortalMyEventTickets from "@/pages/portal/MyEventTickets";
 import PortalGiftCards from "@/pages/portal/GiftCards";
-import GiftCardStore from "@/pages/GiftCardStore";
 import AdminGiftCardHub from "@/pages/admin/GiftCardHub";
 
 import PTPortalDashboard from "@/pages/admin/pt/PTDashboard";
@@ -343,7 +342,7 @@ const App = () => (
               <Route path="/gut-reset" element={<GutReset />} />
               <Route path="/gut-reset/success" element={<GutResetSuccess />} />
               <Route path="/cafe" element={<Cafe />} />
-              <Route path="/gift-cards" element={<GiftCardStore />} />
+              <Route path="/gift-cards" element={<HashRedirect to="/shop" hash="gift-cards" />} />
               <Route path="/amenities" element={<Amenities />} />
               <Route path="/recovery-guide" element={<RecoveryGuide />} />
               <Route path="/kids-care" element={<KidsCare />} />
@@ -353,7 +352,7 @@ const App = () => (
               
               <Route path="/personal-training/semi-private" element={<PTSemiPrivate />} />
               <Route path="/reviews" element={<Reviews />} />
-              <Route path="/class-passes" element={<ClassPasses />} />
+              <Route path="/class-passes" element={<HashRedirect to="/schedule" hash="passes" />} />
               <Route path="/memberships" element={<Memberships />} />
               <Route path="/apply" element={<Apply />} />
               <Route path="/auth" element={<Auth />} />

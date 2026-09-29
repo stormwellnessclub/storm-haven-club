@@ -17,11 +17,11 @@ const footerLinks = {
   membership: [
     { label: "Memberships & Pricing", href: "/memberships" },
     { label: "Apply Now", href: "/apply" },
-    { label: "Class Passes", href: "/class-passes" },
+    { label: "Class Passes", href: "/schedule#passes" },
     { label: "Guest Day Pass", href: "/guest-pass" },
     { label: "Member Amenities", href: "/amenities" },
     { label: "Storm Shop", href: "/shop" },
-    { label: "Gift Cards", href: "/gift-cards" },
+    { label: "Gift Cards", href: "/shop#gift-cards" },
     { label: "FAQ", href: "/faq" },
   ],
 };

@@ -211,9 +211,12 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   // Preselect a spa service when arriving from the Spa ("Gift this service").
   useEffect(() => {
     const svc = searchParams.get("service");
-    if (!svc) return;
+    const svcName = searchParams.get("serviceName");
+    if (!svc && !svcName) return;
     (async () => {
-      const { data } = await supabase.from("spa_services").select("id, name, price").eq("id", svc).maybeSingle();
+      let q = supabase.from("spa_services").select("id, name, price").eq("is_active", true);
+      q = svc ? q.eq("id", svc) : q.ilike("name", `%${svcName!.replace(/[%_]/g, "")}%`);
+      const { data } = await q.order("price", { ascending: true }).limit(1).maybeSingle();
       if (!data) return;
       setMode("spa");
       setSpaServiceId(data.id);
