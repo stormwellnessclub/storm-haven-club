@@ -15103,6 +15103,10 @@ export type Database = {
           pass_ids: string[]
         }[]
       }
+      copy_kids_care_hour_slots: {
+        Args: { p_source: string; p_targets: string[] }
+        Returns: undefined
+      }
       copy_schedule_week: {
         Args: { p_from_week: string; p_to_week: string }
         Returns: Json
@@ -17075,6 +17079,10 @@ export type Database = {
       }
       refund_waitlist_hold: {
         Args: { p_waitlist_id: string }
+        Returns: undefined
+      }
+      replace_kids_care_hour_slots: {
+        Args: { p_date: string; p_slots: Json }
         Returns: undefined
       }
       request_event_guest_seat: {
