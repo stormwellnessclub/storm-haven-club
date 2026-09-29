@@ -79,6 +79,11 @@ export default function RitualsCalendar() {
   }, [month]);
 
   const setCollection = (slug: string) => {
+    // Higher Self Society has its own sign-up page with the founding-circle form.
+    if (slug === "storm-book-society") {
+      window.location.assign("/rituals/higher-self-society");
+      return;
+    }
     const next = new URLSearchParams(params);
     if (slug === "all") next.delete("collection");
     else next.set("collection", slug);
