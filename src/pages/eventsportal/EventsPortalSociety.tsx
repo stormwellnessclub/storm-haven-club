@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus } from "@/hooks/useHigherSelfSociety";
+import { SocietyInviteEmailControls } from "@/components/eventsportal/SocietyInviteEmailControls";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 
 export default function EventsPortalSociety() {
@@ -42,6 +43,7 @@ export default function EventsPortalSociety() {
 
   return (
     <EventsPortalShell title="Higher Self Society">
+      <SocietyInviteEmailControls />
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <Card><CardHeader><CardTitle className="text-sm">Founding roster</CardTitle></CardHeader>
           <CardContent className="text-3xl font-semibold">{rows.length}</CardContent></Card>
