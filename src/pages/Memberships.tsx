@@ -19,6 +19,8 @@ import saunaA from "@/assets/membership/sauna.webp.asset.json";
 import steamA from "@/assets/membership/steam.webp.asset.json";
 import saltA from "@/assets/membership/salt.webp.asset.json";
 import spaLoungeA from "@/assets/membership/lounge.webp.asset.json";
+import redLightA from "@/assets/membership/redlight.webp.asset.json";
+import zeroBodyA from "@/assets/membership/zerobody.webp.asset.json";
 const gymArea1 = gymA.url, saunaInterior = saunaA.url, steamRoom = steamA.url, saltRoom = saltA.url, spaLounge = spaLoungeA.url;
 
 interface MembershipTier {
@@ -104,30 +106,13 @@ const coreAmenities = [
 ];
 
 const luxuriousSpaAmenities = [
-  {
-    name: "Himalayan Salt Room",
-    description: "Warm amber light and mineral air.",
-  },
-  {
-    name: "Steam Room",
-    description: "Gold mosaic, soft heat, slow breath.",
-  },
-  {
-    name: "Sauna",
-    description: "Dry cedar heat that loosens the day.",
-  },
-  {
-    name: "Cold Plunge",
-    description: "A sharp, clarifying cold.",
-  },
-  {
-    name: "Dry Cryo Bed",
-    description: "Deep cold, fully dressed, in minutes.",
-  },
-  {
-    name: "Red Light Therapy",
-    description: "Quiet time under restorative light.",
-  },
+  { name: "Himalayan Salt Room", description: "Walls of hand-cut Himalayan salt. Sit, breathe, reset." },
+  { name: "Steam Room", description: "Gold mosaic and eucalyptus steam. Open the lungs, clear the head." },
+  { name: "Sauna", description: "Cedar, high heat, deep sweat. The oldest recovery ritual there is." },
+  { name: "Cold Plunge", description: "Held cold, on your terms. The fastest way back to clarity." },
+  { name: "Dry Cryo Bed", description: "Minus temperatures in minutes, fully dressed. Built for inflammation and recovery." },
+  { name: "Red Light Therapy", description: "Clinical-grade red and near-infrared panels, full body." },
+  { name: "Starpool ZeroBody", description: "Italian dry float. Weightless, warm and completely still." },
 ];
 
 export default function Memberships() {
@@ -160,8 +145,8 @@ export default function Memberships() {
               a: "Apply online, then our team reviews your application and contacts you within 48 hours to schedule a personalized tour. During the tour we'll match you to the right tier.",
             },
             {
-              q: "Is there an annual fee?",
-              a: "Yes — all tiers include a $300 annual fee in addition to monthly dues. This funds facility upgrades and equipment maintenance.",
+              q: "Is there a commitment or annual fee?",
+              a: "Every membership is a 12-month commitment, billed monthly. All tiers also carry a $300 annual fee in addition to monthly dues.",
             },
             {
               q: "Can I freeze my membership?",
@@ -174,67 +159,37 @@ export default function Memberships() {
           ]),
         ]}
       />
-      {/* Hero — editorial split */}
-      <section className="bg-primary text-primary-foreground pt-28 lg:pt-24">
-        <div className="grid lg:grid-cols-2 min-h-[80vh]">
-          <div className="flex items-center px-6 sm:px-12 lg:px-20 py-16 lg:py-24">
-            <AnimatedSection animation="fade-up" className="max-w-xl">
-              <p className="text-gold-light text-xs uppercase tracking-[0.3em] mb-6">
-                Membership
-              </p>
-              <h1 className="font-serif text-5xl md:text-6xl xl:text-7xl leading-[1.05] mb-8">
-                A quieter way to be well.
-              </h1>
-              <p className="text-primary-foreground/70 text-lg leading-relaxed mb-10">
-                Heat, cold, movement and rest, held in one circular house in Livonia. Membership is how you come back to it.
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link to="/apply">
-                  <Button variant="gold" size="lg">Request an invitation</Button>
-                </Link>
-                <a href="#tiers">
-                  <Button variant="outline" size="lg" className="bg-transparent text-primary-foreground border-primary-foreground/40 hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                    View the tiers
-                  </Button>
-                </a>
-              </div>
-            </AnimatedSection>
-          </div>
-          <div className="relative min-h-[420px] lg:min-h-0 overflow-hidden">
-            <img
-              src={lounge}
-              alt="Stairway through an arch toward the glowing salt room at Storm Wellness Club"
-              className="absolute inset-0 h-full w-full object-cover"
-              fetchPriority="high"
-              decoding="async"
-            />
-            <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/20 to-transparent lg:from-primary lg:via-transparent" />
+      {/* Hero — full-bleed photo */}
+      <section className="relative bg-primary text-primary-foreground pt-28 lg:pt-24">
+        <div className="relative h-[80vh] min-h-[480px] overflow-hidden">
+          <img
+            src={lounge}
+            alt="Stairway through an arch toward the glowing salt room at Storm Wellness Club"
+            className="absolute inset-0 h-full w-full object-cover"
+            fetchPriority="high"
+            decoding="async"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
+          <div className="absolute bottom-12 left-0 right-0 flex justify-center">
+            <Link to="/apply">
+              <Button variant="gold" size="lg">Apply for invitation</Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Included in every membership — editorial mosaic */}
+      {/* Photo mosaic */}
       <section id="benefits" className="section-padding bg-background">
         <div className="container mx-auto container-padding">
-          <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end mb-14">
-            <div className="lg:col-span-5">
-              <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Always yours</p>
-              <h2 className="font-serif text-4xl md:text-5xl leading-tight">The house, in full.</h2>
-            </div>
-            <p className="lg:col-span-7 font-serif text-2xl md:text-3xl leading-relaxed text-muted-foreground">
-              The gym floor at first light. Cedar heat, then steam, then the salt room.
-              The cold plunge, and the stillness after. Member pricing in the spa,
-              whenever you need more.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-3 gap-3 md:h-[900px]">
+          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-4 gap-3 md:h-[1200px]">
             {[
               { src: gymArea1, label: "The gym", alt: "Strength and cardio equipment on the Storm Wellness Club gym floor", cls: "col-span-2 row-span-2 aspect-[4/3] md:aspect-auto" },
               { src: saltRoom, label: "Salt room", alt: "Glowing Himalayan salt room at Storm Wellness Club", cls: "col-span-2 aspect-[16/9] md:aspect-auto" },
               { src: steamRoom, label: "Steam room", alt: "Gold mosaic steam room at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
               { src: saunaInterior, label: "Cedar sauna", alt: "Cedar sauna at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
-              { src: spaLounge, label: "The wet spa", alt: "Wet spa lounge with slatted wood ceiling at Storm Wellness Club", cls: "col-span-2 md:col-span-4 aspect-[16/9] md:aspect-auto" },
+              { src: redLightA.url, label: "Red light", alt: "Member stretching in front of a red light therapy panel at Storm Wellness Club", cls: "row-span-2 aspect-[3/4] md:aspect-auto" },
+              { src: zeroBodyA.url, label: "Starpool ZeroBody", alt: "Two Starpool ZeroBody dry-float beds behind an arched door at Storm Wellness Club", cls: "row-span-2 aspect-[3/4] md:aspect-auto" },
+              { src: spaLounge, label: "The wet spa", alt: "Wet spa lounge with slatted wood ceiling at Storm Wellness Club", cls: "col-span-2 row-span-2 aspect-[16/9] md:aspect-auto" },
             ].map((t) => (
               <figure key={t.label} className={`group relative overflow-hidden rounded-sm bg-secondary ${t.cls}`}>
                 <img
@@ -274,7 +229,7 @@ export default function Memberships() {
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Membership</p>
             <h2 className="font-serif text-4xl md:text-5xl mb-5">Four ways to belong.</h2>
-            <p className="text-muted-foreground">Each tier deepens your recovery. A {membershipTiers[0].annualFee} annual fee applies to every tier.</p>
+            <p className="text-muted-foreground">Every membership is a one-year commitment, billed monthly. A {membershipTiers[0].annualFee} annual fee applies to every tier.</p>
           </div>
 
           <div className="grid md:grid-cols-2 xl:grid-cols-4 border border-border rounded-sm overflow-hidden">
@@ -291,6 +246,10 @@ export default function Memberships() {
                     {tier.price}
                     <span className={`ml-1 font-sans text-sm ${top ? "text-primary-foreground/60" : "text-muted-foreground"}`}>/month</span>
                   </p>
+                  <div className={`mt-4 space-y-1 text-sm ${top ? "text-primary-foreground/80" : "text-foreground/80"}`}>
+                    <p>12-month commitment</p>
+                    <p>{tier.annualFee} annual fee</p>
+                  </div>
                   <div className={`my-8 h-px ${top ? "bg-primary-foreground/20" : "bg-border"}`} />
                   <ul className="space-y-3 flex-1">
                     {tier.features.map((f) => (
@@ -305,7 +264,7 @@ export default function Memberships() {
                     <p><span className="uppercase tracking-wider">Childcare · </span>{tier.childcareNote}</p>
                   </div>
                   <Link to="/apply" className="mt-8">
-                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Enquire</Button>
+                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Apply for invitation</Button>
                   </Link>
                 </div>
               );
@@ -314,29 +273,6 @@ export default function Memberships() {
         </div>
       </section>
 
-      {/* Founding Member */}
-      <section className="section-padding bg-primary text-primary-foreground overflow-hidden">
-        <div className="container mx-auto container-padding">
-          <AnimatedSection animation="fade-up" className="max-w-3xl mx-auto text-center">
-            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">
-              Founding members
-            </p>
-            <h2 className="heading-section text-primary-foreground mb-6">
-              Those who were here first.
-            </h2>
-            <p className="text-primary-foreground/80 mb-8 leading-relaxed text-lg">
-              Founding members pay annually and are with us from the beginning. They
-              carry a founding card and club pieces, and they are first to every
-              private evening.
-            </p>
-            <Link to="/apply">
-              <Button variant="gold" size="lg" className="hover-lift">
-                Enquire about founding membership
-              </Button>
-            </Link>
-          </AnimatedSection>
-        </div>
-      </section>
 
       {/* Men's Rates - Hidden for now
       <section className="py-20 bg-secondary/30">
