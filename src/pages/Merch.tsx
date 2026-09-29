@@ -560,7 +560,7 @@ export default function Merch({ embedded = false }: { embedded?: boolean } = {})
             {categories.length > 1 && (
               <h3 className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-6">{cat}</h3>
             )}
-            <div className="grid gap-x-6 gap-y-10 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid gap-x-6 gap-y-10 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 items-start">
               {products
                 ?.filter((p) => p.category === cat)
                 .map((product) => {
@@ -570,7 +570,7 @@ export default function Merch({ embedded = false }: { embedded?: boolean } = {})
                   <button
                     type="button"
                     key={product.id}
-                    className="group text-left"
+                    className="group block w-full self-start text-left align-top"
                     onClick={() => {
                       setSelectedProduct(product);
                       setSelectedSize(product.sizes[0] || "");
