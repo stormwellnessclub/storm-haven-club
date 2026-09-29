@@ -106,27 +106,27 @@ const coreAmenities = [
 const luxuriousSpaAmenities = [
   {
     name: "Himalayan Salt Room",
-    description: "Promotes respiratory health and skin rejuvenation",
+    description: "Warm amber light and mineral air.",
   },
   {
     name: "Steam Room",
-    description: "Detoxify your body and relax your muscles",
+    description: "Gold mosaic, soft heat, slow breath.",
   },
   {
     name: "Sauna",
-    description: "Improve circulation and promote healthy perspiration",
+    description: "Dry cedar heat that loosens the day.",
   },
   {
     name: "Cold Plunge",
-    description: "Reduce inflammation and accelerate recovery",
+    description: "A sharp, clarifying cold.",
   },
   {
     name: "Dry Cryo Bed",
-    description: "Enhanced recovery without getting wet",
+    description: "Deep cold, fully dressed, in minutes.",
   },
   {
     name: "Red Light Therapy",
-    description: "Rejuvenate skin and support cellular health",
+    description: "Quiet time under restorative light.",
   },
 ];
 
