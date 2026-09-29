@@ -28,7 +28,7 @@ function cartItemKey(item: CartItem) {
   return `${item.product.id}-${item.size}-${item.color}`;
 }
 
-export default function Merch() {
+export default function Merch({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: products, isLoading } = useMerchProducts(true);
   const { data: inventory } = useMerchInventory();
   const createOrder = useCreateMerchOrder();
@@ -528,13 +528,13 @@ export default function Merch() {
 
   // Store grid
   return (
-    <div className="min-h-screen bg-background">
-      <SEOHead title="Shop" description="Storm Wellness Club branded merchandise and wellness products. Shop apparel, accessories, and more." path="/merch" />
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-10">
-          <div className="text-center flex-1">
-            <h1 className="text-4xl font-bold">Storm Shop</h1>
-            <p className="text-muted-foreground mt-2">Branded gear, wellness products & more</p>
+    <div className={embedded ? "bg-background" : "min-h-screen bg-background"}>
+      {!embedded && <SEOHead title="Shop" description="Storm Wellness Club branded merchandise and wellness products. Shop apparel, accessories, and more." path="/merch" />}
+      <div className="max-w-6xl mx-auto px-6 py-16">
+        <div className="flex items-end justify-between gap-4 mb-12">
+          <div>
+            <p className="text-gold text-xs uppercase tracking-[0.3em] mb-3">Wear Storm</p>
+            <h2 className="font-serif text-4xl md:text-5xl">Apparel</h2>
           </div>
           {cartCount > 0 && (
             <Button variant="outline" onClick={() => setShowCart(true)} className="relative">
@@ -556,18 +556,21 @@ export default function Merch() {
         )}
 
         {categories.map((cat) => (
-          <div key={cat} className="mb-10">
-            <h2 className="text-2xl font-semibold mb-4">{cat}</h2>
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div key={cat} className="mb-14">
+            {categories.length > 1 && (
+              <h3 className="text-xs uppercase tracking-[0.25em] text-muted-foreground mb-6">{cat}</h3>
+            )}
+            <div className="grid gap-x-6 gap-y-10 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               {products
                 ?.filter((p) => p.category === cat)
                 .map((product) => {
                   const stock = getProductStock(product.id);
                   const outOfStock = stock === 0 && !product.allow_preorder;
                   return (
-                  <Card
+                  <button
+                    type="button"
                     key={product.id}
-                    className="cursor-pointer hover:border-primary/50 transition-colors overflow-hidden"
+                    className="group text-left"
                     onClick={() => {
                       setSelectedProduct(product);
                       setSelectedSize(product.sizes[0] || "");
@@ -575,27 +578,41 @@ export default function Merch() {
                       setActiveImageIdx(0);
                     }}
                   >
-                    {product.image_urls[0] ? (
-                      <img src={product.image_urls[0]} alt={product.name} className="w-full h-56 object-cover" />
-                    ) : (
-                      <div className="w-full h-56 bg-muted flex items-center justify-center">
-                        <Package className="h-12 w-12 text-muted-foreground" />
-                      </div>
+                    <div className="relative aspect-[4/5] overflow-hidden rounded-sm bg-secondary">
+                      {product.image_urls[0] ? (
+                        <img
+                          src={product.image_urls[0]}
+                          alt={product.name}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center bg-primary px-4 text-center text-primary-foreground">
+                          <span className="font-serif text-2xl tracking-[0.35em] text-gold">STORM</span>
+                          <span className="mt-3 h-px w-10 bg-gold/50" />
+                          <span className="mt-3 text-xs uppercase tracking-[0.2em] text-primary-foreground/70 line-clamp-2">
+                            {product.name}
+                          </span>
+                        </div>
+                      )}
+                      {outOfStock && (
+                        <Badge variant="destructive" className="absolute left-3 top-3 text-[10px]">Sold out</Badge>
+                      )}
+                      {stock === 0 && product.allow_preorder && (
+                        <Badge variant="secondary" className="absolute left-3 top-3 text-[10px]">Pre-order</Badge>
+                      )}
+                    </div>
+                    <div className="mt-4 flex items-start justify-between gap-3">
+                      <h4 className="font-serif text-lg leading-snug group-hover:text-accent transition-colors">{product.name}</h4>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">${product.price.toFixed(2)}</span>
+                    </div>
+                    {product.colors.length > 0 && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {product.colors.length} {product.colors.length === 1 ? "color" : "colors"}
+                        {product.sizes.length > 0 && ` · ${product.sizes[0]}–${product.sizes[product.sizes.length - 1]}`}
+                      </p>
                     )}
-                    <CardContent className="p-4">
-                      <h3 className="font-semibold">{product.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <p className="text-primary font-bold">${product.price.toFixed(2)}</p>
-                        {outOfStock && <Badge variant="destructive" className="text-xs">Out of Stock</Badge>}
-                        {stock === 0 && product.allow_preorder && <Badge variant="secondary" className="text-xs">Pre-order</Badge>}
-                      </div>
-                      <div className="flex gap-1 mt-2 flex-wrap">
-                        {product.colors.map((c) => (
-                          <Badge key={c} variant="outline" className="text-xs">{c}</Badge>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
+                  </button>
                   );
                 })}
             </div>
