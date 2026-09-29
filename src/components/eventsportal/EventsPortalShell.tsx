@@ -56,7 +56,7 @@ export function EventsPortalShell({
             </div>
           </div>
         </div>
-        <nav className="flex gap-1 px-3 overflow-x-auto">
+        <nav className="flex flex-wrap gap-1 px-3">
           {NAV.map((item) => {
             const active = item.end
               ? location.pathname === item.to
