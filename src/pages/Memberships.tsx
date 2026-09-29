@@ -375,15 +375,14 @@ export default function Memberships() {
         <div className="container mx-auto container-padding text-center">
           <AnimatedSection animation="fade-up">
             <h2 className="heading-section text-primary-foreground mb-6">
-              Come and see the house.
+              {"\n"}
             </h2>
             <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10 text-lg">
-              Membership is by application. We will be in touch within two days to
-              arrange a quiet visit.
+              {"\n"}
             </p>
             <Link to="/apply">
               <Button variant="gold" size="lg" className="hover-lift">
-                Request an invitation
+                {"\n"}
               </Button>
             </Link>
           </AnimatedSection>
