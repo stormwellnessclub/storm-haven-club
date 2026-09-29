@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useMySocietyInterest } from "@/hooks/useHigherSelfSociety";
-import heroImg from "@/assets/rituals/book-society.jpg.asset.json";
+import heroImg from "@/assets/society/heart.jpg.asset.json";
 
 /** Dashboard invitation to the Higher Self Society reading circle. */
 export function HigherSelfSocietyCard() {

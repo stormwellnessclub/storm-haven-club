@@ -10,7 +10,11 @@ import {
   useMySocietyInterest,
   useSubmitSocietyInterest,
 } from "@/hooks/useHigherSelfSociety";
-import heroImg from "@/assets/rituals/book-society.jpg.asset.json";
+import heroImg from "@/assets/society/shelf.jpg.asset.json";
+import quoteImg from "@/assets/society/quote.jpg.asset.json";
+import pagesImg from "@/assets/society/pages.jpg.asset.json";
+import heartImg from "@/assets/society/heart.jpg.asset.json";
+import botanicalImg from "@/assets/society/botanical.jpg.asset.json";
 
 const gold = "text-[hsl(var(--society-gold))]";
 const muted = "text-[hsl(var(--society-muted))]";
@@ -66,7 +70,7 @@ export default function HigherSelfSociety() {
         <section className="relative min-h-[70vh] flex items-end overflow-hidden">
           <img
             src={heroImg.url}
-            alt="Leather-bound books by candlelight"
+            alt="Shelves of leather-bound books"
             className="absolute inset-0 w-full h-full object-cover opacity-50"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[hsl(var(--society-bg))] via-[hsl(var(--society-bg)/0.6)] to-transparent" />
@@ -91,6 +95,26 @@ export default function HigherSelfSociety() {
               <h3 className={`font-serif text-2xl ${gold}`}>{t}</h3>
               <p className={`mt-3 leading-relaxed ${muted}`}>{d}</p>
             </div>
+          ))}
+        </section>
+
+        {/* Quote & imagery */}
+        <section className="container mx-auto px-6 py-20 max-w-5xl grid md:grid-cols-2 gap-12 items-center">
+          <img src={quoteImg.url} alt="An open book reading: Self love is the highest frequency" className="w-full aspect-[4/5] object-cover rounded-sm" loading="lazy" />
+          <div>
+            <p className={`uppercase tracking-[0.35em] text-xs ${gold}`}>The spirit of the circle</p>
+            <p className="font-serif text-3xl md:text-4xl mt-5 leading-snug italic">
+              "A room of people who read to become more fully themselves."
+            </p>
+            <p className={`mt-6 leading-relaxed ${muted}`}>
+              Each month we gather around one book: part reflection, part conversation, all intention. Come as you are, and leave with a new way of seeing.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-3 gap-1 md:gap-2 px-1 md:px-2">
+          {[[pagesImg, "Open pages scattered together"], [heartImg, "Book pages folded into a heart"], [botanicalImg, "Book pages with pressed flowers"]].map(([img, alt]: any) => (
+            <img key={alt} src={img.url} alt={alt} className="w-full aspect-square object-cover" loading="lazy" />
           ))}
         </section>
 
