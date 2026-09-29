@@ -48,6 +48,22 @@
 - The questions at the bottom stay factual, but I'll soften their tone.
 - The Google search title and description stay factual so the page can still be found in search.
 
+## Your new photos
+- **Opening photo:** the stairway down through the arch toward the glowing salt room. It feels like arriving, which suits "A quieter way to be well."
+- **Photo mosaic ("The house, in full"):**
+  - Salt room: the close-up of the glowing salt wall with the wooden bench.
+  - Steam room: the gold mosaic room with the lit stone panel.
+  - Sauna: the cedar room.
+  - Gym: the view over the gym floor from above.
+  - Wet spa lounge: the slatted-ceiling corridor with towels and the arched mirror.
+- **Not used:** the second salt-room doorway shot, since the close-up is stronger. The old photos these replace are removed from the page.
+- **Retouching:** these are touch-ups only, never AI changes, so every room stays exactly as it really is.
+  - Steam room: brighten the shadows, reduce grain, and sharpen the tiles and the lit panel.
+  - Salt room: even out the glow and sharpen it.
+  - Sauna: remove the purple cast from the lights so the cedar looks warm and natural.
+  - Every photo is saved sharp at full size and kept small enough to load quickly.
+
 ## Technical details
+- Photos are retouched with standard image tools (Python/PIL: levels, white balance, denoise, unsharp mask), exported as WebP/JPEG at about 1600px, and uploaded as CDN assets.
 - Only `src/pages/Memberships.tsx` is edited: copy strings, tier taglines/features, removing checkmark icons from tier lists, and wider section spacing.
 - No pricing, links or application flow changes.
