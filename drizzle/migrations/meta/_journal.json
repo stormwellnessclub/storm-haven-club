@@ -498,6 +498,13 @@
       "when": 1790460177016,
       "tag": "0070_prevent_future_freeze_early_activation",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790648234235,
+      "tag": "0071_kids_care_slots_atomic_replace",
+      "breakpoints": true
     }
   ]
 }
