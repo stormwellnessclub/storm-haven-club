@@ -37,6 +37,8 @@ export interface ServiceLandingPageProps {
   eyebrow?: string;
   /** Optional intermediate breadcrumbs between /spa and the current service */
   extraBreadcrumbs?: BreadcrumbStep[];
+  /** Optional "gift this service" link */
+  giftHref?: string;
 }
 
 const BASE_URL = "https://stormwellnessclub.com";
@@ -57,6 +59,7 @@ export default function ServiceLandingPage({
   relatedHeading = "Explore other recovery services",
   eyebrow = "Recovery & Wellness",
   extraBreadcrumbs = [],
+  giftHref,
 }: ServiceLandingPageProps) {
   const fullUrl = `${BASE_URL}${path}`;
 
@@ -155,6 +158,11 @@ export default function ServiceLandingPage({
             <Button asChild size="lg" variant="outline">
               <Link to="/spa">View all spa services</Link>
             </Button>
+            {giftHref && (
+              <Button asChild size="lg" variant="ghost">
+                <Link to={giftHref}>Gift this service</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>

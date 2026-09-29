@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -45,8 +45,10 @@ type Draft = {
   scheduleTime: string;
 };
 
-export default function GiftCardStore() {
+export default function GiftCardStore({ embedded = false }: { embedded?: boolean } = {}) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const Wrap = embedded ? Fragment : Layout;
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
@@ -206,18 +208,36 @@ export default function GiftCardStore() {
     setSpaServiceId(null);
   };
 
+  // Preselect a spa service when arriving from the Spa ("Gift this service").
+  useEffect(() => {
+    const svc = searchParams.get("service");
+    const svcName = searchParams.get("serviceName");
+    if (!svc && !svcName) return;
+    (async () => {
+      let q = supabase.from("spa_services").select("id, name, price").eq("is_active", true);
+      q = svc ? q.eq("id", svc) : q.ilike("name", `%${svcName!.replace(/[%_]/g, "")}%`);
+      const { data } = await q.order("price", { ascending: true }).limit(1).maybeSingle();
+      if (!data) return;
+      setMode("spa");
+      setSpaServiceId(data.id);
+      setServiceLabel(data.name);
+      setAmount(Number(data.price));
+      setCustomAmount("");
+    })();
+  }, [searchParams]);
+
   return (
-    <Layout>
-      <SEOHead
+    <Wrap>
+      {!embedded && <SEOHead
         title="Gift Cards | Storm Wellness Club"
         description="Send a Storm Wellness Club gift card by email — choose an amount or a signature service, add a personal message, and schedule the delivery date."
         path="/gift-cards"
-      />
+      />}
 
       <section className="border-b bg-muted/30">
         <div className="mx-auto max-w-5xl px-4 py-14 text-center md:py-20">
           <Gift className="mx-auto mb-4 h-8 w-8 text-primary" />
-          <h1 className="font-serif text-4xl md:text-5xl">Give the gift of Storm</h1>
+          {embedded ? <h2 className="font-serif text-4xl md:text-5xl">Give the gift of Storm</h2> : <h1 className="font-serif text-4xl md:text-5xl">Give the gift of Storm</h1>}
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
             Choose an amount or a signature service, add a personal note, and we&apos;ll email the gift card
             to them — now or on the day you choose.
@@ -507,7 +527,7 @@ export default function GiftCardStore() {
           </div>
         )}
       </div>
-    </Layout>
+    </Wrap>
   );
 }
 

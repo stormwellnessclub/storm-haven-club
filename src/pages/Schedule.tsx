@@ -1,10 +1,13 @@
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
+import ClassPasses from "@/pages/ClassPasses";
+import { useScrollToHash } from "@/pages/StormShop";
 import { Link } from "react-router-dom";
 import { ScheduleBrowser } from "@/components/booking/ScheduleBrowser";
 import { buildBreadcrumbLd, buildServiceLd } from "@/lib/seo/schemas";
 
 export default function Schedule() {
+  useScrollToHash();
   return (
     <Layout>
       <SEOHead
@@ -71,6 +74,7 @@ export default function Schedule() {
       </section>
 
       <ScheduleBrowser />
+      <ClassPasses embedded />
     </Layout>
   );
 }

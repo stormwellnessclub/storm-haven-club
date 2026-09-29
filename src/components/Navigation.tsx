@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText, Wallet } from "lucide-react";
+import { ChevronDown, Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -8,16 +8,17 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 const navLinks = [
   { href: "/memberships", label: "Memberships" },
   { href: "/classes", label: "Classes" },
+  { href: "/spa", label: "Spa" },
   { href: "/events", label: "Events" },
   { href: "/personal-training", label: "Personal Training" },
-  { href: "/spa", label: "Spa" },
-  { href: "/gut-reset", label: "Gut Reset" },
   { href: "/cafe", label: "Café" },
+  { href: "/shop", label: "Shop" },
+];
+
+const moreLinks = [
   { href: "/amenities", label: "Amenities" },
-  { href: "/class-passes", label: "Class Passes" },
+  { href: "/gut-reset", label: "Gut Reset" },
   { href: "/guest-pass", label: "Guest Pass" },
-  { href: "/shop", label: "Storm Shop" },
-  { href: "/gift-cards", label: "Gift Cards" },
 ];
 
 export function Navigation() {
@@ -81,6 +82,18 @@ export function Navigation() {
                 {link.label}
               </Link>
             ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger className={`nav-link inline-flex items-center gap-1 outline-none ${linkColor}`}>
+                More <ChevronDown className="h-3.5 w-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                {moreLinks.map((l) => (
+                  <DropdownMenuItem key={l.href} asChild>
+                    <Link to={l.href} className="cursor-pointer">{l.label}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* CTA & Account Button */}
@@ -195,7 +208,7 @@ export function Navigation() {
           }`}
         >
           <div className="container container-padding py-4 sm:py-6 flex flex-col gap-1 safe-area-bottom">
-            {navLinks.map((link, index) => (
+            {[...navLinks, ...moreLinks].map((link, index) => (
               <Link
                 key={link.href}
                 to={link.href}

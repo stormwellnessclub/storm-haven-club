@@ -372,7 +372,7 @@ export default function Spa() {
                 Book a Treatment
               </Button>
               <Button variant="outline" size="lg" asChild className="bg-transparent text-primary-foreground border-primary-foreground/60 hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                <Link to="/gift-cards">
+                <Link to="/shop#gift-cards">
                   <Gift className="w-4 h-4 mr-2" />
                   Give the Gift of Storm
                 </Link>
