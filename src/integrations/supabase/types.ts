@@ -4393,6 +4393,66 @@ export type Database = {
           },
         ]
       }
+      higher_self_society_interest: {
+        Row: {
+          book_reason: string | null
+          book_suggestion: string | null
+          created_at: string
+          email: string
+          full_name: string
+          guest_name: string | null
+          guest_requested: boolean
+          guest_status: string
+          id: string
+          is_founding: boolean
+          member_id: string | null
+          membership_type: string | null
+          preferred_rhythm: string | null
+          status: string
+          themes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          book_reason?: string | null
+          book_suggestion?: string | null
+          created_at?: string
+          email: string
+          full_name: string
+          guest_name?: string | null
+          guest_requested?: boolean
+          guest_status?: string
+          id?: string
+          is_founding?: boolean
+          member_id?: string | null
+          membership_type?: string | null
+          preferred_rhythm?: string | null
+          status?: string
+          themes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          book_reason?: string | null
+          book_suggestion?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          guest_name?: string | null
+          guest_requested?: boolean
+          guest_status?: string
+          id?: string
+          is_founding?: boolean
+          member_id?: string | null
+          membership_type?: string | null
+          preferred_rhythm?: string | null
+          status?: string
+          themes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       instructor_pay_items: {
         Row: {
           adjusted_at: string | null
@@ -17175,6 +17235,17 @@ export type Database = {
       }
       submit_guest_feedback: {
         Args: { p_comment?: string; p_rating: number; p_token: string }
+        Returns: Json
+      }
+      submit_higher_self_society_interest: {
+        Args: {
+          _book_reason: string
+          _book_suggestion: string
+          _guest_name: string
+          _guest_requested: boolean
+          _preferred_rhythm: string
+          _themes: string[]
+        }
         Returns: Json
       }
       submit_public_spa_review: {
