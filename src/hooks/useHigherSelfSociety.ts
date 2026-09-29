@@ -14,8 +14,8 @@ export const SOCIETY_THEMES = [
 ];
 
 export const SOCIETY_RHYTHMS = [
-  { value: "thursday_evening", label: "Thursday evening · 7:00–8:30 PM" },
-  { value: "sunday_twilight", label: "Sunday twilight · 5:00–6:30 PM" },
+  { value: "thursday_evening", label: "Thursday evening · 7:00–9:00 PM" },
+  { value: "sunday_twilight", label: "Sunday twilight · 5:00–7:00 PM" },
   { value: "either", label: "Either works for me" },
 ];
 
