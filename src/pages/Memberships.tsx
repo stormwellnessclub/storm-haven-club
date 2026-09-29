@@ -262,7 +262,7 @@ export default function Memberships() {
       {/* Spa amenities — quiet typographic row */}
       <section className="py-16 bg-secondary/40 border-y border-border">
         <div className="container mx-auto container-padding">
-          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-8">
             {luxuriousSpaAmenities.map((amenity) => (
               <div key={amenity.name}>
                 <h3 className="font-serif text-xl mb-2">{amenity.name}</h3>
@@ -290,7 +290,7 @@ export default function Memberships() {
                   key={tier.name}
                   className={`flex flex-col p-8 ${top ? "bg-primary text-primary-foreground" : "bg-card"} ${i > 0 ? "border-t md:border-t-0 xl:border-l border-border" : ""} ${i % 2 === 1 ? "md:border-l" : ""} ${i >= 2 ? "md:border-t xl:border-t-0" : ""}`}
                 >
-                  <p className={`text-xs uppercase tracking-[0.3em] mb-3 ${top ? "text-gold-light" : "text-accent"}`}>{tier.tagline}</p>
+                  <p className={`min-h-[2.5rem] text-xs uppercase tracking-[0.3em] mb-3 ${top ? "text-gold-light" : "text-accent"}`}>{tier.tagline}</p>
                   <h3 className="font-serif text-3xl mb-6">{tier.name}</h3>
                   <p className="font-serif text-5xl leading-none">
                     {tier.price}
