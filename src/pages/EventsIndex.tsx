@@ -28,6 +28,7 @@ import { EventDetailView, type EventDetailRecord } from "@/components/events/Eve
 import { RITUAL_EVENT_COLUMNS } from "@/hooks/useRituals";
 import { eligibilityLabel, isMembersOnlyEvent } from "@/lib/rituals";
 import clubInterior from "@/assets/main-lobby.jpeg";
+import societyImg from "@/assets/society/shelf.jpg.asset.json";
 import supperClubImage from "@/assets/rituals/supper-club.jpg.asset.json";
 
 const CLUB_TZ = "America/Detroit";
@@ -222,6 +223,19 @@ export default function EventsIndex() {
       )}
 
       {/* 3 — Calendar and event discovery */}
+      <section className="container mx-auto px-6 pt-16">
+        <Link to="/rituals/higher-self-society" className="society-theme group relative block overflow-hidden rounded-sm">
+          <img src={societyImg.url} alt="Shelves of leather-bound books" className="absolute inset-0 w-full h-full object-cover opacity-40 transition-transform duration-700 group-hover:scale-105" loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--society-bg))] via-[hsl(var(--society-bg)/0.8)] to-transparent" />
+          <div className="relative p-8 md:p-14 max-w-xl">
+            <p className="text-[11px] uppercase tracking-[0.35em] text-[hsl(var(--society-gold))]">New · Member Ritual</p>
+            <h2 className="font-serif text-4xl md:text-5xl mt-3">The Higher Self Society</h2>
+            <p className="mt-4 text-[hsl(var(--society-muted))]">A monthly reading circle for members. Join the founding circle and help choose our first book.</p>
+            <span className="inline-block mt-6 text-xs uppercase tracking-[0.25em] text-[hsl(var(--society-gold))]">Join the founding circle →</span>
+          </div>
+        </Link>
+      </section>
+
       <section id="event-listing" className="container mx-auto px-6 pt-16 md:pt-24 pb-20 scroll-mt-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-10">

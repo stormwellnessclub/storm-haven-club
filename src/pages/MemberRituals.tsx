@@ -116,8 +116,8 @@ export default function MemberRituals() {
 
             const cta = (
               <Button asChild variant="outline">
-                <Link to={`/rituals/calendar?collection=${c.slug}`}>
-                  View upcoming <ArrowRight className="h-4 w-4 ml-2" />
+                <Link to={c.slug === "storm-book-society" ? "/rituals/higher-self-society" : `/rituals/calendar?collection=${c.slug}`}>
+                  {c.slug === "storm-book-society" ? "Join the founding circle" : "View upcoming"} <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
               </Button>
             );
