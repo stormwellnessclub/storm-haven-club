@@ -106,7 +106,7 @@ export default function HigherSelfSociety() {
               title="Reserved for members"
               body="Sign in to your Storm account to join the founding circle."
               cta={{ to: "/auth?redirect=/rituals/higher-self-society", label: "Sign in" }}
-              secondary={{ to: "/membership", label: "Explore membership" }}
+              secondary={{ to: "/memberships", label: "Explore membership" }}
             />
           ) : memLoading ? (
             <p className={`text-center mt-10 ${muted}`}>One moment…</p>
@@ -114,7 +114,7 @@ export default function HigherSelfSociety() {
             <AccessPanel
               title="A members' ritual"
               body="The Higher Self Society is reserved for Storm Wellness Club members. We would love to welcome you."
-              cta={{ to: "/membership", label: "Explore membership" }}
+              cta={{ to: "/memberships", label: "Explore membership" }}
               secondary={{ to: "/apply", label: "Apply" }}
             />
           ) : (
