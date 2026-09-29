@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useState, useEffect } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { buildBreadcrumbLd, buildProductLd, buildFAQLd } from "@/lib/seo/schemas";
@@ -380,7 +381,8 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user, promo
   );
 }
 
-export default function ClassPasses() {
+export default function ClassPasses({ embedded = false }: { embedded?: boolean } = {}) {
+  const Wrap = embedded ? Fragment : Layout;
   const { user } = useAuth();
   const { data: membership } = useUserMembership();
   const { profile } = useUserProfile();
@@ -542,8 +544,8 @@ export default function ClassPasses() {
   };
 
   return (
-    <Layout>
-      <SEOHead
+    <Wrap>
+      {!embedded && <SEOHead
         title="Class Passes"
         description="Buy single class passes ($25 member / $30 non-member) or 10-class packs ($170 / $285) for Reformer Pilates, cycling, and yoga at Storm Wellness Club, Livonia MI."
         path="/class-passes"
@@ -574,7 +576,7 @@ export default function ClassPasses() {
             { q: "Can I cancel a class?", a: "Cancellations follow our standard policy shown on the schedule page. Late cancellations may forfeit the credit." },
           ]),
         ]}
-      />
+      />}
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       <GuestCheckoutSheet
         open={guestSheetOpen}
@@ -585,11 +587,11 @@ export default function ClassPasses() {
         }}
       />
       {/* Hero */}
-      <section className="pt-32 pb-16 bg-secondary/30">
+      <section id={embedded ? "passes" : undefined} className={`${embedded ? "pt-16 scroll-mt-28 border-t border-border" : "pt-32"} pb-16 bg-secondary/30`}>
         <div className="container mx-auto px-6">
           <div className="max-w-3xl">
             <p className="text-gold text-sm uppercase tracking-widest mb-4">Flexible Options</p>
-            <h1 className="heading-display mb-6">Class Passes</h1>
+            {embedded ? <h2 className="heading-display mb-6">Class Passes</h2> : <h1 className="heading-display mb-6">Class Passes</h1>}
             <p className="text-muted-foreground text-lg leading-relaxed">
               Purchase class passes valid for all studio classes. 
               Members receive discounted pricing on all class packages.
@@ -674,6 +676,6 @@ export default function ClassPasses() {
           }}
         />
       )}
-    </Layout>
+    </Wrap>
   );
 }
