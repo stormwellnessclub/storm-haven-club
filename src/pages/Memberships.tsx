@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { CheckCircle2, Sparkles, Crown, Gem, Star } from "lucide-react";
-import membershipsHero from "@/assets/memberships-hero.jpg";
+import lounge from "@/assets/memberships/lounge.webp";
 import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
 import {
   buildBreadcrumbLd,
@@ -13,11 +13,11 @@ import {
 } from "@/lib/seo/schemas";
 
 // Amenity banner images
-import gymArea1 from "@/assets/gym-area-1.jpg";
-import saunaInterior from "@/assets/wellness/sauna-interior-wide.jpg";
-import steamRoom from "@/assets/wellness/steam-room.jpg";
-import saltRoom from "@/assets/wellness/salt-room.jpg";
-import coldPlunge from "@/assets/wellness/cold-plunge-premium.jpg";
+import gymArea1 from "@/assets/memberships/gym.webp";
+import saunaInterior from "@/assets/memberships/sauna.webp";
+import steamRoom from "@/assets/memberships/steam.webp";
+import saltRoom from "@/assets/memberships/salt.webp";
+import coldPlunge from "@/assets/memberships/cold-plunge.webp";
 
 interface MembershipTier {
   name: string;
@@ -176,208 +176,146 @@ export default function Memberships() {
           ]),
         ]}
       />
-      {/* Hero Section */}
-      <section className="relative min-h-[70vh] flex items-center overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src={membershipsHero}
-            alt="Storm Wellness Club membership lounge and facilities in Livonia, Michigan"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/60 via-charcoal/70 to-charcoal/90" />
-        </div>
-        <div className="relative z-10 container mx-auto px-6 py-24 text-center">
-          <AnimatedSection animation="fade-up">
-            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">
-              Application-Based Membership
-            </p>
-            <h1 className="heading-display text-primary-foreground mb-6">
-              Membership Tiers
-            </h1>
-            <p className="text-primary-foreground/80 max-w-2xl mx-auto text-lg">
-              Explore our tiered memberships to find the perfect fit for your
-              wellness goals. All members enjoy access to premier facilities and
-              preferred pricing on spa services.
-            </p>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      {/* Core Benefits */}
-      <section id="benefits" className="section-padding bg-background overflow-hidden">
-        <div className="container mx-auto container-padding">
-          <SectionHeading
-            title="Included in Every Membership"
-            subtitle="All members enjoy access to our premier gym facilities and wet spa amenities."
-          />
-        </div>
-
-        {/* Amenity Image Banner - Full-bleed + seamless */}
-        <AnimatedSection animation="fade-up" className="mb-12">
-          <div className="relative w-full overflow-hidden">
-            <div className="grid grid-cols-5 h-48 md:h-64 lg:h-72">
-              <div className="relative overflow-hidden">
-                <img
-                  src={gymArea1}
-                  alt="State-of-the-art gym floor with strength and cardio equipment at Storm Wellness Club"
-                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-r from-charcoal/30 via-transparent to-transparent" />
+      {/* Hero — editorial split */}
+      <section className="bg-primary text-primary-foreground pt-28 lg:pt-24">
+        <div className="grid lg:grid-cols-2 min-h-[80vh]">
+          <div className="flex items-center px-6 sm:px-12 lg:px-20 py-16 lg:py-24">
+            <AnimatedSection animation="fade-up" className="max-w-xl">
+              <p className="text-gold-light text-xs uppercase tracking-[0.3em] mb-6">
+                Membership by application
+              </p>
+              <h1 className="font-serif text-5xl md:text-6xl xl:text-7xl leading-[1.05] mb-8">
+                A private club for the way you want to feel.
+              </h1>
+              <p className="text-primary-foreground/70 text-lg leading-relaxed mb-10">
+                Four tiers, one standard. Every member enjoys the full gym, the wet spa and
+                preferred pricing across the club.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link to="/apply">
+                  <Button variant="gold" size="lg">Apply for Membership</Button>
+                </Link>
+                <a href="#tiers">
+                  <Button variant="outline" size="lg" className="bg-transparent text-primary-foreground border-primary-foreground/40 hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                    Compare tiers
+                  </Button>
+                </a>
               </div>
-              <div className="relative overflow-hidden">
-                <img
-                  src={saunaInterior}
-                  alt="Cedar-lined traditional sauna in the wet spa at Storm Wellness Club"
-                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-charcoal/10" />
-              </div>
-              <div className="relative overflow-hidden">
-                <img
-                  src={steamRoom}
-                  alt="Eucalyptus steam room in the wet spa at Storm Wellness Club"
-                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-charcoal/10" />
-              </div>
-              <div className="relative overflow-hidden">
-                <img
-                  src={saltRoom}
-                  alt="Himalayan salt room for halotherapy at Storm Wellness Club"
-                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-charcoal/10" />
-              </div>
-              <div className="relative overflow-hidden">
-                <img
-                  src={coldPlunge}
-                  alt="Cold plunge pool for recovery and contrast therapy at Storm Wellness Club"
-                  className="w-full h-full object-cover scale-105 hover:scale-110 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-l from-charcoal/30 via-transparent to-transparent" />
-              </div>
-            </div>
-
-            {/* Fade into section background (top/bottom) */}
-            <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background opacity-30 pointer-events-none" />
+            </AnimatedSection>
           </div>
-        </AnimatedSection>
-
-        <div className="container mx-auto container-padding">
-          <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto" staggerDelay={60}>
-            {coreAmenities.map((amenity) => (
-              <div
-                key={amenity}
-                className="flex items-center gap-3 p-4 bg-secondary/50 rounded-lg hover-lift-sm transition-all duration-300"
-              >
-                <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
-                <span className="text-foreground">{amenity}</span>
-              </div>
-            ))}
-          </StaggerContainer>
+          <div className="relative min-h-[420px] lg:min-h-0 overflow-hidden">
+            <img
+              src={lounge}
+              alt="Storm Wellness Club gym floor with gold dumbbells in Livonia, Michigan"
+              className="absolute inset-0 h-full w-full object-cover"
+              fetchPriority="high"
+              decoding="async"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/20 to-transparent lg:from-primary lg:via-transparent" />
+          </div>
         </div>
       </section>
 
-      {/* Spa Amenities */}
-      <section className="section-padding bg-secondary/30">
+      {/* Included in every membership — editorial mosaic */}
+      <section id="benefits" className="section-padding bg-background">
         <div className="container mx-auto container-padding">
-          <SectionHeading
-            title="Luxurious Spa Amenities"
-            subtitle="Exclusive amenities designed to enhance your wellness journey."
-          />
-          <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto" staggerDelay={80}>
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-16 items-end mb-14">
+            <div className="lg:col-span-5">
+              <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Every tier includes</p>
+              <h2 className="font-serif text-4xl md:text-5xl leading-tight">The full club, from your first visit.</h2>
+            </div>
+            <ul className="lg:col-span-7 grid sm:grid-cols-2 gap-x-10 gap-y-4">
+              {coreAmenities.map((amenity) => (
+                <li key={amenity} className="flex items-center gap-3 border-b border-border pb-3 text-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  {amenity}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-2 gap-3 md:h-[620px]">
+            {[
+              { src: gymArea1, label: "The gym floor", alt: "Strength and cardio equipment on the Storm Wellness Club gym floor", cls: "col-span-2 row-span-2 aspect-[4/3] md:aspect-auto" },
+              { src: saltRoom, label: "Himalayan salt room", alt: "Himalayan salt room for halotherapy at Storm Wellness Club", cls: "col-span-2 aspect-[16/9] md:aspect-auto" },
+              { src: steamRoom, label: "Steam room", alt: "Steam room in the wet spa at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
+              { src: coldPlunge, label: "Cold plunge", alt: "Cold plunge for recovery at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
+            ].map((t) => (
+              <figure key={t.label} className={`group relative overflow-hidden rounded-sm bg-secondary ${t.cls}`}>
+                <img
+                  src={t.src}
+                  alt={t.alt}
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1200ms] group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-primary/70 via-transparent to-transparent" />
+                <figcaption className="absolute bottom-4 left-5 text-xs uppercase tracking-[0.25em] text-primary-foreground">
+                  {t.label}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Spa amenities — quiet typographic row */}
+      <section className="py-16 bg-secondary/40 border-y border-border">
+        <div className="container mx-auto container-padding">
+          <div className="grid md:grid-cols-3 lg:grid-cols-5 gap-8">
             {luxuriousSpaAmenities.map((amenity) => (
-              <div
-                key={amenity.name}
-                className="card-luxury p-6 text-center hover-lift transition-all duration-300"
-              >
-                <h3 className="font-serif text-lg mb-2">{amenity.name}</h3>
-                <p className="text-muted-foreground text-sm">
-                  {amenity.description}
-                </p>
+              <div key={amenity.name}>
+                <h3 className="font-serif text-xl mb-2">{amenity.name}</h3>
+                <p className="text-muted-foreground text-sm leading-relaxed">{amenity.description}</p>
               </div>
             ))}
-          </StaggerContainer>
+          </div>
         </div>
       </section>
 
       {/* Membership Tiers */}
-      <section id="tiers" className="section-padding bg-background">
+      <section id="tiers" className="section-padding bg-background scroll-mt-24">
         <div className="container mx-auto container-padding">
-          <SectionHeading
-            title="Choose Your Tier"
-            subtitle="Select the membership that resonates with your vision of wellness."
-          />
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">The tiers</p>
+            <h2 className="font-serif text-4xl md:text-5xl mb-5">Choose your rhythm</h2>
+            <p className="text-muted-foreground">Each tier adds more recovery and more ritual. Annual fee {membershipTiers[0].annualFee} on every tier.</p>
+          </div>
 
-          <StaggerContainer 
-            className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch [grid-auto-rows:1fr]" 
-            staggerDelay={100}
-          >
-            {membershipTiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`card-luxury p-6 flex flex-col h-full relative hover-lift transition-all duration-300 ${
-                  tier.highlighted ? "border-accent ring-2 ring-accent shadow-gold-hover" : ""
-                }`}
-              >
-                {tier.highlighted && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-accent text-accent-foreground text-xs uppercase tracking-wider px-3 py-1 rounded-sm">
-                      Popular
-                    </span>
-                  </div>
-                )}
-                <div className="text-center mb-6 pt-2">
-                  <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
-                    <tier.icon className="w-7 h-7 text-accent" />
-                  </div>
-                  <h3 className="font-serif text-2xl mb-1">{tier.name}</h3>
-                  <p className="text-muted-foreground text-sm">{tier.tagline}</p>
-                </div>
-
-                <div className="text-center mb-6">
-                  <p className="text-3xl font-serif text-foreground">
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 border border-border rounded-sm overflow-hidden">
+            {membershipTiers.map((tier, i) => {
+              const top = tier.name === "Diamond";
+              return (
+                <div
+                  key={tier.name}
+                  className={`flex flex-col p-8 ${top ? "bg-primary text-primary-foreground" : "bg-card"} ${i > 0 ? "border-t md:border-t-0 xl:border-l border-border" : ""} ${i % 2 === 1 ? "md:border-l" : ""} ${i >= 2 ? "md:border-t xl:border-t-0" : ""}`}
+                >
+                  <p className={`text-xs uppercase tracking-[0.3em] mb-3 ${top ? "text-gold-light" : "text-accent"}`}>{tier.tagline}</p>
+                  <h3 className="font-serif text-3xl mb-6">{tier.name}</h3>
+                  <p className="font-serif text-5xl leading-none">
                     {tier.price}
-                    <span className="text-muted-foreground text-base font-sans">
-                      /month
-                    </span>
+                    <span className={`ml-1 font-sans text-sm ${top ? "text-primary-foreground/60" : "text-muted-foreground"}`}>/month</span>
                   </p>
-                  <p className="text-muted-foreground text-sm">
-                    Annual Fee: {tier.annualFee}
-                  </p>
+                  <div className={`my-8 h-px ${top ? "bg-primary-foreground/20" : "bg-border"}`} />
+                  <ul className="space-y-3 flex-1">
+                    {tier.features.map((f) => (
+                      <li key={f} className="flex items-start gap-3 text-sm leading-relaxed">
+                        <CheckCircle2 className={`w-4 h-4 mt-0.5 flex-shrink-0 ${top ? "text-gold-light" : "text-accent"}`} />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className={`mt-8 space-y-2 text-xs ${top ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
+                    <p><span className="uppercase tracking-wider">Classes · </span>{tier.classesNote}</p>
+                    <p><span className="uppercase tracking-wider">Childcare · </span>{tier.childcareNote}</p>
+                  </div>
+                  <Link to="/apply" className="mt-8">
+                    <Button variant={top ? "gold" : "gold-outline"} className="w-full">Apply for Invitation</Button>
+                  </Link>
                 </div>
-
-                <ul className="space-y-3 mb-6 flex-1 min-h-[140px]">
-                  {tier.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="space-y-3 text-xs text-muted-foreground border-t border-border pt-4 mb-6">
-                  <p>
-                    <strong className="text-foreground">Childcare:</strong>{" "}
-                    {tier.childcareNote}
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Classes:</strong>{" "}
-                    {tier.classesNote}
-                  </p>
-                </div>
-
-                <Link to="/apply" className="mt-auto">
-                  <Button
-                    variant={tier.highlighted ? "gold" : "gold-outline"}
-                    className="w-full hover-brightness"
-                  >
-                    Apply for Invitation
-                  </Button>
-                </Link>
-              </div>
-            ))}
-          </StaggerContainer>
+              );
+            })}
+          </div>
         </div>
       </section>
 
