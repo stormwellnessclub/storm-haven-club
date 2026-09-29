@@ -369,25 +369,6 @@ export default function Memberships() {
       </section>
       */}
 
-
-      {/* Final CTA */}
-      <section className="section-padding bg-charcoal">
-        <div className="container mx-auto container-padding text-center">
-          <AnimatedSection animation="fade-up">
-            <h2 className="heading-section text-primary-foreground mb-6">
-              {"\n"}
-            </h2>
-            <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10 text-lg">
-              {"\n"}
-            </p>
-            <Link to="/apply">
-              <Button variant="gold" size="lg" className="hover-lift">
-                {"\n"}
-              </Button>
-            </Link>
-          </AnimatedSection>
-        </div>
-      </section>
     </Layout>
   );
 }
