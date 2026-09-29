@@ -228,13 +228,13 @@ export default function Memberships() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-2 gap-3 md:h-[620px]">
+          <div className="grid grid-cols-2 md:grid-cols-4 md:grid-rows-3 gap-3 md:h-[900px]">
             {[
               { src: gymArea1, label: "The gym", alt: "Strength and cardio equipment on the Storm Wellness Club gym floor", cls: "col-span-2 row-span-2 aspect-[4/3] md:aspect-auto" },
               { src: saltRoom, label: "Salt room", alt: "Glowing Himalayan salt room at Storm Wellness Club", cls: "col-span-2 aspect-[16/9] md:aspect-auto" },
-              { src: spaLounge, label: "The wet spa", alt: "Wet spa lounge with slatted wood ceiling at Storm Wellness Club", cls: "col-span-2 aspect-[16/9] md:aspect-auto" },
               { src: steamRoom, label: "Steam room", alt: "Gold mosaic steam room at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
               { src: saunaInterior, label: "Cedar sauna", alt: "Cedar sauna at Storm Wellness Club", cls: "aspect-square md:aspect-auto" },
+              { src: spaLounge, label: "The wet spa", alt: "Wet spa lounge with slatted wood ceiling at Storm Wellness Club", cls: "col-span-2 md:col-span-4 aspect-[16/9] md:aspect-auto" },
             ].map((t) => (
               <figure key={t.label} className={`group relative overflow-hidden rounded-sm bg-secondary ${t.cls}`}>
                 <img
