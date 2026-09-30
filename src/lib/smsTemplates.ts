@@ -21,6 +21,24 @@ export interface SmsTemplate {
 
 export const SMS_TEMPLATES: SmsTemplate[] = [
   {
+    key: "cafe-order-ready",
+    label: "Café order ready",
+    category: "Cafe",
+    body: "Storm Wellness Club: {{name}}, your order is ready at the café.",
+    triggers: "Sent once when staff mark a café order Ready (opted-in customers only).",
+    sampleVariables: { name: "Jane" },
+    audience: "both",
+  },
+  {
+    key: "cafe-order-delay",
+    label: "Café order running late",
+    category: "Cafe",
+    body: "Storm Wellness Club: {{name}}, your order needs a few more minutes. New ready time: {{time}}.",
+    triggers: "Optional, once per order, when staff push back the ready time and choose to notify.",
+    sampleVariables: { name: "Jane", time: "3:45 PM" },
+    audience: "both",
+  },
+  {
     key: "class-booking-confirmation",
     label: "Class booking confirmation",
     category: "Classes",
