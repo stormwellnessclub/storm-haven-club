@@ -92,3 +92,32 @@ export function useUpdateGuestStatus() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hss-roster"] }),
   });
 }
+
+export function useAdminAddSocietyPerson() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: {
+      userId: string | null; fullName: string; email: string; phone: string;
+      rhythm: string; themes: string[]; book: string; note: string;
+    }) => {
+      const { data, error } = await supabase.rpc("admin_add_society_person" as any, {
+        _user_id: v.userId, _full_name: v.fullName, _email: v.email, _phone: v.phone,
+        _preferred_rhythm: v.rhythm, _themes: v.themes, _book_suggestion: v.book, _staff_note: v.note,
+      });
+      if (error) throw error;
+      return data as { success: boolean; is_member: boolean };
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["hss-roster"] }),
+  });
+}
+
+export function useAdminRemoveSocietyPerson() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("admin_remove_society_person" as any, { _id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["hss-roster"] }),
+  });
+}
