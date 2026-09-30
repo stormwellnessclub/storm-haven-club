@@ -6902,6 +6902,7 @@ export type Database = {
           guest_pass_agreement_signed_at: string | null
           id: string
           last_name: string | null
+          merged_into_user_id: string | null
           phone: string | null
           single_class_pass_agreement_signed: boolean
           single_class_pass_agreement_signed_at: string | null
@@ -6930,6 +6931,7 @@ export type Database = {
           guest_pass_agreement_signed_at?: string | null
           id?: string
           last_name?: string | null
+          merged_into_user_id?: string | null
           phone?: string | null
           single_class_pass_agreement_signed?: boolean
           single_class_pass_agreement_signed_at?: string | null
@@ -6958,6 +6960,7 @@ export type Database = {
           guest_pass_agreement_signed_at?: string | null
           id?: string
           last_name?: string | null
+          merged_into_user_id?: string | null
           phone?: string | null
           single_class_pass_agreement_signed?: boolean
           single_class_pass_agreement_signed_at?: string | null
@@ -8010,6 +8013,7 @@ export type Database = {
           manager_refund_code: string | null
           membership_agreement_signed: boolean
           membership_agreement_signed_at: string | null
+          merged_into_user_id: string | null
           phone: string | null
           private_event_agreement_signed: boolean | null
           private_event_agreement_signed_at: string | null
@@ -8051,6 +8055,7 @@ export type Database = {
           manager_refund_code?: string | null
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
+          merged_into_user_id?: string | null
           phone?: string | null
           private_event_agreement_signed?: boolean | null
           private_event_agreement_signed_at?: string | null
@@ -8092,6 +8097,7 @@ export type Database = {
           manager_refund_code?: string | null
           membership_agreement_signed?: boolean
           membership_agreement_signed_at?: string | null
+          merged_into_user_id?: string | null
           phone?: string | null
           private_event_agreement_signed?: boolean | null
           private_event_agreement_signed_at?: string | null
