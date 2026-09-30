@@ -201,14 +201,53 @@ export function useUpdateCafeOrderStatus() {
       }
 
     },
-    onSuccess: () => {
+    onSuccess: (_d, vars) => {
       queryClient.invalidateQueries({ queryKey: ["admin-cafe-orders"] });
       queryClient.invalidateQueries({ queryKey: ["cafe-orders"] });
       toast.success("Order status updated");
+      if (vars.status === "ready") {
+        notifyCafeOrder(vars.orderId, "ready");
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to update order status");
     },
   });
 }
+
+/** Fire-and-forget customer alert. The server sends at most once per order. */
+export async function notifyCafeOrder(orderId: string, kind: "ready" | "delay") {
+  try {
+    const { data } = await supabase.functions.invoke("notify-cafe-order-ready", { body: { orderId, kind } });
+    const sms = (data as any)?.sms;
+    const push = (data as any)?.push;
+    if (sms?.success && !sms?.deduped) toast.success("Customer was texted");
+    else if (push?.sent > 0 || push?.success) toast.success("Customer was notified");
+  } catch (e) {
+    console.warn("notify-cafe-order-ready failed", e);
+  }
+}
+
+export function useSetCafeReadyTime() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { orderId: string; addMinutes?: number; readyAt?: string; notify?: boolean }) => {
+      const { data, error } = await (supabase.rpc as any)("staff_set_cafe_ready_time", {
+        p_order_id: v.orderId,
+        p_add_minutes: v.addMinutes ?? null,
+        p_ready_at: v.readyAt ?? null,
+      });
+      if (error) throw error;
+      if (v.notify) await notifyCafeOrder(v.orderId, "delay");
+      return data as string;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-cafe-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["cafe-orders"] });
+      toast.success("Ready time updated");
+    },
+    onError: (e: Error) => toast.error(e.message || "Could not update ready time"),
+  });
+}
+
 
