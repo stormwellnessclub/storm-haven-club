@@ -33,8 +33,8 @@ export function PTClientPicker({
       const f = `email.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`;
       const [members, nonMembers, profiles] = await Promise.all([
         supabase.from("members").select("user_id, email, first_name, last_name").or(f).neq("status", "cancelled").limit(8),
-        supabase.from("non_member_profiles").select("user_id, email, first_name, last_name").or(f).limit(8),
-        supabase.from("profiles").select("user_id, email, first_name, last_name").or(f).limit(8),
+        (supabase as any).from("non_member_profiles").select("user_id, email, first_name, last_name").or(f).is("merged_into_user_id", null).limit(8),
+        (supabase as any).from("profiles").select("user_id, email, first_name, last_name").or(f).is("merged_into_user_id", null).limit(8),
       ]);
       const rows = [...(profiles.data ?? []), ...(nonMembers.data ?? []), ...(members.data ?? [])] as any[];
       const ids = Array.from(new Set(rows.map((r) => r.user_id).filter(Boolean)));
