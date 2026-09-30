@@ -111,6 +111,16 @@ export default function EventsPortalSociety() {
                     </div>
                   ) : "—"}
                 </td>
+                <td className="p-2 text-right whitespace-nowrap">
+                  {confirmId === r.id ? (
+                    <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="destructive" disabled={remove.isPending} onClick={() => doRemove(r.id)}>Confirm remove</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmId(null)}>Keep</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmId(r.id)}>Remove</Button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
