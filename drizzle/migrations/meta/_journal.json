@@ -540,6 +540,13 @@
       "when": 1790804243102,
       "tag": "0076_pt_2d2_appointment_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1790804382941,
+      "tag": "0077_pt_reschedule_conflict_fix",
+      "breakpoints": true
     }
   ]
 }
