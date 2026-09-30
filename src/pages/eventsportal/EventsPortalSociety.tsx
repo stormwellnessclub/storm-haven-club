@@ -42,8 +42,7 @@ export default function EventsPortalSociety() {
   };
 
   return (
-    <EventsPortalShell title="Higher Self Society">
-      <SocietyInviteEmailControls />
+    <EventsPortalShell title="Higher Self Society" description="Everyone who filled out the book club form">
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <Card><CardHeader><CardTitle className="text-sm">Founding roster</CardTitle></CardHeader>
           <CardContent className="text-3xl font-semibold">{rows.length}</CardContent></Card>
@@ -87,6 +86,10 @@ export default function EventsPortalSociety() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="pt-6">
+        <h2 className="font-semibold mb-3">Invitation email</h2>
+        <SocietyInviteEmailControls />
       </div>
     </EventsPortalShell>
   );
