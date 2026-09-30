@@ -4395,6 +4395,7 @@ export type Database = {
       }
       higher_self_society_interest: {
         Row: {
+          added_by: string | null
           book_reason: string | null
           book_suggestion: string | null
           created_at: string
@@ -4405,15 +4406,20 @@ export type Database = {
           guest_status: string
           id: string
           is_founding: boolean
+          is_member: boolean
           member_id: string | null
           membership_type: string | null
+          phone: string | null
           preferred_rhythm: string | null
+          source: string
+          staff_note: string | null
           status: string
           themes: string[]
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          added_by?: string | null
           book_reason?: string | null
           book_suggestion?: string | null
           created_at?: string
@@ -4424,15 +4430,20 @@ export type Database = {
           guest_status?: string
           id?: string
           is_founding?: boolean
+          is_member?: boolean
           member_id?: string | null
           membership_type?: string | null
+          phone?: string | null
           preferred_rhythm?: string | null
+          source?: string
+          staff_note?: string | null
           status?: string
           themes?: string[]
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          added_by?: string | null
           book_reason?: string | null
           book_suggestion?: string | null
           created_at?: string
@@ -4443,13 +4454,17 @@ export type Database = {
           guest_status?: string
           id?: string
           is_founding?: boolean
+          is_member?: boolean
           member_id?: string | null
           membership_type?: string | null
+          phone?: string | null
           preferred_rhythm?: string | null
+          source?: string
+          staff_note?: string | null
           status?: string
           themes?: string[]
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -14681,6 +14696,19 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_add_society_person: {
+        Args: {
+          _book_suggestion: string
+          _email: string
+          _full_name: string
+          _phone: string
+          _preferred_rhythm: string
+          _staff_note: string
+          _themes: string[]
+          _user_id: string
+        }
+        Returns: Json
+      }
       admin_cancel_class_session: {
         Args: {
           _cancellation_reason?: string
@@ -14817,6 +14845,7 @@ export type Database = {
         Args: { _reason?: string; _ticket_id: string }
         Returns: Json
       }
+      admin_remove_society_person: { Args: { _id: string }; Returns: Json }
       admin_set_pt_session_payment: {
         Args: {
           p_amount_cents?: number

@@ -512,6 +512,13 @@
       "when": 1790670610225,
       "tag": "0072_higher_self_society_interest",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1790738165272,
+      "tag": "0073_society_staff_add_remove",
+      "breakpoints": true
     }
   ]
 }
