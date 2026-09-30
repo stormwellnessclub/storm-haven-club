@@ -8516,7 +8516,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           checked_in_at: string | null
+          checked_in_by: string | null
           completed_at: string | null
+          completed_by: string | null
           confirmation_email_sent_at: string | null
           confirmation_status: string
           confirmed_at: string | null
@@ -8547,11 +8549,13 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reschedule_note: string | null
           reservation_resolved_at: string | null
           reservation_state: string
           reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
+          started_by: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
@@ -8573,7 +8577,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           checked_in_at?: string | null
+          checked_in_by?: string | null
           completed_at?: string | null
+          completed_by?: string | null
           confirmation_email_sent_at?: string | null
           confirmation_status?: string
           confirmed_at?: string | null
@@ -8604,11 +8610,13 @@ export type Database = {
           pre_session_note?: string | null
           pre_session_note_updated_at?: string | null
           prep_checklist?: Json
+          reschedule_note?: string | null
           reservation_resolved_at?: string | null
           reservation_state?: string
           reserved_at?: string | null
           session_type_id?: string | null
           started_at?: string | null
+          started_by?: string | null
           starts_at: string
           status?: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id?: string | null
@@ -8630,7 +8638,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           checked_in_at?: string | null
+          checked_in_by?: string | null
           completed_at?: string | null
+          completed_by?: string | null
           confirmation_email_sent_at?: string | null
           confirmation_status?: string
           confirmed_at?: string | null
@@ -8661,11 +8671,13 @@ export type Database = {
           pre_session_note?: string | null
           pre_session_note_updated_at?: string | null
           prep_checklist?: Json
+          reschedule_note?: string | null
           reservation_resolved_at?: string | null
           reservation_state?: string
           reserved_at?: string | null
           session_type_id?: string | null
           started_at?: string | null
+          started_by?: string | null
           starts_at?: string
           status?: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id?: string | null
@@ -14880,7 +14892,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           checked_in_at: string | null
+          checked_in_by: string | null
           completed_at: string | null
+          completed_by: string | null
           confirmation_email_sent_at: string | null
           confirmation_status: string
           confirmed_at: string | null
@@ -14911,11 +14925,13 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reschedule_note: string | null
           reservation_resolved_at: string | null
           reservation_state: string
           reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
+          started_by: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
@@ -15009,7 +15025,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           checked_in_at: string | null
+          checked_in_by: string | null
           completed_at: string | null
+          completed_by: string | null
           confirmation_email_sent_at: string | null
           confirmation_status: string
           confirmed_at: string | null
@@ -15040,11 +15058,13 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reschedule_note: string | null
           reservation_resolved_at: string | null
           reservation_state: string
           reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
+          started_by: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
@@ -15108,7 +15128,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           checked_in_at: string | null
+          checked_in_by: string | null
           completed_at: string | null
+          completed_by: string | null
           confirmation_email_sent_at: string | null
           confirmation_status: string
           confirmed_at: string | null
@@ -15139,11 +15161,13 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reschedule_note: string | null
           reservation_resolved_at: string | null
           reservation_state: string
           reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
+          started_by: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
@@ -16194,6 +16218,10 @@ export type Database = {
         Args: { _client: string; _uid: string }
         Returns: boolean
       }
+      pt_can_manage_appointment: {
+        Args: { _instructor_id: string; _uid: string }
+        Returns: boolean
+      }
       pt_can_view_client: {
         Args: { _client: string; _uid: string }
         Returns: boolean
@@ -16224,6 +16252,10 @@ export type Database = {
             }
             Returns: Json
           }
+      pt_check_in_appointment: {
+        Args: { p_appointment_id: string; p_start?: boolean }
+        Returns: Json
+      }
       pt_complete_session: {
         Args: { p_appointment_id: string; p_deduct?: boolean; p_note?: Json }
         Returns: Json
@@ -16423,7 +16455,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           checked_in_at: string | null
+          checked_in_by: string | null
           completed_at: string | null
+          completed_by: string | null
           confirmation_email_sent_at: string | null
           confirmation_status: string
           confirmed_at: string | null
@@ -16454,11 +16488,13 @@ export type Database = {
           pre_session_note: string | null
           pre_session_note_updated_at: string | null
           prep_checklist: Json
+          reschedule_note: string | null
           reservation_resolved_at: string | null
           reservation_state: string
           reserved_at: string | null
           session_type_id: string | null
           started_at: string | null
+          started_by: string | null
           starts_at: string
           status: Database["public"]["Enums"]["pt_appointment_status"]
           stripe_payment_intent_id: string | null
@@ -16638,6 +16674,10 @@ export type Database = {
         }
       }
       pt_outstanding_balance: { Args: { p_user_id: string }; Returns: Json }
+      pt_override_appointment_consequence: {
+        Args: { p_action: string; p_appointment_id: string; p_reason: string }
+        Returns: Json
+      }
       pt_pass_history: {
         Args: { p_pass_id: string }
         Returns: {
@@ -16979,10 +17019,12 @@ export type Database = {
       pt_reschedule_appointment: {
         Args: {
           p_appointment_id: string
+          p_clear_instructor?: boolean
           p_duration_minutes?: number
           p_force?: boolean
           p_instructor_id?: string
           p_location_id?: string
+          p_reason?: string
           p_starts_at?: string
         }
         Returns: Json
