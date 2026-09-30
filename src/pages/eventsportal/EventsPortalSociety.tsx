@@ -1,15 +1,31 @@
+import { useState } from "react";
 import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus } from "@/hooks/useHigherSelfSociety";
+import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus, useAdminRemoveSocietyPerson } from "@/hooks/useHigherSelfSociety";
 import { SocietyInviteEmailControls } from "@/components/eventsportal/SocietyInviteEmailControls";
+import { SocietyAddPersonPanel } from "@/components/eventsportal/SocietyAddPersonPanel";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 
 export default function EventsPortalSociety() {
   const { data: rows = [], isLoading } = useSocietyRoster();
   const update = useUpdateGuestStatus();
+  const remove = useAdminRemoveSocietyPerson();
+  const [adding, setAdding] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  const doRemove = async (id: string) => {
+    try {
+      await remove.mutateAsync(id);
+      toast.success("Removed from the roster");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not remove");
+    } finally {
+      setConfirmId(null);
+    }
+  };
 
   const rhythmCounts = SOCIETY_RHYTHMS.map((r) => ({
     ...r,
