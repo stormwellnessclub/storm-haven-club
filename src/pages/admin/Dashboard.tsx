@@ -45,6 +45,7 @@ import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidge
 import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
 import { CafeAlertCard } from "@/components/admin/CafeAlertCard";
 import { AdminWidgetBoundary } from "@/components/admin/AdminWidgetBoundary";
+import { SocietySignupsWidget } from "@/components/admin/SocietySignupsWidget";
 import { toast } from "@/hooks/use-toast";
 
 export default function Dashboard() {
@@ -377,6 +378,11 @@ export default function Dashboard() {
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-6">
+        {showAdminOnly && (
+          <AdminWidgetBoundary>
+            <SocietySignupsWidget />
+          </AdminWidgetBoundary>
+        )}
         {/* Failed Payments Alert - Critical (Admin only) */}
         {showAdminOnly && !failedPaymentsLoading && failedPayments.length > 0 && (
           <Card className="border-destructive bg-destructive/5">
