@@ -6,7 +6,9 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Clock, Loader2, ShoppingBag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAdminCafeOrders, useUpdateCafeOrderStatus } from "@/hooks/useAdminCafeOrders";
+import { useAdminCafeOrders, useUpdateCafeOrderStatus, useSetCafeReadyTime } from "@/hooks/useAdminCafeOrders";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useCreateCafeOrder, CafeOrderItem } from "@/hooks/useCafeOrder";
 import { format } from "date-fns";
 import { CafePOSMenu, type POSCartItem } from "@/components/admin/CafePOSMenu";
@@ -24,6 +26,12 @@ export default function FrontDeskPOS() {
   const [selectedCustomer, setSelectedCustomer] = useState<POSCustomer | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [isCharging, setIsCharging] = useState(false);
+  const [readyMinutes, setReadyMinutes] = useState(15);
+  const [notifyDelay, setNotifyDelay] = useState(false);
+  const [customTimeFor, setCustomTimeFor] = useState<string | null>(null);
+  const [customTime, setCustomTime] = useState("");
+  const [, setTick] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTick((n) => n + 1), 30000); return () => clearInterval(t); }, []);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -41,6 +49,17 @@ export default function FrontDeskPOS() {
   const { data: orders, isLoading: ordersLoading } = useAdminCafeOrders({ status: statusFilter });
   const updateStatus = useUpdateCafeOrderStatus();
   const createOrder = useCreateCafeOrder();
+  const setReadyTime = useSetCafeReadyTime();
+
+  const applyCustomTime = (orderId: string) => {
+    if (!/^\d{2}:\d{2}$/.test(customTime)) return;
+    const [h, m] = customTime.split(":").map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    setReadyTime.mutate({ orderId, readyAt: d.toISOString(), notify: notifyDelay });
+    setCustomTimeFor(null);
+    setCustomTime("");
+  };
 
   const addToCart = (item: POSCartItem) => {
     setCart((prev) => {
@@ -164,6 +183,7 @@ export default function FrontDeskPOS() {
         overrideMemberId: selectedCustomer?.memberId ?? null,
         overrideUserId: selectedCustomer?.userId ?? null,
         note: note || null,
+        readyMinutes,
       });
 
       toast.success(paymentMethod === "cash" ? "Cash sale recorded" : "Order placed");
@@ -209,6 +229,16 @@ export default function FrontDeskPOS() {
               <div className="lg:col-span-2">
                 <CafePOSMenu onAddToCart={addToCart} highlightCategories={["Spa"]} />
               </div>
+              <div className="space-y-3">
+              <div className="flex items-center gap-2 flex-wrap text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">Ready in</span>
+                {[5, 10, 15, 20].map((m) => (
+                  <Button key={m} size="sm" variant={readyMinutes === m ? "default" : "outline"} onClick={() => setReadyMinutes(m)}>{m} min</Button>
+                ))}
+                <Input type="number" min={1} max={180} className="w-20 h-9" value={readyMinutes}
+                  onChange={(e) => setReadyMinutes(Math.max(1, Math.min(180, Number(e.target.value) || 1)))} />
+              </div>
               <CafePOSCart
                 cart={cart}
                 updateQuantity={updateQuantity}
@@ -218,6 +248,7 @@ export default function FrontDeskPOS() {
                 onClearCart={clearCart}
                 isPlacing={isCharging || createOrder.isPending}
               />
+              </div>
             </div>
           </TabsContent>
 
@@ -239,6 +270,10 @@ export default function FrontDeskPOS() {
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-4">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={notifyDelay} onCheckedChange={(v) => setNotifyDelay(!!v)} />
+              Text the customer when I push back a ready time (once per order)
+            </label>
             <div className="flex gap-2 flex-wrap">
               {[undefined, "pending", "preparing", "ready", "completed"].map((s) => (
                 <Button key={s ?? "all"} variant={statusFilter === s ? "default" : "outline"} size="sm" onClick={() => setStatusFilter(s)}>
@@ -287,9 +322,28 @@ export default function FrontDeskPOS() {
                         </div>
                       </div>
                       {order.estimated_ready_at && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3 w-3" />
                           Ready: {format(new Date(order.estimated_ready_at), "h:mm a")}
+                          {["pending", "preparing"].includes(order.status) && new Date(order.estimated_ready_at).getTime() < Date.now() && (
+                            <Badge variant="destructive" className="text-[10px]">Running late</Badge>
+                          )}
+                        </div>
+                      )}
+                      {["pending", "preparing"].includes(order.status) && (
+                        <div className="flex gap-1 flex-wrap items-center">
+                          <Button size="sm" variant="outline" disabled={setReadyTime.isPending}
+                            onClick={() => setReadyTime.mutate({ orderId: order.id, addMinutes: 5, notify: notifyDelay })}>+5 min</Button>
+                          <Button size="sm" variant="outline" disabled={setReadyTime.isPending}
+                            onClick={() => setReadyTime.mutate({ orderId: order.id, addMinutes: 10, notify: notifyDelay })}>+10 min</Button>
+                          {customTimeFor === order.id ? (
+                            <>
+                              <Input type="time" className="h-8 w-28" value={customTime} onChange={(e) => setCustomTime(e.target.value)} />
+                              <Button size="sm" onClick={() => applyCustomTime(order.id)}>Save</Button>
+                            </>
+                          ) : (
+                            <Button size="sm" variant="ghost" onClick={() => { setCustomTimeFor(order.id); setCustomTime(""); }}>Set time</Button>
+                          )}
                         </div>
                       )}
                       <div className="text-xs text-muted-foreground">
