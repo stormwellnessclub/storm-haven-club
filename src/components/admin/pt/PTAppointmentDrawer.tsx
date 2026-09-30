@@ -17,8 +17,29 @@ import { PT_FORMAT_LABEL, formatCents } from "@/lib/ptFormat";
 import { usePTPeople, usePTTrainers } from "@/hooks/pt/usePTPortal";
 import {
   PTScheduleAppointment, PT_LIFECYCLE_LABEL, PT_LIFECYCLE_STYLE, ptLifecycle,
-  usePTAppointmentActions, usePTClientPasses, usePTLookupMaps,
+  usePTAppointmentActions, usePTAppointmentHistory, usePTClientPasses, usePTLookupMaps,
 } from "@/hooks/pt/usePTSchedule";
+import { useUserRoles } from "@/hooks/useUserRoles";
+
+type CancelOutcome =
+  | "timely_client_cancel" | "late_client_cancel" | "staff_cancel" | "facility_cancel"
+  | "admin_override_credit" | "admin_override_consume";
+
+const CANCEL_OUTCOMES: { value: CancelOutcome; label: string; hint: string; manager?: boolean }[] = [
+  { value: "timely_client_cancel", label: "Client cancelled in time", hint: "Package credit is returned." },
+  { value: "late_client_cancel", label: "Client late cancel", hint: "Session is charged per the late-cancel policy." },
+  { value: "staff_cancel", label: "Trainer / staff cancelled", hint: "Client keeps their session." },
+  { value: "facility_cancel", label: "Facility cancelled", hint: "Client keeps their session." },
+  { value: "admin_override_credit", label: "Admin override — return credit", hint: "Manager only. Reason required.", manager: true },
+  { value: "admin_override_consume", label: "Admin override — charge session", hint: "Manager only. Reason required.", manager: true },
+];
+
+const HISTORY_FIELDS: Record<string, string> = {
+  checked_in_at: "Checked in", started_at: "Session started", completed_at: "Completed",
+  instructor_id: "Trainer changed", starts_at: "Rescheduled", location_id: "Room changed",
+  cancelled_at: "Cancelled", no_show_at: "Marked no-show", cancel_overridden_at: "Administrative override",
+  payment_status: "Payment status changed", package_deducted: "Package credit changed", confirmed_at: "Confirmed",
+};
 import { toast } from "sonner";
 
 export function PTAppointmentDrawer({
@@ -35,6 +56,13 @@ export function PTAppointmentDrawer({
   const { locationMap, sessionTypeMap, locations } = usePTLookupMaps();
   const { data: people = {} } = usePTPeople(a ? [a.user_id] : []);
   const { data: passes = [] } = usePTClientPasses(a?.user_id);
+  const { data: history } = usePTAppointmentHistory(open ? a?.id : undefined);
+  const { hasRole, isAdmin } = useUserRoles();
+  const isManager = isAdmin() || hasRole("manager" as any);
+  const [rescheduleReason, setRescheduleReason] = useState("");
+  const [cancelOutcome, setCancelOutcome] = useState<CancelOutcome>("staff_cancel");
+  const [overrideReason, setOverrideReason] = useState("");
+  const [overrideAction, setOverrideAction] = useState<"restore_credit" | "consume_credit" | "waive_charge" | null>(null);
 
   const [note, setNote] = useState("");
   const [internalNote, setInternalNote] = useState("");
@@ -51,6 +79,9 @@ export function PTAppointmentDrawer({
     setInternalNote(a.internal_notes ?? "");
     setRescheduleAt(fmtDate(parseISO(a.starts_at), "yyyy-MM-dd'T'HH:mm"));
     setCancelReason("");
+    setRescheduleReason("");
+    setCancelOutcome("staff_cancel");
+    setOverrideReason("");
   }, [a?.id]);
 
   const person = a ? people[a.user_id] : undefined;
@@ -68,26 +99,20 @@ export function PTAppointmentDrawer({
 
   async function submitReschedule(force = false) {
     if (!a || !rescheduleAt) return;
-    const payload = { id: a.id, startsAt: new Date(rescheduleAt).toISOString(), force };
+    const payload = { id: a.id, startsAt: new Date(rescheduleAt).toISOString(), force, reason: rescheduleReason || null };
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
-      const t = res?.conflict?.trainer_conflicts?.length ?? 0;
-      const r = res?.conflict?.room_conflicts?.length ?? 0;
-      setPendingConflict({
-        payload,
-        summary: `${t ? `${t} trainer conflict${t > 1 ? "s" : ""}` : ""}${t && r ? " and " : ""}${r ? `${r} room conflict${r > 1 ? "s" : ""}` : ""} at that time.`,
-      });
+      setPendingConflict({ payload, summary: conflictSummary(res?.conflict) });
     }
   }
 
   async function changeTrainer(instructorId: string) {
     if (!a) return;
     const value = instructorId === "unassigned" ? null : instructorId;
-    const payload = { id: a.id, instructorId: value };
+    const payload = value ? { id: a.id, instructorId: value } : { id: a.id, clearInstructor: true };
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
-      const t = res?.conflict?.trainer_conflicts?.length ?? 0;
-      setPendingConflict({ payload, summary: `That trainer already has ${t} session${t > 1 ? "s" : ""} at this time.` });
+      setPendingConflict({ payload, summary: conflictSummary(res?.conflict) });
     }
   }
 
@@ -164,23 +189,46 @@ export function PTAppointmentDrawer({
                     : ""}
                 </div>
               )}
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <button
-                  className={ptButtonClass("outline")}
-                  disabled={!!a.package_deducted}
-                  onClick={() => actions.setPackageDeducted(a.id, true)}
-                >
-                  Deduct credit
-                </button>
-                <button
-                  className={ptButtonClass("outline")}
-                  disabled={!a.package_deducted}
-                  onClick={() => actions.setPackageDeducted(a.id, false)}
-                >
-                  Restore credit
-                </button>
+              <Separator className="bg-pt-line my-3" />
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-pt-muted">This session</span>
+                <span className="text-pt-ink">
+                  {a.package_deducted ? "Paid by package credit" : (a as any).reservation_state === "reserved" ? "Credit reserved" : (a.payment_status ?? "—").replace(/_/g, " ")}
+                </span>
               </div>
+              {(a as any).cancel_outcome_reason && (
+                <div className="flex items-center justify-between text-xs mt-1">
+                  <span className="text-pt-muted">Outcome</span>
+                  <span className="text-pt-ink">{String((a as any).cancel_outcome_reason).replace(/_/g, " ")} · {String((a as any).cancel_credit_outcome ?? "").replace(/_/g, " ")}</span>
+                </div>
+              )}
+              {(a.payment_status === "unpaid" || a.payment_status === "past_due") && !a.package_deducted && (a.amount_due_cents ?? 0) > 0 && (
+                <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                  <div className="text-xs font-semibold text-destructive">UNPAID SESSION · {formatCents(a.amount_due_cents ?? 0)} due</div>
+                  <button
+                    className={`${ptButtonClass("outline")} mt-2 w-full`}
+                    onClick={() => { onOpenChange(false); navigate(`/admin/pt/clients/${a.user_id}/billing`); }}
+                  >
+                    Open PT Billing <ArrowUpRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+              {(a as any).cancel_override_reason && (
+                <div className="text-[11px] text-pt-muted mt-2">Override: {(a as any).cancel_override_reason}</div>
+              )}
             </section>
+
+            {isManager && (
+              <section className="rounded-xl border border-pt-line bg-white p-4 space-y-2">
+                <div className="pt-eyebrow">Administrative override</div>
+                <div className="text-[11px] text-pt-muted">Managers only. Every override needs a reason and is recorded on the package ledger.</div>
+                <div className="grid grid-cols-3 gap-2">
+                  <button className={ptButtonClass("outline")} disabled={!a.package_deducted && (a as any).reservation_state !== "reserved"} onClick={() => setOverrideAction("restore_credit")}>Return credit</button>
+                  <button className={ptButtonClass("outline")} disabled={!!a.package_deducted} onClick={() => setOverrideAction("consume_credit")}>Charge credit</button>
+                  <button className={ptButtonClass("outline")} disabled={!(a.payment_status === "unpaid" || a.payment_status === "past_due")} onClick={() => setOverrideAction("waive_charge")}>Waive charge</button>
+                </div>
+              </section>
+            )}
 
             {/* Session lifecycle */}
             <section className="rounded-xl border border-pt-line bg-white p-4">
@@ -254,11 +302,17 @@ export function PTAppointmentDrawer({
                   Move
                 </button>
               </div>
+              <Input
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                placeholder="Reason for the change (optional)"
+                className="h-9 bg-white border-pt-line"
+              />
 
               <Separator className="bg-pt-line" />
 
               <div className="pt-eyebrow flex items-center gap-1.5"><UserCog className="h-3.5 w-3.5" /> Trainer</div>
-              <Select value={a.instructor_id ?? "unassigned"} onValueChange={changeTrainer}>
+              <Select value={a.instructor_id ?? "unassigned"} onValueChange={changeTrainer} disabled={terminal}>
                 <SelectTrigger className="h-9 bg-white border-pt-line"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="unassigned">Unassigned</SelectItem>
@@ -267,7 +321,7 @@ export function PTAppointmentDrawer({
               </Select>
 
               <div className="pt-eyebrow flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Location</div>
-              <Select value={a.location_id ?? "none"} onValueChange={changeLocation}>
+              <Select value={a.location_id ?? "none"} onValueChange={changeLocation} disabled={terminal}>
                 <SelectTrigger className="h-9 bg-white border-pt-line"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No location</SelectItem>
@@ -301,9 +355,23 @@ export function PTAppointmentDrawer({
               </div>
             </section>
 
+            {/* History */}
+            <section className="rounded-xl border border-pt-line bg-white p-4">
+              <div className="pt-eyebrow mb-2">Activity</div>
+              <ol className="space-y-1.5">
+                {buildHistory(history, trainers).map((h, i) => (
+                  <li key={i} className="flex justify-between gap-3 text-xs">
+                    <span className="text-pt-ink">{h.label}</span>
+                    <span className="text-pt-muted shrink-0">{fmtDate(parseISO(h.at), "MMM d, h:mm a")}</span>
+                  </li>
+                ))}
+                {!history && <li className="text-xs text-pt-muted">Loading…</li>}
+              </ol>
+            </section>
+
             <button
               className={`${ptButtonClass("danger")} w-full`}
-              disabled={lifecycle === "cancelled"}
+              disabled={terminal}
               onClick={() => setConfirmCancel(true)}
             >
               <XCircle className="h-4 w-4" /> Cancel appointment
@@ -319,14 +387,35 @@ export function PTAppointmentDrawer({
         open={confirmCancel}
         onOpenChange={setConfirmCancel}
         title="Cancel this appointment?"
-        description="The client is emailed and any deducted package credit is restored."
+        description={CANCEL_OUTCOMES.find((o) => o.value === cancelOutcome)?.hint ?? ""}
         confirmLabel="Cancel session"
         destructive
         onConfirm={() => {
-          actions.cancel.mutate({ id: a.id, reason: cancelReason || null });
+          const isOverride = cancelOutcome.startsWith("admin_override");
+          if (isOverride && !overrideReason.trim()) { toast.error("An override reason is required"); return; }
+          actions.cancel.mutate({
+            id: a.id, reason: cancelReason || null, outcome: cancelOutcome,
+            overrideReason: isOverride ? overrideReason.trim() : null,
+          });
           setConfirmCancel(false);
         }}
       >
+        <Select value={cancelOutcome} onValueChange={(v) => setCancelOutcome(v as CancelOutcome)}>
+          <SelectTrigger className="bg-white border-pt-line"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CANCEL_OUTCOMES.filter((o) => !o.manager || isManager).map((o) => (
+              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {cancelOutcome.startsWith("admin_override") && (
+          <Input
+            value={overrideReason}
+            onChange={(e) => setOverrideReason(e.target.value)}
+            placeholder="Override reason (required)"
+            className="bg-white border-pt-line"
+          />
+        )}
         <Input
           value={cancelReason}
           onChange={(e) => setCancelReason(e.target.value)}
@@ -357,11 +446,32 @@ export function PTAppointmentDrawer({
         open={confirmNoShow}
         onOpenChange={setConfirmNoShow}
         title="Mark this client as a no-show?"
-        description="No-shows keep the package credit consumed. You can restore the credit manually afterwards."
+        description="No-shows are charged per policy (package credit used, or the session stays unpaid). A manager can override afterwards."
         confirmLabel="Mark no-show"
         destructive
         onConfirm={() => { setConfirmNoShow(false); actions.markNoShow(a.id); }}
       />
+
+      <PTConfirmDialog
+        open={!!overrideAction}
+        onOpenChange={(v) => { if (!v) { setOverrideAction(null); setOverrideReason(""); } }}
+        title={overrideAction === "restore_credit" ? "Return this session's credit?" : overrideAction === "consume_credit" ? "Charge a package credit for this session?" : "Waive this session's charge?"}
+        description="This is recorded as an administrative override with your name and reason."
+        confirmLabel="Apply override"
+        onConfirm={async () => {
+          if (!overrideAction) return;
+          if (!overrideReason.trim()) { toast.error("A reason is required"); return; }
+          await actions.override.mutateAsync({ id: a.id, action: overrideAction, reason: overrideReason.trim() }).catch(() => {});
+          setOverrideAction(null); setOverrideReason("");
+        }}
+      >
+        <Input
+          value={overrideReason}
+          onChange={(e) => setOverrideReason(e.target.value)}
+          placeholder="Reason (required)"
+          className="bg-white border-pt-line"
+        />
+      </PTConfirmDialog>
 
       <PTConfirmDialog
         open={!!pendingConflict}
@@ -379,4 +489,47 @@ export function PTAppointmentDrawer({
       />
     </>
   );
+}
+
+function conflictSummary(c: any): string {
+  const t = c?.trainer_conflicts?.length ?? 0;
+  const r = c?.room_conflicts?.length ?? 0;
+  const k = c?.client_conflicts?.length ?? 0;
+  const parts = [
+    t ? `${t} trainer conflict${t > 1 ? "s" : ""}` : "",
+    r ? `${r} room conflict${r > 1 ? "s" : ""}` : "",
+    k ? `the client already has ${k} session${k > 1 ? "s" : ""}` : "",
+  ].filter(Boolean);
+  return `${parts.join(", ") || "A conflict"} at that time.`;
+}
+
+function buildHistory(
+  h: { audit: any[]; usage: any[] } | undefined,
+  trainers: { id: string; name: string }[],
+): { label: string; at: string }[] {
+  if (!h) return [];
+  const tname = (id?: string | null) => (id ? trainers.find((t) => t.id === id)?.name ?? "trainer" : "unassigned");
+  const out: { label: string; at: string }[] = [];
+  h.audit.forEach((row) => {
+    if (row.action === "insert") { out.push({ label: "Booked", at: row.created_at }); return; }
+    const b = row.before_data ?? {}; const f = row.after_data ?? {};
+    (row.changed_fields ?? []).forEach((k: string) => {
+      if (!HISTORY_FIELDS[k] || (!f[k] && k !== "instructor_id" && k !== "package_deducted")) return;
+      if (k === "package_deducted") return; // shown from the ledger below
+      let label = HISTORY_FIELDS[k];
+      if (k === "instructor_id") label = `Trainer: ${tname(b[k])} → ${tname(f[k])}`;
+      if (k === "starts_at") label = `Rescheduled from ${fmtDate(parseISO(b[k]), "MMM d, h:mm a")}${f.reschedule_note ? ` — ${f.reschedule_note}` : ""}`;
+      if (k === "cancelled_at" && f.cancel_outcome_reason) label = `Cancelled · ${String(f.cancel_outcome_reason).replace(/_/g, " ")}`;
+      if (k === "payment_status") label = `Payment: ${String(f[k]).replace(/_/g, " ")}`;
+      if (k === "cancel_overridden_at" && f.cancel_override_reason) label = `Override · ${f.cancel_override_reason}`;
+      out.push({ label, at: row.created_at });
+    });
+  });
+  h.usage.forEach((u) => {
+    out.push({
+      label: `Package ${u.quantity < 0 ? "credit used" : "credit returned"}${u.reason ? ` — ${u.reason}` : ""}`,
+      at: u.created_at,
+    });
+  });
+  return out.sort((x, y) => x.at.localeCompare(y.at));
 }
