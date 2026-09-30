@@ -1,7 +1,7 @@
 import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
 import { PurchasedGiftCardsList } from "@/components/admin/GiftCardEmailCopy";
 import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,8 @@ import { NonMemberGuestPassSaleCard } from "@/components/admin/NonMemberGuestPas
 export default function NonMemberDetail() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const nmBase = location.pathname.startsWith("/frontdesk") ? "/frontdesk/non-members" : "/admin/non-member-accounts";
   const queryClient = useQueryClient();
 
   const { user } = useAuth();
@@ -439,7 +441,7 @@ export default function NonMemberDetail() {
       <AdminLayout title="Non-Member Detail">
         <div className="text-center py-12 text-muted-foreground">
           <p>Account not found.</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate("/admin/non-member-accounts")}>
+          <Button variant="outline" className="mt-4" onClick={() => navigate(nmBase)}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Accounts
           </Button>
         </div>
@@ -469,7 +471,7 @@ export default function NonMemberDetail() {
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/admin/non-member-accounts" onClick={(e) => { e.preventDefault(); navigate("/admin/non-member-accounts"); }}>
+                <BreadcrumbLink href={nmBase} onClick={(e) => { e.preventDefault(); navigate(nmBase); }}>
                   Non-Member Accounts
                 </BreadcrumbLink>
               </BreadcrumbItem>
@@ -489,7 +491,7 @@ export default function NonMemberDetail() {
             <Button size="sm" onClick={() => setShowBookPT(true)}>
               <Dumbbell className="h-4 w-4 mr-2" /> Book PT Session
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/non-member-accounts")}>
+            <Button variant="ghost" size="sm" onClick={() => navigate(nmBase)}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back
             </Button>
           </div>
@@ -743,7 +745,7 @@ export default function NonMemberDetail() {
                     </CardTitle>
                      <div className="flex items-center gap-2">
                       <Badge variant="outline">{activePasses} active</Badge>
-                      <Button variant="outline" size="sm" onClick={() => navigate("/admin/classes")}>
+                      <Button variant="outline" size="sm" onClick={() => navigate(location.pathname.startsWith("/frontdesk") ? "/frontdesk/schedule" : "/admin/classes")}>
                         <Calendar className="h-3 w-3 mr-1" /> Book into Class
                       </Button>
                       <Button variant="outline" size="sm" onClick={() => setShowAddPackage(!showAddPackage)}>

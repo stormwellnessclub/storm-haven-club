@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,6 +43,8 @@ interface NonMemberAccount {
 
 export default function NonMemberAccounts() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const nmBase = location.pathname.startsWith("/frontdesk") ? "/frontdesk/non-members" : "/admin/non-member-accounts";
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [noPhoneOnly, setNoPhoneOnly] = useState(false);
@@ -475,7 +477,7 @@ export default function NonMemberAccounts() {
                     <TableRow
                       key={account.user_id}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/admin/non-member-accounts/${account.user_id}`)}
+                      onClick={() => navigate(`${nmBase}/${account.user_id}`)}
                     >
                       <TableCell className="font-medium">
                         {account.first_name || account.last_name
@@ -540,7 +542,7 @@ export default function NonMemberAccounts() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/admin/non-member-accounts/${account.user_id}`); }}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`${nmBase}/${account.user_id}`); }}>
                               <Eye className="h-4 w-4 mr-2" /> View Details
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={(e) => {

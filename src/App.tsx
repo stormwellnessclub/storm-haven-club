@@ -190,6 +190,7 @@ import FrontDeskSchedule from "./pages/frontdesk/Schedule";
 import FrontDeskShiftPage from "./pages/frontdesk/Shift";
 import FrontDeskMembersPage from "./pages/frontdesk/Members";
 import FrontDeskNonMembersPage from "./pages/frontdesk/NonMembers";
+import FrontDeskNonMemberDetailPage from "./pages/frontdesk/NonMemberDetail";
 import FrontDeskGuestPassesPage from "./pages/frontdesk/GuestPassesPage";
 import FrontDeskSpaPage from "./pages/frontdesk/Spa";
 import FrontDeskCafePage from "./pages/frontdesk/Cafe";
@@ -390,6 +391,7 @@ const App = () => (
               <Route path="/frontdesk/shift" element={<ProtectedFrontDeskRoute><FrontDeskShiftPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/members" element={<ProtectedFrontDeskRoute><FrontDeskMembersPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/non-members" element={<ProtectedFrontDeskRoute><FrontDeskNonMembersPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/non-members/:userId" element={<ProtectedFrontDeskRoute><FrontDeskNonMemberDetailPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/guest-passes" element={<ProtectedFrontDeskRoute><FrontDeskGuestPassesPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/spa" element={<ProtectedFrontDeskRoute><FrontDeskSpaPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/cafe" element={<ProtectedFrontDeskRoute><FrontDeskCafePage /></ProtectedFrontDeskRoute>} />
