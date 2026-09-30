@@ -266,7 +266,7 @@ export function CafePOSCart({
               {cart.map((item) => {
                 const prepaidQty = prepaidUsage[item.itemId] || 0;
                 return (
-                  <div key={item.itemId + (item.proteinFlavor || "")} className="space-y-1">
+                  <div key={item.lineKey || item.itemId + (item.proteinFlavor || "")} className="space-y-1">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium line-clamp-2 break-words">
@@ -285,11 +285,11 @@ export function CafePOSCart({
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.itemId, -1)}>
+                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.lineKey || item.itemId, -1)}>
                           <Minus className="h-3 w-3" />
                         </Button>
                         <span className="w-6 text-center text-sm">{item.quantity}</span>
-                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.itemId, 1)}>
+                        <Button variant="outline" size="icon" className="h-6 w-6" onClick={() => updateQuantity(item.lineKey || item.itemId, 1)}>
                           <Plus className="h-3 w-3" />
                         </Button>
                       </div>

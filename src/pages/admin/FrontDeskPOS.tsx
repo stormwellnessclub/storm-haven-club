@@ -44,12 +44,11 @@ export default function FrontDeskPOS() {
 
   const addToCart = (item: POSCartItem) => {
     setCart((prev) => {
-      const key = item.itemId + (item.proteinFlavor || "");
-      const existing = prev.find((c) => c.itemId + (c.proteinFlavor || "") === key);
+      const k = (c: POSCartItem) => c.lineKey || c.itemId + (c.proteinFlavor || "");
+      const key = k(item);
+      const existing = prev.find((c) => k(c) === key);
       if (existing) {
-        return prev.map((c) =>
-          c.itemId + (c.proteinFlavor || "") === key ? { ...c, quantity: c.quantity + 1 } : c
-        );
+        return prev.map((c) => (k(c) === key ? { ...c, quantity: c.quantity + 1 } : c));
       }
       return [...prev, item];
     });
@@ -58,7 +57,7 @@ export default function FrontDeskPOS() {
   const updateQuantity = (itemId: string, delta: number) => {
     setCart((prev) =>
       prev
-        .map((item) => (item.itemId === itemId ? { ...item, quantity: item.quantity + delta } : item))
+        .map((item) => ((item.lineKey || item.itemId) === itemId ? { ...item, quantity: item.quantity + delta } : item))
         .filter((item) => item.quantity > 0)
     );
   };
@@ -88,7 +87,7 @@ export default function FrontDeskPOS() {
 
       const itemNames = cart.map((i) => i.name).join(", ");
       const receiptLineItems = cart.map((item) => ({
-        name: item.name,
+        name: item.addons.length ? `${item.name} + ${item.addons.map((a) => a.name).join(", ")}` : item.name,
         quantity: item.quantity,
         unit_price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
       }));
@@ -133,7 +132,7 @@ export default function FrontDeskPOS() {
       // Create the order record
       const orderItems: CafeOrderItem[] = cart.map((item) => ({
         id: parseInt(item.itemId.slice(0, 8), 16) || 0,
-        name: item.name,
+        name: item.addons.length ? `${item.name} + ${item.addons.map((a) => a.name).join(", ")}` : item.name,
         price: item.basePrice + item.addons.reduce((s, a) => s + a.price, 0),
         quantity: item.quantity,
         category: item.categoryName,

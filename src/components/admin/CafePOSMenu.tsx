@@ -29,6 +29,8 @@ import {
 
 export interface POSCartItem {
   itemId: string;
+  /** Unique cart line key (item + flavor + add-ons). Falls back to itemId. */
+  lineKey?: string;
   name: string;
   basePrice: number;
   quantity: number;
@@ -80,6 +82,7 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
   const [proteinFlavor, setProteinFlavor] = useState("vanilla");
   const [customFlavor, setCustomFlavor] = useState("");
   const [selectedAddons, setSelectedAddons] = useState<string[]>([]);
+  const [shakeChoice, setShakeChoice] = useState<Record<string, string>>({});
 
   const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
@@ -135,12 +138,13 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
 
   const handleAddProteinShake = (item: CafeMenuItem, category: CafeMenuCategory) => {
     const flavor = proteinFlavor === "other" ? customFlavor.trim() || "Custom" : proteinFlavor;
-    const selectedAddonDetails = addons
-      .filter((a) => selectedAddons.includes(a.id))
-      .map((a) => ({ name: a.name, price: Number(a.price) }));
+    const chosen = addons.filter((a) => selectedAddons.includes(a.id));
+    const selectedAddonDetails = chosen.map((a) => ({ name: a.name, price: Number(a.price) }));
+    const addonKey = chosen.map((a) => a.id).sort().join(",");
 
     onAddToCart({
       itemId: item.id,
+      lineKey: `${item.id}|${flavor}|${addonKey}`,
       name: `${getItemLabel(item)} (${flavor})`,
       basePrice: Number(item.price),
       quantity: 1,
@@ -151,6 +155,7 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
     setSelectedAddons([]);
     setProteinFlavor("vanilla");
     setCustomFlavor("");
+    setShakeChoice((p) => ({ ...p, [category.id]: "" }));
   };
 
   const defaultTab = categories.length > 0 ? categories[0].id : "";
@@ -205,9 +210,13 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
                     {catItems.map((item) => (
                       <Button
                         key={item.id}
-                        variant="outline"
+                        variant={cat.has_addons && shakeChoice[cat.id] === item.id ? "default" : "outline"}
                         className="h-auto p-3 flex flex-col items-start text-left w-full overflow-hidden"
-                        onClick={() => !cat.has_addons && handleItemClick(item, cat)}
+                        onClick={() =>
+                          cat.has_addons
+                            ? setShakeChoice((p) => ({ ...p, [cat.id]: item.id }))
+                            : handleItemClick(item, cat)
+                        }
                       >
                         <span className="font-medium text-xs leading-tight line-clamp-2 w-full">{getItemLabel(item)}</span>
                         <span className="text-xs text-muted-foreground">${Number(item.price).toFixed(2)}</span>
@@ -222,7 +231,10 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
                       <div className="flex gap-2 items-end flex-wrap">
                         <div>
                           <Label className="text-xs">Select Item</Label>
-                          <Select>
+                          <Select
+                            value={shakeChoice[cat.id] || ""}
+                            onValueChange={(v) => setShakeChoice((p) => ({ ...p, [cat.id]: v }))}
+                          >
                             <SelectTrigger className="w-[180px]">
                               <SelectValue placeholder="Pick shake..." />
                             </SelectTrigger>
@@ -275,14 +287,13 @@ export function CafePOSMenu({ onAddToCart, highlightCategories }: CafePOSMenuPro
                       )}
                       <Button
                         size="sm"
+                        disabled={!catItems.some((i) => i.id === shakeChoice[cat.id])}
                         onClick={() => {
-                          const shakeSelect = document.querySelector<HTMLButtonElement>(`[data-cat-shake="${cat.id}"]`);
-                          // Use first item as default if none selected
-                          const selectedItem = catItems[0];
+                          const selectedItem = catItems.find((i) => i.id === shakeChoice[cat.id]);
                           if (selectedItem) handleAddProteinShake(selectedItem, cat);
                         }}
                       >
-                        Add to Cart
+                        {shakeChoice[cat.id] ? "Add to Cart" : "Pick an item first"}
                       </Button>
                     </div>
                   )}
