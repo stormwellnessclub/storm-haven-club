@@ -519,6 +519,13 @@
       "when": 1790738165272,
       "tag": "0073_society_staff_add_remove",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790738881726,
+      "tag": "0074_cafe_ready_time_and_notify",
+      "breakpoints": true
     }
   ]
 }
