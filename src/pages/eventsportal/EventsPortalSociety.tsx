@@ -1,15 +1,31 @@
+import { useState } from "react";
 import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus } from "@/hooks/useHigherSelfSociety";
+import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus, useAdminRemoveSocietyPerson } from "@/hooks/useHigherSelfSociety";
 import { SocietyInviteEmailControls } from "@/components/eventsportal/SocietyInviteEmailControls";
+import { SocietyAddPersonPanel } from "@/components/eventsportal/SocietyAddPersonPanel";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 
 export default function EventsPortalSociety() {
   const { data: rows = [], isLoading } = useSocietyRoster();
   const update = useUpdateGuestStatus();
+  const remove = useAdminRemoveSocietyPerson();
+  const [adding, setAdding] = useState(false);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  const doRemove = async (id: string) => {
+    try {
+      await remove.mutateAsync(id);
+      toast.success("Removed from the roster");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not remove");
+    } finally {
+      setConfirmId(null);
+    }
+  };
 
   const rhythmCounts = SOCIETY_RHYTHMS.map((r) => ({
     ...r,
@@ -19,10 +35,11 @@ export default function EventsPortalSociety() {
   rows.forEach((r: any) => (r.themes ?? []).forEach((t: string) => (themeCounts[t] = (themeCounts[t] ?? 0) + 1)));
 
   const exportCsv = () => {
-    const header = ["Name", "Email", "Tier", "Founding", "Evening", "Themes", "Book", "Why", "Guest", "Guest status", "Joined"];
+    const header = ["Name", "Email", "Phone", "Type", "Added by", "Tier", "Founding", "Evening", "Themes", "Book", "Why", "Guest", "Guest status", "Staff note", "Joined"];
     const lines = rows.map((r: any) =>
-      [r.full_name, r.email, r.membership_type, r.is_founding ? "Yes" : "No", r.preferred_rhythm, (r.themes ?? []).join("; "),
-       r.book_suggestion, r.book_reason, r.guest_name, r.guest_status, r.created_at]
+      [r.full_name, r.email, r.phone, r.is_member === false ? "Non-member" : "Member", r.source === "staff" ? "Staff" : "Self",
+       r.membership_type, r.is_founding ? "Yes" : "No", r.preferred_rhythm, (r.themes ?? []).join("; "),
+       r.book_suggestion, r.book_reason, r.guest_name, r.guest_status, r.staff_note, r.created_at]
         .map((v) => `"${String(csvSafe(v ?? "")).replace(/"/g, '""')}"`).join(","),
     );
     const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv" });
@@ -51,21 +68,33 @@ export default function EventsPortalSociety() {
         <Card><CardHeader><CardTitle className="text-sm">Top themes</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-1">{Object.entries(themeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, n]) => <div key={t} className="flex justify-between"><span>{t}</span><b>{n}</b></div>)}</CardContent></Card>
       </div>
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex justify-between items-center mb-3 gap-2">
         <h2 className="font-semibold">Roster</h2>
-        <Button size="sm" variant="outline" onClick={exportCsv} disabled={!rows.length}>Export CSV</Button>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => setAdding((v) => !v)}>{adding ? "Close" : "Add person"}</Button>
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={!rows.length}>Export CSV</Button>
+        </div>
       </div>
+      {adding && <SocietyAddPersonPanel onDone={() => setAdding(false)} />}
       <div className="overflow-x-auto border rounded-md">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left"><tr>
-            <th className="p-2">Member</th><th className="p-2">Tier</th><th className="p-2">Evening</th>
-            <th className="p-2">Book suggestion</th><th className="p-2">Guest</th></tr></thead>
+            <th className="p-2">Person</th><th className="p-2">Tier</th><th className="p-2">Evening</th>
+            <th className="p-2">Book suggestion</th><th className="p-2">Guest</th><th className="p-2"></th></tr></thead>
           <tbody>
-            {isLoading && <tr><td className="p-3" colSpan={5}>Loading…</td></tr>}
-            {!isLoading && !rows.length && <tr><td className="p-3 text-muted-foreground" colSpan={5}>No sign-ups yet.</td></tr>}
+            {isLoading && <tr><td className="p-3" colSpan={6}>Loading…</td></tr>}
+            {!isLoading && !rows.length && <tr><td className="p-3 text-muted-foreground" colSpan={6}>No sign-ups yet.</td></tr>}
             {rows.map((r: any) => (
               <tr key={r.id} className="border-t align-top">
-                <td className="p-2"><div className="font-medium">{r.full_name}</div><div className="text-xs text-muted-foreground">{r.email}</div></td>
+                <td className="p-2">
+                  <div className="font-medium">{r.full_name}</div>
+                  <div className="text-xs text-muted-foreground">{r.email}{r.phone && ` · ${r.phone}`}</div>
+                  <div className="flex gap-1 mt-1">
+                    <Badge variant={r.is_member === false ? "outline" : "secondary"}>{r.is_member === false ? "Non-member" : "Member"}</Badge>
+                    {r.source === "staff" && <Badge variant="outline">Added by staff</Badge>}
+                  </div>
+                  {r.staff_note && <div className="text-xs text-muted-foreground mt-1 italic">{r.staff_note}</div>}
+                </td>
                 <td className="p-2">{r.membership_type}{r.is_founding && <Badge variant="secondary" className="ml-1">Founding</Badge>}</td>
                 <td className="p-2">{SOCIETY_RHYTHMS.find((x) => x.value === r.preferred_rhythm)?.label ?? "—"}</td>
                 <td className="p-2 max-w-xs">{r.book_suggestion || "—"}{r.book_reason && <div className="text-xs text-muted-foreground mt-1">{r.book_reason}</div>}</td>
@@ -81,6 +110,16 @@ export default function EventsPortalSociety() {
                       )}
                     </div>
                   ) : "—"}
+                </td>
+                <td className="p-2 text-right whitespace-nowrap">
+                  {confirmId === r.id ? (
+                    <div className="flex gap-1 justify-end">
+                      <Button size="sm" variant="destructive" disabled={remove.isPending} onClick={() => doRemove(r.id)}>Confirm remove</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setConfirmId(null)}>Keep</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmId(r.id)}>Remove</Button>
+                  )}
                 </td>
               </tr>
             ))}
