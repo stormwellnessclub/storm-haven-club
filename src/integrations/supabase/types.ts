@@ -899,6 +899,7 @@ export type Database = {
         Row: {
           completed_at: string | null
           created_at: string
+          delay_notified_at: string | null
           estimated_ready_at: string | null
           id: string
           member_id: string | null
@@ -906,6 +907,7 @@ export type Database = {
           order_items: Json
           payment_intent_id: string | null
           payment_method: string | null
+          ready_notified_at: string | null
           status: string
           total_amount: number
           updated_at: string
@@ -914,6 +916,7 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           created_at?: string
+          delay_notified_at?: string | null
           estimated_ready_at?: string | null
           id?: string
           member_id?: string | null
@@ -921,6 +924,7 @@ export type Database = {
           order_items: Json
           payment_intent_id?: string | null
           payment_method?: string | null
+          ready_notified_at?: string | null
           status?: string
           total_amount: number
           updated_at?: string
@@ -929,6 +933,7 @@ export type Database = {
         Update: {
           completed_at?: string | null
           created_at?: string
+          delay_notified_at?: string | null
           estimated_ready_at?: string | null
           id?: string
           member_id?: string | null
@@ -936,6 +941,7 @@ export type Database = {
           order_items?: Json
           payment_intent_id?: string | null
           payment_method?: string | null
+          ready_notified_at?: string | null
           status?: string
           total_amount?: number
           updated_at?: string
@@ -17247,6 +17253,14 @@ export type Database = {
           full_name: string
           id: string
         }[]
+      }
+      staff_set_cafe_ready_time: {
+        Args: {
+          p_add_minutes?: number
+          p_order_id: string
+          p_ready_at?: string
+        }
+        Returns: string
       }
       submit_class_review: {
         Args: {

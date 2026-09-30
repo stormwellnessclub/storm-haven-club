@@ -35,6 +35,7 @@ interface CreateOrderParams {
   overrideMemberId?: string | null;
   overrideUserId?: string | null;
   note?: string | null;
+  readyMinutes?: number;
 }
 
 export function useCreateCafeOrder() {
@@ -49,6 +50,7 @@ export function useCreateCafeOrder() {
       overrideMemberId,
       overrideUserId,
       note,
+      readyMinutes,
     }: CreateOrderParams) => {
       if (!user) {
         throw new Error("You must be signed in to place an order");
@@ -82,7 +84,7 @@ export function useCreateCafeOrder() {
             status: "pending",
             payment_method: paymentMethod,
             payment_intent_id: paymentIntentId || null,
-            estimated_ready_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), // 15 minutes from now
+            estimated_ready_at: new Date(Date.now() + (readyMinutes && readyMinutes > 0 ? readyMinutes : 15) * 60 * 1000).toISOString(),
             note: note || null,
           })
           .select()

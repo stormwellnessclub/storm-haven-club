@@ -35,6 +35,10 @@ function tmpl(s: string, v: Record<string, unknown>) {
 }
 
 const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
+  "cafe-order-ready": (v) =>
+    tmpl(`Storm Wellness Club: {{name}}, your order is ready at the café.`, v),
+  "cafe-order-delay": (v) =>
+    tmpl(`Storm Wellness Club: {{name}}, your order needs a few more minutes. New ready time: {{time}}.`, v),
   "test-message": (v) =>
     `Storm Wellness Club: test message${v.note ? ` — ${v.note}` : ""}. Reply STOP to opt out.`,
   "opt-in-confirmation": () =>
