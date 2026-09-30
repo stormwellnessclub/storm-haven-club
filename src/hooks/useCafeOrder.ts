@@ -25,8 +25,6 @@ export interface CafeOrder {
   updated_at: string;
   completed_at: string | null;
   note?: string | null;
-  /** Minutes until ready (defaults to 15) */
-  readyMinutes?: number;
 }
 
 interface CreateOrderParams {
@@ -37,6 +35,7 @@ interface CreateOrderParams {
   overrideMemberId?: string | null;
   overrideUserId?: string | null;
   note?: string | null;
+  readyMinutes?: number;
 }
 
 export function useCreateCafeOrder() {
