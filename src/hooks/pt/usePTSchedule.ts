@@ -189,11 +189,16 @@ export function usePTAppointmentActions() {
     return true;
   }
 
-  const checkIn = (id: string) =>
-    patch(id, { checked_in_at: new Date().toISOString(), confirmation_status: "confirmed" }, "Client checked in");
-
-  const startSession = (id: string) =>
-    patch(id, { started_at: new Date().toISOString(), checked_in_at: new Date().toISOString() }, "Session started");
+  /** Check-in never touches the package ledger; the server records who and when. */
+  async function checkInRpc(id: string, start: boolean) {
+    const { error } = await (supabase as any).rpc("pt_check_in_appointment", { p_appointment_id: id, p_start: start });
+    if (error) { toast.error(error.message); return false; }
+    toast.success(start ? "Session started" : "Client checked in");
+    invalidate();
+    return true;
+  }
+  const checkIn = (id: string) => checkInRpc(id, false);
+  const startSession = (id: string) => checkInRpc(id, true);
 
   /**
    * Completing goes through the atomic RPC so package deduction, session notes
@@ -325,6 +330,8 @@ export function usePTAppointmentActions() {
       instructorId?: string | null;
       locationId?: string | null;
       force?: boolean;
+      reason?: string | null;
+      clearInstructor?: boolean;
     }) => {
       const { data, error } = await (supabase as any).rpc("pt_reschedule_appointment", {
         p_appointment_id: input.id,
@@ -333,6 +340,8 @@ export function usePTAppointmentActions() {
         p_instructor_id: input.instructorId ?? null,
         p_location_id: input.locationId ?? null,
         p_force: input.force ?? false,
+        p_reason: input.reason ?? null,
+        p_clear_instructor: input.clearInstructor ?? false,
       });
       if (error) throw error;
       return data as { success: boolean; conflict: any };
@@ -343,8 +352,25 @@ export function usePTAppointmentActions() {
     onError: (e: any) => toast.error(e?.message ?? "Could not move session"),
   });
 
+  /** Manager override of a finished outcome — reason required, runs through the ledger. */
+  const override = useMutation({
+    mutationFn: async (input: { id: string; action: "restore_credit" | "consume_credit" | "waive_charge"; reason: string }) => {
+      const { error } = await (supabase as any).rpc("pt_override_appointment_consequence", {
+        p_appointment_id: input.id, p_action: input.action, p_reason: input.reason,
+      });
+      if (error) throw error;
+      return input.action;
+    },
+    onSuccess: (a) => {
+      toast.success(a === "restore_credit" ? "Credit restored" : a === "consume_credit" ? "Credit charged" : "Charge waived");
+      invalidate();
+      qc.invalidateQueries({ queryKey: ["pt-appt-history"] });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not apply override"),
+  });
+
   return {
-    checkIn, startSession, completeSession, markNoShow, confirm, setTentative,
+    override, checkIn, startSession, completeSession, markNoShow, confirm, setTentative,
     changeTrainer, addNote, setPackageDeducted, cancel, sendConfirmation, reschedule,
   };
 }
@@ -398,5 +424,25 @@ export function useResolvePTAlert() {
     },
     onSuccess: () => { toast.success("Alert resolved"); qc.invalidateQueries({ queryKey: ["pt-alerts"] }); },
     onError: (e: any) => toast.error(e?.message ?? "Could not resolve alert"),
+  });
+}
+
+/** Audit trail for one appointment, derived from the authoritative pt_audit_log. */
+export function usePTAppointmentHistory(appointmentId?: string) {
+  return useQuery({
+    queryKey: ["pt-appt-history", appointmentId],
+    enabled: !!appointmentId,
+    queryFn: async () => {
+      const [{ data: audit }, { data: usage }] = await Promise.all([
+        (supabase as any).from("pt_audit_log")
+          .select("id, action, changed_fields, before_data, after_data, actor_id, created_at")
+          .eq("entity_type", "pt_appointments").eq("entity_id", appointmentId)
+          .order("created_at", { ascending: true }).limit(200),
+        (supabase as any).from("pt_session_usage")
+          .select("id, quantity, event_type, reason, created_at")
+          .eq("appointment_id", appointmentId).order("created_at", { ascending: true }),
+      ]);
+      return { audit: (audit ?? []) as any[], usage: (usage ?? []) as any[] };
+    },
   });
 }
