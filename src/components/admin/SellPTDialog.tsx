@@ -168,18 +168,20 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         supabase
           .from("profiles")
           .select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
-          .limit(10),
-        supabase
-          .from("members")
-          .select("user_id, email, first_name, last_name, status")
-          .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
-          .limit(10),
-        supabase
-          .from("non_member_profiles")
-          .select("user_id, email, first_name, last_name")
-          .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
-          .limit(10),
+           .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+           .is("merged_into_user_id", null)
+           .limit(10),
+         supabase
+           .from("members")
+           .select("user_id, email, first_name, last_name, status")
+           .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+           .limit(10),
+         supabase
+           .from("non_member_profiles")
+           .select("user_id, email, first_name, last_name")
+           .or(`email.ilike.%${searchQuery}%,first_name.ilike.%${searchQuery}%,last_name.ilike.%${searchQuery}%`)
+           .is("merged_into_user_id", null)
+           .limit(10),
       ]);
       // Resolve current membership for every matched account (one person = one user_id).
       const ids = Array.from(new Set([
