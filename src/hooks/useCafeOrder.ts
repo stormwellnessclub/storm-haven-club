@@ -60,7 +60,7 @@ export function useCreateCafeOrder() {
       const totalAmount = orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
       // Attribute the order to the buyer (POS) or, for self-order, the signed-in user
-      let attributedUserId: string | null = overrideUserId ?? user.id;
+      let attributedUserId: string | null = overrideUserId !== undefined ? overrideUserId : user.id;
       let attributedMemberId: string | null = overrideMemberId ?? null;
 
       // Self-order path — look up member_id from signed-in user
