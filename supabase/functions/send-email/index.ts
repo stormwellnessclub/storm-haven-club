@@ -25,9 +25,9 @@ async function authorizeRequest(req: Request, type: string, to?: string): Promis
     return { ok: true };
   }
   // Allow trusted internal jobs presenting the internal task token.
-  const internal = Deno.env.get('INTERNAL_TASK_TOKEN') ?? '';
-  const presented = req.headers.get('x-internal-task-token') ?? req.headers.get('x-internal-token') ?? '';
-  if (internal && presented && presented === internal) {
+  const internal = (Deno.env.get('INTERNAL_TASK_TOKEN') ?? '').trim();
+  const presented = req.headers.get('x-internal-task-token') ?? (req.headers.get('x-internal-token') ?? '');
+  if (internal && presented && presented.trim() === internal) {
     return { ok: true };
   }
 
