@@ -116,6 +116,7 @@ import {
 } from "@/components/ui/table";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
+import { MemberBuyGuestPassCard } from "@/components/admin/MemberBuyGuestPassCard";
 
 // Helper functions
 const getStatusColor = (status: string) => {
@@ -2099,6 +2100,16 @@ export default function MemberDetail() {
                   )}
                 </CardContent>
               </Card>
+
+              <MemberBuyGuestPassCard
+                memberId={member.id}
+                memberName={`${member.first_name ?? ""} ${member.last_name ?? ""}`.trim()}
+                stripeCustomerId={member.stripe_customer_id ?? null}
+                cardBrand={member.card_brand ?? null}
+                cardLast4={member.card_last4 ?? null}
+                adminUserId={user?.id}
+                onPurchased={() => queryClient.invalidateQueries({ queryKey: ["member-guest-vouchers"] })}
+              />
 
               {/* Guest Pass Vouchers */}
               <Card>
