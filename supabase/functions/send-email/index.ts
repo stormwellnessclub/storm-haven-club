@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-token, x-internal-task-token, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Types that can be safely invoked without authentication (e.g., from the public
@@ -22,6 +22,12 @@ async function authorizeRequest(req: Request, type: string, to?: string): Promis
   // Allow service-role key (used by other edge functions calling send-email).
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
   if (token && serviceRoleKey && token === serviceRoleKey) {
+    return { ok: true };
+  }
+  // Allow trusted internal jobs presenting the internal task token.
+  const internal = Deno.env.get('INTERNAL_TASK_TOKEN') ?? '';
+  const presented = req.headers.get('x-internal-task-token') ?? req.headers.get('x-internal-token') ?? '';
+  if (internal && presented && presented === internal) {
     return { ok: true };
   }
 

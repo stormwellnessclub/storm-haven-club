@@ -139,7 +139,14 @@ export function PurchasedGiftCardsList({ userId, email }: { userId?: string | nu
               <Badge variant="outline">{g.status}</Badge>
             </div>
             <div className="text-muted-foreground">
-              For {g.recipient_name} · sent to {g.recipient_email}
+              For {g.recipient_name} · {g.recipient_email}
+            </div>
+            <div className={g.email_sent_at ? "text-xs font-medium text-primary" : "text-xs text-muted-foreground"}>
+              {g.email_sent_at
+                ? `✓ Gift email delivered ${formatInTimeZone(new Date(g.email_sent_at), TZ, "PPP 'at' p")}`
+                : g.status === "scheduled"
+                  ? "Gift email scheduled — not sent yet"
+                  : "Gift email not sent yet"}
             </div>
             <div className="text-xs text-muted-foreground">
               Code <span className="font-mono">{g.code}</span>
