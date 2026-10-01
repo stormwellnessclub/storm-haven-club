@@ -78,17 +78,22 @@ function PaymentFormInner({
 
         if (cardData?.paymentMethods?.[0]) {
           const card = cardData.paymentMethods[0];
-          await supabase
+          const { error: updateError } = await supabase
             .from("membership_applications")
             .update({
               stripe_customer_id: card.customer,
-              stripe_payment_method_id: card.id,
+              payment_info_provided: true,
               card_brand: card.card?.brand,
               card_last4: card.card?.last4,
               card_exp_month: card.card?.exp_month,
               card_exp_year: card.card?.exp_year,
             })
             .eq("id", applicationId);
+          if (updateError) {
+            console.error("Failed to attach card to application:", updateError);
+            toast.error("Your card was saved, but we couldn't link it to your application. Please contact us.");
+            return;
+          }
         }
 
         toast.success("Payment method saved successfully!");
