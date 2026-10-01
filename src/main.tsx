@@ -8,6 +8,20 @@ import "@fontsource/instrument-serif/400.css";
 import "@fontsource/instrument-serif/400-italic.css";
 import "./index.css";
 
+// Benign browser warning (layout settles next frame); stop it from surfacing as a crash.
+const isResizeObserverNoise = (msg: unknown) =>
+  typeof msg === "string" && msg.includes("ResizeObserver loop");
+window.addEventListener(
+  "error",
+  (e) => {
+    if (isResizeObserverNoise(e.message)) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  },
+  true,
+);
+
 
 const AUTH_SW_CLEANUP_FLAG = "auth-sw-cleanup-v1";
 
