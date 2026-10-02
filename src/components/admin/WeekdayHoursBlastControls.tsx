@@ -71,7 +71,7 @@ export function WeekdayHoursBlastControls() {
         supabase
           .from("email_audit_log")
           .select("recipient_email")
-          .eq("email_type", "labor_day_hours_2026_09_07"),
+          .eq("email_type", "weekday_hours_630_2026_10"),
       ]);
       if (error) throw error;
       const sentSet = new Set((sent ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
