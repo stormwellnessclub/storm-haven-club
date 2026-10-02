@@ -12,6 +12,7 @@ import { MaintenanceBlastControls } from "@/components/admin/MaintenanceBlastCon
 import { ClosingTonightBlastControls } from "@/components/admin/ClosingTonightBlastControls";
 import { PowerOutageBlastControls } from "@/components/admin/PowerOutageBlastControls";
 import { LaborDayHoursBlastControls } from "@/components/admin/LaborDayHoursBlastControls";
+import { WeekdayHoursBlastControls } from "@/components/admin/WeekdayHoursBlastControls";
 
 interface Recipient {
   id: string;
@@ -218,6 +219,7 @@ export function AnnouncementsTab() {
 
   return (
     <div className="space-y-6">
+      <WeekdayHoursBlastControls />
       <LaborDayHoursBlastControls />
       <PowerOutageBlastControls />
       <ClosingTonightBlastControls />
