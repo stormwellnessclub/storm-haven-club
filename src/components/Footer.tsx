@@ -28,8 +28,8 @@ const footerLinks = {
 
 
 const clubHours = [
-  { days: "Monday - Thursday", hours: "5:30 AM - 11:00 PM" },
-  { days: "Friday", hours: "5:30 AM - 8:00 PM" },
+  { days: "Monday - Thursday", hours: "6:30 AM - 11:00 PM" },
+  { days: "Friday", hours: "6:30 AM - 8:00 PM" },
   { days: "Saturday - Sunday", hours: "7:00 AM - 7:00 PM" },
 ];
 
