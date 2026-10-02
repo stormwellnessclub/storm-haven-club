@@ -525,8 +525,8 @@ function GuestPassSuccess() {
             <div className="text-left text-sm text-muted-foreground space-y-1">
              <p className="font-medium text-foreground">Hours</p>
               <p className="font-semibold text-accent">Currently in Soft Launch — contact club for hours</p>
-              <p>Mon–Thu: 5:30 AM – 11:00 PM</p>
-              <p>Friday: 5:30 AM – 8:00 PM</p>
+              <p>Mon–Thu: 6:30 AM – 11:00 PM</p>
+              <p>Friday: 6:30 AM – 8:00 PM</p>
               <p>Sat–Sun: 7:00 AM – 7:00 PM</p>
             </div>
           </div>
