@@ -142,7 +142,8 @@ serve(async (req) => {
   const { data: sentRows } = await supabase
     .from("email_audit_log")
     .select("recipient_email")
-    .eq("email_type", TEMPLATE_KEY);
+    .eq("email_type", TEMPLATE_KEY)
+    .eq("status", "sent");
   const alreadySent = new Set(
     (sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()),
   );
