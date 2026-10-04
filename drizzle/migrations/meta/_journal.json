@@ -554,6 +554,13 @@
       "when": 1790828292475,
       "tag": "0078_fix_society_member_detection",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1791078464360,
+      "tag": "0079_freeze_billing_resume_error",
+      "breakpoints": true
     }
   ]
 }
