@@ -342,7 +342,7 @@ export function WeekdayHoursBlastControls() {
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-3xl h-[85vh] flex flex-col p-0">
           <DialogHeader className="p-4 border-b">
-            <DialogTitle>Email preview — Power outage update</DialogTitle>
+            <DialogTitle>Email preview — New weekday opening time</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden bg-muted">
             {html ? (
