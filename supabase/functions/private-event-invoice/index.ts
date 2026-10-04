@@ -116,21 +116,32 @@ serve(async (req) => {
       const to = String(body.email ?? event.client_email ?? "").trim().toLowerCase();
       if (!to) return fail("No client email on this event.");
 
+      const isDeposit = invoice.kind === "deposit";
+      const niceDate = (d: string | null) =>
+        d
+          ? new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", {
+              weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "America/Detroit",
+            })
+          : null;
       const sent = await sendBrandedEmail({
         to,
         subject: `${kindLabel} invoice — ${event.title}`,
         html: eventEmailShell({
           heading: `${kindLabel} for ${event.title}`,
-          intro: `Hello${event.client_first_name ? ` ${event.client_first_name}` : ""}, here is your ${kindLabel.toLowerCase()} invoice for your event at Storm Wellness Club. You can pay securely by card using the button below.`,
+          intro: isDeposit
+            ? `Hello${event.client_first_name ? ` ${event.client_first_name}` : ""}, here is your ${kindLabel.toLowerCase()} invoice for your event at Storm Wellness Club. You can pay securely by card using the button below.`
+            : `Hello${event.client_first_name ? ` ${event.client_first_name}` : ""}, thank you again for your deposit. Here is the remaining balance for your event at Storm Wellness Club. You can pay securely by card using the button below.`,
           rows: [
             { label: "Amount due", value: money(invoice.amount_cents) },
-            { label: "Due by", value: invoice.due_date ?? "Upon receipt" },
-            { label: "Event date", value: event.event_date ?? "To be confirmed" },
+            { label: "Due by", value: niceDate(invoice.due_date) ?? "Upon receipt" },
+            { label: "Event date", value: niceDate(event.event_date) ?? "To be confirmed" },
           ],
           ctaLabel: "Pay securely",
           ctaUrl: payUrl,
-          outro: "Your date is held once the deposit is received. Reply to this email with any questions.",
-          terms: true,
+          outro: isDeposit
+            ? "Your date is held once the deposit is received. Reply to this email with any questions."
+            : "Your deposit is received and your date is confirmed. We look forward to hosting you. Reply to this email with any questions.",
+          terms: isDeposit,
           confirmationNote: String(body.confirmation_note ?? "").trim() || undefined,
         }),
       });
