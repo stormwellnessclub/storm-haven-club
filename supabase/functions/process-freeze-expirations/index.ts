@@ -1,6 +1,24 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+
+// Unpause dues and make "now" the new billing day: charges a full period today,
+// then monthly on this date. Handles both pause styles (pause_collection / trial_end).
+async function resumeDuesBilling(stripe: Stripe, subId: string) {
+  const sub = await stripe.subscriptions.retrieve(subId);
+  if (['canceled', 'incomplete_expired'].includes(sub.status)) {
+    throw new Error(`Subscription is ${sub.status}`);
+  }
+  const params: Record<string, unknown> = { pause_collection: '', proration_behavior: 'none' };
+  if (sub.status === 'trialing' || (sub.trial_end && sub.trial_end * 1000 > Date.now())) {
+    params.trial_end = 'now';
+  } else {
+    params.billing_cycle_anchor = 'now';
+  }
+  // deno-lint-ignore no-explicit-any
+  await stripe.subscriptions.update(subId, params as any);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -54,6 +72,9 @@ serve(async (req) => {
     let processedCount = 0;
     const errors: string[] = [];
 
+    const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+    const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: '2025-08-27.basil' }) : null;
+
     for (const freeze of expiredFreezes) {
       try {
         // Get member details for email and subscription IDs
@@ -68,11 +89,30 @@ serve(async (req) => {
           continue;
         }
 
+        // Restart dues billing FIRST: billing day becomes the freeze end date (today).
+        // Only the dues subscription; the annual fee is never paused.
+        if (memberData?.stripe_subscription_id) {
+          try {
+            if (!stripe) throw new Error('STRIPE_SECRET_KEY not set');
+            await resumeDuesBilling(stripe, memberData.stripe_subscription_id);
+            logStep("Dues billing restarted with new billing day", { memberId: freeze.member_id });
+          } catch (resumeErr) {
+            const msg = resumeErr instanceof Error ? resumeErr.message : String(resumeErr);
+            logStep("Failed to restart dues billing", { memberId: freeze.member_id, error: msg });
+            await supabase.from('member_freezes')
+              .update({ billing_resume_error: msg, updated_at: new Date().toISOString() })
+              .eq('id', freeze.id);
+            errors.push(`Billing not resumed for member ${freeze.member_id}: ${msg}`);
+            continue; // leave freeze active so staff see it and it retries tomorrow
+          }
+        }
+
         // Update freeze status to completed
         const { error: freezeUpdateError } = await supabase
           .from('member_freezes')
           .update({
             status: 'completed',
+            billing_resume_error: null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', freeze.id);
@@ -94,56 +134,6 @@ serve(async (req) => {
         if (memberUpdateError) {
           errors.push(`Failed to reactivate member ${freeze.member_id}: ${memberUpdateError.message}`);
           continue;
-        }
-
-        // Resume membership subscription and realign billing anchor
-        if (memberData?.stripe_subscription_id) {
-          try {
-            const { error: resumeError } = await supabase.functions.invoke('stripe-payment', {
-              body: {
-                action: 'resume_subscription',
-                subscriptionId: memberData.stripe_subscription_id,
-              },
-            });
-
-            if (resumeError) {
-              logStep("Failed to resume membership subscription", { 
-                memberId: freeze.member_id, 
-                error: resumeError 
-              });
-            } else {
-              logStep("Membership subscription resumed", { 
-                memberId: freeze.member_id, 
-                subscriptionId: memberData.stripe_subscription_id 
-              });
-
-              // Realign billing cycle to the freeze end date
-              const anchorDate = new Date(freeze.actual_end_date + 'T23:59:59Z');
-              const { error: anchorError } = await supabase.functions.invoke('stripe-payment', {
-                body: {
-                  action: 'update_billing_anchor',
-                  subscriptionId: memberData.stripe_subscription_id,
-                  newAnchorDate: anchorDate.toISOString(),
-                },
-              });
-              if (anchorError) {
-                logStep("Failed to realign membership billing anchor", {
-                  memberId: freeze.member_id,
-                  error: anchorError,
-                });
-              } else {
-                logStep("Membership billing anchor realigned", {
-                  memberId: freeze.member_id,
-                  newAnchorDate: anchorDate.toISOString(),
-                });
-              }
-            }
-          } catch (resumeErr) {
-            logStep("Error resuming membership subscription", { 
-              memberId: freeze.member_id, 
-              error: resumeErr 
-            });
-          }
         }
 
         // Annual/initiation fee subscription is intentionally NOT paused during a freeze,
