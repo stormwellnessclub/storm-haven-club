@@ -118,14 +118,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     const redirectUrl = `${window.location.origin}/`;
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: metadata,
-      },
-    });
+    const isNetworkError = (e: any) =>
+      !!e && /load failed|failed to fetch|network|fetch/i.test(e.message || "");
+    const doSignUp = () =>
+      supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: redirectUrl, data: metadata },
+      });
+
+    // Weak mobile signal often drops the request ("Load failed" on iPhone).
+    // Retry a few times; if a dropped attempt actually created the account,
+    // fall back to signing in with the same password.
+    let { data, error } = await doSignUp();
+    for (let attempt = 0; attempt < 3 && isNetworkError(error); attempt++) {
+      await new Promise((r) => setTimeout(r, 1200 * (attempt + 1)));
+      ({ data, error } = await doSignUp());
+      if (error && /already registered|already exists/i.test(error.message)) {
+        const res = await supabase.auth.signInWithPassword({ email, password });
+        if (!res.error) return { error: null };
+        error = res.error;
+      }
+    }
+    if (isNetworkError(error)) {
+      return {
+        error: new Error(
+          "We couldn't reach the server — your connection looks weak. Please move to a stronger signal or Wi-Fi and try again."
+        ) as any,
+      };
+    }
 
     // Best-effort: persist phone directly to profiles so it's available
     // immediately, independent of any DB trigger timing.
