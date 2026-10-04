@@ -5713,6 +5713,7 @@ export type Database = {
         Row: {
           actual_end_date: string | null
           actual_start_date: string | null
+          billing_resume_error: string | null
           created_at: string | null
           duration_months: number
           fee_paid: boolean | null
@@ -5734,6 +5735,7 @@ export type Database = {
         Insert: {
           actual_end_date?: string | null
           actual_start_date?: string | null
+          billing_resume_error?: string | null
           created_at?: string | null
           duration_months: number
           fee_paid?: boolean | null
@@ -5755,6 +5757,7 @@ export type Database = {
         Update: {
           actual_end_date?: string | null
           actual_start_date?: string | null
+          billing_resume_error?: string | null
           created_at?: string | null
           duration_months?: number
           fee_paid?: boolean | null

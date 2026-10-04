@@ -1,0 +1,1 @@
+ALTER TABLE public.member_freezes ADD COLUMN IF NOT EXISTS billing_resume_error text;

@@ -134,6 +134,7 @@ export default function FreezeRequests() {
   const { isAdmin, isSuperAdmin } = useUserRoles();
 
   const { data: requests, isLoading } = useAdminFreezeRequests(statusFilter);
+  const { data: allRequests } = useAdminFreezeRequests("active");
   const approveRequest = useApproveFreezeRequest();
   const rejectRequest = useRejectFreezeRequest();
   const activateFreeze = useActivateFreeze();
@@ -269,6 +270,26 @@ export default function FreezeRequests() {
         </div>
 
         <FreezeBillingDriftBanner />
+        {(() => {
+          const failed = (allRequests || []).filter((r: any) => r.billing_resume_error);
+          if (!failed.length) return null;
+          return (
+            <Card className="border-destructive">
+              <CardHeader className="py-3">
+                <CardTitle className="text-destructive text-base">Billing not resumed ({failed.length})</CardTitle>
+                <CardDescription>These freezes ended but dues could not be restarted. The system retries daily.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                {failed.map((r: any) => (
+                  <div key={r.id}>
+                    <span className="font-medium">{r.members?.first_name} {r.members?.last_name}</span>
+                    {" "}— ended {r.actual_end_date}: <span className="text-muted-foreground">{r.billing_resume_error}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          );
+        })()}
 
 
 
