@@ -14,6 +14,72 @@ function calculateProcessingFee(amountInCents: number): number {
   return totalCents - amountInCents;
 }
 
+/**
+ * Pick which saved card to charge.
+ * 1. The card the person explicitly chose (must belong to this customer).
+ * 2. The customer's main card (invoice_settings.default_payment_method).
+ * 3. The newest saved card.
+ * Never fall back to "whatever card Stripe lists first" when a choice exists.
+ */
+async function selectChargePaymentMethod(
+  stripe: Stripe,
+  customerId: string,
+  requestedPmId: string | null,
+  customerObj?: Stripe.Customer | null,
+): Promise<Stripe.PaymentMethod | null> {
+  if (requestedPmId) {
+    let pm: Stripe.PaymentMethod;
+    try {
+      pm = await stripe.paymentMethods.retrieve(requestedPmId);
+    } catch {
+      throw new Error("The selected card could not be found. Please choose another card.");
+    }
+    const owner = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id;
+    if (owner !== customerId) {
+      throw new Error("The selected card isn't on this account. Please choose another card.");
+    }
+    return pm;
+  }
+  let cust = customerObj;
+  if (!cust) {
+    const c = await stripe.customers.retrieve(customerId);
+    cust = (c as any).deleted ? null : (c as Stripe.Customer);
+  }
+  const def = cust?.invoice_settings?.default_payment_method;
+  const defId = typeof def === 'string' ? def : def?.id;
+  if (defId) {
+    try {
+      const pm = await stripe.paymentMethods.retrieve(defId);
+      const owner = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id;
+      if (owner === customerId && pm.type === 'card') return pm;
+    } catch { /* fall through to newest */ }
+  }
+  const list = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 1 });
+  return list.data[0] || null;
+}
+
+function formatDeclineMessage(
+  raw: string | null | undefined,
+  declineCode: string | null | undefined,
+  brand: string | null | undefined,
+  last4: string | null | undefined,
+): string {
+  const reasons: Record<string, string> = {
+    insufficient_funds: 'insufficient funds',
+    do_not_honor: 'declined by the bank',
+    generic_decline: 'declined by the bank',
+    expired_card: 'card expired',
+    incorrect_cvc: 'incorrect security code',
+    lost_card: 'card reported lost',
+    stolen_card: 'card reported stolen',
+    card_velocity_exceeded: 'card limit reached',
+  };
+  const reason = (declineCode && reasons[declineCode]) || null;
+  const cardLabel = last4 && last4 !== '****' ? `${brand || 'Card'} ending ${last4}` : 'card';
+  if (!reason && !last4) return raw || 'Your card was declined.';
+  return `Your ${cardLabel} was declined${reason ? ` (${reason})` : ''}. Choose another card or add a new one.`;
+}
+
 // Fire-and-forget POS/charge receipt email. Never throws.
 async function sendPosChargeReceipt(opts: {
   supabase: any;
@@ -104,7 +170,8 @@ async function recordFailedPosCharge(opts: {
   memberIdForLog: string | null;
   userIdForLog: string | null;
   applicationIdForLog: string | null;
-  chargedByUserId: string;
+  chargedByUserId: string | null;
+  stripeCustomerId?: string | null;
   amountCents: number;
   description: string;
   note?: string | null;
@@ -141,11 +208,40 @@ async function recordFailedPosCharge(opts: {
         card_last4: opts.cardLast4 || null,
       },
     };
-    if (opts.memberIdForLog && opts.userIdForLog) {
+    let memberId = opts.memberIdForLog;
+    let userId = opts.userIdForLog;
+    // Register charges by Stripe customer id: resolve who the customer is.
+    if ((!memberId || !userId) && !opts.applicationIdForLog && opts.stripeCustomerId) {
+      const { data: m } = await opts.supabase
+        .from('members')
+        .select('id, user_id')
+        .eq('stripe_customer_id', opts.stripeCustomerId)
+        .neq('status', 'cancelled')
+        .limit(1)
+        .maybeSingle();
+      if (m?.user_id) {
+        memberId = m.id;
+        userId = m.user_id;
+      } else {
+        const { data: nm } = await opts.supabase
+          .from('non_member_profiles')
+          .select('user_id')
+          .eq('stripe_customer_id', opts.stripeCustomerId)
+          .not('user_id', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        if (nm?.user_id) {
+          memberId = null;
+          userId = nm.user_id;
+        }
+      }
+      (base.metadata as any).stripe_customer_id = opts.stripeCustomerId;
+    }
+    if (userId && (memberId || !opts.applicationIdForLog)) {
       await opts.supabase.from('manual_charges').insert({
         ...base,
-        member_id: opts.memberIdForLog,
-        user_id: opts.userIdForLog,
+        member_id: memberId,
+        user_id: userId,
       });
     } else if (opts.applicationIdForLog) {
       await opts.supabase.from('manual_charges').insert({
@@ -153,6 +249,8 @@ async function recordFailedPosCharge(opts: {
         application_id: opts.applicationIdForLog,
         user_id: opts.chargedByUserId,
       });
+    } else {
+      console.warn("[stripe-payment] failed charge not logged: customer could not be resolved", opts.stripeCustomerId);
     }
   } catch (err) {
     console.error("[stripe-payment] failed to record failed charge", err);
@@ -2253,19 +2351,21 @@ serve(async (req) => {
           throw new Error("Stripe customer has been deleted");
         }
 
-        // List payment methods and use the first one
-        const paymentMethods = await stripe.paymentMethods.list({
-          customer: customerId,
-          type: 'card',
-          limit: 1,
-        });
+        // Card choice: the card the person picked → their main (default)
+        // card → newest card. Never silently charge a different card.
+        const paymentMethod = await selectChargePaymentMethod(
+          stripe,
+          customerId,
+          typeof body.paymentMethodId === 'string' ? body.paymentMethodId : null,
+          customer as Stripe.Customer,
+        );
 
-        if (paymentMethods.data.length === 0) {
+        if (!paymentMethod) {
           throw new Error("No payment method on file");
         }
 
-        const paymentMethod = paymentMethods.data[0];
         const paymentMethodId = paymentMethod.id;
+        logStep("Charging payment method", { paymentMethodId, last4: paymentMethod.card?.last4 });
         const cardBrand = paymentMethod.card?.brand ? paymentMethod.card.brand.charAt(0).toUpperCase() + paymentMethod.card.brand.slice(1) : 'Card';
         const cardLast4 = paymentMethod.card?.last4 || '****';
 
@@ -2308,13 +2408,14 @@ serve(async (req) => {
           const declineCode = chargeErr?.decline_code || chargeErr?.code || null;
           const declineReason = chargeErr?.message || 'Your card was declined.';
           const failedPiId = chargeErr?.payment_intent?.id || null;
-          logStep("Payment intent failed", { declineCode, declineReason });
+          logStep("Payment intent failed", { declineCode, declineReason, cardLast4 });
 
           await recordFailedPosCharge({
             supabase,
             memberIdForLog,
             userIdForLog,
             applicationIdForLog,
+            stripeCustomerId: customerId,
             chargedByUserId: user?.id ?? null,
             amountCents: totalAmountWithFee,
             description: feeDescription,
@@ -2349,8 +2450,10 @@ serve(async (req) => {
           return new Response(
             JSON.stringify({
               success: false,
-              error: declineReason,
+              error: formatDeclineMessage(declineReason, declineCode, cardBrand, cardLast4),
               decline_code: declineCode,
+              card_brand: cardBrand || null,
+              card_last4: cardLast4 || null,
               payment_intent_id: failedPiId,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -2427,7 +2530,7 @@ serve(async (req) => {
                   let remainingCents = totalAmountWithFee;
                   for (const cid of custIds) {
                     const open = await stripe.invoices.list({ customer: cid, status: 'open', limit: 20 });
-                    const oldestFirst = open.data.sort((a, b) => (a.created ?? 0) - (b.created ?? 0));
+                    const oldestFirst = open.data.sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0));
                     for (const inv of oldestFirst) {
                       if (remainingCents < (inv.amount_remaining ?? 0)) break;
                       if (!inv.id) continue;
@@ -2628,14 +2731,14 @@ serve(async (req) => {
         let paymentMethod3ds: Stripe.PaymentMethod | null = null;
         let paymentMethodType = 'card';
 
-        // Try card first
-        const cardMethods = await stripe.paymentMethods.list({
-          customer: customerId,
-          type: 'card',
-          limit: 1,
-        });
-        if (cardMethods.data.length > 0) {
-          paymentMethod3ds = cardMethods.data[0];
+        // Try card first: chosen card → main (default) card → newest card
+        const chosenCard3ds = await selectChargePaymentMethod(
+          stripe,
+          customerId,
+          typeof body.paymentMethodId === 'string' ? body.paymentMethodId : null,
+        );
+        if (chosenCard3ds) {
+          paymentMethod3ds = chosenCard3ds;
           paymentMethodType = 'card';
           logStep("Found card payment method", { id: paymentMethod3ds.id });
         }
@@ -7691,15 +7794,12 @@ serve(async (req) => {
             throw new Error("Payment profile mismatch. Please contact the club.");
           }
         } else {
-          const nmPms = await stripe.paymentMethods.list({
-            customer: nmCustomerId,
-            type: 'card',
-            limit: 1,
-          });
-          if (nmPms.data.length === 0) {
+          // No card chosen: use the customer's main (default) card, then newest.
+          const nmChosen = await selectChargePaymentMethod(stripe, nmCustomerId, null);
+          if (!nmChosen) {
             throw new Error("No payment method on file. Please add a card first.");
           }
-          nmPaymentMethodId = nmPms.data[0].id;
+          nmPaymentMethodId = nmChosen.id;
         }
 
 
@@ -7745,11 +7845,44 @@ serve(async (req) => {
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
         } catch (chargeErr: any) {
-          logStep("Non-member charge failed", { error: chargeErr.message });
+          const nmDeclineCode = chargeErr?.decline_code || chargeErr?.code || null;
+          const nmFailedPiId = chargeErr?.payment_intent?.id || null;
+          let nmBrand: string | null = null;
+          let nmLast4: string | null = null;
+          try {
+            const usedPm = await stripe.paymentMethods.retrieve(nmPaymentMethodId!);
+            nmBrand = usedPm.card?.brand ? usedPm.card.brand.charAt(0).toUpperCase() + usedPm.card.brand.slice(1) : null;
+            nmLast4 = usedPm.card?.last4 || null;
+          } catch { /* ignore */ }
+          logStep("Non-member charge failed", { error: chargeErr.message, declineCode: nmDeclineCode, last4: nmLast4 });
+          await recordFailedPosCharge({
+            supabase,
+            memberIdForLog: null,
+            userIdForLog: null,
+            applicationIdForLog: null,
+            stripeCustomerId: nmCustomerId,
+            chargedByUserId: user?.id ?? null,
+            amountCents: nmTotal,
+            description: nmDesc,
+            isPosCharge: nmIsPos,
+            paymentType: 'nonmember_charge',
+            taxCents: nmTax ?? null,
+            subtotalCents: nmSub ?? null,
+            processingFeeCents: nmProcessingFeeCents,
+            paymentIntentId: nmFailedPiId,
+            declineCode: nmDeclineCode,
+            declineReason: chargeErr?.message || null,
+            cardBrand: nmBrand,
+            cardLast4: nmLast4,
+          });
           return new Response(
             JSON.stringify({
               success: false,
-              error: chargeErr.message || 'Card was declined',
+              error: formatDeclineMessage(chargeErr?.message, nmDeclineCode, nmBrand, nmLast4),
+              decline_code: nmDeclineCode,
+              card_brand: nmBrand,
+              card_last4: nmLast4,
+              payment_intent_id: nmFailedPiId,
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
