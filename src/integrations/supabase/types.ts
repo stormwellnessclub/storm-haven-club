@@ -14873,6 +14873,10 @@ export type Database = {
         Returns: Json
       }
       admin_remove_society_person: { Args: { _id: string }; Returns: Json }
+      admin_set_class_session_hidden: {
+        Args: { _is_hidden: boolean; _session_id: string }
+        Returns: Json
+      }
       admin_set_pt_session_payment: {
         Args: {
           p_amount_cents?: number
