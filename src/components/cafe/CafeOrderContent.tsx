@@ -310,6 +310,10 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
   const [paymentMethod, setPaymentMethod] = useState<"card" | "member_account">("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  useEffect(() => {
+    setPaymentError(null);
+  }, [selectedPaymentMethodId, showPaymentDialog]);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<SavedPaymentMethod[]>([]);
   const [smsOptIn, setSmsOptIn] = useState(false);
   const [showSmsOptIn, setShowSmsOptIn] = useState(false);
@@ -542,6 +546,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
 
   const handleConfirmOrder = async () => {
     if (cart.length === 0) return;
+    setPaymentError(null);
     setIsProcessingPayment(true);
     try {
       let paymentIntentId: string | undefined;
@@ -646,6 +651,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
       setSelectedPaymentMethodId(null);
     } catch (error: any) {
       console.error("Failed to process order:", error);
+      setPaymentError(error.message || "Failed to process order.");
       toast.error(error.message || "Failed to process order.");
     } finally {
       setIsProcessingPayment(false);
@@ -1476,6 +1482,11 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
               </label>
             )}
           </div>
+          {paymentError && (
+            <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {paymentError}
+            </div>
+          )}
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)} disabled={isProcessingPayment}>
               Cancel
