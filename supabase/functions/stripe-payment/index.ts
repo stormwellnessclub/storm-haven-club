@@ -2530,7 +2530,7 @@ serve(async (req) => {
                   let remainingCents = totalAmountWithFee;
                   for (const cid of custIds) {
                     const open = await stripe.invoices.list({ customer: cid, status: 'open', limit: 20 });
-                    const oldestFirst = open.data.sort((a, b) => (a.created ?? 0) - (b.created ?? 0));
+                    const oldestFirst = open.data.sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0));
                     for (const inv of oldestFirst) {
                       if (remainingCents < (inv.amount_remaining ?? 0)) break;
                       if (!inv.id) continue;
