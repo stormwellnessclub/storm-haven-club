@@ -1200,7 +1200,7 @@ export default function ClassRoster() {
             id="hidden-session"
             checked={!!(session as any).is_hidden}
             onCheckedChange={async (v) => {
-              const { error } = await supabase.from("class_sessions").update({ is_hidden: v } as any).eq("id", sessionId!);
+              const { error } = await (supabase as any).rpc("admin_set_class_session_hidden", { _session_id: sessionId!, _is_hidden: v });
               if (error) return toast.error(error.message);
               toast.success(v ? "Hidden from public schedule" : "Now visible on schedule");
               invalidateAll();

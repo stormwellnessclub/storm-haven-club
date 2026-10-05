@@ -214,10 +214,10 @@ export default function Classes() {
 
   const toggleHiddenMutation = useMutation({
     mutationFn: async ({ sessionId, isHidden }: { sessionId: string; isHidden: boolean }) => {
-      const { error } = await supabase
-        .from("class_sessions")
-        .update({ is_hidden: isHidden } as any)
-        .eq("id", sessionId);
+      const { error } = await (supabase as any).rpc("admin_set_class_session_hidden", {
+        _session_id: sessionId,
+        _is_hidden: isHidden,
+      });
       if (error) throw error;
       return isHidden;
     },
@@ -245,6 +245,10 @@ export default function Classes() {
     },
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-day'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-class-sessions-upcoming'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-sessions-calendar'] });
+      queryClient.invalidateQueries({ queryKey: ['class-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
       
       // Send cancellation emails to all booked members
       if (selectedSession) {
