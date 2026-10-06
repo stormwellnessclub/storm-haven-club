@@ -535,7 +535,8 @@ function PlanDialog({ plan, priceCents, onClose, onSave, pending }: {
               className="border-pt-line bg-white" />
           </div>
           <div className="space-y-1">
-            <Label>Future installments</Label>
+            <Label>Payments after today (not counting the one at sale)</Label>
+            <p className="text-xs text-muted-foreground">Total payments = this number + 1. For 7 total, enter 6.</p>
             <Input type="number" min={1} max={23} value={countText}
               onChange={(e) => {
                 setCountText(e.target.value);
