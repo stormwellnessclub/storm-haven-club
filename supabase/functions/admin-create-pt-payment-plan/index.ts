@@ -198,11 +198,16 @@ Deno.serve(async (req) => {
       schedule.installments ?? [];
     const futureRows = scheduleRows.filter((r) => r.installment_number > 0);
 
+    // Card processing fee is added to every charge (same gross-up as pay-in-full):
+    // fee = ceil((amount + 30) / 0.971) - amount. Plan amounts stay the package price.
+    const feeFor = (c: number) => (c > 0 ? Math.ceil((c + 30) / 0.971) - c : 0);
+    const downChargeCents = downCents + feeFor(downCents);
+
     // 1) Amount due at sale — its own payment intent, idempotent on the sale ref.
     let downPaymentIntentId: string | null = null;
     if (downCents > 0) {
       const pi = await stripe.paymentIntents.create({
-        amount: downCents,
+        amount: downChargeCents,
         currency: "usd",
         customer: stripeCustomerId,
         payment_method: paymentMethodId,
@@ -225,7 +230,7 @@ Deno.serve(async (req) => {
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
       p_stripe_payment_intent_id: downPaymentIntentId ?? `pt_plan:${saleRef}`,
-      p_amount_cents: downCents,
+      p_amount_cents: downChargeCents,
     });
 
     // 2) Future installments — a subscription schedule starting on the chosen date.
@@ -259,13 +264,34 @@ Deno.serve(async (req) => {
       finalPriceId = created.id;
     }
 
+    // Recurring "Card processing fee" item on the same product, one per amount.
+    const basePriceObj = await stripe.prices.retrieve(basePriceId);
+    const productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
+    const feePriceFor = async (feeCents: number) => {
+      const p = await stripe.prices.create({
+        product: productId,
+        currency: "usd",
+        unit_amount: feeCents,
+        recurring: { interval, interval_count: intervalCount },
+        nickname: "Card processing fee",
+        metadata: { pt_plan_id: plan.id, role: "processing_fee" },
+      }, { idempotencyKey: `pt_plan_fee_price:${testMode ? "test:" : ""}${productId}:${interval}:${intervalCount}:${feeCents}` });
+      return p.id;
+    };
+    const itemsFor = async (priceId: string, phaseCents: number) => {
+      const items: any[] = [{ price: priceId, quantity }];
+      const fee = feeFor(phaseCents);
+      if (fee > 0) items.push({ price: await feePriceFor(fee), quantity: 1 });
+      return items;
+    };
+
     // Phase metadata is copied onto the subscription when the phase starts. Without
     // it the installment invoice reaches the webhook looking like a membership
     // invoice and never reaches the PT reconciliation branch.
     const phases: any[] = [];
     if (futureCount > 1) {
       phases.push({
-        items: [{ price: basePriceId, quantity }],
+        items: await itemsFor(basePriceId, installmentCents),
         iterations: futureCount - 1,
         proration_behavior: "none",
         metadata: planMeta,
@@ -273,7 +299,7 @@ Deno.serve(async (req) => {
     }
     if (futureCount >= 1) {
       phases.push({
-        items: [{ price: finalPriceId, quantity }],
+        items: await itemsFor(finalPriceId, finalCents),
         iterations: 1,
         proration_behavior: "none",
         metadata: planMeta,
@@ -349,7 +375,7 @@ Deno.serve(async (req) => {
         schedule_id: stripeScheduleId,
         pass_ids: passIds,
         schedule,
-        charged_today_cents: downCents,
+        charged_today_cents: downChargeCents,
         total_cents: totalCents,
         final_payment_date: schedule.final_payment_date,
         first_autopay_date: schedule.first_autopay_date,
