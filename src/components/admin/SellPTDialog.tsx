@@ -272,8 +272,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const willCharge = paymentChoice === "card_on_file";
   const planActive = willCharge && !!selectedPlan;
   const futureCount = selectedPlan?.future_installment_count ?? 0;
-  const perInstallmentCents = selectedPlan ? selectedPlan.installment_cents * quantity : 0;
-  const dueTodayCents = selectedPlan ? selectedPlan.amount_due_at_sale_cents * quantity : 0;
+  const withFee = (c: number) => c + calculateProcessingFee(c);
+  const perInstallmentCents = selectedPlan ? withFee(selectedPlan.installment_cents * quantity) : 0;
+  const dueTodayCents = selectedPlan ? withFee(selectedPlan.amount_due_at_sale_cents * quantity) : 0;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
   const selectedCard = cards.find((c) => c.id === selectedCardId);
@@ -528,7 +529,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             {nextRow && (
               <div className="flex justify-between">
                 <span>Next autopay</span>
-                <span>{businessDate(nextRow.due_date)} · {formatCents(nextRow.amount_cents)}</span>
+                <span>{businessDate(nextRow.due_date)} · {formatCents(withFee(nextRow.amount_cents))}</span>
               </div>
             )}
             <div className="flex justify-between"><span>Remaining scheduled</span><span>{formatCents(remaining)}</span></div>
@@ -849,6 +850,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     <span>{futureCount} × {formatCents(perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
+                    Each payment includes the card processing fee (2.9% + $0.30).
+                  </div>
+                  <div className="text-xs text-muted-foreground">
                     {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
                     {" "}charges the card on file automatically and ends after the final payment.
                   </div>
@@ -875,7 +879,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     <span className="w-28 shrink-0">
                       {row.installment_number === 0 ? "Today" : businessDate(row.due_date)}
                     </span>
-                    <span className="w-20 text-right">{formatCents(row.amount_cents)}</span>
+                    <span className="w-20 text-right">{formatCents(withFee(row.amount_cents))}</span>
                     <span className="flex-1 text-xs text-muted-foreground truncate">
                       {row.installment_number === 0 ? cardLabel : "AutoPay"}
                     </span>
@@ -886,8 +890,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 ))}
               </div>
               <div className="pt-2 border-t space-y-1 text-sm">
-                <div className="flex justify-between"><span>Total package price</span><span>{formatCents(schedulePreview.total_cents)}</span></div>
-                <div className="flex justify-between"><span>Charged today</span><span>{formatCents(schedulePreview.amount_due_at_sale_cents)}</span></div>
+                <div className="flex justify-between"><span>Total package price (before card fees)</span><span>{formatCents(schedulePreview.total_cents)}</span></div>
+                <div className="flex justify-between"><span>Total with card fees</span><span>{formatCents(schedulePreview.installments.reduce((s, r) => s + withFee(r.amount_cents), 0))}</span></div>
+                <div className="flex justify-between"><span>Charged today</span><span>{formatCents(withFee(schedulePreview.amount_due_at_sale_cents))}</span></div>
                 <div className="flex justify-between">
                   <span>Future scheduled</span>
                   <span>{formatCents(schedulePreview.total_cents - schedulePreview.amount_due_at_sale_cents)}</span>
