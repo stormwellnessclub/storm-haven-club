@@ -285,11 +285,7 @@ export function BookPTSessionDialog({
         }
       }
 
-      booked.forEach((appt) => {
-        supabase.functions.invoke("send-pt-booking-email", {
-          body: { appointment_id: appt.id, type: "confirmation" },
-        }).catch(() => {});
-      });
+      // Confirmation emails are sent manually by staff ("Send confirmation"), never automatically.
 
       if (booked.length > 0) {
         setConflict(failures.length ? conflict : null);
