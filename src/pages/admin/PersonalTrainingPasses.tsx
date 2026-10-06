@@ -203,14 +203,12 @@ export default function PersonalTrainingPasses() {
   }
 
   async function useSession(p: PtPass) {
-    const reason = window.prompt(
-      "Why is a session being consumed manually? (required — recorded in the session history)",
-    );
-    if (!reason || !reason.trim()) return toast.error("A reason is required");
+    const reason = window.prompt("Deduct 1 session? Add a note if you like (optional).", "");
+    if (reason === null) return;
     const { error } = await (supabase as any).rpc("pt_manual_consume_session", {
       p_pass_id: p.id,
       p_quantity: 1,
-      p_reason: reason.trim(),
+      p_reason: reason.trim() || null,
     });
     if (error) return toast.error(error.message);
     toast.success("Session deducted");

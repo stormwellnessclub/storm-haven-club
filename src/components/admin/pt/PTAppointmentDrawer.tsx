@@ -456,11 +456,10 @@ export function PTAppointmentDrawer({
         open={!!overrideAction}
         onOpenChange={(v) => { if (!v) { setOverrideAction(null); setOverrideReason(""); } }}
         title={overrideAction === "restore_credit" ? "Return this session's credit?" : overrideAction === "consume_credit" ? "Charge a package credit for this session?" : "Waive this session's charge?"}
-        description="This is recorded as an administrative override with your name and reason."
-        confirmLabel="Apply override"
+        description="Recorded with your name. A note is optional."
+        confirmLabel="Apply"
         onConfirm={async () => {
           if (!overrideAction) return;
-          if (!overrideReason.trim()) { toast.error("A reason is required"); return; }
           await actions.override.mutateAsync({ id: a.id, action: overrideAction, reason: overrideReason.trim() }).catch(() => {});
           setOverrideAction(null); setOverrideReason("");
         }}
@@ -468,7 +467,7 @@ export function PTAppointmentDrawer({
         <Input
           value={overrideReason}
           onChange={(e) => setOverrideReason(e.target.value)}
-          placeholder="Reason (required)"
+          placeholder="Note (optional)"
           className="bg-white border-pt-line"
         />
       </PTConfirmDialog>

@@ -11,6 +11,7 @@ import {
   usePTLookupMaps, usePTScheduleAppointments,
 } from "@/hooks/pt/usePTSchedule";
 import { PTAppointmentDrawer } from "@/components/admin/pt/PTAppointmentDrawer";
+import { PTNeedsCheckout } from "@/components/admin/pt/PTNeedsCheckout";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -223,6 +224,8 @@ export default function PTSchedule() {
 
         <span className="ml-auto text-xs text-pt-muted">{activeCount} active sessions</span>
       </div>
+
+      <div className="mb-4"><PTNeedsCheckout onOpen={setSelected} /></div>
 
       <PTCard className="p-0 overflow-hidden">
         <div className="overflow-x-auto pt-scroll">
