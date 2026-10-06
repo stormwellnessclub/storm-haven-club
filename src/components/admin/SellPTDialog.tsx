@@ -795,6 +795,17 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                 )}
 
+                {selectedPack && allowPlans && packPlans.length === 0 && paymentChoice === "card_on_file" && (
+                  <div className="ml-6 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                    {allPlans.some((p) => p.pack_id === selectedPack.id && p.is_active)
+                      ? "This package's payment plan isn't ready to sell yet. "
+                      : "This package has no payment plans set up yet, so it can only be paid in full. "}
+                    <a href={`/admin/pt/packages/${selectedPack.id}`} className="underline font-medium">
+                      Set up payment plans
+                    </a>
+                  </div>
+                )}
+
                 <label className={`flex items-start gap-2 border rounded-md p-3 cursor-pointer ${paymentChoice === "offline" ? "border-primary bg-primary/5" : ""}`}>
 
                   <RadioGroupItem value="offline" className="mt-1" />
