@@ -221,7 +221,7 @@ export function PTAppointmentDrawer({
             {isManager && (
               <section className="rounded-xl border border-pt-line bg-white p-4 space-y-2">
                 <div className="pt-eyebrow">Administrative override</div>
-                <div className="text-[11px] text-pt-muted">Managers only. Every override needs a reason and is recorded on the package ledger.</div>
+                <div className="text-[11px] text-pt-muted">Managers only. Recorded on the package ledger with your name.</div>
                 <div className="grid grid-cols-3 gap-2">
                   <button className={ptButtonClass("outline")} disabled={!a.package_deducted && (a as any).reservation_state !== "reserved"} onClick={() => setOverrideAction("restore_credit")}>Return credit</button>
                   <button className={ptButtonClass("outline")} disabled={!!a.package_deducted} onClick={() => setOverrideAction("consume_credit")}>Charge credit</button>
@@ -456,11 +456,10 @@ export function PTAppointmentDrawer({
         open={!!overrideAction}
         onOpenChange={(v) => { if (!v) { setOverrideAction(null); setOverrideReason(""); } }}
         title={overrideAction === "restore_credit" ? "Return this session's credit?" : overrideAction === "consume_credit" ? "Charge a package credit for this session?" : "Waive this session's charge?"}
-        description="This is recorded as an administrative override with your name and reason."
-        confirmLabel="Apply override"
+        description="Recorded with your name. A note is optional."
+        confirmLabel="Apply"
         onConfirm={async () => {
           if (!overrideAction) return;
-          if (!overrideReason.trim()) { toast.error("A reason is required"); return; }
           await actions.override.mutateAsync({ id: a.id, action: overrideAction, reason: overrideReason.trim() }).catch(() => {});
           setOverrideAction(null); setOverrideReason("");
         }}
@@ -468,7 +467,7 @@ export function PTAppointmentDrawer({
         <Input
           value={overrideReason}
           onChange={(e) => setOverrideReason(e.target.value)}
-          placeholder="Reason (required)"
+          placeholder="Note (optional)"
           className="bg-white border-pt-line"
         />
       </PTConfirmDialog>
