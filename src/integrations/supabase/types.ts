@@ -16682,7 +16682,7 @@ export type Database = {
       }
       pt_outstanding_balance: { Args: { p_user_id: string }; Returns: Json }
       pt_override_appointment_consequence: {
-        Args: { p_action: string; p_appointment_id: string; p_reason: string }
+        Args: { p_action: string; p_appointment_id: string; p_reason?: string }
         Returns: Json
       }
       pt_pass_history: {
