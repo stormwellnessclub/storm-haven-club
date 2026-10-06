@@ -395,6 +395,7 @@ function PlanCard({ plan, onEdit, onDuplicate, onToggle }: {
     ["First autopay date", "Chosen at sale"],
     ["Auto-charge", "Yes"],
     ["Saved card required", "Yes"],
+    ["Ready to sell", plan.stripe_price_id ? "Yes" : "Not yet — press Edit, then Save"],
   ];
   return (
     <div className="rounded-lg border border-pt-line">

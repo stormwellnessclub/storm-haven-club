@@ -81,8 +81,10 @@ export function usePTPackPaymentPlanMutations(packId?: string) {
     const { data, error } = await supabase.functions.invoke("sync-pt-pack-plan-price", {
       body: { plan_id: planId },
     });
-    if (error) console.error(error);
-    else if ((data as any)?.error) console.error((data as any).error);
+    if (error || (data as any)?.error) {
+      console.error(error ?? (data as any).error);
+      toast.warning("Plan saved, but it isn't ready to sell yet. Open it and press Save again.");
+    }
   }
 
   const save = useMutation({
