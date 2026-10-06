@@ -395,6 +395,7 @@ function PlanCard({ plan, onEdit, onDuplicate, onToggle }: {
     ["First autopay date", "Chosen at sale"],
     ["Auto-charge", "Yes"],
     ["Saved card required", "Yes"],
+    ["Ready to sell", plan.stripe_price_id ? "Yes" : "Not yet — press Edit, then Save"],
   ];
   return (
     <div className="rounded-lg border border-pt-line">
@@ -432,6 +433,13 @@ function PlanDialog({ plan, priceCents, onClose, onSave, pending }: {
 
   useEffect(() => {
     if (plan) setDraft(plan);
+  }, [plan?.id, plan?.pack_id, (plan as any)?.name]);
+  const [dueText, setDueText] = useState("");
+  const [countText, setCountText] = useState("");
+  useEffect(() => {
+    if (!plan) return;
+    setDueText(((plan.amount_due_at_sale_cents ?? 0) / 100).toFixed(2));
+    setCountText(String(plan.future_installment_count ?? 3));
   }, [plan?.id, plan?.pack_id, (plan as any)?.name]);
 
   const due = draft.amount_due_at_sale_cents ?? 0;
@@ -514,14 +522,27 @@ function PlanDialog({ plan, priceCents, onClose, onSave, pending }: {
           </div>
           <div className="space-y-1">
             <Label>Amount due at sale ($)</Label>
-            <Input type="number" min={0} step="0.01" value={(due / 100).toFixed(2)}
-              onChange={(e) => recalc({ amount_due_at_sale_cents: Math.round(parseFloat(e.target.value || "0") * 100) })}
+            <Input inputMode="decimal" value={dueText}
+              onFocus={() => setDueText((due / 100).toFixed(2))}
+              onChange={(e) => {
+                const t = e.target.value.replace(/[^0-9.]/g, "");
+                setDueText(t);
+                const v = parseFloat(t);
+                if (!Number.isNaN(v)) recalc({ amount_due_at_sale_cents: Math.round(v * 100) });
+                else if (t === "") recalc({ amount_due_at_sale_cents: 0 });
+              }}
+              onBlur={() => setDueText((due / 100).toFixed(2))}
               className="border-pt-line bg-white" />
           </div>
           <div className="space-y-1">
             <Label>Future installments</Label>
-            <Input type="number" min={1} max={60} value={count}
-              onChange={(e) => recalc({ future_installment_count: parseInt(e.target.value || "1", 10) })}
+            <Input type="number" min={1} max={23} value={countText}
+              onChange={(e) => {
+                setCountText(e.target.value);
+                const n = parseInt(e.target.value, 10);
+                if (!Number.isNaN(n)) recalc({ future_installment_count: Math.min(23, Math.max(1, n)) });
+              }}
+              onBlur={() => setCountText(String(count))}
               className="border-pt-line bg-white" />
           </div>
         </div>
