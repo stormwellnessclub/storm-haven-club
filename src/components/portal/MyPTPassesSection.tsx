@@ -75,7 +75,6 @@ export function MyPTPassesSection() {
     if (error) return toast.error(error.message);
     const row = Array.isArray(data) ? data[0] : data;
     toast.success(memberCancelOutcomeMessage(row?.cancel_credit_outcome));
-    supabase.functions.invoke("send-pt-booking-email", { body: { appointment_id: a.id, type: "cancellation" } }).catch(() => {});
     qc.invalidateQueries({ queryKey: ["my-pt-appointments"] });
     qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
   }

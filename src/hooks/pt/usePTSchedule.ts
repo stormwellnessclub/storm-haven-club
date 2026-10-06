@@ -295,9 +295,6 @@ export function usePTAppointmentActions() {
         p_override_reason: overrideReason ?? null,
       });
       if (error) throw error;
-      supabase.functions
-        .invoke("send-pt-booking-email", { body: { appointment_id: id, type: "cancellation" } })
-        .catch(() => {});
       const row = Array.isArray(data) ? data[0] : data;
       return row?.cancel_credit_outcome as string | undefined;
     },
