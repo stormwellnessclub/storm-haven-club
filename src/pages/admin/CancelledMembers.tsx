@@ -57,8 +57,9 @@ export default function CancelledMembers() {
         .select(
           "id, member_id, first_name, last_name, email, phone, membership_type, status, records_cancelled_at, records_cancelled_reason, records_collection_status"
         )
-        .not("records_cancelled_at", "is", null)
-        .order("records_cancelled_at", { ascending: false });
+        .or("records_cancelled_at.not.is.null,status.eq.cancelled")
+        .order("records_cancelled_at", { ascending: false, nullsFirst: false })
+        .order("updated_at", { ascending: false });
       if (error) throw error;
 
       const ids = (data || []).map((m) => m.id);
@@ -89,6 +90,7 @@ export default function CancelledMembers() {
         .from("members")
         .select("id, member_id, first_name, last_name, email, status")
         .is("records_cancelled_at", null)
+        .neq("status", "cancelled")
         .or(
           `first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%,member_id.ilike.%${q}%`
         )
