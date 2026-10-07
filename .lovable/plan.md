@@ -19,3 +19,11 @@
 - Admin pickers (`PTClientPicker`, `PersonSearch`, `POSCustomerSearch`, `GiftCardPersonSearch`, `useUnifiedCheckInSearch`): exclude cancelled and expired members from the member results.
 - `frontdesk/Members.tsx` and the kiosk search: keep cancelled members in the results and show a "Cancelled member" badge.
 - No database changes and no data edits.
+
+## Your account corrections
+- **Sahar Durant** (stormfitnessllc@gmail.com): stays active as a **Lifetime member**, with no dues or annual fee ever. She'll be left out of billing problem lists and dues retries, and won't show as a billing mismatch.
+- **Wafaa Diab:** mark her cancelled. Her Stripe billing is already cancelled. She'll move to the Cancelled tab.
+- **Jana Beydoun** (janab2002@icloud.com): mark her cancelled. **Her Stripe monthly billing is still active.** I'll cancel it in Stripe too, with no refund and no charge, so she isn't billed again.
+- **Kay Price** (yourhealthfullife@gmail.com): she was approved but never paid or activated. Mark her cancelled. Her application record stays.
+- **Oshanda:** I couldn't find anyone named Oshanda among members or applications. I'll need her last name or email before I can cancel her.
+- I won't send emails to any of them. You already sent the cancellation notices.
