@@ -94,7 +94,7 @@ export default function FrontDeskMembersPage() {
     if (s === "past_due" || ss === "past_due") return "Payment past due";
     if (s === "frozen") return "Frozen";
     if (s === "suspended") return "Suspended";
-    if (s === "cancelled") return "Cancelled";
+    if (s === "cancelled") return "Cancelled member — do not check in";
     if (s === "expired") return "Expired";
     return "Cannot check in";
   };
