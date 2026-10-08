@@ -52,6 +52,7 @@ export function PTAppointmentDrawer({
   onOpenChange: (v: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const a = appointment;
   const actions = usePTAppointmentActions();
   const { data: trainers = [] } = usePTTrainers();
@@ -394,6 +395,25 @@ export function PTAppointmentDrawer({
           </div>
         </SheetContent>
       </Sheet>
+
+      {checkoutOpen && (
+        <PTSessionCheckoutDialog
+          sessions={[{
+            id: a.id, user_id: a.user_id, starts_at: a.starts_at, instructor_id: a.instructor_id,
+            format: a.format, status: a.status, payment_status: a.payment_status ?? "unpaid",
+            amount_due_cents: a.amount_due_cents ?? 0, pass_id: (a as any).pass_id ?? null,
+            session_type_id: a.session_type_id ?? null, package_deducted: a.package_deducted ?? false,
+          }]}
+          clientName={person?.name ?? "Client"}
+          onClose={() => {
+            setCheckoutOpen(false);
+            qc.invalidateQueries({ queryKey: ["pt-appointments"] });
+            qc.invalidateQueries({ queryKey: ["pt-passes"] });
+            qc.invalidateQueries({ queryKey: ["pt-pass-balances"] });
+            onOpenChange(false);
+          }}
+        />
+      )}
 
       <PTConfirmDialog
         open={confirmCancel}
