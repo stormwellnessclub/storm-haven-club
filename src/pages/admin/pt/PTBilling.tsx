@@ -27,10 +27,11 @@ import { PTSessionCheckoutDialog } from "@/components/admin/pt/PTSessionCheckout
 import { PTInvoiceDialog } from "@/components/admin/pt/PTInvoiceDialog";
 import { PTInvoiceDetailDialog } from "@/components/admin/pt/PTInvoiceDetailDialog";
 import { PTRefundDialog, PTRefundTarget } from "@/components/admin/pt/PTRefundDialog";
+import { PTPaymentHistoryTab } from "@/components/admin/pt/PTPaymentHistoryTab";
 import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
 import { usePTPlanInstallments, INSTALLMENT_STATE_LABEL } from "@/hooks/pt/usePTPlanInstallments";
 
-type Tab = "autopay" | "unpaid" | "activity" | "invoices" | "failed" | "refunds";
+type Tab = "history" | "autopay" | "unpaid" | "activity" | "invoices" | "failed" | "refunds";
 type AgeFilter = "all" | "today" | "7" | "8-30" | "31";
 
 const planStatusTone = (s?: string | null) =>
@@ -441,6 +442,7 @@ export default function PTBilling() {
               { value: "failed", label: "Failed & past due", count: (failed?.dunning.length ?? 0) + (failed?.plans.length ?? 0) + (failed?.invoices.length ?? 0) },
               { value: "activity", label: "Payment activity", count: payments.length },
               { value: "refunds", label: "Refunds", count: refunds.length },
+              { value: "history", label: "Payment history" },
             ]}
           />
 
@@ -522,6 +524,8 @@ export default function PTBilling() {
             empty={<PTEmptyState icon={Repeat} title="No payment plans" description="Installment plans created from a package sale appear here." />}
           />
         )}
+
+        {tab === "history" && <PTPaymentHistoryTab />}
 
         {tab === "activity" && (
           <PTTable
