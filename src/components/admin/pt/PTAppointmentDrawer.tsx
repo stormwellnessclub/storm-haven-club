@@ -41,6 +41,8 @@ const HISTORY_FIELDS: Record<string, string> = {
   payment_status: "Payment status changed", package_deducted: "Package credit changed", confirmed_at: "Confirmed",
 };
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { PTSessionCheckoutDialog } from "@/components/admin/pt/PTSessionCheckoutDialog";
 
 export function PTAppointmentDrawer({
   appointment, open, onOpenChange,
@@ -72,6 +74,7 @@ export function PTAppointmentDrawer({
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [pendingConflict, setPendingConflict] = useState<{ payload: any; summary: string } | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     if (!a) return;
@@ -202,14 +205,23 @@ export function PTAppointmentDrawer({
                   <span className="text-pt-ink">{String((a as any).cancel_outcome_reason).replace(/_/g, " ")} · {String((a as any).cancel_credit_outcome ?? "").replace(/_/g, " ")}</span>
                 </div>
               )}
-              {(a.payment_status === "unpaid" || a.payment_status === "past_due") && !a.package_deducted && (a.amount_due_cents ?? 0) > 0 && (
+              {(a.payment_status === "unpaid" || a.payment_status === "past_due") && !a.package_deducted
+                && lifecycle !== "cancelled" && (
                 <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-                  <div className="text-xs font-semibold text-destructive">UNPAID SESSION · {formatCents(a.amount_due_cents ?? 0)} due</div>
+                  <div className="text-xs font-semibold text-destructive">
+                    UNPAID SESSION{(a.amount_due_cents ?? 0) > 0 ? ` · ${formatCents(a.amount_due_cents ?? 0)} due` : ""}
+                  </div>
                   <button
-                    className={`${ptButtonClass("outline")} mt-2 w-full`}
+                    className={`${ptButtonClass("primary")} mt-2 w-full`}
+                    onClick={() => setCheckoutOpen(true)}
+                  >
+                    Pay for this session — charge card, record payment or use a credit
+                  </button>
+                  <button
+                    className="mt-2 w-full text-center text-[11px] text-pt-muted underline"
                     onClick={() => { onOpenChange(false); navigate(`/admin/pt/clients/${a.user_id}/billing`); }}
                   >
-                    Open PT Billing <ArrowUpRight className="h-3.5 w-3.5" />
+                    Open full PT billing
                   </button>
                 </div>
               )}
