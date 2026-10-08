@@ -16207,6 +16207,7 @@ export type Database = {
         Args: { p_first_autopay: string; p_idempotency_key: string }
         Returns: Json
       }
+      pt_auto_consume_past_reservations: { Args: never; Returns: number }
       pt_bind_plan_subscription: {
         Args: { p_sale_ref: string; p_subscription_id: string }
         Returns: Json

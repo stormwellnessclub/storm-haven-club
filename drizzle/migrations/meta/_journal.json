@@ -575,6 +575,13 @@
       "when": 1791277601291,
       "tag": "0081_pt_optional_deduction_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1791424125181,
+      "tag": "0082_pt_package_payment_status_and_auto_consume",
+      "breakpoints": true
     }
   ]
 }
