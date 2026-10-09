@@ -44,8 +44,19 @@ Deno.serve(async (req) => {
       subscription_ids.map(async (subId: string) => {
         try {
           const subscription = await stripe.subscriptions.retrieve(subId);
-          if (subscription.current_period_end) {
-            const nextDate = new Date(subscription.current_period_end * 1000).toISOString();
+          // Basil moved the billing period from the subscription onto its items.
+          const periodEnd = (subscription as unknown as { current_period_end?: number }).current_period_end
+            ?? subscription.items?.data?.[0]?.current_period_end
+            ?? null;
+          // A frozen (paused) subscription next bills on the day the freeze ends —
+          // the billing anchor is reset then — not at the old period end. Without a
+          // scheduled resume date, leave it: the subscription.updated webhook writes
+          // the new period end when the freeze job unpauses the subscription.
+          const nextBillingUnix = subscription.pause_collection
+            ? (subscription.pause_collection.resumes_at ?? null)
+            : periodEnd;
+          if (nextBillingUnix) {
+            const nextDate = new Date(nextBillingUnix * 1000).toISOString();
             const nextDateOnly = nextDate.split('T')[0];
             results[subId] = nextDate;
 

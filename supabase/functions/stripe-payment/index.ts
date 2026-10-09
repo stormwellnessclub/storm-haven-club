@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isMembershipCollection, recordManualCharge, settleMembershipCollection } from "../_shared/manualChargeLedger.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -2396,7 +2397,17 @@ serve(async (req) => {
             description: feeDescription,
             metadata: {
               type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
+              // The payment_intent webhook records/finalizes the manual_charges row
+              // for intents carrying this tag (3DS completions, delayed confirmations).
+              ledger: 'manual_charges',
+              ...(payment_type ? { payment_type: String(payment_type) } : {}),
+              membership_collection: String(isMembershipCollection({
+                description: feeDescription || description,
+                chargeType: body.chargeType,
+                settleArrears: body.settleArrears === true,
+              })),
               member_id: memberIdForLog || 'application',
+              application_id: applicationIdForLog || '',
               charged_by: user?.id ?? null,
               customer_name: customerName,
               base_amount: isPosCharge ? String(amount - processingFeeCents) : String(amount),
@@ -2468,107 +2479,51 @@ serve(async (req) => {
           customerName,
         });
 
-        // Record the charge in manual_charges table
-        if (memberIdForLog && userIdForLog) {
-          // Member charge
-          const { error: insertError } = await supabase
-            .from('manual_charges')
-            .insert({
-              member_id: memberIdForLog,
-              user_id: userIdForLog,
-              amount: totalAmountWithFee,
-              description: feeDescription,
-              stripe_payment_intent_id: paymentIntent.id,
-              status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-              charged_by: user?.id ?? null,
-              note: body.note || null,
-            });
+        // Record the charge for members, applications and register sales to
+        // non-members charged by Stripe customer id. A charge that is not yet
+        // succeeded is recorded 'pending' and finalized by the payment_intent webhook.
+        const chargeIsMembership = isMembershipCollection({
+          description: feeDescription || description,
+          chargeType: body.chargeType,
+          settleArrears: body.settleArrears === true,
+        });
+        const { id: ledgerChargeId, memberId: ledgerMemberId } = await recordManualCharge(supabase, {
+          memberId: memberIdForLog,
+          userId: userIdForLog,
+          applicationId: applicationIdForLog,
+          stripeCustomerId: customerId,
+          chargedByUserId: user?.id ?? null,
+          amountCents: totalAmountWithFee,
+          description: feeDescription,
+          note: body.note || null,
+          paymentIntentId: paymentIntent.id,
+          status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
+          metadata: {
+            type: isPosCharge ? 'pos' : (payment_type || 'manual_charge'),
+            payment_type: payment_type || null,
+            line_items: Array.isArray(body.lineItems) ? body.lineItems : [],
+            subtotal_cents: bodySubtotal ?? null,
+            tax_cents: taxAmount ?? null,
+            processing_fee_cents: processingFeeCents,
+            membership_collection: chargeIsMembership,
+            card_brand: cardBrand,
+            card_last4: cardLast4,
+          },
+        });
 
-          if (insertError) {
-            logStep("Warning: Failed to record manual charge", { error: insertError.message });
-          }
-
-          // Connect the money to the debt: if this was a membership charge and it
-          // cleared, settle the member's outstanding invoices and lift past-due.
-          if (paymentIntent.status === 'succeeded') {
-            const d = (feeDescription || description || '').toLowerCase();
-            const isMembershipCollection = d.includes('dues') || d.includes('membership') ||
-              d.includes('initiation') || d.includes('annual fee') || d.includes('past due') ||
-              body.chargeType === 'membership_dues' || body.settleArrears === true;
-
-            if (isMembershipCollection) {
-              const { data: settleRes, error: settleErr } = await supabase.rpc(
-                'settle_membership_dues_payment',
-                {
-                  p_member_id: memberIdForLog,
-                  p_amount_cents: totalAmountWithFee,
-                  p_note: body.note
-                    ? `Paid in club — ${body.note}`
-                    : 'Paid in club (manual charge)',
-                  p_actor_email: user?.email ?? null,
-                },
-              );
-              if (settleErr) {
-                logStep("Warning: failed to settle arrears after charge", { error: settleErr.message });
-              } else {
-                logStep("Arrears settled from manual charge", { result: settleRes });
-
-                // Stop Stripe from continuing to dun invoices we collected by hand.
-                try {
-                  const { data: memberRow } = await supabase
-                    .from('members')
-                    .select('stripe_customer_id, stripe_subscription_id')
-                    .eq('id', memberIdForLog)
-                    .maybeSingle();
-                  const custIds = [memberRow?.stripe_customer_id].filter(Boolean) as string[];
-                  if (memberRow?.stripe_subscription_id) {
-                    try {
-                      const sub = await stripe.subscriptions.retrieve(memberRow.stripe_subscription_id);
-                      const sc = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
-                      if (sc && !custIds.includes(sc)) custIds.push(sc);
-                    } catch (_e) { /* subscription may be gone */ }
-                  }
-                  let remainingCents = totalAmountWithFee;
-                  for (const cid of custIds) {
-                    const open = await stripe.invoices.list({ customer: cid, status: 'open', limit: 20 });
-                    const oldestFirst = open.data.sort((a: any, b: any) => (a.created ?? 0) - (b.created ?? 0));
-                    for (const inv of oldestFirst) {
-                      if (remainingCents < (inv.amount_remaining ?? 0)) break;
-                      if (!inv.id) continue;
-                      await stripe.invoices.pay(inv.id, { paid_out_of_band: true });
-                      remainingCents -= inv.amount_remaining ?? 0;
-                      logStep("Marked Stripe invoice paid out of band", { invoiceId: inv.id });
-                    }
-                  }
-                } catch (invErr) {
-                  logStep("Warning: could not settle Stripe invoices", { error: String(invErr) });
-                }
-              }
-            }
-          }
-
-        } else if (applicationIdForLog) {
-          // Application charge (before member record exists)
-          const { error: insertError } = await supabase
-            .from('manual_charges')
-            .insert({
-              application_id: applicationIdForLog,
-              user_id: user?.id ?? null, // Use the admin's user_id since applicant doesn't have one yet
-              amount: totalAmountWithFee,
-              description: feeDescription,
-              stripe_payment_intent_id: paymentIntent.id,
-              status: paymentIntent.status === 'succeeded' ? 'succeeded' : 'pending',
-              charged_by: user?.id ?? null,
-              note: body.note || null,
-            });
-
-          if (insertError) {
-            logStep("Warning: Failed to record application charge", { error: insertError.message });
-          } else {
-            logStep("Recorded application charge", { applicationId: applicationIdForLog });
-          }
-        } else {
-          logStep("Skipping manual_charges insert - no member or application ID");
+        // Connect the money to the debt: if this was a membership charge and it
+        // cleared, settle the member's outstanding invoices and lift past-due.
+        if (paymentIntent.status === 'succeeded' && chargeIsMembership && ledgerMemberId && ledgerChargeId) {
+          await settleMembershipCollection({
+            supabase,
+            stripe,
+            manualChargeId: ledgerChargeId,
+            memberId: ledgerMemberId,
+            amountCents: totalAmountWithFee - processingFeeCents,
+            note: body.note || null,
+            actorEmail: user?.email ?? null,
+            log: logStep,
+          });
         }
 
         // SYNC TO MEMBER PROFILE: If this is an initiation/annual fee charge, sync to member profile
@@ -2810,8 +2765,28 @@ serve(async (req) => {
           ? `${description} (includes $${(processingFee3ds / 100).toFixed(2)} processing fee)`
           : description;
 
-        // Create payment intent
-        const paymentIntent3ds = await stripe.paymentIntents.create({
+        const chargeIsMembership3ds = isMembershipCollection({
+          description: feeDescription3ds || description,
+          chargeType: body.chargeType,
+          settleArrears: body.settleArrears === true,
+        });
+        const ledgerMetadata3ds = {
+          type: isPosCharge3ds ? 'pos' : (paymentType3ds || 'manual_charge'),
+          payment_type: paymentType3ds || null,
+          line_items: Array.isArray(body.lineItems) ? body.lineItems : [],
+          subtotal_cents: bodySubtotal3ds ?? null,
+          tax_cents: taxAmount3ds ?? null,
+          processing_fee_cents: processingFee3ds,
+          membership_collection: chargeIsMembership3ds,
+          card_brand: cardBrand3ds,
+          card_last4: cardLast43ds,
+        };
+
+        // Create payment intent. A decline throws here: record it like the
+        // non-3DS path does so register declines show in failed-payment reports.
+        let paymentIntent3ds: Stripe.PaymentIntent;
+        try {
+        paymentIntent3ds = await stripe.paymentIntents.create({
           amount: totalAmount3ds,
           currency: 'usd',
           customer: customerId,
@@ -2823,6 +2798,11 @@ serve(async (req) => {
           return_url: `${Deno.env.get('SUPABASE_URL') || 'https://localhost'}/`,
           metadata: {
             type: isPosCharge3ds ? 'pos' : (paymentType3ds || 'manual_charge'),
+            // The payment_intent webhook records/finalizes the manual_charges row
+            // for intents carrying this tag (3DS completions, delayed confirmations).
+            ledger: 'manual_charges',
+            ...(paymentType3ds ? { payment_type: String(paymentType3ds) } : {}),
+            membership_collection: String(chargeIsMembership3ds),
             member_id: memberIdForLog || 'application',
             application_id: applicationIdForLog || '',
             charged_by: user?.id ?? null,
@@ -2833,6 +2813,47 @@ serve(async (req) => {
             ...(bodySubtotal3ds ? { subtotal: String(bodySubtotal3ds) } : {}),
           },
         });
+        } catch (chargeErr: any) {
+          const declineCode = chargeErr?.decline_code || chargeErr?.code || null;
+          const declineReason = chargeErr?.message || 'Your card was declined.';
+          const failedPiId = chargeErr?.payment_intent?.id || chargeErr?.raw?.payment_intent?.id || null;
+          logStep("3DS payment intent failed", { declineCode, declineReason, cardLast4: cardLast43ds });
+
+          await recordFailedPosCharge({
+            supabase,
+            memberIdForLog,
+            userIdForLog,
+            applicationIdForLog,
+            stripeCustomerId: customerId,
+            chargedByUserId: user?.id ?? null,
+            amountCents: totalAmount3ds,
+            description: feeDescription3ds,
+            note: body.note || null,
+            isPosCharge: isPosCharge3ds,
+            paymentType: paymentType3ds || null,
+            lineItems: Array.isArray(body.lineItems) ? body.lineItems : [],
+            taxCents: taxAmount3ds ?? null,
+            subtotalCents: bodySubtotal3ds ?? null,
+            processingFeeCents: processingFee3ds,
+            paymentIntentId: failedPiId,
+            declineCode,
+            declineReason,
+            cardBrand: cardBrand3ds || null,
+            cardLast4: cardLast43ds || null,
+          });
+
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: formatDeclineMessage(declineReason, declineCode, cardBrand3ds, cardLast43ds),
+              decline_code: declineCode,
+              card_brand: cardBrand3ds || null,
+              card_last4: cardLast43ds || null,
+              payment_intent_id: failedPiId,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
 
         logStep("3DS Payment intent created", { 
           paymentIntentId: paymentIntent3ds.id, 
@@ -2858,33 +2879,34 @@ serve(async (req) => {
 
         // If succeeded directly without 3DS
         if (paymentIntent3ds.status === 'succeeded') {
-          // Record the charge in manual_charges table
-          if (memberIdForLog && userIdForLog) {
-            await supabase
-              .from('manual_charges')
-              .insert({
-                member_id: memberIdForLog,
-                user_id: userIdForLog,
-                amount: totalAmount3ds,
-                description: feeDescription3ds,
-                stripe_payment_intent_id: paymentIntent3ds.id,
-                status: 'succeeded',
-                charged_by: user?.id ?? null,
-                note: body.note || null,
-              });
-          } else if (applicationIdForLog) {
-            await supabase
-              .from('manual_charges')
-              .insert({
-                application_id: applicationIdForLog,
-                user_id: user?.id ?? null,
-                amount: totalAmount3ds,
-                description: feeDescription3ds,
-                stripe_payment_intent_id: paymentIntent3ds.id,
-                status: 'succeeded',
-                charged_by: user?.id ?? null,
-                note: body.note || null,
-              });
+          // Record the charge (members, applications, and register sales to
+          // non-members charged by Stripe customer id).
+          const { id: ledgerChargeId3ds, memberId: ledgerMemberId3ds } = await recordManualCharge(supabase, {
+            memberId: memberIdForLog,
+            userId: userIdForLog,
+            applicationId: applicationIdForLog,
+            stripeCustomerId: customerId,
+            chargedByUserId: user?.id ?? null,
+            amountCents: totalAmount3ds,
+            description: feeDescription3ds,
+            note: body.note || null,
+            paymentIntentId: paymentIntent3ds.id,
+            status: 'succeeded',
+            metadata: ledgerMetadata3ds,
+          });
+
+          // Dues collected through this path must clear arrears too.
+          if (chargeIsMembership3ds && ledgerMemberId3ds && ledgerChargeId3ds) {
+            await settleMembershipCollection({
+              supabase,
+              stripe,
+              manualChargeId: ledgerChargeId3ds,
+              memberId: ledgerMemberId3ds,
+              amountCents: totalAmount3ds - processingFee3ds,
+              note: body.note || null,
+              actorEmail: user?.email ?? null,
+              log: logStep,
+            });
           }
 
           // Fire-and-forget POS/charge receipt
@@ -6446,11 +6468,17 @@ serve(async (req) => {
         const annualFeePriceIds = ['price_1SlA2BLyZrsSqLhs8VX17F0C', 'price_1SlA2RLyZrsSqLhsK3XQuANN'];
 
         for (const inv of allInvoices) {
-          if (!inv.subscription) continue; // skip one-time
+          // Basil moved invoice.subscription under parent.subscription_details and
+          // line.price under line.pricing.price_details; read both shapes.
+          const anyInv = inv as any;
+          const invSub = anyInv.subscription ?? anyInv.parent?.subscription_details?.subscription ?? null;
+          const invSubscriptionId: string | null = typeof invSub === 'string' ? invSub : invSub?.id ?? null;
+          if (!invSubscriptionId) continue; // skip one-time
 
-          const isAnnualFee = inv.lines?.data?.some((line: any) =>
-            line.price && annualFeePriceIds.includes(line.price.id)
-          ) || false;
+          const isAnnualFee = inv.lines?.data?.some((line: any) => {
+            const linePriceId = line.price?.id ?? line.pricing?.price_details?.price ?? null;
+            return !!linePriceId && annualFeePriceIds.includes(linePriceId);
+          }) || false;
 
           const periodStart = inv.period_start ? new Date(inv.period_start * 1000).toISOString().split('T')[0] : new Date(inv.created * 1000).toISOString().split('T')[0];
           const periodEnd = inv.period_end ? new Date(inv.period_end * 1000).toISOString().split('T')[0] : periodStart;
@@ -6461,7 +6489,30 @@ serve(async (req) => {
           else if (inv.status === 'uncollectible') arrStatus = 'uncollectible';
           else if (inv.status === 'open' && inv.amount_paid > 0 && inv.amount_paid < inv.amount_due) arrStatus = 'partial';
 
-          const piId = typeof inv.payment_intent === 'string' ? inv.payment_intent : inv.payment_intent?.id || null;
+          // Basil invoices carry no payment_intent / payment error: read them from
+          // the invoice's payments, and the decline from the PaymentIntent for
+          // invoices that are still owed.
+          let piId: string | null = typeof anyInv.payment_intent === 'string'
+            ? anyInv.payment_intent
+            : anyInv.payment_intent?.id ?? null;
+          let failureMessage: string | null = null;
+          let declineCode: string | null = null;
+          if (arrStatus === 'unpaid' || arrStatus === 'partial') {
+            try {
+              if (!piId) {
+                const full: any = await stripe.invoices.retrieve(inv.id as string, { expand: ['payments'] });
+                for (const pay of (full.payments?.data ?? [])) {
+                  const pi = pay?.payment?.payment_intent;
+                  piId = typeof pi === 'string' ? pi : pi?.id ?? piId;
+                }
+              }
+              if (piId) {
+                const pi = await stripe.paymentIntents.retrieve(piId);
+                failureMessage = pi.last_payment_error?.message ?? null;
+                declineCode = pi.last_payment_error?.decline_code ?? pi.last_payment_error?.code ?? null;
+              }
+            } catch (_e) { /* decline details are optional */ }
+          }
 
           const { error: uErr } = await supabase
             .from('billing_arrears')
@@ -6473,13 +6524,13 @@ serve(async (req) => {
               period_end: periodEnd,
               amount_due_cents: inv.amount_due || 0,
               amount_paid_cents: inv.amount_paid || 0,
-              stripe_subscription_id: inv.subscription as string,
+              stripe_subscription_id: invSubscriptionId,
               stripe_payment_intent_id: piId,
               status: arrStatus,
               attempt_count: inv.attempt_count || 0,
               paid_at: arrStatus === 'paid' ? new Date((inv.status_transitions?.paid_at || inv.created) * 1000).toISOString() : null,
-              failure_message: inv.last_payment_error?.message || null,
-              decline_code: inv.last_payment_error?.decline_code || null,
+              failure_message: failureMessage,
+              decline_code: declineCode,
               next_retry_at: inv.next_payment_attempt ? new Date(inv.next_payment_attempt * 1000).toISOString() : null,
               updated_at: new Date().toISOString(),
             }, { onConflict: 'member_id,stripe_invoice_id' });

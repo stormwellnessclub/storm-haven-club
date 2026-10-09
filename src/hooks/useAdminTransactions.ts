@@ -71,7 +71,7 @@
            amount,
            status,
            created_at,
-           payment_intent_id,
+           stripe_payment_intent_id,
            invoice_number,
            member_id,
            members!payment_attempts_member_id_fkey (
@@ -140,11 +140,11 @@
          : "Unknown",
        member_id: attempt.member_id,
        type: attempt.invoice_number ? `Invoice ${attempt.invoice_number}` : "Subscription Payment",
-       amount: attempt.amount / 100, // Convert cents to dollars
+       amount: Number(attempt.amount) || 0, // payment_attempts.amount is stored in dollars
        status: attempt.status,
        date: format(new Date(attempt.created_at), "MMM d, yyyy"),
        payment_method: "Subscription",
-       stripe_payment_intent_id: attempt.payment_intent_id,
+       stripe_payment_intent_id: attempt.stripe_payment_intent_id,
      })) || []),
    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
  
@@ -155,14 +155,14 @@
        .reduce((sum: number, c: any) => sum + (c.amount / 100), 0) +
        (paymentAttempts || [])
          .filter((p: any) => new Date(p.created_at) >= today && p.status === "succeeded")
-         .reduce((sum: number, p: any) => sum + (p.amount / 100), 0),
+         .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0),
      
      revenueThisMonth: (manualCharges || [])
        .filter((c: any) => new Date(c.created_at) >= monthStart && c.status === "succeeded")
        .reduce((sum: number, c: any) => sum + (c.amount / 100), 0) +
        (paymentAttempts || [])
          .filter((p: any) => new Date(p.created_at) >= monthStart && p.status === "succeeded")
-         .reduce((sum: number, p: any) => sum + (p.amount / 100), 0),
+         .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0),
      
      activeSubscriptions: subscriptionCount || 0,
      

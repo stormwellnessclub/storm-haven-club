@@ -62,15 +62,19 @@ Deno.serve(async (req) => {
           ((row.emails_sent as Array<{ day: number }>) ?? []).map((e) => e.day),
         );
 
-        // Find the highest touchpoint that's due and not yet sent
-        const due = TOUCHPOINTS.filter((t) => t.day <= daysSince && !sentDays.has(t.day));
+        // Only move forward: a touchpoint at or before the last one sent is never
+        // sent afterwards (otherwise a late start sends day 3, then day 1, then day 0).
+        const lastSentDay = sentDays.size > 0 ? Math.max(...sentDays) : -1;
+        const due = TOUCHPOINTS.filter((t) => t.day <= daysSince && t.day > lastSentDay);
         if (due.length === 0) {
           results.push({ invoice: row.stripe_invoice_id, skipped: "up_to_date" });
           continue;
         }
 
-        // Send only the most-recent missed touchpoint per cron tick to avoid floods
+        // Send only the most-recent missed touchpoint per cron tick to avoid floods;
+        // the earlier missed ones are recorded as skipped.
         const next = due[due.length - 1];
+        const skipped = due.slice(0, -1);
 
         const emailRes = await supabase.functions.invoke("send-email", {
           body: {
@@ -92,9 +96,11 @@ Deno.serve(async (req) => {
 
         if (emailRes.error) throw emailRes.error;
 
+        const now = new Date().toISOString();
         const updated = [
           ...((row.emails_sent as Array<unknown>) ?? []),
-          { day: next.day, sent_at: new Date().toISOString() },
+          ...skipped.map((t) => ({ day: t.day, skipped_at: now })),
+          { day: next.day, sent_at: now },
         ];
 
         await supabase

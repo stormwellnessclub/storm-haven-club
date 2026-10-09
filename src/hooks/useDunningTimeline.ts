@@ -104,7 +104,7 @@ export function useDunningTimeline(memberId: string | null | undefined) {
             date: a.created_at,
             title: "Retry failed",
             description: a.failure_message || (a.invoice_number ? `Invoice ${a.invoice_number}` : "Subscription retry"),
-            amount_cents: a.amount,
+            amount_cents: Math.round(Number(a.amount) * 100), // payment_attempts.amount is dollars
             status: "failed",
             metadata: { invoice_id: a.invoice_id },
           });
@@ -115,7 +115,7 @@ export function useDunningTimeline(memberId: string | null | undefined) {
             date: a.succeeded_at,
             title: "Retry succeeded",
             description: a.invoice_number ? `Invoice ${a.invoice_number}` : "Subscription payment cleared",
-            amount_cents: a.amount,
+            amount_cents: Math.round(Number(a.amount) * 100), // payment_attempts.amount is dollars
             status: "success",
           });
         }

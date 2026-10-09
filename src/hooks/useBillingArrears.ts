@@ -170,8 +170,9 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
             dunning_retry_count: dunningByMember.get(a.member_id)?.retry_count ?? null,
             dunning_next_email_day: dunningByMember.get(a.member_id)?.next_email_day ?? null,
             dunning_next_email_due_at: dunningByMember.get(a.member_id)?.next_email_due_at ?? null,
+            // emails_sent also holds { skipped_at } markers for touchpoints never sent
             dunning_emails_sent_count: Array.isArray(dunningByMember.get(a.member_id)?.emails_sent)
-              ? dunningByMember.get(a.member_id)!.emails_sent.length
+              ? dunningByMember.get(a.member_id)!.emails_sent.filter((e: { skipped_at?: string } | null) => !e?.skipped_at).length
               : 0,
             dunning_first_failed_at: dunningByMember.get(a.member_id)?.first_failed_at ?? null,
           });

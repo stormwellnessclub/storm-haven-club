@@ -73,8 +73,8 @@ export function SalesSegmentationReport({ dateRange }: Props) {
       // Guest passes
       const guestPassRevenue = (guestPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
 
-      // Subscription payments
-      const subscriptionRevenue = (paymentsRes.data || []).reduce((s, p) => s + ((Number(p.amount) || 0) / 100), 0);
+      // Subscription payments (payment_attempts.amount is stored in dollars)
+      const subscriptionRevenue = (paymentsRes.data || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
       const categories = [
         { name: 'Subscription Payments', value: subscriptionRevenue },

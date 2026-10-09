@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { handleEventInvoicePayment, handleEventInvoiceRefund, handleEventInvoicePaymentFailed } from "../_shared/eventFinancialsWebhook.ts";
+import { finalizeManualChargeFromIntent } from "../_shared/manualChargeLedger.ts";
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -394,6 +395,73 @@ async function resolveInvoicePaymentIntentId(stripe: Stripe, invoice: Stripe.Inv
   }
 }
 
+interface InvoicePaymentDetails {
+  paymentIntentId: string | null;
+  chargeId: string | null;
+  paymentMethodId: string | null;
+  paymentMethodType: string | null;
+  cardBrand: string | null;
+  cardLast4: string | null;
+  failureCode: string | null;
+  failureMessage: string | null;
+  declineCode: string | null;
+}
+
+/**
+ * Basil webhook invoices carry neither `payment_intent`, `charge` nor any payment
+ * error, so card details and decline reasons must be read from the PaymentIntent
+ * behind the invoice. Never throws: missing details come back as nulls.
+ */
+async function resolveInvoicePaymentDetails(stripe: Stripe, invoice: Stripe.Invoice): Promise<InvoicePaymentDetails> {
+  const details: InvoicePaymentDetails = {
+    paymentIntentId: null, chargeId: null, paymentMethodId: null, paymentMethodType: null,
+    cardBrand: null, cardLast4: null, failureCode: null, failureMessage: null, declineCode: null,
+  };
+  try {
+    details.paymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
+    if (!details.paymentIntentId) return details;
+    const pi = await stripe.paymentIntents.retrieve(details.paymentIntentId, {
+      expand: ['latest_charge', 'last_payment_error.payment_method'],
+    });
+    const charge = (pi.latest_charge && typeof pi.latest_charge === 'object') ? pi.latest_charge as Stripe.Charge : null;
+    const err = pi.last_payment_error ?? null;
+    const errPm = (err?.payment_method && typeof err.payment_method === 'object') ? err.payment_method : null;
+    const card = charge?.payment_method_details?.card ?? errPm?.card ?? null;
+
+    details.chargeId = charge?.id ?? (typeof pi.latest_charge === 'string' ? pi.latest_charge : null);
+    details.paymentMethodId = (typeof pi.payment_method === 'string' ? pi.payment_method : pi.payment_method?.id)
+      ?? (typeof charge?.payment_method === 'string' ? charge.payment_method : null)
+      ?? errPm?.id ?? null;
+    details.paymentMethodType = charge?.payment_method_details?.type ?? errPm?.type ?? null;
+    details.cardBrand = card?.brand ?? null;
+    details.cardLast4 = card?.last4 ?? null;
+    details.failureCode = err?.code ?? charge?.failure_code ?? null;
+    details.failureMessage = err?.message ?? charge?.failure_message ?? null;
+    details.declineCode = err?.decline_code ?? null;
+  } catch (e) {
+    logError(e, 'RESOLVE_INVOICE_PAYMENT_DETAILS');
+  }
+  return details;
+}
+
+/** Basil moved the billing period from the subscription onto its items. */
+function getSubscriptionPeriodEnd(subscription: Stripe.Subscription): number | null {
+  return (subscription as unknown as { current_period_end?: number }).current_period_end
+    ?? subscription.items?.data?.[0]?.current_period_end
+    ?? null;
+}
+
+function formatSubscriptionNextBillingDate(subscription: Stripe.Subscription): string {
+  const periodEnd = getSubscriptionPeriodEnd(subscription);
+  if (!periodEnd) return 'your next billing date';
+  return new Date(periodEnd * 1000).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'America/Detroit',
+  });
+}
+
 function getInvoicePaymentIntentId(invoice: Stripe.Invoice): string | null {
   const anyInvoice = invoice as any;
   const direct = anyInvoice.payment_intent;
@@ -757,7 +825,12 @@ serve(async (req) => {
 
     logStep(`Received event: ${event.type}`, { eventId: event.id });
 
-    // Check for duplicate processing (idempotency check)
+    // Idempotency: an event is skipped only once it has been FULLY handled
+    // ('success'), or while another delivery is actively handling it. A row is
+    // claimed as 'processing' before handling and finalized afterwards, so a
+    // handler crash leaves it retryable instead of silently marked done.
+    const STALE_PROCESSING_MS = 5 * 60 * 1000;
+    let existingEventRowId: string | null = null;
     try {
       const { data: existingEvent, error: checkError } = await supabase
         .from('processed_webhook_events')
@@ -769,53 +842,81 @@ serve(async (req) => {
         logError(checkError, "IDEMPOTENCY_CHECK");
         // Continue processing if check fails (log error but don't block)
       } else if (existingEvent) {
-        logStep(`Event already processed: ${event.id}`, { 
-          processedAt: existingEvent.processed_at,
-          result: existingEvent.processing_result
-        });
-        // Return success - event already processed
-        return successResponse({ 
-          eventId: event.id, 
-          eventType: event.type,
-          alreadyProcessed: true,
-          processedAt: existingEvent.processed_at
-        });
+        const ageMs = Date.now() - new Date(existingEvent.processed_at).getTime();
+        const inFlight = existingEvent.processing_result === 'processing' && ageMs < STALE_PROCESSING_MS;
+        if (existingEvent.processing_result === 'success' || inFlight) {
+          logStep(`Event already processed: ${event.id}`, {
+            processedAt: existingEvent.processed_at,
+            result: existingEvent.processing_result
+          });
+          return successResponse({
+            eventId: event.id,
+            eventType: event.type,
+            alreadyProcessed: true,
+            processedAt: existingEvent.processed_at
+          });
+        }
+        // A previous delivery failed or died mid-handling: handle it again.
+        existingEventRowId = existingEvent.id;
+        logStep(`Reprocessing event after previous ${existingEvent.processing_result}: ${event.id}`);
       }
     } catch (idempotencyError) {
       logError(idempotencyError, "IDEMPOTENCY_CHECK");
       // Continue processing if idempotency check fails (log error but don't block)
     }
 
-    // Store event ID immediately to prevent duplicate processing (race condition protection)
+    // Claim the event before handling (race condition protection)
     try {
-      const { error: insertError } = await supabase
-        .from('processed_webhook_events')
-        .insert({
-          event_id: event.id,
-          event_type: event.type,
-          processed_at: new Date().toISOString(),
-          processing_result: 'success',
-          metadata: { received_at: new Date().toISOString() }
-        });
-
-      if (insertError) {
-        // If insert fails (e.g., duplicate), event was already processed
-        if (insertError.code === '23505') { // Unique violation
-          logStep(`Event already processed (race condition): ${event.id}`);
-          return successResponse({ 
-            eventId: event.id, 
-            eventType: event.type,
-            alreadyProcessed: true
+      if (existingEventRowId) {
+        await supabase
+          .from('processed_webhook_events')
+          .update({ processing_result: 'processing', processed_at: new Date().toISOString() })
+          .eq('id', existingEventRowId);
+      } else {
+        const { error: insertError } = await supabase
+          .from('processed_webhook_events')
+          .insert({
+            event_id: event.id,
+            event_type: event.type,
+            processed_at: new Date().toISOString(),
+            processing_result: 'processing',
+            metadata: { received_at: new Date().toISOString() }
           });
+
+        if (insertError) {
+          if (insertError.code === '23505') { // Unique violation: a concurrent delivery claimed it
+            logStep(`Event claimed by concurrent delivery: ${event.id}`);
+            return successResponse({
+              eventId: event.id,
+              eventType: event.type,
+              alreadyProcessed: true
+            });
+          }
+          logError(insertError, "IDEMPOTENCY_STORE");
+          // Continue processing even if storing fails
         }
-        logError(insertError, "IDEMPOTENCY_STORE");
-        // Continue processing even if storing fails
       }
     } catch (storeError) {
       logError(storeError, "IDEMPOTENCY_STORE");
       // Continue processing even if storing fails
     }
 
+    const finalizeEvent = async (result: 'success' | 'failed', errorMessage?: string) => {
+      try {
+        await supabase
+          .from('processed_webhook_events')
+          .update({
+            processing_result: result,
+            processed_at: new Date().toISOString(),
+            metadata: { finished_at: new Date().toISOString(), ...(errorMessage ? { error: errorMessage } : {}) },
+          })
+          .eq('event_id', event.id);
+      } catch (finalizeError) {
+        logError(finalizeError, "IDEMPOTENCY_FINALIZE");
+      }
+    };
+
+    const handleEvent = async (): Promise<Response> => {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         try {
@@ -896,6 +997,12 @@ serve(async (req) => {
             }
           } catch (e) {
             logError(e, 'GIFT_VOUCHER_PI_SUCCEEDED');
+          }
+
+          // Register / admin card charges: record or finalize the manual_charges row
+          // (3D Secure completions and late confirmations are only seen here).
+          if (md.ledger === 'manual_charges') {
+            await finalizeManualChargeFromIntent({ supabase, stripe, paymentIntent: pi, outcome: 'succeeded', log: logStep });
           }
 
           if (md.type === 'event_ticket') {
@@ -2237,8 +2344,9 @@ serve(async (req) => {
             logError(memberError, "SUBSCRIPTION_UPDATE_MEMBER_LOOKUP");
           } else if (memberData) {
             const isAnnualFeeSubscription = memberData.annual_fee_subscription_id === subscription.id;
-            const periodEnd = subscription.current_period_end
-              ? new Date(subscription.current_period_end * 1000).toISOString().split('T')[0]
+            const periodEndUnix = getSubscriptionPeriodEnd(subscription);
+            const periodEnd = periodEndUnix
+              ? new Date(periodEndUnix * 1000).toISOString().split('T')[0]
               : null;
 
             if (periodEnd) {
@@ -2544,34 +2652,15 @@ serve(async (req) => {
             }
           }
 
-          const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
-          const charge = invoice.charge as Stripe.Charge | string | null;
-          let paymentIntentId: string | null = null;
-          let chargeId: string | null = null;
-          let paymentMethodId: string | null = null;
-          let paymentMethodType: string | null = null;
-          let cardBrand: string | null = null;
-          let cardLast4: string | null = null;
-
-          if (typeof paymentIntent === 'object' && paymentIntent) {
-            paymentIntentId = paymentIntent.id;
-            paymentMethodId = paymentIntent.payment_method as string | null;
-
-            if (typeof charge === 'object' && charge && charge.payment_method_details) {
-              chargeId = charge.id;
-              if (charge.payment_method_details.type === 'card' && charge.payment_method_details.card) {
-                paymentMethodType = 'card';
-                cardBrand = charge.payment_method_details.card.brand || null;
-                cardLast4 = charge.payment_method_details.card.last4 || null;
-              }
-            }
-          } else if (typeof paymentIntent === 'string') {
-            paymentIntentId = paymentIntent;
-          }
-
-          if (typeof charge === 'string') {
-            chargeId = charge;
-          }
+          // Basil invoices carry no payment_intent / charge: resolve them so the
+          // payment row has its charge id and the receipt shows the real card.
+          const paidDetails = await resolveInvoicePaymentDetails(stripe, invoice);
+          const paymentIntentId = paidDetails.paymentIntentId;
+          const chargeId = paidDetails.chargeId;
+          const paymentMethodId = paidDetails.paymentMethodId;
+          const paymentMethodType = paidDetails.paymentMethodType;
+          const cardBrand = paidDetails.cardBrand;
+          const cardLast4 = paidDetails.cardLast4;
 
           if (!getInvoiceSubscriptionId(invoice)) {
             try {
@@ -2797,8 +2886,7 @@ serve(async (req) => {
                 logStep("BLOCKED person payment detected — refunding and cancelling", { memberId: memberData.id, email: memberEmail.email });
                 // Refund the payment
                 try {
-                  const pi = invoice.payment_intent;
-                  const piId = typeof pi === 'string' ? pi : pi?.id;
+                  const piId = paymentIntentId;
                   if (piId) {
                     await stripe.refunds.create({ payment_intent: piId });
                     logStep("Refund created for blocked person", { paymentIntentId: piId });
@@ -2918,11 +3006,7 @@ serve(async (req) => {
                     
                     // Get subscription for next billing date
                     const subscription = await stripe.subscriptions.retrieve(getInvoiceSubscriptionId(invoice) as string);
-                    const nextBillingDate = new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    });
+                    const nextBillingDate = formatSubscriptionNextBillingDate(subscription);
 
                     const paymentDateStr = new Date(invoice.created * 1000).toLocaleDateString('en-US', {
                       month: 'short',
@@ -3274,11 +3358,7 @@ serve(async (req) => {
                   
                   // Get subscription for next billing date
                   const subscription = await stripe.subscriptions.retrieve(getInvoiceSubscriptionId(invoice) as string);
-                  const nextBillingDate = new Date(subscription.current_period_end * 1000).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                  });
+                  const nextBillingDate = formatSubscriptionNextBillingDate(subscription);
 
                   const paymentDateStr = new Date(invoice.created * 1000).toLocaleDateString('en-US', {
                     month: 'short',
@@ -3544,67 +3624,42 @@ serve(async (req) => {
               // Don't fail the webhook
             }
 
-            // Get payment intent and charge details for failure info
-            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
-            const lastPaymentError = invoice.last_payment_error;
-            
-            let paymentIntentId: string | null = null;
-            let chargeId: string | null = null;
-            let paymentMethodId: string | null = null;
-            let paymentMethodType: string | null = null;
-            let failureCode: string | null = null;
-            let failureMessage: string | null = null;
-            let declineCode: string | null = null;
-            let declineReason: string | null = null;
-            let nextRetryAt: string | null = null;
+            // Basil invoices carry no payment_intent / payment error, so the decline
+            // details come from the PaymentIntent behind the invoice.
+            const failedPayment = await resolveInvoicePaymentDetails(stripe, invoice);
+            const paymentIntentId = failedPayment.paymentIntentId;
+            const chargeId = failedPayment.chargeId;
+            const paymentMethodId = failedPayment.paymentMethodId;
+            const paymentMethodType = failedPayment.paymentMethodType;
+            const failureCode = failedPayment.failureCode;
+            const failureMessage = failedPayment.failureMessage;
+            const declineCode = failedPayment.declineCode;
 
-            if (typeof paymentIntent === 'object' && paymentIntent) {
-              paymentIntentId = paymentIntent.id;
-              paymentMethodId = paymentIntent.payment_method as string | null;
-              
-              if (paymentIntent.last_payment_error) {
-                failureCode = paymentIntent.last_payment_error.code || null;
-                failureMessage = paymentIntent.last_payment_error.message || null;
-                declineCode = paymentIntent.last_payment_error.decline_code || null;
-                
-                // Human-readable decline reason
-                if (declineCode) {
-                  const declineReasons: Record<string, string> = {
-                    'generic_decline': 'Card declined',
-                    'insufficient_funds': 'Insufficient funds',
-                    'lost_card': 'Lost card',
-                    'stolen_card': 'Stolen card',
-                    'expired_card': 'Expired card',
-                    'incorrect_cvc': 'Incorrect security code',
-                    'incorrect_number': 'Incorrect card number',
-                    'processing_error': 'Processing error',
-                    'reenter_transaction': 'Transaction declined - please try again',
-                    'restricted_card': 'Card restricted',
-                    'security_violation': 'Security violation',
-                    'service_not_allowed': 'Service not allowed',
-                    'stop_payment_order': 'Stop payment order',
-                    'testmode_decline': 'Test mode decline',
-                    'withdrawal_count_limit_exceeded': 'Withdrawal count limit exceeded'
-                  };
-                  declineReason = declineReasons[declineCode] || declineCode;
-                } else {
-                  declineReason = failureMessage || 'Payment failed';
-                }
-              }
-            } else if (typeof paymentIntent === 'string') {
-              paymentIntentId = paymentIntent;
-            }
+            const declineReasons: Record<string, string> = {
+              'generic_decline': 'Card declined',
+              'insufficient_funds': 'Insufficient funds',
+              'lost_card': 'Lost card',
+              'stolen_card': 'Stolen card',
+              'expired_card': 'Expired card',
+              'incorrect_cvc': 'Incorrect security code',
+              'incorrect_number': 'Incorrect card number',
+              'processing_error': 'Processing error',
+              'reenter_transaction': 'Transaction declined - please try again',
+              'restricted_card': 'Card restricted',
+              'security_violation': 'Security violation',
+              'service_not_allowed': 'Service not allowed',
+              'stop_payment_order': 'Stop payment order',
+              'testmode_decline': 'Test mode decline',
+              'withdrawal_count_limit_exceeded': 'Withdrawal count limit exceeded'
+            };
+            const declineReason: string | null = declineCode
+              ? (declineReasons[declineCode] || declineCode)
+              : (failureMessage || (failureCode === 'expired_card' ? 'Expired card' : null) || 'Payment failed');
 
-            // Get failure info from last_payment_error if available
-            if (lastPaymentError) {
-              failureCode = lastPaymentError.code || failureCode;
-              failureMessage = lastPaymentError.message || failureMessage;
-              declineCode = lastPaymentError.decline_code || declineCode;
-            }
-
-            // Check if Stripe will retry (based on attempt_count)
+            // Stripe schedules a retry only when next_payment_attempt is set (Smart
+            // Retries / the account's retry schedule decides how many there are).
             const attemptCount = invoice.attempt_count || 0;
-            const willRetry = attemptCount < 4; // Stripe typically retries up to 4 times
+            const willRetry = !!invoice.next_payment_attempt;
 
             // Log failed payment attempt
             const { error: logAttemptError } = await supabase.rpc('log_payment_attempt', {
@@ -3630,7 +3685,9 @@ serve(async (req) => {
               p_metadata: {
                 billing_reason: invoice.billing_reason,
                 attempt_count: attemptCount,
-                next_payment_attempt: invoice.next_payment_attempt
+                next_payment_attempt: invoice.next_payment_attempt,
+                card_brand: failedPayment.cardBrand,
+                card_last4: failedPayment.cardLast4
               }
             });
 
@@ -3861,13 +3918,13 @@ serve(async (req) => {
           if (memberError) {
             logError(memberError, "INVOICE_PAYMENT_ACTION_REQUIRED_MEMBER_LOOKUP");
           } else if (memberData) {
-            const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent | string | null;
-            let paymentIntentId: string | null = null;
-
-            if (typeof paymentIntent === 'object' && paymentIntent) {
-              paymentIntentId = paymentIntent.id;
-            } else if (typeof paymentIntent === 'string') {
-              paymentIntentId = paymentIntent;
+            const paymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
+            let paymentIntentClientSecret: string | null = null;
+            if (paymentIntentId) {
+              try {
+                const actionPi = await stripe.paymentIntents.retrieve(paymentIntentId);
+                paymentIntentClientSecret = actionPi.client_secret ?? null;
+              } catch (_e) { /* client secret is optional */ }
             }
 
             // Log payment attempt requiring action
@@ -3884,7 +3941,7 @@ serve(async (req) => {
               p_metadata: {
                 charge_type: subscriptionType,
                 billing_reason: invoice.billing_reason,
-                payment_intent_client_secret: typeof paymentIntent === 'object' ? paymentIntent.client_secret : null
+                payment_intent_client_secret: paymentIntentClientSecret
               }
             });
 
@@ -4538,6 +4595,9 @@ serve(async (req) => {
           await supabase.from('billing_arrears')
             .update({ status: 'unpaid', failure_message: pi.last_payment_error?.message ?? 'Bank payment failed', updated_at: new Date().toISOString() })
             .eq('stripe_payment_intent_id', pi.id).eq('status', 'processing');
+          if (md.ledger === 'manual_charges') {
+            await finalizeManualChargeFromIntent({ supabase, stripe, paymentIntent: pi, outcome: 'failed', log: logStep });
+          }
           if (md.event_invoice_id) {
             await handleEventInvoicePaymentFailed(supabase, {
               invoiceId: md.event_invoice_id,
@@ -4615,19 +4675,40 @@ serve(async (req) => {
         logStep(`Unhandled event type: ${event.type}`, { eventId: event.id });
     }
 
-    // Always return 200 for successful webhook receipt (even if processing had issues)
     return successResponse({ eventId: event.id, eventType: event.type });
+    };
+
+    try {
+      const response = await handleEvent();
+      await finalizeEvent('success');
+      return response;
+    } catch (handlerError: unknown) {
+      // An uncaught handler error means the event was NOT fully handled. Record it
+      // and answer 500 so Stripe redelivers (the 'failed' row lets the retry through).
+      const message = handlerError instanceof Error ? handlerError.message : String(handlerError);
+      logError(handlerError, "WEBHOOK_HANDLER_UNCAUGHT");
+      await finalizeEvent('failed', message);
+      return new Response(JSON.stringify({
+        received: false,
+        error: message,
+        eventId: event.id,
+        timestamp: new Date().toISOString(),
+      }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+        status: 500,
+      });
+    }
   } catch (error: unknown) {
-    // Catch-all for any unexpected errors
+    // Catch-all for unexpected errors before an event could be handled. Answer 500
+    // so Stripe retries instead of the event being lost.
     logError(error, "WEBHOOK_HANDLER");
-    // Return 200 so Stripe doesn't retry - error is logged
-    return new Response(JSON.stringify({ 
-      received: false, 
+    return new Response(JSON.stringify({
+      received: false,
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
     }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      status: 200, // Return 200 to prevent Stripe retries for unexpected errors
+      status: 500,
     });
   }
 });
