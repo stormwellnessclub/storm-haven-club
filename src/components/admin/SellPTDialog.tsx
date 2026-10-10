@@ -6,11 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CreditCard, AlertCircle, Plus, CheckCircle2 } from "lucide-react";
-import { relationshipMap } from "@/lib/ptIdentity";
+import { relationshipMap, relationshipFromMemberRows } from "@/lib/ptIdentity";
+
+/** Non-member packs are named "Non-Member …" (member price + $5/session). */
+function isNonMemberPack(p: { name?: string | null }) {
+  return /^non[-\s]?member/i.test((p.name ?? "").trim());
+}
 import { toast } from "sonner";
 import { addDays, addMonths, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
@@ -136,17 +141,48 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     },
   });
 
+  // Is the selected client a current member? (one person = one user_id)
+  const { data: clientRelationship } = useQuery({
+    queryKey: ["pt-sell-client-relationship", selectedUserId],
+    enabled: !!selectedUserId && open,
+    queryFn: async () => {
+      const { data } = await supabase.from("members").select("user_id, status").eq("user_id", selectedUserId!);
+      return relationshipFromMemberRows((data ?? []) as any[]);
+    },
+  });
+  const clientIsMember = clientRelationship === "Member";
+  const clientKnown = !!selectedUserId && !!clientRelationship;
+
+  // Non-members default to Semi-Private, where the non-member packs live.
+  useEffect(() => {
+    if (clientKnown && !clientIsMember) setFormat("semi_private");
+  }, [clientKnown, clientIsMember, selectedUserId]);
+
   const formatPacks = useMemo(
     () => packs.filter((p) => p.format === format && p.price_cents > 0),
     [packs, format]
   );
+  const memberPacks = useMemo(() => formatPacks.filter((p) => !isNonMemberPack(p)), [formatPacks]);
+  const nonMemberPacks = useMemo(() => formatPacks.filter((p) => isNonMemberPack(p)), [formatPacks]);
+  const packGroups = useMemo(() => {
+    const m = { label: "Member packs", items: memberPacks };
+    const n = { label: "Non-member packs", items: nonMemberPacks };
+    return (clientKnown && !clientIsMember ? [n, m] : [m, n]).filter((g) => g.items.length > 0);
+  }, [memberPacks, nonMemberPacks, clientKnown, clientIsMember]);
   const selectedPack = formatPacks.find((p) => p.id === packId);
+  const packAudienceMismatch =
+    clientKnown && selectedPack
+      ? isNonMemberPack(selectedPack)
+        ? clientIsMember ? "This is a non-member pack, but this client is a current member." : null
+        : !clientIsMember ? "This is a member pack, but this client is not a current member." : null
+      : null;
 
   useEffect(() => {
-    if (formatPacks.length > 0 && !formatPacks.find((p) => p.id === packId)) {
-      setPackId(formatPacks[0].id);
+    const first = packGroups[0]?.items[0];
+    if (first && !formatPacks.find((p) => p.id === packId)) {
+      setPackId(first.id);
     }
-  }, [formatPacks, packId]);
+  }, [formatPacks, packGroups, packId]);
 
   useEffect(() => {
     if (!selectedPack) return;
@@ -623,14 +659,28 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 <SelectContent>
                   {formatPacks.length === 0 ? (
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">No active packs</div>
-                  ) : formatPacks.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} — {formatCents(p.price_cents)}
-                      {!p.is_public && " (admin-only)"}
-                    </SelectItem>
+                  ) : packGroups.map((g) => (
+                    <SelectGroup key={g.label}>
+                      <SelectLabel className="text-xs uppercase tracking-wide text-muted-foreground">{g.label}</SelectLabel>
+                      {g.items.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} — {formatCents(p.price_cents)}
+                          {p.sessions > 0 && ` (${formatCents(Math.round(p.price_cents / p.sessions))}/session)`}
+                          {!p.is_public && " (admin-only)"}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>
+              {nonMemberPacks.length === 0 && clientKnown && !clientIsMember && (
+                <p className="text-xs text-muted-foreground">Non-member packs are semi-private only.</p>
+              )}
+              {packAudienceMismatch && (
+                <p className="text-xs text-amber-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" /> {packAudienceMismatch}
+                </p>
+              )}
             </div>
           </div>
 
