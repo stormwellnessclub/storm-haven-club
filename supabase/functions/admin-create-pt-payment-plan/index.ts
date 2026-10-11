@@ -172,11 +172,9 @@ Deno.serve(async (req) => {
     // One stable reference per sale attempt — retries reuse it end to end.
     const saleRef: string = body.saleRef ?? crypto.randomUUID();
 
-    const downCents = plan.amount_due_at_sale_cents * quantity;
-    const installmentCents = plan.installment_cents * quantity;
-    const finalCents = plan.final_installment_cents * quantity;
     const futureCount: number = plan.future_installment_count;
     const totalCents = plan.plan_total_cents * quantity;
+    const tentativeDown = customFirst ? firstPaymentCents : plan.amount_due_at_sale_cents * quantity;
 
     const { error: intentErr } = await supabase.rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: saleRef,
@@ -189,12 +187,20 @@ Deno.serve(async (req) => {
       p_notes: adminNotes,
       p_sale_type: "payment_plan",
       p_installment_count: futureCount + 1,
-      p_installment_cents: installmentCents,
+      p_installment_cents: plan.installment_cents * quantity,
       p_first_installment_date: firstAutopayDate,
-      p_amount_due_today_cents: downCents,
+      p_amount_due_today_cents: tentativeDown,
       p_payment_plan_template_id: plan.id,
     });
     if (intentErr) throw intentErr;
+
+    // Store the per-sale first-payment choices before the schedule is fixed.
+    await supabase.from("pt_sale_intents").update({
+      first_payment_override_cents: customFirst ? firstPaymentCents : null,
+      first_payment_method: firstPaymentMethod,
+      first_payment_reference: firstPaymentReference || null,
+      amount_due_today_cents: tentativeDown,
+    }).eq("idempotency_key", saleRef).is("planned_schedule", null);
 
     // Storm's authoritative dated schedule — validated and stored before any charge.
     const { data: schedRes, error: schedErr } = await supabase.rpc("pt_attach_plan_schedule", {
@@ -208,14 +214,24 @@ Deno.serve(async (req) => {
       schedule.installments ?? [];
     const futureRows = scheduleRows.filter((r) => r.installment_number > 0);
 
-    // Card processing fee is added to every charge (same gross-up as pay-in-full):
-    // fee = ceil((amount + 30) / 0.971) - amount. Plan amounts stay the package price.
-    const feeFor = (c: number) => (c > 0 ? Math.ceil((c + 30) / 0.971) - c : 0);
-    const downChargeCents = downCents + feeFor(downCents);
+    const scheduleCustom = !!schedule.first_payment_custom;
+    const downCents: number = schedule.amount_due_at_sale_cents;
+    const installmentCents: number = schedule.installment_cents;
+    const finalCents: number = schedule.final_installment_cents;
+    // Custom schedules are priced as whole amounts (quantity 1); template schedules per unit.
+    const itemQty = scheduleCustom ? 1 : quantity;
+    const unitInstallment = scheduleCustom ? installmentCents : plan.installment_cents;
+    const unitFinal = scheduleCustom ? finalCents : plan.final_installment_cents;
 
-    // 1) Amount due at sale — its own payment intent, idempotent on the sale ref.
+    // Card processing fee is added to every card charge (same gross-up as pay-in-full):
+    // fee = ceil((amount + 30) / 0.971) - amount. Cash/external first payments carry no fee.
+    const feeFor = (c: number) => (c > 0 ? Math.ceil((c + 30) / 0.971) - c : 0);
+    const chargeFirstOnCard = firstPaymentMethod === "card";
+    const downChargeCents = chargeFirstOnCard ? downCents + feeFor(downCents) : downCents;
+
+    // 1) Amount due at sale — charged on the card, or recorded as received in person/externally.
     let downPaymentIntentId: string | null = null;
-    if (downCents > 0) {
+    if (downCents > 0 && chargeFirstOnCard) {
       const pi = await stripe.paymentIntents.create({
         amount: downChargeCents,
         currency: "usd",
@@ -239,7 +255,8 @@ Deno.serve(async (req) => {
 
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
-      p_stripe_payment_intent_id: downPaymentIntentId ?? `pt_plan:${saleRef}`,
+      p_stripe_payment_intent_id: downPaymentIntentId ??
+        (chargeFirstOnCard ? `pt_plan:${saleRef}` : `${firstPaymentMethod}:${saleRef}`),
       p_amount_cents: downChargeCents,
     });
 
