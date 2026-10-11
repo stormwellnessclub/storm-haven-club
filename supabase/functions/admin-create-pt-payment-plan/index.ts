@@ -326,7 +326,7 @@ Deno.serve(async (req) => {
     const phases: any[] = [];
     if (futureCount > 1) {
       phases.push({
-        items: await itemsFor(basePriceId, installmentCents),
+        items: await itemsFor(installmentPriceId, installmentCents),
         iterations: futureCount - 1,
         proration_behavior: "none",
         metadata: planMeta,
@@ -385,6 +385,11 @@ Deno.serve(async (req) => {
     });
     if (matErr) console.error("Failed to materialize installments:", matErr.message);
 
+    // Note how the first payment was received (card, cash, check, external).
+    await supabase.from("pt_payment_plan_installments")
+      .update({ paid_via: firstPaymentReference ? `${firstPaymentMethod}: ${firstPaymentReference}` : firstPaymentMethod })
+      .in("pass_id", passIds).eq("installment_number", 0);
+
     // Record which card the future installments will be collected on, so staff
     // see the real card on the schedule instead of guessing from the default.
     try {
@@ -397,7 +402,7 @@ Deno.serve(async (req) => {
           payment_method_last4: pmDetails.card?.last4 ?? null,
         })
         .in("pass_id", passIds)
-        .in("status", ["scheduled", "paid"]);
+        .in("status", chargeFirstOnCard ? ["scheduled", "paid"] : ["scheduled"]);
     } catch (e) {
       console.error("Could not stamp card on installments:", (e as Error).message);
     }
