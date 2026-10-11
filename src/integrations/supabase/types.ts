@@ -10201,6 +10201,7 @@ export type Database = {
           last_failure_reason: string | null
           original_due_date: string | null
           paid_at: string | null
+          paid_via: string | null
           pass_id: string
           payment_method_brand: string | null
           payment_method_id: string | null
@@ -10228,6 +10229,7 @@ export type Database = {
           last_failure_reason?: string | null
           original_due_date?: string | null
           paid_at?: string | null
+          paid_via?: string | null
           pass_id: string
           payment_method_brand?: string | null
           payment_method_id?: string | null
@@ -10255,6 +10257,7 @@ export type Database = {
           last_failure_reason?: string | null
           original_due_date?: string | null
           paid_at?: string | null
+          paid_via?: string | null
           pass_id?: string
           payment_method_brand?: string | null
           payment_method_id?: string | null
@@ -10854,6 +10857,9 @@ export type Database = {
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
+          first_payment_method: string | null
+          first_payment_override_cents: number | null
+          first_payment_reference: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval: number | null
           frequency_unit: string | null
@@ -10908,6 +10914,9 @@ export type Database = {
           finalize_error?: string | null
           finalized_at?: string | null
           first_installment_date?: string | null
+          first_payment_method?: string | null
+          first_payment_override_cents?: number | null
+          first_payment_reference?: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval?: number | null
           frequency_unit?: string | null
@@ -10962,6 +10971,9 @@ export type Database = {
           finalize_error?: string | null
           finalized_at?: string | null
           first_installment_date?: string | null
+          first_payment_method?: string | null
+          first_payment_override_cents?: number | null
+          first_payment_reference?: string | null
           format?: Database["public"]["Enums"]["pt_format"]
           frequency_interval?: number | null
           frequency_unit?: string | null
@@ -16222,6 +16234,17 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_build_plan_schedule_v2: {
+        Args: {
+          p_first_autopay: string
+          p_first_payment_cents?: number
+          p_pack_id: string
+          p_plan_id: string
+          p_quantity: number
+          p_sale_date?: string
+        }
+        Returns: Json
+      }
       pt_can_coach_client: {
         Args: { _client: string; _uid: string }
         Returns: boolean
@@ -16328,6 +16351,9 @@ export type Database = {
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
+          first_payment_method: string | null
+          first_payment_override_cents: number | null
+          first_payment_reference: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval: number | null
           frequency_unit: string | null
@@ -16554,6 +16580,9 @@ export type Database = {
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
+          first_payment_method: string | null
+          first_payment_override_cents: number | null
+          first_payment_reference: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval: number | null
           frequency_unit: string | null
@@ -16635,6 +16664,9 @@ export type Database = {
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
+          first_payment_method: string | null
+          first_payment_override_cents: number | null
+          first_payment_reference: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval: number | null
           frequency_unit: string | null
@@ -16737,6 +16769,16 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_plan_schedule_preview_v2: {
+        Args: {
+          p_first_autopay: string
+          p_first_payment_cents?: number
+          p_pack_id: string
+          p_plan_id: string
+          p_quantity: number
+        }
+        Returns: Json
+      }
       pt_plan_set_future_payment_method: {
         Args: {
           p_brand?: string
@@ -16826,6 +16868,9 @@ export type Database = {
           finalize_error: string | null
           finalized_at: string | null
           first_installment_date: string | null
+          first_payment_method: string | null
+          first_payment_override_cents: number | null
+          first_payment_reference: string | null
           format: Database["public"]["Enums"]["pt_format"]
           frequency_interval: number | null
           frequency_unit: string | null

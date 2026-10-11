@@ -38,6 +38,9 @@ Deno.serve(async (req) => {
       quantity = 1,
       adminNotes = null,
       testMode = false,
+      firstPaymentCents = null,
+      firstPaymentMethod = "card",
+      firstPaymentReference = null,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
@@ -46,6 +49,13 @@ Deno.serve(async (req) => {
     if (!planId) throw new Error("A payment plan must be selected");
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
+    if (!["card", "cash", "check", "external"].includes(firstPaymentMethod)) {
+      throw new Error("Invalid first payment method");
+    }
+    const customFirst = firstPaymentCents !== null && firstPaymentCents !== undefined;
+    if (customFirst && (!Number.isInteger(firstPaymentCents) || firstPaymentCents < 0)) {
+      throw new Error("First payment amount is invalid");
+    }
 
     // Verification-only sandbox route. Never used by the live sell dialog; when it
     // is set the function talks exclusively to Stripe's test account, so no real
@@ -162,11 +172,9 @@ Deno.serve(async (req) => {
     // One stable reference per sale attempt — retries reuse it end to end.
     const saleRef: string = body.saleRef ?? crypto.randomUUID();
 
-    const downCents = plan.amount_due_at_sale_cents * quantity;
-    const installmentCents = plan.installment_cents * quantity;
-    const finalCents = plan.final_installment_cents * quantity;
     const futureCount: number = plan.future_installment_count;
     const totalCents = plan.plan_total_cents * quantity;
+    const tentativeDown = customFirst ? firstPaymentCents : plan.amount_due_at_sale_cents * quantity;
 
     const { error: intentErr } = await supabase.rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: saleRef,
@@ -179,12 +187,20 @@ Deno.serve(async (req) => {
       p_notes: adminNotes,
       p_sale_type: "payment_plan",
       p_installment_count: futureCount + 1,
-      p_installment_cents: installmentCents,
+      p_installment_cents: plan.installment_cents * quantity,
       p_first_installment_date: firstAutopayDate,
-      p_amount_due_today_cents: downCents,
+      p_amount_due_today_cents: tentativeDown,
       p_payment_plan_template_id: plan.id,
     });
     if (intentErr) throw intentErr;
+
+    // Store the per-sale first-payment choices before the schedule is fixed.
+    await supabase.from("pt_sale_intents").update({
+      first_payment_override_cents: customFirst ? firstPaymentCents : null,
+      first_payment_method: firstPaymentMethod,
+      first_payment_reference: firstPaymentReference || null,
+      amount_due_today_cents: tentativeDown,
+    }).eq("idempotency_key", saleRef).is("planned_schedule", null);
 
     // Storm's authoritative dated schedule — validated and stored before any charge.
     const { data: schedRes, error: schedErr } = await supabase.rpc("pt_attach_plan_schedule", {
@@ -198,14 +214,24 @@ Deno.serve(async (req) => {
       schedule.installments ?? [];
     const futureRows = scheduleRows.filter((r) => r.installment_number > 0);
 
-    // Card processing fee is added to every charge (same gross-up as pay-in-full):
-    // fee = ceil((amount + 30) / 0.971) - amount. Plan amounts stay the package price.
-    const feeFor = (c: number) => (c > 0 ? Math.ceil((c + 30) / 0.971) - c : 0);
-    const downChargeCents = downCents + feeFor(downCents);
+    const scheduleCustom = !!schedule.first_payment_custom;
+    const downCents: number = schedule.amount_due_at_sale_cents;
+    const installmentCents: number = schedule.installment_cents;
+    const finalCents: number = schedule.final_installment_cents;
+    // Custom schedules are priced as whole amounts (quantity 1); template schedules per unit.
+    const itemQty = scheduleCustom ? 1 : quantity;
+    const unitInstallment = scheduleCustom ? installmentCents : plan.installment_cents;
+    const unitFinal = scheduleCustom ? finalCents : plan.final_installment_cents;
 
-    // 1) Amount due at sale — its own payment intent, idempotent on the sale ref.
+    // Card processing fee is added to every card charge (same gross-up as pay-in-full):
+    // fee = ceil((amount + 30) / 0.971) - amount. Cash/external first payments carry no fee.
+    const feeFor = (c: number) => (c > 0 ? Math.ceil((c + 30) / 0.971) - c : 0);
+    const chargeFirstOnCard = firstPaymentMethod === "card";
+    const downChargeCents = chargeFirstOnCard ? downCents + feeFor(downCents) : downCents;
+
+    // 1) Amount due at sale — charged on the card, or recorded as received in person/externally.
     let downPaymentIntentId: string | null = null;
-    if (downCents > 0) {
+    if (downCents > 0 && chargeFirstOnCard) {
       const pi = await stripe.paymentIntents.create({
         amount: downChargeCents,
         currency: "usd",
@@ -229,7 +255,8 @@ Deno.serve(async (req) => {
 
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
-      p_stripe_payment_intent_id: downPaymentIntentId ?? `pt_plan:${saleRef}`,
+      p_stripe_payment_intent_id: downPaymentIntentId ??
+        (chargeFirstOnCard ? `pt_plan:${saleRef}` : `${firstPaymentMethod}:${saleRef}`),
       p_amount_cents: downChargeCents,
     });
 
@@ -251,22 +278,30 @@ Deno.serve(async (req) => {
     const interval = planInterval;
     const intervalCount = planIntervalCount;
 
-    let finalPriceId = basePriceId;
-    if (finalCents !== installmentCents) {
-      const basePrice = await stripe.prices.retrieve(basePriceId);
-      const created = await stripe.prices.create({
-        product: typeof basePrice.product === "string" ? basePrice.product : (basePrice.product as any).id,
+    const basePriceObj = await stripe.prices.retrieve(basePriceId);
+    const productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
+
+    const recurringPrice = async (unitCents: number, role: string) => {
+      const p = await stripe.prices.create({
+        product: productId,
         currency: "usd",
-        unit_amount: plan.final_installment_cents,
+        unit_amount: unitCents,
         recurring: { interval, interval_count: intervalCount },
-        metadata: { pt_plan_id: plan.id, role: "final_installment" },
-      }, { idempotencyKey: `pt_plan_final_price:${testMode ? "test:" : ""}${plan.id}:${plan.final_installment_cents}` });
-      finalPriceId = created.id;
+        metadata: { pt_plan_id: plan.id, role },
+      }, { idempotencyKey: `pt_plan_${role}_price:${testMode ? "test:" : ""}${plan.id}:${interval}:${intervalCount}:${unitCents}` });
+      return p.id;
+    };
+
+    // Template schedules reuse the plan's synced price; custom first payments mint exact prices.
+    const installmentPriceId = scheduleCustom
+      ? await recurringPrice(unitInstallment, "custom_installment")
+      : basePriceId;
+    let finalPriceId = installmentPriceId;
+    if (finalCents !== installmentCents) {
+      finalPriceId = await recurringPrice(unitFinal, scheduleCustom ? "custom_final" : "final_installment");
     }
 
     // Recurring "Card processing fee" item on the same product, one per amount.
-    const basePriceObj = await stripe.prices.retrieve(basePriceId);
-    const productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
     const feePriceFor = async (feeCents: number) => {
       const p = await stripe.prices.create({
         product: productId,
@@ -279,7 +314,7 @@ Deno.serve(async (req) => {
       return p.id;
     };
     const itemsFor = async (priceId: string, phaseCents: number) => {
-      const items: any[] = [{ price: priceId, quantity }];
+      const items: any[] = [{ price: priceId, quantity: itemQty }];
       const fee = feeFor(phaseCents);
       if (fee > 0) items.push({ price: await feePriceFor(fee), quantity: 1 });
       return items;
@@ -291,7 +326,7 @@ Deno.serve(async (req) => {
     const phases: any[] = [];
     if (futureCount > 1) {
       phases.push({
-        items: await itemsFor(basePriceId, installmentCents),
+        items: await itemsFor(installmentPriceId, installmentCents),
         iterations: futureCount - 1,
         proration_behavior: "none",
         metadata: planMeta,
@@ -350,6 +385,11 @@ Deno.serve(async (req) => {
     });
     if (matErr) console.error("Failed to materialize installments:", matErr.message);
 
+    // Note how the first payment was received (card, cash, check, external).
+    await supabase.from("pt_payment_plan_installments")
+      .update({ paid_via: firstPaymentReference ? `${firstPaymentMethod}: ${firstPaymentReference}` : firstPaymentMethod })
+      .in("pass_id", passIds).eq("installment_number", 0);
+
     // Record which card the future installments will be collected on, so staff
     // see the real card on the schedule instead of guessing from the default.
     try {
@@ -362,7 +402,7 @@ Deno.serve(async (req) => {
           payment_method_last4: pmDetails.card?.last4 ?? null,
         })
         .in("pass_id", passIds)
-        .in("status", ["scheduled", "paid"]);
+        .in("status", chargeFirstOnCard ? ["scheduled", "paid"] : ["scheduled"]);
     } catch (e) {
       console.error("Could not stamp card on installments:", (e as Error).message);
     }
