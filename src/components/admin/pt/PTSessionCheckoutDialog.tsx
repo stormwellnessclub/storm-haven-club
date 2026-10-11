@@ -182,7 +182,9 @@ export function PTSessionCheckoutDialog({
                   <SelectContent>
                     {cards.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
-                        {(c.brand ?? "Card").toUpperCase()} •••• {c.last4} · exp {String(c.expMonth).padStart(2, "0")}/{String((c.expYear ?? 0) % 100).padStart(2, "0")}
+                        {c.last4
+                          ? `${(c.brand ?? "Card").toUpperCase()} •••• ${c.last4} · exp ${String(c.expMonth).padStart(2, "0")}/${String((c.expYear ?? 0) % 100).padStart(2, "0")}`
+                          : `${(c.brand ?? "Card").toUpperCase()} wallet`}
                         {c.isDefault ? " · default" : ""}
                       </SelectItem>
                     ))}
