@@ -99,6 +99,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [chargeError, setChargeError] = useState<string | null>(null);
   /** "" = pay in full; otherwise the id of a named payment plan on the pack. */
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [firstPayMethod, setFirstPayMethod] = useState<"card" | "cash" | "check" | "external">("card");
+  const [firstPayDollars, setFirstPayDollars] = useState<string>("");
+  const [firstPayRef, setFirstPayRef] = useState("");
   /** Client-specific first future autopay date — never stored on the package. */
   const [firstAutopayDate, setFirstAutopayDate] = useState<string>(
     fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"),
@@ -302,6 +305,10 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     if (!allowPayInFull && !selectedPlanId && packPlans.length > 0) setSelectedPlanId(packPlans[0].id);
   }, [packPlans, selectedPlanId, allowPayInFull]);
   const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
+  // Reset the first-payment amount to the plan default whenever the plan or quantity changes.
+  useEffect(() => {
+    setFirstPayDollars(selectedPlan ? ((selectedPlan.amount_due_at_sale_cents * quantity) / 100).toFixed(2) : "");
+  }, [selectedPlanId, quantity]);
 
   // ----- Totals -----
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
@@ -310,7 +317,12 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const futureCount = selectedPlan?.future_installment_count ?? 0;
   const withFee = (c: number) => c + calculateProcessingFee(c);
   const perInstallmentCents = selectedPlan ? withFee(selectedPlan.installment_cents * quantity) : 0;
-  const dueTodayCents = selectedPlan ? withFee(selectedPlan.amount_due_at_sale_cents * quantity) : 0;
+  const planDefaultFirstCents = selectedPlan ? selectedPlan.amount_due_at_sale_cents * quantity : 0;
+  const parsedFirst = Math.round(parseFloat(firstPayDollars) * 100);
+  const firstPayCents = Number.isFinite(parsedFirst) && parsedFirst >= 0 ? parsedFirst : planDefaultFirstCents;
+  const customFirst = !!selectedPlan && firstPayCents !== planDefaultFirstCents;
+  const firstOnCard = firstPayMethod === "card";
+  const dueTodayCents = selectedPlan ? (firstOnCard ? withFee(firstPayCents) : firstPayCents) : 0;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
   const selectedCard = cards.find((c) => c.id === selectedCardId);
@@ -324,15 +336,16 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     error: scheduleError,
     isFetching: scheduleLoading,
   } = useQuery({
-    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate],
+    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate, customFirst ? firstPayCents : null],
     enabled: planActive && !!selectedPack && !!selectedPlanId && !!firstAutopayDate,
     retry: false,
     queryFn: async (): Promise<PlanSchedule> => {
-      const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview", {
+      const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview_v2", {
         p_pack_id: selectedPack!.id,
         p_plan_id: selectedPlanId,
         p_quantity: quantity,
         p_first_autopay: firstAutopayDate,
+        p_first_payment_cents: customFirst ? firstPayCents : null,
       });
       if (error) throw new Error(error.message.replace(/^.*PT_AUTOPAY_DATE_INVALID: /, ""));
       return data as PlanSchedule;
@@ -353,6 +366,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setAdminNotes("");
     setChargeError(null);
     setSelectedPlanId("");
+    setFirstPayMethod("card");
+    setFirstPayRef("");
     setFirstAutopayDate(fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"));
     setAddCardSecret(null);
     setAddCardCustomerId(null);
@@ -458,6 +473,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             firstAutopayDate,
             saleRef: key,
             adminNotes: adminNotes || null,
+            firstPaymentCents: customFirst ? firstPayCents : null,
+            firstPaymentMethod: firstPayMethod,
+            firstPaymentReference: firstPayRef.trim() || null,
           },
         });
         if (error) throw error;
@@ -838,6 +856,52 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                           Future payments repeat on this day each period. Short months bill on the
                           last day and return to the chosen day afterwards.
                         </div>
+                        <div className="pt-2 border-t space-y-2">
+                          <Label className="text-xs">First payment (due at sale)</Label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">$</span>
+                            <Input
+                              inputMode="decimal"
+                              value={firstPayDollars}
+                              onChange={(e) => setFirstPayDollars(e.target.value.replace(/[^0-9.]/g, ""))}
+                              className="w-32"
+                            />
+                            {customFirst && (
+                              <button type="button" className="text-xs underline text-muted-foreground"
+                                onClick={() => setFirstPayDollars((planDefaultFirstCents / 100).toFixed(2))}>
+                                Use plan amount ({formatCents(planDefaultFirstCents)})
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            Change this to any amount; the rest is split evenly across the remaining payments.
+                          </div>
+                          <Label className="text-xs">How is the first payment paid?</Label>
+                          <RadioGroup value={firstPayMethod} onValueChange={(v) => setFirstPayMethod(v as any)} className="grid grid-cols-2 gap-2">
+                            {([
+                              ["card", "Charge card now"],
+                              ["cash", "Already paid — cash"],
+                              ["check", "Already paid — check"],
+                              ["external", "Already paid externally"],
+                            ] as const).map(([v, label]) => (
+                              <label key={v} className={`flex items-center gap-2 border rounded-md px-2 py-1.5 text-xs cursor-pointer ${firstPayMethod === v ? "border-primary bg-primary/5" : ""}`}>
+                                <RadioGroupItem value={v} /> {label}
+                              </label>
+                            ))}
+                          </RadioGroup>
+                          {!firstOnCard && (
+                            <Input
+                              placeholder="Reference or note (optional)"
+                              value={firstPayRef}
+                              onChange={(e) => setFirstPayRef(e.target.value)}
+                            />
+                          )}
+                          {!firstOnCard && (
+                            <div className="text-[11px] text-muted-foreground">
+                              The card is not charged today. It is only used for the future automatic payments.
+                            </div>
+                          )}
+                        </div>
                         {scheduleError && (
                           <div className="text-xs text-destructive">{(scheduleError as Error).message}</div>
                         )}
@@ -892,23 +956,25 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
               {planActive && selectedPlan ? (
                 <>
                   <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t">
-                    <span>Plan amount due at sale</span>
-                    <span>{formatCents(selectedPlan.amount_due_at_sale_cents * quantity)}</span>
+                    <span>First payment{firstOnCard ? "" : ` (already paid — ${firstPayMethod})`}</span>
+                    <span>{formatCents(firstPayCents)}</span>
                   </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Processing fee (2.9% + $0.30)</span>
-                    <span>{formatCents(dueTodayCents - selectedPlan.amount_due_at_sale_cents * quantity)}</span>
-                  </div>
+                  {firstOnCard && (
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Processing fee (2.9% + $0.30)</span>
+                      <span>{formatCents(dueTodayCents - firstPayCents)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold text-base">
-                    <span>Due at sale</span>
+                    <span>{firstOnCard ? "Charged today" : "Recorded as paid today"}</span>
                     <span>{formatCents(dueTodayCents)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Future payments (incl. fee)</span>
-                    <span>{futureCount} × {formatCents(perInstallmentCents)}</span>
+                    <span>{futureCount} × {formatCents(schedulePreview ? withFee(schedulePreview.installment_cents) : perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Each future payment adds a {formatCents(perInstallmentCents - selectedPlan.installment_cents * quantity)} processing fee.
+                    Each future payment includes the card processing fee.
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
@@ -937,20 +1003,20 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     <span className="w-28 shrink-0">
                       {row.installment_number === 0 ? "Today" : businessDate(row.due_date)}
                     </span>
-                    <span className="w-20 text-right">{formatCents(withFee(row.amount_cents))}</span>
+                    <span className="w-20 text-right">{formatCents(row.installment_number === 0 && !firstOnCard ? row.amount_cents : withFee(row.amount_cents))}</span>
                     <span className="flex-1 text-xs text-muted-foreground truncate">
-                      {row.installment_number === 0 ? cardLabel : "AutoPay"}
+                      {row.installment_number === 0 ? (firstOnCard ? cardLabel : `Paid ${firstPayMethod}`) : "AutoPay"}
                     </span>
                     <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {row.installment_number === 0 ? "Due now" : "Scheduled"}
+                      {row.installment_number === 0 ? (firstOnCard ? "Due now" : "Paid") : "Scheduled"}
                     </span>
                   </div>
                 ))}
               </div>
               <div className="pt-2 border-t space-y-1 text-sm">
                 <div className="flex justify-between"><span>Total package price (before card fees)</span><span>{formatCents(schedulePreview.total_cents)}</span></div>
-                <div className="flex justify-between"><span>Total with card fees</span><span>{formatCents(schedulePreview.installments.reduce((s, r) => s + withFee(r.amount_cents), 0))}</span></div>
-                <div className="flex justify-between"><span>Charged today</span><span>{formatCents(withFee(schedulePreview.amount_due_at_sale_cents))}</span></div>
+                <div className="flex justify-between"><span>Total with card fees</span><span>{formatCents(schedulePreview.installments.reduce((s, r) => s + (r.installment_number === 0 && !firstOnCard ? r.amount_cents : withFee(r.amount_cents)), 0))}</span></div>
+                <div className="flex justify-between"><span>{firstOnCard ? "Charged today" : "Paid today (not charged)"}</span><span>{formatCents(dueTodayCents)}</span></div>
                 <div className="flex justify-between">
                   <span>Future scheduled</span>
                   <span>{formatCents(schedulePreview.total_cents - schedulePreview.amount_due_at_sale_cents)}</span>
@@ -976,7 +1042,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           >
             {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {planActive
-              ? `Start plan · ${formatCents(dueTodayCents)} today`
+              ? (firstOnCard ? `Start plan · ${formatCents(dueTodayCents)} today` : "Record first payment & start autopay")
               : willCharge ? `Charge ${formatCents(totalCents)}` : "Record sale"}
           </Button>
         </DialogFooter>
