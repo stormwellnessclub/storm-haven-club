@@ -582,6 +582,13 @@
       "when": 1791424125181,
       "tag": "0082_pt_package_payment_status_and_auto_consume",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1791704608903,
+      "tag": "0083_pt_plan_flexible_first_payment",
+      "breakpoints": true
     }
   ]
 }
