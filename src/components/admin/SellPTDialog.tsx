@@ -971,7 +971,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                   <div className="flex justify-between text-sm">
                     <span>Future payments (incl. fee)</span>
-                    <span>{futureCount} × {formatCents(schedulePreview ? withFee(schedulePreview.installment_cents) : perInstallmentCents)}</span>
+                    <span>{futureCount} × {formatCents(schedulePreview ? withFee((schedulePreview as any).installment_cents) : perInstallmentCents)}</span>
                   </div>
                   <div className="text-xs text-muted-foreground">
                     Each future payment includes the card processing fee.
