@@ -278,22 +278,30 @@ Deno.serve(async (req) => {
     const interval = planInterval;
     const intervalCount = planIntervalCount;
 
-    let finalPriceId = basePriceId;
-    if (finalCents !== installmentCents) {
-      const basePrice = await stripe.prices.retrieve(basePriceId);
-      const created = await stripe.prices.create({
-        product: typeof basePrice.product === "string" ? basePrice.product : (basePrice.product as any).id,
+    const basePriceObj = await stripe.prices.retrieve(basePriceId);
+    const productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
+
+    const recurringPrice = async (unitCents: number, role: string) => {
+      const p = await stripe.prices.create({
+        product: productId,
         currency: "usd",
-        unit_amount: plan.final_installment_cents,
+        unit_amount: unitCents,
         recurring: { interval, interval_count: intervalCount },
-        metadata: { pt_plan_id: plan.id, role: "final_installment" },
-      }, { idempotencyKey: `pt_plan_final_price:${testMode ? "test:" : ""}${plan.id}:${plan.final_installment_cents}` });
-      finalPriceId = created.id;
+        metadata: { pt_plan_id: plan.id, role },
+      }, { idempotencyKey: `pt_plan_${role}_price:${testMode ? "test:" : ""}${plan.id}:${interval}:${intervalCount}:${unitCents}` });
+      return p.id;
+    };
+
+    // Template schedules reuse the plan's synced price; custom first payments mint exact prices.
+    const installmentPriceId = scheduleCustom
+      ? await recurringPrice(unitInstallment, "custom_installment")
+      : basePriceId;
+    let finalPriceId = installmentPriceId;
+    if (finalCents !== installmentCents) {
+      finalPriceId = await recurringPrice(unitFinal, scheduleCustom ? "custom_final" : "final_installment");
     }
 
     // Recurring "Card processing fee" item on the same product, one per amount.
-    const basePriceObj = await stripe.prices.retrieve(basePriceId);
-    const productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
     const feePriceFor = async (feeCents: number) => {
       const p = await stripe.prices.create({
         product: productId,
@@ -306,7 +314,7 @@ Deno.serve(async (req) => {
       return p.id;
     };
     const itemsFor = async (priceId: string, phaseCents: number) => {
-      const items: any[] = [{ price: priceId, quantity }];
+      const items: any[] = [{ price: priceId, quantity: itemQty }];
       const fee = feeFor(phaseCents);
       if (fee > 0) items.push({ price: await feePriceFor(fee), quantity: 1 });
       return items;
