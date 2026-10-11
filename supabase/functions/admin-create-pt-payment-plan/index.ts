@@ -38,6 +38,9 @@ Deno.serve(async (req) => {
       quantity = 1,
       adminNotes = null,
       testMode = false,
+      firstPaymentCents = null,
+      firstPaymentMethod = "card",
+      firstPaymentReference = null,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
@@ -46,6 +49,13 @@ Deno.serve(async (req) => {
     if (!planId) throw new Error("A payment plan must be selected");
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
+    if (!["card", "cash", "check", "external"].includes(firstPaymentMethod)) {
+      throw new Error("Invalid first payment method");
+    }
+    const customFirst = firstPaymentCents !== null && firstPaymentCents !== undefined;
+    if (customFirst && (!Number.isInteger(firstPaymentCents) || firstPaymentCents < 0)) {
+      throw new Error("First payment amount is invalid");
+    }
 
     // Verification-only sandbox route. Never used by the live sell dialog; when it
     // is set the function talks exclusively to Stripe's test account, so no real
