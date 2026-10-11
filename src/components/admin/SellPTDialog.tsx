@@ -327,7 +327,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const totalCents = subtotalCents + processingFeeCents;
   const selectedCard = cards.find((c) => c.id === selectedCardId);
   const cardLabel = selectedCard
-    ? `${(selectedCard.brand ?? "Card").replace(/^./, (s) => s.toUpperCase())} •••• ${selectedCard.last4}`
+    ? `${(selectedCard.brand ?? "Card").replace(/^./, (s) => s.toUpperCase())}${selectedCard.last4 ? ` •••• ${selectedCard.last4}` : ""}`
     : "Card on file";
 
   // ----- Storm's dated schedule, calculated server-side before anything is charged -----
@@ -772,10 +772,16 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                             className={`w-full text-left text-xs flex items-center gap-2 px-2 py-1.5 rounded border ${selectedCardId === c.id ? "border-primary bg-background" : "border-transparent hover:bg-muted"}`}
                           >
                             <span className="capitalize font-medium">{c.brand}</span>
-                            <span>•••• {c.last4}</span>
-                            <span className="text-muted-foreground">
-                              {String(c.expMonth ?? "").padStart(2, "0")}/{String(c.expYear ?? "").slice(-2)}
-                            </span>
+                            {c.last4 ? (
+                              <>
+                                <span>•••• {c.last4}</span>
+                                <span className="text-muted-foreground">
+                                  {String(c.expMonth ?? "").padStart(2, "0")}/{String(c.expYear ?? "").slice(-2)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground">wallet</span>
+                            )}
                             {c.isDefault && <Badge variant="secondary" className="text-[10px] py-0 h-4">Default</Badge>}
                           </button>
                         ))}

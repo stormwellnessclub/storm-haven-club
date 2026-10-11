@@ -8602,13 +8602,18 @@ serve(async (req) => {
         const customer = await stripe.customers.retrieve(stripeCustomerId);
         const defaultPmId = !customer.deleted ? (customer.invoice_settings?.default_payment_method as string | null) : null;
 
-        const pms = await stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card' });
-        const formatted = pms.data.map((pm: any) => ({
+        // Include Stripe Link wallets alongside cards — staff can make Link the default in Stripe.
+        const [cardPms, linkPms] = await Promise.all([
+          stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'card', limit: 100 }),
+          stripe.paymentMethods.list({ customer: stripeCustomerId, type: 'link', limit: 100 }).catch(() => ({ data: [] as any[] })),
+        ]);
+        const formatted = [...cardPms.data, ...linkPms.data].map((pm: any) => ({
           id: pm.id,
-          brand: pm.card?.brand,
-          last4: pm.card?.last4,
-          expMonth: pm.card?.exp_month,
-          expYear: pm.card?.exp_year,
+          type: pm.type,
+          brand: pm.type === 'link' ? 'Link' : pm.card?.brand,
+          last4: pm.type === 'link' ? null : pm.card?.last4,
+          expMonth: pm.card?.exp_month ?? null,
+          expYear: pm.card?.exp_year ?? null,
           nickname: pm.metadata?.nickname || null,
           isDefault: pm.id === defaultPmId,
           createdAt: new Date(pm.created * 1000).toISOString(),
