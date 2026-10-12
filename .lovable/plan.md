@@ -1,7 +1,15 @@
 # Lymphatic Body Roller — Member Presale Campaign
 
 ## What members get
-A presale page plus one polished launch email. Both use your three machine photos, the maroon/espresso/gold Storm look, and no stock or AI images.
+A presale page plus a campaign of four polished emails. They use your three machine photos, the maroon/espresso/gold Storm look, and no stock or AI images.
+
+Campaign emails:
+1. **Launch:** the presale is open.
+2. **Halfway reminder:** around day 15.
+3. **Last chance:** 2–3 days before the sale ends.
+4. **Machine arrived:** goes only to buyers, telling them booking is open.
+
+Each email is sent only when you press its button. Nothing sends on its own.
 
 Member presale prices (regular prices shown crossed out):
 
