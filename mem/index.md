@@ -2,3 +2,4 @@
 - [Apply Anon Insert](mem://features/membership/apply-anon-insert) — Never read the row back on the public application insert; keep form-optional columns nullable
 
 - [Therapist Pay Rates](mem://features/spa/therapist-pay-rates) — Teresa $35/hr service, $26/hr turnover; cash tips in appt notes
+- [Body Roller Presale](mem://features/promotions/body-roller-presale) — Regular/presale prices, red light included, creative emails
