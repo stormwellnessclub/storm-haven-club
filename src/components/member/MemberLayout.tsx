@@ -21,9 +21,18 @@ import { AchievementCelebrationHost } from "./AchievementCelebrationHost";
 
 import { WifiBanner } from "./WifiBanner";
 import { PWAInstallPrompt } from "./PWAInstallPrompt";
-import { User, MessageCircle, Snowflake } from "lucide-react";
+import { User, MessageCircle, Snowflake, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { useUserMembership } from "@/hooks/useUserMembership";
 import { usePaymentStatus } from "@/hooks/usePaymentStatus";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -37,6 +46,8 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
   const { data: membership } = useUserMembership();
   const { hasPaymentIssues, isInitiationFeePaid } = usePaymentStatus();
   const { profile } = useUserProfile();
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
   
   const isPendingActivation = membership?.status === "pending_activation";
 
@@ -150,14 +161,35 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
                     <span className="hidden sm:inline text-xs">Support</span>
                   </Link>
                 </Button>
-                <Button variant="ghost" size="icon" className="touch-target" aria-label="Open account menu">
-                  <User className="h-5 w-5" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="touch-target" aria-label="Open account menu">
+                      <User className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link to="/member/profile">My account</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/member/support">Support</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={async () => {
+                        await signOut();
+                        navigate("/auth");
+                      }}
+                    >
+                      <LogOut className="h-4 w-4 mr-2" /> Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </header>
             <PWAInstallPrompt />
             <SmsOptInGate />
-            <main className="p-4 sm:p-6 pb-20 md:pb-6 safe-area-bottom">
+            <main className="p-4 sm:p-6 pb-32 md:pb-6 safe-area-bottom">
               {children}
             </main>
           </SidebarInset>

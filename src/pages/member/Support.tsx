@@ -186,7 +186,7 @@ export default function Support() {
                     <div className="flex items-center justify-center h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
                   ) : (
                     <>
-                      <ScrollArea className="h-[400px] px-4">
+                      <ScrollArea className="h-[50vh] md:h-[400px] px-4">
                         <div className="space-y-4 py-4">
                           <div className="rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground flex items-start gap-2">
                             <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
