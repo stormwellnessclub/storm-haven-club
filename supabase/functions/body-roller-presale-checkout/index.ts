@@ -61,7 +61,6 @@ serve(async (req) => {
       customer_email: customers.data[0] ? undefined : user.email,
       line_items: [
         { price: opt.price_id, quantity: 1 },
-        { price_data: { currency: "usd", unit_amount: t.tax, product_data: { name: "Michigan Sales Tax (6%)" } }, quantity: 1 },
         { price_data: { currency: "usd", unit_amount: t.fee, product_data: { name: "Card Processing Fee" } }, quantity: 1 },
       ],
       ui_mode: "embedded",

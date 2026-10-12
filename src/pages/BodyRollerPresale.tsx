@@ -148,7 +148,7 @@ export default function BodyRollerPresale() {
         </div>
         <div className="grid md:grid-cols-2 gap-6">{column(30)}{column(60)}</div>
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          For active members. 6% Michigan sales tax and card fee added at checkout
+          For active members. Card processing fee added at checkout
           (e.g. a {usd(3500)} session totals {usd(presaleTotals(3500).total)}).
         </p>
         <div id="non-members" className="mt-16 border border-border/60 bg-card p-8 max-w-3xl mx-auto">

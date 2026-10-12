@@ -15,9 +15,9 @@ export const PRESALE_OPTIONS: Record<string, {
   "nm_60_single": { price_id: "price_1UPebMLyZrsSqLhs7ucmYTbZ", audience: "non_member", label: "60-Minute Session (Non-Member)", duration: 60, sessions: 1, cents: 9000, regular_cents: 9000 },
 };
 
-/** 6% MI tax, then card fee gross-up (total + $0.30) / (1 - 0.029). */
+/** No sales tax (services); card fee gross-up (total + $0.30) / (1 - 0.029). */
 export function presaleTotals(subtotal: number) {
-  const tax = Math.round(subtotal * 0.06);
+  const tax = 0; // Michigan does not tax services
   const base = subtotal + tax;
   const total = Math.round((base + 30) / (1 - 0.029));
   return { subtotal, tax, fee: total - base, total };
@@ -99,7 +99,7 @@ function shell(bg: string, inner: string, footerDark = true) {
 }
 
 const fine = (endsLabel: string, color: string) => `<p style="margin:22px 0 0;text-align:center;font-family:${SANS};font-size:11px;line-height:1.8;color:${color};">
-  Member pricing &middot; Presale ends ${endsLabel} &middot; All sessions expire 6 months after purchase<br/>6% Michigan sales tax and card fee added at checkout<br/>
+  Member pricing &middot; Presale ends ${endsLabel} &middot; All sessions expire 6 months after purchase<br/>
   <em style="font-family:${SERIF};font-size:13px;">Estimated arrival early November. Arrival date subject to change.</em></p>`;
 
 export function buildPresaleEmail(kind: EmailKind, firstName: string | null, endsLabel: string): string {
