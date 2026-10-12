@@ -8,14 +8,26 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { PRESALE_OPTIONS, NON_MEMBER_OPTIONS, presaleTotals, usd } from "@/lib/bodyRollerPresale";
+import { loadStripe } from "@stripe/stripe-js";
+import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import hero from "@/assets/body-roller/Image_9.jpeg.asset.json";
 import legs from "@/assets/body-roller/Image_16.jpeg.asset.json";
 import machine from "@/assets/body-roller/Image_57.jpeg.asset.json";
+
+let stripeInstancePromise: ReturnType<typeof loadStripe> | null = null;
+function getStripeInstance() {
+  if (!stripeInstancePromise) {
+    stripeInstancePromise = supabase.functions.invoke("stripe-config").then(({ data }) => loadStripe(data?.publishableKey || ""));
+  }
+  return stripeInstancePromise;
+}
 
 export default function BodyRollerPresale() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState<string | null>(null);
+  const [checkout, setCheckout] = useState<{ secret: string; label: string } | null>(null);
   const [confirmed, setConfirmed] = useState<{ label: string; expires_at: string } | null>(null);
 
   const { data: settings } = useQuery({
@@ -44,14 +56,15 @@ export default function BodyRollerPresale() {
     setBusy(key);
     try {
       const { data, error } = await supabase.functions.invoke("body-roller-presale-checkout", { body: { option: key } });
-      if (error || !data?.url) {
+      if (error || !data?.clientSecret) {
         let msg = data?.error;
         try { msg = msg || (await (error as any)?.context?.json())?.error; } catch { /* ignore */ }
         throw new Error(msg || "Could not start checkout");
       }
-      window.location.href = data.url;
+      setCheckout({ secret: data.clientSecret, label: data.label });
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
       setBusy(null);
     }
   };
@@ -84,6 +97,16 @@ export default function BodyRollerPresale() {
 
   return (
     <Layout>
+      <Dialog open={!!checkout} onOpenChange={(o) => !o && setCheckout(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="font-serif">Reserve — {checkout?.label}</DialogTitle></DialogHeader>
+          {checkout && (
+            <EmbeddedCheckoutProvider key={checkout.secret} stripe={getStripeInstance()} options={{ clientSecret: checkout.secret }}>
+              <EmbeddedCheckout />
+            </EmbeddedCheckoutProvider>
+          )}
+        </DialogContent>
+      </Dialog>
       <section className="relative min-h-[70vh] flex items-end overflow-hidden">
         <img src={hero.url} alt="The Lymphatic Body Roller at Storm Wellness Club" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />

@@ -64,14 +64,14 @@ serve(async (req) => {
         { price_data: { currency: "usd", unit_amount: t.tax, product_data: { name: "Michigan Sales Tax (6%)" } }, quantity: 1 },
         { price_data: { currency: "usd", unit_amount: t.fee, product_data: { name: "Card Processing Fee" } }, quantity: 1 },
       ],
-      success_url: `${origin}/body-roller-presale?success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/body-roller-presale?cancelled=1`,
+      ui_mode: "embedded",
+      return_url: `${origin}/body-roller-presale?success=1&session_id={CHECKOUT_SESSION_ID}`,
       metadata: meta,
       payment_intent_data: { description: `Body Roller Presale — ${opt.label}`, metadata: meta },
     });
 
     await supabase.from("body_roller_presale_purchases").update({ stripe_session_id: checkout.id }).eq("id", purchase.id);
-    return json({ url: checkout.url });
+    return json({ clientSecret: checkout.client_secret, label: opt.label });
   } catch (e: any) {
     console.error("[body-roller-presale-checkout]", e);
     return json({ error: e?.message ?? "Checkout failed" }, 400);
