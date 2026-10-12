@@ -11,6 +11,7 @@ import { SmsTemplatesTab } from "@/components/admin/marketing/SmsTemplatesTab";
 import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
 import { ContactsTab } from "@/components/admin/marketing/ContactsTab";
 import { AnnouncementsTab } from "@/components/admin/marketing/AnnouncementsTab";
+import { BodyRollerPresaleTab } from "@/components/admin/marketing/BodyRollerPresaleTab";
 import { Megaphone, MessageSquare, Coffee, Mail, Bell, MessageCircle } from "lucide-react";
 
 export default function Marketing() {
@@ -43,6 +44,7 @@ export default function Marketing() {
             <TabsList className="w-max flex-nowrap">
               <TabsTrigger value="guests">Guests</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
+              <TabsTrigger value="body-roller">Body Roller Presale</TabsTrigger>
               <TabsTrigger value="announcements" className="gap-1.5">
                 <Bell className="h-3.5 w-3.5" /> Announcements
               </TabsTrigger>
@@ -70,6 +72,9 @@ export default function Marketing() {
           </TabsContent>
           <TabsContent value="members">
             <MemberMarketingTab />
+          </TabsContent>
+          <TabsContent value="body-roller">
+            <BodyRollerPresaleTab />
           </TabsContent>
           <TabsContent value="announcements">
             <AnnouncementsTab />
