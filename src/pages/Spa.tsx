@@ -3,6 +3,8 @@ import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
+import bodyRollerHero from "@/assets/body-roller/Image_9.jpeg.asset.json";
+import { PRESALE_OPTIONS, NON_MEMBER_OPTIONS, usd } from "@/lib/bodyRollerPresale";
 import { Clock, Star, Users, Info, ShieldCheck, CreditCard, ExternalLink, Loader2, Gift } from "lucide-react";
 import { RedeemVoucherDialog } from "@/components/spa/RedeemVoucherDialog";
 import { useState, useEffect } from "react";
@@ -396,6 +398,39 @@ export default function Spa() {
         </div>
       </section>
 
+
+      {/* Lymphatic Body Roller presale — Recovery & Massage */}
+      <section className="py-14 bg-background border-b border-border">
+        <div className="container mx-auto px-6 grid md:grid-cols-2 gap-10 items-center">
+          <img src={bodyRollerHero.url} alt="The Lymphatic Body Roller at Storm Wellness Club" className="w-full h-80 object-cover" loading="lazy" />
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-accent mb-2">Recovery &amp; Massage · Presale</p>
+            <h2 className="font-serif text-3xl mb-3">Lymphatic Body Roller</h2>
+            <p className="text-muted-foreground mb-6">
+              Warm, rhythmic compression across sculpted wooden rollers to encourage circulation, ease tension and leave the body lighter. Arriving early November — reserve your sessions now.
+            </p>
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div className="border border-border p-4">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Member presale</p>
+                {PRESALE_OPTIONS.filter((o) => o.sessions === 1).map((o) => (
+                  <p key={o.key}>{o.duration} min <span className="line-through text-muted-foreground mx-1">{usd(o.regular_cents)}</span><strong>{usd(o.cents)}</strong></p>
+                ))}
+                <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3000)}/session</p>
+              </div>
+              <div className="border border-border p-4">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Non-members</p>
+                {NON_MEMBER_OPTIONS.map((o) => (
+                  <p key={o.key}>{o.duration} min <strong>{usd(o.cents)}</strong></p>
+                ))}
+                <p className="text-xs text-muted-foreground mt-2">Reserve early at the regular price</p>
+              </div>
+            </div>
+            <Button variant="gold" size="lg" asChild>
+              <Link to="/body-roller-presale">Buy Presale</Link>
+            </Button>
+          </div>
+        </div>
+      </section>
 
       {/* Member Discounts Banner */}
       <section className="py-6 bg-secondary/50 border-b border-border">

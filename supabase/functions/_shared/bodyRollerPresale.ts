@@ -2,14 +2,17 @@
 // Keep OPTIONS in sync with src/lib/bodyRollerPresale.ts.
 
 export const PRESALE_OPTIONS: Record<string, {
-  price_id: string; label: string; duration: 30 | 60; sessions: number; cents: number; regular_cents: number;
+  price_id: string; audience: "member" | "non_member"; label: string; duration: 30 | 60; sessions: number; cents: number; regular_cents: number;
 }> = {
-  "30_single": { price_id: "price_1UPeVcLyZrsSqLhs5jEDphcQ", label: "30-Minute Session", duration: 30, sessions: 1, cents: 3500, regular_cents: 4900 },
-  "30_5pack": { price_id: "price_1UPeVdLyZrsSqLhs0y2jMqWk", label: "30-Minute 5-Pack", duration: 30, sessions: 5, cents: 15000, regular_cents: 24500 },
-  "30_10pack": { price_id: "price_1UPeVeLyZrsSqLhsZdWnmHwV", label: "30-Minute 10-Pack", duration: 30, sessions: 10, cents: 30000, regular_cents: 49000 },
-  "60_single": { price_id: "price_1UPeVfLyZrsSqLhsZHYz2KCD", label: "60-Minute Session", duration: 60, sessions: 1, cents: 7000, regular_cents: 9000 },
-  "60_5pack": { price_id: "price_1UPeVfLyZrsSqLhsBzkZzYCb", label: "60-Minute 5-Pack", duration: 60, sessions: 5, cents: 32500, regular_cents: 45000 },
-  "60_10pack": { price_id: "price_1UPeVgLyZrsSqLhsYfd7rLOJ", label: "60-Minute 10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 90000 },
+  "30_single": { price_id: "price_1UPeVcLyZrsSqLhs5jEDphcQ", audience: "member", label: "30-Minute Session", duration: 30, sessions: 1, cents: 3500, regular_cents: 4900 },
+  "30_5pack": { price_id: "price_1UPeVdLyZrsSqLhs0y2jMqWk", audience: "member", label: "30-Minute 5-Pack", duration: 30, sessions: 5, cents: 15000, regular_cents: 24500 },
+  "30_10pack": { price_id: "price_1UPeVeLyZrsSqLhsZdWnmHwV", audience: "member", label: "30-Minute 10-Pack", duration: 30, sessions: 10, cents: 30000, regular_cents: 49000 },
+  "60_single": { price_id: "price_1UPeVfLyZrsSqLhsZHYz2KCD", audience: "member", label: "60-Minute Session", duration: 60, sessions: 1, cents: 7000, regular_cents: 9000 },
+  "60_5pack": { price_id: "price_1UPeVfLyZrsSqLhsBzkZzYCb", audience: "member", label: "60-Minute 5-Pack", duration: 60, sessions: 5, cents: 32500, regular_cents: 45000 },
+  "60_10pack": { price_id: "price_1UPeVgLyZrsSqLhsYfd7rLOJ", audience: "member", label: "60-Minute 10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 90000 },
+  // Non-member early purchase at regular price (singles only for now).
+  "nm_30_single": { price_id: "price_1UPebMLyZrsSqLhsxsaxaBhA", audience: "non_member", label: "30-Minute Session (Non-Member)", duration: 30, sessions: 1, cents: 4900, regular_cents: 4900 },
+  "nm_60_single": { price_id: "price_1UPebMLyZrsSqLhs7ucmYTbZ", audience: "non_member", label: "60-Minute Session (Non-Member)", duration: 60, sessions: 1, cents: 9000, regular_cents: 9000 },
 };
 
 /** 6% MI tax, then card fee gross-up (total + $0.30) / (1 - 0.029). */

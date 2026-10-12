@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { PRESALE_OPTIONS, presaleTotals, usd } from "@/lib/bodyRollerPresale";
+import { PRESALE_OPTIONS, NON_MEMBER_OPTIONS, presaleTotals, usd } from "@/lib/bodyRollerPresale";
 import hero from "@/assets/body-roller/Image_9.jpeg.asset.json";
 import legs from "@/assets/body-roller/Image_16.jpeg.asset.json";
 import machine from "@/assets/body-roller/Image_57.jpeg.asset.json";
@@ -28,7 +28,7 @@ export default function BodyRollerPresale() {
     : "";
 
   useEffect(() => {
-    document.title = "Lymphatic Body Roller Member Presale | Storm Wellness Club";
+    document.title = "Lymphatic Body Roller Presale | Storm Wellness Club";
     const sid = params.get("session_id");
     if (params.get("success") && sid && user) {
       supabase.functions.invoke("body-roller-presale-confirm", { body: { session_id: sid } }).then(({ data }) => {
@@ -128,7 +128,28 @@ export default function BodyRollerPresale() {
           For active members. 6% Michigan sales tax and card fee added at checkout
           (e.g. a {usd(3500)} session totals {usd(presaleTotals(3500).total)}).
         </p>
-        <p className="mt-2 text-center text-sm italic text-muted-foreground">Estimated arrival early November. Arrival date subject to change.</p>
+        <div id="non-members" className="mt-16 border border-border/60 bg-card p-8 max-w-3xl mx-auto">
+          <p className="text-xs tracking-[0.3em] text-accent mb-1">NON-MEMBERS</p>
+          <h3 className="font-serif text-2xl mb-2">Reserve early</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Not a member? Reserve a session now at the regular price and it will be waiting for you when the machine arrives.
+            Sessions expire 6 months after purchase. Sign in or create an account to reserve.
+          </p>
+          <div className="divide-y divide-border/60">
+            {NON_MEMBER_OPTIONS.map((o) => (
+              <div key={o.key} className="flex items-center justify-between gap-4 py-4">
+                <p className="font-medium">{o.short}</p>
+                <div className="flex items-center gap-4">
+                  <span className="font-serif text-xl">{usd(o.cents)}</span>
+                  <Button size="sm" variant="outline" disabled={ended || !!busy} onClick={() => reserve(o.key)}>
+                    {busy === o.key ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reserve"}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <p className="mt-6 text-center text-sm italic text-muted-foreground">Estimated arrival early November. Arrival date subject to change.</p>
 
         <div className="grid grid-cols-2 gap-4 mt-16">
           <img src={legs.url} alt="A Body Roller session" className="w-full h-80 object-cover" loading="lazy" />
