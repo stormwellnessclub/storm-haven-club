@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
+import { BodyRollerPresaleCard } from "@/components/member/BodyRollerPresaleCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -162,6 +163,7 @@ export default function MemberCredits() {
   return (
     <MemberLayout title="My Credits">
       <div className="space-y-6">
+        <BodyRollerPresaleCard />
         {/* Complimentary Guest Pass Card */}
         {credits?.isMember && (
           credits?.guestPassCredits && credits.guestPassCredits.credits_remaining > 0 ? (

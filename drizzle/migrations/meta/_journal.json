@@ -589,6 +589,13 @@
       "when": 1791704608903,
       "tag": "0083_pt_plan_flexible_first_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1791793397086,
+      "tag": "0084_body_roller_presale",
+      "breakpoints": true
     }
   ]
 }

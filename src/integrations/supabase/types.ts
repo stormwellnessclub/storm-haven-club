@@ -609,6 +609,96 @@ export type Database = {
           },
         ]
       }
+      body_roller_presale_purchases: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          duration_minutes: number
+          expires_at: string | null
+          fee_cents: number
+          id: string
+          label: string
+          member_id: string | null
+          option_key: string
+          paid_at: string | null
+          sessions_total: number
+          sessions_used: number
+          status: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          subtotal_cents: number
+          tax_cents: number
+          total_cents: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          duration_minutes: number
+          expires_at?: string | null
+          fee_cents?: number
+          id?: string
+          label: string
+          member_id?: string | null
+          option_key: string
+          paid_at?: string | null
+          sessions_total: number
+          sessions_used?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          subtotal_cents: number
+          tax_cents?: number
+          total_cents: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          duration_minutes?: number
+          expires_at?: string | null
+          fee_cents?: number
+          id?: string
+          label?: string
+          member_id?: string | null
+          option_key?: string
+          paid_at?: string | null
+          sessions_total?: number
+          sessions_used?: number
+          status?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          subtotal_cents?: number
+          tax_cents?: number
+          total_cents?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      body_roller_presale_settings: {
+        Row: {
+          booking_open: boolean
+          ends_at: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          booking_open?: boolean
+          ends_at: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          booking_open?: boolean
+          ends_at?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cafe_credit_ledger: {
         Row: {
           amount_cents: number
