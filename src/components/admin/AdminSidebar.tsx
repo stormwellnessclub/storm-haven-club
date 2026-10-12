@@ -155,6 +155,7 @@ const departments: DepartmentSection[] = [
     items: [
       { title: "Appointments", url: "/admin/appointments", icon: Calendar },
       { title: "Spa Management", url: "/admin/spa-management", icon: Calendar },
+      { title: "Body Roller Presale", url: "/admin/marketing?tab=body-roller", icon: Sparkles },
       { title: "Mother's Day 💛", url: "/admin/mothers-day", icon: Heart, highlight: true },
       { title: "MD Class Packs 🎁", url: "/admin/mothers-day-class-packs", icon: Heart, highlight: true },
       { title: "Front Desk POS", url: "/admin/front-desk", icon: Sparkles },
