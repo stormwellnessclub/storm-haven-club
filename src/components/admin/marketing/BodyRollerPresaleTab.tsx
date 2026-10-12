@@ -95,7 +95,7 @@ export function BodyRollerPresaleTab() {
         <CardHeader>
           <CardTitle>Lymphatic Body Roller — Member Presale</CardTitle>
           <CardDescription>
-            {rows.length} purchases · {usd(totalCents)} in sales before tax ·{" "}
+            {rows.length} purchases · {usd(totalCents)} in sales before fees ·{" "}
             <a href="/body-roller-presale" target="_blank" className="underline inline-flex items-center gap-1">Open presale page <ExternalLink className="h-3 w-3" /></a>
           </CardDescription>
         </CardHeader>

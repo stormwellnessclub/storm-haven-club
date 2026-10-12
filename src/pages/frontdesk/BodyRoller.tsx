@@ -66,7 +66,7 @@ export default function FrontDeskBodyRollerPage() {
                   <span>{o.short}</span><span>{usd(o.cents)}</span>
                 </div>
               ))}
-              <p className="text-xs text-muted-foreground mt-3">6% Michigan tax and card fee are added at checkout. Guests buy online from the presale page.</p>
+              <p className="text-xs text-muted-foreground mt-3">Card processing fee is added at checkout. Guests buy online from the presale page.</p>
             </div>
           </CardContent>
         </Card>

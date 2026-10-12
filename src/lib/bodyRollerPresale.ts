@@ -18,7 +18,7 @@ export const NON_MEMBER_OPTIONS: PresaleOption[] = [
 ];
 
 export function presaleTotals(subtotal: number) {
-  const tax = Math.round(subtotal * 0.06);
+  const tax = 0; // Michigan does not tax services
   const base = subtotal + tax;
   const total = Math.round((base + 30) / (1 - 0.029));
   return { subtotal, tax, fee: total - base, total };
