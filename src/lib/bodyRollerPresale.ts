@@ -11,6 +11,12 @@ export const PRESALE_OPTIONS: PresaleOption[] = [
   { key: "60_10pack", label: "60-Minute 10-Pack", short: "10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 90000 },
 ];
 
+/** Non-member early purchase — regular prices, singles only for now. */
+export const NON_MEMBER_OPTIONS: PresaleOption[] = [
+  { key: "nm_30_single", audience: "non_member", label: "30-Minute Session (Non-Member)", short: "30-Minute Session", duration: 30, sessions: 1, cents: 4900, regular_cents: 4900 },
+  { key: "nm_60_single", audience: "non_member", label: "60-Minute Session (Non-Member)", short: "60-Minute Session", duration: 60, sessions: 1, cents: 9000, regular_cents: 9000 },
+];
+
 export function presaleTotals(subtotal: number) {
   const tax = Math.round(subtotal * 0.06);
   const base = subtotal + tax;
