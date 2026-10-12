@@ -193,6 +193,7 @@ import FrontDeskMembersPage from "./pages/frontdesk/Members";
 import FrontDeskNonMembersPage from "./pages/frontdesk/NonMembers";
 import FrontDeskNonMemberDetailPage from "./pages/frontdesk/NonMemberDetail";
 import FrontDeskGuestPassesPage from "./pages/frontdesk/GuestPassesPage";
+import FrontDeskBodyRollerPage from "./pages/frontdesk/BodyRoller";
 import FrontDeskSpaPage from "./pages/frontdesk/Spa";
 import FrontDeskCafePage from "./pages/frontdesk/Cafe";
 import FrontDeskClassRosterPage from "./pages/frontdesk/ClassRoster";
@@ -395,6 +396,7 @@ const App = () => (
               <Route path="/frontdesk/non-members" element={<ProtectedFrontDeskRoute><FrontDeskNonMembersPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/non-members/:userId" element={<ProtectedFrontDeskRoute><FrontDeskNonMemberDetailPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/guest-passes" element={<ProtectedFrontDeskRoute><FrontDeskGuestPassesPage /></ProtectedFrontDeskRoute>} />
+              <Route path="/frontdesk/body-roller" element={<ProtectedFrontDeskRoute><FrontDeskBodyRollerPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/spa" element={<ProtectedFrontDeskRoute><FrontDeskSpaPage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/cafe" element={<ProtectedFrontDeskRoute><FrontDeskCafePage /></ProtectedFrontDeskRoute>} />
               <Route path="/frontdesk/class-roster/:sessionId" element={<ProtectedFrontDeskRoute><FrontDeskClassRosterPage /></ProtectedFrontDeskRoute>} />

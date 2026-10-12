@@ -32,6 +32,7 @@ const TABS = [
   { key: "non-members", label: "Non-Members",  to: "/frontdesk/non-members",  icon: UserSearch },
   { key: "guest",       label: "Guest Passes", to: "/frontdesk/guest-passes", icon: Ticket },
   { key: "spa",         label: "Spa",          to: "/frontdesk/spa",          icon: Sparkles },
+  { key: "body-roller", label: "Body Roller",  to: "/frontdesk/body-roller",  icon: Sparkles },
   { key: "schedule",    label: "Schedule",     to: "/frontdesk/schedule",     icon: GraduationCap },
   { key: "events",      label: "Events",       to: "/frontdesk/events",       icon: Ticket },
   { key: "pos",         label: "POS",          to: "/frontdesk/pos",          icon: ShoppingBag },

@@ -39,8 +39,8 @@ serve(async (req) => {
     const t = presaleTotals(opt.cents);
     let name: string | null = member ? [member.first_name, member.last_name].filter(Boolean).join(" ") || null : null;
     if (!name) {
-      const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
-      name = (prof as any)?.full_name ?? null;
+      const { data: prof } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", user.id).maybeSingle();
+      name = prof ? [(prof as any).first_name, (prof as any).last_name].filter(Boolean).join(" ") || null : null;
     }
 
     const { data: purchase, error: insErr } = await supabase.from("body_roller_presale_purchases").insert({
