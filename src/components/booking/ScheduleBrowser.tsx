@@ -314,8 +314,8 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       <section
         className={
           embedded
-            ? "py-3 bg-background border-b border-border sticky top-0 z-30"
-            : "py-6 bg-background border-b border-border sticky top-20 z-40"
+            ? "py-3 bg-background border-b border-border md:sticky md:top-0 z-30"
+            : "py-3 md:py-6 bg-background border-b border-border md:sticky md:top-20 z-40"
         }
       >
         <div className={embedded ? "" : "container mx-auto px-6"}>
