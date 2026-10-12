@@ -97,6 +97,16 @@ export default function BodyRollerPresale() {
 
   return (
     <Layout>
+      <Dialog open={!!checkout} onOpenChange={(o) => !o && setCheckout(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="font-serif">Reserve — {checkout?.label}</DialogTitle></DialogHeader>
+          {checkout && (
+            <EmbeddedCheckoutProvider key={checkout.secret} stripe={getStripeInstance()} options={{ clientSecret: checkout.secret }}>
+              <EmbeddedCheckout />
+            </EmbeddedCheckoutProvider>
+          )}
+        </DialogContent>
+      </Dialog>
       <section className="relative min-h-[70vh] flex items-end overflow-hidden">
         <img src={hero.url} alt="The Lymphatic Body Roller at Storm Wellness Club" className="absolute inset-0 h-full w-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
