@@ -4,11 +4,11 @@ export type PresaleOption = { key: string; audience?: "member" | "non_member"; l
 
 export const PRESALE_OPTIONS: PresaleOption[] = [
   { key: "30_single", label: "30-Minute Session", short: "Single", duration: 30, sessions: 1, cents: 3500, regular_cents: 4900 },
-  { key: "30_5pack", label: "30-Minute 5-Pack", short: "5-Pack", duration: 30, sessions: 5, cents: 15000, regular_cents: 24500 },
+  { key: "30_5pack", label: "30-Minute 5-Pack", short: "5-Pack", duration: 30, sessions: 5, cents: 15000, regular_cents: 23000 },
   { key: "30_10pack", label: "30-Minute 10-Pack", short: "10-Pack", duration: 30, sessions: 10, cents: 30000, regular_cents: 49000 },
   { key: "60_single", label: "60-Minute Session", short: "Single", duration: 60, sessions: 1, cents: 7000, regular_cents: 9000 },
   { key: "60_5pack", label: "60-Minute 5-Pack", short: "5-Pack", duration: 60, sessions: 5, cents: 32500, regular_cents: 45000 },
-  { key: "60_10pack", label: "60-Minute 10-Pack", short: "10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 90000 },
+  { key: "60_10pack", label: "60-Minute 10-Pack", short: "10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 80000 },
 ];
 
 /** Non-member early purchase — regular prices, singles only for now. */
