@@ -75,7 +75,7 @@ export function HomeReviews() {
           <Link to="/reviews" className="inline-flex items-center justify-center gap-2 border border-foreground px-8 py-3 text-sm tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors">
             Class reviews <ArrowRight className="h-4 w-4" />
           </Link>
-          <Link to="/spa?tab=reviews" className="inline-flex items-center justify-center gap-2 border border-foreground px-8 py-3 text-sm tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors">
+          <Link to="/spa?view=reviews" className="inline-flex items-center justify-center gap-2 border border-foreground px-8 py-3 text-sm tracking-widest uppercase hover:bg-foreground hover:text-background transition-colors">
             Spa reviews <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
