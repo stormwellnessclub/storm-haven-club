@@ -40,6 +40,7 @@ import aellaLogo from "@/assets/aella-logo-mark.png";
 import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
 import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
 import { SpaReviewsTab } from "@/components/spa/SpaReviewsTab";
+import { useSpaServiceRatings } from "@/hooks/useSpaReviews";
 
 const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
 
@@ -62,6 +63,7 @@ export default function Spa() {
   const [selectedCategory, setSelectedCategory] = useState(categoryFromUrl || "All");
   const tabFromUrl = searchParams.get("view");
   const [view, setView] = useState<"services" | "reviews">(tabFromUrl === "reviews" ? "reviews" : "services");
+  const { data: serviceRatings = {} } = useSpaServiceRatings();
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
@@ -546,6 +548,21 @@ export default function Spa() {
                       <span className="text-xs uppercase tracking-wider text-muted-foreground">
                         {service.category}
                       </span>
+                      {serviceRatings[service.id]?.review_count > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => { setView("reviews"); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                          className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          <span className="flex">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <Star key={n} className={`w-3.5 h-3.5 ${n <= Math.round(serviceRatings[service.id].average_rating) ? "fill-gold text-gold" : "text-muted-foreground/30"}`} />
+                            ))}
+                          </span>
+                          <span>{serviceRatings[service.id].average_rating.toFixed(1)}</span>
+                          <span className="underline">{serviceRatings[service.id].review_count} review{serviceRatings[service.id].review_count === 1 ? "" : "s"}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                   
