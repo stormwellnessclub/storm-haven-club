@@ -930,6 +930,22 @@ serve(async (req) => {
             }
           }
 
+          // Body Roller presale: mark paid server-side so it never depends on the buyer's redirect.
+          if (metadata.type === 'body_roller_presale' && metadata.purchase_id && session.payment_status === 'paid') {
+            try {
+              const paidAt = new Date();
+              const expires = new Date(paidAt); expires.setMonth(expires.getMonth() + 6);
+              const piId = typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as Stripe.PaymentIntent | null)?.id ?? null;
+              await supabase.from('body_roller_presale_purchases').update({
+                status: 'paid', paid_at: paidAt.toISOString(), expires_at: expires.toISOString(),
+                stripe_payment_intent_id: piId,
+              }).eq('id', metadata.purchase_id).eq('stripe_session_id', session.id).eq('status', 'pending');
+              logStep('Body Roller presale marked paid', { purchaseId: metadata.purchase_id });
+            } catch (e) {
+              logError(e, 'BODY_ROLLER_PRESALE_PAID');
+            }
+          }
+
           if (metadata.event_invoice_id) {
             try {
               const piId = typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as Stripe.PaymentIntent | null)?.id;
