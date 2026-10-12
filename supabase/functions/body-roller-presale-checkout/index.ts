@@ -1,4 +1,4 @@
-// Creates a Stripe Checkout session for a Body Roller member presale purchase (active members only).
+// Creates a Stripe Checkout session for a Body Roller presale purchase (member presale options need an active member; non-member options are regular price).
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -32,14 +32,19 @@ serve(async (req) => {
     const { data: members } = await supabase
       .from("members").select("id, first_name, last_name, email, status, user_id")
       .or(`user_id.eq.${user.id},email.ilike.${user.email}`);
-    const member = (members ?? []).find((m: any) => m.status === "active");
-    if (!member) return json({ error: "This presale is for active members." }, 403);
+    const member: any = (members ?? []).find((m: any) => m.status === "active") ?? null;
+    if (opt.audience === "member" && !member) return json({ error: "Member presale pricing is for active members. Non-members can reserve at the regular price." }, 403);
+    if (opt.audience === "non_member" && member) return json({ error: "As an active member, please use member presale pricing." }, 400);
 
     const t = presaleTotals(opt.cents);
-    const name = [member.first_name, member.last_name].filter(Boolean).join(" ") || null;
+    let name: string | null = member ? [member.first_name, member.last_name].filter(Boolean).join(" ") || null : null;
+    if (!name) {
+      const { data: prof } = await supabase.from("profiles").select("full_name").eq("user_id", user.id).maybeSingle();
+      name = (prof as any)?.full_name ?? null;
+    }
 
     const { data: purchase, error: insErr } = await supabase.from("body_roller_presale_purchases").insert({
-      user_id: user.id, member_id: member.id, customer_email: user.email, customer_name: name,
+      user_id: user.id, member_id: member?.id ?? null, customer_email: user.email, customer_name: name,
       option_key: option, label: opt.label, duration_minutes: opt.duration, sessions_total: opt.sessions,
       subtotal_cents: t.subtotal, tax_cents: t.tax, fee_cents: t.fee, total_cents: t.total, status: "pending",
     }).select().single();

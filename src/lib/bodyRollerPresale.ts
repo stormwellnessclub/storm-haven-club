@@ -1,6 +1,6 @@
 // Display copy of the Body Roller member presale options.
 // Server source of truth: supabase/functions/_shared/bodyRollerPresale.ts — keep in sync.
-export type PresaleOption = { key: string; label: string; short: string; duration: 30 | 60; sessions: number; cents: number; regular_cents: number };
+export type PresaleOption = { key: string; audience?: "member" | "non_member"; label: string; short: string; duration: 30 | 60; sessions: number; cents: number; regular_cents: number };
 
 export const PRESALE_OPTIONS: PresaleOption[] = [
   { key: "30_single", label: "30-Minute Session", short: "Single", duration: 30, sessions: 1, cents: 3500, regular_cents: 4900 },
