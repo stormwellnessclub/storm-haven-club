@@ -48,14 +48,18 @@ export function useMembersBillingIssues() {
       const { data: arrears, error: arrearsError } = await supabase
         .from("billing_arrears")
         .select("member_id, amount_due_cents, amount_paid_cents, status")
-        .in("status", ["unpaid", "partial"]);
+        .in("status", ["unpaid", "partial", "processing"]);
 
       if (arrearsError) throw arrearsError;
 
       const membersWithFailedPayments = new Set(
         (arrears || [])
-          .filter((a) => (a.amount_due_cents ?? 0) > (a.amount_paid_cents ?? 0))
+          .filter((a) => a.status !== "processing" && (a.amount_due_cents ?? 0) > (a.amount_paid_cents ?? 0))
           .map((a) => a.member_id)
+      );
+      // Bank (ACH) dues payments still clearing — not past due while they settle
+      const membersWithClearingPayment = new Set(
+        (arrears || []).filter((a) => a.status === "processing").map((a) => a.member_id)
       );
 
       const now = new Date();
@@ -80,7 +84,9 @@ export function useMembersBillingIssues() {
         const duesShort = isAnnualDues ? 'Annual Dues Past Due' : 'Past Due';
 
         // Subscription checks
-        if (!isCashBilling && (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired')) {
+        if (membersWithClearingPayment.has(member.id)) {
+          issues.push({ type: "warning", code: "bank_payment_clearing", message: "Dues paid by bank transfer — still clearing", shortLabel: "Bank payment clearing" });
+        } else if (!isCashBilling && (memberAny.subscription_status === 'incomplete' || memberAny.subscription_status === 'incomplete_expired')) {
           issues.push({ type: "error", code: "subscription_incomplete", message: "Initial payment failed - subscription never started", shortLabel: "Payment Failed" });
           missingSubscription++;
         } else if (!isCashBilling && (memberAny.subscription_status === 'past_due')) {
