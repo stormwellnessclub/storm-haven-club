@@ -60,10 +60,10 @@ export default function FrontDeskBodyRollerPage() {
               ))}
             </div>
             <div>
-              <p className="font-medium mb-2">Non-members (regular price)</p>
+              <p className="font-medium mb-2">Non-member presale</p>
               {NON_MEMBER_OPTIONS.map((o) => (
                 <div key={o.key} className="flex justify-between py-1 border-b border-border/50">
-                  <span>{o.short}</span><span>{usd(o.cents)}</span>
+                  <span>{o.short}</span><span><span className="line-through text-muted-foreground mr-2">{usd(o.regular_cents)}</span>{usd(o.cents)}</span>
                 </div>
               ))}
               <p className="text-xs text-muted-foreground mt-3">Guests buy online from the presale page.</p>

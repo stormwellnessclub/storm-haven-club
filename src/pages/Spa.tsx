@@ -420,11 +420,11 @@ export default function Spa() {
                 <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3000)}/session</p>
               </div>
               <div className="border border-border p-4">
-                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Non-members</p>
-                {NON_MEMBER_OPTIONS.map((o) => (
-                  <p key={o.key}>{o.duration} min <strong>{usd(o.cents)}</strong></p>
+                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Non-member presale</p>
+                {NON_MEMBER_OPTIONS.filter((o) => o.sessions === 1).map((o) => (
+                  <p key={o.key}>{o.duration} min <span className="line-through text-muted-foreground mx-1">{usd(o.regular_cents)}</span><strong>{usd(o.cents)}</strong></p>
                 ))}
-                <p className="text-xs text-muted-foreground mt-2">Reserve early at the regular price</p>
+                <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3600)}/session</p>
               </div>
             </div>
             <Button variant="gold" size="lg" asChild>

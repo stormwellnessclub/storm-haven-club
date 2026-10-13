@@ -8,13 +8,17 @@ export const PRESALE_OPTIONS: PresaleOption[] = [
   { key: "30_10pack", label: "30-Minute 10-Pack", short: "10-Pack", duration: 30, sessions: 10, cents: 30000, regular_cents: 49000 },
   { key: "60_single", label: "60-Minute Session", short: "Single", duration: 60, sessions: 1, cents: 7000, regular_cents: 9000 },
   { key: "60_5pack", label: "60-Minute 5-Pack", short: "5-Pack", duration: 60, sessions: 5, cents: 32500, regular_cents: 45000 },
-  { key: "60_10pack", label: "60-Minute 10-Pack", short: "10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 80000 },
+  { key: "60_10pack", label: "60-Minute 10-Pack", short: "10-Pack", duration: 60, sessions: 10, cents: 50000, regular_cents: 80000 },
 ];
 
-/** Non-member early purchase — regular prices, singles only for now. */
+/** Non-member presale pricing. */
 export const NON_MEMBER_OPTIONS: PresaleOption[] = [
-  { key: "nm_30_single", audience: "non_member", label: "30-Minute Session (Non-Member)", short: "30-Minute Session", duration: 30, sessions: 1, cents: 4900, regular_cents: 4900 },
-  { key: "nm_60_single", audience: "non_member", label: "60-Minute Session (Non-Member)", short: "60-Minute Session", duration: 60, sessions: 1, cents: 9000, regular_cents: 9000 },
+  { key: "nm_30_single", audience: "non_member", label: "30-Minute Session (Non-Member)", short: "30-Minute Session", duration: 30, sessions: 1, cents: 4000, regular_cents: 4900 },
+  { key: "nm_30_5pack", audience: "non_member", label: "30-Minute 5-Pack (Non-Member)", short: "30-Minute 5-Pack", duration: 30, sessions: 5, cents: 19000, regular_cents: 23000 },
+  { key: "nm_30_10pack", audience: "non_member", label: "30-Minute 10-Pack (Non-Member)", short: "30-Minute 10-Pack", duration: 30, sessions: 10, cents: 36000, regular_cents: 49000 },
+  { key: "nm_60_single", audience: "non_member", label: "60-Minute Session (Non-Member)", short: "60-Minute Session", duration: 60, sessions: 1, cents: 7000, regular_cents: 9000 },
+  { key: "nm_60_5pack", audience: "non_member", label: "60-Minute 5-Pack (Non-Member)", short: "60-Minute 5-Pack", duration: 60, sessions: 5, cents: 35000, regular_cents: 45000 },
+  { key: "nm_60_10pack", audience: "non_member", label: "60-Minute 10-Pack (Non-Member)", short: "60-Minute 10-Pack", duration: 60, sessions: 10, cents: 60000, regular_cents: 80000 },
 ];
 
 export function presaleTotals(subtotal: number) {

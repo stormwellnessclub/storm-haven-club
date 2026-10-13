@@ -21,10 +21,14 @@ const KINDS = [
   { kind: "halfway", title: "Halfway reminder", who: "active members" },
   { kind: "last_chance", title: "Last-chance reminder", who: "active members" },
   { kind: "arrived", title: "Machine arrived", who: "presale buyers only" },
+  { kind: "nm_launch", title: "Non-member launch announcement", who: "registered non-members" },
+  { kind: "nm_halfway", title: "Non-member halfway reminder", who: "registered non-members" },
+  { kind: "nm_last_chance", title: "Non-member last-chance reminder", who: "registered non-members" },
 ] as const;
 const KEYS: Record<string, string> = {
   launch: "body_roller_presale_launch", halfway: "body_roller_presale_halfway",
   last_chance: "body_roller_presale_last_chance", arrived: "body_roller_presale_arrived",
+  nm_launch: "body_roller_presale_nm_launch", nm_halfway: "body_roller_presale_nm_halfway", nm_last_chance: "body_roller_presale_nm_last_chance",
 };
 
 export function BodyRollerPresaleTab() {
