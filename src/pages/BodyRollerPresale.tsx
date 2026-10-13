@@ -46,6 +46,7 @@ export default function BodyRollerPresale() {
     if (params.get("success") && sid && user) {
       supabase.functions.invoke("body-roller-presale-confirm", { body: { session_id: sid } }).then(({ data }) => {
         if (data?.status === "paid") setConfirmed({ label: data.label, expires_at: data.expires_at });
+        else if (data?.status === "processing") setConfirmed({ label: data.label, expires_at: "" });
         setParams({}, { replace: true });
       });
     }
