@@ -223,16 +223,27 @@ serve(async (req) => {
   }
   if (body?.countOnly) return json({ ok: true, total: recipients.length, counts: (body as any)._counts });
 
-  const { data: sentRows } = await supabase.from("email_audit_log").select("recipient_email").eq("email_type", meta.key).eq("status", "sent");
-  const already = new Set((sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
+  // Page through every past send (a single select caps at 1,000 rows and would cause duplicates).
+  const already = new Set<string>();
+  for (let f = 0; ; f += 1000) {
+    const { data } = await supabase.from("email_audit_log").select("recipient_email").eq("email_type", meta.key).eq("status", "sent").order("id").range(f, f + 999);
+    for (const r of data ?? []) already.add(String((r as any).recipient_email || "").toLowerCase());
+    if (!data || data.length < 1000) break;
+  }
 
   if (body?.listOnly) {
     return json({ ok: true, total: recipients.length, recipients: recipients.map((r) => ({ email: r.email, name: r.name, source: r.source ?? null, already_sent: already.has(r.email) })) });
   }
 
+  // Each run sends for at most ~100s, then hands off to a fresh run of itself so long lists
+  // never get cut off by the function time limit. Already-sent people are skipped every run.
+  const started = Date.now();
+  const BUDGET_MS = 100_000;
   let queued = 0, skipped = 0; const errors: any[] = [];
+  let remaining = 0;
   for (const r of recipients) {
     if (!r.email || already.has(r.email)) { skipped++; continue; }
+    if (Date.now() - started > BUDGET_MS) { remaining++; continue; }
     try {
       const built = buildPresaleEmail(kind, r.first, endsLabel);
       const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: await addOpenPixel(await trackLinks(built, r.email, kind), r.email, kind), text: toText(built), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
@@ -242,5 +253,16 @@ serve(async (req) => {
       await new Promise((res) => setTimeout(res, 550)); // stay under Resend rate limit
     } catch (e: any) { errors.push({ email: r.email, error: e?.message }); }
   }
-  return json({ ok: true, queued, skipped, total: recipients.length, errors: errors.slice(0, 20) });
+  const round = Number(body?._round ?? 0);
+  const continuing = remaining > 0 && round < 40;
+  if (continuing) {
+    const next = fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-body-roller-presale-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+      body: JSON.stringify({ kind, extraEmails: body?.extraEmails ?? [], _round: round + 1 }),
+    }).then((r) => r.text()).catch((e) => console.error("[body-roller] continuation failed", e?.message));
+    // @ts-ignore EdgeRuntime is provided by the runtime
+    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(next);
+  }
+  return json({ ok: true, queued, skipped, remaining, continuing, total: recipients.length, errors: errors.slice(0, 20) });
 });
