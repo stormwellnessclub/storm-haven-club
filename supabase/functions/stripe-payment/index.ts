@@ -265,7 +265,8 @@ async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> 
   
   // Search for existing product
   const products = await stripe.products.search({
-    query: "name:'Processing Fee'",
+    // Only reuse an ACTIVE product — an archived one makes every checkout fail
+    query: "name:'Processing Fee' AND active:'true'",
     limit: 1,
   });
   

@@ -227,7 +227,7 @@ let processingFeeProductId: string | null = null;
 
 async function getOrCreateProcessingFeeProduct(stripe: Stripe): Promise<string> {
   if (processingFeeProductId) return processingFeeProductId;
-  const products = await stripe.products.search({ query: "name:'Processing Fee'", limit: 1 });
+  const products = await stripe.products.search({ query: "name:'Processing Fee' AND active:'true'", limit: 1 });
   if (products.data.length > 0) {
     processingFeeProductId = products.data[0].id;
     return processingFeeProductId!;
