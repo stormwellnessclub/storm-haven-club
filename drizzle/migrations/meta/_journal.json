@@ -652,6 +652,13 @@
       "when": 1791881018138,
       "tag": "0092_targeted_sms",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1791881073760,
+      "tag": "0093_fix_person_activity",
+      "breakpoints": true
     }
   ]
 }
