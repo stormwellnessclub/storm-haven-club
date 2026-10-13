@@ -1,3 +1,4 @@
+import { PersonActivityCard } from "@/components/admin/PersonActivityCard";
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -1314,6 +1315,8 @@ export default function MemberDetail() {
             </TooltipProvider>
           </div>
         </div>
+
+        <PersonActivityCard email={member.email} />
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">

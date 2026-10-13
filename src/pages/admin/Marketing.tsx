@@ -7,6 +7,8 @@ import { ReferralCampaignTab } from "@/components/admin/marketing/ReferralCampai
 import { TemplatesTab } from "@/components/admin/marketing/TemplatesTab";
 import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytics";
 import { EmailSendAnalytics } from "@/components/admin/marketing/EmailSendAnalytics";
+import { TargetedSmsTab } from "@/components/admin/marketing/TargetedSmsTab";
+import { ClassSmsWording } from "@/components/admin/marketing/ClassSmsWording";
 import { SmsBlastTab } from "@/components/admin/marketing/SmsBlastTab";
 import { SmsTemplatesTab } from "@/components/admin/marketing/SmsTemplatesTab";
 import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
@@ -55,6 +57,9 @@ export default function Marketing() {
               <TabsTrigger value="cafe" className="gap-1.5">
                 <Coffee className="h-3.5 w-3.5" /> Cafe
               </TabsTrigger>
+              <TabsTrigger value="targeted-sms" className="gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" /> Targeted Texts
+              </TabsTrigger>
               <TabsTrigger value="sms" className="gap-1.5">
                 <MessageSquare className="h-3.5 w-3.5" /> SMS Blast
               </TabsTrigger>
@@ -86,10 +91,14 @@ export default function Marketing() {
           <TabsContent value="cafe">
             <CafeSalesTab />
           </TabsContent>
+          <TabsContent value="targeted-sms">
+            <TargetedSmsTab />
+          </TabsContent>
           <TabsContent value="sms">
             <SmsBlastTab />
           </TabsContent>
-          <TabsContent value="sms-templates">
+          <TabsContent value="sms-templates" className="space-y-6">
+            <ClassSmsWording />
             <SmsTemplatesTab />
           </TabsContent>
           <TabsContent value="referrals">
