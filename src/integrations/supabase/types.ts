@@ -5266,7 +5266,6 @@ export type Database = {
         Row: {
           amount: number
           application_id: string | null
-          arrears_settled_at: string | null
           charged_by: string | null
           created_at: string
           description: string
@@ -5287,7 +5286,6 @@ export type Database = {
         Insert: {
           amount: number
           application_id?: string | null
-          arrears_settled_at?: string | null
           charged_by?: string | null
           created_at?: string
           description: string
@@ -5308,7 +5306,6 @@ export type Database = {
         Update: {
           amount?: number
           application_id?: string | null
-          arrears_settled_at?: string | null
           charged_by?: string | null
           created_at?: string
           description?: string
@@ -15190,6 +15187,10 @@ export type Database = {
       approve_event_guest_request: {
         Args: { _amount_cents?: number; _request_id: string }
         Returns: Json
+      }
+      arm_body_roller_send: {
+        Args: { _id: string; _send_at: string }
+        Returns: undefined
       }
       assert_kiosk_staff: { Args: never; Returns: undefined }
       award_class_milestones: {
