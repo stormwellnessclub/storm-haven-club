@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import hero from "@/assets/body-roller/Image_9.jpeg.asset.json";
 import legs from "@/assets/body-roller/Image_16.jpeg.asset.json";
 import machine from "@/assets/body-roller/Image_57.jpeg.asset.json";
+import loopVideo from "@/assets/body-roller/body-roller-loop.mp4.asset.json";
 
 let stripeInstancePromise: ReturnType<typeof loadStripe> | null = null;
 function getStripeInstance() {
@@ -140,6 +141,18 @@ export default function BodyRollerPresale() {
             <div key={t}><h2 className="font-serif text-2xl mb-2">{t}</h2><p className="text-sm text-muted-foreground">{d}</p></div>
           ))}
         </div>
+
+        <video
+          src={loopVideo.url}
+          poster={machine.url}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-label="The Lymphatic Body Roller in motion"
+          className="w-full aspect-video object-cover mb-16"
+        />
 
         <div className="text-center mb-10">
           <h2 className="font-serif text-3xl mb-2">Member presale pricing</h2>
