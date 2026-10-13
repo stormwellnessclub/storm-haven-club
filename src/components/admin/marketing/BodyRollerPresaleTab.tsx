@@ -7,10 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { BodyRollerSendDialog } from "./BodyRollerSendDialog";
 import { toast } from "sonner";
 import { Download, Eye, Loader2, Mail, Send, ExternalLink } from "lucide-react";
 import { usd } from "@/lib/bodyRollerPresale";
@@ -82,10 +79,10 @@ export function BodyRollerPresaleTab() {
     } catch (e: any) { toast.error(e.message || "Preview failed"); } finally { setBusy(null); }
   };
 
-  const send = async (kind: string, test: boolean) => {
+  const send = async (kind: string, test: boolean, extraEmails: string[] = []) => {
     setBusy(`${test ? "t" : "b"}-${kind}`);
     try {
-      const { data: r, error } = await supabase.functions.invoke(FN, { body: test ? { kind, testEmail } : { kind } });
+      const { data: r, error } = await supabase.functions.invoke(FN, { body: test ? { kind, testEmail } : { kind, extraEmails } });
       if (error) throw error;
       if (test) { if (!r?.ok) throw new Error(r?.error); toast.success(`Test sent to ${r.sentTo}`); }
       else { toast.success(`Sent ${r.queued} (${r.skipped} skipped)`); qc.invalidateQueries({ queryKey: ["admin-body-roller-presale"] }); }
@@ -152,21 +149,8 @@ export function BodyRollerPresaleTab() {
                 <Button size="sm" variant="outline" onClick={() => send(k.kind, true)} disabled={!!busy || !testEmail}>
                   {busy === `t-${k.kind}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4 mr-1" />}Test
                 </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button size="sm" disabled={!!busy}>{busy === `b-${k.kind}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}Send</Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Send "{k.title}"?</AlertDialogTitle>
-                      <AlertDialogDescription>This emails all {k.who}. It may take a minute or two.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => send(k.kind, false)}>Send emails</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <BodyRollerSendDialog kind={k.kind} title={k.title} disabled={!!busy} busy={busy === `b-${k.kind}`}
+                  onSend={(extraEmails) => send(k.kind, false, extraEmails)} />
               </div>
             </div>
           ))}

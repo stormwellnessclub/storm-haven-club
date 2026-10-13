@@ -15,6 +15,13 @@ const corsHeaders = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const FROM = "Storm Wellness Club <admin@stormwellnessclub.com>";
+// One-click unsubscribe + plain-text copy: both are inbox-placement signals Gmail/Yahoo check for bulk mail.
+const UNSUB_HEADERS = { "List-Unsubscribe": "<mailto:admin@stormwellnessclub.com?subject=Unsubscribe>" };
+const toText = (html: string) => html
+  .replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, "$2 ($1)")
+  .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n").replace(/<[^>]+>/g, "")
+  .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&mdash;/g, "—")
+  .replace(/[ \t]+/g, " ").replace(/\n\s*\n\s*\n+/g, "\n\n").trim();
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -44,20 +51,20 @@ serve(async (req) => {
   if (body?.testEmail) {
     const email = String(body.testEmail).trim().toLowerCase();
     if (!(await isAllowedTestRecipient(req, email))) return json({ error: "Test emails can only go to club addresses or your own email" }, 403);
-    const resp: any = await resend.emails.send({ from: FROM, to: [email], subject: `[TEST] ${meta.subject}`, html: buildPresaleEmail(kind, "Team", endsLabel), reply_to: "admin@stormwellnessclub.com" });
+    const resp: any = await resend.emails.send({ from: FROM, to: [email], subject: `[TEST] ${meta.subject}`, html: buildPresaleEmail(kind, "Team", endsLabel), text: toText(buildPresaleEmail(kind, "Team", endsLabel)), headers: UNSUB_HEADERS, reply_to: "admin@stormwellnessclub.com" });
     await supabase.from("email_audit_log").insert({ recipient_email: email, email_type: `${meta.key}_test`, trigger_source: "admin_test", triggered_by: triggeredBy, subject: `[TEST] ${meta.subject}`, status: resp?.error ? "failed" : "sent", error_message: resp?.error?.message ?? null });
     return resp?.error ? json({ ok: false, error: resp.error.message }) : json({ ok: true, sentTo: email });
   }
 
   // Recipients
-  let recipients: { email: string; first: string | null; name: string | null; member_id: string | null }[] = [];
+  let recipients: { email: string; first: string | null; name: string | null; member_id: string | null; source?: string }[] = [];
   if (kind === "arrived") {
     const { data } = await supabase.from("body_roller_presale_purchases").select("customer_email, customer_name, member_id").eq("status", "paid");
     const seen = new Set<string>();
     for (const r of data ?? []) {
       const e = String(r.customer_email || "").toLowerCase();
       if (!e || seen.has(e)) continue; seen.add(e);
-      recipients.push({ email: e, first: (r.customer_name ?? "").split(" ")[0] || null, name: r.customer_name, member_id: r.member_id });
+      recipients.push({ email: e, first: (r.customer_name ?? "").split(" ")[0] || null, name: r.customer_name, member_id: r.member_id, source: "buyer" });
     }
   } else if (kind.startsWith("nm_")) {
     // Non-members: imported contacts + non-member accounts + registered profiles, de-duplicated,
@@ -95,29 +102,46 @@ serve(async (req) => {
           const e = norm(p.email);
           if (!e || !e.includes("@") || exclude.has(e) || seen.has(e)) continue;
           seen.add(e); counts[src]++;
-          recipients.push({ email: e, first: p.first_name ?? null, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null, member_id: null });
+          recipients.push({ email: e, first: p.first_name ?? null, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null, member_id: null, source: src });
         }
       };
       add(contacts, "imported"); add(nonMembers, "portal_accounts"); add(profs, "other_accounts");
-      if (body?.countOnly) return json({ ok: true, total: recipients.length, counts });
+      (body as any)._counts = counts;
     } catch (e: any) {
       return json({ error: e?.message ?? "Failed to load recipients" }, 500);
     }
   } else {
     const { data, error } = await supabase.from("members").select("id, first_name, last_name, email").eq("status", "active");
     if (error) return json({ error: error.message }, 500);
-    recipients = (data ?? []).map((m: any) => ({ email: String(m.email || "").trim().toLowerCase(), first: m.first_name ?? null, name: [m.first_name, m.last_name].filter(Boolean).join(" ") || null, member_id: m.id }));
+    recipients = (data ?? []).map((m: any) => ({ email: String(m.email || "").trim().toLowerCase(), first: m.first_name ?? null, name: [m.first_name, m.last_name].filter(Boolean).join(" ") || null, member_id: m.id, source: "member" }));
   }
-  if (body?.countOnly) return json({ ok: true, total: recipients.length });
+  // Extra people the admin added by hand (still never blocked or unsubscribed addresses).
+  const extras: string[] = Array.isArray(body?.extraEmails)
+    ? [...new Set(body.extraEmails.map((e: any) => String(e || "").trim().toLowerCase()).filter((e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)))].slice(0, 500) as string[]
+    : [];
+  if (extras.length) {
+    const [{ data: bl }, { data: unsub }] = await Promise.all([
+      supabase.from("blocked_persons").select("email").in("email", extras),
+      supabase.from("marketing_contacts").select("email").in("email", extras).not("unsubscribed_at", "is", null),
+    ]);
+    const no = new Set([...(bl ?? []), ...(unsub ?? [])].map((r: any) => String(r.email).toLowerCase()));
+    const have = new Set(recipients.map((r) => r.email));
+    for (const e of extras) if (!no.has(e) && !have.has(e)) { recipients.push({ email: e, first: null, name: null, member_id: null, source: "added" }); have.add(e); }
+  }
+  if (body?.countOnly) return json({ ok: true, total: recipients.length, counts: (body as any)._counts });
 
   const { data: sentRows } = await supabase.from("email_audit_log").select("recipient_email").eq("email_type", meta.key).eq("status", "sent");
   const already = new Set((sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
+
+  if (body?.listOnly) {
+    return json({ ok: true, total: recipients.length, recipients: recipients.map((r) => ({ email: r.email, name: r.name, source: r.source ?? null, already_sent: already.has(r.email) })) });
+  }
 
   let queued = 0, skipped = 0; const errors: any[] = [];
   for (const r of recipients) {
     if (!r.email || already.has(r.email)) { skipped++; continue; }
     try {
-      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: buildPresaleEmail(kind, r.first, endsLabel), reply_to: "admin@stormwellnessclub.com" });
+      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: buildPresaleEmail(kind, r.first, endsLabel), text: toText(buildPresaleEmail(kind, r.first, endsLabel)), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
       const status = resp?.error ? "failed" : "sent";
       await supabase.from("email_audit_log").insert({ recipient_email: r.email, recipient_name: r.name, email_type: meta.key, trigger_source: "admin_blast", triggered_by: triggeredBy, member_id: r.member_id, subject: meta.subject, status, error_message: resp?.error?.message ?? null });
       if (status === "sent") { queued++; already.add(r.email); } else errors.push({ email: r.email, error: resp?.error?.message });
