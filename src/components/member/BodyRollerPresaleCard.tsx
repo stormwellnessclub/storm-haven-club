@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles } from "lucide-react";
 
-/** Member Credits: shows reserved Body Roller presale sessions, or a link to the presale while open. */
+/** Member Credits + non-member Passes: shows the signed-in person's Body Roller presale sessions. */
 export function BodyRollerPresaleCard() {
   const { user } = useAuth();
   const { data } = useQuery({
@@ -15,7 +15,11 @@ export function BodyRollerPresaleCard() {
     enabled: !!user,
     queryFn: async () => {
       const [{ data: rows }, { data: s }] = await Promise.all([
-        supabase.from("body_roller_presale_purchases").select("id,label,sessions_total,sessions_used,expires_at").eq("status", "paid").order("paid_at", { ascending: false }),
+        supabase.from("body_roller_presale_purchases")
+          .select("id,label,sessions_total,sessions_used,expires_at,status")
+          .eq("user_id", user!.id)
+          .in("status", ["paid", "processing"])
+          .order("created_at", { ascending: false }),
         supabase.from("body_roller_presale_settings").select("ends_at, booking_open").eq("id", 1).maybeSingle(),
       ]);
       return { rows: rows ?? [], settings: s };
@@ -35,7 +39,7 @@ export function BodyRollerPresaleCard() {
         <CardDescription>
           {data.rows.length
             ? data.settings?.booking_open ? "Your sessions are ready to book." : "Reserved. Booking opens when the machine arrives (estimated early November)."
-            : "Member presale pricing is open now."}
+            : "Presale pricing is open now."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -43,9 +47,13 @@ export function BodyRollerPresaleCard() {
           <div key={r.id} className="flex items-center justify-between border-b border-border/50 pb-2 text-sm">
             <div>
               <p className="font-medium">Body Roller — {r.label}</p>
-              {r.expires_at && <p className="text-xs text-muted-foreground">Expires {new Date(r.expires_at).toLocaleDateString("en-US", { timeZone: "America/Detroit" })}</p>}
+              {r.status === "processing"
+                ? <p className="text-xs text-muted-foreground">Bank payment clearing — usually 3–5 business days</p>
+                : r.expires_at && <p className="text-xs text-muted-foreground">Expires {new Date(r.expires_at).toLocaleDateString("en-US", { timeZone: "America/Detroit" })}</p>}
             </div>
-            <Badge variant="secondary">{r.sessions_total - r.sessions_used} of {r.sessions_total} {data.settings?.booking_open ? "left" : "reserved"}</Badge>
+            <Badge variant={r.status === "processing" ? "outline" : "secondary"}>
+              {r.status === "processing" ? "Processing" : `${r.sessions_total - r.sessions_used} of ${r.sessions_total} ${data.settings?.booking_open ? "left" : "reserved"}`}
+            </Badge>
           </div>
         ))}
         {open && <Button asChild variant="outline" size="sm"><Link to="/body-roller-presale">{data.rows.length ? "Reserve more" : "See presale pricing"}</Link></Button>}

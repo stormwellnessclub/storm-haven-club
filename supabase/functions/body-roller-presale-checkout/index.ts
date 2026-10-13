@@ -57,6 +57,8 @@ serve(async (req) => {
 
     const checkout = await stripe.checkout.sessions.create({
       mode: "payment",
+      // Card/Link only so the purchase lands instantly (bank transfers take days to clear).
+      payment_method_types: ["card", "link"],
       customer: customers.data[0]?.id,
       customer_email: customers.data[0] ? undefined : user.email,
       line_items: [

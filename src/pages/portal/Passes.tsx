@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { ClassPassPurchaseSuccessDialog } from "@/components/class-passes/ClassPassPurchaseSuccessDialog";
 import { PromoBanner } from "@/components/marketing/PromoBanner";
 import { MyPTPassesSection } from "@/components/portal/MyPTPassesSection";
+import { BodyRollerPresaleCard } from "@/components/member/BodyRollerPresaleCard";
 import { GUEST_PASS_COLUMNS } from "@/lib/guestPassStatus";
 
 export default function PortalPasses() {
@@ -91,6 +92,7 @@ export default function PortalPasses() {
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       <div className="max-w-3xl space-y-6">
         <MyPTPassesSection />
+        <BodyRollerPresaleCard />
         <PromoBanner className="rounded-lg" />
         <div className="flex items-center justify-end gap-3">
           <Button variant="outline" asChild>

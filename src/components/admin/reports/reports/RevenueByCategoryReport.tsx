@@ -19,7 +19,7 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
       const startDate = format(dateRange.start, 'yyyy-MM-dd');
       const endDate = format(dateRange.end, 'yyyy-MM-dd');
 
-      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, eventsRes] = await Promise.all([
+      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, eventsRes, rollerRes] = await Promise.all([
         supabase.from('manual_charges').select('amount, description, created_at')
           .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
         supabase.from('cafe_orders').select('total_amount')
@@ -32,7 +32,18 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
           .gte('purchased_at', startDate).lte('purchased_at', endDate),
         supabase.from('event_tickets').select('amount_cents, created_at')
           .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'paid'),
+        supabase.from('body_roller_presale_purchases').select('label, subtotal_cents, member_id')
+          .gte('paid_at', startDate).lte('paid_at', `${endDate}T23:59:59`).eq('status', 'paid'),
       ]);
+      const rollerByItem: Record<string, { count: number; value: number }> = {};
+      let rollerRevenue = 0;
+      (rollerRes.data || []).forEach((r: any) => {
+        const amt = (Number(r.subtotal_cents) || 0) / 100;
+        rollerRevenue += amt;
+        const k = r.label || 'Body Roller';
+        rollerByItem[k] = rollerByItem[k] || { count: 0, value: 0 };
+        rollerByItem[k].count += 1; rollerByItem[k].value += amt;
+      });
 
       let membershipRevenue = 0, initiationFees = 0, annualFees = 0, otherCharges = 0;
       (chargesRes.data || []).forEach(c => {
@@ -50,23 +61,27 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
       const guestPassRevenue = (guestPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
       const eventsRevenue = (eventsRes.data || []).reduce((s, t) => s + ((Number(t.amount_cents) || 0) / 100), 0);
 
-      return [
+      const categories = [
         { name: 'Memberships', value: membershipRevenue },
         { name: 'Initiation Fees', value: initiationFees },
         { name: 'Annual Fees', value: annualFees },
         { name: 'Café / Juice Bar', value: cafeRevenue },
         { name: 'Spa Services', value: spaRevenue },
+        { name: 'Spa · Recovery — Body Roller', value: rollerRevenue },
         { name: 'Class Passes', value: classRevenue },
         { name: 'Guest Passes', value: guestPassRevenue },
         { name: 'Events', value: eventsRevenue },
         { name: 'Other', value: otherCharges },
       ].filter(item => item.value > 0);
+      return { categories, rollerByItem };
     },
   });
 
   if (isLoading) return <Skeleton className="h-[400px] w-full" />;
 
-  const total = (data || []).reduce((sum, item) => sum + item.value, 0);
+  const cats = data?.categories || [];
+  const rollerItems = Object.entries(data?.rollerByItem || {}).sort((a, b) => b[1].value - a[1].value);
+  const total = cats.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <div className="space-y-6">
@@ -76,9 +91,9 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
         <CardContent>
           <ResponsiveContainer width="100%" height={450}>
             <PieChart>
-              <Pie data={data} cx="50%" cy="50%" labelLine={false}
+              <Pie data={cats} cx="50%" cy="50%" labelLine={false}
                 outerRadius={150} dataKey="value">
-                {(data || []).map((_, i) => (
+                {cats.map((_, i) => (
                   <Cell key={i} fill={COLORS[i % COLORS.length]} />
                 ))}
               </Pie>
@@ -94,7 +109,7 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
         <CardHeader><CardTitle className="text-lg">Category Breakdown</CardTitle></CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {(data || []).map((item, i) => (
+            {cats.map((item, i) => (
               <div key={item.name} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
@@ -115,6 +130,22 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
           </div>
         </CardContent>
       </Card>
+
+      {rollerItems.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Spa · Recovery — Body Roller by item</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {rollerItems.map(([label, v]) => (
+                <div key={label} className="flex items-center justify-between text-sm">
+                  <span className="font-medium">{label}</span>
+                  <span><span className="text-muted-foreground mr-3">{v.count} sold</span><span className="font-semibold">${v.value.toLocaleString()}</span></span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
