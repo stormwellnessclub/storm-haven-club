@@ -5,6 +5,7 @@ import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserMembership } from "@/hooks/useUserMembership";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { PRESALE_OPTIONS, NON_MEMBER_OPTIONS, presaleTotals, usd } from "@/lib/bodyRollerPresale";
@@ -26,6 +27,7 @@ function getStripeInstance() {
 
 export default function BodyRollerPresale() {
   const { user } = useAuth();
+  const { data: myMembership } = useUserMembership();
   const [params, setParams] = useSearchParams();
   const [busy, setBusy] = useState<string | null>(null);
   const [checkout, setCheckout] = useState<{ secret: string; label: string } | null>(null);
@@ -130,9 +132,13 @@ export default function BodyRollerPresale() {
             <div>
               <p className="font-serif text-xl">Reserved: {confirmed.label}</p>
               <p className="text-sm text-muted-foreground">
-                Your sessions are in your account and can be booked once the machine arrives. They expire{" "}
-                {new Date(confirmed.expires_at).toLocaleDateString("en-US", { timeZone: "America/Detroit", month: "long", day: "numeric", year: "numeric" })}.{" "}
-                <Link to="/member/credits" className="underline">View my credits</Link>
+                {confirmed.expires_at ? (
+                  <>Your sessions are in your account and can be booked once the machine arrives. They expire{" "}
+                  {new Date(confirmed.expires_at).toLocaleDateString("en-US", { timeZone: "America/Detroit", month: "long", day: "numeric", year: "numeric" })}.{" "}</>
+                ) : (
+                  <>Your bank payment is clearing. Your sessions show in your account now and activate once it clears.{" "}</>
+                )}
+                <Link to={myMembership ? "/member/credits" : "/portal/passes"} className="underline">View my sessions</Link>
               </p>
             </div>
           </div>
