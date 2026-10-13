@@ -100,6 +100,18 @@ export function SmsToggleCard({ table, phone, source }: Props) {
             disabled={loading || saving}
           />
         </div>
+        <div className="mt-4 rounded-md border bg-muted/40 p-3 text-xs leading-relaxed space-y-1.5">
+          <p className="font-medium text-foreground">Tip: save our number</p>
+          <p className="text-muted-foreground">
+            When our first text arrives, save that number in your contacts as
+            "Storm Wellness Club" so every alert shows our name instead of a number.
+          </p>
+          <p className="text-muted-foreground">
+            These texts are automated alerts, so replies aren't read by our team. Reply
+            STOP to stop texts or HELP for help. For questions, call (248) 232-8487 or
+            message us through Support in your portal.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );

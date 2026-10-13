@@ -47,7 +47,7 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
   "test-message": (v) =>
     `Storm Wellness Club: test message${v.note ? ` — ${v.note}` : ""}. Reply STOP to opt out.`,
   "opt-in-confirmation": () =>
-    `Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.`,
+    `Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Save this number as Storm Wellness Club so our texts show our name. These are automated alerts and replies aren't read; for questions call (248) 232-8487 or message us in your portal. Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.`,
   "class-booking-confirmation": (v) =>
     tmpl(
       `Storm Wellness Club: You're booked for {{className}} on {{date}} at {{time}}. See you soon!`,
