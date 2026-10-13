@@ -6,6 +6,7 @@ import { MemberMarketingTab } from "@/components/admin/marketing/MemberMarketing
 import { ReferralCampaignTab } from "@/components/admin/marketing/ReferralCampaignTab";
 import { TemplatesTab } from "@/components/admin/marketing/TemplatesTab";
 import { CampaignAnalytics } from "@/components/admin/marketing/CampaignAnalytics";
+import { EmailSendAnalytics } from "@/components/admin/marketing/EmailSendAnalytics";
 import { SmsBlastTab } from "@/components/admin/marketing/SmsBlastTab";
 import { SmsTemplatesTab } from "@/components/admin/marketing/SmsTemplatesTab";
 import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
@@ -97,7 +98,8 @@ export default function Marketing() {
           <TabsContent value="templates">
             <TemplatesTab />
           </TabsContent>
-          <TabsContent value="analytics">
+          <TabsContent value="analytics" className="space-y-6">
+            <EmailSendAnalytics />
             <CampaignAnalytics />
           </TabsContent>
         </Tabs>
