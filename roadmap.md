@@ -21,3 +21,10 @@
 - [ ] Build disposable test client, pack, plan ($1200: $300 + 3x$300) with Stripe test clock
 - [ ] T1 second installment, T2 third, T3 reconciliation, T4 duplicate webhook, T5 failure, T6 retry, T7 completion
 - [ ] Clean up all disposable data; report gates A-J
+
+## Non-member list cleanup (Oct 13)
+- [x] Non-member Body Roller emails use the full list (imported + accounts), no 1,000 cap, count shown in admin
+- [x] Non-member accounts linked into contacts (backfill + automatic)
+- [x] Hide current members from non-member account lists
+- [x] Cancelled members: non-member portal and pricing only
+- [ ] Remove 89 duplicate non-member records — waiting on user review of list
