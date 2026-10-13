@@ -27,14 +27,23 @@ serve(async (req) => {
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { apiVersion: "2025-08-27.basil" });
     const cs = await stripe.checkout.sessions.retrieve(session_id);
-    if (cs.payment_status !== "paid") return json({ status: cs.payment_status });
+    if (cs.payment_status !== "paid") {
+      if (cs.status === "complete") {
+        await supabase.from("body_roller_presale_purchases").update({
+          status: "processing",
+          stripe_payment_intent_id: typeof cs.payment_intent === "string" ? cs.payment_intent : cs.payment_intent?.id ?? null,
+        }).eq("id", p.id).eq("status", "pending");
+        return json({ status: "processing", label: p.label });
+      }
+      return json({ status: cs.payment_status });
+    }
 
     const paidAt = new Date();
     const expires = new Date(paidAt); expires.setMonth(expires.getMonth() + 6);
     await supabase.from("body_roller_presale_purchases").update({
       status: "paid", paid_at: paidAt.toISOString(), expires_at: expires.toISOString(),
       stripe_payment_intent_id: typeof cs.payment_intent === "string" ? cs.payment_intent : cs.payment_intent?.id ?? null,
-    }).eq("id", p.id).eq("status", "pending");
+    }).eq("id", p.id).in("status", ["pending", "processing"]);
     return json({ status: "paid", label: p.label, expires_at: expires.toISOString() });
   } catch (e: any) {
     return json({ error: e?.message ?? "Confirm failed" }, 400);
