@@ -141,6 +141,39 @@ async function upsertDunningOnFailure(
   }
 }
 
+/**
+ * Billing-driven membership status change, through the database's guarded rule:
+ * only active -> past_due and past_due -> active; frozen, cancelled, expired and
+ * pending-activation members are never touched. Never throws.
+ */
+async function applyBillingStatus(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  memberId: string,
+  target: 'active' | 'past_due',
+  reason: string,
+  stripeEventId: string | null,
+): Promise<string> {
+  try {
+    const { data, error } = await supabase.rpc('apply_billing_status_change', {
+      p_member_id: memberId,
+      p_target: target,
+      p_reason: reason,
+      p_stripe_event_id: stripeEventId,
+      p_changed_by: 'stripe',
+    });
+    if (error) {
+      logError(error, 'APPLY_BILLING_STATUS');
+      return 'error';
+    }
+    logStep('Billing status change', { memberId, target, reason, result: data });
+    return String(data);
+  } catch (err) {
+    logError(err, 'APPLY_BILLING_STATUS');
+    return 'error';
+  }
+}
+
 async function markDunningRecovered(
   supabase: DunningSupabase,
   args: { member: { id: string; email?: string | null; first_name?: string | null }; invoice: Stripe.Invoice }
@@ -2443,21 +2476,13 @@ serve(async (req) => {
               break;
             }
 
-            // Update status with history tracking
-            const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-              p_member_id: memberData.id,
-              p_stripe_subscription_id: subscription.id,
-              p_new_status: newStatus,
-              p_reason: reason,
-              p_stripe_event_id: event.id,
-              p_changed_by: 'stripe',
-              p_metadata: { subscription_status: subscription.status }
-            });
-
-            if (updateError) {
-              logError(updateError, "SUBSCRIPTION_UPDATE_STATUS");
+            // Billing may only move members between active and past_due; the
+            // database rule leaves frozen / cancelled / pending members untouched
+            // (a frozen member's paused subscription still reports 'active').
+            if (newStatus === 'active' || newStatus === 'past_due') {
+              await applyBillingStatus(supabase, memberData.id, newStatus, reason, event.id);
             } else {
-              logStep("Subscription status updated", { memberId: memberData.id, newStatus, reason });
+              logStep("Subscription status not applied to member (billing only sets active/past_due)", { memberId: memberData.id, newStatus, reason });
             }
           } else {
             logStep("Member not found for subscription", { subscriptionId: subscription.id });
@@ -3053,24 +3078,10 @@ serve(async (req) => {
                 logStep("Synced subscription_status to active", { memberId: memberData.id });
               }
               
-              // Update member status to active if it was past_due or pending_activation (membership subscription)
-              // pending_activation covers cases where a subscription was incomplete_expired but payment later succeeded
-              if (memberData.status === 'past_due' || memberData.status === 'pending_activation') {
-                const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-                  p_member_id: memberData.id,
-                  p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
-                  p_new_status: 'active',
-                  p_reason: 'payment_succeeded',
-                  p_stripe_event_id: event.id,
-                  p_changed_by: 'stripe',
-                  p_metadata: { invoice_id: invoice.id }
-                });
-
-                if (updateError) {
-                  logError(updateError, "INVOICE_PAYMENT_SUCCEEDED_STATUS_UPDATE");
-                } else {
-                  logStep("Member status updated to active", { memberId: memberData.id });
-                }
+              // Payment received: a past-due member returns to active. Activation of
+              // pending members stays a staff decision (the database rule skips them).
+              if (memberData.status === 'past_due') {
+                await applyBillingStatus(supabase, memberData.id, 'active', 'payment_succeeded', event.id);
               }
 
               // Create monthly credits for successful subscription renewal.
@@ -3737,36 +3748,10 @@ serve(async (req) => {
             // Apply to 'active' and 'pending_activation' members (not frozen/cancelled/etc)
             const statusesToUpdate = ['active', 'pending_activation'];
             if (statusesToUpdate.includes(memberData.status)) {
-              const newStatus = memberData.status === 'active' ? 'past_due' : 'pending_activation';
-              
               // For pending_activation, we keep the status but log the failure
               // For active members, we move them to past_due
               if (memberData.status === 'active') {
-                const { error: updateError } = await supabase.rpc('update_subscription_status_with_history', {
-                  p_member_id: memberData.id,
-                  p_stripe_subscription_id: getInvoiceSubscriptionId(invoice) as string,
-                  p_new_status: 'past_due',
-                  p_reason: 'payment_failed',
-                  p_stripe_event_id: event.id,
-                  p_changed_by: 'stripe',
-                  p_metadata: { 
-                    invoice_id: invoice.id,
-                    failure_code: failureCode,
-                    decline_code: declineCode,
-                    attempt_count: attemptCount,
-                    subscription_type: subscriptionType
-                  }
-                });
-
-                if (updateError) {
-                  logError(updateError, "INVOICE_PAYMENT_FAILED_STATUS_UPDATE");
-                } else {
-                  logStep("Member status updated to past_due", { 
-                    memberId: memberData.id,
-                    previousStatus: memberData.status,
-                    subscriptionType
-                  });
-                }
+                await applyBillingStatus(supabase, memberData.id, 'past_due', `payment_failed (${subscriptionType}, invoice ${invoice.id})`, event.id);
               } else {
                 // For pending_activation, just log that payment failed
                 logStep("Payment failed for pending_activation member - keeping status", { 

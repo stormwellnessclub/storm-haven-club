@@ -31,6 +31,7 @@ import { BulkChargeDialog } from "@/components/admin/BulkChargeDialog";
 import { BulkSmsDialog } from "@/components/admin/BulkSmsDialog";
 import { BulkOutreachDialog } from "@/components/admin/BulkOutreachDialog";
 import { CancellationNoticeDialog } from "@/components/admin/CancellationNoticeDialog";
+import { BillingReconciliationPanel } from "@/components/admin/BillingReconciliationPanel";
 
 
 function DunningBadge({ row }: { row: ArrearsRow }) {
@@ -413,6 +414,8 @@ export default function BillingArrears() {
           <StatCard icon={<AlertCircle className="h-4 w-4" />} label="1 month behind" value={String(summary.oneMonth)} />
           <StatCard icon={<CalendarClock className="h-4 w-4" />} label="2+ months behind" value={String(summary.twoPlus)} tone="destructive" />
         </div>
+
+        <BillingReconciliationPanel />
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap items-end gap-4">
