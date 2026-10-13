@@ -1,3 +1,4 @@
+import { PersonActivityCard } from "@/components/admin/PersonActivityCard";
 import { SellGiftCardDialog } from "@/components/admin/SellGiftCardDialog";
 import { PurchasedGiftCardsList } from "@/components/admin/GiftCardEmailCopy";
 import { useState } from "react";
@@ -498,6 +499,7 @@ export default function NonMemberDetail() {
         </div>
 
         {/* Tabbed Layout */}
+        <PersonActivityCard email={profile.email} />
         <Tabs defaultValue="profile" className="space-y-6">
           <TabsList>
             <TabsTrigger value="profile">Profile</TabsTrigger>

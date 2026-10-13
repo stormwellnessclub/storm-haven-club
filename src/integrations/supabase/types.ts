@@ -371,6 +371,33 @@ export type Database = {
         }
         Relationships: []
       }
+      audience_segments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          filters: Json
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          filters?: Json
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       billing_arrears: {
         Row: {
           amount_due_cents: number
@@ -12426,13 +12453,21 @@ export type Database = {
           campaign_type: string
           created_at: string
           created_by: string | null
+          error: string | null
+          failed_count: number
+          filters: Json | null
           goal_metadata: Json | null
           goal_type: string | null
           id: string
           media_count: number
           media_urls: Json
+          recipient_user_ids: string[] | null
+          scheduled_at: string | null
+          segment_id: string | null
           sent_at: string | null
           sent_count: number
+          skipped_count: number
+          status: string
         }
         Insert: {
           body: string
@@ -12440,13 +12475,21 @@ export type Database = {
           campaign_type: string
           created_at?: string
           created_by?: string | null
+          error?: string | null
+          failed_count?: number
+          filters?: Json | null
           goal_metadata?: Json | null
           goal_type?: string | null
           id?: string
           media_count?: number
           media_urls?: Json
+          recipient_user_ids?: string[] | null
+          scheduled_at?: string | null
+          segment_id?: string | null
           sent_at?: string | null
           sent_count?: number
+          skipped_count?: number
+          status?: string
         }
         Update: {
           body?: string
@@ -12454,15 +12497,64 @@ export type Database = {
           campaign_type?: string
           created_at?: string
           created_by?: string | null
+          error?: string | null
+          failed_count?: number
+          filters?: Json | null
           goal_metadata?: Json | null
           goal_type?: string | null
           id?: string
           media_count?: number
           media_urls?: Json
+          recipient_user_ids?: string[] | null
+          scheduled_at?: string | null
+          segment_id?: string | null
           sent_at?: string | null
           sent_count?: number
+          skipped_count?: number
+          status?: string
         }
         Relationships: []
+      }
+      sms_class_template_overrides: {
+        Row: {
+          body: string
+          class_type_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          template_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body: string
+          class_type_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          template_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          class_type_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          template_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_class_template_overrides_class_type_id_fkey"
+            columns: ["class_type_id"]
+            isOneToOne: false
+            referencedRelation: "class_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sms_consent_log: {
         Row: {
@@ -15063,6 +15155,38 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      admin_person_activity: {
+        Args: never
+        Returns: {
+          audience: string
+          body_roller_sessions: number
+          cafe_count: number
+          cafe_spend: number
+          class_90d: number
+          class_count: number
+          class_type_ids: string[]
+          email: string
+          first_name: string
+          last_cafe_at: string
+          last_checkin_at: string
+          last_class_date: string
+          last_name: string
+          last_pt_at: string
+          last_recovery_at: string
+          last_spa_date: string
+          massage_count: number
+          member_id: string
+          member_status: string
+          membership_type: string
+          person_key: string
+          phone: string
+          pt_count: number
+          recovery_count: number
+          sms_opt_in: boolean
+          spa_count: number
+          user_id: string
+        }[]
+      }
       admin_remove_event_attendee: {
         Args: { _reason?: string; _ticket_id: string }
         Returns: Json
@@ -15192,6 +15316,10 @@ export type Database = {
         Returns: Json
       }
       arm_body_roller_send: {
+        Args: { _id: string; _send_at: string }
+        Returns: undefined
+      }
+      arm_sms_campaign: {
         Args: { _id: string; _send_at: string }
         Returns: undefined
       }
@@ -17618,6 +17746,7 @@ export type Database = {
         Returns: string
       }
       unschedule_body_roller_send: { Args: { _id: string }; Returns: undefined }
+      unschedule_sms_campaign: { Args: { _id: string }; Returns: undefined }
       update_spa_appointment_admin: {
         Args: {
           p_appointment_date: string

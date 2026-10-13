@@ -7,3 +7,4 @@
 - A cancelled membership never counts as membership for pricing or portal access: member-rate checks and `useUserMembership` ignore `status = 'cancelled'`, so those people use the non-member portal and prices while their history stays. Why: cancelled members must not buy at member rates.
 - Campaign recipient lists page through every source with `.range()` loops and de-dupe by lowercased email; never rely on a single select. Why: single selects cap at 1,000 rows and silently dropped most contacts.
 - Scheduled campaign emails use a one-time database timer per send (armed on schedule, removed after it fires or is cancelled), never a polling job. Why: no recurring cost when nothing is scheduled.
+- Targeted texts use admin_person_activity() as the single per-person activity source; campaigns snapshot recipient user IDs and every send goes through send-sms without bypassConsent. Why: one source for segments, and carrier consent rules are never skipped.
