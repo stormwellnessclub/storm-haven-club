@@ -6,6 +6,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
 import { isAllowedTestRecipient } from "../_shared/security.ts";
 import { buildPresaleEmail, EMAIL_META, type EmailKind } from "../_shared/bodyRollerPresale.ts";
+import { trackLinks } from "../_shared/bodyRollerClick.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -56,6 +57,49 @@ serve(async (req) => {
     return resp?.error ? json({ ok: false, error: resp.error.message }) : json({ ok: true, sentTo: email });
   }
 
+  const norm = (e: any) => String(e || "").trim().toLowerCase();
+  const pageAllRows = async (table: string, cols: string, apply?: (q: any) => any) => {
+    const out: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      let q = supabase.from(table).select(cols).range(from, from + 999);
+      if (apply) q = apply(q);
+      const { data, error } = await q;
+      if (error) throw error;
+      out.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
+    }
+    return out;
+  };
+  // Funnel: who clicked, who opened checkout without paying, who bought — split member / non-member.
+  const loadFunnel = async () => {
+    const [clicks, purchases, mems, blocked, unsub, logs] = await Promise.all([
+      pageAllRows("body_roller_presale_clicks", "email, clicked_at"),
+      pageAllRows("body_roller_presale_purchases", "customer_email, status, created_at"),
+      pageAllRows("members", "email, status, first_name, last_name"),
+      pageAllRows("blocked_persons", "email"),
+      pageAllRows("marketing_contacts", "email", (q: any) => q.not("unsubscribed_at", "is", null)),
+      pageAllRows("email_audit_log", "recipient_email, email_type", (q: any) => q.eq("status", "sent").like("email_type", "body_roller_presale_%")),
+    ]);
+    const activeMembers = new Map<string, any>();
+    for (const m of mems) if (m.status !== "cancelled" && norm(m.email)) activeMembers.set(norm(m.email), m);
+    const bought = new Set(purchases.filter((r: any) => r.status === "paid" || r.status === "processing").map((r: any) => norm(r.customer_email)));
+    const hourAgo = Date.now() - 3600_000;
+    const started = new Set(purchases.map((r: any) => norm(r.customer_email)));
+    const abandoned = new Set(purchases.filter((r: any) => r.status === "pending" && new Date(r.created_at).getTime() < hourAgo).map((r: any) => norm(r.customer_email)).filter((e: string) => !bought.has(e)));
+    const clicked = new Set(clicks.map((c: any) => norm(c.email)));
+    const clickedOnly = new Set([...clicked].filter((e) => !bought.has(e) && !started.has(e)));
+    const no = new Set([...blocked, ...unsub].map((r: any) => norm(r.email)));
+    const emailed = new Set(logs.filter((l: any) => !String(l.email_type).endsWith("_test") && !String(l.email_type).includes("followup") && !String(l.email_type).endsWith("_arrived")).map((l: any) => norm(l.recipient_email)));
+    const split = (set: Set<string>) => ({ member: [...set].filter((e) => activeMembers.has(e)).length, non_member: [...set].filter((e) => !activeMembers.has(e)).length });
+    return { activeMembers, clickedOnly, abandoned, no, funnel: {
+      emailed: split(emailed), clicked: split(clicked), started: split(started), bought: split(bought),
+      clicked_not_started: split(clickedOnly), abandoned: split(abandoned),
+    } };
+  };
+  if (body?.funnel) {
+    try { return json({ ok: true, ...(await loadFunnel()).funnel }); } catch (e: any) { return json({ error: e?.message }, 500); }
+  }
+
   // Recipients
   let recipients: { email: string; first: string | null; name: string | null; member_id: string | null; source?: string }[] = [];
   if (kind === "arrived") {
@@ -66,6 +110,20 @@ serve(async (req) => {
       if (!e || seen.has(e)) continue; seen.add(e);
       recipients.push({ email: e, first: (r.customer_name ?? "").split(" ")[0] || null, name: r.customer_name, member_id: r.member_id, source: "buyer" });
     }
+  } else if (kind.includes("followup_")) {
+    try {
+      const f = await loadFunnel();
+      const wantMember = !kind.startsWith("nm_");
+      const src = kind.endsWith("clicked") ? f.clickedOnly : f.abandoned;
+      const { data: pending } = await supabase.from("body_roller_presale_purchases").select("customer_email, customer_name").eq("status", "pending");
+      const names = new Map((pending ?? []).map((r: any) => [norm(r.customer_email), r.customer_name]));
+      for (const e of src) {
+        if (!e.includes("@") || f.no.has(e) || f.activeMembers.has(e) !== wantMember) continue;
+        const m = f.activeMembers.get(e);
+        const name = m ? [m.first_name, m.last_name].filter(Boolean).join(" ") : (names.get(e) ?? null);
+        recipients.push({ email: e, first: m?.first_name ?? (name ? String(name).split(" ")[0] : null), name: name || null, member_id: null, source: kind.endsWith("clicked") ? "clicked" : "abandoned" });
+      }
+    } catch (e: any) { return json({ error: e?.message ?? "Failed to load recipients" }, 500); }
   } else if (kind.startsWith("nm_")) {
     // Non-members: imported contacts + non-member accounts + registered profiles, de-duplicated,
     // minus anyone with a current (non-cancelled) membership, blocked, or unsubscribed. Paged — no 1,000 cap.
@@ -141,7 +199,8 @@ serve(async (req) => {
   for (const r of recipients) {
     if (!r.email || already.has(r.email)) { skipped++; continue; }
     try {
-      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: buildPresaleEmail(kind, r.first, endsLabel), text: toText(buildPresaleEmail(kind, r.first, endsLabel)), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
+      const built = buildPresaleEmail(kind, r.first, endsLabel);
+      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: await trackLinks(built, r.email, kind), text: toText(built), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
       const status = resp?.error ? "failed" : "sent";
       await supabase.from("email_audit_log").insert({ recipient_email: r.email, recipient_name: r.name, email_type: meta.key, trigger_source: "admin_blast", triggered_by: triggeredBy, member_id: r.member_id, subject: meta.subject, status, error_message: resp?.error?.message ?? null });
       if (status === "sent") { queued++; already.add(r.email); } else errors.push({ email: r.email, error: resp?.error?.message });
