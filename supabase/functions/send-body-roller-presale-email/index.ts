@@ -59,6 +59,21 @@ serve(async (req) => {
       if (!e || seen.has(e)) continue; seen.add(e);
       recipients.push({ email: e, first: (r.customer_name ?? "").split(" ")[0] || null, name: r.customer_name, member_id: r.member_id });
     }
+  } else if (kind.startsWith("nm_")) {
+    // Non-members: registered profiles with no member record at all (active or cancelled), minus blocked emails.
+    const [{ data: profs, error }, { data: mems }, { data: blocked }] = await Promise.all([
+      supabase.from("profiles").select("email, first_name, last_name").not("email", "is", null),
+      supabase.from("members").select("email"),
+      supabase.from("blocked_persons").select("email"),
+    ]);
+    if (error) return json({ error: error.message }, 500);
+    const exclude = new Set([...(mems ?? []), ...(blocked ?? [])].map((r: any) => String(r.email || "").trim().toLowerCase()));
+    const seen = new Set<string>();
+    for (const p of profs ?? []) {
+      const e = String((p as any).email || "").trim().toLowerCase();
+      if (!e || exclude.has(e) || seen.has(e)) continue; seen.add(e);
+      recipients.push({ email: e, first: (p as any).first_name ?? null, name: [(p as any).first_name, (p as any).last_name].filter(Boolean).join(" ") || null, member_id: null });
+    }
   } else {
     const { data, error } = await supabase.from("members").select("id, first_name, last_name, email").eq("status", "active");
     if (error) return json({ error: error.message }, 500);

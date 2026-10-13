@@ -60,7 +60,7 @@ serve(async (req) => {
       customer: customers.data[0]?.id,
       customer_email: customers.data[0] ? undefined : user.email,
       line_items: [
-        { price: opt.price_id, quantity: 1 },
+        { price_data: { currency: "usd", unit_amount: opt.cents, product_data: { name: `Body Roller Presale — ${opt.label}` } }, quantity: 1 },
         { price_data: { currency: "usd", unit_amount: t.fee, product_data: { name: "Card Processing Fee" } }, quantity: 1 },
       ],
       ui_mode: "embedded",

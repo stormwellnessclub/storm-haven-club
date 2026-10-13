@@ -84,7 +84,8 @@ export default function BodyRollerPresale() {
               </p>
             </div>
             <div className="flex items-center gap-4">
-              <span className="font-serif text-xl">{usd(o.cents)}</span>
+              <span className="text-sm text-muted-foreground line-through">{usd(o.regular_cents)}</span>
+                  <span className="font-serif text-xl">{usd(o.cents)}</span>
               <Button size="sm" disabled={ended || !!busy} onClick={() => reserve(o.key)}>
                 {busy === o.key ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reserve"}
               </Button>
@@ -150,9 +151,9 @@ export default function BodyRollerPresale() {
         <p className="mt-6 text-center text-xs text-muted-foreground">For active members.</p>
         <div id="non-members" className="mt-16 border border-border/60 bg-card p-8 max-w-3xl mx-auto">
           <p className="text-xs tracking-[0.3em] text-accent mb-1">NON-MEMBERS</p>
-          <h3 className="font-serif text-2xl mb-2">Reserve early</h3>
+          <h3 className="font-serif text-2xl mb-2">Non-member presale</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Not a member? Reserve a session now at the regular price and it will be waiting for you when the machine arrives.
+            Not a member? Reserve now at non-member presale pricing and your sessions will be waiting for you when the machine arrives.
             Sessions expire 6 months after purchase. Sign in or create an account to reserve.
           </p>
           <div className="divide-y divide-border/60">
@@ -160,6 +161,7 @@ export default function BodyRollerPresale() {
               <div key={o.key} className="flex items-center justify-between gap-4 py-4">
                 <p className="font-medium">{o.short}</p>
                 <div className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground line-through">{usd(o.regular_cents)}</span>
                   <span className="font-serif text-xl">{usd(o.cents)}</span>
                   <Button size="sm" variant="outline" disabled={ended || !!busy} onClick={() => reserve(o.key)}>
                     {busy === o.key ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reserve"}
