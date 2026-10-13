@@ -4484,10 +4484,40 @@ serve(async (req) => {
         break;
       }
 
+      case 'payment_intent.processing': {
+        // Bank (ACH) dues payment is clearing: mark the matching open dues row
+        // as 'processing' so the member isn't shown as unpaid / blocked.
+        try {
+          const pi = event.data.object as Stripe.PaymentIntent;
+          const customerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id;
+          if (customerId) {
+            const { data: member } = await supabase.from('members').select('id').eq('stripe_customer_id', customerId).maybeSingle();
+            if (member?.id) {
+              const { data: rows } = await supabase.from('billing_arrears')
+                .select('id').eq('member_id', member.id).in('status', ['unpaid', 'partial'])
+                .eq('amount_due_cents', pi.amount).order('period_start', { ascending: false }).limit(1);
+              if (rows && rows.length) {
+                await supabase.from('billing_arrears')
+                  .update({ status: 'processing', stripe_payment_intent_id: pi.id, updated_at: new Date().toISOString() })
+                  .eq('id', rows[0].id);
+                logStep('Dues bank payment clearing', { memberId: member.id, piId: pi.id });
+              }
+            }
+          }
+        } catch (e) {
+          logError(e, 'PAYMENT_INTENT_PROCESSING');
+        }
+        break;
+      }
+
       case 'payment_intent.payment_failed': {
         try {
           const pi = event.data.object as Stripe.PaymentIntent;
           const md = pi.metadata || {};
+          // A clearing bank payment that bounced goes back to unpaid
+          await supabase.from('billing_arrears')
+            .update({ status: 'unpaid', failure_message: pi.last_payment_error?.message ?? 'Bank payment failed', updated_at: new Date().toISOString() })
+            .eq('stripe_payment_intent_id', pi.id).eq('status', 'processing');
           if (md.event_invoice_id) {
             await handleEventInvoicePaymentFailed(supabase, {
               invoiceId: md.event_invoice_id,
