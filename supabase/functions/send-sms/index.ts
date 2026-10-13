@@ -34,6 +34,11 @@ function tmpl(s: string, v: Record<string, unknown>) {
   return s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, k) => String(v[k] ?? ""));
 }
 
+const CLASS_TEMPLATE_KEYS = new Set([
+  "class-booking-confirmation", "class-booking-cancellation", "class-reminder-24h",
+  "class-reminder-2h", "class-cancelled", "waitlist-promoted", "waitlist-joined",
+]);
+
 const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
   "cafe-order-ready": (v) =>
     tmpl(`Storm Wellness Club: {{name}}, your order is ready at the café.`, v),
@@ -45,48 +50,48 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     `Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.`,
   "class-booking-confirmation": (v) =>
     tmpl(
-      `Storm: You're booked for {{className}} on {{date}} at {{time}}. See you soon!`,
+      `Storm Wellness Club: You're booked for {{className}} on {{date}} at {{time}}. See you soon!`,
       v,
     ),
   "class-booking-cancellation": (v) =>
     tmpl(
-      `Storm: Your {{className}} on {{date}} at {{time}} was cancelled.{{refundNote}}`,
+      `Storm Wellness Club: Your {{className}} on {{date}} at {{time}} was cancelled.{{refundNote}}`,
       v,
     ),
   "class-reminder-24h": (v) =>
     tmpl(
-      `Storm: Reminder — {{className}} tomorrow at {{time}}. Reply STOP to opt out.`,
+      `Storm Wellness Club: Reminder — {{className}} tomorrow at {{time}}. Reply STOP to opt out.`,
       v,
     ),
   "class-reminder-2h": (v) =>
-    tmpl(`Storm: {{className}} starts in 2 hrs at {{time}}. See you soon!`, v),
+    tmpl(`Storm Wellness Club: {{className}} starts in 2 hrs at {{time}}. See you soon!`, v),
   "class-cancelled": (v) =>
     tmpl(
-      `Storm: Your {{className}} on {{date}} at {{time}} was cancelled. Credit refunded.`,
+      `Storm Wellness Club: Your {{className}} on {{date}} at {{time}} was cancelled. Credit refunded.`,
       v,
     ),
   "waitlist-promoted": (v) =>
     tmpl(
-      `Storm: A spot opened for {{className}} on {{date}} at {{time}}. You're booked.`,
+      `Storm Wellness Club: A spot opened for {{className}} on {{date}} at {{time}}. You're booked.`,
       v,
     ),
   "waitlist-joined": (v) =>
     tmpl(
-      `Storm: You're on the waitlist for {{className}} on {{date}} at {{time}}. We'll text if a spot opens.`,
+      `Storm Wellness Club: You're on the waitlist for {{className}} on {{date}} at {{time}}. We'll text if a spot opens.`,
       v,
     ),
   "appointment-confirmation": (v) =>
     tmpl(
-      `Storm: {{service}} confirmed for {{date}} at {{time}} with {{provider}}.`,
+      `Storm Wellness Club: {{service}} confirmed for {{date}} at {{time}} with {{provider}}.`,
       v,
     ),
   "appointment-reminder-24h": (v) =>
     tmpl(
-      `Storm: Reminder — {{service}} tomorrow at {{time}} with {{provider}}.`,
+      `Storm Wellness Club: Reminder — {{service}} tomorrow at {{time}} with {{provider}}.`,
       v,
     ),
   "appointment-reminder-2h": (v) =>
-    tmpl(`Storm: {{service}} in 2 hrs at {{time}}. See you soon!`, v),
+    tmpl(`Storm Wellness Club: {{service}} in 2 hrs at {{time}}. See you soon!`, v),
   "kids-care-confirmation": (v) =>
     tmpl(
       `Storm Kids Care: {{childName}} booked for {{date}} at {{time}}.`,
@@ -96,12 +101,12 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     tmpl(`Storm Kids Care: Reminder — {{childName}} {{date}} at {{time}}.`, v),
   "payment-failed": (v) =>
     tmpl(
-      `Storm: Payment failed for {{description}}. Please update your card to keep your benefits active: stormwellnessclub.com/portal/billing`,
+      `Storm Wellness Club: Payment failed for {{description}}. Please update your card to keep your benefits active: stormwellnessclub.com/portal/billing`,
       v,
     ),
   "arrears-balance": (v) =>
     tmpl(
-      `Storm: You have an outstanding balance of {{amount}}. Please resolve to restore full access: stormwellnessclub.com/portal/billing`,
+      `Storm Wellness Club: You have an outstanding balance of {{amount}}. Please resolve to restore full access: stormwellnessclub.com/portal/billing`,
       v,
     ),
   "cafe-order-ready": (v) =>
@@ -231,6 +236,26 @@ Deno.serve(async (req) => {
       const publishedBody = override?.published_body;
       if (publishedBody && typeof publishedBody === "string" && publishedBody.trim()) {
         renderer = (v: Record<string, unknown>) => tmpl(publishedBody, v);
+      }
+      // Per-class-type wording wins over the global wording for class texts.
+      const className = String((body.variables ?? {}).className ?? "").trim();
+      const classTypeId = String((body.variables ?? {}).classTypeId ?? "").trim();
+      if (CLASS_TEMPLATE_KEYS.has(body.templateKey) && (className || classTypeId)) {
+        let typeId: string | null = /^[0-9a-f-]{36}$/i.test(classTypeId) ? classTypeId : null;
+        if (!typeId && className) {
+          const { data: ct } = await admin.from("class_types").select("id").ilike("name", className).limit(1).maybeSingle();
+          typeId = ct?.id ?? null;
+        }
+        if (typeId) {
+          const { data: co } = await admin
+            .from("sms_class_template_overrides")
+            .select("body")
+            .eq("template_key", body.templateKey)
+            .eq("class_type_id", typeId)
+            .eq("is_active", true)
+            .maybeSingle();
+          if (co?.body?.trim()) renderer = (v: Record<string, unknown>) => tmpl(co.body, v);
+        }
       }
     }
 
