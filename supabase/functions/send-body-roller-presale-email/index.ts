@@ -103,12 +103,12 @@ serve(async (req) => {
     } catch (e: any) {
       return json({ error: e?.message ?? "Failed to load recipients" }, 500);
     }
-  }
   } else {
     const { data, error } = await supabase.from("members").select("id, first_name, last_name, email").eq("status", "active");
     if (error) return json({ error: error.message }, 500);
     recipients = (data ?? []).map((m: any) => ({ email: String(m.email || "").trim().toLowerCase(), first: m.first_name ?? null, name: [m.first_name, m.last_name].filter(Boolean).join(" ") || null, member_id: m.id }));
   }
+  if (body?.countOnly) return json({ ok: true, total: recipients.length });
 
   const { data: sentRows } = await supabase.from("email_audit_log").select("recipient_email").eq("email_type", meta.key).eq("status", "sent");
   const already = new Set((sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
