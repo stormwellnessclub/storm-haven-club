@@ -15,6 +15,12 @@
    - For the 24 people whose membership was cancelled, I'll keep the non-member account. They can still buy as non-members, and the account will be marked "Former member."
    - The non-member account list will hide anyone with a current membership, so duplicates can't show up again.
 5. **Before I change anything,** I'll send you the list of the 89 people so you can check it. No emails go out and no one is charged.
+6. **Cancelled members are treated as non-members everywhere:**
+   - When they sign in, they go to the non-member portal, not the member portal.
+   - They pay non-member prices for everything: Body Roller presale, class passes, PT packs, guest passes, the shop and the spa.
+   - The checkout checks this on our side too, so a cancelled member can't get a member price even with an old link.
+   - Their membership history stays saved, and front desk still sees the red "Cancelled member" warning.
+   - If someone on the cancelled list doesn't have a non-member account yet, one is created automatically the first time they sign in.
 
 ## Technical details
 - `send-body-roller-presale-email` `nm_*` branch: page through `marketing_contacts`, `non_member_profiles`, and `profiles` using `.range()` loops, and exclude `members` emails (fetched with paging), `blocked_persons`, and unsubscribed contacts.
@@ -22,3 +28,5 @@
 - One-time backfill and an insert trigger on `non_member_profiles`: upsert into `marketing_contacts` (lowercased email).
 - Merge: for each duplicate with a non-cancelled membership, re-point foreign-keyed rows (class_passes, bookings, pt, etc.) to the member's user_id when they are different accounts, copy card/agreement/SMS fields where the member's are missing, then delete the `non_member_profiles` row. Run only after you approve the list.
 - Filter the admin and front-desk non-member lists to exclude user_ids or emails that have a non-cancelled membership.
+- `useUserMembership` currently returns any members row, including cancelled ones (26 places use it). Add a filter for non-cancelled status, so portal routing and member pricing treat cancelled people as non-members. Admin views keep reading full history through their own queries.
+- Server-side pricing checks (body-roller-presale-checkout, stripe-payment class pass/PT/guest pass paths) require `status <> 'cancelled'` before applying member prices.
