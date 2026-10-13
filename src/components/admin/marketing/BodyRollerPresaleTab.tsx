@@ -176,7 +176,7 @@ export function BodyRollerPresaleTab() {
               <div>
                 <p className="font-medium text-sm">{k.title}</p>
                 <p className="text-xs text-muted-foreground">To {k.who} · sent to {data?.sent[KEYS[k.kind]] ?? 0}</p>
-                {k.kind.startsWith("nm_") && nmCount && (
+                {k.kind.startsWith("nm_") && !k.kind.includes("followup") && nmCount && (
                   <p className="text-xs text-muted-foreground">
                     List: {nmCount.total} people ({nmCount.counts.imported} imported · {nmCount.counts.portal_accounts} non-member accounts · {nmCount.counts.other_accounts} other accounts)
                   </p>
