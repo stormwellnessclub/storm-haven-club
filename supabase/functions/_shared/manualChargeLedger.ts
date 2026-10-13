@@ -171,7 +171,9 @@ export async function recordManualCharge(supabase: Db, opts: {
 /**
  * Apply collected membership money to the member's arrears and mark the Stripe
  * invoices it covers as paid out of band so Stripe stops retrying them.
- * `amountCents` must exclude the card processing fee: the fee is not dues.
+ * `amountCents` must INCLUDE the card processing fee: subscription invoices carry
+ * a processing-fee line, so a payment without the fee never covers the invoice,
+ * the invoice stays open and Stripe charges the member a second time.
  */
 export async function settleMembershipCollection(opts: {
   supabase: Db;
@@ -353,7 +355,7 @@ export async function finalizeManualChargeFromIntent(opts: {
       stripe,
       manualChargeId,
       memberId,
-      amountCents: amountCents - feeCents,
+      amountCents,
       note: "Card charge confirmed",
       log,
     });
