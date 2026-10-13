@@ -14,7 +14,7 @@ const HELP_REPLY =
 const STOP_REPLY =
   "You are unsubscribed from Storm Wellness Club SMS. No more messages will be sent. Reply START to re-subscribe.";
 const START_REPLY =
-  "Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.";
+  "Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Save this number as Storm Wellness Club so our texts show our name. These are automated alerts and replies aren't read; for questions call (248) 232-8487 or message us in your portal. Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.";
 
 function twiml(body?: string) {
   if (!body) return `<?xml version="1.0" encoding="UTF-8"?><Response/>`;

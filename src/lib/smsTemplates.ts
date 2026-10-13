@@ -209,7 +209,7 @@ export const SMS_TEMPLATES: SmsTemplate[] = [
     key: "opt-in-confirmation",
     label: "Opt-in confirmation",
     category: "System",
-    body: "Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.",
+    body: "Storm Wellness Club: You're subscribed to account & class alerts (reminders, waitlist, billing, appointments). Save this number as Storm Wellness Club so our texts show our name. These are automated alerts and replies aren't read; for questions call (248) 232-8487 or message us in your portal. Msg freq varies. Msg & data rates may apply. Reply HELP for help, STOP to cancel.",
     triggers: "Sent immediately after a user checks the SMS consent box on /apply or texts START/JOIN.",
     sampleVariables: {},
     audience: "both",
