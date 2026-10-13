@@ -12238,6 +12238,142 @@ export type Database = {
           },
         ]
       }
+      revenue_ledger: {
+        Row: {
+          area: string
+          business_date: string
+          description: string | null
+          estimated: boolean
+          fee_cents: number
+          gross_cents: number
+          id: string
+          kind: string
+          label: string | null
+          line_no: number
+          member_id: string | null
+          metadata: Json
+          net_cents: number | null
+          occurred_at: string
+          source: string
+          source_ref: string
+          stripe_balance_txn_id: string | null
+          stripe_charge_id: string | null
+          stripe_customer_id: string | null
+          stripe_fee_cents: number
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          synced_at: string
+          tax_cents: number
+          taxable: boolean
+          tender: string
+          tip_cents: number
+        }
+        Insert: {
+          area: string
+          business_date: string
+          description?: string | null
+          estimated?: boolean
+          fee_cents?: number
+          gross_cents: number
+          id?: string
+          kind: string
+          label?: string | null
+          line_no?: number
+          member_id?: string | null
+          metadata?: Json
+          net_cents?: number | null
+          occurred_at: string
+          source: string
+          source_ref: string
+          stripe_balance_txn_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_fee_cents?: number
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          synced_at?: string
+          tax_cents?: number
+          taxable?: boolean
+          tender: string
+          tip_cents?: number
+        }
+        Update: {
+          area?: string
+          business_date?: string
+          description?: string | null
+          estimated?: boolean
+          fee_cents?: number
+          gross_cents?: number
+          id?: string
+          kind?: string
+          label?: string | null
+          line_no?: number
+          member_id?: string | null
+          metadata?: Json
+          net_cents?: number | null
+          occurred_at?: string
+          source?: string
+          source_ref?: string
+          stripe_balance_txn_id?: string | null
+          stripe_charge_id?: string | null
+          stripe_customer_id?: string | null
+          stripe_fee_cents?: number
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          synced_at?: string
+          tax_cents?: number
+          taxable?: boolean
+          tender?: string
+          tip_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revenue_ledger_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_ledger_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revenue_ledger_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revenue_ledger_sync_state: {
+        Row: {
+          cursor_unix: number | null
+          key: string
+          last_result: Json | null
+          last_run_at: string | null
+          last_success_at: string | null
+        }
+        Insert: {
+          cursor_unix?: number | null
+          key: string
+          last_result?: Json | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+        }
+        Update: {
+          cursor_unix?: number | null
+          key?: string
+          last_result?: Json | null
+          last_run_at?: string | null
+          last_success_at?: string | null
+        }
+        Relationships: []
+      }
       ritual_collections: {
         Row: {
           archived_at: string | null
@@ -16072,6 +16208,24 @@ export type Database = {
           reason: string
           start_date: string
           start_time: string
+        }[]
+      }
+      get_revenue_summary: {
+        Args: { p_end: string; p_start: string }
+        Returns: {
+          area: string
+          business_date: string
+          entries: number
+          estimated_entries: number
+          fee_cents: number
+          gross_cents: number
+          is_member: boolean
+          kind: string
+          net_cents: number
+          tax_cents: number
+          taxable: boolean
+          tender: string
+          tip_cents: number
         }[]
       }
       get_scheduled_functions_config: {
