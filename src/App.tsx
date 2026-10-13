@@ -53,6 +53,7 @@ import SpaCategoryHub from "./pages/spa/SpaCategoryHub";
 import SpaServicePage from "./pages/spa/SpaServicePage";
 import GutReset from "./pages/GutReset";
 import BodyRollerPresale from "./pages/BodyRollerPresale";
+import LymphaticBodyRoller from "./pages/journal/LymphaticBodyRoller";
 import GutResetSuccess from "./pages/GutResetSuccess";
 import GutResetAdmin from "./pages/admin/GutResetAdmin";
 import MothersDay from "./pages/MothersDay";
@@ -344,6 +345,7 @@ const App = () => (
               <Route path="/mothers-day-pack-redeem" element={<MothersDayPackRedeem />} />
               <Route path="/gut-reset" element={<GutReset />} />
               <Route path="/body-roller-presale" element={<BodyRollerPresale />} />
+              <Route path="/journal/lymphatic-body-roller" element={<LymphaticBodyRoller />} />
               <Route path="/gut-reset/success" element={<GutResetSuccess />} />
               <Route path="/cafe" element={<Cafe />} />
               <Route path="/gift-cards" element={<HashRedirect to="/shop" hash="gift-cards" />} />

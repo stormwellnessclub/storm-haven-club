@@ -430,6 +430,7 @@ export default function Spa() {
             <Button variant="gold" size="lg" asChild>
               <Link to="/body-roller-presale">Buy Presale</Link>
             </Button>
+            <Link to="/journal/lymphatic-body-roller" className="block mt-4 text-sm underline underline-offset-4 text-muted-foreground hover:text-foreground">Read about the ritual</Link>
           </div>
         </div>
       </section>
