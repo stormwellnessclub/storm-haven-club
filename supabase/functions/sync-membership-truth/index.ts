@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -24,8 +25,12 @@ serve(async (req) => {
 
   // Scheduled runs authenticate with a shared cron secret; interactive runs
   // must present a super-admin JWT.
+  // Scheduled job: the vault-held internal task token (see _shared/internalTaskToken.ts).
+  // The older MEMBERSHIP_SYNC_CRON_SECRET is still accepted until it is deleted.
   const cronSecret = Deno.env.get("MEMBERSHIP_SYNC_CRON_SECRET");
-  const isCron = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
+  const presentedToken = presentedInternalToken(req);
+  const isCron = (!!presentedToken && await isValidInternalToken(presentedToken)) ||
+    (!!cronSecret && req.headers.get("x-cron-secret") === cronSecret);
   if (!isCron) {
     const authCheck = await requireStaff(req, ["super_admin"]);
     if (!authCheck.ok) return authCheck.response;

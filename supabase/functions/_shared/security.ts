@@ -26,12 +26,13 @@ function safeEqual(a: string, b: string): boolean {
   return d === 0;
 }
 
-/** True when the caller is another server (service-role key or internal task token). */
+/**
+ * True when the caller is another server holding the service-role key (the Stripe
+ * webhook and other edge functions). Scheduled-job tokens are deliberately not
+ * accepted here: these checks guard payment confirmation and fulfilment, which no
+ * scheduled job calls.
+ */
 export function isServerCaller(req: Request): boolean {
-  const internal = Deno.env.get("INTERNAL_TASK_TOKEN") ?? "";
-  const presented =
-    req.headers.get("x-internal-task-token") ?? req.headers.get("x-internal-token") ?? "";
-  if (internal && presented && safeEqual(presented, internal)) return true;
   const raw = req.headers.get("Authorization") ?? "";
   const token = raw.replace(/^Bearer\s+/i, "").trim();
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";

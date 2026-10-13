@@ -4,10 +4,12 @@
 // publishable keys) are NEVER trusted as internal, cron, service or
 // privileged callers. Accepted callers are:
 //   1. The private internal task token (x-internal-task-token header, or the
-//      legacy x-internal-token header) matching INTERNAL_TASK_TOKEN.
+//      legacy x-internal-token header): the vault-held token scheduled jobs
+//      read at run time (see _shared/internalTaskToken.ts).
 //   2. The Supabase service-role key (server-to-server only).
 //   3. A valid staff JWT holding one of the allowed roles.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isValidInternalToken, presentedInternalToken } from "./internalTaskToken.ts";
 
 const DEFAULT_ROLES = ["super_admin", "admin", "manager"];
 
@@ -59,14 +61,10 @@ export async function requireTrustedCaller(
     };
   };
 
-  // 1. Private internal automation token.
-  const internalToken = Deno.env.get("INTERNAL_TASK_TOKEN") ?? "";
-  const presented =
-    req.headers.get("x-internal-task-token") ??
-    req.headers.get("x-internal-token") ??
-    "";
-  if (internalToken && presented) {
-    if (timingSafeEqual(presented, internalToken)) {
+  // 1. Private internal automation token (vault-held).
+  const presented = presentedInternalToken(req);
+  if (presented) {
+    if (await isValidInternalToken(presented)) {
       return { ok: true, kind: "cron", userId: null };
     }
     return deny(401, "bad_internal_token");

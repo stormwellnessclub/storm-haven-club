@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,10 +25,9 @@ async function authorizeRequest(req: Request, type: string, to?: string): Promis
   if (token && serviceRoleKey && token === serviceRoleKey) {
     return { ok: true };
   }
-  // Allow trusted internal jobs presenting the internal task token.
-  const internal = (Deno.env.get('INTERNAL_TASK_TOKEN') ?? '').trim();
-  const presented = req.headers.get('x-internal-task-token') ?? (req.headers.get('x-internal-token') ?? '');
-  if (internal && presented && presented.trim() === internal) {
+  // Allow trusted internal jobs presenting the internal task token (vault-held).
+  const presented = presentedInternalToken(req);
+  if (presented && await isValidInternalToken(presented)) {
     return { ok: true };
   }
 
