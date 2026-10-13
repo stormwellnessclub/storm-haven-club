@@ -19,7 +19,7 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
       const startDate = format(dateRange.start, 'yyyy-MM-dd');
       const endDate = format(dateRange.end, 'yyyy-MM-dd');
 
-      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, eventsRes] = await Promise.all([
+      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, eventsRes, rollerRes] = await Promise.all([
         supabase.from('manual_charges').select('amount, description, created_at')
           .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
         supabase.from('cafe_orders').select('total_amount')
@@ -32,7 +32,18 @@ export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportPr
           .gte('purchased_at', startDate).lte('purchased_at', endDate),
         supabase.from('event_tickets').select('amount_cents, created_at')
           .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'paid'),
+        supabase.from('body_roller_presale_purchases').select('label, subtotal_cents, member_id')
+          .gte('paid_at', startDate).lte('paid_at', `${endDate}T23:59:59`).eq('status', 'paid'),
       ]);
+      const rollerByItem: Record<string, { count: number; value: number }> = {};
+      let rollerRevenue = 0;
+      (rollerRes.data || []).forEach((r: any) => {
+        const amt = (Number(r.subtotal_cents) || 0) / 100;
+        rollerRevenue += amt;
+        const k = r.label || 'Body Roller';
+        rollerByItem[k] = rollerByItem[k] || { count: 0, value: 0 };
+        rollerByItem[k].count += 1; rollerByItem[k].value += amt;
+      });
 
       let membershipRevenue = 0, initiationFees = 0, annualFees = 0, otherCharges = 0;
       (chargesRes.data || []).forEach(c => {

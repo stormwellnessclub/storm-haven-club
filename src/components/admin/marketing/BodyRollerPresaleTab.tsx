@@ -49,7 +49,7 @@ export function BodyRollerPresaleTab() {
     queryKey: ["admin-body-roller-presale"],
     queryFn: async () => {
       const [{ data: rows }, { data: settings }, { data: logs }] = await Promise.all([
-        supabase.from("body_roller_presale_purchases").select("*").eq("status", "paid").order("paid_at", { ascending: false }),
+        supabase.from("body_roller_presale_purchases").select("*").in("status", ["paid", "processing"]).order("created_at", { ascending: false }),
         supabase.from("body_roller_presale_settings").select("*").eq("id", 1).maybeSingle(),
         supabase.from("email_audit_log").select("email_type").in("email_type", Object.values(KEYS)).eq("status", "sent"),
       ]);
