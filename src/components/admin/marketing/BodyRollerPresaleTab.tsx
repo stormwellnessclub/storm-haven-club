@@ -36,6 +36,14 @@ export function BodyRollerPresaleTab() {
   const [html, setHtml] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [testEmail, setTestEmail] = useState("admin@stormwellnessclub.com");
+  const { data: nmCount } = useQuery({
+    queryKey: ["body-roller-nm-recipient-count"],
+    queryFn: async () => {
+      const { data: r, error } = await supabase.functions.invoke(FN, { body: { kind: "nm_launch", countOnly: true } });
+      if (error) throw error;
+      return r as { total: number; counts: { imported: number; portal_accounts: number; other_accounts: number } };
+    },
+  });
 
   const { data } = useQuery({
     queryKey: ["admin-body-roller-presale"],
@@ -131,6 +139,11 @@ export function BodyRollerPresaleTab() {
               <div>
                 <p className="font-medium text-sm">{k.title}</p>
                 <p className="text-xs text-muted-foreground">To {k.who} · sent to {data?.sent[KEYS[k.kind]] ?? 0}</p>
+                {k.kind.startsWith("nm_") && nmCount && (
+                  <p className="text-xs text-muted-foreground">
+                    List: {nmCount.total} people ({nmCount.counts.imported} imported · {nmCount.counts.portal_accounts} non-member accounts · {nmCount.counts.other_accounts} other accounts)
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => preview(k.kind)} disabled={!!busy}>
