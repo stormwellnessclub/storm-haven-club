@@ -9,7 +9,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Mail, Download } from "lucide-react";
+import { Loader2, Mail, Download, Clock } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+
+/** "2026-10-20T09:00" typed as Detroit time -> UTC ISO string. */
+export function detroitLocalToUtc(local: string): string {
+  const asUtc = new Date(`${local}:00Z`).getTime();
+  const offsetAt = (t: number) => {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - t;
+  };
+  let t = asUtc - offsetAt(asUtc);
+  t = asUtc - offsetAt(t);
+  return new Date(t).toISOString();
+}
 
 const FN = "send-body-roller-presale-email";
 type Row = { email: string; name: string | null; source: string | null; already_sent: boolean };
@@ -29,6 +44,19 @@ export function BodyRollerSendDialog({ kind, title, disabled, busy, onSend }: {
   const [q, setQ] = useState("");
   const [extra, setExtra] = useState("");
   const [showList, setShowList] = useState(false);
+  const [when, setWhen] = useState("");
+  const [scheduling, setScheduling] = useState(false);
+  const qc = useQueryClient();
+  const schedule = async () => {
+    setScheduling(true);
+    const { data, error } = await supabase.functions.invoke(FN, { body: { kind, scheduleAt: detroitLocalToUtc(when), extraEmails: extras } });
+    setScheduling(false);
+    if (error || !data?.ok) { toast.error(data?.error || error?.message || "Couldn't schedule"); return; }
+    toast.success(`Scheduled for ${new Date(data.scheduled.send_at).toLocaleString("en-US", { timeZone: "America/Detroit", dateStyle: "medium", timeStyle: "short" })}`);
+    qc.invalidateQueries({ queryKey: ["body-roller-scheduled"] });
+    setOpen(false);
+  };
+  const [open, setOpen] = useState(false);
 
   const load = async (extraEmails: string[]) => {
     setLoading(true); setError(null);
@@ -51,7 +79,7 @@ export function BodyRollerSendDialog({ kind, title, disabled, busy, onSend }: {
   };
 
   return (
-    <AlertDialog onOpenChange={(o) => { if (o) { setRows(null); setExtra(""); setQ(""); setShowList(false); load([]); } }}>
+    <AlertDialog open={open} onOpenChange={(o) => { setOpen(o); if (o) { setWhen(""); setRows(null); setExtra(""); setQ(""); setShowList(false); load([]); } }}>
       <AlertDialogTrigger asChild>
         <Button size="sm" disabled={disabled}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4 mr-1" />}Send</Button>
       </AlertDialogTrigger>
@@ -101,6 +129,19 @@ export function BodyRollerSendDialog({ kind, title, disabled, busy, onSend }: {
                 </Button>
               </div>
             </div>
+          </div>
+        )}
+
+        {rows && (
+          <div className="flex flex-wrap items-end gap-2 border-t pt-3">
+            <div className="space-y-1">
+              <Label>Or send later (Detroit time)</Label>
+              <Input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="w-56" />
+            </div>
+            <Button size="sm" variant="outline" disabled={!when || scheduling} onClick={schedule}>
+              {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4 mr-1" />}Schedule
+            </Button>
+            <p className="text-xs text-muted-foreground w-full">The list is rebuilt at send time, so new sign-ups are included and anyone who already got it is skipped.</p>
           </div>
         )}
 
