@@ -81,6 +81,12 @@ export default function NonMemberAccounts() {
         orphanedProfiles = opData || [];
       }
 
+      // Hide anyone who currently holds a membership (cancelled members stay here as non-members).
+      const { data: currentMembers } = await supabase
+        .from("members").select("user_id, email").neq("status", "cancelled").range(0, 4999);
+      const memberIds = new Set((currentMembers || []).map((m: any) => m.user_id).filter(Boolean));
+      const memberEmails = new Set((currentMembers || []).map((m: any) => String(m.email || "").toLowerCase()).filter(Boolean));
+
       const allProfiles = [
         ...(profiles || []),
         ...orphanedProfiles.map((op: any) => ({
@@ -95,7 +101,7 @@ export default function NonMemberAccounts() {
           stripe_customer_id: null,
           created_at: new Date().toISOString(),
         })),
-      ];
+      ].filter((p: any) => !memberIds.has(p.user_id) && !memberEmails.has(String(p.email || "").toLowerCase()));
 
       const userIds = allProfiles.map((p: any) => p.user_id).filter(Boolean);
       let passesData: any[] = [];

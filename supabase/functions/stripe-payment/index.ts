@@ -3426,7 +3426,11 @@ serve(async (req) => {
         // Prefer DB-managed price; fallback to hardcoded map.
         const dbCategory2 = passCategory === 'pilatesCycling' ? 'pilates_cycling' : 'other';
         const dbPassType2 = passType === 'tenPack' ? '10_pack' : (passType as string);
-        const audience2 = isMember ? 'member' : 'non_member';
+        // Verify membership server-side: cancelled members always get non-member pricing.
+        const { data: targetMembers } = await supabase
+          .from('members').select('status').eq('user_id', userId).neq('status', 'cancelled').limit(1);
+        const verifiedMember2 = !!isMember && (targetMembers ?? []).length > 0;
+        const audience2 = verifiedMember2 ? 'member' : 'non_member';
         let priceId: string | undefined;
         let pricingRowId2: string | null = null;
         try {

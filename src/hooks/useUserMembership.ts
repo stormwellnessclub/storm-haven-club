@@ -57,10 +57,14 @@ export function useUserMembership() {
     queryFn: async (): Promise<UserMembership | null> => {
       if (!user) return null;
 
+      // Cancelled memberships don't count: those people use the non-member portal and pricing.
       const { data, error } = await supabase
         .from("members")
         .select("*")
         .eq("user_id", user.id)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (error) throw error;

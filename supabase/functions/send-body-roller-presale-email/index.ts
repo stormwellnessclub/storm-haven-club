@@ -60,25 +60,55 @@ serve(async (req) => {
       recipients.push({ email: e, first: (r.customer_name ?? "").split(" ")[0] || null, name: r.customer_name, member_id: r.member_id });
     }
   } else if (kind.startsWith("nm_")) {
-    // Non-members: registered profiles with no member record at all (active or cancelled), minus blocked emails.
-    const [{ data: profs, error }, { data: mems }, { data: blocked }] = await Promise.all([
-      supabase.from("profiles").select("email, first_name, last_name").not("email", "is", null),
-      supabase.from("members").select("email"),
-      supabase.from("blocked_persons").select("email"),
-    ]);
-    if (error) return json({ error: error.message }, 500);
-    const exclude = new Set([...(mems ?? []), ...(blocked ?? [])].map((r: any) => String(r.email || "").trim().toLowerCase()));
-    const seen = new Set<string>();
-    for (const p of profs ?? []) {
-      const e = String((p as any).email || "").trim().toLowerCase();
-      if (!e || exclude.has(e) || seen.has(e)) continue; seen.add(e);
-      recipients.push({ email: e, first: (p as any).first_name ?? null, name: [(p as any).first_name, (p as any).last_name].filter(Boolean).join(" ") || null, member_id: null });
+    // Non-members: imported contacts + non-member accounts + registered profiles, de-duplicated,
+    // minus anyone with a current (non-cancelled) membership, blocked, or unsubscribed. Paged — no 1,000 cap.
+    const pageAll = async (table: string, cols: string, apply?: (q: any) => any) => {
+      const out: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        let q = supabase.from(table).select(cols).range(from, from + 999);
+        if (apply) q = apply(q);
+        const { data, error } = await q;
+        if (error) throw error;
+        out.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return out;
+    };
+    try {
+      const [contacts, nonMembers, profs, mems, blocked] = await Promise.all([
+        pageAll("marketing_contacts", "email, first_name, last_name, unsubscribed_at, opted_in_email"),
+        pageAll("non_member_profiles", "email, first_name, last_name"),
+        pageAll("profiles", "email, first_name, last_name"),
+        pageAll("members", "email, status"),
+        pageAll("blocked_persons", "email"),
+      ]);
+      const norm = (e: any) => String(e || "").trim().toLowerCase();
+      const exclude = new Set<string>([
+        ...mems.filter((m: any) => m.status !== "cancelled").map((m: any) => norm(m.email)),
+        ...blocked.map((b: any) => norm(b.email)),
+        ...contacts.filter((c: any) => c.unsubscribed_at || c.opted_in_email === false).map((c: any) => norm(c.email)),
+      ]);
+      const counts = { imported: 0, portal_accounts: 0, other_accounts: 0 };
+      const seen = new Set<string>();
+      const add = (rows: any[], src: keyof typeof counts) => {
+        for (const p of rows) {
+          const e = norm(p.email);
+          if (!e || !e.includes("@") || exclude.has(e) || seen.has(e)) continue;
+          seen.add(e); counts[src]++;
+          recipients.push({ email: e, first: p.first_name ?? null, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null, member_id: null });
+        }
+      };
+      add(contacts, "imported"); add(nonMembers, "portal_accounts"); add(profs, "other_accounts");
+      if (body?.countOnly) return json({ ok: true, total: recipients.length, counts });
+    } catch (e: any) {
+      return json({ error: e?.message ?? "Failed to load recipients" }, 500);
     }
   } else {
     const { data, error } = await supabase.from("members").select("id, first_name, last_name, email").eq("status", "active");
     if (error) return json({ error: error.message }, 500);
     recipients = (data ?? []).map((m: any) => ({ email: String(m.email || "").trim().toLowerCase(), first: m.first_name ?? null, name: [m.first_name, m.last_name].filter(Boolean).join(" ") || null, member_id: m.id }));
   }
+  if (body?.countOnly) return json({ ok: true, total: recipients.length });
 
   const { data: sentRows } = await supabase.from("email_audit_log").select("recipient_email").eq("email_type", meta.key).eq("status", "sent");
   const already = new Set((sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
