@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BodyRollerSendDialog } from "./BodyRollerSendDialog";
+import { BodyRollerScheduledSends, BodyRollerOpens } from "./BodyRollerScheduleOpens";
 import { toast } from "sonner";
 import { Download, Eye, Loader2, Mail, Send, ExternalLink } from "lucide-react";
 import { usd } from "@/lib/bodyRollerPresale";
@@ -196,6 +197,9 @@ export function BodyRollerPresaleTab() {
           ))}
         </CardContent>
       </Card>
+
+      <BodyRollerScheduledSends titles={Object.fromEntries(KINDS.map((k) => [k.kind, k.title]))} />
+      <BodyRollerOpens kinds={KINDS.map((k) => ({ kind: k.kind, title: k.title }))} />
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
