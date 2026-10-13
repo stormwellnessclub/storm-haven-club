@@ -581,6 +581,119 @@ export type Database = {
           },
         ]
       }
+      billing_reconciliation_items: {
+        Row: {
+          action: string
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          details: Json
+          id: string
+          kind: string
+          member_id: string | null
+          message: string
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          run_id: string
+          stripe_invoice_id: string | null
+        }
+        Insert: {
+          action: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind: string
+          member_id?: string | null
+          message: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id: string
+          stripe_invoice_id?: string | null
+        }
+        Update: {
+          action?: string
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          details?: Json
+          id?: string
+          kind?: string
+          member_id?: string | null
+          message?: string
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id?: string
+          stripe_invoice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_reconciliation_items_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_reconciliation_items_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_reconciliation_items_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_reconciliation_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "billing_reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_reconciliation_runs: {
+        Row: {
+          error: string | null
+          finished_at: string | null
+          id: string
+          started_at: string
+          status: string
+          summary: Json
+          trigger: string
+          triggered_by: string | null
+        }
+        Insert: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          summary?: Json
+          trigger: string
+          triggered_by?: string | null
+        }
+        Update: {
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          started_at?: string
+          status?: string
+          summary?: Json
+          trigger?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       blocked_persons: {
         Row: {
           blocked_at: string
@@ -15447,6 +15560,16 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_billing_status_change: {
+        Args: {
+          p_changed_by?: string
+          p_member_id: string
+          p_reason: string
+          p_stripe_event_id?: string
+          p_target: string
+        }
+        Returns: string
+      }
       approve_event_guest_request: {
         Args: { _amount_cents?: number; _request_id: string }
         Returns: Json
@@ -17783,6 +17906,10 @@ export type Database = {
           promotion_id: string
           reason: string
         }[]
+      }
+      review_billing_reconciliation_item: {
+        Args: { p_item_id: string; p_note?: string }
+        Returns: undefined
       }
       roll_instructor_pay_periods: { Args: never; Returns: number }
       rollback_private_event_financial_import: {
