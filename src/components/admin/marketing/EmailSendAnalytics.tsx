@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,8 +117,8 @@ export function EmailSendAnalytics() {
                 </TableRow></TableHeader>
                 <TableBody>
                   {rows.map((r) => (
-                    <>
-                      <TableRow key={r.type} className={r.failed.length ? "cursor-pointer" : ""} onClick={() => r.failed.length && setOpen(open === r.type ? null : r.type)}>
+                    <Fragment key={r.type}>
+                      <TableRow className={r.failed.length ? "cursor-pointer" : ""} onClick={() => r.failed.length && setOpen(open === r.type ? null : r.type)}>
                         <TableCell className="font-medium">
                           <span className="inline-flex items-center gap-1">{r.failed.length > 0 && (open === r.type ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />)}{r.name}</span>
                         </TableCell>
@@ -134,7 +134,7 @@ export function EmailSendAnalytics() {
                           </div>
                         </TableCell></TableRow>
                       )}
-                    </>
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
