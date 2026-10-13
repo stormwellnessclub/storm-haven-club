@@ -5266,6 +5266,7 @@ export type Database = {
         Row: {
           amount: number
           application_id: string | null
+          arrears_settled_at: string | null
           charged_by: string | null
           created_at: string
           description: string
@@ -5286,6 +5287,7 @@ export type Database = {
         Insert: {
           amount: number
           application_id?: string | null
+          arrears_settled_at?: string | null
           charged_by?: string | null
           created_at?: string
           description: string
@@ -5306,6 +5308,7 @@ export type Database = {
         Update: {
           amount?: number
           application_id?: string | null
+          arrears_settled_at?: string | null
           charged_by?: string | null
           created_at?: string
           description?: string
