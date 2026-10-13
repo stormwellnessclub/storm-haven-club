@@ -216,7 +216,7 @@ export function TargetedSmsTab() {
             <div><Label className="text-xs">Campaign name (only staff see this)</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Reformer win-back, October" /></div>
             <Textarea rows={5} maxLength={1600} value={body} onChange={(e) => setBody(e.target.value)} />
             <div className="text-xs text-muted-foreground flex justify-between">
-              <span>{body.length} chars · {segments(body)} segment(s) · {cost.type}</span><span>≈ {cost.totalFormatted ?? cost.perRecipientFormatted} total</span>
+              <span>{body.length} chars · {segments(body)} segment(s) · {cost.type}</span><span>≈ {cost.formatted} total</span>
             </div>
             <SmsMediaPicker value={media} onChange={setMedia} />
             <div className="rounded-2xl bg-muted p-3 max-w-xs">
