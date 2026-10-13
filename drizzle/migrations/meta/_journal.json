@@ -624,6 +624,13 @@
       "when": 1791866780637,
       "tag": "0088_body_roller_presale_clicks",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1791867326762,
+      "tag": "0089_waiver_status_from_profiles",
+      "breakpoints": true
     }
   ]
 }
