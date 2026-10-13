@@ -20,3 +20,11 @@ export async function trackLinks(html: string, email: string, kind: string): Pro
   return html.replace(/href="(https:\/\/[^"]+)"/g, (m, url) =>
     isSiteUrl(url) ? `href="${base}?e=${e}&k=${encodeURIComponent(kind)}&s=${s}&u=${b64u(url)}"` : m);
 }
+
+/** Adds a 1x1 signed open-tracking image so we can tell who opened the email. */
+export async function addOpenPixel(html: string, email: string, kind: string): Promise<string> {
+  const base = `${Deno.env.get("SUPABASE_URL")}/functions/v1/body-roller-open`;
+  const src = `${base}?e=${b64u(email.toLowerCase())}&k=${encodeURIComponent(kind)}&s=${await signClick(email, kind)}`;
+  const img = `<img src="${src}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;opacity:0" />`;
+  return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, `${img}</body>`) : html + img;
+}
