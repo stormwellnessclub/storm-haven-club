@@ -73,13 +73,14 @@ export default function FrontDeskMembersPage() {
     };
   }, [query]);
 
-  const openMember = (m: any) => {
-    setSelected({
-      ...m,
-      waiver_signed: false,
-      membership_agreement_signed: false,
-    });
+  const openMember = async (m: any) => {
+    setSelected({ ...m, waiver_signed: false, membership_agreement_signed: false });
     setOpen(true);
+    if (!m.user_id) return;
+    const { data: p } = await supabase.from("profiles")
+      .select("waiver_signed, membership_agreement_signed").eq("user_id", m.user_id).maybeSingle();
+    if (p) setSelected((cur: any) => cur && cur.id === m.id
+      ? { ...cur, waiver_signed: !!p.waiver_signed, membership_agreement_signed: !!p.membership_agreement_signed } : cur);
   };
 
   const isBlocked = (m: any) => {

@@ -206,12 +206,12 @@ export default function Members() {
       if (userIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
-          .select("id, waiver_signed, membership_agreement_signed")
-          .in("id", userIds);
+          .select("user_id, waiver_signed, membership_agreement_signed")
+          .in("user_id", userIds);
         
         if (profilesData) {
           profilesMap = profilesData.reduce((acc, p) => {
-            acc[p.id] = { 
+            acc[p.user_id] = { 
               waiver_signed: p.waiver_signed || false, 
               membership_agreement_signed: p.membership_agreement_signed || false 
             };
