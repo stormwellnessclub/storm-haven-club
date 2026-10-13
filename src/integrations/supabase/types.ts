@@ -609,6 +609,33 @@ export type Database = {
           },
         ]
       }
+      body_roller_email_opens: {
+        Row: {
+          email: string
+          first_opened_at: string
+          id: string
+          kind: string
+          last_opened_at: string
+          open_count: number
+        }
+        Insert: {
+          email: string
+          first_opened_at?: string
+          id?: string
+          kind: string
+          last_opened_at?: string
+          open_count?: number
+        }
+        Update: {
+          email?: string
+          first_opened_at?: string
+          id?: string
+          kind?: string
+          last_opened_at?: string
+          open_count?: number
+        }
+        Relationships: []
+      }
       body_roller_presale_clicks: {
         Row: {
           clicked_at: string
@@ -720,6 +747,45 @@ export type Database = {
           ends_at?: string
           id?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      body_roller_scheduled_sends: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          error: string | null
+          extra_emails: string[]
+          id: string
+          kind: string
+          result: Json | null
+          send_at: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          extra_emails?: string[]
+          id?: string
+          kind: string
+          result?: Json | null
+          send_at: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          extra_emails?: string[]
+          id?: string
+          kind?: string
+          result?: Json | null
+          send_at?: string
+          sent_at?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -17317,6 +17383,10 @@ export type Database = {
           sessions_updated: number
         }[]
       }
+      record_body_roller_open: {
+        Args: { _email: string; _kind: string }
+        Returns: undefined
+      }
       record_cafe_cash_purchase: {
         Args: {
           _amount_cents: number
@@ -17540,6 +17610,7 @@ export type Database = {
         }
         Returns: string
       }
+      unschedule_body_roller_send: { Args: { _id: string }; Returns: undefined }
       update_spa_appointment_admin: {
         Args: {
           p_appointment_date: string
