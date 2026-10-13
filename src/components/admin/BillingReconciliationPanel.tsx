@@ -5,6 +5,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+const db = supabase as any;
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,7 +70,7 @@ export function BillingReconciliationPanel() {
   const lastRun = useQuery({
     queryKey: ["billing-reconciliation", "last-run"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("billing_reconciliation_runs")
         .select("id, started_at, finished_at, trigger, status, summary, error")
         .order("started_at", { ascending: false })
@@ -84,7 +85,7 @@ export function BillingReconciliationPanel() {
   const openReviews = useQuery({
     queryKey: ["billing-reconciliation", "open-reviews"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("billing_reconciliation_items")
         .select("id, created_at, member_id, stripe_invoice_id, kind, action, message, members!billing_reconciliation_items_member_id_fkey(first_name, last_name)")
         .eq("action", "needs_review")
@@ -100,7 +101,7 @@ export function BillingReconciliationPanel() {
     queryKey: ["billing-reconciliation", "corrections", lastRun.data?.id],
     enabled: showCorrections && !!lastRun.data?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from("billing_reconciliation_items")
         .select("id, created_at, member_id, stripe_invoice_id, kind, action, message, members!billing_reconciliation_items_member_id_fkey(first_name, last_name)")
         .eq("action", "corrected")
@@ -131,7 +132,7 @@ export function BillingReconciliationPanel() {
 
   const review = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.rpc("review_billing_reconciliation_item", { p_item_id: id, p_note: notes[id] || undefined });
+      const { error } = await db.rpc("review_billing_reconciliation_item", { p_item_id: id, p_note: notes[id] || undefined });
       if (error) throw error;
     },
     onSuccess: () => toast.success("Marked as reviewed"),
