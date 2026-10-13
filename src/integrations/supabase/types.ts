@@ -581,105 +581,6 @@ export type Database = {
           },
         ]
       }
-      billing_reconciliation_items: {
-        Row: {
-          action: string
-          after_state: Json | null
-          before_state: Json | null
-          created_at: string
-          details: Json
-          id: string
-          kind: string
-          member_id: string | null
-          message: string
-          review_note: string | null
-          reviewed_at: string | null
-          reviewed_by: string | null
-          run_id: string
-          stripe_invoice_id: string | null
-        }
-        Insert: {
-          action: string
-          after_state?: Json | null
-          before_state?: Json | null
-          created_at?: string
-          details?: Json
-          id?: string
-          kind: string
-          member_id?: string | null
-          message: string
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          run_id: string
-          stripe_invoice_id?: string | null
-        }
-        Update: {
-          action?: string
-          after_state?: Json | null
-          before_state?: Json | null
-          created_at?: string
-          details?: Json
-          id?: string
-          kind?: string
-          member_id?: string | null
-          message?: string
-          review_note?: string | null
-          reviewed_at?: string | null
-          reviewed_by?: string | null
-          run_id?: string
-          stripe_invoice_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "billing_reconciliation_items_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "billing_reconciliation_items_run_id_fkey"
-            columns: ["run_id"]
-            isOneToOne: false
-            referencedRelation: "billing_reconciliation_runs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      billing_reconciliation_runs: {
-        Row: {
-          error: string | null
-          finished_at: string | null
-          id: string
-          started_at: string
-          status: string
-          summary: Json
-          trigger: string
-          triggered_by: string | null
-        }
-        Insert: {
-          error?: string | null
-          finished_at?: string | null
-          id?: string
-          started_at?: string
-          status?: string
-          summary?: Json
-          trigger: string
-          triggered_by?: string | null
-        }
-        Update: {
-          error?: string | null
-          finished_at?: string | null
-          id?: string
-          started_at?: string
-          status?: string
-          summary?: Json
-          trigger?: string
-          triggered_by?: string | null
-        }
-        Relationships: []
-      }
       blocked_persons: {
         Row: {
           blocked_at: string
@@ -16219,10 +16120,6 @@ export type Database = {
       get_next_waitlist_position: {
         Args: { p_session_id: string }
         Returns: number
-      }
-      review_billing_reconciliation_item: {
-        Args: { p_item_id: string; p_note?: string }
-        Returns: undefined
       }
       get_payment_metrics: {
         Args: { p_end_date: string; p_start_date: string }
