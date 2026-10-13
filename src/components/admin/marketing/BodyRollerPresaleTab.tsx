@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-} from "@/components/ui/alert-dialog";
+import { BodyRollerSendDialog } from "./BodyRollerSendDialog";
 import { toast } from "sonner";
 import { Download, Eye, Loader2, Mail, Send, ExternalLink } from "lucide-react";
 import { usd } from "@/lib/bodyRollerPresale";
