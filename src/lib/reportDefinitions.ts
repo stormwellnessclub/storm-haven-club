@@ -134,7 +134,7 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'daily-revenue',
     name: 'Daily Revenue Breakdown',
-    description: 'Revenue per day broken down by area: Café, Spa, Classes, Guest Passes, Memberships',
+    description: 'Revenue per day by area (dues, PT, spa, café, classes, events…), Detroit business days, refunds subtracted',
     category: 'financial',
     icon: BarChart3,
     filters: [],
@@ -143,7 +143,7 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'sales-segmentation',
     name: 'Sales Segmentation',
-    description: 'Detailed revenue breakdown by all sources: memberships, café, spa, classes, guest passes',
+    description: 'Revenue by area and by payment method (card, cash, check, Clover), with monthly mix',
     category: 'financial',
     icon: PieChart,
     filters: [],
@@ -176,13 +176,10 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'collected-revenue',
     name: 'Collected Revenue',
-    description: 'Successful payment attempts grouped into dues, annual fee, class pass, guest pass, and POS',
+    description: 'Every payment collected — card, cash, check and Clover — by area, members vs non-members',
     category: 'financial',
     icon: Receipt,
-    filters: [
-      { id: 'chargeType', label: 'Charge Type', type: 'select', options: CHARGE_TYPE_OPTIONS },
-      { id: 'tier', label: 'Tier', type: 'select', options: TIER_OPTIONS },
-    ],
+    filters: [],
     defaultDateRange: 'thisMonth',
   },
   {
@@ -212,7 +209,7 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'revenue-by-category',
     name: 'Revenue by Category',
-    description: 'Revenue breakdown: Memberships, Classes, Spa, Cafe, Guest Passes',
+    description: 'Revenue by area with refunds, sales tax, card fees and tips shown separately',
     category: 'financial',
     icon: PieChart,
     filters: [],
@@ -252,7 +249,7 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'sales-tax-collected',
     name: 'Sales Tax Collected',
-    description: 'MI 6% sales tax collected from Café, Storm Shop, and POS transactions',
+    description: 'MI 6% sales tax with taxable vs exempt sales, including cash, check and Clover sales',
     category: 'financial',
     icon: Receipt,
     filters: [],
@@ -261,7 +258,7 @@ export const REPORTS: ReportDefinition[] = [
   {
     id: 'sales-tax-by-month',
     name: 'Sales Tax by Month (Detailed)',
-    description: 'Every taxed sale broken down month by month, by source, with full transaction detail and CSV export',
+    description: 'Month-by-month figures for the sales tax return: total, exempt and taxable sales, tax collected, CSV export',
     category: 'financial',
     icon: Receipt,
     filters: [],

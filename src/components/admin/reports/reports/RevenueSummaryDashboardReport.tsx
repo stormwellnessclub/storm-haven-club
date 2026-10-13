@@ -6,13 +6,14 @@ import { ResponsiveContainer, BarChart, CartesianGrid, XAxis, YAxis, Bar } from 
 import {
   buildProjectedCharges,
   formatCurrency,
-  getAttemptChargeType,
   matchesChargeType,
   matchesTier,
   useFinancialReporting,
   type FinancialDateRange,
   type FinancialFilters,
 } from "@/hooks/useFinancialReporting";
+import { AREA_ORDER, areaLabel, isEarnedArea, sumRows, useRevenueSummary } from "@/lib/revenueLedger";
+import { LedgerStatusBar } from "../LedgerStatusBar";
 
 interface Props {
   dateRange: FinancialDateRange;
@@ -21,20 +22,21 @@ interface Props {
 
 export function RevenueSummaryDashboardReport({ dateRange, filters }: Props) {
   const { data, isLoading, error } = useFinancialReporting(dateRange);
+  const ledger = useRevenueSummary(dateRange);
 
-  if (isLoading) return <Skeleton className="h-[420px] w-full" />;
-  if (error) return <div className="text-sm text-destructive">Failed to load revenue summary.</div>;
+  if (isLoading || ledger.isLoading) return <Skeleton className="h-[420px] w-full" />;
+  if (error || ledger.error) return <div className="text-sm text-destructive">Failed to load revenue summary.</div>;
 
-  const collected = (data?.paymentAttempts ?? [])
-    .filter((attempt) => attempt.status === "succeeded")
-    .filter((attempt) => matchesChargeType(getAttemptChargeType(attempt), filters.chargeType))
-    .filter((attempt) => matchesTier(attempt.member, filters.tier));
+  // Collected = revenue actually earned (from the revenue ledger: every card,
+  // cash, check and Clover sale, net of refunds, tax, card fees and tips).
+  const earnedRows = (ledger.data ?? []).filter((r) => isEarnedArea(r.area));
+  const collectedFor = (area: string) => sumRows(earnedRows.filter((r) => r.area === area)).net;
 
   const projected = buildProjectedCharges(data?.members ?? [], dateRange)
     .filter((row) => matchesChargeType(row.chargeType, filters.chargeType))
     .filter((row) => matchesTier({ membership_type: row.tier }, filters.tier));
 
-  const collectedTotal = collected.reduce((sum, row) => sum + row.amount, 0);
+  const collectedTotal = sumRows(earnedRows).net;
   const projectedTotal = projected.reduce((sum, row) => sum + row.amount, 0);
   const mrr = projected.filter((row) => row.chargeType === "membership_dues" && !row.isFoundingMember).reduce((sum, row) => sum + row.amount, 0);
   const annualInitiationProjection = projected.filter((row) => row.chargeType === "annual_fee").reduce((sum, row) => sum + row.amount, 0);
@@ -49,36 +51,19 @@ export function RevenueSummaryDashboardReport({ dateRange, filters }: Props) {
     },
   ];
 
-  const breakdownRows = [
-    {
-      label: "Membership dues",
-      collected: collected.filter((row) => getAttemptChargeType(row) === "membership_dues").reduce((sum, row) => sum + row.amount, 0),
-      projected: projected.filter((row) => row.chargeType === "membership_dues").reduce((sum, row) => sum + row.amount, 0),
-    },
-    {
-      label: "Annual fee",
-      collected: collected.filter((row) => getAttemptChargeType(row) === "annual_fee").reduce((sum, row) => sum + row.amount, 0),
-      projected: projected.filter((row) => row.chargeType === "annual_fee").reduce((sum, row) => sum + row.amount, 0),
-    },
-    {
-      label: "Class pass",
-      collected: collected.filter((row) => getAttemptChargeType(row) === "class_pass").reduce((sum, row) => sum + row.amount, 0),
-      projected: 0,
-    },
-    {
-      label: "Guest pass",
-      collected: collected.filter((row) => getAttemptChargeType(row) === "guest_pass").reduce((sum, row) => sum + row.amount, 0),
-      projected: 0,
-    },
-    {
-      label: "POS",
-      collected: collected.filter((row) => getAttemptChargeType(row) === "pos_other").reduce((sum, row) => sum + row.amount, 0),
-      projected: 0,
-    },
-  ];
+  const projectedFor = (chargeType: string) =>
+    projected.filter((row) => row.chargeType === chargeType).reduce((sum, row) => sum + row.amount, 0);
+  const breakdownRows = AREA_ORDER
+    .filter((area) => isEarnedArea(area) && (collectedFor(area) !== 0 || area === "dues" || area === "fees_initiation"))
+    .map((area) => ({
+      label: areaLabel(area),
+      collected: collectedFor(area),
+      projected: area === "dues" ? projectedFor("membership_dues") : area === "fees_initiation" ? projectedFor("annual_fee") : 0,
+    }));
 
   return (
     <div className="space-y-6">
+      <LedgerStatusBar estimatedEntries={sumRows(earnedRows).estimated} />
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">

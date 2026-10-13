@@ -530,6 +530,21 @@ export function ChargeItemSelector({
           charged_by: user?.id || "unknown",
           user_id: nonMember?.userId || user?.id || "unknown",
           note: receiptNote.trim() || null,
+          // Same detail card charges record, so cash/check sales split exactly by area
+          // and their sales tax is known rather than estimated.
+          metadata: {
+            type: "manual_payment",
+            tender: manualPaymentMethod,
+            line_items: cartItems.map((it) => ({
+              name: it.label,
+              quantity: it.quantity,
+              unit_price: it.unitAmount,
+              chargeType: it.chargeType,
+              taxable: it.isTaxable,
+            })),
+            subtotal_cents: Math.round(cartSubtotal * 100),
+            tax_cents: Math.round(cartCafeTax * 100),
+          },
         };
         if (!nonMember) {
           insertData.member_id = member.id;
@@ -575,10 +590,13 @@ export function ChargeItemSelector({
           subtotal: subtotalCents,
           payment_type: paymentType,
           note: receiptNote.trim() || undefined,
+          // chargeType + taxable let the revenue ledger split mixed carts exactly.
           lineItems: cartItems.map((it) => ({
             name: it.label,
             quantity: it.quantity,
             unit_price: it.unitAmount,
+            chargeType: it.chargeType,
+            taxable: it.isTaxable,
           })),
           recipientEmail: (nonMember as any)?.email || (member as any)?.email || undefined,
           recipientName: (nonMember as any)?.name

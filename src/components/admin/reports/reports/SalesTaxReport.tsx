@@ -1,74 +1,62 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, Store, Coffee, ShoppingBag, AlertCircle } from "lucide-react";
+import { AlertCircle, Download, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LedgerStatusBar } from "../LedgerStatusBar";
+import {
+  AREA_ORDER, areaLabel, downloadCsv, fetchLedgerEntries, money, taxSummary, tenderLabel, toBusinessDate, useRevenueSummary,
+  type RevenueSummaryRow,
+} from "@/lib/revenueLedger";
 
 interface SalesTaxReportProps {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
 
-interface StripeTaxItem {
-  date: string;
-  description: string;
-  source: string;
-  subtotal: number;
-  tax_amount: number;
-  total: number;
-  stripe_charge_id: string;
-}
-
 export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
-  const startStr = format(dateRange.start, "yyyy-MM-dd'T'00:00:00");
-  const endStr = format(dateRange.end, "yyyy-MM-dd'T'23:59:59");
+  const { data: rows, isLoading, error } = useRevenueSummary(dateRange);
+  const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["sales-tax-stripe", startStr, endStr],
-    queryFn: async () => {
-      const { data, error } = await supabase.functions.invoke("stripe-sales-tax", {
-        body: { start_date: startStr, end_date: endStr },
-      });
-      if (error) throw new Error(error.message || "Failed to fetch tax data");
-      if (data && data.ok === false) throw new Error(data.error || "Request failed");
-      if (data?.error) throw new Error(data.error);
-      return {
-        items: (data?.items || []) as StripeTaxItem[],
-        truncated: Boolean(data?.truncated),
-      };
-    },
-  });
+  const view = useMemo(() => {
+    const all = rows ?? [];
+    const groupBy = (key: (r: RevenueSummaryRow) => string) => {
+      const keys = [...new Set(all.map(key))];
+      return keys.map((k) => ({ key: k, ...taxSummary(all.filter((r) => key(r) === k)) }));
+    };
+    const byArea = groupBy((r) => r.area).sort((a, b) => AREA_ORDER.indexOf(a.key as never) - AREA_ORDER.indexOf(b.key as never));
+    const byTender = groupBy((r) => r.tender).sort((a, b) => b.tax - a.tax);
+    return { total: taxSummary(all), byArea, byTender };
+  }, [rows]);
 
-  const items = data?.items || [];
-  const truncated = data?.truncated;
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const entries = await fetchLedgerEntries(dateRange.start, dateRange.end);
+      const out: Array<Array<string | number>> = [[
+        "Date", "Type", "Area", "Payment method", "Description", "Taxable", "Sale (excl. tax)", "Tax", "Card fee", "Tip", "Collected", "Estimated", "Reference",
+      ]];
+      for (const e of entries) {
+        out.push([
+          e.business_date, e.kind, areaLabel(e.area), tenderLabel(e.tender), e.label || e.description || "",
+          e.taxable ? "yes" : "no", (e.net_cents / 100).toFixed(2), (e.tax_cents / 100).toFixed(2),
+          (e.fee_cents / 100).toFixed(2), (e.tip_cents / 100).toFixed(2), (e.gross_cents / 100).toFixed(2),
+          e.estimated ? "yes" : "", e.stripe_charge_id || e.source_ref,
+        ]);
+      }
+      downloadCsv(`sales-tax-${toBusinessDate(dateRange.start)}-to-${toBusinessDate(dateRange.end)}.csv`, out);
+    } catch (e) {
+      toast.error(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setExporting(false);
+    }
+  };
 
-  // Only show items that have tax collected
-  const taxedItems = items.filter((i) => i.tax_amount > 0);
-  
-  // Category totals
-  const cafeTax = taxedItems
-    .filter((i) => i.source === "Café / POS")
-    .reduce((s, i) => s + i.tax_amount, 0);
-  const shopTax = taxedItems
-    .filter((i) => i.source === "Storm Shop")
-    .reduce((s, i) => s + i.tax_amount, 0);
-  const otherTax = taxedItems
-    .filter((i) => i.source !== "Café / POS" && i.source !== "Storm Shop")
-    .reduce((s, i) => s + i.tax_amount, 0);
-  const totalTax = taxedItems.reduce((s, i) => s + i.tax_amount, 0);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <Skeleton className="h-[400px] w-full" />;
   if (error) {
     return (
       <Alert variant="destructive">
@@ -78,122 +66,106 @@ export function SalesTaxReport({ dateRange }: SalesTaxReportProps) {
     );
   }
 
+  const t = view.total;
+  const effectiveRate = t.taxableSales > 0 ? (t.tax / t.taxableSales) * 100 : 0;
+
   return (
     <div className="space-y-6">
-      {truncated && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Results truncated for performance — showing first {items.length} charges. Narrow the date range for complete data.
-          </AlertDescription>
-        </Alert>
-      )}
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <DollarSign className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Tax Collected</p>
-                <p className="text-2xl font-bold">${totalTax.toFixed(2)}</p>
-                <p className="text-xs text-muted-foreground">{taxedItems.length} taxed transactions</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-secondary">
-                <Coffee className="h-5 w-5 text-secondary-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Café / POS Tax</p>
-                <p className="text-2xl font-bold">${cafeTax.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-accent">
-                <Store className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Storm Shop Tax</p>
-                <p className="text-2xl font-bold">${shopTax.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <LedgerStatusBar estimatedEntries={t.estimated} />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Card><CardContent className="pt-5">
+          <p className="text-xs text-muted-foreground">Sales tax collected</p>
+          <p className="text-2xl font-bold text-primary">{money(t.tax)}</p>
+          <p className="text-[11px] text-muted-foreground">Net of refunds · {effectiveRate.toFixed(2)}% of taxable sales</p>
+        </CardContent></Card>
+        <Card><CardContent className="pt-5">
+          <p className="text-xs text-muted-foreground">Taxable sales</p>
+          <p className="text-xl font-semibold">{money(t.taxableSales)}</p>
+          <p className="text-[11px] text-muted-foreground">Excluding the tax itself</p>
+        </CardContent></Card>
+        <Card><CardContent className="pt-5">
+          <p className="text-xs text-muted-foreground">Exempt sales</p>
+          <p className="text-xl font-semibold">{money(t.exemptSales)}</p>
+          <p className="text-[11px] text-muted-foreground">Memberships, services, passes</p>
+        </CardContent></Card>
+        <Card><CardContent className="pt-5">
+          <p className="text-xs text-muted-foreground">Total sales</p>
+          <p className="text-xl font-semibold">{money(t.totalSales)}</p>
+          <p className="text-[11px] text-muted-foreground">Card fees charged: {money(t.cardFees)}</p>
+        </CardContent></Card>
       </div>
 
-      {otherTax > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-muted">
-                <ShoppingBag className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Other Tax (Guest Passes, Class Passes, etc.)</p>
-                <p className="text-2xl font-bold">${otherTax.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* All transactions with tax */}
-      {taxedItems.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p>No taxed transactions found in this date range.</p>
-          {items.length > 0 && (
-            <p className="text-sm mt-2">
-              {items.length} total Stripe charges found, but none had tax recorded.
-            </p>
-          )}
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">Subtotal</TableHead>
-              <TableHead className="text-right">Tax (6%)</TableHead>
-              <TableHead className="text-right">Total</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {taxedItems.map((item) => (
-              <TableRow key={item.stripe_charge_id}>
-                <TableCell>{format(new Date(item.date), "MMM d, yyyy h:mm a")}</TableCell>
-                <TableCell className="max-w-[200px] truncate">{item.description}</TableCell>
-                <TableCell>{item.source}</TableCell>
-                <TableCell className="text-right">${item.subtotal.toFixed(2)}</TableCell>
-                <TableCell className="text-right font-medium">${item.tax_amount.toFixed(2)}</TableCell>
-                <TableCell className="text-right">${item.total.toFixed(2)}</TableCell>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">By Area</CardTitle>
+          <Button size="sm" variant="outline" onClick={exportCsv} disabled={exporting || t.entries === 0}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Export every sale (CSV)
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Area</TableHead>
+                <TableHead className="text-right">Total sales</TableHead>
+                <TableHead className="text-right">Exempt</TableHead>
+                <TableHead className="text-right">Taxable</TableHead>
+                <TableHead className="text-right">Tax</TableHead>
               </TableRow>
-            ))}
-            <TableRow className="font-bold border-t-2">
-              <TableCell colSpan={3}>Totals</TableCell>
-              <TableCell className="text-right">
-                ${taxedItems.reduce((s, i) => s + i.subtotal, 0).toFixed(2)}
-              </TableCell>
-              <TableCell className="text-right">${totalTax.toFixed(2)}</TableCell>
-              <TableCell className="text-right">
-                ${taxedItems.reduce((s, i) => s + i.total, 0).toFixed(2)}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      )}
+            </TableHeader>
+            <TableBody>
+              {view.byArea.map((a) => (
+                <TableRow key={a.key}>
+                  <TableCell className="font-medium">{areaLabel(a.key)}</TableCell>
+                  <TableCell className="text-right">{money(a.totalSales)}</TableCell>
+                  <TableCell className="text-right">{money(a.exemptSales)}</TableCell>
+                  <TableCell className="text-right">{money(a.taxableSales)}</TableCell>
+                  <TableCell className="text-right font-semibold">{money(a.tax)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-bold">Total</TableCell>
+                <TableCell className="text-right">{money(t.totalSales)}</TableCell>
+                <TableCell className="text-right">{money(t.exemptSales)}</TableCell>
+                <TableCell className="text-right">{money(t.taxableSales)}</TableCell>
+                <TableCell className="text-right font-bold">{money(t.tax)}</TableCell>
+              </TableRow>
+            </TableFooter>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">By Payment Method</CardTitle></CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Payment method</TableHead>
+                <TableHead className="text-right">Taxable sales</TableHead>
+                <TableHead className="text-right">Tax</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {view.byTender.map((r) => (
+                <TableRow key={r.key}>
+                  <TableCell>{tenderLabel(r.key)}</TableCell>
+                  <TableCell className="text-right">{money(r.taxableSales)}</TableCell>
+                  <TableCell className="text-right font-semibold">{money(r.tax)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Includes cash, check and Clover sales recorded in the app, not just Stripe. Refunds reduce tax in the month
+            they were issued. Period: {format(dateRange.start, "MMM d, yyyy")} – {format(dateRange.end, "MMM d, yyyy")} (Detroit time).
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

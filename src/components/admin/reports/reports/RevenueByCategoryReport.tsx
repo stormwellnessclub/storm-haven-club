@@ -1,151 +1,120 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format } from "date-fns";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LedgerStatusBar } from "../LedgerStatusBar";
+import { RevenueTotalsCards } from "../RevenueTotalsCards";
+import {
+  AREA_ORDER, areaColor, areaLabel, groupRows, isEarnedArea, money, sumRows, useRevenueSummary,
+} from "@/lib/revenueLedger";
 
 interface RevenueByCategoryReportProps {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
 
-const COLORS = ['hsl(142, 76%, 36%)', 'hsl(45, 93%, 47%)', 'hsl(199, 89%, 48%)', 'hsl(280, 67%, 50%)', 'hsl(25, 95%, 53%)', 'hsl(0, 84%, 60%)', 'hsl(170, 70%, 40%)', 'hsl(340, 82%, 55%)', 'hsl(220, 15%, 55%)'];
-
 export function RevenueByCategoryReport({ dateRange }: RevenueByCategoryReportProps) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['revenue-by-category', dateRange.start, dateRange.end],
-    queryFn: async () => {
-      const startDate = format(dateRange.start, 'yyyy-MM-dd');
-      const endDate = format(dateRange.end, 'yyyy-MM-dd');
+  const { data: rows, isLoading, error } = useRevenueSummary(dateRange);
 
-      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, eventsRes, rollerRes] = await Promise.all([
-        supabase.from('manual_charges').select('amount, description, created_at')
-          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
-        supabase.from('cafe_orders').select('total_amount')
-          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'completed'),
-        supabase.from('spa_appointments').select('service_price, member_price')
-          .gte('appointment_date', startDate).lte('appointment_date', endDate).eq('status', 'completed'),
-        supabase.from('class_passes').select('price_paid')
-          .gte('purchased_at', startDate).lte('purchased_at', endDate),
-        supabase.from('guest_passes').select('price_paid')
-          .gte('purchased_at', startDate).lte('purchased_at', endDate),
-        supabase.from('event_tickets').select('amount_cents, created_at')
-          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'paid'),
-        supabase.from('body_roller_presale_purchases').select('label, subtotal_cents, member_id')
-          .gte('paid_at', startDate).lte('paid_at', `${endDate}T23:59:59`).eq('status', 'paid'),
-      ]);
-      const rollerByItem: Record<string, { count: number; value: number }> = {};
-      let rollerRevenue = 0;
-      (rollerRes.data || []).forEach((r: any) => {
-        const amt = (Number(r.subtotal_cents) || 0) / 100;
-        rollerRevenue += amt;
-        const k = r.label || 'Body Roller';
-        rollerByItem[k] = rollerByItem[k] || { count: 0, value: 0 };
-        rollerByItem[k].count += 1; rollerByItem[k].value += amt;
-      });
-
-      let membershipRevenue = 0, initiationFees = 0, annualFees = 0, otherCharges = 0;
-      (chargesRes.data || []).forEach(c => {
-        const desc = (c.description || '').toLowerCase();
-        const amt = (Number(c.amount) || 0) / 100;
-        if (desc.includes('initiation')) initiationFees += amt;
-        else if (desc.includes('annual')) annualFees += amt;
-        else if (desc.includes('membership') || desc.includes('dues')) membershipRevenue += amt;
-        else otherCharges += amt;
-      });
-
-      const cafeRevenue = (cafeRes.data || []).reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
-      const spaRevenue = (spaRes.data || []).reduce((s, a) => s + (Number(a.member_price) || Number(a.service_price) || 0), 0);
-      const classRevenue = (classPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
-      const guestPassRevenue = (guestPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
-      const eventsRevenue = (eventsRes.data || []).reduce((s, t) => s + ((Number(t.amount_cents) || 0) / 100), 0);
-
-      const categories = [
-        { name: 'Memberships', value: membershipRevenue },
-        { name: 'Initiation Fees', value: initiationFees },
-        { name: 'Annual Fees', value: annualFees },
-        { name: 'Café / Juice Bar', value: cafeRevenue },
-        { name: 'Spa Services', value: spaRevenue },
-        { name: 'Spa · Recovery — Body Roller', value: rollerRevenue },
-        { name: 'Class Passes', value: classRevenue },
-        { name: 'Guest Passes', value: guestPassRevenue },
-        { name: 'Events', value: eventsRevenue },
-        { name: 'Other', value: otherCharges },
-      ].filter(item => item.value > 0);
-      return { categories, rollerByItem };
-    },
-  });
+  const view = useMemo(() => {
+    const all = rows ?? [];
+    const earned = all.filter((r) => isEarnedArea(r.area));
+    const byArea = groupRows(earned, (r) => r.area);
+    const salesByArea = groupRows(earned.filter((r) => r.kind === "sale"), (r) => r.area);
+    const areas = AREA_ORDER.filter((a) => byArea.has(a)).map((a) => ({
+      area: a,
+      name: areaLabel(a),
+      sales: salesByArea.get(a)?.net ?? 0,
+      refunds: byArea.get(a)!.refunds,
+      net: byArea.get(a)!.net,
+    }));
+    return {
+      areas,
+      totals: sumRows(earned),
+      giftCards: sumRows(all.filter((r) => !isEarnedArea(r.area))),
+    };
+  }, [rows]);
 
   if (isLoading) return <Skeleton className="h-[400px] w-full" />;
+  if (error) return <div className="text-sm text-destructive">Failed to load revenue: {(error as Error).message}</div>;
 
-  const cats = data?.categories || [];
-  const rollerItems = Object.entries(data?.rollerByItem || {}).sort((a, b) => b[1].value - a[1].value);
-  const total = cats.reduce((sum, item) => sum + item.value, 0);
+  const pieData = view.areas.filter((a) => a.net > 0);
+  const total = view.totals.net;
 
   return (
     <div className="space-y-6">
-      {/* Chart - full width, larger */}
+      <LedgerStatusBar estimatedEntries={view.totals.estimated} />
+      <RevenueTotalsCards totals={view.totals} />
+
       <Card>
         <CardHeader><CardTitle className="text-lg">Revenue Distribution</CardTitle></CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={450}>
-            <PieChart>
-              <Pie data={cats} cx="50%" cy="50%" labelLine={false}
-                outerRadius={150} dataKey="value">
-                {cats.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          {pieData.length === 0 ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">No revenue in this period.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={450}>
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" labelLine={false} outerRadius={150} dataKey="net" nameKey="name">
+                  {pieData.map((a) => <Cell key={a.area} fill={areaColor(a.area)} />)}
+                </Pie>
+                <Tooltip formatter={(v: number) => [money(v), "Revenue"]} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
-      {/* Category Breakdown */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">Category Breakdown</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">Revenue by Area</CardTitle></CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {cats.map((item, i) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                  <span className="font-medium">{item.name}</span>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">${item.value.toLocaleString()}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {total > 0 ? ((item.value / total) * 100).toFixed(1) : 0}%
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="border-t pt-4 flex items-center justify-between font-bold">
-              <span>Total Revenue</span>
-              <span>${total.toLocaleString()}</span>
-            </div>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Area</TableHead>
+                <TableHead className="text-right">Sales</TableHead>
+                <TableHead className="text-right">Refunds &amp; disputes</TableHead>
+                <TableHead className="text-right">Net revenue</TableHead>
+                <TableHead className="text-right">Share</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {view.areas.map((a) => (
+                <TableRow key={a.area}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: areaColor(a.area) }} />
+                      <span className="font-medium">{a.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">{money(a.sales)}</TableCell>
+                  <TableCell className="text-right text-destructive">{a.refunds ? money(a.refunds) : "—"}</TableCell>
+                  <TableCell className="text-right font-semibold">{money(a.net)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {total > 0 ? `${((a.net / total) * 100).toFixed(1)}%` : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-bold">Total revenue</TableCell>
+                <TableCell className="text-right">{money(total - view.totals.refunds)}</TableCell>
+                <TableCell className="text-right text-destructive">{view.totals.refunds ? money(view.totals.refunds) : "—"}</TableCell>
+                <TableCell className="text-right font-bold">{money(total)}</TableCell>
+                <TableCell />
+              </TableRow>
+            </TableFooter>
+          </Table>
+          {view.giftCards.gross !== 0 && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Gift cards &amp; vouchers sold this period: <strong>{money(view.giftCards.net)}</strong>. Not counted as
+              revenue until the service is used.
+            </p>
+          )}
         </CardContent>
       </Card>
-
-      {rollerItems.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Spa · Recovery — Body Roller by item</CardTitle></CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {rollerItems.map(([label, v]) => (
-                <div key={label} className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{label}</span>
-                  <span><span className="text-muted-foreground mr-3">{v.count} sold</span><span className="font-semibold">${v.value.toLocaleString()}</span></span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

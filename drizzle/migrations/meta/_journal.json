@@ -659,6 +659,20 @@
       "when": 1791881073760,
       "tag": "0093_fix_person_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1791881133760,
+      "tag": "0094_revenue_ledger",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1791881193760,
+      "tag": "0095_revenue_ledger_hourly_sync",
+      "breakpoints": true
     }
   ]
 }

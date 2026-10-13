@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  getAnnualPrice, getInitiationFee, getMonthlyPrice, INITIATION_FEE, MEMBERSHIP_PRICING, normalizeGender, type MembershipTier,
+} from "@/lib/membershipPricing";
 import { Download, DollarSign, Users, TrendingUp, Calendar, Crown } from "lucide-react";
 import {
   BarChart,
@@ -25,13 +28,19 @@ import {
   Legend,
 } from "recharts";
 
-// Pricing structure
-const PRICING = {
-  diamond: { monthly: 500, annual: 6000, initiation: 300 },
-  platinum: { monthly: 350, annual: 4200, initiation: 300 },
-  gold: { monthly: 250, annual: 3000, initiation: 300 },
-  silver: { monthly: 200, annual: 2400, initiation: 300 },
-};
+// Prices come from the shared pricing table (women's and men's rates differ).
+// Only members who are currently billed count: applications, cancelled and frozen
+// members do not produce revenue.
+const BILLED_STATUSES = ["active", "past_due"];
+
+/** "$200 W · $120 M" for a tier's monthly or annual rate. */
+function rateLabel(tier: string, period: "monthly" | "annual"): string {
+  const rates = MEMBERSHIP_PRICING[tier as MembershipTier]?.[period];
+  if (!rates) return "—";
+  const fmt = (v: number | null) => (v == null ? "n/a" : `$${v.toLocaleString()}`);
+  return `${fmt(rates.women)} W · ${fmt(rates.men)} M`;
+}
+const initiationLabel = `$${INITIATION_FEE.women} W · $${INITIATION_FEE.men} M`;
 
 const TIER_COLORS = {
   diamond: "hsl(var(--chart-1))",
@@ -76,40 +85,53 @@ interface ApplicationData {
 export default function RevenueAnalytics() {
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Fetch applications (excluding test data after Dec 27, 2025)
-  const { data: applications, isLoading } = useQuery({
-    queryKey: ["revenue-analytics-applications"],
+  // Members currently being billed (not applications)
+  const { data: billedMembers, isLoading } = useQuery({
+    queryKey: ["revenue-analytics-billed-members"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("membership_applications")
-        .select("id, membership_plan, founding_member, status, created_at")
+        .from("members")
+        .select("id, membership_type, is_founding_member, gender, status, created_at")
+        .in("status", BILLED_STATUSES)
         .order("created_at", { ascending: true });
 
       if (error) throw error;
-      return data || [];
+      return (data || []).map((m) => ({
+        id: m.id,
+        membership_plan: m.membership_type || "",
+        founding_member: m.is_founding_member ? "yes" : "no",
+        gender: normalizeGender(m.gender),
+        status: m.status,
+        created_at: m.created_at,
+      }));
     },
   });
 
   // Calculate all revenue metrics
   const metrics = useMemo(() => {
-    if (!applications) return null;
+    if (!billedMembers) return null;
 
+    const emptyTier = () => ({ founding: 0, regular: 0, foundingAnnual: 0, regularMonthly: 0, foundingInitiation: 0, regularInitiation: 0 });
     const tierBreakdown = {
-      diamond: { founding: 0, regular: 0 },
-      platinum: { founding: 0, regular: 0 },
-      gold: { founding: 0, regular: 0 },
-      silver: { founding: 0, regular: 0 },
+      diamond: emptyTier(),
+      platinum: emptyTier(),
+      gold: emptyTier(),
+      silver: emptyTier(),
     };
 
-    // Count members by tier and founding status
-    applications.forEach((app) => {
+    // Count members and sum their actual (gender-specific) prices by tier
+    billedMembers.forEach((app) => {
       const tier = normalizeTierName(app.membership_plan) as keyof typeof tierBreakdown;
       if (tierBreakdown[tier]) {
         const isFounding = app.founding_member === "yes" || app.founding_member === "true";
         if (isFounding) {
           tierBreakdown[tier].founding++;
+          tierBreakdown[tier].foundingAnnual += getAnnualPrice(tier, app.gender);
+          tierBreakdown[tier].foundingInitiation += getInitiationFee(app.gender);
         } else {
           tierBreakdown[tier].regular++;
+          tierBreakdown[tier].regularMonthly += getMonthlyPrice(tier, app.gender);
+          tierBreakdown[tier].regularInitiation += getInitiationFee(app.gender);
         }
       }
     });
@@ -121,19 +143,17 @@ export default function RevenueAnalytics() {
     let regularInitiationFees = 0;
     let monthlyRecurringRevenue = 0;
 
-    Object.entries(tierBreakdown).forEach(([tier, counts]) => {
-      const pricing = PRICING[tier as keyof typeof PRICING];
-      
+    Object.values(tierBreakdown).forEach((t) => {
       // Founding members: annual dues upfront + initiation
-      foundingAnnualDues += counts.founding * pricing.annual;
-      foundingInitiationFees += counts.founding * pricing.initiation;
-      
+      foundingAnnualDues += t.foundingAnnual;
+      foundingInitiationFees += t.foundingInitiation;
+
       // Regular members: first month + initiation
-      regularFirstMonthDues += counts.regular * pricing.monthly;
-      regularInitiationFees += counts.regular * pricing.initiation;
-      
+      regularFirstMonthDues += t.regularMonthly;
+      regularInitiationFees += t.regularInitiation;
+
       // MRR from regular members only (founding already paid annual)
-      monthlyRecurringRevenue += counts.regular * pricing.monthly;
+      monthlyRecurringRevenue += t.regularMonthly;
     });
 
     const totalFoundingMembers = Object.values(tierBreakdown).reduce(
@@ -181,8 +201,8 @@ export default function RevenueAnalytics() {
       founding: counts.founding,
       regular: counts.regular,
       total: counts.founding + counts.regular,
-      foundingRevenue: counts.founding * PRICING[tier as keyof typeof PRICING].annual,
-      regularRevenue: counts.regular * PRICING[tier as keyof typeof PRICING].monthly * 12,
+      foundingRevenue: counts.foundingAnnual,
+      regularRevenue: counts.regularMonthly * 12,
     }));
 
     const foundingPieData = [
@@ -206,10 +226,10 @@ export default function RevenueAnalytics() {
       regularFirstMonthDues,
       regularInitiationFees,
     };
-  }, [applications]);
+  }, [billedMembers]);
 
   const handleExportCSV = () => {
-    if (!metrics || !applications) return;
+    if (!metrics || !billedMembers) return;
 
     const rows = [
       ["Revenue Analytics Report"],
@@ -288,7 +308,7 @@ export default function RevenueAnalytics() {
                   {formatCurrency(metrics?.year1Projection || 0)}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Based on current applications</p>
+              <p className="text-xs text-muted-foreground">Based on members currently billed</p>
             </CardContent>
           </Card>
 
@@ -496,8 +516,7 @@ export default function RevenueAnalytics() {
                     </TableHeader>
                     <TableBody>
                       {metrics?.tierChartData.map((tier) => {
-                        const tierKey = tier.tier.toLowerCase() as keyof typeof PRICING;
-                        const pricing = PRICING[tierKey];
+                        const tierKey = tier.tier.toLowerCase() as keyof typeof TIER_COLORS;
                         return (
                           <TableRow key={tier.tier}>
                             <TableCell>
@@ -514,8 +533,8 @@ export default function RevenueAnalytics() {
                             <TableCell className="text-right">{tier.founding}</TableCell>
                             <TableCell className="text-right">{tier.regular}</TableCell>
                             <TableCell className="text-right font-medium">{tier.total}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(pricing.monthly)}/mo</TableCell>
-                            <TableCell className="text-right">{formatCurrency(pricing.annual)}/yr</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{rateLabel(tierKey, "monthly")}/mo</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{rateLabel(tierKey, "annual")}/yr</TableCell>
                             <TableCell className="text-right font-medium">
                               {formatCurrency(tier.foundingRevenue)}
                             </TableCell>
@@ -553,7 +572,7 @@ export default function RevenueAnalytics() {
             <Card>
               <CardHeader>
                 <CardTitle>12-Month Cash Flow Projection</CardTitle>
-                <CardDescription>Expected monthly revenue based on current applications</CardDescription>
+                <CardDescription>Expected monthly revenue from members currently billed</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -736,9 +755,8 @@ export default function RevenueAnalytics() {
                     </TableHeader>
                     <TableBody>
                       {Object.entries(metrics?.tierBreakdown || {}).map(([tier, counts]) => {
-                        const pricing = PRICING[tier as keyof typeof PRICING];
-                        const totalDues = counts.founding * pricing.annual;
-                        const totalInitiation = counts.founding * pricing.initiation;
+                        const totalDues = counts.foundingAnnual;
+                        const totalInitiation = counts.foundingInitiation;
                         return (
                           <TableRow key={tier}>
                             <TableCell>
@@ -753,8 +771,8 @@ export default function RevenueAnalytics() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right">{counts.founding}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(pricing.annual)}</TableCell>
-                            <TableCell className="text-right">{formatCurrency(pricing.initiation)}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{rateLabel(tier, "annual")}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">{initiationLabel}</TableCell>
                             <TableCell className="text-right">{formatCurrency(totalDues)}</TableCell>
                             <TableCell className="text-right">{formatCurrency(totalInitiation)}</TableCell>
                             <TableCell className="text-right font-medium">

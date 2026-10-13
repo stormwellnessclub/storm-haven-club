@@ -1,196 +1,127 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { format, startOfWeek, eachWeekOfInterval } from "date-fns";
+import { LedgerStatusBar } from "../LedgerStatusBar";
+import { RevenueTotalsCards } from "../RevenueTotalsCards";
+import {
+  AREA_ORDER, areaColor, areaLabel, groupRows, isEarnedArea, money, moneyRound, sumRows, tenderLabel, useRevenueSummary,
+} from "@/lib/revenueLedger";
 
 interface Props {
   dateRange: { start: Date; end: Date };
   filters: Record<string, string | boolean>;
 }
 
-const COLORS = [
-  'hsl(142, 76%, 36%)', 'hsl(45, 93%, 47%)', 'hsl(199, 89%, 48%)',
-  'hsl(280, 67%, 50%)', 'hsl(25, 95%, 53%)', 'hsl(0, 84%, 60%)',
-  'hsl(170, 70%, 40%)', 'hsl(210, 80%, 55%)',
-];
-
-const formatCurrency = (v: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
-
 export function SalesSegmentationReport({ dateRange }: Props) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['sales-segmentation', dateRange.start, dateRange.end],
-    queryFn: async () => {
-      const startDate = format(dateRange.start, 'yyyy-MM-dd');
-      const endDate = format(dateRange.end, 'yyyy-MM-dd');
+  const { data: rows, isLoading, error } = useRevenueSummary(dateRange);
 
-      const [chargesRes, cafeRes, spaRes, classPassRes, guestPassRes, paymentsRes] = await Promise.all([
-        supabase.from('manual_charges').select('amount, description, created_at')
-          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
-        supabase.from('cafe_orders').select('total_amount, created_at')
-          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'completed'),
-        supabase.from('spa_appointments').select('service_price, member_price, appointment_date')
-          .gte('appointment_date', startDate).lte('appointment_date', endDate).eq('status', 'completed'),
-        supabase.from('class_passes').select('price_paid, category, purchased_at')
-          .gte('purchased_at', startDate).lte('purchased_at', endDate),
-        supabase.from('guest_passes').select('price_paid, purchased_at')
-          .gte('purchased_at', startDate).lte('purchased_at', endDate),
-        supabase.from('payment_attempts').select('amount, created_at')
-          .gte('created_at', startDate).lte('created_at', endDate).eq('status', 'succeeded'),
-      ]);
-
-      // Categorize manual charges
-      let membershipDues = 0, initiationFees = 0, annualFees = 0, otherCharges = 0;
-      (chargesRes.data || []).forEach(c => {
-        const desc = (c.description || '').toLowerCase();
-        const amt = (Number(c.amount) || 0) / 100;
-        if (desc.includes('initiation')) initiationFees += amt;
-        else if (desc.includes('annual')) annualFees += amt;
-        else if (desc.includes('membership') || desc.includes('dues')) membershipDues += amt;
-        else otherCharges += amt;
-      });
-
-      // Cafe
-      const cafeRevenue = (cafeRes.data || []).reduce((s, o) => s + (Number(o.total_amount) || 0), 0);
-
-      // Spa
-      const spaRevenue = (spaRes.data || []).reduce((s, a) => s + (Number(a.member_price) || Number(a.service_price) || 0), 0);
-
-      // Class passes by category
-      const classPassByCategory: Record<string, number> = {};
-      let classPassTotal = 0;
-      (classPassRes.data || []).forEach(p => {
-        const amt = Number(p.price_paid) || 0;
-        classPassTotal += amt;
-        const cat = p.category || 'other';
-        classPassByCategory[cat] = (classPassByCategory[cat] || 0) + amt;
-      });
-
-      // Guest passes
-      const guestPassRevenue = (guestPassRes.data || []).reduce((s, p) => s + (Number(p.price_paid) || 0), 0);
-
-      // Subscription payments (payment_attempts.amount is stored in dollars)
-      const subscriptionRevenue = (paymentsRes.data || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-
-      const categories = [
-        { name: 'Subscription Payments', value: subscriptionRevenue },
-        { name: 'Membership Dues', value: membershipDues },
-        { name: 'Initiation Fees', value: initiationFees },
-        { name: 'Annual Fees', value: annualFees },
-        { name: 'Café / Juice Bar', value: cafeRevenue },
-        { name: 'Spa Services', value: spaRevenue },
-        { name: 'Class Passes', value: classPassTotal },
-        { name: 'Guest Passes', value: guestPassRevenue },
-        { name: 'Other Charges', value: otherCharges },
-      ].filter(c => c.value > 0);
-
-      const total = categories.reduce((s, c) => s + c.value, 0);
-
-      // Weekly bar chart data
-      const weeks = eachWeekOfInterval({ start: dateRange.start, end: dateRange.end });
-      const weeklyData = weeks.map(w => {
-        const weekLabel = format(w, 'MMM d');
-        return { week: weekLabel };
-      });
-
-      return { categories, total, classPassByCategory, weeklyData };
-    },
-  });
+  const view = useMemo(() => {
+    const all = rows ?? [];
+    const earned = all.filter((r) => isEarnedArea(r.area));
+    const byArea = groupRows(earned, (r) => r.area);
+    const categories = AREA_ORDER.filter((a) => byArea.has(a))
+      .map((a) => ({ area: a, name: areaLabel(a), value: byArea.get(a)!.net, entries: byArea.get(a)!.entries }))
+      .filter((c) => c.value !== 0);
+    const byTender = [...groupRows(all, (r) => r.tender).entries()]
+      .map(([tender, t]) => ({ tender, label: tenderLabel(tender), collected: t.gross, entries: t.entries }))
+      .sort((a, b) => b.collected - a.collected);
+    // Monthly mix for longer ranges
+    const months = [...new Set(earned.map((r) => r.business_date.slice(0, 7)))].sort();
+    const monthly = months.map((m) => {
+      const inMonth = earned.filter((r) => r.business_date.startsWith(m));
+      const g = groupRows(inMonth, (r) => r.area);
+      return { month: m, ...Object.fromEntries([...g.entries()].map(([a, t]) => [areaLabel(a), t.net])) };
+    });
+    return { categories, totals: sumRows(earned), byTender, monthly, areasInMonthly: AREA_ORDER.filter((a) => byArea.has(a)) };
+  }, [rows]);
 
   if (isLoading) return <Skeleton className="h-[500px] w-full" />;
+  if (error) return <div className="text-sm text-destructive">Failed to load revenue: {(error as Error).message}</div>;
+
+  const total = view.totals.net;
 
   return (
     <div className="space-y-6">
-      {/* Summary */}
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <p className="text-sm text-muted-foreground">Total Revenue (Period)</p>
-          <p className="text-4xl font-bold text-primary">{formatCurrency(data?.total || 0)}</p>
-        </CardContent>
-      </Card>
+      <LedgerStatusBar estimatedEntries={view.totals.estimated} />
+      <RevenueTotalsCards totals={view.totals} />
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Pie Chart */}
         <Card>
           <CardHeader><CardTitle className="text-lg">Revenue Distribution</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={320}>
               <PieChart>
-                <Pie data={data?.categories} cx="50%" cy="50%" outerRadius={110} dataKey="value"
+                <Pie data={view.categories.filter((c) => c.value > 0)} cx="50%" cy="50%" outerRadius={110} dataKey="value" nameKey="name"
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
-                  {(data?.categories || []).map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
+                  {view.categories.filter((c) => c.value > 0).map((c) => <Cell key={c.area} fill={areaColor(c.area)} />)}
                 </Pie>
-                <Tooltip formatter={(v: number) => [formatCurrency(v), 'Revenue']} />
+                <Tooltip formatter={(v: number) => [money(v), "Revenue"]} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Category Breakdown */}
         <Card>
-          <CardHeader><CardTitle className="text-lg">Category Breakdown</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">How Customers Paid</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {(data?.categories || []).map((item, i) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="font-medium text-sm">{item.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-semibold">{formatCurrency(item.value)}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
-                      {data?.total ? ((item.value / data.total) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-              <div className="border-t pt-3 flex justify-between font-bold">
-                <span>Total</span>
-                <span>{formatCurrency(data?.total || 0)}</span>
-              </div>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Payment method</TableHead>
+                  <TableHead className="text-right">Sales</TableHead>
+                  <TableHead className="text-right">Collected</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {view.byTender.map((t) => (
+                  <TableRow key={t.tender}>
+                    <TableCell>{t.label}</TableCell>
+                    <TableCell className="text-right">{t.entries}</TableCell>
+                    <TableCell className="text-right font-semibold">{money(t.collected)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Collected includes sales tax, card fees and tips. Card (Stripe) should match your Stripe deposits before Stripe's own fees.
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Detailed Table */}
       <Card>
-        <CardHeader><CardTitle className="text-lg">All Revenue Categories</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-lg">All Revenue Areas</CardTitle></CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Category</TableHead>
+                <TableHead>Area</TableHead>
+                <TableHead className="text-right">Sales</TableHead>
                 <TableHead className="text-right">Revenue</TableHead>
                 <TableHead className="text-right">% of Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.categories || []).map((item, i) => (
-                <TableRow key={item.name}>
+              {view.categories.map((c) => (
+                <TableRow key={c.area}>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      {item.name}
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: areaColor(c.area) }} />
+                      {c.name}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-semibold">{formatCurrency(item.value)}</TableCell>
-                  <TableCell className="text-right">
-                    {data?.total ? ((item.value / data.total) * 100).toFixed(1) : 0}%
-                  </TableCell>
+                  <TableCell className="text-right">{c.entries}</TableCell>
+                  <TableCell className="text-right font-semibold">{money(c.value)}</TableCell>
+                  <TableCell className="text-right">{total ? ((c.value / total) * 100).toFixed(1) : 0}%</TableCell>
                 </TableRow>
               ))}
               <TableRow className="font-bold bg-muted/50">
                 <TableCell>Total</TableCell>
-                <TableCell className="text-right">{formatCurrency(data?.total || 0)}</TableCell>
+                <TableCell className="text-right">{view.totals.entries}</TableCell>
+                <TableCell className="text-right">{money(total)}</TableCell>
                 <TableCell className="text-right">100%</TableCell>
               </TableRow>
             </TableBody>
@@ -198,27 +129,22 @@ export function SalesSegmentationReport({ dateRange }: Props) {
         </CardContent>
       </Card>
 
-      {/* Class Pass Sub-breakdown */}
-      {data?.classPassByCategory && Object.keys(data.classPassByCategory).length > 0 && (
+      {view.monthly.length > 1 && (
         <Card>
-          <CardHeader><CardTitle className="text-lg">Class Pass Breakdown by Category</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-lg">Revenue Mix by Month</CardTitle></CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Class Category</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Object.entries(data.classPassByCategory).map(([cat, amt]) => (
-                  <TableRow key={cat}>
-                    <TableCell><Badge variant="outline" className="capitalize">{cat}</Badge></TableCell>
-                    <TableCell className="text-right font-semibold">{formatCurrency(amt)}</TableCell>
-                  </TableRow>
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={view.monthly}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" className="text-xs" />
+                <YAxis tickFormatter={(v) => moneyRound(v)} className="text-xs" />
+                <Tooltip formatter={(v: number, name: string) => [money(v), name]} />
+                <Legend />
+                {view.areasInMonthly.map((a) => (
+                  <Bar key={a} dataKey={areaLabel(a)} stackId="m" fill={areaColor(a)} />
                 ))}
-              </TableBody>
-            </Table>
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       )}

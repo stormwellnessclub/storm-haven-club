@@ -1,183 +1,146 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LedgerStatusBar } from "../LedgerStatusBar";
+import { RevenueTotalsCards } from "../RevenueTotalsCards";
 import {
-  formatCurrency,
-  formatPersonName,
-  getAttemptChargeType,
-  getAudienceSegment,
-  matchesChargeType,
-  matchesTier,
-  useFinancialReporting,
-  type FinancialDateRange,
-  type FinancialFilters,
-} from "@/hooks/useFinancialReporting";
+  AREA_ORDER, areaLabel, isEarnedArea, money, sumRows, tenderLabel, toBusinessDate, useRevenueSummary,
+} from "@/lib/revenueLedger";
 
 interface Props {
-  dateRange: FinancialDateRange;
-  filters: FinancialFilters;
+  dateRange: { start: Date; end: Date };
+  filters: Record<string, string | boolean>;
 }
 
-const LABELS = {
-  membership_dues: "Dues",
-  annual_fee: "Annual Fee",
-  class_pass: "Class Pass",
-  guest_pass: "Guest Pass",
-  pos_other: "POS",
-} as const;
+export function CollectedRevenueReport({ dateRange }: Props) {
+  const { data: rows, isLoading, error } = useRevenueSummary(dateRange);
+  const recent = useQuery({
+    queryKey: ["revenue-ledger-entries", "recent", toBusinessDate(dateRange.start), toBusinessDate(dateRange.end)],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("revenue_ledger")
+        .select("id, business_date, kind, area, label, description, tender, net_cents, gross_cents")
+        .gte("business_date", toBusinessDate(dateRange.start))
+        .lte("business_date", toBusinessDate(dateRange.end))
+        .order("occurred_at", { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
-export function CollectedRevenueReport({ dateRange, filters }: Props) {
-  const { data, isLoading, error } = useFinancialReporting(dateRange);
+  const view = useMemo(() => {
+    const earned = (rows ?? []).filter((r) => isEarnedArea(r.area));
+    const areas = AREA_ORDER.filter((a) => earned.some((r) => r.area === a)).map((a) => {
+      const inArea = earned.filter((r) => r.area === a);
+      return {
+        area: a,
+        member: sumRows(inArea.filter((r) => r.is_member)).net,
+        nonMember: sumRows(inArea.filter((r) => !r.is_member)).net,
+        total: sumRows(inArea).net,
+      };
+    });
+    return {
+      areas,
+      totals: sumRows(earned),
+      member: sumRows(earned.filter((r) => r.is_member)).net,
+      nonMember: sumRows(earned.filter((r) => !r.is_member)).net,
+    };
+  }, [rows]);
 
   if (isLoading) return <Skeleton className="h-[420px] w-full" />;
-  if (error) return <div className="text-sm text-destructive">Failed to load collected revenue.</div>;
-
-  const succeeded = (data?.paymentAttempts ?? [])
-    .filter((attempt) => attempt.status === "succeeded")
-    .filter((attempt) => !!attempt.succeeded_at || !!attempt.created_at)
-    .filter((attempt) => matchesChargeType(getAttemptChargeType(attempt), filters.chargeType))
-    .filter((attempt) => matchesTier(attempt.member, filters.tier));
-
-  const grouped = succeeded.reduce<Record<string, { member: number; non_member: number; total: number }>>((acc, attempt) => {
-    const chargeType = getAttemptChargeType(attempt);
-    const audience = getAudienceSegment(attempt);
-    if (!acc[chargeType]) {
-      acc[chargeType] = { member: 0, non_member: 0, total: 0 };
-    }
-    acc[chargeType][audience] += attempt.amount;
-    acc[chargeType].total += attempt.amount;
-    return acc;
-  }, {});
-
-  const rows = Object.entries(grouped)
-    .map(([chargeType, values]) => ({ chargeType, ...values }))
-    .sort((a, b) => b.total - a.total);
-
-  const memberTransactions = succeeded.filter((attempt) => getAudienceSegment(attempt) === "member");
-  const nonMemberTransactions = succeeded.filter((attempt) => getAudienceSegment(attempt) === "non_member");
+  if (error) return <div className="text-sm text-destructive">Failed to load collected revenue: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Collected total</p>
-            <p className="text-2xl font-semibold">{formatCurrency(succeeded.reduce((sum, attempt) => sum + attempt.amount, 0))}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Member revenue</p>
-            <p className="text-2xl font-semibold">{formatCurrency(memberTransactions.reduce((sum, attempt) => sum + attempt.amount, 0))}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Non-member revenue</p>
-            <p className="text-2xl font-semibold">{formatCurrency(nonMemberTransactions.reduce((sum, attempt) => sum + attempt.amount, 0))}</p>
-          </CardContent>
-        </Card>
-      </div>
+      <LedgerStatusBar estimatedEntries={view.totals.estimated} />
+      <RevenueTotalsCards totals={view.totals} />
 
       <Card>
         <CardHeader>
-          <CardTitle>Collected revenue by charge type</CardTitle>
+          <CardTitle>Revenue by area</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Charge type</TableHead>
-                <TableHead className="text-right">Member</TableHead>
-                <TableHead className="text-right">Non-member</TableHead>
+                <TableHead>Area</TableHead>
+                <TableHead className="text-right">Members</TableHead>
+                <TableHead className="text-right">Non-members &amp; walk-ins</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.chargeType}>
-                  <TableCell><Badge variant="outline">{LABELS[row.chargeType as keyof typeof LABELS] || row.chargeType}</Badge></TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.member)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(row.non_member)}</TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(row.total)}</TableCell>
+              {view.areas.map((row) => (
+                <TableRow key={row.area}>
+                  <TableCell><Badge variant="outline">{areaLabel(row.area)}</Badge></TableCell>
+                  <TableCell className="text-right">{money(row.member)}</TableCell>
+                  <TableCell className="text-right">{money(row.nonMember)}</TableCell>
+                  <TableCell className="text-right font-medium">{money(row.total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-bold">Total</TableCell>
+                <TableCell className="text-right">{money(view.member)}</TableCell>
+                <TableCell className="text-right">{money(view.nonMember)}</TableCell>
+                <TableCell className="text-right font-bold">{money(view.totals.net)}</TableCell>
+              </TableRow>
+            </TableFooter>
           </Table>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Member transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader>
+          <CardTitle>Latest transactions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {recent.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Charge</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Area</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Paid by</TableHead>
+                  <TableHead className="text-right">Revenue</TableHead>
+                  <TableHead className="text-right">Collected</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {memberTransactions.length === 0 ? (
+                {(recent.data ?? []).length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">No member transactions in range.</TableCell>
+                    <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No transactions in range.</TableCell>
                   </TableRow>
                 ) : (
-                  memberTransactions.slice(0, 12).map((attempt) => (
-                    <TableRow key={attempt.id}>
-                      <TableCell>{format(parseISO(attempt.succeeded_at || attempt.created_at || new Date().toISOString()), "MMM d, yyyy")}</TableCell>
-                      <TableCell>{formatPersonName(attempt.member || {})}</TableCell>
-                      <TableCell>{LABELS[getAttemptChargeType(attempt)]}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(attempt.amount)}</TableCell>
+                  (recent.data ?? []).map((e) => (
+                    <TableRow key={e.id}>
+                      <TableCell className="whitespace-nowrap">{format(parseISO(e.business_date), "MMM d, yyyy")}</TableCell>
+                      <TableCell>{areaLabel(e.area)}</TableCell>
+                      <TableCell className="max-w-[320px] truncate">
+                        {e.kind !== "sale" && <Badge variant="destructive" className="mr-2 capitalize">{e.kind.replace("_", " ")}</Badge>}
+                        {e.label || e.description || "—"}
+                      </TableCell>
+                      <TableCell>{tenderLabel(e.tender)}</TableCell>
+                      <TableCell className="text-right">{money(e.net_cents / 100)}</TableCell>
+                      <TableCell className="text-right font-medium">{money(e.gross_cents / 100)}</TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Non-member transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Profile</TableHead>
-                  <TableHead>Charge</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {nonMemberTransactions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">No non-member transactions in range.</TableCell>
-                  </TableRow>
-                ) : (
-                  nonMemberTransactions.slice(0, 12).map((attempt) => (
-                    <TableRow key={attempt.id}>
-                      <TableCell>{format(parseISO(attempt.succeeded_at || attempt.created_at || new Date().toISOString()), "MMM d, yyyy")}</TableCell>
-                      <TableCell>{formatPersonName(attempt.nonMember || {})}</TableCell>
-                      <TableCell>{LABELS[getAttemptChargeType(attempt)]}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(attempt.amount)}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
