@@ -102,7 +102,11 @@ export function BodyRollerPresaleTab() {
       const { data: r, error } = await supabase.functions.invoke(FN, { body: test ? { kind, testEmail } : { kind, extraEmails } });
       if (error) throw error;
       if (test) { if (!r?.ok) throw new Error(r?.error); toast.success(`Test sent to ${r.sentTo}`); }
-      else { toast.success(`Sent ${r.queued} (${r.skipped} skipped)`); qc.invalidateQueries({ queryKey: ["admin-body-roller-presale"] }); }
+      else {
+        if (r.continuing) toast.success(`Sent ${r.queued} so far. ${r.remaining} more are going out in the background — reopen the send list to see who's left.`, { duration: 10000 });
+        else toast.success(`Sent ${r.queued} (${r.skipped} skipped)`);
+        qc.invalidateQueries({ queryKey: ["admin-body-roller-presale"] });
+      }
     } catch (e: any) { toast.error(e.message || "Send failed"); } finally { setBusy(null); }
   };
 
