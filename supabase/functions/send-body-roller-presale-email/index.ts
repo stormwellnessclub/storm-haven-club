@@ -6,7 +6,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
 import { isAllowedTestRecipient } from "../_shared/security.ts";
 import { buildPresaleEmail, EMAIL_META, type EmailKind } from "../_shared/bodyRollerPresale.ts";
-import { trackLinks } from "../_shared/bodyRollerClick.ts";
+import { trackLinks, addOpenPixel } from "../_shared/bodyRollerClick.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,6 +39,41 @@ serve(async (req) => {
   const endsLabel = new Date(settings?.ends_at ?? "2026-11-12T04:59:59Z").toLocaleDateString("en-US", {
     timeZone: "America/Detroit", weekday: "long", month: "long", day: "numeric",
   });
+
+  // Scheduling: list / cancel / create. A one-time timer wakes the runner at send_at.
+  if (body?.listScheduled) {
+    const { data } = await supabase.from("body_roller_scheduled_sends").select("*").order("send_at", { ascending: false }).limit(50);
+    return json({ ok: true, scheduled: data ?? [] });
+  }
+  if (body?.cancelScheduled) {
+    const id = String(body.cancelScheduled);
+    const { data } = await supabase.from("body_roller_scheduled_sends").update({ status: "cancelled" }).eq("id", id).eq("status", "scheduled").select("id");
+    await supabase.rpc("unschedule_body_roller_send", { _id: id });
+    return data?.length ? json({ ok: true }) : json({ ok: false, error: "That send already went out or was cancelled" });
+  }
+  if (body?.scheduleAt) {
+    const at = new Date(String(body.scheduleAt));
+    if (isNaN(at.getTime()) || at.getTime() < Date.now() + 2 * 60_000) return json({ ok: false, error: "Pick a time at least a few minutes from now" });
+    if (at.getTime() > Date.now() + 60 * 86400_000) return json({ ok: false, error: "Pick a time within the next 60 days" });
+    at.setUTCSeconds(0, 0);
+    const extras = Array.isArray(body?.extraEmails) ? body.extraEmails.map((e: any) => String(e || "").trim().toLowerCase()).filter((e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).slice(0, 500) : [];
+    const { data: row, error } = await supabase.from("body_roller_scheduled_sends").insert({ kind, extra_emails: extras, send_at: at.toISOString(), created_by: gate.userId === "service_role" ? null : gate.userId }).select("id, send_at").single();
+    if (error) return json({ ok: false, error: error.message });
+    const { error: armErr } = await supabase.rpc("arm_body_roller_send", { _id: row.id, _send_at: row.send_at });
+    if (armErr) { await supabase.from("body_roller_scheduled_sends").update({ status: "failed", error: armErr.message }).eq("id", row.id); return json({ ok: false, error: "Couldn't set the timer: " + armErr.message }); }
+    return json({ ok: true, scheduled: row });
+  }
+  // Who opened / didn't open one email.
+  if (body?.opens) {
+    const all: any[] = [];
+    for (let f = 0; ; f += 1000) { const { data } = await supabase.from("email_audit_log").select("recipient_email, recipient_name, created_at").eq("email_type", meta.key).eq("status", "sent").range(f, f + 999); all.push(...(data ?? [])); if (!data || data.length < 1000) break; }
+    const opens: any[] = [];
+    for (let f = 0; ; f += 1000) { const { data } = await supabase.from("body_roller_email_opens").select("email, first_opened_at, open_count").eq("kind", kind).range(f, f + 999); opens.push(...(data ?? [])); if (!data || data.length < 1000) break; }
+    const om = new Map(opens.map((o: any) => [o.email, o]));
+    const seen = new Set<string>(); const rows: any[] = [];
+    for (const r of all) { const e = String(r.recipient_email || "").toLowerCase(); if (!e || seen.has(e)) continue; seen.add(e); const o: any = om.get(e); rows.push({ email: e, name: r.recipient_name, sent_at: r.created_at, opened: !!o, first_opened_at: o?.first_opened_at ?? null, open_count: o?.open_count ?? 0 }); }
+    return json({ ok: true, total: rows.length, opened: rows.filter((r) => r.opened).length, rows });
+  }
 
   if (body?.preview) {
     return new Response(buildPresaleEmail(kind, "Jane", endsLabel), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
@@ -200,7 +235,7 @@ serve(async (req) => {
     if (!r.email || already.has(r.email)) { skipped++; continue; }
     try {
       const built = buildPresaleEmail(kind, r.first, endsLabel);
-      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: await trackLinks(built, r.email, kind), text: toText(built), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
+      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: await addOpenPixel(await trackLinks(built, r.email, kind), r.email, kind), text: toText(built), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
       const status = resp?.error ? "failed" : "sent";
       await supabase.from("email_audit_log").insert({ recipient_email: r.email, recipient_name: r.name, email_type: meta.key, trigger_source: "admin_blast", triggered_by: triggeredBy, member_id: r.member_id, subject: meta.subject, status, error_message: resp?.error?.message ?? null });
       if (status === "sent") { queued++; already.add(r.email); } else errors.push({ email: r.email, error: resp?.error?.message });
