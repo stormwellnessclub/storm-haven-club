@@ -118,6 +118,7 @@ export default function BodyRollerPresale() {
           <p className="text-lg text-muted-foreground max-w-xl">
             Warm, rhythmic compression across sculpted wooden rollers to encourage circulation, ease tension and leave the body lighter.
           </p>
+          <Link to="/journal/lymphatic-body-roller" className="inline-block mt-4 text-sm underline underline-offset-4">Read about the ritual</Link>
         </div>
       </section>
 
