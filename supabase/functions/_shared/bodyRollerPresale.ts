@@ -38,7 +38,8 @@ const IMG = {
 };
 const loop = (alt: string) => `<img src="${IMG.loop}" alt="${alt}" width="600" height="338" style="display:block;width:100%;height:auto;border:0;" />`;
 
-export type EmailKind = "launch" | "halfway" | "last_chance" | "arrived" | "nm_launch" | "nm_halfway" | "nm_last_chance";
+export type EmailKind = "launch" | "halfway" | "last_chance" | "arrived" | "nm_launch" | "nm_halfway" | "nm_last_chance"
+  | "followup_clicked" | "followup_abandoned" | "nm_followup_clicked" | "nm_followup_abandoned";
 export type Audience = "member" | "non_member";
 
 export const EMAIL_META: Record<EmailKind, { key: string; subject: string }> = {
@@ -49,6 +50,10 @@ export const EMAIL_META: Record<EmailKind, { key: string; subject: string }> = {
   nm_launch: { key: "body_roller_presale_nm_launch", subject: "Something new is coming to Storm Wellness Club" },
   nm_halfway: { key: "body_roller_presale_nm_halfway", subject: "The part of training no one schedules" },
   nm_last_chance: { key: "body_roller_presale_nm_last_chance", subject: "Presale pricing closes soon" },
+  followup_clicked: { key: "body_roller_presale_followup_clicked", subject: "Still thinking it over?" },
+  followup_abandoned: { key: "body_roller_presale_followup_abandoned", subject: "Your session is still waiting" },
+  nm_followup_clicked: { key: "body_roller_presale_nm_followup_clicked", subject: "Still thinking it over?" },
+  nm_followup_abandoned: { key: "body_roller_presale_nm_followup_abandoned", subject: "Your session is still waiting" },
 };
 
 const C = { maroon: "#4A1A1F", wine: "#6B2A31", espresso: "#1A110D", bark: "#2A1C16", gold: "#C6A267", goldSoft: "#E7D3A8", cream: "#F6F1E8", sand: "#EDE3D2", ink: "#2A1E18", muted: "#8A7566" };
@@ -189,6 +194,33 @@ export function buildPresaleEmail(rawKind: EmailKind, firstName: string | null, 
   <tr><td style="padding:44px 30px 50px;">
     <p style="margin:0 0 26px;text-align:center;font-family:${SERIF};font-style:italic;font-size:16px;color:${C.goldSoft};">Every option, while the presale lasts</p>
     ${priceMenu(true)}${btn("RESERVE BEFORE IT CLOSES", PRESALE_URL)}${fine(endsLabel, "#8F7C70")}${readMore(C.goldSoft)}
+  </td></tr>`);
+
+  if (kind === "followup_clicked") return shell(C.cream, `
+  <tr><td>${img(IMG.legs, "A session on the Lymphatic Body Roller", 300)}</td></tr>
+  <tr><td style="padding:54px 46px 8px;">
+    ${eyebrow("A gentle note", C.wine)}
+    <h1 style="margin:0 0 28px;font-family:${SERIF};font-weight:normal;font-size:40px;line-height:1.15;color:${C.maroon};">Still thinking<br/>it <em style="color:${C.gold};">over?</em></h1>
+    ${p(greet, C.ink)}
+    ${p(`You took a look at the Lymphatic Body Roller, and we wanted to make it simple. Start with one 30-minute session. It's enough time to feel the rollers move through your legs and to know whether it belongs in your week.`, C.ink)}
+    ${p(`Most people notice the same thing first: lighter legs and an easy, settled feeling afterward.`, C.ink)}
+  </td></tr>
+  <tr><td style="padding:30px 30px 50px;">
+    <p style="margin:0 0 26px;text-align:center;font-family:${SERIF};font-style:italic;font-size:15px;color:${C.muted};">${priceWord[0].toUpperCase() + priceWord.slice(1)} pricing holds until ${endsLabel}.</p>
+    ${priceMenu(false)}${btn("START WITH ONE SESSION", PRESALE_URL, C.maroon, C.cream)}${fine(endsLabel, C.muted)}${readMore(C.wine)}
+  </td></tr>`, false);
+
+  if (kind === "followup_abandoned") return shell(C.espresso, `
+  <tr><td>${loop("The Lymphatic Body Roller in motion")}</td></tr>
+  <tr><td style="padding:54px 46px 8px;">
+    ${eyebrow("Held for you")}
+    <h1 style="margin:0 0 28px;font-family:${SERIF};font-weight:normal;font-size:40px;line-height:1.15;color:${C.cream};">Your session<br/>is still <em style="color:${C.gold};">waiting.</em></h1>
+    ${p(greet, "#D9CBBB")}
+    ${p(`It looks like your reservation didn't quite finish. Nothing was charged, and your ${priceWord} price is still available.`, "#D9CBBB")}
+    ${p(`If something went wrong at checkout, simply reply to this email and we'll take care of it for you.`, "#D9CBBB")}
+  </td></tr>
+  <tr><td style="padding:30px 30px 50px;background:${C.bark};">
+    ${priceMenu(true)}${btn("FINISH MY RESERVATION", PRESALE_URL)}${fine(endsLabel, "#8F7C70")}
   </td></tr>`);
 
   // arrived (buyers only)
