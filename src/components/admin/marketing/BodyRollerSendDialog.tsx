@@ -15,7 +15,7 @@ const FN = "send-body-roller-presale-email";
 type Row = { email: string; name: string | null; source: string | null; already_sent: boolean };
 const SOURCE: Record<string, string> = {
   imported: "Imported", portal_accounts: "Non-member account", other_accounts: "Website account",
-  member: "Member", buyer: "Buyer", added: "Added by you",
+  member: "Member", buyer: "Buyer", added: "Added by you", clicked: "Clicked", abandoned: "Unfinished checkout",
 };
 const parseEmails = (t: string) => t.split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter((e) => e.includes("@"));
 

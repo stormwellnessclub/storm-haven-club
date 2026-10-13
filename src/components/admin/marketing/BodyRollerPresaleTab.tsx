@@ -21,11 +21,17 @@ const KINDS = [
   { kind: "nm_launch", title: "Non-member launch announcement", who: "registered non-members" },
   { kind: "nm_halfway", title: "Non-member halfway reminder", who: "registered non-members" },
   { kind: "nm_last_chance", title: "Non-member last-chance reminder", who: "registered non-members" },
+  { kind: "followup_clicked", title: "Follow-up: clicked, didn't buy (members)", who: "members who clicked but never started checkout" },
+  { kind: "followup_abandoned", title: "Follow-up: unfinished checkout (members)", who: "members who opened checkout but didn't pay" },
+  { kind: "nm_followup_clicked", title: "Follow-up: clicked, didn't buy (non-members)", who: "non-members who clicked but never started checkout" },
+  { kind: "nm_followup_abandoned", title: "Follow-up: unfinished checkout (non-members)", who: "non-members who opened checkout but didn't pay" },
 ] as const;
 const KEYS: Record<string, string> = {
   launch: "body_roller_presale_launch", halfway: "body_roller_presale_halfway",
   last_chance: "body_roller_presale_last_chance", arrived: "body_roller_presale_arrived",
   nm_launch: "body_roller_presale_nm_launch", nm_halfway: "body_roller_presale_nm_halfway", nm_last_chance: "body_roller_presale_nm_last_chance",
+  followup_clicked: "body_roller_presale_followup_clicked", followup_abandoned: "body_roller_presale_followup_abandoned",
+  nm_followup_clicked: "body_roller_presale_nm_followup_clicked", nm_followup_abandoned: "body_roller_presale_nm_followup_abandoned",
 };
 
 export function BodyRollerPresaleTab() {
@@ -39,6 +45,16 @@ export function BodyRollerPresaleTab() {
       const { data: r, error } = await supabase.functions.invoke(FN, { body: { kind: "nm_launch", countOnly: true } });
       if (error) throw error;
       return r as { total: number; counts: { imported: number; portal_accounts: number; other_accounts: number } };
+    },
+  });
+
+  type Split = { member: number; non_member: number };
+  const { data: funnel } = useQuery({
+    queryKey: ["body-roller-funnel"],
+    queryFn: async () => {
+      const { data: r, error } = await supabase.functions.invoke(FN, { body: { kind: "launch", funnel: true } });
+      if (error) throw error;
+      return r as Record<"emailed" | "clicked" | "started" | "bought" | "clicked_not_started" | "abandoned", Split>;
     },
   });
 
@@ -121,6 +137,30 @@ export function BodyRollerPresaleTab() {
         </CardContent>
       </Card>
 
+      {funnel && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Funnel</CardTitle>
+            <CardDescription>Clicks are counted from emails sent after tracking was added. Use the follow-up emails below to reach people who didn't buy.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {(["member", "non_member"] as const).map((a) => (
+              <div key={a}>
+                <p className="text-sm font-medium mb-2">{a === "member" ? "Members" : "Non-members"}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-center">
+                  {([["Emailed", "emailed"], ["Clicked", "clicked"], ["Opened checkout", "started"], ["Bought", "bought"], ["Clicked, no checkout", "clicked_not_started"], ["Didn't finish", "abandoned"]] as const).map(([l, k]) => (
+                    <div key={k} className="border rounded-md p-2">
+                      <p className="text-lg font-semibold">{funnel[k]?.[a] ?? 0}</p>
+                      <p className="text-xs text-muted-foreground">{l}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Campaign emails</CardTitle>
@@ -136,7 +176,7 @@ export function BodyRollerPresaleTab() {
               <div>
                 <p className="font-medium text-sm">{k.title}</p>
                 <p className="text-xs text-muted-foreground">To {k.who} · sent to {data?.sent[KEYS[k.kind]] ?? 0}</p>
-                {k.kind.startsWith("nm_") && nmCount && (
+                {k.kind.startsWith("nm_") && !k.kind.includes("followup") && nmCount && (
                   <p className="text-xs text-muted-foreground">
                     List: {nmCount.total} people ({nmCount.counts.imported} imported · {nmCount.counts.portal_accounts} non-member accounts · {nmCount.counts.other_accounts} other accounts)
                   </p>
