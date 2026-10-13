@@ -610,6 +610,13 @@
       "when": 1791862612615,
       "tag": "0086_sync_non_member_profiles_to_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1791863075299,
+      "tag": "0087_migration",
+      "breakpoints": true
     }
   ]
 }

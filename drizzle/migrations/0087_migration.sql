@@ -1,0 +1,3 @@
+ALTER TABLE public.body_roller_presale_purchases DROP CONSTRAINT IF EXISTS body_roller_presale_purchases_status_check;
+ALTER TABLE public.body_roller_presale_purchases ADD CONSTRAINT body_roller_presale_purchases_status_check CHECK (status = ANY (ARRAY['pending','processing','paid','failed','refunded','cancelled']));
+UPDATE public.body_roller_presale_purchases SET status='processing', stripe_payment_intent_id='pi_3UPvXQLyZrsSqLhs1zQBjDzR' WHERE stripe_session_id='cs_live_b1Et1xHUxdEO0EvJXwQq2zTzpa1tTV13mjzVSzNr5kJgdLWEWi9Aae9BvY' AND status='pending';
