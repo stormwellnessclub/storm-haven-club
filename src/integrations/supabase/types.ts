@@ -609,6 +609,30 @@ export type Database = {
           },
         ]
       }
+      body_roller_presale_clicks: {
+        Row: {
+          clicked_at: string
+          email: string
+          id: string
+          kind: string
+          target: string | null
+        }
+        Insert: {
+          clicked_at?: string
+          email: string
+          id?: string
+          kind: string
+          target?: string | null
+        }
+        Update: {
+          clicked_at?: string
+          email?: string
+          id?: string
+          kind?: string
+          target?: string | null
+        }
+        Relationships: []
+      }
       body_roller_presale_purchases: {
         Row: {
           created_at: string
