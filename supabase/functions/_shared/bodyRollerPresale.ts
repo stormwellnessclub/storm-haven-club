@@ -33,7 +33,10 @@ const IMG = {
   hero: `${SITE}/__l5e/assets-v1/89a367c4-0e67-4abd-9278-5ef7d9ebaa93/body-roller-Image_9.jpeg`,
   legs: `${SITE}/__l5e/assets-v1/cb89f811-ea21-47a6-a994-0eb072f26068/body-roller-Image_16.jpeg`,
   machine: `${SITE}/__l5e/assets-v1/02d95957-88b3-46b0-be34-9c615f961e69/body-roller-Image_57.jpeg`,
+  // Animated loop of the machine (GIF so it plays inside every inbox)
+  loop: `${SITE}/__l5e/assets-v1/73105d48-2a4c-479e-8c37-faa19257b095/body-roller-loop.gif`,
 };
+const loop = (alt: string) => `<img src="${IMG.loop}" alt="${alt}" width="600" height="338" style="display:block;width:100%;height:auto;border:0;" />`;
 
 export type EmailKind = "launch" | "halfway" | "last_chance" | "arrived" | "nm_launch" | "nm_halfway" | "nm_last_chance";
 export type Audience = "member" | "non_member";
@@ -130,7 +133,7 @@ export function buildPresaleEmail(rawKind: EmailKind, firstName: string | null, 
       Two rituals, one session. ${nm ? "Before it lands, you can reserve early &mdash; at presale prices that won't last." : "Before it lands, our members reserve first &mdash; at prices no one else will see."}</p>
   </td></tr>
   <tr><td style="padding:44px 30px 0;">${pillars(true)}</td></tr>
-  <tr><td style="padding:44px 0 0;">${img(IMG.legs, "A Body Roller session", 300)}</td></tr>
+  <tr><td style="padding:44px 0 0;">${loop("The Lymphatic Body Roller in motion")}</td></tr>
   <tr><td style="padding:48px 30px 50px;background:${C.bark};">
     <p style="margin:0 0 6px;text-align:center;font-family:${SERIF};font-size:30px;color:${C.cream};">The Presale Menu</p>
     <p style="margin:0 0 30px;text-align:center;font-family:${SERIF};font-style:italic;font-size:14px;color:${C.gold};">save up to ${$(Math.max(...Object.values(PRESALE_OPTIONS).filter((o) => o.audience === AUD).map((o) => o.regular_cents - o.cents)))}</p>
@@ -145,7 +148,7 @@ export function buildPresaleEmail(rawKind: EmailKind, firstName: string | null, 
     <p style="margin:0;font-family:${SERIF};font-size:96px;line-height:1;color:${C.gold};">&frac12;</p>
     <h1 style="margin:14px 0 0;font-family:${SERIF};font-weight:normal;font-size:36px;line-height:1.2;color:${C.cream};">Halfway to arrival.<br/><em>Your price is still held.</em></h1>
   </td></tr>
-  <tr><td>${img(IMG.machine, "The Lymphatic Body Roller", 340)}</td></tr>
+  <tr><td>${loop("The Lymphatic Body Roller in motion")}</td></tr>
   <tr><td style="padding:46px 44px 0;">
     <p style="margin:0 0 16px;font-family:${SERIF};font-size:17px;color:${C.ink};">${name},</p>
     <p style="margin:0;font-family:${SERIF};font-size:17px;line-height:1.8;color:${C.ink};">Picture it: a warm wave of wooden rollers working from your calves upward, red light glowing beneath you, twenty minutes in and your body finally <em>exhales</em>.
@@ -168,6 +171,7 @@ export function buildPresaleEmail(rawKind: EmailKind, firstName: string | null, 
     ${rule()}
     <p style="margin:0 auto;max-width:430px;font-family:${SERIF};font-size:17px;line-height:1.8;color:#D9CBBB;">${name}, after ${endsLabel}, the Lymphatic Body Roller returns to regular pricing &mdash; for good. This is the last moment to lock in ${nm ? "presale" : "member presale"} rates on roller + red light sessions.</p>
   </td></tr>
+  <tr><td style="padding:20px 30px 0;">${loop("The Lymphatic Body Roller in motion")}</td></tr>
   <tr><td style="padding:30px 30px 0;"><table width="100%" cellpadding="0" cellspacing="0"><tr>
     <td width="50%" style="padding-right:4px;"><img src="${IMG.legs}" alt="A Body Roller session" width="296" height="260" style="display:block;width:100%;height:260px;object-fit:cover;border:0;"/></td>
     <td width="50%" style="padding-left:4px;"><img src="${IMG.machine}" alt="The Lymphatic Body Roller" width="296" height="260" style="display:block;width:100%;height:260px;object-fit:cover;border:0;"/></td>
@@ -205,5 +209,5 @@ export function buildPresaleEmail(rawKind: EmailKind, firstName: string | null, 
   </td></tr>
   <tr><td style="padding:10px 40px 50px;">${btn("BOOK MY FIRST SESSION", `${SITE}/member/book`, C.maroon, C.cream)}
     <p style="margin:20px 0 0;text-align:center;font-family:${SANS};font-size:11px;color:${C.muted};">Reserved sessions expire 6 months after purchase.</p></td></tr>
-  <tr><td>${img(IMG.legs, "A Body Roller session", 280)}</td></tr>`, false);
+  <tr><td>${loop("The Lymphatic Body Roller in motion")}</td></tr>`, false);
 }
