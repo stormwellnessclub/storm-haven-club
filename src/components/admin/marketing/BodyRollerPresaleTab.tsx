@@ -16,6 +16,7 @@ import { usd } from "@/lib/bodyRollerPresale";
 const FN = "send-body-roller-presale-email";
 const KINDS = [
   { kind: "launch", title: "Launch announcement", who: "active members" },
+  { kind: "launch_resend", title: "Launch announcement — resend", who: "active members (sends again, even to people who got the first one)" },
   { kind: "halfway", title: "Halfway reminder", who: "active members" },
   { kind: "last_chance", title: "Last-chance reminder", who: "active members" },
   { kind: "arrived", title: "Machine arrived", who: "presale buyers only" },
@@ -28,7 +29,7 @@ const KINDS = [
   { kind: "nm_followup_abandoned", title: "Follow-up: unfinished checkout (non-members)", who: "non-members who opened checkout but didn't pay" },
 ] as const;
 const KEYS: Record<string, string> = {
-  launch: "body_roller_presale_launch", halfway: "body_roller_presale_halfway",
+  launch: "body_roller_presale_launch", launch_resend: "body_roller_presale_launch_resend", halfway: "body_roller_presale_halfway",
   last_chance: "body_roller_presale_last_chance", arrived: "body_roller_presale_arrived",
   nm_launch: "body_roller_presale_nm_launch", nm_halfway: "body_roller_presale_nm_halfway", nm_last_chance: "body_roller_presale_nm_last_chance",
   followup_clicked: "body_roller_presale_followup_clicked", followup_abandoned: "body_roller_presale_followup_abandoned",

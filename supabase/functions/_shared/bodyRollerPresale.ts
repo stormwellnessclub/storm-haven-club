@@ -38,12 +38,13 @@ const IMG = {
 };
 const loop = (alt: string) => `<img src="${IMG.loop}" alt="${alt}" width="600" height="338" style="display:block;width:100%;height:auto;border:0;" />`;
 
-export type EmailKind = "launch" | "halfway" | "last_chance" | "arrived" | "nm_launch" | "nm_halfway" | "nm_last_chance"
+export type EmailKind = "launch" | "launch_resend" | "halfway" | "last_chance" | "arrived" | "nm_launch" | "nm_halfway" | "nm_last_chance"
   | "followup_clicked" | "followup_abandoned" | "nm_followup_clicked" | "nm_followup_abandoned";
 export type Audience = "member" | "non_member";
 
 export const EMAIL_META: Record<EmailKind, { key: string; subject: string }> = {
   launch: { key: "body_roller_presale_launch", subject: "Something new is coming to Storm Wellness Club" },
+  launch_resend: { key: "body_roller_presale_launch_resend", subject: "Something new is coming to Storm Wellness Club" },
   halfway: { key: "body_roller_presale_halfway", subject: "The part of training no one schedules" },
   last_chance: { key: "body_roller_presale_last_chance", subject: "Member presale pricing closes soon" },
   arrived: { key: "body_roller_presale_arrived", subject: "The Lymphatic Body Roller is here" },
@@ -118,7 +119,7 @@ const benefit = (title: string, body: string, fg: string, sub: string, line: str
 export function buildPresaleEmail(rawKind: EmailKind, firstName: string | null, endsLabel: string): string {
   AUD = rawKind.startsWith("nm_") ? "non_member" : "member";
   const nm = AUD === "non_member";
-  const kind = rawKind.replace(/^nm_/, "") as EmailKind;
+  const kind = rawKind.replace(/^nm_/, "").replace(/_resend$/, "") as EmailKind;
   const name = firstName || (nm ? "Hello" : "Dear member");
   const greet = firstName ? `${firstName},` : `${name},`;
   const priceWord = nm ? "presale" : "member presale";
