@@ -126,12 +126,23 @@ export function groupRows<K extends string>(rows: RevenueSummaryRow[], key: (r: 
 export const toBusinessDate = (d: Date) => format(d, "yyyy-MM-dd");
 
 export async function fetchRevenueSummary(start: Date, end: Date): Promise<RevenueSummaryRow[]> {
-  const { data, error } = await supabase.rpc("get_revenue_summary", {
-    p_start: toBusinessDate(start),
-    p_end: toBusinessDate(end),
-  });
-  if (error) throw error;
-  return ((data ?? []) as RevenueSummaryRow[]).map((r) => ({
+  // The API caps each response at 1,000 rows, so page through every group
+  // with a fully stable sort; a single call silently dropped later days.
+  const PAGE = 1000;
+  const all: RevenueSummaryRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await (supabase.rpc as any)("get_revenue_summary", {
+      p_start: toBusinessDate(start),
+      p_end: toBusinessDate(end),
+    })
+      .order("business_date").order("area").order("tender").order("kind").order("taxable").order("is_member")
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as RevenueSummaryRow[];
+    all.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return all.map((r) => ({
     ...r,
     entries: Number(r.entries),
     gross_cents: Number(r.gross_cents),
