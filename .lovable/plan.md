@@ -1,47 +1,60 @@
 # Combined Wix + Mindbody import, and automatic unsubscribes
 
 ## Where Claude and I agree
-- Claude's cleaned file is the source of truth. It has 3,632 unique people from Wix (2,763) and Mindbody (2,666). I will not re-process the raw exports.
+- Claude's cleaned file is the source of truth: 3,632 unique people from Wix (2,763) and Mindbody (2,666). I won't re-process the raw exports.
 - 17 people are excluded (test accounts, or no email and no phone).
-- 166 possible pairs stay unmerged until you decide (same email with different names, shared family phones, same name with different contact info).
-- Consent follows your rule: everyone with an email is opted in to email, and everyone with a phone to texts. The exceptions are the 2 spam reporters and the 12 bounced emails.
-- Any opt-out already in our system wins: an unsubscribe, a STOP text, or a blocked address.
-- The unsubscribe problem is real. Unsubscribe requests land in admin@ and are never recorded.
+- 166 possible pairs stay unmerged until you decide.
+- Consent follows your rule: an email means email opt-in and a phone means text opt-in. The 2 spam reporters and 12 bounced emails are excepted.
+- An opt-out already in our system always wins (unsubscribe, STOP text, or blocked).
+- Unsubscribe requests currently land in admin@ and are never recorded.
 
-## Differences I'll account for
-- The website list was partly imported last week (163 new people). Those rows will match as existing contacts and get updated, not duplicated.
-- Texts are partly done already. STOP/START now updates every contact source, and imported contacts are reachable from Targeted Texts with consent checks. I'll confirm this against Claude's list. The remaining gap is that the older Compose SMS screen only reaches account holders.
-- Claude found that Compose Email does not skip unsubscribed or blocked people. I'll fix that too.
+## Order of work
+1. Step 0 and Step 1 reports go to you. Nothing is written.
+2. Step 3 (automatic unsubscribes) is built, and the admin inbox catch-up is done.
+3. Step 2, the import, runs after your go. It may run before Step 3 is finished because nothing sends on import.
+4. Only then can any email or text go to the new list.
+
+## Step 0: Re-check last week's 163 website contacts
+- Find any of the 163 whose phone matches a member, a non-member, or another contact under a different email, and list them for your decision.
+- Confirm whether text opt-in was set on each. Last week 97 were set to yes and 66 were email-only; I'll re-verify against the database.
 
 ## Step 1: Count first, write nothing
-Match every email and phone on each row, including the extra ones, against members, accounts, non-member profiles, contacts, SMS leads, applications, guest passes, pending imports and blocked people. Matching uses Claude's rules: lowercase emails, Gmail dots and +tags ignored, phones as 10 digits.
+Every email and phone on each row, including the extra ones, is matched against members, accounts, non-member profiles, contacts, SMS leads, applications, guest passes, pending imports and blocked people. Matching uses Claude's rules.
 
-I'll then report:
-- people who match a member
-- people who match a non-member
-- people who match an existing contact
-- new people to add
-- people skipped because they are blocked or opted out
+Report:
+- Counts: matched members, matched non-members, matched existing contacts, new people, and people skipped as blocked or opted out. These must total exactly 3,632, and any gap will be explained.
+- Conflicts list: anyone whose email matches one record and whose phone or second email matches a different record. These are shown to you, never guessed.
+- Members' phones:
+  - members whose missing phone would be filled
+  - members whose phone on file differs from the file (reported only, never overwritten)
+- How many imported phones already have a STOP on record.
+- Automatic sends check: confirm that nothing (welcome email, drip sequence or text) fires when contacts are added. If something does, it is switched off for this batch.
 
-Nothing is imported until you say go.
+The report comes back to you as lists before anything is imported.
 
 ## Step 2: Import (after your go)
-- Members and non-member accounts stay the master record. I only fill a missing phone; status, name and email are never changed, and no duplicate contact is created.
-- For existing contacts, I fill only missing fields and add the Mindbody ID.
-- New people are added as prospects tagged "Wix + Mindbody Oct 2026", with consent from the file.
+- Members and non-member accounts stay the master record; only missing fields are filled.
+- Existing contacts get missing fields plus the Mindbody ID.
+- New people are added as prospects.
 - Opt-outs always win.
-- You get a summary file of the results.
+- Undo:
+  - Every added or changed row is tagged wix_mindbody_2026_10.
+  - A before-copy of every existing row changed is kept so the whole import can be reversed.
+- You get a results summary file.
 
-## Step 3: Automatic unsubscribes for every marketing email
-- Every marketing email gets its own secure unsubscribe link and the one-tap inbox Unsubscribe button. One tap records the opt-out right away, and nothing goes to admin@.
-- A simple Storm Wellness Club confirmation page offers "Resubscribe".
-- One shared rule blocks unsubscribed, blocked, bounced and spam-reported addresses. It applies to the Body Roller campaigns, Sale/Promotion emails and Compose Email.
-- Receipts and bookings still send.
-- Optionally, I'll record bounces and spam complaints automatically.
-- Catch-up: paste the addresses from the unsubscribe emails in the admin inbox and I'll mark them.
+## Step 3: Automatic unsubscribes
+- Every marketing email gets a footer with an unsubscribe link and the club address (18340 Middlebelt Rd, Livonia, MI 48152).
+- The inbox one-tap Unsubscribe button is switched from emailing admin@ to recording the opt-out automatically. This includes the Body Roller emails.
+- Unsubscribe links never expire.
+- Unsubscribing covers every record with that person's email (contacts, accounts, non-member profiles).
+- A confirmation page offers "Resubscribe".
+- One shared skip rule (unsubscribed, blocked, bounced, spam) applies to the Body Roller emails, Sale/Promotion emails, and Compose Email campaigns, which will now always send in marketing mode.
+- Receipts, bookings and account emails are unaffected.
+- Catch-up: paste the addresses from the unsubscribe emails in admin@ and I'll mark them before any send.
 
 ## Technical details
-- New public edge function `email-unsubscribe`. GET shows the page; POST handles RFC 8058 one-click. It uses an HMAC token per email and sets `unsubscribed_at` and `opted_in_email=false` on all matching rows.
-- Per-recipient `List-Unsubscribe` and `List-Unsubscribe-Post` headers, plus a footer link, in `send-body-roller-presale-email`, `process-promotion-emails` and `send-email` (marketing mode).
-- A shared `_shared/marketingSuppression.ts` does paged lookups.
-- The import runs through data queries with paged lookups, not the `import_marketing_contacts` RPC. It sets `source='import'` and `source_label='wix_mindbody_2026_10'`, and stores `mindbody_ids` in `external_metadata`.
+- New public edge function `email-unsubscribe`. GET shows the page; POST handles RFC 8058 one-click. Each link carries an HMAC token over the lowercased email with no expiry. The function sets `unsubscribed_at` and `opted_in_email=false` on `marketing_contacts`, plus email opt-out flags on `profiles` and `non_member_profiles` where those exist.
+- Shared `_shared/marketingEmail.ts` handles headers (`List-Unsubscribe`, `List-Unsubscribe-Post`), the footer and paged suppression. It is used by `send-body-roller-presale-email`, `process-promotion-emails`, and `send-email` when called from `ComposeEmailDialog`; transactional calls are untouched.
+- New table `import_change_backup` (row JSON before change, tag, table, id) with admin-only RLS and grants.
+- Inspect triggers on `marketing_contacts`, plus the `marketing_sequence_enrollments` triggers, before the import.
+- The import uses paged data queries, not the `import_marketing_contacts` RPC.
