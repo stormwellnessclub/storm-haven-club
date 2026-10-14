@@ -17,6 +17,11 @@ import { AudienceFilters, DEFAULT_FILTERS, isReachable, matchesFilters, PersonAc
 import { estimateCost, segments } from "@/lib/smsCosts";
 import { SmsMediaPicker } from "../SmsMediaPicker";
 
+export const SMS_PRESETS = [
+  { id: "confirm", name: "Text subscription confirmation", body: "Storm Wellness Club: You're subscribed to texts from us. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out." },
+  { id: "save", name: "Save our number", body: "Storm Wellness Club: Hi {{first_name}}, save this number in your contacts as \"Storm Wellness Club\" so our texts show our name. This line is for updates only and can't read replies. It only understands STOP, START and HELP. For anything else, call us at (248) 232-8487 or message us in your portal." },
+];
+
 const ACTIVITY_LABELS: Record<string, string> = {
   any: "Anything (no activity filter)", classes: "Booked classes", massage: "Booked a massage", spa: "Any spa service",
   recovery: "Used recovery", cafe: "Ordered from the café", pt: "Personal training", body_roller: "Bought Body Roller",
@@ -62,7 +67,20 @@ export function TargetedSmsTab() {
     refetchInterval: 20_000,
   });
 
-  const matched = useMemo(() => people.filter((p) => matchesFilters(p, f)), [people, f]);
+  // Cancelled members never get texts (their records stay).
+  const { data: cancelledEmails } = useQuery({
+    queryKey: ["cancelled-member-emails"],
+    queryFn: async () => {
+      const out = new Set<string>();
+      for (let from = 0; ; from += 1000) {
+        const { data } = await supabase.from("members").select("email").eq("status", "cancelled").range(from, from + 999);
+        for (const r of data ?? []) if (r.email) out.add(String(r.email).trim().toLowerCase());
+        if (!data || data.length < 1000) break;
+      }
+      return out;
+    },
+  });
+  const matched = useMemo(() => people.filter((p) => matchesFilters(p, f) && !(p.audience !== "member" && cancelledEmails?.has((p.email ?? "").toLowerCase()))), [people, f, cancelledEmails]);
   const reachable = useMemo(() => {
     const seen = new Set<string>();
     return matched.filter((p) => {
@@ -97,13 +115,17 @@ export function TargetedSmsTab() {
       const { data, error } = await supabase.functions.invoke("send-sms-campaign", {
         body: {
           action: schedule ? "schedule" : "send", name, body, mediaUrls: media, filters: f,
-          segmentId: segmentId || undefined, userIds: reachable.map((p) => p.user_id),
+          segmentId: segmentId || undefined,
+          userIds: reachable.filter((p) => p.user_id).map((p) => p.user_id),
+          contacts: reachable.filter((p) => !p.user_id).map((p) => ({ phone: p.phone, first_name: p.first_name, last_name: p.last_name })),
           sendAt: schedule ? new Date(when).toISOString() : undefined,
         },
       });
       if (error) throw error;
       if (!(data as any)?.ok) throw new Error((data as any)?.error || "Failed");
-      toast.success(schedule ? "Scheduled." : `Sent ${(data as any).sent}, failed ${(data as any).failed}.`);
+      toast.success(schedule ? "Scheduled." : (data as any).remaining
+        ? `Sent ${(data as any).sent} so far. The other ${(data as any).remaining} are going out in the background. Check Recent targeted texts below.`
+        : `Sent ${(data as any).sent}, failed ${(data as any).failed}.`);
       qc.invalidateQueries({ queryKey: ["targeted-sms-campaigns"] });
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   };
@@ -213,6 +235,12 @@ export function TargetedSmsTab() {
           <CardHeader><CardTitle>Message</CardTitle>
             <CardDescription>Use {"{{first_name}}"} for each person's first name. "Reply STOP to opt out" is recommended for promotions.</CardDescription></CardHeader>
           <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs text-muted-foreground self-center">Ready-made:</span>
+              {SMS_PRESETS.map((p) => (
+                <Button key={p.id} size="sm" variant="outline" onClick={() => { setName(p.name); setBody(p.body); setF(DEFAULT_FILTERS); setSegmentId(""); }}>{p.name}</Button>
+              ))}
+            </div>
             <div><Label className="text-xs">Campaign name (only staff see this)</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Reformer win-back, October" /></div>
             <Textarea rows={5} maxLength={1600} value={body} onChange={(e) => setBody(e.target.value)} />
             <div className="text-xs text-muted-foreground flex justify-between">

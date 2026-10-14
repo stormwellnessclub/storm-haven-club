@@ -88,5 +88,5 @@ export function matchesFilters(p: PersonActivity, f: AudienceFilters, now = new 
 }
 
 export function isReachable(p: PersonActivity) {
-  return p.sms_opt_in && !!p.user_id && (p.phone ?? "").replace(/\D/g, "").length >= 10;
+  return p.sms_opt_in && (!!p.user_id || p.audience === "contact") && (p.phone ?? "").replace(/\D/g, "").length >= 10;
 }
