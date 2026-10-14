@@ -1,12 +1,17 @@
-// Admin-triggered "Charge saved card now" for a member's outstanding Stripe invoices.
-// Pays one open invoice (oldest by default, or a specific invoice_id) against the
-// customer's default payment method. Returns HTTP 200 with success:false on declines
-// per the project's Stripe edge-function convention so the frontend can render the reason.
+// Staff "Charge saved card now" for a member's outstanding Stripe dues.
+// Pays the open invoice ITSELF (oldest by default, or a specific invoice_id), never a
+// separate charge, so Stripe can never collect the same month twice. Card: the one
+// staff chose, else the default, else the newest (_shared/paymentMethods.ts).
+// { preview: true } returns the bill that would be paid without charging.
+// Returns HTTP 200 with success:false on declines per the project's Stripe
+// edge-function convention so the frontend can render the reason.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { getInvoiceSubscriptionId } from "../_shared/stripeInvoice.ts";
 import { settleInvoiceRecovery } from "../_shared/settleInvoiceRecovery.ts";
+import { selectChargePaymentMethod } from "../_shared/paymentMethods.ts";
+import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,7 +47,7 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .in("role", ["super_admin", "admin", "manager"]);
+      .in("role", ["super_admin", "admin", "manager", "front_desk"]);
     if (!roleRows || roleRows.length === 0) {
       return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
         status: 200,
@@ -51,7 +56,14 @@ serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { memberId, invoiceId } = body as { memberId?: string; invoiceId?: string };
+    // preview: return the bill that would be paid without charging anything.
+    // paymentMethodId: the card staff chose (verified to belong to the member).
+    // outOfBand: dues were collected in cash/check; mark the open bill paid outside
+    // Stripe so Stripe never charges the card for the same month.
+    const { memberId, invoiceId, paymentMethodId, preview, outOfBand, note } = body as {
+      memberId?: string; invoiceId?: string; paymentMethodId?: string; preview?: boolean;
+      outOfBand?: boolean; note?: string;
+    };
     if (!memberId) throw new Error("memberId required");
 
     const { data: member, error: mErr } = await supabase
@@ -134,20 +146,75 @@ serve(async (req) => {
       );
     }
 
-    // Determine payment method: prefer customer's invoice default, fall back to first card.
-    const customer = (await stripe.customers.retrieve(member.stripe_customer_id)) as Stripe.Customer;
-    let pmId: string | null =
-      typeof customer.invoice_settings?.default_payment_method === "string"
-        ? customer.invoice_settings.default_payment_method
-        : customer.invoice_settings?.default_payment_method?.id ?? null;
+    const servicePeriod = invoiceServicePeriod(targetInvoice);
+    if (preview) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          preview: true,
+          invoice_id: targetInvoice.id,
+          invoice_number: targetInvoice.number ?? null,
+          amount_due_cents: targetInvoice.amount_remaining ?? targetInvoice.amount_due,
+          period_start: servicePeriod.start,
+          period_end: servicePeriod.end,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
-    if (!pmId) {
-      const pms = await stripe.paymentMethods.list({
-        customer: member.stripe_customer_id,
-        type: "card",
-        limit: 1,
-      });
-      pmId = pms.data[0]?.id ?? null;
+    if (outOfBand) {
+      const paidOob = await stripe.invoices.pay(targetInvoice.id, { paid_out_of_band: true });
+      try {
+        await stripe.invoices.update(paidOob.id as string, {
+          metadata: {
+            ...(paidOob.metadata ?? {}),
+            paid_outside_stripe: "true",
+            paid_outside_stripe_note: String(note || "Paid in club").slice(0, 450),
+            paid_outside_stripe_by: user.id,
+          },
+        });
+      } catch (_e) { /* the note is optional */ }
+      await supabase
+        .from("billing_arrears")
+        .update({
+          status: "paid",
+          amount_paid_cents: targetInvoice.amount_remaining ?? targetInvoice.amount_due,
+          paid_at: new Date().toISOString(),
+          resolved_at: new Date().toISOString(),
+          resolution_reason: `Paid outside Stripe: ${String(note || "paid in club").slice(0, 200)}`,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("member_id", member.id)
+        .eq("stripe_invoice_id", paidOob.id);
+      const settledOob = await settleInvoiceRecovery(supabase, member.id, paidOob.id as string, "Paid outside Stripe (in club)");
+      log("Invoice marked paid outside Stripe", { invoiceId: paidOob.id, settledOob });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          out_of_band: true,
+          invoice_id: paidOob.id,
+          period_start: servicePeriod.start,
+          period_end: servicePeriod.end,
+          past_due_cleared: settledOob.past_due_cleared,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Card: the one staff chose, else the member's default, else the newest.
+    let pmId: string | null = null;
+    try {
+      const pm = await selectChargePaymentMethod(
+        stripe,
+        member.stripe_customer_id,
+        typeof paymentMethodId === "string" && paymentMethodId ? paymentMethodId : null,
+      );
+      pmId = pm?.id ?? null;
+    } catch (pmErr) {
+      return new Response(
+        JSON.stringify({ success: false, error: (pmErr as Error).message }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     if (!pmId) {
@@ -201,6 +268,8 @@ serve(async (req) => {
           success: true,
           invoice_id: paid.id,
           amount_paid_cents: paid.amount_paid ?? paid.amount_due,
+          period_start: servicePeriod.start,
+          period_end: servicePeriod.end,
           status: paid.status,
           past_due_cleared: settled.past_due_cleared,
         }),

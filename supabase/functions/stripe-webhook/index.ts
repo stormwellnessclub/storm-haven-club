@@ -3,6 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { handleEventInvoicePayment, handleEventInvoiceRefund, handleEventInvoicePaymentFailed } from "../_shared/eventFinancialsWebhook.ts";
 import { finalizeManualChargeFromIntent } from "../_shared/manualChargeLedger.ts";
+import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -2952,8 +2953,8 @@ serve(async (req) => {
               p_metadata: {
                 charge_type: chargeType,
                 billing_reason: invoice.billing_reason,
-                period_start: invoice.period_start,
-                period_end: invoice.period_end,
+                service_period_start: invoiceServicePeriod(invoice).start,
+                service_period_end: invoiceServicePeriod(invoice).end,
                 card_brand: cardBrand,
                 card_last4: cardLast4
               }
@@ -2966,8 +2967,10 @@ serve(async (req) => {
 
             // ── Upsert billing_arrears ledger: mark this period as paid ──
             try {
-              const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-              const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000).toISOString().split('T')[0] : periodStart;
+              // Service dates come from the bill's lines; the invoice header holds the previous period.
+              const servicePeriod = invoiceServicePeriod(invoice);
+              const periodStart = servicePeriod.start ?? new Date().toISOString().split('T')[0];
+              const periodEnd = servicePeriod.end ?? periodStart;
               const billingType = annualFeeInvoice ? 'annual_fee' : 'membership_dues';
 
               const { error: arrUpsertErr } = await supabase
@@ -3707,10 +3710,45 @@ serve(async (req) => {
               console.error("[PAYMENT_TRACKING_DRIFT] log_payment_attempt(failed) failed", logAttemptError);
             }
 
+            // ── Stale failure guard ──
+            // Stripe does not deliver events in order, and redelivers ones we failed
+            // to handle. A failure notice handled after the invoice was paid (or
+            // voided) must not mark the month unpaid, flag the member past due or send
+            // "payment failed" emails. Ask Stripe for the invoice's current state; the
+            // decline above stays in history and is marked resolved.
+            try {
+              const currentInvoice = await stripe.invoices.retrieve(invoice.id as string);
+              if (currentInvoice.status === 'paid' || currentInvoice.status === 'void') {
+                await supabase
+                  .from('payment_attempts')
+                  .update({
+                    resolved_at: new Date().toISOString(),
+                    resolution_note: currentInvoice.status === 'paid'
+                      ? 'Invoice already paid when this failure was processed'
+                      : 'Invoice voided before this failure was processed',
+                  })
+                  .eq('stripe_invoice_id', invoice.id)
+                  .in('status', ['failed', 'requires_action'])
+                  .is('resolved_at', null);
+                logStep("Stale payment failure ignored: invoice already settled in Stripe", {
+                  invoiceId: invoice.id,
+                  memberId: memberData.id,
+                  invoiceStatus: currentInvoice.status,
+                });
+                break;
+              }
+            } catch (staleCheckErr) {
+              // If Stripe cannot be reached, fall through: the database guards still
+              // stop a paid month from being reopened by this failure.
+              logError(staleCheckErr, "STALE_FAILURE_CHECK");
+            }
+
             // ── Upsert billing_arrears ledger: mark this period as unpaid ──
             try {
-              const periodStart = invoice.period_start ? new Date(invoice.period_start * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-              const periodEnd = invoice.period_end ? new Date(invoice.period_end * 1000).toISOString().split('T')[0] : periodStart;
+              // Service dates come from the bill's lines; the invoice header holds the previous period.
+              const servicePeriod = invoiceServicePeriod(invoice);
+              const periodStart = servicePeriod.start ?? new Date().toISOString().split('T')[0];
+              const periodEnd = servicePeriod.end ?? periodStart;
 
               const { error: arrUpsertErr } = await supabase
                 .from('billing_arrears')
@@ -4503,12 +4541,11 @@ serve(async (req) => {
             arrearsStatus = 'partial';
           }
 
-          const periodStart = invoice.period_start
-            ? new Date(invoice.period_start * 1000).toISOString().split('T')[0]
-            : new Date(invoice.created * 1000).toISOString().split('T')[0];
-          const periodEnd = invoice.period_end
-            ? new Date(invoice.period_end * 1000).toISOString().split('T')[0]
-            : periodStart;
+          // Service dates come from the bill's lines; the invoice header holds the previous period.
+          const finalizedPeriod = invoiceServicePeriod(invoice);
+          const periodStart = finalizedPeriod.start
+            ?? new Date(invoice.created * 1000).toISOString().split('T')[0];
+          const periodEnd = finalizedPeriod.end ?? periodStart;
 
           const { error: arrErr } = await supabase
             .from('billing_arrears')

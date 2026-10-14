@@ -116,6 +116,16 @@ interface NonMemberInfo {
   lastName?: string;
 }
 
+/** "Oct 9 – Nov 9, 2026" for a bill's service dates (YYYY-MM-DD strings). */
+function formatBillPeriod(start?: string | null, end?: string | null): string {
+  const fmt = (d: string, withYear: boolean) =>
+    new Date(`${d}T12:00:00`).toLocaleDateString("en-US", withYear
+      ? { month: "short", day: "numeric", year: "numeric" }
+      : { month: "short", day: "numeric" });
+  if (start && end) return `${fmt(start, false)} – ${fmt(end, true)}`;
+  return start ? fmt(start, true) : "the open period";
+}
+
 interface ChargeItemSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -522,6 +532,40 @@ export function ChargeItemSelector({
 
     setIsCharging(true);
     try {
+      // Membership dues are collected through the member's open Stripe bill, never
+      // as a separate charge: a separate charge leaves the bill open and Stripe
+      // collects the same month again on its next retry.
+      let duesBillToSettle: { id: string; period: string } | null = null;
+      if (!nonMember && member?.id && cartItems.some((i) => i.chargeType === "membership_dues")) {
+        const { data: openBill, error: previewError } = await supabase.functions.invoke("charge-member-arrears", {
+          body: { memberId: member.id, preview: true },
+        });
+        if (previewError) throw previewError;
+        if (openBill?.success && openBill.invoice_id) {
+          if (cartItems.some((i) => i.chargeType !== "membership_dues")) {
+            toast.error("This member has an open dues bill. Ring up dues on their own (remove the other items) so the payment settles that bill.");
+            return;
+          }
+          const period = formatBillPeriod(openBill.period_start, openBill.period_end);
+          const billAmount = ((openBill.amount_due_cents ?? 0) / 100).toFixed(2);
+          if (isManualPayment) {
+            if (!window.confirm(`Record this ${manualPaymentMethod} payment against the open dues bill for ${period} ($${billAmount})? Stripe will mark that bill paid outside Stripe and will not charge the card for it.`)) return;
+            duesBillToSettle = { id: openBill.invoice_id, period };
+          } else {
+            if (!window.confirm(`Charge the open dues bill for ${period}: $${billAmount} (includes the card processing fee) to the card on file?`)) return;
+            const { data: paid, error: payError } = await supabase.functions.invoke("charge-member-arrears", {
+              body: { memberId: member.id, invoiceId: openBill.invoice_id },
+            });
+            if (payError) throw payError;
+            if (!paid?.success) throw new Error(paid?.error || "Charge failed");
+            toast.success(`Paid the dues bill for ${period} ($${billAmount})`);
+            onChargeSuccess?.();
+            resetAndClose();
+            return;
+          }
+        }
+      }
+
       if (isManualPayment) {
         const insertData: any = {
           amount: amountInCents,
@@ -551,6 +595,20 @@ export function ChargeItemSelector({
         }
         const { error } = await supabase.from("manual_charges").insert(insertData);
         if (error) throw error;
+
+        if (duesBillToSettle) {
+          const { data: settled, error: settleError } = await supabase.functions.invoke("charge-member-arrears", {
+            body: {
+              memberId: member.id,
+              invoiceId: duesBillToSettle.id,
+              outOfBand: true,
+              note: `${manualPaymentMethod} payment in club${receiptNote.trim() ? `: ${receiptNote.trim()}` : ""}`,
+            },
+          });
+          if (settleError || !settled?.success) {
+            toast.error(`Payment recorded, but the Stripe bill for ${duesBillToSettle.period} could not be marked paid. Mark it "paid outside Stripe" in Stripe so the card is not charged.`);
+          }
+        }
 
         if (alsoActivate && isPendingActivation) {
           const { error: activateError } = await supabase

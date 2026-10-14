@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarRange, CheckCircle2, ChevronDown, ChevronUp, Link2, Loader2, RefreshCw, ShieldCheck, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 const db = supabase as any;
@@ -43,8 +43,23 @@ interface ReconItem {
   kind: string;
   action: "corrected" | "needs_review" | "info";
   message: string;
+  details: { charge_id?: string; invoice_id?: string } | null;
   members: { first_name: string | null; last_name: string | null } | null;
 }
+
+interface RepairRow {
+  repair: string;
+  member_id: string | null;
+  member_name: string | null;
+  stripe_invoice_id: string | null;
+  detail: string;
+}
+
+const REPAIR_LABELS: Record<string, string> = {
+  failed_attempt_has_later_payment: "Failure shown although the bill was paid",
+  month_owed_but_paid: "Month shown as owed although paid",
+  reminders_running_for_paid_bill: "Payment reminders running for a paid bill",
+};
 
 const KIND_LABELS: Record<string, string> = {
   marked_paid: "Marked paid",
@@ -57,6 +72,11 @@ const KIND_LABELS: Record<string, string> = {
   owes_but_not_flagged: "Owes but not flagged",
   invoice_missing_in_stripe: "Invoice missing in Stripe",
   paid_invoice_no_member: "Payment with no member",
+  failure_linked_to_payment: "Failure linked to later payment",
+  linked_late_failure: "Failure linked to later payment",
+  applied_standalone_payment: "Separate payment applied to bill",
+  standalone_payment_not_applied: "Separate payment not applied to a bill",
+  possible_double_payment: "Possible double payment",
 };
 
 const memberName = (i: ReconItem) =>
@@ -87,7 +107,7 @@ export function BillingReconciliationPanel() {
     queryFn: async () => {
       const { data, error } = await db
         .from("billing_reconciliation_items")
-        .select("id, created_at, member_id, stripe_invoice_id, kind, action, message, members!billing_reconciliation_items_member_id_fkey(first_name, last_name)")
+        .select("id, created_at, member_id, stripe_invoice_id, kind, action, message, details, members!billing_reconciliation_items_member_id_fkey(first_name, last_name)")
         .eq("action", "needs_review")
         .is("reviewed_at", null)
         .order("created_at", { ascending: false })
@@ -103,7 +123,7 @@ export function BillingReconciliationPanel() {
     queryFn: async () => {
       const { data, error } = await db
         .from("billing_reconciliation_items")
-        .select("id, created_at, member_id, stripe_invoice_id, kind, action, message, members!billing_reconciliation_items_member_id_fkey(first_name, last_name)")
+        .select("id, created_at, member_id, stripe_invoice_id, kind, action, message, details, members!billing_reconciliation_items_member_id_fkey(first_name, last_name)")
         .eq("action", "corrected")
         .order("created_at", { ascending: false })
         .limit(50);
@@ -140,8 +160,69 @@ export function BillingReconciliationPanel() {
     onSettled: invalidate,
   });
 
+  // Existing records where a failure was recorded after the payment (preview only).
+  const repairs = useQuery({
+    queryKey: ["billing-reconciliation", "repair-preview"],
+    queryFn: async () => {
+      const { data, error } = await db.rpc("billing_link_repair_preview_for_staff");
+      if (error) throw error;
+      return (data ?? []) as RepairRow[];
+    },
+  });
+  const [showRepairs, setShowRepairs] = useState(false);
+
+  const applyRepairs = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await db.rpc("apply_billing_link_repairs");
+      if (error) throw error;
+      return data as Record<string, number>;
+    },
+    onSuccess: (d) => toast.success(
+      `Fixed: ${d.failed_attempts_linked ?? 0} failures linked, ${d.months_marked_paid ?? 0} months marked paid, ${d.reminder_sequences_closed ?? 0} reminder sequences closed, ${d.members_cleared ?? 0} members cleared`,
+    ),
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: invalidate,
+  });
+
+  const applyPayment = useMutation({
+    mutationFn: async (item: ReconItem) => {
+      const { data, error } = await supabase.functions.invoke("reconcile-billing", {
+        body: { action: "apply_payment", charge_id: item.details?.charge_id, invoice_id: item.details?.invoice_id, item_id: item.id },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success === false) throw new Error(data.error || "Could not apply the payment");
+    },
+    onSuccess: () => toast.success("Payment applied to the bill. Stripe will not charge the card for it."),
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: invalidate,
+  });
+
+  const [datesPass, setDatesPass] = useState(0);
+  const fixDates = useMutation({
+    mutationFn: async () => {
+      let afterId: string | null = null;
+      let fixed = 0;
+      for (let pass = 1; pass <= 40; pass++) {
+        setDatesPass(pass);
+        const { data, error } = await supabase.functions.invoke("reconcile-billing", {
+          body: { action: "fix_bill_dates", ...(afterId ? { after_id: afterId } : {}) },
+        });
+        if (error) throw new Error(error.message);
+        if (data?.success === false) throw new Error(data.error || "Could not fix bill dates");
+        fixed += Number(data?.fixed ?? 0);
+        if (!data?.more) break;
+        afterId = data.next_after_id;
+      }
+      return fixed;
+    },
+    onSuccess: (fixed) => toast.success(fixed ? `Corrected the dates on ${fixed} bills` : "All bill dates were already correct"),
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: () => { setDatesPass(0); invalidate(); },
+  });
+
   const run = lastRun.data;
   const reviews = openReviews.data ?? [];
+  const repairRows = repairs.data ?? [];
 
   return (
     <Card>
@@ -155,12 +236,19 @@ export function BillingReconciliationPanel() {
             automatically; anything that would restrict a member is listed below for review. It never charges anyone.
           </CardDescription>
         </div>
-        <Button size="sm" variant="outline" onClick={() => runNow.mutate()} disabled={runNow.isPending || run?.status === "running"}>
-          {runNow.isPending || run?.status === "running"
-            ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            : <RefreshCw className="h-4 w-4 mr-2" />}
-          Run now
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={() => fixDates.mutate()} disabled={fixDates.isPending}
+            title="Bills used to be labelled with the month before the one they cover. This re-reads each bill from Stripe and stores its real dates.">
+            {fixDates.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CalendarRange className="h-4 w-4 mr-2" />}
+            {fixDates.isPending ? `Fixing dates… ${datesPass > 1 ? `pass ${datesPass}` : ""}` : "Fix bill dates"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => runNow.mutate()} disabled={runNow.isPending || run?.status === "running"}>
+            {runNow.isPending || run?.status === "running"
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <RefreshCw className="h-4 w-4 mr-2" />}
+            Run now
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-3 text-sm">
@@ -183,6 +271,59 @@ export function BillingReconciliationPanel() {
             </>
           )}
         </div>
+
+        {repairRows.length > 0 && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <Wrench className="h-4 w-4" /> {repairRows.length} old record{repairRows.length === 1 ? "" : "s"} show a failure although the bill was paid
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  A "payment failed" notice was recorded after the payment for the same bill. Applying links each failure
+                  to its payment, marks those months paid, stops their reminders and clears members who owe nothing.
+                  Every change is logged below.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setShowRepairs((v) => !v)}>
+                  {showRepairs ? "Hide list" : "Review list"}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={applyRepairs.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Apply these ${repairRows.length} fixes? Each change is logged.`)) applyRepairs.mutate();
+                  }}
+                >
+                  {applyRepairs.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Apply fixes
+                </Button>
+              </div>
+            </div>
+            {showRepairs && (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Problem</TableHead>
+                    <TableHead>Detail</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {repairRows.map((r, idx) => (
+                    <TableRow key={`${r.repair}-${r.stripe_invoice_id}-${idx}`}>
+                      <TableCell className="align-top">
+                        {r.member_id ? <Link className="underline" to={`/admin/members/${r.member_id}`}>{r.member_name || "Member"}</Link> : "—"}
+                      </TableCell>
+                      <TableCell className="align-top">{REPAIR_LABELS[r.repair] ?? r.repair}</TableCell>
+                      <TableCell className="align-top text-sm text-muted-foreground">{r.detail}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        )}
 
         {reviews.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing needs review.</p>
@@ -224,6 +365,20 @@ export function BillingReconciliationPanel() {
                           Done
                         </Button>
                       </div>
+                      {i.kind === "standalone_payment_not_applied" && i.details?.charge_id && i.details?.invoice_id && (
+                        <Button
+                          size="sm"
+                          className="mt-2 w-full"
+                          disabled={applyPayment.isPending}
+                          onClick={() => {
+                            if (window.confirm("Apply this separate payment to the open bill? The bill will be marked paid outside Stripe and Stripe will stop retrying the card for it.")) {
+                              applyPayment.mutate(i);
+                            }
+                          }}
+                        >
+                          <Link2 className="h-4 w-4 mr-2" /> Apply to bill
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}

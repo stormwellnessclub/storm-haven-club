@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { getInvoiceSubscriptionId } from "../_shared/stripeInvoice.ts";
+import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -127,8 +128,9 @@ serve(async (req) => {
         subscription_id: subscription?.id || getInvoiceSubscriptionId(inv),
         subscription_status: subscription?.status || null,
         hosted_invoice_url: inv.hosted_invoice_url || null,
-        period_start: inv.period_start ? new Date(inv.period_start * 1000).toISOString() : null,
-        period_end: inv.period_end ? new Date(inv.period_end * 1000).toISOString() : null,
+        // Service dates come from the bill's lines; the invoice header holds the previous period.
+        period_start: invoiceServicePeriod(inv).start,
+        period_end: invoiceServicePeriod(inv).end,
       };
     });
 

@@ -15,6 +15,7 @@
 
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { reevaluatePastDue, settleInvoiceRecovery } from "./settleInvoiceRecovery.ts";
+import { invoiceServicePeriod } from "./invoicePeriod.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -25,6 +26,11 @@ type Row = Record<string, any>;
 export const RECONCILE_STRIPE_API_VERSION = "2023-10-16";
 export const MISSED_PAYMENT_LOOKBACK_DAYS = 35;
 export const UNTRACKED_OPEN_LOOKBACK_DAYS = 120;
+export const STANDALONE_PAYMENT_LOOKBACK_DAYS = 60;
+export const STALE_FAILURE_BATCH = 200;
+
+/** A standalone (non-invoice) charge whose description says it pays dues. */
+export const DUES_CHARGE_RE = /\b(dues|past due|membership|failed payment recovery|monthly)\b/i;
 
 const ANNUAL_FEE_PRICE_IDS = new Set(["price_1SlA2BLyZrsSqLhs8VX17F0C", "price_1SlA2RLyZrsSqLhsK3XQuANN"]);
 const OPEN_ARREARS_STATUSES = ["unpaid", "partial", "processing"];
@@ -237,6 +243,19 @@ export class Reconciler {
       if (this.outOfTime()) return false;
       const inv = await this.getInvoice(row.stripe_invoice_id);
       const before = { status: row.status, amount_paid_cents: row.amount_paid_cents, amount_due_cents: row.amount_due_cents };
+
+      // Bills used to be labelled with the invoice header period (the month
+      // before the one billed); correct the dates from the bill's lines.
+      if (inv) {
+        const period = invoiceServicePeriod(inv);
+        if (period.start && (period.start !== row.period_start || (period.end && period.end !== row.period_end))) {
+          await this.ctx.supabase.from("billing_arrears")
+            .update({ period_start: period.start, period_end: period.end ?? period.start, updated_at: nowIso() })
+            .eq("id", row.id);
+          row.period_start = period.start;
+          row.period_end = period.end ?? period.start;
+        }
+      }
 
       if (!inv) {
         await this.record({
@@ -451,10 +470,234 @@ export class Reconciler {
     return true;
   }
 
+  // ── Phase: failures whose bill Stripe shows paid ─────────────────────────────
+
+  /**
+   * A failed attempt stays "failed" when the success for its invoice never reached
+   * the app, or arrived first. Resolve it when Stripe shows the invoice paid.
+   */
+  async resolveStaleFailures(): Promise<boolean> {
+    const { data: rows, error } = await this.ctx.supabase
+      .from("payment_attempts")
+      .select("id, member_id, stripe_invoice_id, status, amount, created_at")
+      .in("status", ["failed", "requires_action"])
+      .is("resolved_at", null)
+      .not("stripe_invoice_id", "is", null)
+      .not("member_id", "is", null)
+      .order("created_at", { ascending: true })
+      .limit(STALE_FAILURE_BATCH);
+    if (error) throw error;
+    const seen = new Set<string>();
+    for (const a of rows ?? []) {
+      if (this.outOfTime()) return false;
+      if (seen.has(a.stripe_invoice_id)) continue;
+      seen.add(a.stripe_invoice_id);
+      const inv = await this.getInvoice(a.stripe_invoice_id);
+      if (!inv || (inv.status !== "paid" && inv.status !== "void")) continue;
+      let historyAdded = false;
+      if (inv.status === "paid" && !inv.paid_out_of_band && (Number(inv.amount_paid) || 0) > 0 && !(await this.hasSucceededAttempt(inv.id))) {
+        await this.logSucceededAttempt(a.member_id, inv); // links the failures to this success
+        historyAdded = true;
+      }
+      const recovery = await settleInvoiceRecovery(
+        this.ctx.supabase, a.member_id, inv.id,
+        inv.status === "paid" ? "Invoice paid in Stripe after this failure (billing reconciliation)" : "Invoice voided in Stripe (billing reconciliation)",
+      );
+      const reactivated = recovery.past_due_cleared ? await this.reactivateIfClear(a.member_id, inv) : null;
+      const period = invoiceServicePeriod(inv);
+      await this.record({
+        kind: "failure_linked_to_payment", action: "corrected", member_id: a.member_id, stripe_invoice_id: inv.id,
+        message: inv.status === "paid"
+          ? `A failed attempt on the ${period.start ?? ""} bill was still shown as failed, but Stripe collected that bill${inv.paid_out_of_band ? " (marked paid outside Stripe)" : ""}. Linked to the payment and resolved.`
+          : `A failed attempt on the ${period.start ?? ""} bill was still open, but the bill was voided in Stripe. Resolved.`,
+        after_state: { attempts_resolved: recovery.attempts_resolved, payment_history_added: historyAdded, reminders_stopped: recovery.dunning_recovered, past_due_cleared: recovery.past_due_cleared, member_status: reactivated },
+      });
+    }
+    return true;
+  }
+
+  // ── Phase: standalone payments that should have paid a bill ──────────────────
+
+  /** Members (with their open dues bills) for a batch of Stripe customer ids. */
+  private async openDuesInvoices(customerId: string): Promise<Row[]> {
+    const open = await this.ctx.stripe.invoices.list({ customer: customerId, status: "open", limit: 20 });
+    return (open.data as unknown as Row[])
+      .filter((inv) => subscriptionIdOf(inv) && !isPtPlan(inv))
+      .sort((x, y) => (x.created ?? 0) - (y.created ?? 0));
+  }
+
+  /**
+   * Apply a standalone Stripe charge to an open dues bill: the bill is marked paid
+   * outside Stripe (so Stripe stops retrying the card) and both are cross-referenced
+   * in Stripe metadata so the charge can never be applied twice.
+   */
+  async applyStandalonePayment(opts: { charge: Row; invoice: Row; memberId: string; appliedBy: string }) {
+    const { charge, invoice, memberId } = opts;
+    const paid = await this.ctx.stripe.invoices.pay(invoice.id, { paid_out_of_band: true }) as unknown as Row;
+    await this.ctx.stripe.invoices.update(invoice.id, {
+      metadata: { ...(invoice.metadata ?? {}), paid_by_standalone_charge: charge.id, applied_by: opts.appliedBy },
+    });
+    await this.ctx.stripe.charges.update(charge.id, {
+      metadata: { ...(charge.metadata ?? {}), applied_to_invoice: invoice.id, applied_by: opts.appliedBy },
+    });
+    const period = invoiceServicePeriod(invoice);
+    await this.ctx.supabase.from("billing_arrears").update({
+      status: "paid",
+      amount_paid_cents: Number(invoice.amount_remaining ?? invoice.amount_due) || 0,
+      paid_at: unixToIso(charge.created) ?? nowIso(),
+      resolved_at: nowIso(),
+      resolution_reason: `Covered by separate charge ${charge.id} on ${unixToDate(charge.created)}`,
+      next_retry_at: null,
+      updated_at: nowIso(),
+    }).eq("member_id", memberId).eq("stripe_invoice_id", invoice.id);
+    const recovery = await settleInvoiceRecovery(this.ctx.supabase, memberId, invoice.id, `Covered by separate charge ${charge.id}`);
+    const reactivated = recovery.past_due_cleared ? await this.reactivateIfClear(memberId, paid) : null;
+    return { period, recovery, reactivated };
+  }
+
+  async reconcileStandalonePayments(): Promise<boolean> {
+    const since = Math.floor(Date.now() / 1000) - STANDALONE_PAYMENT_LOOKBACK_DAYS * 86400;
+    const byCustomer = new Map<string, Row[]>();
+    let startingAfter: string | undefined;
+    do {
+      if (this.outOfTime()) return false;
+      const page = await this.ctx.stripe.charges.list({
+        created: { gte: since }, limit: 100, ...(startingAfter ? { starting_after: startingAfter } : {}),
+      });
+      for (const raw of page.data) {
+        const ch = raw as unknown as Row;
+        const customer = typeof ch.customer === "string" ? ch.customer : ch.customer?.id;
+        if (ch.status !== "succeeded" || ch.refunded || ch.invoice || !customer) continue;
+        if (ch.metadata?.applied_to_invoice) continue;
+        if (!DUES_CHARGE_RE.test(`${ch.description ?? ""} ${ch.metadata?.type ?? ""} ${ch.metadata?.payment_type ?? ""}`)) continue;
+        byCustomer.set(customer, [...(byCustomer.get(customer) ?? []), ch]);
+      }
+      startingAfter = page.has_more && page.data.length ? page.data[page.data.length - 1].id : undefined;
+    } while (startingAfter);
+
+    for (const [customer, charges] of byCustomer) {
+      if (this.outOfTime()) return false;
+      const { data: member } = await this.ctx.supabase
+        .from("members").select("id, first_name, last_name").eq("stripe_customer_id", customer).limit(1).maybeSingle();
+      if (!member) continue;
+      let openBills = await this.openDuesInvoices(customer);
+      // Bills already marked "paid outside Stripe" that no other charge claims: a
+      // standalone payment of the same amount may be what paid them (for example
+      // when staff marked the bill paid by hand), so it must not be applied again.
+      const oobPaid = (await this.ctx.stripe.invoices.list({
+        customer, status: "paid", created: { gte: since - 45 * 86400 }, limit: 50,
+      })).data as unknown as Row[];
+      const unclaimedOob = oobPaid.filter((inv) => inv.paid_out_of_band && !inv.metadata?.paid_by_standalone_charge);
+
+      for (const ch of charges.sort((a, b) => a.created - b.created)) {
+        const amount = Number(ch.amount_captured ?? ch.amount) - Number(ch.amount_refunded || 0);
+
+        // Already applied to a bill by the register (front-desk dues settle their bill).
+        const piId = typeof ch.payment_intent === "string" ? ch.payment_intent : ch.payment_intent?.id;
+        if (piId) {
+          const { data: settledHere } = await this.ctx.supabase
+            .from("manual_charges").select("id").eq("stripe_payment_intent_id", piId)
+            .not("arrears_settled_at", "is", null).limit(1);
+          if (settledHere && settledHere.length > 0) continue;
+        }
+        // Already accounted for by a bill marked paid outside Stripe.
+        const oobIdx = unclaimedOob.findIndex((inv) =>
+          Number(inv.amount_paid) === amount && (inv.status_transitions?.paid_at ?? inv.created) >= ch.created - 7 * 86400);
+        if (oobIdx >= 0) {
+          unclaimedOob.splice(oobIdx, 1);
+          continue;
+        }
+
+        // Auto-apply only to a bill of exactly this amount that existed when the
+        // payment was made or opened within a week of it; anything else is reviewed.
+        const exact = openBills.find((inv) =>
+          Number(inv.amount_remaining) === amount && (inv.created ?? 0) <= ch.created + 7 * 86400);
+        if (exact) {
+          const { period, recovery, reactivated } = await this.applyStandalonePayment({ charge: ch, invoice: exact, memberId: member.id, appliedBy: "billing_reconciliation" });
+          openBills = openBills.filter((inv) => inv.id !== exact.id);
+          await this.record({
+            kind: "applied_standalone_payment", action: "corrected", member_id: member.id, stripe_invoice_id: exact.id,
+            message: `A ${dollars(amount)} payment on ${unixToDate(ch.created)} ("${ch.description ?? "charge"}") was made as a separate charge, so Stripe kept the ${period.start} – ${period.end} bill open and would have charged the card again. Applied that payment to the bill (marked paid outside Stripe).`,
+            after_state: { invoice_status: "paid", reminders_stopped: recovery.dunning_recovered, past_due_cleared: recovery.past_due_cleared, member_status: reactivated },
+            details: { charge_id: ch.id, invoice_id: exact.id, amount_cents: amount },
+          });
+          continue;
+        }
+        if (openBills.length > 0) {
+          const bill = openBills[0];
+          const period = invoiceServicePeriod(bill);
+          await this.record({
+            kind: "standalone_payment_not_applied", action: "needs_review", member_id: member.id, stripe_invoice_id: bill.id,
+            message: `${dollars(amount)} was charged separately on ${unixToDate(ch.created)} ("${ch.description ?? "charge"}"), while the ${period.start} – ${period.end} bill (${dollars(Number(bill.amount_remaining))}) is still open and Stripe will keep retrying it. The amounts differ, so it was not applied automatically. If the payment was for this bill, click "Apply to bill".`,
+            details: { charge_id: ch.id, invoice_id: bill.id, charge_amount_cents: amount, bill_amount_cents: Number(bill.amount_remaining) },
+          });
+          continue;
+        }
+        // No open bill: did Stripe also collect the bill this payment was meant for?
+        const paid = await this.ctx.stripe.invoices.list({ customer, status: "paid", created: { gte: ch.created - 45 * 86400 }, limit: 20 });
+        const twin = (paid.data as unknown as Row[]).find((inv) =>
+          subscriptionIdOf(inv) && !isPtPlan(inv) && !inv.paid_out_of_band &&
+          Number(inv.amount_paid) === amount &&
+          Math.abs((inv.status_transitions?.paid_at ?? inv.created) - ch.created) <= 45 * 86400);
+        if (twin) {
+          const period = invoiceServicePeriod(twin);
+          await this.record({
+            kind: "possible_double_payment", action: "needs_review", member_id: member.id, stripe_invoice_id: twin.id,
+            message: `${dollars(amount)} was charged separately on ${unixToDate(ch.created)} and Stripe also collected the ${period.start} – ${period.end} bill (${dollars(amount)}) on ${unixToDate(twin.status_transitions?.paid_at)}, and no open bill is left for it. If both were for the same month, refund one of them in Stripe.`,
+            details: { charge_id: ch.id, invoice_id: twin.id, amount_cents: amount },
+          });
+        }
+      }
+    }
+    return true;
+  }
+
+  // ── Staff action: correct the dates on existing bills ───────────────────────
+
+  /**
+   * Re-read each bill from Stripe and store the dates it actually covers. Works
+   * through rows in id order from `afterId` until the time budget runs out and
+   * returns where to continue.
+   */
+  async fixBillDates(afterId: string | null): Promise<{ checked: number; fixed: number; next_after_id: string | null }> {
+    let checked = 0, fixed = 0;
+    let cursor = afterId;
+    while (!this.outOfTime()) {
+      let q = this.ctx.supabase
+        .from("billing_arrears")
+        .select("id, member_id, stripe_invoice_id, period_start, period_end")
+        .not("stripe_invoice_id", "is", null)
+        .order("id", { ascending: true })
+        .limit(100);
+      if (cursor) q = q.gt("id", cursor);
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      if (!rows || rows.length === 0) return { checked, fixed, next_after_id: null };
+      for (const row of rows) {
+        if (this.outOfTime()) return { checked, fixed, next_after_id: cursor };
+        cursor = row.id;
+        checked++;
+        const inv = await this.getInvoice(row.stripe_invoice_id);
+        if (!inv) continue;
+        const period = invoiceServicePeriod(inv);
+        if (period.start && (period.start !== row.period_start || (period.end && period.end !== row.period_end))) {
+          const { error: upErr } = await this.ctx.supabase.from("billing_arrears")
+            .update({ period_start: period.start, period_end: period.end ?? period.start, updated_at: nowIso() })
+            .eq("id", row.id);
+          if (upErr) throw upErr;
+          fixed++;
+        }
+      }
+    }
+    return { checked, fixed, next_after_id: cursor };
+  }
+
   async run(): Promise<ReconcileSummary> {
     const phases: ReconcileSummary["phases"] = {};
     const steps: Array<[string, () => Promise<boolean>]> = [
       ["open_arrears", () => this.reconcileOpenArrears()],
+      ["stale_failures", () => this.resolveStaleFailures()],
+      ["standalone_payments", () => this.reconcileStandalonePayments()],
       ["missed_payments", () => this.recordMissedPayments()],
       ["untracked_open_invoices", () => this.findUntrackedOpenInvoices()],
       ["past_due_flags", () => this.reconcilePastDueFlags()],

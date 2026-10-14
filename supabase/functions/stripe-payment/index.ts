@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { isMembershipCollection, recordManualCharge, settleMembershipCollection } from "../_shared/manualChargeLedger.ts";
+import { selectChargePaymentMethod } from "../_shared/paymentMethods.ts";
+import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,50 +15,6 @@ function calculateProcessingFee(amountInCents: number): number {
   if (amountInCents <= 0) return 0;
   const totalCents = Math.ceil((amountInCents + 30) / 0.971);
   return totalCents - amountInCents;
-}
-
-/**
- * Pick which saved card to charge.
- * 1. The card the person explicitly chose (must belong to this customer).
- * 2. The customer's main card (invoice_settings.default_payment_method).
- * 3. The newest saved card.
- * Never fall back to "whatever card Stripe lists first" when a choice exists.
- */
-async function selectChargePaymentMethod(
-  stripe: Stripe,
-  customerId: string,
-  requestedPmId: string | null,
-  customerObj?: Stripe.Customer | null,
-): Promise<Stripe.PaymentMethod | null> {
-  if (requestedPmId) {
-    let pm: Stripe.PaymentMethod;
-    try {
-      pm = await stripe.paymentMethods.retrieve(requestedPmId);
-    } catch {
-      throw new Error("The selected card could not be found. Please choose another card.");
-    }
-    const owner = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id;
-    if (owner !== customerId) {
-      throw new Error("The selected card isn't on this account. Please choose another card.");
-    }
-    return pm;
-  }
-  let cust = customerObj;
-  if (!cust) {
-    const c = await stripe.customers.retrieve(customerId);
-    cust = (c as any).deleted ? null : (c as Stripe.Customer);
-  }
-  const def = cust?.invoice_settings?.default_payment_method;
-  const defId = typeof def === 'string' ? def : def?.id;
-  if (defId) {
-    try {
-      const pm = await stripe.paymentMethods.retrieve(defId);
-      const owner = typeof pm.customer === 'string' ? pm.customer : pm.customer?.id;
-      if (owner === customerId && pm.type === 'card') return pm;
-    } catch { /* fall through to newest */ }
-  }
-  const list = await stripe.paymentMethods.list({ customer: customerId, type: 'card', limit: 1 });
-  return list.data[0] || null;
 }
 
 function formatDeclineMessage(
@@ -6480,8 +6438,10 @@ serve(async (req) => {
             return !!linePriceId && annualFeePriceIds.includes(linePriceId);
           }) || false;
 
-          const periodStart = inv.period_start ? new Date(inv.period_start * 1000).toISOString().split('T')[0] : new Date(inv.created * 1000).toISOString().split('T')[0];
-          const periodEnd = inv.period_end ? new Date(inv.period_end * 1000).toISOString().split('T')[0] : periodStart;
+          // Service dates come from the bill's lines; the invoice header holds the previous period.
+          const servicePeriod = invoiceServicePeriod(inv);
+          const periodStart = servicePeriod.start ?? new Date(inv.created * 1000).toISOString().split('T')[0];
+          const periodEnd = servicePeriod.end ?? periodStart;
 
           let arrStatus = 'unpaid';
           if (inv.status === 'paid') arrStatus = 'paid';

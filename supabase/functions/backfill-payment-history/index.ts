@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 import { getInvoiceSubscriptionId, getLinePriceId } from "../_shared/stripeInvoice.ts";
 
 const CORS_HEADERS = {
@@ -278,12 +279,11 @@ serve(async (req) => {
         const isPaid = inv.status === "paid";
         if (!isUnpaid && !isPaid) continue; // skip drafts / voided
 
-        const periodStart = inv.period_start
-          ? new Date(inv.period_start * 1000).toISOString().split("T")[0]
-          : new Date(inv.created * 1000).toISOString().split("T")[0];
-        const periodEnd = inv.period_end
-          ? new Date(inv.period_end * 1000).toISOString().split("T")[0]
-          : periodStart;
+        // Service dates come from the bill's lines; the invoice header holds the previous period.
+        const servicePeriod = invoiceServicePeriod(inv);
+        const periodStart = servicePeriod.start
+          ?? new Date(inv.created * 1000).toISOString().split("T")[0];
+        const periodEnd = servicePeriod.end ?? periodStart;
 
         if (body.dryRun) continue;
 
