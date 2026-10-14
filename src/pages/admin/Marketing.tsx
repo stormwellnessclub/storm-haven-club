@@ -15,6 +15,7 @@ import { CafeSalesTab } from "@/components/admin/marketing/CafeSalesTab";
 import { ContactsTab } from "@/components/admin/marketing/ContactsTab";
 import { AnnouncementsTab } from "@/components/admin/marketing/AnnouncementsTab";
 import { BodyRollerPresaleTab } from "@/components/admin/marketing/BodyRollerPresaleTab";
+import { Button } from "@/components/ui/button";
 import { Megaphone, MessageSquare, Coffee, Mail, Bell, MessageCircle } from "lucide-react";
 
 export default function Marketing() {
@@ -32,6 +33,9 @@ export default function Marketing() {
               Guest & member outreach, SMS, templates, and campaign analytics
             </p>
           </div>
+          <Button size="sm" className="ml-auto gap-1.5" onClick={() => { const n = new URLSearchParams(params); n.set("tab", "targeted-sms"); setParams(n, { replace: true }); }}>
+            <MessageSquare className="h-4 w-4" /> Send a text blast
+          </Button>
         </div>
 
         <Tabs
@@ -45,6 +49,12 @@ export default function Marketing() {
         >
           <div className="w-full overflow-x-auto pb-1 -mx-1 px-1">
             <TabsList className="w-max flex-nowrap">
+              <TabsTrigger value="targeted-sms" className="gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" /> Targeted Texts
+              </TabsTrigger>
+              <TabsTrigger value="sms" className="gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5" /> SMS Blast
+              </TabsTrigger>
               <TabsTrigger value="guests">Guests</TabsTrigger>
               <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="body-roller">Body Roller Presale</TabsTrigger>
@@ -56,12 +66,6 @@ export default function Marketing() {
               </TabsTrigger>
               <TabsTrigger value="cafe" className="gap-1.5">
                 <Coffee className="h-3.5 w-3.5" /> Cafe
-              </TabsTrigger>
-              <TabsTrigger value="targeted-sms" className="gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5" /> Targeted Texts
-              </TabsTrigger>
-              <TabsTrigger value="sms" className="gap-1.5">
-                <MessageSquare className="h-3.5 w-3.5" /> SMS Blast
               </TabsTrigger>
               <TabsTrigger value="sms-templates" className="gap-1.5">
                 <MessageCircle className="h-3.5 w-3.5" /> SMS Templates
