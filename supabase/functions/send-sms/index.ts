@@ -276,30 +276,40 @@ Deno.serve(async (req) => {
     let phone: string | null = normalizePhone(body.to.phone ?? null);
     let recipientUserId: string | null = body.to.userId ?? null;
     let optedIn = false;
+    let optedOut = false;
     let email: string | null = null;
 
     if (recipientUserId) {
       const { data: prof } = await admin
         .from("profiles")
-        .select("phone, sms_opt_in, email")
+        .select("phone, sms_opt_in, sms_opt_out_at, email")
         .eq("user_id", recipientUserId)
         .maybeSingle();
       if (prof) {
         phone = phone ?? normalizePhone(prof.phone);
         optedIn = prof.sms_opt_in === true;
+        optedOut = !!prof.sms_opt_out_at && !optedIn;
         email = prof.email ?? null;
       }
     } else if (phone) {
       const { data: prof } = await admin
         .from("profiles")
-        .select("user_id, sms_opt_in, email")
+        .select("user_id, sms_opt_in, sms_opt_out_at, email")
         .eq("phone", phone)
         .maybeSingle();
       if (prof) {
         recipientUserId = prof.user_id;
         optedIn = prof.sms_opt_in === true;
+        optedOut = !!prof.sms_opt_out_at && !optedIn;
         email = prof.email ?? null;
       }
+    }
+
+    // Consent recorded outside the account (imported contacts, non-member signup), by phone.
+    // An opt-out on the account always wins.
+    if (!optedIn && !optedOut && phone) {
+      const { data: ok } = await admin.rpc("phone_sms_consent", { _phone: phone });
+      optedIn = ok === true;
     }
 
     if (!phone) {

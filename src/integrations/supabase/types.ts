@@ -12710,6 +12710,7 @@ export type Database = {
           id: string
           media_count: number
           media_urls: Json
+          recipient_contacts: Json
           recipient_user_ids: string[] | null
           scheduled_at: string | null
           segment_id: string | null
@@ -12732,6 +12733,7 @@ export type Database = {
           id?: string
           media_count?: number
           media_urls?: Json
+          recipient_contacts?: Json
           recipient_user_ids?: string[] | null
           scheduled_at?: string | null
           segment_id?: string | null
@@ -12754,6 +12756,7 @@ export type Database = {
           id?: string
           media_count?: number
           media_urls?: Json
+          recipient_contacts?: Json
           recipient_user_ids?: string[] | null
           scheduled_at?: string | null
           segment_id?: string | null
@@ -16714,6 +16717,8 @@ export type Database = {
         Args: { _waitlist_id: string }
         Returns: Json
       }
+      phone_sms_consent: { Args: { _phone: string }; Returns: boolean }
+      phone_tail: { Args: { _p: string }; Returns: string }
       post_concierge_auto_reply: {
         Args: { p_conversation_id: string; p_message: string }
         Returns: string
@@ -17929,6 +17934,10 @@ export type Database = {
         }[]
       }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
+      set_phone_sms_consent: {
+        Args: { _opt_in: boolean; _phone: string }
+        Returns: undefined
+      }
       settle_membership_dues_payment: {
         Args: {
           p_actor_email?: string
