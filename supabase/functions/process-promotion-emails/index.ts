@@ -9,6 +9,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { withMarketingFooter, marketingHeaders, loadSuppressedEmails } from "../_shared/marketingEmail.ts";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
 const corsHeaders = {
@@ -171,6 +172,7 @@ async function sendJob(supabase: any, resend: Resend, job: any): Promise<{ sent:
   const recipients = await loadRecipients(supabase, job.audience);
   let sent = 0;
   let failed = 0;
+  const suppressed = await loadSuppressedEmails(supabase);
 
   for (const r of recipients) {
     try {
@@ -182,11 +184,13 @@ async function sendJob(supabase: any, resend: Resend, job: any): Promise<{ sent:
         discountLabel: discountLabel(promo),
         endsAt: promo.ends_at,
       });
+      if (suppressed.has(String(r.email).toLowerCase())) continue;
       const resp = await resend.emails.send({
         from: FROM,
         to: [r.email],
         subject: job.subject,
-        html,
+        html: await withMarketingFooter(html, r.email),
+        headers: await marketingHeaders(r.email),
         reply_to: "admin@stormwellnessclub.com",
       });
       const status = (resp as any)?.error ? "failed" : "sent";
@@ -274,14 +278,15 @@ serve(async (req) => {
         from: FROM,
         to: [to],
         subject: `[TEST] ${body.subject ?? promo.name}`,
-        html: buildHtml({
+        html: await withMarketingFooter(buildHtml({
           firstName: "Jane",
           body: body.body ?? "",
           promoName: promo.name,
           promoCode: promo.promo_code,
           discountLabel: discountLabel(promo),
           endsAt: promo.ends_at,
-        }),
+        }), to),
+        headers: await marketingHeaders(to),
         reply_to: "admin@stormwellnessclub.com",
       });
       if ((resp as any)?.error) return json({ ok: false, error: (resp as any).error.message }, 500);

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
+import { withMarketingFooter, marketingHeaders, isSuppressed } from "../_shared/marketingEmail.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -3574,6 +3575,22 @@ serve(async (req) => {
     }
 
 
+    // Marketing mode (Compose Email campaigns): skip unsubscribed/blocked people and
+    // add the unsubscribe footer + one-click headers. Receipts/bookings never set this.
+    const isMarketing = data?.marketing === true;
+    let marketingHdrs: Record<string, string> | null = null;
+    if (isMarketing && preview !== true) {
+      const adminDb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+      if (await isSuppressed(adminDb, String(to))) {
+        return new Response(JSON.stringify({ success: true, skipped: 'unsubscribed_or_blocked' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+      }
+    }
+    if (isMarketing) {
+      html = await withMarketingFooter(html, String(to));
+      marketingHdrs = await marketingHeaders(String(to));
+    }
+
     // Preview mode: render the email and return it WITHOUT sending anything.
     if (preview === true) {
       return new Response(
@@ -3606,6 +3623,7 @@ serve(async (req) => {
       sendPayload.reply_to = String(data.memberEmail);
     }
     if (data?.replyTo) sendPayload.reply_to = String(data.replyTo);
+    if (marketingHdrs) sendPayload.headers = marketingHdrs;
 
 
     const emailResponse = await resend.emails.send(sendPayload);

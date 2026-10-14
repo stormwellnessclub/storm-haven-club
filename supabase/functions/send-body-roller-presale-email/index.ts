@@ -7,6 +7,7 @@ import { requireStaff } from "../_shared/requireStaff.ts";
 import { isAllowedTestRecipient } from "../_shared/security.ts";
 import { buildPresaleEmail, EMAIL_META, type EmailKind } from "../_shared/bodyRollerPresale.ts";
 import { trackLinks, addOpenPixel } from "../_shared/bodyRollerClick.ts";
+import { withMarketingFooter, marketingHeaders, unsubscribeUrl, marketingText } from "../_shared/marketingEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +18,7 @@ const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const FROM = "Storm Wellness Club <admin@stormwellnessclub.com>";
 // One-click unsubscribe + plain-text copy: both are inbox-placement signals Gmail/Yahoo check for bulk mail.
-const UNSUB_HEADERS = { "List-Unsubscribe": "<mailto:admin@stormwellnessclub.com?subject=Unsubscribe>" };
+// Unsubscribe headers/footer are per recipient (one-click, recorded automatically) — see _shared/marketingEmail.ts.
 const toText = (html: string) => html
   .replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<a [^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, "$2 ($1)")
   .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n").replace(/<[^>]+>/g, "")
@@ -87,7 +88,7 @@ serve(async (req) => {
   if (body?.testEmail) {
     const email = String(body.testEmail).trim().toLowerCase();
     if (!(await isAllowedTestRecipient(req, email))) return json({ error: "Test emails can only go to club addresses or your own email" }, 403);
-    const resp: any = await resend.emails.send({ from: FROM, to: [email], subject: `[TEST] ${meta.subject}`, html: buildPresaleEmail(kind, "Team", endsLabel), text: toText(buildPresaleEmail(kind, "Team", endsLabel)), headers: UNSUB_HEADERS, reply_to: "admin@stormwellnessclub.com" });
+    const resp: any = await resend.emails.send({ from: FROM, to: [email], subject: `[TEST] ${meta.subject}`, html: await withMarketingFooter(buildPresaleEmail(kind, "Team", endsLabel), email), text: marketingText(toText(buildPresaleEmail(kind, "Team", endsLabel)), await unsubscribeUrl(email)), headers: await marketingHeaders(email), reply_to: "admin@stormwellnessclub.com" });
     await supabase.from("email_audit_log").insert({ recipient_email: email, email_type: `${meta.key}_test`, trigger_source: "admin_test", triggered_by: triggeredBy, subject: `[TEST] ${meta.subject}`, status: resp?.error ? "failed" : "sent", error_message: resp?.error?.message ?? null });
     return resp?.error ? json({ ok: false, error: resp.error.message }) : json({ ok: true, sentTo: email });
   }
@@ -246,7 +247,7 @@ serve(async (req) => {
     if (Date.now() - started > BUDGET_MS) { remaining++; continue; }
     try {
       const built = buildPresaleEmail(kind, r.first, endsLabel);
-      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: await addOpenPixel(await trackLinks(built, r.email, kind), r.email, kind), text: toText(built), reply_to: "admin@stormwellnessclub.com", headers: UNSUB_HEADERS });
+      const resp: any = await resend.emails.send({ from: FROM, to: [r.email], subject: meta.subject, html: await withMarketingFooter(await addOpenPixel(await trackLinks(built, r.email, kind), r.email, kind), r.email), text: marketingText(toText(built), await unsubscribeUrl(r.email)), reply_to: "admin@stormwellnessclub.com", headers: await marketingHeaders(r.email) });
       const status = resp?.error ? "failed" : "sent";
       await supabase.from("email_audit_log").insert({ recipient_email: r.email, recipient_name: r.name, email_type: meta.key, trigger_source: "admin_blast", triggered_by: triggeredBy, member_id: r.member_id, subject: meta.subject, status, error_message: resp?.error?.message ?? null });
       if (status === "sent") { queued++; already.add(r.email); } else errors.push({ email: r.email, error: resp?.error?.message });

@@ -314,6 +314,7 @@ export function ComposeEmailDialog({
               name: prefilledRecipient.name,
               subject: resolvedSubject,
               content: resolvedBody,
+              marketing: true,
             },
           },
         });
@@ -396,7 +397,7 @@ export function ComposeEmailDialog({
               body: {
                 type: "staff_reply",
                 to: recipient.email,
-                data: { name: recipient.name, subject: resolvedSubject, content: resolvedBody },
+                data: { name: recipient.name, subject: resolvedSubject, content: resolvedBody, marketing: true },
               },
             });
 
