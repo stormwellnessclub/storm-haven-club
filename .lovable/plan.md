@@ -12,14 +12,24 @@ The Body Roller campaign emails tell Gmail/Yahoo/Apple: "to unsubscribe, send an
 - Catch-up: I'll ask you to forward or list the people who already asked by email, or read their addresses from the notifications if you paste them, and mark them unsubscribed. Nothing is sent.
 - Inbox providers rate one-click unsubscribe highly, so this also helps keep emails out of junk.
 
-## Part 2: Import the Mindbody list (same rules as the website list)
-The file has roughly 1,380 people, about 1,270 with phone numbers.
+## Part 2: Import the Mindbody list (using Claude's cross-check rules)
+The file has all 2,666 Mindbody clients. Claude's review matches what I see, and I'll use its rules. Claude asked you to run a query in the backend yourself. You don't need to do that, because I can check the database directly.
 - Read every name, email and phone from the PDF (phone numbers are split across two lines there; they'll be rejoined).
-- Cross-check against everyone already in the system: contacts, members, non-member accounts, blocked addresses. Match by email (any capitalization) and by phone (last 10 digits).
+- Cross-check against everyone already in the system: contacts (including the website list imported earlier), members, non-member accounts, blocked addresses.
+- Matching rules from Claude's review:
+  - Same email (any capitalization; Gmail with or without dots counts as the same).
+  - Same phone (last 10 digits) plus a matching first name, with spelling variants like Khadeji/Khadije and Fatima/Fatimeh.
 - Add only new people. For existing people, fill a phone number only if we have none on file; never overwrite.
-- Text consent recorded as prior-system consent, same as your other lists. Cancelled and blocked people are never added as eligible.
-- Skip people with no email and no phone, test/club addresses, and in-file duplicates. Phone-only matches with a different email are held for your review, not merged.
-- Flag obvious typos (like "gamil.com", ".con") in the review file rather than guessing.
+- Text consent recorded as prior-system consent, same as your other lists.
+- Exceptions:
+  - Anyone who unsubscribed, texted STOP, or is blocked stays opted out.
+  - The 2 people who marked you as spam on Wix are unsubscribed.
+  - The 12 Wix addresses that bounced are excluded from email.
+- Clean-up:
+  - Remove stormfitnessllc@gmail.com from Hanan Jaffar's record so marketing doesn't go to you.
+  - Fix clear email typos (gamil.com → gmail.com, .con → .com).
+  - Skip invalid phone numbers (9 digits, 123456789), test accounts, and people with no email or phone.
+- Held for your review, not merged: the ~100 same-name/different-contact pairs, 56 shared family phones, and 26 shared emails (Claude's lists).
 - Give you a summary file: added, phones filled, held for review, already present, skipped.
 
 ## Technical details
