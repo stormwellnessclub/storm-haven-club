@@ -41,9 +41,9 @@ const CLASS_TEMPLATE_KEYS = new Set([
 
 const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
   "cafe-order-ready": (v) =>
-    tmpl(`Storm Wellness Club: {{name}}, your order is ready at the café.`, v),
+    tmpl(`Storm Cafe at Storm Wellness Club: {{name}}, your café order is ready for pickup.`, v),
   "cafe-order-delay": (v) =>
-    tmpl(`Storm Wellness Club: {{name}}, your order needs a few more minutes. New ready time: {{time}}.`, v),
+    tmpl(`Storm Cafe at Storm Wellness Club: {{name}}, your order needs a few more minutes. New ready time: {{time}}.`, v),
   "test-message": (v) =>
     `Storm Wellness Club: test message${v.note ? ` — ${v.note}` : ""}. Reply STOP to opt out.`,
   "opt-in-confirmation": () =>
@@ -109,8 +109,6 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
       `Storm Wellness Club: You have an outstanding balance of {{amount}}. Please resolve to restore full access: stormwellnessclub.com/portal/billing`,
       v,
     ),
-  "cafe-order-ready": (v) =>
-    tmpl(`Storm Cafe: Your order #{{orderNumber}} is ready for pickup.`, v),
   "card-expiring": (v) =>
     tmpl(
       `Storm Wellness Club: Your card ending {{last4}} expires {{expMonth}}/{{expYear}}. Update at stormwellnessclub.com/member/payment-methods to avoid interrupted billing. Reply STOP to opt out.`,

@@ -205,7 +205,7 @@ export function useUpdateCafeOrderStatus() {
       queryClient.invalidateQueries({ queryKey: ["admin-cafe-orders"] });
       queryClient.invalidateQueries({ queryKey: ["cafe-orders"] });
       toast.success("Order status updated");
-      if (vars.status === "ready") {
+      if (vars.status === "ready" || vars.status === "completed") {
         notifyCafeOrder(vars.orderId, "ready");
       }
     },

@@ -30,7 +30,8 @@ Deno.serve(async (req) => {
     const admin = createClient(url, service);
 
     const col = kind === "ready" ? "ready_notified_at" : "delay_notified_at";
-    const needStatus = kind === "ready" ? ["ready"] : ["pending", "preparing"];
+    // Staff often skip "Ready" and go straight to "Completed" — still alert once.
+    const needStatus = kind === "ready" ? ["ready", "completed"] : ["pending", "preparing"];
     // Atomic claim so the alert goes out at most once.
     const { data: order } = await admin
       .from("cafe_orders")
