@@ -132,6 +132,7 @@ Deno.serve(async (req) => {
           : { sms_opt_out_at: now, sms_opt_out_source: "sms_keyword" }),
       };
       await admin.from("profiles").update(update).ilike("phone", `%${phoneTail}`);
+      await admin.rpc("set_phone_sms_consent", { _phone: from, _opt_in: optIn });
       await admin.from("sms_consent_log").insert({
         user_id: userId,
         phone: from,
