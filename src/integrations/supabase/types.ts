@@ -15563,6 +15563,7 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_billing_link_repairs: { Args: never; Returns: Json }
       apply_billing_status_change: {
         Args: {
           p_changed_by?: string
@@ -15593,6 +15594,26 @@ export type Database = {
       award_referral_points: {
         Args: { _referred_member_id: string; _referring_member_id: string }
         Returns: undefined
+      }
+      billing_link_repair_preview: {
+        Args: never
+        Returns: {
+          detail: string
+          member_id: string
+          member_name: string
+          repair: string
+          stripe_invoice_id: string
+        }[]
+      }
+      billing_link_repair_preview_for_staff: {
+        Args: never
+        Returns: {
+          detail: string
+          member_id: string
+          member_name: string
+          repair: string
+          stripe_invoice_id: string
+        }[]
       }
       book_pt_appointment: {
         Args: {
@@ -16486,6 +16507,10 @@ export type Database = {
         Returns: undefined
       }
       internal_task_token: { Args: never; Returns: string }
+      invoice_has_recorded_payment: {
+        Args: { p_member_id: string; p_stripe_invoice_id: string }
+        Returns: boolean
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
@@ -17850,6 +17875,10 @@ export type Database = {
       redeem_referral_points: {
         Args: { _member_id: string; _points_cost: number; _reward_type: string }
         Returns: Json
+      }
+      reevaluate_member_past_due: {
+        Args: { p_member_id: string; p_reason?: string }
+        Returns: boolean
       }
       refresh_instructor_pay_period: {
         Args: { _period_id: string }
