@@ -100,8 +100,9 @@ function shell(bg: string, inner: string, footerDark = true) {
   </td></tr>
   ${inner}
   <tr><td style="background:${fbg};padding:30px 40px;text-align:center;font-family:${SANS};font-size:11px;line-height:1.8;color:${fc};">
-    Storm Wellness Club &middot; Livonia, Michigan<br/>Questions? Simply reply to this email.<br/>
-    <a href="${SITE}" style="color:${C.gold};text-decoration:none;letter-spacing:2px;">STORMWELLNESSCLUB.COM</a>
+    Storm Wellness Club &middot; 18340 Middlebelt Rd, Livonia, MI 48152<br/>Questions? Simply reply to this email.<br/>
+    <a href="${SITE}" style="color:${C.gold};text-decoration:none;letter-spacing:2px;">STORMWELLNESSCLUB.COM</a><br/>
+    <a href="%%UNSUB_URL%%" style="color:${fc};text-decoration:underline;font-size:10px;">Unsubscribe</a>
   </td></tr>
 </table></td></tr></table></body></html>`;
 }
