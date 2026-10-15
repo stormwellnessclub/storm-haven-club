@@ -1,3 +1,4 @@
+import { societySignupsClosed } from "@/lib/societySignup";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
