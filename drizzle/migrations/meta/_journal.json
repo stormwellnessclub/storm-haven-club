@@ -715,6 +715,13 @@
       "when": 1792084582059,
       "tag": "0101_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1792085199206,
+      "tag": "0102_email_images_policies",
+      "breakpoints": true
     }
   ]
 }

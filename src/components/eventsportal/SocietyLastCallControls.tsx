@@ -16,6 +16,8 @@ import { Loader2, Mail, MessageSquare, RefreshCw } from "lucide-react";
 const FN = "send-society-last-call";
 type R = { email: string; name: string; phone: string | null; status: string; email_suppressed: boolean; email_sent: boolean; sms_sent: boolean };
 
+const DEFAULT_HERO = "https://stormwellnessclub.com/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg";
+
 export function SocietyLastCallControls() {
   const [roster, setRoster] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,19 @@ export function SocietyLastCallControls() {
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<null | "email" | "sms">(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [heroPath, setHeroPath] = useState<string | null>(null);
+  const [heroPreview, setHeroPreview] = useState<string | null>(null);
+  const uploadPhoto = async (f?: File) => {
+    if (!f) return;
+    if (!/^image\/(jpeg|png)$/.test(f.type)) { toast.error("Please pick a JPG or PNG photo"); return; }
+    if (f.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB"); return; }
+    setBusy("photo");
+    const path = `society-last-call/${Date.now()}.${f.type === "image/png" ? "png" : "jpg"}`;
+    const { error } = await supabase.storage.from("email-images").upload(path, f, { contentType: f.type });
+    setBusy(null);
+    if (error) { toast.error("Photo upload didn't go through"); return; }
+    setHeroPath(path); setHeroPreview(URL.createObjectURL(f)); toast.success("Photo updated");
+  };
 
   const load = async () => {
     setLoading(true);
@@ -50,7 +65,7 @@ export function SocietyLastCallControls() {
     const q = search.trim().toLowerCase();
     return q ? roster.filter((r) => r.name.toLowerCase().includes(q) || r.email.includes(q)) : roster;
   }, [roster, search]);
-  const content = { subject, message, smsText };
+  const content = { subject, message, smsText, heroPath: heroPath ?? undefined };
 
   const call = async (label: string, body: Record<string, unknown>) => {
     setBusy(label);
@@ -80,6 +95,17 @@ export function SocietyLastCallControls() {
         </p>
 
         <div className="space-y-2">
+          <label className="text-sm font-medium">Email photo</label>
+          <img src={heroPreview ?? DEFAULT_HERO} alt="Email photo" className="w-full max-w-sm rounded border" />
+          <div className="flex items-center gap-3">
+            <Button size="sm" variant="outline" disabled={!!busy} asChild>
+              <label className="cursor-pointer">
+                {busy === "photo" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Change photo"}
+                <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { uploadPhoto(e.target.files?.[0]); e.target.value = ""; }} />
+              </label>
+            </Button>
+            {heroPath && <button type="button" className="text-sm underline text-muted-foreground" onClick={() => { setHeroPath(null); setHeroPreview(null); }}>Use original photo</button>}
+          </div>
           <label className="text-sm font-medium">Email subject</label>
           <Input value={subject} onChange={(e) => setSubject(e.target.value)} />
           <label className="text-sm font-medium">Email message</label>
