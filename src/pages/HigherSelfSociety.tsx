@@ -141,6 +141,10 @@ export default function HigherSelfSociety() {
               cta={{ to: "/memberships", label: "Explore membership" }}
               secondary={{ to: "/apply", label: "Apply" }}
             />
+          ) : !mine && societySignupsClosed() ? (
+            <p className={`text-center mt-10 ${muted}`}>
+              Sign-ups are closed. Questions? Email admin@stormwellnessclub.com.
+            </p>
           ) : (
             <form
               onSubmit={onSubmit}

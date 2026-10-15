@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus, useAdminRemoveSocietyPerson } from "@/hooks/useHigherSelfSociety";
 import { SocietyInviteEmailControls } from "@/components/eventsportal/SocietyInviteEmailControls";
+import { SocietyLastCallControls } from "@/components/eventsportal/SocietyLastCallControls";
 import { SocietyAddPersonPanel } from "@/components/eventsportal/SocietyAddPersonPanel";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 
@@ -125,6 +126,9 @@ export default function EventsPortalSociety() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="pt-6">
+        <SocietyLastCallControls />
       </div>
       <div className="pt-6">
         <h2 className="font-semibold mb-3">Invitation email</h2>
