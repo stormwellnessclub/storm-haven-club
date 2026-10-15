@@ -16,6 +16,8 @@ import { Loader2, Mail, MessageSquare, RefreshCw } from "lucide-react";
 const FN = "send-society-last-call";
 type R = { email: string; name: string; phone: string | null; status: string; email_suppressed: boolean; email_sent: boolean; sms_sent: boolean };
 
+const DEFAULT_HERO = "https://stormwellnessclub.com/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg";
+
 export function SocietyLastCallControls() {
   const [roster, setRoster] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
