@@ -28,3 +28,4 @@
 - [x] Hide current members from non-member account lists
 - [x] Cancelled members: non-member portal and pricing only
 - [ ] Remove 89 duplicate non-member records — waiting on user review of list
+- [ ] Book club last call: send email and text (owner presses Send), publish
