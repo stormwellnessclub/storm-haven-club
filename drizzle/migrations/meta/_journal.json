@@ -708,6 +708,13 @@
       "when": 1791965896767,
       "tag": "0100_link_failures_to_later_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1792084582059,
+      "tag": "0101_migration",
+      "breakpoints": true
     }
   ]
 }
