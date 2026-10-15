@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
     const email = String(body.testEmail).trim().toLowerCase();
     if (!(await isAllowedTestRecipient(req, email))) return json({ error: "Test emails can only go to club addresses or your own email" }, 400);
     const resp = await resend.emails.send({ from: FROM, to: [email], subject: `[TEST] ${subject}`,
-      html: await withMarketingFooter(buildHtml("Team", message), email), reply_to: "admin@stormwellnessclub.com",
+      html: await withMarketingFooter(buildHtml("Team", message, hero), email), reply_to: "admin@stormwellnessclub.com",
       headers: await marketingHeaders(email) } as any);
     const err = (resp as any)?.error?.message ?? null;
     await sb.from("email_audit_log").insert({ recipient_email: email, email_type: `${EMAIL_KEY}_test`, trigger_source: "admin_test",
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
     if (emailSent.has(m.email) || suppressed.has(m.email)) { skipped++; continue; }
     try {
       const resp = await resend.emails.send({ from: FROM, to: [m.email], subject,
-        html: await withMarketingFooter(buildHtml(m.first_name ?? null, message), m.email),
+        html: await withMarketingFooter(buildHtml(m.first_name ?? null, message, hero), m.email),
         reply_to: "admin@stormwellnessclub.com", headers: await marketingHeaders(m.email) } as any);
       const err = (resp as any)?.error?.message ?? null;
       await sb.from("email_audit_log").insert({ recipient_email: m.email,
