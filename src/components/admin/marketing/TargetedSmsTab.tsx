@@ -17,9 +17,13 @@ import { AudienceFilters, DEFAULT_FILTERS, isReachable, matchesFilters, PersonAc
 import { estimateCost, segments } from "@/lib/smsCosts";
 import { SmsMediaPicker } from "../SmsMediaPicker";
 
-export const SMS_PRESETS = [
+export const SMS_PRESETS: { id: string; name: string; body: string; filters?: Partial<AudienceFilters> }[] = [
   { id: "confirm", name: "Text subscription confirmation", body: "Storm Wellness Club: You're subscribed to texts from us. Msg frequency varies. Msg & data rates may apply. Reply HELP for help, STOP to opt out." },
   { id: "save", name: "Save our number", body: "Storm Wellness Club: Hi {{first_name}}, save this number in your contacts as \"Storm Wellness Club\" so our texts show our name. This line is for updates only and can't read replies. It only understands STOP, START and HELP. For anything else, call us at (248) 232-8487 or message us in your portal." },
+  { id: "br_members", name: "Body Roller presale (members)", filters: { who: "member", activity: "body_roller", timing: "never" },
+    body: "Storm Wellness Club: Hi {{first_name}}, the Lymphatic Body Roller presale is open. Member pricing: 30 min $35, 60 min $70, with 5- and 10-packs available. Grab yours: stormwellnessclub.com/body-roller-presale Reply STOP to opt out." },
+  { id: "br_nonmembers", name: "Body Roller presale (non-members)", filters: { who: "non_member", activity: "body_roller", timing: "never" },
+    body: "Storm Wellness Club: Hi {{first_name}}, the Lymphatic Body Roller presale is open. 30 min from $40, 60 min from $70, with 5- and 10-packs available. Grab yours: stormwellnessclub.com/body-roller-presale Reply STOP to opt out." },
 ];
 
 const ACTIVITY_LABELS: Record<string, string> = {
