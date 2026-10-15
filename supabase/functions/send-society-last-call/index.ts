@@ -27,12 +27,12 @@ export const DEFAULT_MESSAGE =
   "Last call for Higher Self Society, our founding reading circle. Sign-ups close this Sunday, Oct. 18, and then members choose our first book together. We'll meet one Thursday evening a month, 7:00 to 9:00 PM.";
 const DEFAULT_SMS = `Storm Wellness Club: ${DEFAULT_MESSAGE} Save your seat: ${PAGE_URL} Reply STOP to opt out.`;
 
-function buildHtml(firstName: string | null, message: string): string {
+function buildHtml(firstName: string | null, message: string, hero: string = HERO): string {
   const greeting = firstName ? `Dear ${escapeHtml(firstName)},` : "Dear Member,";
   const paras = message.split(/\n\s*\n/).map((p) => `<p style="margin:0 0 16px;">${escapeHtml(p.trim())}</p>`).join("");
   return `<html><body style="margin:0;background:#ffffff;">
   <div style="font-family:Georgia,'Times New Roman',serif;max-width:600px;margin:0 auto;background:#1E0A0F;">
-    <img src="${HERO}" alt="Higher Self Society" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
+    <img src="${escapeHtml(hero)}" alt="Higher Self Society" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
     <div style="padding:36px 34px 10px;color:#FBF7F2;line-height:1.75;">
       <p style="color:#C5A880;font-family:Arial,sans-serif;letter-spacing:3px;font-size:11px;margin:0 0 10px;">LAST CALL &middot; FOUNDING CIRCLE</p>
       <h1 style="font-weight:400;margin:0 0 24px;font-size:32px;line-height:1.2;color:#FBF7F2;">Higher Self Society</h1>
@@ -62,9 +62,16 @@ Deno.serve(async (req) => {
   const subject = String(body.subject ?? DEFAULT_SUBJECT).trim().slice(0, 200) || DEFAULT_SUBJECT;
   const smsText = String(body.smsText ?? DEFAULT_SMS).trim().slice(0, 640) || DEFAULT_SMS;
 
+  let hero = HERO;
+  const heroPath = typeof body.heroPath === "string" ? body.heroPath : "";
+  if (/^society-last-call\/[\w.-]+\.(jpe?g|png)$/i.test(heroPath)) {
+    const adm = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    const { data: su } = await adm.storage.from("email-images").createSignedUrl(heroPath, 60 * 60 * 24 * 365 * 5);
+    if (su?.signedUrl) hero = su.signedUrl;
+  }
   if (body.defaults) return json({ ok: true, subject: DEFAULT_SUBJECT, message: DEFAULT_MESSAGE, smsText: DEFAULT_SMS });
   if (body.preview) {
-    return new Response(buildHtml("Jane", message), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
+    return new Response(buildHtml("Jane", message, hero), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
   }
 
   const url = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
