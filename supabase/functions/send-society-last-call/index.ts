@@ -16,8 +16,10 @@ const corsHeaders = {
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-const EMAIL_KEY = "higher_self_society_last_call_2026";
-const SMS_KEY = "hss-last-call-2026";
+let EMAIL_KEY = "higher_self_society_last_call_2026";
+let SMS_KEY = "hss-last-call-2026";
+let EYEBROW = "LAST CALL &middot; FOUNDING CIRCLE";
+let BUTTON = "Save your seat";
 const BASE_URL = "https://stormwellnessclub.com";
 const PAGE_URL = `${BASE_URL}/rituals/higher-self-society`;
 const HERO = `${BASE_URL}/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg`;
@@ -34,12 +36,12 @@ function buildHtml(firstName: string | null, message: string, hero: string = HER
   <div style="font-family:Georgia,'Times New Roman',serif;max-width:600px;margin:0 auto;background:#1E0A0F;">
     <img src="${escapeHtml(hero)}" alt="Higher Self Society" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;" />
     <div style="padding:36px 34px 10px;color:#FBF7F2;line-height:1.75;">
-      <p style="color:#C5A880;font-family:Arial,sans-serif;letter-spacing:3px;font-size:11px;margin:0 0 10px;">LAST CALL &middot; FOUNDING CIRCLE</p>
+      <p style="color:#C5A880;font-family:Arial,sans-serif;letter-spacing:3px;font-size:11px;margin:0 0 10px;">${EYEBROW}</p>
       <h1 style="font-weight:400;margin:0 0 24px;font-size:32px;line-height:1.2;color:#FBF7F2;">Higher Self Society</h1>
       <p style="margin:0 0 16px;">${greeting}</p>
       ${paras}
       <div style="text-align:center;margin:30px 0 34px;">
-        <a href="${PAGE_URL}" style="display:inline-block;background:#C5A880;color:#1E0A0F;padding:15px 34px;text-decoration:none;border-radius:4px;font-weight:600;">Save your seat</a>
+        <a href="${PAGE_URL}" style="display:inline-block;background:#C5A880;color:#1E0A0F;padding:15px 34px;text-decoration:none;border-radius:4px;font-weight:600;">${BUTTON}</a>
       </div>
       <p style="margin:0 0 30px;">With warmth,<br/>The Storm Wellness Club Team</p>
     </div>
@@ -58,6 +60,11 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* none */ }
 
+  const signedUp = body.audience === "signed_up";
+  EMAIL_KEY = signedUp ? "higher_self_society_signed_up_update_2026" : "higher_self_society_last_call_2026";
+  SMS_KEY = signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
+  EYEBROW = signedUp ? "FOUNDING CIRCLE &middot; WHAT'S NEXT" : "LAST CALL &middot; FOUNDING CIRCLE";
+  BUTTON = signedUp ? "Visit Higher Self Society" : "Save your seat";
   const message = String(body.message ?? DEFAULT_MESSAGE).trim().slice(0, 2000) || DEFAULT_MESSAGE;
   const subject = String(body.subject ?? DEFAULT_SUBJECT).trim().slice(0, 200) || DEFAULT_SUBJECT;
   const smsText = String(body.smsText ?? DEFAULT_SMS).trim().slice(0, 640) || DEFAULT_SMS;
@@ -116,7 +123,22 @@ Deno.serve(async (req) => {
   }
 
   const byEmail = new Map<string, any>();
-  for (const m of members) {
+  if (signedUp) {
+    for (let f = 0; ; f += 1000) {
+      const { data } = await sb.from("higher_self_society_interest").select("id, user_id, full_name, email, phone").range(f, f + 999);
+      for (const r of data ?? []) {
+        const email = String(r.email || "").trim().toLowerCase();
+        if (!email || byEmail.has(email)) continue;
+        const [first_name, ...rest] = String(r.full_name || "").trim().split(/\s+/);
+        const mem = members.find((m) => String(m.email || "").toLowerCase() === email);
+        const phone = r.phone || mem?.phone || (r.user_id ? profPhone.get(r.user_id) : null) || null;
+        byEmail.set(email, { id: mem?.id ?? null, user_id: r.user_id ?? mem?.user_id ?? null, first_name: first_name || null,
+          last_name: rest.join(" ") || null, email, phone, status: mem?.status ?? "signed_up", phoneKey: digits(phone) });
+      }
+      if (!data || data.length < 1000) break;
+    }
+  }
+  for (const m of signedUp ? [] : members) {
     const email = String(m.email || "").trim().toLowerCase();
     if (!email || byEmail.has(email)) continue;
     if (signed.has(email) || (m.user_id && signedUsers.has(m.user_id))) continue;
