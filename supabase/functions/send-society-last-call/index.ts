@@ -142,14 +142,15 @@ Deno.serve(async (req) => {
         variables: { customBody: smsText }, metadata: { campaign: SMS_KEY } }),
     });
     const d = await r.json().catch(() => ({}));
-    return { ok: r.ok && d?.success !== false && !d?.error, status: d?.status, error: d?.error };
+    const blocked = d?.error === "no_consent" || d?.error === "blocked";
+    return { ok: r.ok && d?.success !== false && !d?.error, blocked, status: blocked ? "blocked_no_consent" : d?.status, error: d?.error };
   };
 
   if (body.testSms) {
     const phone = digits(body.testSms);
     if (phone.length !== 10) return json({ error: "Enter a 10-digit phone number" }, 400);
     const r = await sendSms(phone, null, `${SMS_KEY}-test-${Date.now()}`);
-    return r.ok ? json({ ok: true, status: r.status }) : json({ ok: false, error: r.error || r.status || "Text not sent (this number may not have agreed to texts)" });
+    return r.ok ? json({ ok: true, status: r.status }) : json({ ok: false, error: r.blocked ? "That number hasn't agreed to texts from the club" : (r.error || "Text not sent") });
   }
 
   if (body.sendSms) {
@@ -160,7 +161,7 @@ Deno.serve(async (req) => {
       if (!m.phoneKey || m.phoneKey.length !== 10 || seen.has(m.phoneKey) || smsSent.has(m.phoneKey)) { skipped++; continue; }
       seen.add(m.phoneKey);
       const r = await sendSms(m.phoneKey, m.user_id ?? null, `${SMS_KEY}-${m.phoneKey}`);
-      if (r.ok && r.status !== "blocked_no_consent") sent++; else if (r.status === "blocked_no_consent") skipped++; else failed++;
+      if (r.ok) sent++; else if (r.blocked) skipped++; else failed++;
     }
     return json({ ok: true, sent, skipped, failed, removed });
   }
