@@ -220,6 +220,52 @@ export function BillingReconciliationPanel() {
     onSettled: () => { setDatesPass(0); invalidate(); },
   });
 
+  // Cleanup of rows the old nightly rebuild copied into payment history.
+  interface CleanupResult {
+    checked: number; link: number; remove: number; linked_failures: number;
+    examples: Array<{ action: "link" | "remove"; amount: number; date: string | null; description: string | null }>;
+  }
+  const [cleanupPreview, setCleanupPreview] = useState<CleanupResult | null>(null);
+  const [cleanupPass, setCleanupPass] = useState(0);
+  const runCleanup = async (apply: boolean): Promise<CleanupResult> => {
+    const total: CleanupResult = { checked: 0, link: 0, remove: 0, linked_failures: 0, examples: [] };
+    let afterId: string | null = null;
+    for (let pass = 1; pass <= 60; pass++) {
+      setCleanupPass(pass);
+      const { data, error } = await supabase.functions.invoke("reconcile-billing", {
+        body: { action: "clean_payment_history", apply, ...(afterId ? { after_id: afterId } : {}) },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.success === false) throw new Error(data.error || "Cleanup failed");
+      total.checked += Number(data.checked ?? 0);
+      total.link += Number(data.link ?? 0);
+      total.remove += Number(data.remove ?? 0);
+      total.linked_failures += Number(data.linked_failures ?? 0);
+      if (total.examples.length < 25) total.examples.push(...(data.examples ?? []).slice(0, 25 - total.examples.length));
+      if (!data.more) break;
+      afterId = data.next_after_id;
+    }
+    return total;
+  };
+  const previewCleanup = useMutation({
+    mutationFn: () => runCleanup(false),
+    onSuccess: (r) => {
+      setCleanupPreview(r);
+      if (r.checked === 0) toast.success("Payment history is clean: nothing to fix");
+    },
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: () => setCleanupPass(0),
+  });
+  const applyCleanup = useMutation({
+    mutationFn: () => runCleanup(true),
+    onSuccess: (r) => {
+      setCleanupPreview(null);
+      toast.success(`Payment history cleaned: ${r.link} payments linked to their bill (${r.linked_failures} failures resolved), ${r.remove} non-dues charges removed (backed up)`);
+    },
+    onError: (e) => toast.error((e as Error).message),
+    onSettled: () => { setCleanupPass(0); invalidate(); },
+  });
+
   const run = lastRun.data;
   const reviews = openReviews.data ?? [];
   const repairRows = repairs.data ?? [];
@@ -324,6 +370,68 @@ export function BillingReconciliationPanel() {
             )}
           </div>
         )}
+
+        <div className="rounded-lg border p-4 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-medium"><Wrench className="h-4 w-4" /> Payment history cleanup</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                The old nightly rebuild copied café, shop and spa charges into dues payment history and saved dues
+                payments without their bill, so failures never linked to the payment that followed. This links each
+                dues payment to its bill and removes the other charges (a backup of every removed row is kept).
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={previewCleanup.isPending || applyCleanup.isPending} onClick={() => previewCleanup.mutate()}>
+                {previewCleanup.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {previewCleanup.isPending ? `Checking… ${cleanupPass > 1 ? `pass ${cleanupPass}` : ""}` : "Check payment history"}
+              </Button>
+              {cleanupPreview && cleanupPreview.checked > 0 && (
+                <Button
+                  size="sm"
+                  disabled={applyCleanup.isPending}
+                  onClick={() => {
+                    if (window.confirm(`Link ${cleanupPreview.link} payments to their bill and remove ${cleanupPreview.remove} non-dues charges from payment history (backed up)?`)) applyCleanup.mutate();
+                  }}
+                >
+                  {applyCleanup.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {applyCleanup.isPending ? `Applying… ${cleanupPass > 1 ? `pass ${cleanupPass}` : ""}` : "Apply cleanup"}
+                </Button>
+              )}
+            </div>
+          </div>
+          {cleanupPreview && cleanupPreview.checked > 0 && (
+            <div className="space-y-2 text-sm">
+              <p>
+                <strong>{cleanupPreview.link}</strong> dues payments will be linked to their bill ·{" "}
+                <strong>{cleanupPreview.remove}</strong> non-dues charges will be removed from payment history
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Change</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Charge</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cleanupPreview.examples.map((ex, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{ex.action === "link" ? "Link to bill" : "Remove (backed up)"}</TableCell>
+                      <TableCell className="whitespace-nowrap">{ex.date ? format(new Date(ex.date), "MMM d, yyyy") : "—"}</TableCell>
+                      <TableCell className="max-w-[320px] truncate">{ex.description || "—"}</TableCell>
+                      <TableCell className="text-right">${Number(ex.amount).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {cleanupPreview.checked > cleanupPreview.examples.length && (
+                <p className="text-xs text-muted-foreground">Showing the first {cleanupPreview.examples.length} of {cleanupPreview.checked}.</p>
+              )}
+            </div>
+          )}
+        </div>
 
         {reviews.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing needs review.</p>

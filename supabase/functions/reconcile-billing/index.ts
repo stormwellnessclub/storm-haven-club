@@ -11,6 +11,9 @@
 //       apply a standalone Stripe charge to an open dues bill (from a review item)
 //   { "action": "fix_bill_dates", "after_id"? }
 //       correct stored bill dates from Stripe; returns next_after_id to continue
+//   { "action": "clean_payment_history", "apply": boolean, "after_id"? }
+//       preview (apply=false) or apply the cleanup of rows the old nightly
+//       rebuild copied into payment history without a bill
 
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -59,6 +62,20 @@ async function staffAction(supabase: any, body: Record<string, unknown>, userId:
       const result = await reconciler.fixBillDates(typeof body.after_id === "string" ? body.after_id : null);
       await finish("succeeded", { ...result, corrected: result.fixed, needs_review: 0, complete: result.next_after_id === null });
       return json({ success: true, ...result, more: result.next_after_id !== null });
+    }
+
+    if (body.action === "clean_payment_history") {
+      const apply = body.apply === true;
+      const result = await reconciler.cleanPaymentHistory({
+        apply,
+        afterId: typeof body.after_id === "string" ? body.after_id : null,
+        userId,
+      });
+      await finish("succeeded", {
+        ...result, examples: undefined, apply,
+        corrected: apply ? result.link + result.remove : 0, needs_review: 0, complete: result.next_after_id === null,
+      });
+      return json({ success: true, ...result, apply, more: result.next_after_id !== null });
     }
 
     // apply_payment
@@ -119,7 +136,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch (_e) { /* empty body */ }
   const trigger = body.trigger === "scheduled" || auth.kind !== "staff" ? "scheduled" : "manual";
 
-  if (body.action === "apply_payment" || body.action === "fix_bill_dates") {
+  if (body.action === "apply_payment" || body.action === "fix_bill_dates" || body.action === "clean_payment_history") {
     if (auth.kind !== "staff") return json({ success: false, error: "Staff only" }, 403);
     return await staffAction(supabase, body, auth.userId as string, startedAt);
   }

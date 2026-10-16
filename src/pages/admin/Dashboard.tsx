@@ -138,7 +138,9 @@ export default function Dashboard() {
     enabled: authReady && !!user,
   });
 
-  // Fetch failed payments in last 7 days (urgent attention)
+  // Payments that failed in the last 7 days and are STILL unpaid (urgent attention).
+  // A failure later resolved or superseded by a payment for the same bill is not
+  // shown; several attempts on one bill count once.
   const sevenDaysAgo = subDays(new Date(), 7).toISOString();
   const { data: failedPayments = [], isLoading: failedPaymentsLoading } = useQuery({
     queryKey: ['admin-failed-payments-alert', today],
@@ -148,6 +150,7 @@ export default function Dashboard() {
         .select(`
           id,
           member_id,
+          stripe_invoice_id,
           amount,
           failure_message,
           decline_reason,
@@ -159,12 +162,21 @@ export default function Dashboard() {
           )
         `)
         .eq('status', 'failed')
+        .is('resolved_at', null)
+        .is('superseded_at', null)
         .gte('created_at', sevenDaysAgo)
         .order('created_at', { ascending: false })
-        .limit(10);
-      
+        .limit(50);
+
       if (error) throw error;
-      return (data || []).map((p: any) => ({
+      const seenBills = new Set<string>();
+      const unpaid = (data || []).filter((p: any) => {
+        const key = p.stripe_invoice_id || p.id;
+        if (seenBills.has(key)) return false;
+        seenBills.add(key);
+        return true;
+      }).slice(0, 10);
+      return unpaid.map((p: any) => ({
         id: p.id,
         memberName: `${p.members?.first_name || ''} ${p.members?.last_name || ''}`.trim() || 'Unknown',
         email: p.members?.email,
@@ -397,7 +409,7 @@ export default function Dashboard() {
                       Payment Failures Require Attention
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {failedPayments.length} member(s) had declined payments in the last 7 days
+                      {failedPayments.length} member(s) have a payment declined in the last 7 days that is still unpaid
                     </p>
                   </div>
                 </div>

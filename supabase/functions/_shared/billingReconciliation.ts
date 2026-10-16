@@ -692,6 +692,96 @@ export class Reconciler {
     return { checked, fixed, next_after_id: cursor };
   }
 
+  // ── Staff action: clean payment history the nightly rebuild copied in ───────
+
+  /**
+   * The old nightly rebuild copied every Stripe charge into payment_attempts
+   * (marked metadata.backfilled) without its bill. For each such row:
+   *   - the charge paid a Stripe bill -> fill in the bill and link the bill's
+   *     failures to this payment;
+   *   - it did not (register, café, shop, spa) -> remove it from dues payment
+   *     history, keeping a full copy in payment_history_cleanup_backup.
+   * With apply=false nothing is written; counts and examples are returned.
+   */
+  async cleanPaymentHistory(opts: { apply: boolean; afterId: string | null; userId: string | null }) {
+    const result = {
+      checked: 0, link: 0, remove: 0, linked_failures: 0,
+      examples: [] as Array<{ action: "link" | "remove"; amount: number; date: string | null; description: string | null; member_id: string | null }>,
+      next_after_id: null as string | null,
+    };
+    let cursor = opts.afterId;
+    while (!this.outOfTime()) {
+      let q = this.ctx.supabase
+        .from("payment_attempts")
+        .select("*")
+        .eq("metadata->>backfilled", "true")
+        .is("stripe_invoice_id", null)
+        .not("stripe_charge_id", "is", null)
+        .order("id", { ascending: true })
+        .limit(100);
+      if (cursor) q = q.gt("id", cursor);
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      if (!rows || rows.length === 0) return result;
+      for (const row of rows as Row[]) {
+        if (this.outOfTime()) { result.next_after_id = cursor; return result; }
+        cursor = row.id;
+        result.checked++;
+        let charge: Row | null = null;
+        try {
+          charge = await this.ctx.stripe.charges.retrieve(row.stripe_charge_id) as unknown as Row;
+        } catch (e) {
+          const err = e as { code?: string; statusCode?: number };
+          if (err?.code !== "resource_missing" && err?.statusCode !== 404) throw e;
+        }
+        const invoiceId: string | null = charge
+          ? (typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id ?? null)
+          : null;
+        const action: "link" | "remove" = invoiceId ? "link" : "remove";
+        if (result.examples.length < 25) {
+          result.examples.push({
+            action,
+            amount: Number(row.amount) || 0,
+            date: (row.succeeded_at ?? row.failed_at ?? row.created_at ?? null),
+            description: row.metadata?.description ?? charge?.description ?? null,
+            member_id: row.member_id ?? null,
+          });
+        }
+        if (action === "link") {
+          result.link++;
+          if (!opts.apply) continue;
+          const inv = await this.getInvoice(invoiceId!);
+          const { error: upErr } = await this.ctx.supabase.from("payment_attempts").update({
+            stripe_invoice_id: invoiceId,
+            invoice_id: invoiceId,
+            stripe_subscription_id: row.stripe_subscription_id ?? (inv ? subscriptionIdOf(inv) : null),
+            invoice_number: row.invoice_number ?? inv?.number ?? null,
+          }).eq("id", row.id);
+          if (upErr) throw upErr;
+          if (row.status === "succeeded") {
+            const { data: n, error: linkErr } = await this.ctx.supabase.rpc("link_failures_to_payment", { p_attempt_id: row.id });
+            if (linkErr) throw linkErr;
+            result.linked_failures += Number(n) || 0;
+          }
+        } else {
+          result.remove++;
+          if (!opts.apply) continue;
+          const { error: bkErr } = await this.ctx.supabase.from("payment_history_cleanup_backup").insert({
+            run_id: this.ctx.runId,
+            removed_by: opts.userId,
+            reason: charge ? "Not a bill payment (register / café / shop / spa charge)" : "Charge no longer exists in Stripe",
+            original_row: row,
+          });
+          if (bkErr) throw bkErr;
+          const { error: delErr } = await this.ctx.supabase.from("payment_attempts").delete().eq("id", row.id);
+          if (delErr) throw delErr;
+        }
+      }
+    }
+    result.next_after_id = cursor;
+    return result;
+  }
+
   async run(): Promise<ReconcileSummary> {
     const phases: ReconcileSummary["phases"] = {};
     const steps: Array<[string, () => Promise<boolean>]> = [

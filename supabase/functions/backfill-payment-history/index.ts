@@ -1,5 +1,12 @@
-// Backfill historical Stripe charges + invoices into payment_attempts and billing_arrears.
+// Backfill historical Stripe bill payments + invoices into payment_attempts and billing_arrears.
 // Idempotent — safe to re-run; dedupes by stripe_charge_id / stripe_invoice_id via the RPC + arrears unique index.
+//
+// payment_attempts is the history of BILL payments (dues, annual fee, invoiced passes).
+// Only charges that pay a Stripe invoice are copied, always with that invoice, so a
+// failure and the later payment of the same bill link up. Register, café, shop and
+// spa charges are recorded in manual_charges and the revenue ledger, not here.
+// Members are matched by Stripe customer or subscription only, never by email
+// (family members share emails).
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -86,7 +93,9 @@ serve(async (req) => {
     // (service-role key, scheduled/internal token, or admin/manager JWT).
 
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    // This API version still reports which invoice a charge paid (charge.invoice),
+    // which the newer one removed. The ledger sync and reconciliation use it too.
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" as Stripe.LatestApiVersion });
     const supabase = createClient(supabaseUrl, serviceKey);
 
 
@@ -108,41 +117,36 @@ serve(async (req) => {
     log("Starting backfill", { startTs, endTs, dryRun: !!body.dryRun });
 
     // Build member lookup maps.
-    // Matching on stripe_customer_id alone silently drops invoices for members
-    // who ended up with a second Stripe customer (their subscription lives on a
-    // different customer id than the one stored on the member row), so we also
-    // resolve by subscription id and by email.
+    // Matching on stripe_customer_id alone misses members who ended up with a
+    // second Stripe customer (their subscription lives on a different customer id
+    // than the one stored on the member row), so we also resolve by subscription
+    // id. Never by email: family members share emails.
     const { data: members, error: memberErr } = await supabase
       .from("members")
-      .select("id, email, stripe_customer_id, stripe_subscription_id, annual_fee_subscription_id");
+      .select("id, stripe_customer_id, stripe_subscription_id, annual_fee_subscription_id");
     if (memberErr) throw memberErr;
     const customerToMember = new Map<string, string>();
     const subToMember = new Map<string, string>();
-    const emailToMember = new Map<string, string>();
     for (const m of members || []) {
       if (m.stripe_customer_id) customerToMember.set(m.stripe_customer_id, m.id);
       if (m.stripe_subscription_id) subToMember.set(m.stripe_subscription_id, m.id);
       if (m.annual_fee_subscription_id) subToMember.set(m.annual_fee_subscription_id, m.id);
-      if (m.email) emailToMember.set(m.email.trim().toLowerCase(), m.id);
     }
 
     const unmatchedCustomers = new Set<string>();
+    // Subscription first: it identifies the member even when the bill sits on a
+    // second Stripe customer.
     const resolveMember = (
       customerId?: string | null,
       subscriptionId?: string | null,
-      email?: string | null,
     ): string | null => {
-      if (customerId) {
-        const byCustomer = customerToMember.get(customerId);
-        if (byCustomer) return byCustomer;
-      }
       if (subscriptionId) {
         const bySub = subToMember.get(subscriptionId);
         if (bySub) return bySub;
       }
-      if (email) {
-        const byEmail = emailToMember.get(email.trim().toLowerCase());
-        if (byEmail) return byEmail;
+      if (customerId) {
+        const byCustomer = customerToMember.get(customerId);
+        if (byCustomer) return byCustomer;
       }
       if (customerId) unmatchedCustomers.add(customerId);
       return null;
@@ -151,13 +155,13 @@ serve(async (req) => {
     log("Member map built", {
       customers: customerToMember.size,
       subscriptions: subToMember.size,
-      emails: emailToMember.size,
     });
 
 
     let chargesProcessed = 0;
     let chargesInserted = 0;
     let chargesSkipped = 0;
+    let chargesNotBill = 0;
     let invoicesProcessed = 0;
     let arrearsUpserted = 0;
     const errors: string[] = [];
@@ -173,13 +177,22 @@ serve(async (req) => {
       const list = await stripe.charges.list({
         limit: 100,
         created: { gte: startTs, lte: endTs },
+        expand: ["data.invoice"],
         ...(startingAfter ? { starting_after: startingAfter } : {}),
       });
 
       for (const ch of list.data) {
         chargesProcessed++;
+        // deno-lint-ignore no-explicit-any
+        const chInvoice = (ch as any).invoice as Stripe.Invoice | string | null;
+        if (!chInvoice) {
+          chargesNotBill++; // register / café / shop / spa: not a bill payment
+          continue;
+        }
+        const invoiceObj = typeof chInvoice === "object" ? chInvoice : null;
         const customerId = typeof ch.customer === "string" ? ch.customer : ch.customer?.id;
-        const memberId = resolveMember(customerId, null, ch.billing_details?.email ?? ch.receipt_email ?? null);
+        const chargeSubscriptionId = invoiceObj ? getInvoiceSubscriptionId(invoiceObj) : null;
+        const memberId = resolveMember(customerId, chargeSubscriptionId);
 
         if (!memberId) {
           chargesSkipped++;
@@ -194,7 +207,7 @@ serve(async (req) => {
           ? "failed"
           : ch.status;
 
-        const invoiceId = typeof ch.invoice === "string" ? ch.invoice : ch.invoice?.id ?? null;
+        const invoiceId = typeof chInvoice === "string" ? chInvoice : chInvoice.id ?? null;
         const piId = typeof ch.payment_intent === "string"
           ? ch.payment_intent
           : ch.payment_intent?.id ?? null;
@@ -212,8 +225,8 @@ serve(async (req) => {
           p_stripe_invoice_id: invoiceId,
           p_stripe_payment_intent_id: piId,
           p_stripe_charge_id: ch.id,
-          p_stripe_subscription_id: null,
-          p_invoice_number: null,
+          p_stripe_subscription_id: chargeSubscriptionId,
+          p_invoice_number: invoiceObj?.number ?? null,
           p_amount: ch.amount / 100,
           p_currency: ch.currency || "usd",
           p_status: status,
@@ -249,7 +262,7 @@ serve(async (req) => {
       if (!startingAfter) break;
     }
 
-    log("Charges pass complete", { chargesProcessed, chargesInserted, chargesSkipped });
+    log("Charges pass complete", { chargesProcessed, chargesInserted, chargesSkipped, chargesNotBill });
     } // end charges phase
 
     // ── Pass 2: Invoices (for arrears/unpaid tracking) ──
@@ -270,7 +283,6 @@ serve(async (req) => {
         const memberId = resolveMember(
           customerId,
           getInvoiceSubscriptionId(inv),
-          inv.customer_email ?? null,
         );
 
         if (!memberId || !inv.id) continue;
@@ -389,6 +401,7 @@ serve(async (req) => {
           processed: chargesProcessed,
           inserted: chargesInserted,
           skippedNoMember: chargesSkipped,
+          skippedNotBillPayment: chargesNotBill,
         },
         invoices: {
           processed: invoicesProcessed,
