@@ -242,7 +242,7 @@ export function TargetedSmsTab() {
             <div className="flex flex-wrap gap-2">
               <span className="text-xs text-muted-foreground self-center">Ready-made:</span>
               {SMS_PRESETS.map((p) => (
-                <Button key={p.id} size="sm" variant="outline" onClick={() => { setName(p.name); setBody(p.body); setF(DEFAULT_FILTERS); setSegmentId(""); }}>{p.name}</Button>
+                <Button key={p.id} size="sm" variant="outline" onClick={() => { setName(p.name); setBody(p.body); setF({ ...DEFAULT_FILTERS, ...(p.filters ?? {}) }); setSegmentId(""); }}>{p.name}</Button>
               ))}
             </div>
             <div><Label className="text-xs">Campaign name (only staff see this)</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Reformer win-back, October" /></div>
