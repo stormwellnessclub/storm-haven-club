@@ -8,16 +8,7 @@ import type { SpaApptWithStaff } from "@/hooks/useAllAppointmentHistory";
 import { useCancelSpaAppointment } from "@/hooks/useSpaBooking";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
-
-function serviceNeedsIntake(appt: SpaApptWithStaff): boolean {
-  const cat = (appt.service_category || "").toLowerCase();
-  const name = (appt.service_name || "").toLowerCase();
-  return (
-    cat.includes("massage") ||
-    cat.includes("body") ||
-    name.includes("massage")
-  );
-}
+import { intakeKindFor, useBodyWrapIntake } from "@/hooks/useBodyWrapIntake";
 
 export function SpaAppointmentRow({
   appt,
@@ -36,11 +27,15 @@ export function SpaAppointmentRow({
   const [intakeOpen, setIntakeOpen] = useState(false);
   const autoOpenedRef = useRef(false);
 
-  const needsIntake = serviceNeedsIntake(appt);
-  const { data: existingIntake } = useIntakeForm(
-    showIntake && needsIntake ? appt.id : null
+  const kind = intakeKindFor(appt.service_category, appt.service_name);
+  const needsIntake = kind !== null;
+  const { data: massageIntake } = useIntakeForm(
+    showIntake && kind === "massage" ? appt.id : null
   );
-  const intakeMissing = !existingIntake;
+  const { data: wrapIntake } = useBodyWrapIntake(
+    showIntake && kind === "body_wrap" ? appt.id : null
+  );
+  const intakeMissing = kind === "body_wrap" ? !wrapIntake : !massageIntake;
 
   useEffect(() => {
     if (autoOpenIntake && needsIntake && !autoOpenedRef.current) {
@@ -125,6 +120,7 @@ export function SpaAppointmentRow({
         appointmentId={appt.id}
         memberId={appt.member_id}
         serviceName={appt.service_name}
+        kind={kind ?? "massage"}
       />
     </div>
   );

@@ -21,7 +21,7 @@ import {
 } from "@/lib/spaAvailability";
 import { AdminSpaAppointment, useUpdateSpaAppointment, useUpdateSpaAppointmentStatus, SpaAppointmentConflictError } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
-import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
+import { StaffIntakePanel } from "@/components/spa/StaffIntakePanel";
 
 interface Props {
   appointment: AdminSpaAppointment | null;
@@ -437,7 +437,12 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
           </div>
           {/* Client intake form */}
           <div className="rounded-lg border bg-muted/20 p-3">
-            <IntakeFormSummary intake={intake} />
+            <StaffIntakePanel
+              appointmentId={appointment?.id}
+              massageIntake={intake}
+              serviceCategory={(appointment as any)?.service_category}
+              serviceName={(appointment as any)?.service_name}
+            />
           </div>
 
 
