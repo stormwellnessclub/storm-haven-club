@@ -13,7 +13,7 @@
 - Whether they have eaten and are hydrated, and a note to arrive 10 minutes early
 - Photo/measurement consent, only if you take before/after inch measurements (optional checkbox)
 - No-show policy (the sample had nothing on this). The client initials: "A no-call / no-show will be charged the full price of the service."
-- Typed name as signature plus date (same as massage). The parent/guardian signature shows only when the person is under 18. The practitioner signs off in the admin view.
+- Real signature: the client initials each consent line and signs with a finger or mouse in a signature box, plus their typed full name. The date and time are stamped automatically. A parent/guardian signature box appears only when the person is under 18. The practitioner signs off in the admin view. The saved form shows the signature image.
 
 ## How it works
 1. When a Body Wrap is booked (by the client or by staff), the confirmation email has a "Complete Body Wrap Intake" button. The 2-hour and next-day reminders include it too while the form isn't done.
