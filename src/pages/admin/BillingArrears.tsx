@@ -35,15 +35,28 @@ import { BillingReconciliationPanel } from "@/components/admin/BillingReconcilia
 
 
 function DunningBadge({ row }: { row: ArrearsRow }) {
-  if (!row.dunning_status) return <span className="text-muted-foreground">—</span>;
+  // Charge attempts come from Stripe's own count on the unpaid bills, so automatic
+  // retries and staff "Charge card" both show; reminder emails come from dunning.
+  const attempts = `${row.charge_attempts} charge attempt${row.charge_attempts === 1 ? "" : "s"}`;
+  if (!row.dunning_status) {
+    return (
+      <div className="space-y-0.5 text-xs text-muted-foreground">
+        <div>{attempts}</div>
+        {row.next_retry_at && <div>Next retry {format(new Date(row.next_retry_at), "MMM d")}</div>}
+      </div>
+    );
+  }
   return (
     <div className="space-y-0.5">
       <Badge variant={row.dunning_status === "active" ? "destructive" : "secondary"} className="text-xs">
         {row.dunning_status}
       </Badge>
       <div className="text-xs text-muted-foreground">
-        {row.dunning_emails_sent_count} email{row.dunning_emails_sent_count === 1 ? "" : "s"} · retry {row.dunning_retry_count ?? 0}
+        {row.dunning_emails_sent_count} email{row.dunning_emails_sent_count === 1 ? "" : "s"} · {attempts}
       </div>
+      {row.next_retry_at && (
+        <div className="text-xs text-muted-foreground">Next retry {format(new Date(row.next_retry_at), "MMM d")}</div>
+      )}
       {row.dunning_next_email_due_at && (
         <div className="text-xs text-muted-foreground flex items-center gap-1">
           <Mail className="h-3 w-3" /> Day {row.dunning_next_email_day ?? "?"} — {format(new Date(row.dunning_next_email_due_at), "MMM d")}
@@ -293,7 +306,7 @@ function exportCsv(rows: ArrearsRow[]) {
     "Name","Email","Phone","Tier","Member Status","Subscription Status","Card",
     "Months Behind","Oldest Due","Outstanding","Last Successful Payment",
     "Next Retry","Last Outreach","Last Outcome","Follow-up","Latest Failure",
-    "Dunning Status","Dunning Retry Count","Dunning Emails Sent","Dunning Next Email Day","Dunning Next Email Due","First Failed At",
+    "Dunning Status","Charge Attempts (Stripe)","Dunning Emails Sent","Dunning Next Email Day","Dunning Next Email Due","First Failed At",
   ];
   const csv = [
     headers.join(","),
@@ -315,7 +328,7 @@ function exportCsv(rows: ArrearsRow[]) {
       r.open_follow_up_at || "",
       `"${(r.latest_failure_message || "").replace(/"/g,'""')}"`,
       r.dunning_status || "",
-      r.dunning_retry_count ?? "",
+      r.charge_attempts,
       r.dunning_emails_sent_count ?? 0,
       r.dunning_next_email_day ?? "",
       r.dunning_next_email_due_at || "",

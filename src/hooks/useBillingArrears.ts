@@ -33,6 +33,9 @@ export interface ArrearsRow {
   // Dunning cadence (from payment_dunning_state)
   dunning_status: string | null;
   dunning_retry_count: number | null;
+  /** Charge attempts on the member's unpaid bills, as counted by Stripe
+   *  (automatic retries and staff "Charge card" both count). */
+  charge_attempts: number;
   dunning_next_email_day: number | null;
   dunning_next_email_due_at: string | null;
   dunning_emails_sent_count: number;
@@ -68,7 +71,7 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
       // Pull all open arrears items
       const { data: arrears, error: arrearsErr } = await supabase
         .from("billing_arrears")
-        .select("id, member_id, billing_type, period_start, period_end, amount_due_cents, amount_paid_cents, status, failure_message, decline_code, next_retry_at, updated_at")
+        .select("id, member_id, billing_type, period_start, period_end, amount_due_cents, amount_paid_cents, status, failure_message, decline_code, next_retry_at, attempt_count, updated_at")
         .in("status", ["unpaid", "partial", "past_due", "open"])
         .in("billing_type", billingTypes);
       if (arrearsErr) throw arrearsErr;
@@ -161,6 +164,7 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
             latest_failure_message: a.failure_message ?? null,
             latest_decline_code: a.decline_code ?? null,
             next_retry_at: a.next_retry_at ?? null,
+            charge_attempts: Number(a.attempt_count) || 0,
             last_successful_payment: lastSuccessByMember.get(a.member_id) ?? null,
             last_outreach_at: outreach?.created_at ?? null,
             last_outreach_outcome: outreach?.outcome ?? null,
@@ -180,10 +184,12 @@ export function useBillingArrears(filters: ArrearsFilters = {}) {
           existing.months_behind += 1;
           existing.outstanding_cents += outstanding;
           existing.arrears_ids.push(a.id);
+          existing.charge_attempts += Number(a.attempt_count) || 0;
           if (a.period_start && (!existing.oldest_due_period || a.period_start < existing.oldest_due_period)) {
             existing.oldest_due_period = a.period_start;
           }
-          if (a.next_retry_at && (!existing.next_retry_at || a.next_retry_at > existing.next_retry_at)) {
+          // The NEXT retry is the earliest scheduled one across the member's bills.
+          if (a.next_retry_at && (!existing.next_retry_at || a.next_retry_at < existing.next_retry_at)) {
             existing.next_retry_at = a.next_retry_at;
           }
           if (!existing.latest_failure_message && a.failure_message) existing.latest_failure_message = a.failure_message;
