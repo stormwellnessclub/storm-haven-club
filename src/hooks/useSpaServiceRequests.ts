@@ -49,6 +49,7 @@ export function useSpaServiceRequests() {
       return (data || []) as SpaRequest[];
     },
     staleTime: 0,
+    refetchInterval: 30000,
   });
 }
 

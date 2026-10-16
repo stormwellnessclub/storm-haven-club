@@ -43,6 +43,7 @@ import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 import { BillingHealthWidget } from "@/components/admin/BillingHealthWidget";
 import { CardSyncFailuresWidget } from "@/components/admin/CardSyncFailuresWidget";
 import { SupportAlertCard } from "@/components/admin/SupportAlertCard";
+import { SpaRequestAlert } from "@/components/admin/SpaRequestAlert";
 import { CafeAlertCard } from "@/components/admin/CafeAlertCard";
 import { AdminWidgetBoundary } from "@/components/admin/AdminWidgetBoundary";
 import { SocietySignupsWidget } from "@/components/admin/SocietySignupsWidget";
@@ -390,6 +391,9 @@ export default function Dashboard() {
   return (
     <AdminLayout title="Dashboard">
       <div className="space-y-6">
+        <AdminWidgetBoundary title="Spa appointment requests">
+          <SpaRequestAlert to="/admin/spa-management?tab=requests" />
+        </AdminWidgetBoundary>
         {showAdminOnly && (
           <AdminWidgetBoundary>
             <SocietySignupsWidget />
