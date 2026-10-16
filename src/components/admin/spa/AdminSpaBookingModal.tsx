@@ -100,6 +100,26 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
   const [reminderSending, setReminderSending] = useState(false);
   const [sendConfirmation, setSendConfirmation] = useState(true);
 
+  // Prefill from a client request (service, day/time, contact, notes)
+  useEffect(() => {
+    if (!open || !prefill) return;
+    if (prefill.serviceName && services?.length) {
+      const s = services.find((x: any) => x.name === prefill.serviceName);
+      if (s) setServiceId(s.id);
+    }
+    if (prefill.date) setAppointmentDate(prefill.date);
+    if (prefill.time) {
+      setAppointmentTime(prefill.time);
+      setTimeInputDisplay(formatTime12h(prefill.time));
+    }
+    if (prefill.email) setCustomerSearch(prefill.email);
+    setWalkInName(prefill.name || "");
+    setWalkInEmail(prefill.email || "");
+    setWalkInPhone(prefill.phone || "");
+    if (prefill.notes) setStaffNotes(`Client request: ${prefill.notes}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, prefill?.serviceName, prefill?.date, prefill?.time, prefill?.email, services?.length]);
+
   const handleApplyVoucher = async () => {
     const res = await applyVoucher(voucherInput);
     if (res.ok && res.voucher) {

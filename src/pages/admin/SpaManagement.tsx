@@ -10,10 +10,12 @@ import { SpaPayrollTab } from "@/components/admin/spa/SpaPayrollTab";
 import { MothersDayTab } from "@/components/admin/spa/MothersDayTab";
 import { SpaReviewsAdminTab } from "@/components/admin/spa/SpaReviewsAdminTab";
 import { useSearchParams } from "react-router-dom";
+import { useNewSpaRequestCount } from "@/hooks/useSpaServiceRequests";
 
 export default function SpaManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") || "services";
+  const newRequests = useNewSpaRequestCount();
+  const activeTab = searchParams.get("tab") || (newRequests > 0 ? "requests" : "services");
   const initialView = searchParams.get("view") || undefined;
   const initialDate = searchParams.get("date") || undefined;
 
@@ -39,7 +41,14 @@ export default function SpaManagement() {
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="requests">
+            Requests
+            {newRequests > 0 && (
+              <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
+                {newRequests}
+              </span>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="mothers-day">Mother's Day Tracking 💛</TabsTrigger>
         </TabsList>
 
