@@ -13666,37 +13666,61 @@ export type Database = {
       }
       spa_service_requests: {
         Row: {
+          alt_date: string | null
+          alt_time: string | null
+          appointment_id: string | null
           created_at: string
           email: string
+          handled_at: string | null
+          handled_by: string | null
           id: string
           message: string | null
           name: string
           phone: string | null
           preferred_time: string | null
+          requested_date: string | null
+          requested_time: string | null
           service_category: string
           service_name: string
+          status: string
         }
         Insert: {
+          alt_date?: string | null
+          alt_time?: string | null
+          appointment_id?: string | null
           created_at?: string
           email: string
+          handled_at?: string | null
+          handled_by?: string | null
           id?: string
           message?: string | null
           name: string
           phone?: string | null
           preferred_time?: string | null
+          requested_date?: string | null
+          requested_time?: string | null
           service_category: string
           service_name: string
+          status?: string
         }
         Update: {
+          alt_date?: string | null
+          alt_time?: string | null
+          appointment_id?: string | null
           created_at?: string
           email?: string
+          handled_at?: string | null
+          handled_by?: string | null
           id?: string
           message?: string | null
           name?: string
           phone?: string | null
           preferred_time?: string | null
+          requested_date?: string | null
+          requested_time?: string | null
           service_category?: string
           service_name?: string
+          status?: string
         }
         Relationships: []
       }
