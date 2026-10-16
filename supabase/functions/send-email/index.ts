@@ -3280,9 +3280,9 @@ serve(async (req) => {
               </div>
               ${data.needsIntake ? `
               <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
-                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Before your session — intake form</p>
-                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please complete your intake form so your therapist can tailor the session (focus areas, pressure, health notes). It only takes a couple of minutes.</p>
-                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">Complete Intake Form</a>
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">${data.intakeKind === 'body_wrap' ? 'Before your body wrap — intake & consent form' : 'Before your session — intake form'}</p>
+                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${data.intakeKind === 'body_wrap' ? 'Spa Aella needs your Body Wrap intake and signed consent before your appointment. It only takes a few minutes.' : 'Please complete your intake form so your therapist can tailor the session (focus areas, pressure, health notes). It only takes a couple of minutes.'}</p>
+                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">${data.intakeKind === 'body_wrap' ? 'Complete Body Wrap Intake' : 'Complete Intake Form'}</a>
                 <p style="margin: 12px 0 0 0; color: #4B4537; font-size: 12px; line-height: 1.5;">If the button doesn't work, sign in to your account dashboard and open <strong>My Bookings</strong> — your appointment there has a "Complete Intake Form" button on it.</p>
               </div>` : ''}
               <div style="text-align: center; margin: 30px 0;">
@@ -3318,7 +3318,7 @@ serve(async (req) => {
               <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
                 <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Your intake form isn't done yet</p>
                 <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please complete it before you arrive so your therapist can prepare.</p>
-                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">Complete Intake Form</a>
+                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">${data.intakeKind === 'body_wrap' ? 'Complete Body Wrap Intake' : 'Complete Intake Form'}</a>
                 <p style="margin: 12px 0 0 0; color: #4B4537; font-size: 12px; line-height: 1.5;">If the button doesn't work, sign in to your account dashboard and open <strong>My Bookings</strong> — your appointment there has a "Complete Intake Form" button on it.</p>
               </div>` : ''}
               <p style="${emailStyles.muted}">Need to reschedule? <a href="${BASE_URL}${data.bookingsPath || '/member/bookings'}" style="${emailStyles.link}">Manage your appointment</a>.</p>

@@ -66,7 +66,7 @@ interface CheckAvailabilityParams {
 export function spaServiceNeedsIntake(category?: string | null, name?: string | null): boolean {
   const cat = (category || "").toLowerCase();
   const n = (name || "").toLowerCase();
-  return cat.includes("massage") || cat.includes("body") || n.includes("massage");
+  return cat.includes("massage") || cat.includes("body") || cat.includes("wrap") || n.includes("massage") || n.includes("wrap");
 }
 
 /**
@@ -166,6 +166,7 @@ export async function sendSpaNotifications(args: {
               duration: a.duration_minutes,
               bookingsPath,
               needsIntake,
+              intakeKind: /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
               intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
             },
           },

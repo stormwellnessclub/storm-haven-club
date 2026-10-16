@@ -169,10 +169,11 @@ async function processWindow(admin: any, window: Window) {
       const svcName = (a.service_name || "").toLowerCase();
       const intakeService =
         cat.includes("massage") || cat.includes("body") || svcName.includes("massage");
+      const intakeKind = cat.includes("wrap") || svcName.includes("wrap") ? "body_wrap" : "massage";
       let needsIntake = false;
       if (intakeService) {
         const { data: intake } = await admin
-          .from("spa_intake_forms")
+          .from(intakeKind === "body_wrap" ? "spa_body_wrap_intakes" : "spa_intake_forms")
           .select("id")
           .eq("appointment_id", a.id)
           .maybeSingle();
@@ -204,6 +205,7 @@ async function processWindow(admin: any, window: Window) {
                   window,
                   bookingsPath,
                   needsIntake,
+                  intakeKind,
                   intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
                 },
               }),

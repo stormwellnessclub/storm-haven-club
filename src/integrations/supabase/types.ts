@@ -7553,6 +7553,41 @@ export type Database = {
           },
         ]
       }
+      payment_history_cleanup_backup: {
+        Row: {
+          id: string
+          original_row: Json
+          reason: string
+          removed_at: string
+          removed_by: string | null
+          run_id: string | null
+        }
+        Insert: {
+          id?: string
+          original_row: Json
+          reason: string
+          removed_at?: string
+          removed_by?: string | null
+          run_id?: string | null
+        }
+        Update: {
+          id?: string
+          original_row?: Json
+          reason?: string
+          removed_at?: string
+          removed_by?: string | null
+          run_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_history_cleanup_backup_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "billing_reconciliation_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_method_updates: {
         Row: {
           card_brand: string | null
@@ -13196,6 +13231,113 @@ export type Database = {
           },
         ]
       }
+      spa_body_wrap_intakes: {
+        Row: {
+          acknowledgements: Json
+          address: string | null
+          appointment_id: string
+          ate_and_hydrated: boolean | null
+          created_at: string
+          date_of_birth: string | null
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name: string | null
+          goals: string | null
+          guardian_name: string | null
+          guardian_signature_image: string | null
+          guardian_signed_at: string | null
+          health_answers: Json
+          health_details: string | null
+          id: string
+          measurement_consent: boolean
+          medications: string | null
+          member_id: string | null
+          other_allergies: string | null
+          phone: string | null
+          practitioner_name: string | null
+          practitioner_signed_at: string | null
+          practitioner_signed_by: string | null
+          signature_image: string | null
+          signature_name: string | null
+          signed_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledgements?: Json
+          address?: string | null
+          appointment_id: string
+          ate_and_hydrated?: boolean | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name?: string | null
+          goals?: string | null
+          guardian_name?: string | null
+          guardian_signature_image?: string | null
+          guardian_signed_at?: string | null
+          health_answers?: Json
+          health_details?: string | null
+          id?: string
+          measurement_consent?: boolean
+          medications?: string | null
+          member_id?: string | null
+          other_allergies?: string | null
+          phone?: string | null
+          practitioner_name?: string | null
+          practitioner_signed_at?: string | null
+          practitioner_signed_by?: string | null
+          signature_image?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledgements?: Json
+          address?: string | null
+          appointment_id?: string
+          ate_and_hydrated?: boolean | null
+          created_at?: string
+          date_of_birth?: string | null
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          full_name?: string | null
+          goals?: string | null
+          guardian_name?: string | null
+          guardian_signature_image?: string | null
+          guardian_signed_at?: string | null
+          health_answers?: Json
+          health_details?: string | null
+          id?: string
+          measurement_consent?: boolean
+          medications?: string | null
+          member_id?: string | null
+          other_allergies?: string | null
+          phone?: string | null
+          practitioner_name?: string | null
+          practitioner_signed_at?: string | null
+          practitioner_signed_by?: string | null
+          signature_image?: string | null
+          signature_name?: string | null
+          signed_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_body_wrap_intakes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_intake_forms: {
         Row: {
           allergies: string | null
@@ -16667,6 +16809,10 @@ export type Database = {
       kiosk_update_cafe_order_status_impl: {
         Args: { p_new_status: string; p_order_id: string }
         Returns: undefined
+      }
+      link_failures_to_payment: {
+        Args: { p_attempt_id: string }
+        Returns: number
       }
       link_member_by_email: {
         Args: never

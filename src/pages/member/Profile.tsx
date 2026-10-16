@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { MemberLayout } from "@/components/member/MemberLayout";
+import { MyFormsCard } from "@/components/spa/MyFormsCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -386,6 +387,9 @@ export default function MemberProfile() {
             </div>
           </form>
         </Form>
+        <div className="mt-6">
+          <MyFormsCard />
+        </div>
       </div>
     </MemberLayout>
   );

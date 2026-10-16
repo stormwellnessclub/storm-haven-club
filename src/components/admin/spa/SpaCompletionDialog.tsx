@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
-import { IntakeFormSummary } from "@/components/spa/IntakeFormSummary";
+import { StaffIntakePanel } from "@/components/spa/StaffIntakePanel";
 import { useSpaAddons } from "@/hooks/useSpaManagement";
 
 interface SelectedAddon {
@@ -629,7 +629,12 @@ export function SpaCompletionDialog({
 
           {/* Intake form summary */}
           <div className="p-3 rounded-lg border bg-muted/20">
-            <IntakeFormSummary intake={intake} />
+            <StaffIntakePanel
+              appointmentId={appointment?.id}
+              massageIntake={intake}
+              serviceCategory={(appointment as any)?.service_category}
+              serviceName={appointment?.service_name}
+            />
           </div>
 
 
