@@ -269,9 +269,9 @@ export function SpaCompletionDialog({
         customer?.stripe_customer_id || appointment.member?.stripe_customer_id || null;
       const isMemberCharge = customer?.type === "member" && !!appointment.member_id;
 
-      if (paymentMethod === "card" && stripeCustomerId) {
-        // Charge saved card via stripe-payment edge function
-        const amountCents = Math.round(totalAmount * 100);
+      if (paymentMethod === "card" && stripeCustomerId && balanceDue > 0) {
+        // Charge saved card for the balance only (never re-charge a prepayment)
+        const amountCents = Math.round(balanceDue * 100);
         if (amountCents < 50) {
           toast.error("Minimum charge amount is $0.50");
           setIsProcessing(false);
@@ -285,8 +285,9 @@ export function SpaCompletionDialog({
         const chargeBody: Record<string, any> = {
           action: "charge_saved_card",
           amount: amountCents,
-          description: `Spa: ${appointment.service_name}${addonDesc}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
+          description: `Spa${alreadyPaid > 0 ? " (balance)" : ""}: ${appointment.service_name}${addonDesc}${tipAmount > 0 ? ` + $${tipAmount.toFixed(2)} tip` : ""}`,
           payment_type: "spa_service",
+          idempotencyKey: `spa-checkout-${appointment.id}-${amountCents}-${Math.round(alreadyPaid * 100)}`,
         };
         if (isMemberCharge) {
           chargeBody.memberId = appointment.member_id;
@@ -305,13 +306,19 @@ export function SpaCompletionDialog({
         }
 
         paymentIntentId = chargeResult.paymentIntentId;
-        toast.success(`Charged $${totalAmount.toFixed(2)} to card on file`);
+        toast.success(
+          alreadyPaid > 0
+            ? `Charged $${balanceDue.toFixed(2)} extra (on top of $${alreadyPaid.toFixed(2)} already paid)`
+            : `Charged $${balanceDue.toFixed(2)} to card on file`
+        );
       }
 
       // Update the appointment record
+      const prepaidKind = payState.kind === "prepaid_online" || payState.kind === "paid_card";
       const updateData: Record<string, any> = {
-        amount_paid: totalAmount,
-        payment_method: paymentMethod,
+        amount_paid: paymentMethod === "no_charge" && alreadyPaid === 0 ? 0 : Math.max(totalAmount, alreadyPaid),
+        // Keep the original method when the prepayment covered everything
+        payment_method: alreadyPaid > 0 && balanceDue === 0 ? (appointment.payment_method || paymentMethod) : paymentMethod,
         tip_amount: tipAmount,
         tip_payment_method: tipAmount > 0 ? tipMethod : null,
         addons: chargedAddons,
@@ -337,8 +344,13 @@ export function SpaCompletionDialog({
       }
 
 
-      if (paymentIntentId) {
+      // Keep the original online payment reference; only set a new one if none existed
+      if (paymentIntentId && !(prepaidKind && (appointment as any).payment_intent_id)) {
         updateData.payment_intent_id = paymentIntentId;
+      }
+      if (paymentIntentId && prepaidKind) {
+        const note = `Extra $${balanceDue.toFixed(2)} charged at checkout (${paymentIntentId}) on top of $${alreadyPaid.toFixed(2)} prepaid.`;
+        updateData.staff_notes = [staffNotes, note].filter(Boolean).join("\n");
       }
 
       if (staffNotes) {
@@ -437,20 +449,25 @@ export function SpaCompletionDialog({
 
         <div className="space-y-5">
           {/* Previous payment notice */}
-          {appointment.amount_paid && appointment.amount_paid > 0 && (
-            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-sm">
-              <p className="font-medium text-amber-700">Previously recorded</p>
-              <p className="text-amber-600">
-                Amount: ${appointment.amount_paid.toFixed(2)}
-                {(appointment as any).tip_amount && (appointment as any).tip_amount > 0
-                  ? ` (includes $${(appointment as any).tip_amount.toFixed(2)} tip)`
-                  : ' (no tip recorded)'}
-              </p>
-              <p className="text-amber-600 text-xs mt-1">
-                Submitting this form will overwrite the previous payment record.
+          {payState.kind === "unpaid" ? (
+            <div className="p-3 rounded-lg bg-muted border text-sm">
+              <p className="font-medium">Not paid yet</p>
+              <p className="text-xs text-muted-foreground">
+                {hasCardOnFile ? "Card on file, but nothing has been charged." : "No payment recorded."}
               </p>
             </div>
-          )}
+          ) : alreadyPaid > 0 ? (
+            <div className="p-3 rounded-lg bg-success/10 border border-success/40 text-sm">
+              <p className="font-medium text-success">
+                {payState.kind === "prepaid_online" ? "Already paid online" : payState.kind === "paid_card" ? "Already paid by card" : "Already paid at desk"}
+                {" — "}${alreadyPaid.toFixed(2)}
+                {(appointment as any).tip_amount > 0 ? ` (incl. $${Number((appointment as any).tip_amount).toFixed(2)} tip)` : ""}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add-ons, tip or price changes only charge the difference. The original payment is kept.
+              </p>
+            </div>
+          ) : null}
 
           {/* Appointment summary */}
           <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
@@ -758,8 +775,25 @@ export function SpaCompletionDialog({
               )}
               <div className="flex justify-between items-center border-t pt-2">
                 <span className="font-medium">Total</span>
-                <span className="text-lg font-bold">${totalAmount.toFixed(2)}</span>
+                <span className={alreadyPaid > 0 ? "font-semibold" : "text-lg font-bold"}>${totalAmount.toFixed(2)}</span>
               </div>
+              {alreadyPaid > 0 && (
+                <>
+                  <div className="flex justify-between text-success">
+                    <span>Already paid</span>
+                    <span>−${alreadyPaid.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-t pt-2">
+                    <span className="font-medium">Balance due</span>
+                    <span className="text-lg font-bold">${balanceDue.toFixed(2)}</span>
+                  </div>
+                  {overpaid > 0 && (
+                    <p className="text-xs text-destructive">
+                      Overpaid by ${overpaid.toFixed(2)} — nothing is refunded automatically.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -795,8 +829,10 @@ export function SpaCompletionDialog({
             disabled={isProcessing || (paymentMethod === "card" && !hasCardOnFile)}
           >
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {paymentMethod === "card"
-              ? `Charge $${totalAmount.toFixed(2)}`
+            {paymentMethod === "card" && balanceDue > 0
+              ? `Charge $${balanceDue.toFixed(2)}`
+              : alreadyPaid > 0 && balanceDue === 0
+              ? (retroactive ? "Save" : "Mark Complete — nothing due")
               : retroactive
               ? "Record Payment"
               : "Mark Complete"}
