@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -326,19 +326,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     processingRef.current = true;
     setIsProcessing(true);
     const attemptKey = crypto.randomUUID();
-    let chargedIntentId: string | null = null;
     try {
-      await handleBookInner(intakeValues, attemptKey, (id) => { chargedIntentId = id; });
-    } catch (error: any) {
-      // Card was charged but the booking didn't go through: refund it right away.
-      if (chargedIntentId) {
-        const { data: r } = await supabase.functions.invoke("stripe-payment", {
-          body: { action: "refund_own_unbooked_charge", paymentIntentId: chargedIntentId },
-        });
-        if (r?.refunded) toast.info("Your card charge was refunded because the booking didn't complete.");
-        else toast.error("Your booking didn't complete. Please contact the front desk about the card charge.");
-      }
-      throw error;
+      await handleBookInner(intakeValues, attemptKey);
     } finally {
       processingRef.current = false;
       setIsProcessing(false);
@@ -348,8 +337,18 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const handleBookInner = async (
     intakeValues: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id"> | undefined,
     attemptKey: string,
-    onCharged: (paymentIntentId: string) => void,
   ) => {
+    let chargedIntentId: string | null = null;
+    const onCharged = (id: string) => { chargedIntentId = id; };
+    // Card was charged but the booking didn't go through: refund it right away.
+    const refundIfCharged = async () => {
+      if (!chargedIntentId) return;
+      const { data: r } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "refund_own_unbooked_charge", paymentIntentId: chargedIntentId },
+      });
+      if (r?.refunded) toast.info("Your card charge was refunded because the booking didn't complete.");
+      else toast.error("Your booking didn't complete. Please contact the front desk about the card charge.");
+    };
     // Persist intake form against a newly-created appointment.
     // Returns true if saved successfully (so confirmation can hide the fallback block).
     const persistIntake = async (
@@ -589,6 +588,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       }
     } catch (error: any) {
       console.error("Booking error:", error);
+      await refundIfCharged();
       const msg: string = error?.message || "Failed to book appointment";
       if (/already booked|no longer available/i.test(msg)) {
         // Someone took this slot first — refresh the grid and clear the selection.
