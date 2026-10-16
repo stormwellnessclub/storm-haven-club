@@ -269,7 +269,7 @@ export default function Spa() {
 
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
-    if (isConsultRequestService(service)) {
+    if (isConsultRequestService(service) || service.category === "Body Wraps") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleRequestService(service)}>
           Request Appointment

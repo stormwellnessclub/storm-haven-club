@@ -268,6 +268,14 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     [services, serviceId]
   );
 
+  // Body Wraps have no posted hours: staff book any time in Spa Room 6 or 7.
+  useEffect(() => {
+    if (selectedService?.category !== "Body Wraps") return;
+    setAllowOutsideWindow(true);
+    const wrapRooms = (rooms || []).filter((r) => r.is_active && BODY_WRAP_ROOMS.includes(r.name));
+    setRoomId((cur) => (wrapRooms.some((r) => r.id === cur) ? cur : wrapRooms[0]?.id || "auto"));
+  }, [selectedService?.id, rooms]);
+
   const dateObj = useMemo(() => new Date(appointmentDate + "T12:00:00"), [appointmentDate]);
 
   // Existing bookings on this date — used to filter booked slots out of the grid hint
@@ -619,7 +627,10 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
 
   const activeServices = services?.filter((s) => s.is_active) || [];
   const activeTherapists = therapists?.filter((t) => t.is_active) || [];
-  const activeRooms = rooms?.filter((r) => r.is_active) || [];
+  const isBodyWrap = selectedService?.category === "Body Wraps";
+  const activeRooms = (rooms?.filter((r) => r.is_active) || []).filter(
+    (r) => !isBodyWrap || BODY_WRAP_ROOMS.includes(r.name)
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
