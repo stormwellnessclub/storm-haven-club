@@ -37,7 +37,7 @@ export const BUSINESS = {
   openingHours: [
     { days: ["Monday", "Tuesday", "Wednesday", "Thursday"], opens: "06:30", closes: "23:00" },
     { days: ["Friday"], opens: "06:30", closes: "20:00" },
-    { days: ["Saturday", "Sunday"], opens: "07:00", closes: "19:00" },
+    { days: ["Saturday", "Sunday"], opens: "08:00", closes: "19:00" },
   ],
   paymentAccepted: ["Cash", "Credit Card", "Debit Card", "Apple Pay", "Google Pay"],
   currenciesAccepted: "USD",
