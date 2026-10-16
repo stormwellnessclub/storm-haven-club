@@ -46,6 +46,7 @@ export function SpaRoomsTab() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Spa rooms are numbered 1–6. Room 2 is the kids room.</p>
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">{rooms?.length || 0} Room{(rooms?.length || 0) !== 1 ? "s" : ""}</h3>
         <Button size="sm" onClick={openNew}><Plus className="h-4 w-4 mr-1" />Add Room</Button>

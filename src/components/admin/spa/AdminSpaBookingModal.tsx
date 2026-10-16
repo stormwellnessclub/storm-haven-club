@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 
-const BODY_WRAP_ROOMS = ["Spa Room 6", "Spa Room 7"];
+const BODY_WRAP_ROOMS = ["Spa Room 6"];
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -270,7 +270,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
     [services, serviceId]
   );
 
-  // Body Wraps have no posted hours: staff book any time in Spa Room 6 or 7.
+  // Body Wraps have no posted hours: staff book any time in the dedicated wrap room.
   useEffect(() => {
     if (selectedService?.category !== "Body Wraps") return;
     setAllowOutsideWindow(true);
