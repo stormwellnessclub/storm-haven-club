@@ -1,9 +1,9 @@
 # Body Wrap intake form (online, like the massage form)
 
 ## Sample review
-- No other company's name appears, but the sample was written for one solo practitioner ("**you** do not diagnose"). The wording will change to Storm Wellness Club / "our team".
+- No other company's name appears, but the sample was written for one solo practitioner ("**you** do not diagnose"). The form and its emails will use the spa's name, **Spa Aella**, and "our team". (The club itself is always "Storm Wellness Club", never just "Storm".)
 - Removed: "How did you hear about me?"
-- The undergarment wording stays as you wrote it. The cotton-undergarment line in the sample changes to say Storm provides disposable undergarments.
+- Removed: everything about undergarments.
 - Removed: the lines saying the client read the "FAQ" and "Body Wrap Process". A link to the What to Expect blog can go in once it's written.
 - Name, email, phone, address and date of birth fill in from the person's account. They can only edit address and date of birth.
 
