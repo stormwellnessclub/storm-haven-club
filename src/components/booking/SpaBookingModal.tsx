@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -315,9 +315,40 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }
 
+  const [isProcessing, setIsProcessing] = useState(false);
+  const processingRef = useRef(false);
+
   const handleBook = async (
     intakeValues?: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id">,
   ) => {
+    // Block repeat taps for the whole charge + booking, not just the booking step.
+    if (processingRef.current) return;
+    processingRef.current = true;
+    setIsProcessing(true);
+    const attemptKey = crypto.randomUUID();
+    try {
+      await handleBookInner(intakeValues, attemptKey);
+    } finally {
+      processingRef.current = false;
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBookInner = async (
+    intakeValues: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id"> | undefined,
+    attemptKey: string,
+  ) => {
+    let chargedIntentId: string | null = null;
+    const onCharged = (id: string) => { chargedIntentId = id; };
+    // Card was charged but the booking didn't go through: refund it right away.
+    const refundIfCharged = async () => {
+      if (!chargedIntentId) return;
+      const { data: r } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "refund_own_unbooked_charge", paymentIntentId: chargedIntentId },
+      });
+      if (r?.refunded) toast.info("Your card charge was refunded because the booking didn't complete.");
+      else toast.error("Your booking didn't complete. Please contact the front desk about the card charge.");
+    };
     // Persist intake form against a newly-created appointment.
     // Returns true if saved successfully (so confirmation can hide the fallback block).
     const persistIntake = async (
@@ -497,6 +528,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               description: `Spa Service: ${service.name}`,
               stripeCustomerId,
               paymentMethodId: selectedPaymentMethodId,
+              idempotencyKey: attemptKey,
             },
           });
 
@@ -504,6 +536,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           if (chargeData?.error) throw new Error(chargeData.error);
 
           paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
+          if (paymentIntentId) onCharged(paymentIntentId);
         }
 
         const appt = await bookAppointment.mutateAsync({
@@ -555,6 +588,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       }
     } catch (error: any) {
       console.error("Booking error:", error);
+      await refundIfCharged();
       const msg: string = error?.message || "Failed to book appointment";
       if (/already booked|no longer available/i.test(msg)) {
         // Someone took this slot first — refresh the grid and clear the selection.
@@ -675,13 +709,13 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 size="sm"
                 className="mb-2 -ml-2"
                 onClick={() => setStep("details")}
-                disabled={bookAppointment.isPending || submitIntake.isPending}
+                disabled={isProcessing || bookAppointment.isPending || submitIntake.isPending}
               >
                 ← Back to booking details
               </Button>
               <SpaIntakeForm
                 showHeader={false}
-                isSubmitting={bookAppointment.isPending || submitIntake.isPending}
+                isSubmitting={isProcessing || bookAppointment.isPending || submitIntake.isPending}
                 submitLabel={
                   usingVoucher
                     ? "Confirm & Book with Voucher"
@@ -1150,15 +1184,16 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               !selectedDate ||
               !selectedTime ||
               bookAppointment.isPending ||
+              isProcessing ||
               (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) ||
               (!!user && !hasPhone)
             }
 
           >
-            {bookAppointment.isPending ? (
+            {isProcessing || bookAppointment.isPending ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Booking...
+                {paymentMethod === "card" && !usingVoucher ? "Processing payment…" : "Booking..."}
               </>
             ) : needsIntake ? (
               <>Continue to Intake <ArrowRight className="w-4 h-4 ml-2" /></>

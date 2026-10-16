@@ -2217,7 +2217,7 @@ serve(async (req) => {
       }
 
       case 'charge_saved_card': {
-        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type } = body;
+        const { memberId, stripeCustomerId: directCustomerId, applicantName, applicationId, amount, description, taxAmount, subtotal: bodySubtotal, payment_type, idempotencyKey: chargeIdemKey } = body;
         // Ownership: a caller may charge their OWN saved card even when they
         // send only stripeCustomerId (Storm Shop, spa booking, cafe credit
         // top-up). The customer id must belong to the authenticated user via
@@ -2372,8 +2372,9 @@ serve(async (req) => {
               processing_fee: String(processingFeeCents),
               ...(taxAmount ? { tax_amount: String(taxAmount) } : {}),
               ...(bodySubtotal ? { subtotal: String(bodySubtotal) } : {}),
+              ...(chargeIdemKey ? { booking_attempt: String(chargeIdemKey).slice(0, 100) } : {}),
             },
-          });
+          }, chargeIdemKey ? { idempotencyKey: `csc-${String(chargeIdemKey).slice(0, 200)}` } : undefined);
         } catch (chargeErr: any) {
           const declineCode = chargeErr?.decline_code || chargeErr?.code || null;
           const declineReason = chargeErr?.message || 'Your card was declined.';
@@ -2937,6 +2938,30 @@ serve(async (req) => {
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
+      }
+
+      case 'refund_own_unbooked_charge': {
+        // A client's own card charge whose booking then failed. Only refunds an
+        // intent created in the last 15 minutes, on the caller's own Stripe
+        // customer, tagged with a booking attempt, and not attached to any
+        // spa appointment.
+        const { paymentIntentId: ownPi } = body;
+        if (!ownPi || typeof ownPi !== 'string') throw new Error("paymentIntentId required");
+        const pi = await stripe.paymentIntents.retrieve(ownPi);
+        const owned = await callerStripeCustomerIds();
+        const custId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id;
+        if (!custId || !owned.includes(custId)) throw new Error("Not your payment");
+        if (!pi.metadata?.booking_attempt) throw new Error("Not a booking payment");
+        if (Date.now() / 1000 - pi.created > 15 * 60) throw new Error("Too old to auto-refund; please contact the club");
+        const { data: linked } = await supabase.from('spa_appointments').select('id').eq('payment_intent_id', ownPi).limit(1);
+        if (linked && linked.length) throw new Error("Payment is attached to a booking");
+        if (pi.status !== 'succeeded') {
+          return new Response(JSON.stringify({ success: true, refunded: false }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+        }
+        const refund = await stripe.refunds.create({ payment_intent: ownPi, reason: 'requested_by_customer', metadata: { reason: 'spa_booking_failed_after_charge' } }, { idempotencyKey: `auto-refund-${ownPi}` });
+        await supabase.from('manual_charges').update({ status: 'refunded' }).eq('stripe_payment_intent_id', ownPi);
+        logStep("Auto-refunded unbooked charge", { ownPi, refundId: refund.id });
+        return new Response(JSON.stringify({ success: true, refunded: true, refundId: refund.id }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
       }
 
       case 'refund_charge': {
