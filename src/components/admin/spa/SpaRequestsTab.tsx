@@ -11,7 +11,7 @@ import { Phone, Mail, Clock, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
 import { useSpaServiceRequests, setSpaRequestStatus, type SpaRequest } from "@/hooks/useSpaServiceRequests";
-import { formatTime12h } from "@/lib/parseTimeInput";
+import { formatTime12h } from "@/lib/timeFormat";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "New",

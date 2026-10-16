@@ -31,13 +31,26 @@ import {
   generateAvailableStartTimes,
 } from "@/lib/spaAvailability";
 
+export interface SpaBookingPrefill {
+  serviceName?: string | null;
+  date?: string | null; // yyyy-MM-dd
+  time?: string | null; // HH:mm
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  notes?: string | null;
+}
+
 interface AdminSpaBookingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultDate?: Date;
+  /** Fill the form from a client request */
+  prefill?: SpaBookingPrefill;
+  onBooked?: (appointmentId: string | null) => void;
 }
 
-export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminSpaBookingModalProps) {
+export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill, onBooked }: AdminSpaBookingModalProps) {
   const queryClient = useQueryClient();
   const { user: adminUser } = useAuth();
   const { data: services } = useSpaServices();
@@ -593,11 +606,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate }: AdminS
           toast.error(`Voucher redeem failed: ${e.message}. Mark voucher manually.`);
         }
       }
+      return (inserted?.id as string | undefined) ?? null;
     },
-    onSuccess: () => {
+    onSuccess: (apptId) => {
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       toast.success("Appointment booked successfully");
+      onBooked?.(apptId ?? null);
       onOpenChange(false);
       resetForm();
     },
