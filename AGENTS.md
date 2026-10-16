@@ -14,3 +14,4 @@
 - Spa intakes are per appointment and typed by service: wrap services use `spa_body_wrap_intakes` (drawn signatures, practitioner sign-off only by staff via trigger), other massage/body services use `spa_intake_forms`; pick the type with `intakeKindFor()`. Why: each service needs its own consent, and both feed the profile Forms list.
 
 - Subdirectories have their own `AGENTS.md`; read it before changing files there.
+- Spa request alerts and request handling views reuse `useSpaServiceRequests` across admin and front desk, with front desk links staying within its shell. Why: both staff entry points must show the same pending requests without sending staff into a different portal.

@@ -13,6 +13,7 @@ import { useAdminSupportNotifications } from "@/hooks/useAdminSupportNotificatio
 import { format, formatDistanceStrict } from "date-fns";
 import { CafeOrderBanner } from "@/components/frontdesk/CafeOrderBanner";
 import { SupportAlertBanner } from "@/components/frontdesk/SupportAlertBanner";
+import { SpaRequestAlert } from "@/components/admin/SpaRequestAlert";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -213,6 +214,9 @@ export function FrontDeskShell({ children }: { children: ReactNode }) {
           </div>
 
           <main className="flex-1 min-w-0 min-h-0 md:pt-0 pt-11">
+            <div className="px-4 pt-4">
+              <SpaRequestAlert to="/frontdesk/spa?tab=requests" />
+            </div>
             {children}
           </main>
         </div>
