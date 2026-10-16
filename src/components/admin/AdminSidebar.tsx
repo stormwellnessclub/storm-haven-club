@@ -1,3 +1,4 @@
+import { useNewSpaRequestCount } from "@/hooks/useSpaServiceRequests";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -238,6 +239,7 @@ export function AdminSidebar() {
   const unresolvedFailedCount = useUnresolvedFailedCount();
   const abandonedApplicationsCount = useAbandonedApplicationsCount();
   const newPrivateEventRequests = useNewPrivateEventRequestCount() ?? 0;
+  const newSpaRequests = useNewSpaRequestCount();
 
   const { data: abandonedData } = useAbandonedApplications();
   const abandonedHiddenCount =
@@ -410,6 +412,14 @@ export function AdminSidebar() {
                                     {abandonedApplicationsCount}
                                   </span>
                                 )}
+                              {item.url === "/admin/spa-management" && newSpaRequests > 0 && !isCollapsed && (
+                                <span
+                                  title={`${newSpaRequests} new spa request${newSpaRequests === 1 ? "" : "s"}`}
+                                  className="ml-auto inline-flex items-center justify-center h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-medium"
+                                >
+                                  {newSpaRequests}
+                                </span>
+                              )}
                               {item.url === "/admin/private-events" && newPrivateEventRequests > 0 && !isCollapsed && (
                                 <span
                                   title={`${newPrivateEventRequests} new private event request${newPrivateEventRequests === 1 ? "" : "s"} waiting for review.`}

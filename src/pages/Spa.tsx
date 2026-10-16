@@ -83,7 +83,11 @@ export default function Spa() {
   const [requestName, setRequestName] = useState("");
   const [requestEmail, setRequestEmail] = useState("");
   const [requestPhone, setRequestPhone] = useState("");
-  const [requestPreferredTime, setRequestPreferredTime] = useState("");
+  const [requestDate, setRequestDate] = useState("");
+  const [requestTime, setRequestTime] = useState("");
+  const [requestAltDate, setRequestAltDate] = useState("");
+  const [requestAltTime, setRequestAltTime] = useState("");
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
   const [requestMessage, setRequestMessage] = useState("");
   const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
 
@@ -221,7 +225,10 @@ export default function Spa() {
         : "");
     setRequestEmail(user?.email || "");
     setRequestPhone(memberProfile?.phone || (user?.user_metadata?.phone as string) || "");
-    setRequestPreferredTime("");
+    setRequestDate("");
+    setRequestTime("");
+    setRequestAltDate("");
+    setRequestAltTime("");
     setRequestMessage(`I'm interested in booking: ${service.name}`);
     setShowRequestModal(true);
   };
@@ -237,6 +244,10 @@ export default function Spa() {
       toast.error("Please enter a phone number — we need to call you before this appointment.");
       return;
     }
+    if (!requestDate || !requestTime) {
+      toast.error("Please pick the day and time you'd like.");
+      return;
+    }
 
     setIsSubmittingRequest(true);
     try {
@@ -244,11 +255,15 @@ export default function Spa() {
         name: requestName.trim(),
         email: requestEmail.trim(),
         phone: requestPhone.trim() || null,
-        preferred_time: requestPreferredTime.trim() || null,
+        preferred_time: null,
+        requested_date: requestDate,
+        requested_time: requestTime,
+        alt_date: requestAltDate || null,
+        alt_time: requestAltDate && requestAltTime ? requestAltTime : null,
         service_name: requestService?.name || "",
         service_category: requestService?.category || "",
         message: requestMessage.trim() || null,
-      });
+      } as any);
 
       if (error) throw error;
 
@@ -860,15 +875,49 @@ export default function Spa() {
                 maxLength={255}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="req-preferred">Preferred day & time</Label>
-              <Input
-                id="req-preferred"
-                value={requestPreferredTime}
-                onChange={(e) => setRequestPreferredTime(e.target.value)}
-                placeholder="e.g. Saturday afternoon"
-                maxLength={120}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="req-date">Day you'd like <span className="text-destructive">*</span></Label>
+                <Input
+                  id="req-date"
+                  type="date"
+                  min={todayStr}
+                  value={requestDate}
+                  onChange={(e) => setRequestDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="req-time">Time <span className="text-destructive">*</span></Label>
+                <Input
+                  id="req-time"
+                  type="time"
+                  step={900}
+                  value={requestTime}
+                  onChange={(e) => setRequestTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="req-alt-date" className="text-muted-foreground">Second choice (optional)</Label>
+                <Input
+                  id="req-alt-date"
+                  type="date"
+                  min={todayStr}
+                  value={requestAltDate}
+                  onChange={(e) => setRequestAltDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="req-alt-time" className="text-muted-foreground">Time</Label>
+                <Input
+                  id="req-alt-time"
+                  type="time"
+                  step={900}
+                  value={requestAltTime}
+                  onChange={(e) => setRequestAltTime(e.target.value)}
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="req-message">Message</Label>
@@ -888,6 +937,8 @@ export default function Spa() {
                 isSubmittingRequest ||
                 !requestName.trim() ||
                 !requestEmail.trim() ||
+                !requestDate ||
+                !requestTime ||
                 (requiresPhone && requestPhone.trim().length < 7)
               }
               onClick={handleSubmitRequest}
