@@ -1,3 +1,4 @@
+import { SpaPaymentBadge } from "@/components/admin/spa/SpaPaymentBadge";
 import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -242,6 +243,7 @@ export default function Appointments() {
           <Badge variant="outline" className={getStatusColor(appointment.status)}>
             {appointment.status}
           </Badge>
+          <SpaPaymentBadge appointment={appointment} />
         </div>
         {appointment.bookedBy ? (
           <p className="text-xs text-muted-foreground mt-1">

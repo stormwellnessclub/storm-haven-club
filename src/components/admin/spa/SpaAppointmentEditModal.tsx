@@ -1,3 +1,4 @@
+import { SpaPaymentBadge } from "./SpaPaymentBadge";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -311,6 +312,10 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Payment</span>
+            <SpaPaymentBadge appointment={appointment} />
+          </div>
           {appointment.status === "completed" && (
             <div className="flex items-center justify-between p-3 rounded-md border border-border bg-muted/30">
               <p className="text-xs text-muted-foreground">Share a review link with this guest</p>

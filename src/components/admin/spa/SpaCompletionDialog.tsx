@@ -22,6 +22,7 @@ import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { StaffIntakePanel } from "@/components/spa/StaffIntakePanel";
 import { useSpaAddons } from "@/hooks/useSpaManagement";
+import { getSpaPaymentState, spaBalanceDue } from "@/lib/spaPaymentState";
 
 interface SelectedAddon {
   id: string;
@@ -217,6 +218,10 @@ export function SpaCompletionDialog({
       ? parseFloat(customTip) || 0
       : 0;
   const totalAmount = Math.round((subtotal + tipAmount) * 100) / 100;
+  const payState = getSpaPaymentState(appointment);
+  const alreadyPaid = payState.paid;
+  const balanceDue = paymentMethod === "no_charge" ? 0 : spaBalanceDue(totalAmount, alreadyPaid);
+  const overpaid = Math.max(0, Math.round((alreadyPaid - totalAmount) * 100) / 100);
 
   const category = String((appointment as any).service_category || "").trim().toLowerCase();
   const serviceName = String(appointment.service_name || "").toLowerCase();
@@ -353,7 +358,7 @@ export function SpaCompletionDialog({
         updateData.staff_notes = [staffNotes, note].filter(Boolean).join("\n");
       }
 
-      if (staffNotes) {
+      if (staffNotes && !updateData.staff_notes) {
         updateData.staff_notes = staffNotes;
       }
 
