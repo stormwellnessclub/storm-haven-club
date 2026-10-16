@@ -1,18 +1,19 @@
 # Body Wrap intake form (online, like the massage form)
 
 ## Sample review
-- No other company's name appears, but the sample was written for one solo practitioner ("How did you hear about **me**", "**you** do not diagnose"). The wording will change to Storm Wellness Club / "our team".
-- Spelling fix: "Advertizing" becomes "Advertising".
+- No other company's name appears, but the sample was written for one solo practitioner ("**you** do not diagnose"). The wording will change to Storm Wellness Club / "our team".
+- Removed: "How did you hear about me?"
+- The undergarment wording stays as you wrote it. The cotton-undergarment line in the sample changes to say Storm provides disposable undergarments.
+- Removed: the lines saying the client read the "FAQ" and "Body Wrap Process". A link to the What to Expect blog can go in once it's written.
 - Name, email, phone, address and date of birth fill in from the person's account. They can only edit address and date of birth.
 
 ## Things the sample is missing (will add)
 - Emergency contact (name + phone)
 - Claustrophobia / anxiety in tight wraps, kidney or liver conditions, thyroid conditions, low blood pressure / fainting, current medications, recent sun exposure, waxing or open cuts, and any recent pregnancy or breastfeeding
-- Whether they have eaten and are hydrated, a reminder about what to wear (cotton undergarments), and a note to arrive 10 minutes early
+- Whether they have eaten and are hydrated, and a note to arrive 10 minutes early
 - Photo/measurement consent, only if you take before/after inch measurements (optional checkbox)
-- Late-cancel / no-show policy acknowledgment
+- No-show policy (the sample had nothing on this). The client initials: "A no-call / no-show will be charged the full price of the service."
 - Typed name as signature plus date (same as massage). The parent/guardian signature shows only when the person is under 18. The practitioner signs off in the admin view.
-- The sample refers to an "FAQ" and "Process information" the client must read. We'll link our Body Wrap details. If you don't have that page, I'll cut that line or you can send me the text.
 
 ## How it works
 1. When a Body Wrap is booked (by the client or by staff), the confirmation email has a "Complete Body Wrap Intake" button. The 2-hour and next-day reminders include it too while the form isn't done.
