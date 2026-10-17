@@ -594,11 +594,16 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
         created_by_user_id: adminUser?.id || null,
         created_via: isWalkIn ? "walk_in_guest" : "admin_booking",
         created_by_admin_name: adminDisplayName,
+        guest_name: isWalkIn ? effectiveCustomer?.name || null : null,
+        guest_email: isWalkIn ? effectiveCustomer?.email?.toLowerCase().trim() || null : null,
+        guest_phone: isWalkIn ? effectiveCustomer?.phone || null : null,
       }).select("id").single();
       if (error) throw error;
 
-      // Confirmation email + SMS (best-effort; only possible with a linked account).
-      if (sendConfirmation && userIdToInsert && inserted?.id) {
+      // Confirmation email + SMS (best-effort). Clients without an account get the
+      // "create account & sign waiver" version at the email/phone they gave.
+      const guestContact = isWalkIn ? { email: effectiveCustomer?.email, phone: effectiveCustomer?.phone } : null;
+      if (sendConfirmation && inserted?.id && (userIdToInsert || guestContact?.email || guestContact?.phone)) {
         try {
           await sendSpaNotifications({
             appointment: {
@@ -612,7 +617,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
               staff_id: resolvedTherapist,
             } as any,
             kind: "confirmation",
+            guest: guestContact,
           });
+          (inserted as any).notified = true;
         } catch (e) {
           console.warn("admin spa confirmation notify failed (non-fatal):", e);
         }
