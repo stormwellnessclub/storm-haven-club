@@ -70,13 +70,18 @@ export function useIntakeFormStatuses(appointmentIds: string[]) {
     enabled: appointmentIds.length > 0,
     queryFn: async () => {
       if (appointmentIds.length === 0) return {} as Record<string, boolean>;
-      const { data, error } = await (supabase.from as any)("spa_intake_forms")
-        .select("appointment_id, consent_signed")
-        .in("appointment_id", appointmentIds);
-      if (error) throw error;
+      const [massage, wraps] = await Promise.all([
+        (supabase.from as any)("spa_intake_forms").select("appointment_id, consent_signed").in("appointment_id", appointmentIds),
+        (supabase.from as any)("spa_body_wrap_intakes").select("appointment_id, signed_at").in("appointment_id", appointmentIds),
+      ]);
+      if (massage.error) throw massage.error;
+      if (wraps.error) throw wraps.error;
       const map: Record<string, boolean> = {};
-      (data || []).forEach((row: any) => {
+      (massage.data || []).forEach((row: any) => {
         map[row.appointment_id] = row.consent_signed === true;
+      });
+      (wraps.data || []).forEach((row: any) => {
+        map[row.appointment_id] = !!row.signed_at;
       });
       return map;
     },

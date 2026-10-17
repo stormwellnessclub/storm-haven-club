@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { AlertCircle, ClipboardCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,8 +29,7 @@ export function BodyWrapIntakeSummary({
       </div>
     );
   }
-  const yes = BW_HEALTH_QUESTIONS.filter((q) => intake.health_answers?.[q.key]);
-  const fmt = (d?: string | null) => (d ? format(new Date(d), "MMM d, yyyy h:mm a") : "");
+  const fmt = (d?: string | null) => (d ? formatInTimeZone(new Date(d), "America/Detroit", "MMM d, yyyy h:mm a zzz") : "");
 
   return (
     <div className="space-y-3 text-sm">
@@ -43,24 +42,29 @@ export function BodyWrapIntakeSummary({
       <Row q="Contact" v={[intake.phone, intake.email].filter(Boolean).join(" · ")} />
       <Row q="Address" v={intake.address} />
       <Row q="Emergency contact" v={[intake.emergency_contact_name, intake.emergency_contact_phone].filter(Boolean).join(" · ")} />
-      <div className="py-1 border-b border-border/50">
-        <p className="text-xs text-muted-foreground font-medium">Health conditions marked Yes</p>
-        {yes.length ? (
-          <div className="flex flex-wrap gap-1 mt-1">
-            {yes.map((q) => <Badge key={q.key} variant="destructive" className="text-xs">{q.label}</Badge>)}
+      <div className="space-y-1">
+        <h3 className="font-medium">Health history</h3>
+        <p className="text-muted-foreground">Do you have, are you, or have you had any of the following?</p>
+        {BW_HEALTH_QUESTIONS.map((q) => (
+          <div key={q.key} data-intake-field className="flex items-start justify-between gap-3 py-2 border-b border-border/50">
+            <p>{q.label}</p>
+            <Badge className="shrink-0" variant={intake.health_answers?.[q.key] === true ? "destructive" : "outline"}>
+              {intake.health_answers?.[q.key] === true ? "Yes" : intake.health_answers?.[q.key] === false ? "No" : "Not answered"}
+            </Badge>
           </div>
-        ) : <p className="text-muted-foreground italic">None reported</p>}
+        ))}
       </div>
-      <Row q="Details" v={intake.health_details} />
-      <Row q="Other allergies" v={intake.other_allergies} />
-      <Row q="Medications" v={intake.medications} />
-      <Row q="Goals" v={intake.goals} />
-      <Row q="Will eat and hydrate before" v={intake.ate_and_hydrated ? "Yes" : "No"} />
-      <Row q="Before/after measurements" v={intake.measurement_consent ? "Agreed" : "Declined"} />
+      <Row q="Tell us more about anything you marked Yes, or any other health condition that could affect your service" v={intake.health_details} />
+      <Row q="Any other allergies?" v={intake.other_allergies} />
+      <Row q="Current medications" v={intake.medications} />
+      <Row q="What personal goals are you hoping to reach with your body wrap?" v={intake.goals} />
+      <p className="text-muted-foreground">Please eat a light meal, drink plenty of water before your wrap, and arrive 10 minutes early.</p>
+      <Row q="I will eat a light meal and be well hydrated before my session." v={intake.ate_and_hydrated === null ? "Not answered" : intake.ate_and_hydrated ? "Checked — agreed" : "Not checked"} />
+      <Row q="Optional: I agree to before and after measurements to track my results." v={intake.measurement_consent ? "Checked — agreed" : "Not checked"} />
       <div className="py-1 border-b border-border/50 space-y-1">
         <p className="text-xs text-muted-foreground font-medium">Initialed statements</p>
         {BW_ACKNOWLEDGEMENTS.map((a) => (
-          <p key={a.key} className="text-xs"><span className="font-semibold mr-1">{intake.acknowledgements?.[a.key] || "—"}</span>{a.text}</p>
+          <p key={a.key} data-intake-field className="text-sm"><span className="font-semibold mr-1">{intake.acknowledgements?.[a.key] || "Not initialed"}</span>{a.text}</p>
         ))}
       </div>
       <Sig label={`Client: ${intake.signature_name || ""}`} img={intake.signature_image} at={fmt(intake.signed_at)} />
@@ -70,7 +74,7 @@ export function BodyWrapIntakeSummary({
       {intake.practitioner_signed_at ? (
         <p className="text-xs">Practitioner sign-off: <span className="font-medium">{intake.practitioner_name}</span> · {fmt(intake.practitioner_signed_at)}</p>
       ) : staffSignOff ? (
-        <div className="flex gap-2 items-center">
+        <div data-intake-no-print className="flex gap-2 items-center">
           <Input placeholder="Practitioner name" value={pName} onChange={(e) => setPName(e.target.value)} className="h-8" />
           <Button
             type="button"
@@ -90,7 +94,7 @@ export function BodyWrapIntakeSummary({
 
 function Row({ q, v }: { q: string; v?: string | null }) {
   return (
-    <div className="py-1 border-b border-border/50">
+    <div data-intake-field className="py-1 border-b border-border/50">
       <p className="text-xs text-muted-foreground font-medium">{q}</p>
       {v ? <p className="whitespace-pre-wrap">{v}</p> : <p className="text-muted-foreground italic">None reported</p>}
     </div>
@@ -99,7 +103,7 @@ function Row({ q, v }: { q: string; v?: string | null }) {
 
 function Sig({ label, img, at }: { label: string; img: string | null; at: string }) {
   return (
-    <div className="space-y-1">
+    <div data-intake-field className="space-y-1">
       <p className="text-xs text-muted-foreground font-medium">{label} {at && `· ${at}`}</p>
       {img && <img src={img} alt="Signature" className="h-20 rounded border bg-background" />}
     </div>

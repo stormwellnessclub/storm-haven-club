@@ -447,6 +447,9 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
               massageIntake={intake}
               serviceCategory={(appointment as any)?.service_category}
               serviceName={(appointment as any)?.service_name}
+              clientName={appointment?.customer ? `${appointment.customer.first_name} ${appointment.customer.last_name}`.trim() : appointment?.member ? `${appointment.member.first_name} ${appointment.member.last_name}`.trim() : undefined}
+              appointmentDate={appointment?.appointment_date}
+              appointmentTime={appointment?.appointment_time}
             />
           </div>
 

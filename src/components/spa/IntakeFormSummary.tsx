@@ -132,6 +132,7 @@ export function IntakeFormSummary({ intake, showEmptyState = true }: Props) {
       <Field question="Goals for this session" value={intake.goals || undefined} />
       <Field question="Areas to avoid" value={intake.areas_to_avoid || undefined} />
       <Field question="Prior massage experience" value={experience} />
+      <Field question="I confirm the information above is accurate and I consent to receive treatment. I understand I should notify my therapist of any discomfort during the session." value={intake.consent_signed ? "Checked — consent given" : "Not checked"} />
     </div>
   );
 }
@@ -151,7 +152,7 @@ function Field({
   const hasAnswer = children ? answered !== false : !!value;
 
   return (
-    <div className="py-2 border-b border-border/50 last:border-b-0 space-y-1">
+    <div data-intake-field className="py-2 border-b border-border/50 last:border-b-0 space-y-1">
       <p className="text-xs text-muted-foreground font-medium">{question}</p>
       {hasAnswer ? (
         <div className="text-foreground whitespace-pre-wrap">{children ?? value}</div>

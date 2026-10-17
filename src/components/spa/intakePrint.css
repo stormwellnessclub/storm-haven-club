@@ -1,0 +1,11 @@
+:root { --paper: #fff; --ink: #111; --rule: #ccc; }
+body { background: var(--paper); color: var(--ink); font: 12px/1.5 Arial, sans-serif; margin: 24px; }
+h1 { font-size: 20px; }
+h2, h3 { font-size: 16px; }
+p { margin: 4px 0; white-space: pre-wrap; }
+img { max-width: 100%; max-height: 220px; object-fit: contain; }
+svg { max-width: 180px; max-height: 220px; }
+svg:not([viewBox="0 0 200 400"]) { width: 16px; height: 16px; }
+[data-intake-field] { border-bottom: 1px solid var(--rule); padding: 6px 0; break-inside: avoid; }
+[data-intake-no-print] { display: none; }
+@page { margin: 15mm; }

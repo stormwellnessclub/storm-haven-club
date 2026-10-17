@@ -729,6 +729,9 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
             : undefined
         }
         serviceName={intakeViewAppointment?.service_name}
+        serviceCategory={intakeViewAppointment?.service_category}
+        appointmentDate={intakeViewAppointment?.appointment_date}
+        appointmentTime={intakeViewAppointment?.appointment_time}
       />
     </div>
   );
