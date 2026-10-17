@@ -47,7 +47,7 @@ interface AdminSpaBookingModalProps {
   defaultDate?: Date;
   /** Fill the form from a client request */
   prefill?: SpaBookingPrefill;
-  onBooked?: (appointmentId: string | null) => void;
+  onBooked?: (appointmentId: string | null, notified?: boolean) => void;
 }
 
 export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill, onBooked }: AdminSpaBookingModalProps) {
@@ -116,6 +116,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     setWalkInName(prefill.name || "");
     setWalkInEmail(prefill.email || "");
     setWalkInPhone(prefill.phone || "");
+    if (prefill.name) setWalkInOpen(true);
     if (prefill.notes) setStaffNotes(`Client request: ${prefill.notes}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefill?.serviceName, prefill?.date, prefill?.time, prefill?.email, services?.length]);
@@ -633,13 +634,14 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
           toast.error(`Voucher redeem failed: ${e.message}. Mark voucher manually.`);
         }
       }
-      return (inserted?.id as string | undefined) ?? null;
+      return { id: (inserted?.id as string | undefined) ?? null, notified: !!(inserted as any)?.notified };
     },
-    onSuccess: (apptId) => {
+    onSuccess: (res) => {
+      const apptId = res?.id;
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       toast.success("Appointment booked successfully");
-      onBooked?.(apptId ?? null);
+      onBooked?.(apptId ?? null, res?.notified);
       onOpenChange(false);
       resetForm();
     },
