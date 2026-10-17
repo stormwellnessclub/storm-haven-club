@@ -3278,7 +3278,16 @@ serve(async (req) => {
                 <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Arrival</p>
                 <p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please arrive 10 minutes early to settle in. Cancellations within 24 hours may incur a fee.</p>
               </div>
-              ${data.needsIntake ? `
+              ${data.setupUrlPath ? `
+              <div style="background: #FEF8E7; border-left: 3px solid #B8A068; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
+                <p style="margin: 0 0 6px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Before your visit — two quick steps</p>
+                <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">1. Create your Storm Wellness Club account using this email address.</p>
+                <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">2. Sign the liability waiver in your account.</p>
+                ${data.needsIntake ? `<p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Then complete your ${data.intakeKind === 'body_wrap' ? 'Body Wrap intake & consent form' : 'intake form'} — you'll find it with your appointment.</p>` : ''}
+                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Your appointment will appear in your account automatically.</p>
+                <a href="${BASE_URL}${data.setupUrlPath}" style="${emailStyles.button}">Create Account &amp; Sign Waiver</a>
+              </div>` : ''}
+              ${data.needsIntake && !data.setupUrlPath ? `
               <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
                 <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">${data.intakeKind === 'body_wrap' ? 'Before your body wrap — intake & consent form' : 'Before your session — intake form'}</p>
                 <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${data.intakeKind === 'body_wrap' ? 'Spa Aella needs your Body Wrap intake and signed consent before your appointment. It only takes a few minutes.' : 'Please complete your intake form so your therapist can tailor the session (focus areas, pressure, health notes). It only takes a couple of minutes.'}</p>
