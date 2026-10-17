@@ -137,7 +137,7 @@ export async function sendSpaNotifications(args: {
 
   // Audience-aware bookings link: members → /member/bookings, everyone else → /portal/bookings.
   let isMember = false;
-  {
+  if (!isGuest) {
     const { data: m } = await supabase
       .from("members")
       .select("id")
@@ -149,6 +149,11 @@ export async function sendSpaNotifications(args: {
   const needsIntake =
     args.kind === "confirmation" &&
     spaServiceNeedsIntake(a.service_category, a.service_name);
+  // No account yet: one button → create account (email prefilled) → portal (waiver, then intake).
+  const setupUrlPath =
+    isGuest && args.kind === "confirmation" && email
+      ? `/auth?mode=signup&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(`/portal/bookings?intake=${a.id}`)}`
+      : null;
 
   const emailType =
     args.kind === "confirmation"
@@ -179,6 +184,7 @@ export async function sendSpaNotifications(args: {
               needsIntake,
               intakeKind: /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
               intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
+              setupUrlPath,
             },
           },
         })
@@ -187,7 +193,7 @@ export async function sendSpaNotifications(args: {
     phone && smsOptIn
       ? supabase.functions.invoke("send-sms", {
           body: {
-            to: { phone, userId: a.user_id },
+            to: { phone, userId: a.user_id || undefined },
             templateKey: smsKey,
             variables: smsVars,
             idempotencyKey: `spa-${args.kind}-${a.id}`,
