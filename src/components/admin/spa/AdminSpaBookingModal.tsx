@@ -840,6 +840,32 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
             </Alert>
           )}
 
+          {selectedCustomer && !selectedCustomer.cardLast4 && (
+            <Alert className="bg-destructive/10 border-destructive/30">
+              <CreditCard className="h-4 w-4 text-destructive" />
+              <AlertTitle className="text-destructive">No card on file</AlertTitle>
+              <AlertDescription className="mt-1 space-y-2">
+                <p>Ask the client for a card to hold this appointment. A card is needed to charge a no-call / no-show.</p>
+                {selectedCustomer.type === "non_member" && selectedCustomer.userId && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+                        body: { action: "admin_send_nonmember_card_setup_link", userId: selectedCustomer.userId, sendEmail: true },
+                      });
+                      if (error || data?.error) toast.error("Could not send card link");
+                      else toast.success(data?.emailSent ? `Card link emailed to ${data.recipient}` : "Link created but email failed");
+                    }}
+                  >
+                    Email card link
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Service */}
           <div>
             <Label>Service *</Label>
