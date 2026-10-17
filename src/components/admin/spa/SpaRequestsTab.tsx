@@ -138,8 +138,9 @@ export function SpaRequestsTab() {
                   )}
                   {setup?.[req.appointment_id] && !setup[req.appointment_id].account && <Badge variant="destructive">Account needed</Badge>}
                   {setup?.[req.appointment_id] && !setup[req.appointment_id].waiver && <Badge variant="destructive">Waiver needed</Badge>}
+                  {setup?.[req.appointment_id] && !setup[req.appointment_id].card && <Badge variant="destructive">Card needed to reserve</Badge>}
                   {intakes && !intakes[req.appointment_id] && <Badge variant="secondary">Intake needed</Badge>}
-                  {setup?.[req.appointment_id]?.waiver && intakes?.[req.appointment_id] && <Badge variant="secondary">Ready</Badge>}
+                  {setup?.[req.appointment_id]?.waiver && setup[req.appointment_id].card && intakes?.[req.appointment_id] && <Badge variant="secondary">Ready</Badge>}
                 </div>
               )}
               <div className="flex flex-wrap gap-2 pt-1">

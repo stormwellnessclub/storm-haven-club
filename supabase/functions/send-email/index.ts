@@ -3280,12 +3280,19 @@ serve(async (req) => {
               </div>
               ${data.setupUrlPath ? `
               <div style="background: #FEF8E7; border-left: 3px solid #B8A068; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
-                <p style="margin: 0 0 6px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Before your visit — two quick steps</p>
+                <p style="margin: 0 0 6px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Before your visit — a few quick steps</p>
                 <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">1. Create your Storm Wellness Club account using this email address.</p>
                 <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">2. Sign the liability waiver in your account.</p>
-                ${data.needsIntake ? `<p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Then complete your ${data.intakeKind === 'body_wrap' ? 'Body Wrap intake & consent form' : 'intake form'} — you'll find it with your appointment.</p>` : ''}
+                <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;"><strong>3. Add a card on file — a card is needed to reserve your appointment.</strong> Go to Payment Methods in your account.</p>
+                ${data.needsIntake ? `<p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">4. Complete your ${data.intakeKind === 'body_wrap' ? 'Body Wrap intake & consent form' : 'intake form'} — you'll find it with your appointment.</p>` : ''}
                 <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Your appointment will appear in your account automatically.</p>
                 <a href="${BASE_URL}${data.setupUrlPath}" style="${emailStyles.button}">Create Account &amp; Sign Waiver</a>
+              </div>` : ''}
+              ${data.needsCard && !data.setupUrlPath ? `
+              <div style="background: #FEF8E7; border-left: 3px solid #B8A068; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
+                <p style="margin: 0 0 6px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Card needed to reserve your appointment</p>
+                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please add a card on file before your visit. It is stored securely with Stripe.</p>
+                <a href="${BASE_URL}${data.cardUrlPath || '/portal/payment-methods'}" style="${emailStyles.button}">Add Card on File</a>
               </div>` : ''}
               ${data.needsIntake && !data.setupUrlPath ? `
               <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
