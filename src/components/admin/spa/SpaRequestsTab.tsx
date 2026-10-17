@@ -10,8 +10,9 @@ import { format, parseISO } from "date-fns";
 import { Phone, Mail, Clock, CalendarPlus } from "lucide-react";
 import { toast } from "sonner";
 import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModal";
-import { useSpaServiceRequests, setSpaRequestStatus, type SpaRequest } from "@/hooks/useSpaServiceRequests";
+import { useSpaServiceRequests, setSpaRequestStatus, useBookedRequestSetup, type SpaRequest } from "@/hooks/useSpaServiceRequests";
 import { formatTime12h } from "@/lib/timeFormat";
+import { useIntakeFormStatuses } from "@/hooks/useSpaIntake";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "New",
@@ -31,6 +32,9 @@ export function SpaRequestsTab() {
   const { data, isLoading } = useSpaServiceRequests();
   const [showHandled, setShowHandled] = useState(false);
   const [booking, setBooking] = useState<SpaRequest | null>(null);
+  const apptIds = (data ?? []).map((r) => r.appointment_id).filter(Boolean) as string[];
+  const { data: setup } = useBookedRequestSetup(apptIds);
+  const { data: intakes } = useIntakeFormStatuses(apptIds);
 
   const mark = async (r: SpaRequest, status: string) => {
     try {
@@ -125,6 +129,19 @@ export function SpaRequestsTab() {
                 </a>
               </div>
               {req.message && <p className="text-muted-foreground">{req.message}</p>}
+              {req.status === "booked" && req.appointment_id && (
+                <div className="flex flex-wrap gap-1.5">
+                  {req.notified_at ? (
+                    <Badge variant="outline">Client notified {format(parseISO(req.notified_at), "MMM d, h:mm a")}</Badge>
+                  ) : (
+                    <Badge variant="outline">Not notified</Badge>
+                  )}
+                  {setup?.[req.appointment_id] && !setup[req.appointment_id].account && <Badge variant="destructive">Account needed</Badge>}
+                  {setup?.[req.appointment_id] && !setup[req.appointment_id].waiver && <Badge variant="destructive">Waiver needed</Badge>}
+                  {intakes && !intakes[req.appointment_id] && <Badge variant="secondary">Intake needed</Badge>}
+                  {setup?.[req.appointment_id]?.waiver && intakes?.[req.appointment_id] && <Badge variant="secondary">Ready</Badge>}
+                </div>
+              )}
               <div className="flex flex-wrap gap-2 pt-1">
                 {req.status !== "booked" && (
                   <Button size="sm" onClick={() => setBooking(req)}>
@@ -159,10 +176,11 @@ export function SpaRequestsTab() {
             phone: booking.phone,
             notes: booking.message,
           }}
-          onBooked={async (apptId) => {
+          onBooked={async (apptId, notified) => {
             try {
-              await setSpaRequestStatus(booking.id, "booked", apptId ?? null);
+              await setSpaRequestStatus(booking.id, "booked", apptId ?? null, notified);
               qc.invalidateQueries({ queryKey: ["spa-service-requests"] });
+              qc.invalidateQueries({ queryKey: ["spa-request-setup"] });
             } catch {
               /* booking itself succeeded; staff can mark manually */
             }

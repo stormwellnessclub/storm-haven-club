@@ -15,6 +15,7 @@ export interface SpaRequest {
   status: string;
   handled_at: string | null;
   appointment_id: string | null;
+  notified_at: string | null;
   service_name: string;
   service_category: string | null;
   message: string | null;
@@ -58,7 +59,7 @@ export function useNewSpaRequestCount() {
   return (data ?? []).filter((r) => r.status === "new").length;
 }
 
-export async function setSpaRequestStatus(id: string, status: string, appointmentId?: string | null) {
+export async function setSpaRequestStatus(id: string, status: string, appointmentId?: string | null, notified?: boolean) {
   const { data: u } = await supabase.auth.getUser();
   const patch: any = {
     status,
@@ -66,6 +67,28 @@ export async function setSpaRequestStatus(id: string, status: string, appointmen
     handled_at: status === "new" ? null : new Date().toISOString(),
   };
   if (appointmentId !== undefined) patch.appointment_id = appointmentId;
+  if (notified) patch.notified_at = new Date().toISOString();
   const { error } = await (supabase.from as any)("spa_service_requests").update(patch).eq("id", id);
   if (error) throw error;
+}
+
+/** Setup progress for booked requests: account linked, waiver signed, intake done. */
+export function useBookedRequestSetup(appointmentIds: string[]) {
+  return useQuery({
+    queryKey: ["spa-request-setup", [...appointmentIds].sort().join(",")],
+    enabled: appointmentIds.length > 0,
+    queryFn: async () => {
+      const { data: appts } = await (supabase.from as any)("spa_appointments")
+        .select("id, user_id").in("id", appointmentIds);
+      const userIds = (appts || []).map((a: any) => a.user_id).filter(Boolean);
+      const waiver: Record<string, boolean> = {};
+      if (userIds.length) {
+        const { data: w } = await (supabase.rpc as any)("effective_waiver_status", { _user_ids: userIds });
+        for (const r of w || []) waiver[r.user_id] = r.status === "signed";
+      }
+      const out: Record<string, { account: boolean; waiver: boolean }> = {};
+      for (const a of appts || []) out[a.id] = { account: !!a.user_id, waiver: !!(a.user_id && waiver[a.user_id]) };
+      return out;
+    },
+  });
 }
