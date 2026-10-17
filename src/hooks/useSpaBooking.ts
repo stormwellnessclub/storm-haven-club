@@ -137,14 +137,27 @@ export async function sendSpaNotifications(args: {
 
   // Audience-aware bookings link: members → /member/bookings, everyone else → /portal/bookings.
   let isMember = false;
+  // Card on file is required to reserve: guests always need one; accounts only if none saved.
+  let needsCard = isGuest;
   if (!isGuest) {
     const { data: m } = await supabase
       .from("members")
-      .select("id")
+      .select("id, card_last4")
       .eq("user_id", a.user_id)
       .maybeSingle();
     isMember = !!m;
+    let hasCard = !!(m as any)?.card_last4;
+    if (!hasCard) {
+      const { data: nmc } = await supabase
+        .from("non_member_profiles")
+        .select("card_last4")
+        .eq("user_id", a.user_id)
+        .maybeSingle();
+      hasCard = !!(nmc as any)?.card_last4;
+    }
+    needsCard = !hasCard;
   }
+  const cardUrlPath = isMember ? "/member/payment-methods" : "/portal/payment-methods";
   const bookingsPath = isMember ? "/member/bookings" : "/portal/bookings";
   const needsIntake =
     args.kind === "confirmation" &&
@@ -185,6 +198,8 @@ export async function sendSpaNotifications(args: {
               intakeKind: /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
               intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
               setupUrlPath,
+              needsCard: args.kind === "confirmation" && needsCard,
+              cardUrlPath,
             },
           },
         })
