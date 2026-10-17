@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Show complete appointment intakes and provide therapist printing in admin and front desk
+
 - [x] Show spa appointment request alerts on admin and front desk main pages with direct request access
 
 - [x] Month-by-month sales tax report (every taxed sale, all sources, per month)
