@@ -1,19 +1,20 @@
-# Notify clients when their spa request is booked
+# Booked spa requests: notify the client, then account + waiver
 
 ## Today
-When staff book a request, the client gets a confirmation email and text only if they have an account. People who send a request without an account get nothing.
+Anyone can send a spa request without an account. When staff book it, only people with an account get a confirmation. Everyone else gets nothing.
 
 ## Change
-- When staff press "Book this request" and save, the client always gets a confirmation, account or not, unless staff untick "Send confirmation email / text".
-- **Email** goes to the email on the request. It includes the service, day, time and the Storm Wellness Club address. For Body Wraps it also has the "Complete Body Wrap Intake" button.
-- **Text** goes to the phone on the request, but only if that number has agreed to texts. If it hasn't, only the email goes out.
-- Each booking sends one confirmation at most, even if staff save twice.
-- The request card shows "Client notified" with the time it was sent.
-- Requests marked Declined or Contacted send nothing to the client.
+- **Requests stay open.** No account is needed to send one.
+- **When staff book a request**, the client gets an email at the address they gave, plus a text if that number has agreed to texts. Staff can untick "Send confirmation email / text" to skip it.
+  - If they **already have an account**, it's the normal confirmation. For Body Wraps it includes the "Complete Body Wrap Intake" button.
+  - If they **don't have an account**, the email says their appointment is booked. They must finish two steps before the visit, with one button: **create your account** (the email is already filled in) → **sign the liability waiver**. After that, the intake form shows in their profile under Forms. For Body Wraps, the intake comes next.
+- **The appointment joins their new account automatically** when they sign up with the same email. They see it under their bookings.
+- **Staff can see what's missing.** On the appointment and the request card: "Account needed", "Waiver needed" or "Intake needed" until each is done. The card also shows "Client notified" with the time.
+- Each booking sends the confirmation once, even if staff save twice. Declined or Contacted requests send nothing.
 
 ## Technical details
-- In AdminSpaBookingModal, when there is no linked user id but prefill or walk-in email/phone exists, call the existing spa confirmation sender with the contact details instead of skipping it.
-- The intake link for account-less clients uses a signed per-appointment token. It reuses `spa_review_tokens` or a similar token, so the form opens without signing in.
-- Texts go through send-sms with no consent bypass. The idempotency key is `spa-confirm-${appointmentId}`.
-- Store `notified_at` on spa_service_requests.
-- No test sends go to real clients. Verification uses a staff address.
+- In AdminSpaBookingModal, when there is no linked user, still send the confirmation using the email/phone from the request or walk-in. Use a new "booked – finish setup" email variant through the existing spa notification path, not a marketing email.
+- Sign-up link: `/auth?mode=signup&email=…&redirect=/waiver?next=/profile#forms`. Add a step that links appointments to the user on profile creation, matching the lowercased email on `spa_appointments` (alongside the existing auto-link triggers).
+- Texts go through send-sms with no consent bypass. Idempotency key `spa-confirm-${appointmentId}`.
+- Add `notified_at` to spa_service_requests. Account/waiver/intake status comes from existing waiver and intake status checks.
+- Testing uses a staff address only. No sends go to real clients.
