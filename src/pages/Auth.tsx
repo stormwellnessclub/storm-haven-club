@@ -39,7 +39,7 @@ function formatPhoneInput(raw: string) {
 export default function Auth() {
   const initialMode = new URLSearchParams(window.location.search).get("mode") === "signup";
   const [isSignUp, setIsSignUp] = useState(initialMode);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => new URLSearchParams(window.location.search).get("email") || "");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

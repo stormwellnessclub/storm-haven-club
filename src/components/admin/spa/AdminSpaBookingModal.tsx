@@ -47,7 +47,7 @@ interface AdminSpaBookingModalProps {
   defaultDate?: Date;
   /** Fill the form from a client request */
   prefill?: SpaBookingPrefill;
-  onBooked?: (appointmentId: string | null) => void;
+  onBooked?: (appointmentId: string | null, notified?: boolean) => void;
 }
 
 export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill, onBooked }: AdminSpaBookingModalProps) {
@@ -116,6 +116,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     setWalkInName(prefill.name || "");
     setWalkInEmail(prefill.email || "");
     setWalkInPhone(prefill.phone || "");
+    if (prefill.name) setWalkInOpen(true);
     if (prefill.notes) setStaffNotes(`Client request: ${prefill.notes}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, prefill?.serviceName, prefill?.date, prefill?.time, prefill?.email, services?.length]);
@@ -594,11 +595,16 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
         created_by_user_id: adminUser?.id || null,
         created_via: isWalkIn ? "walk_in_guest" : "admin_booking",
         created_by_admin_name: adminDisplayName,
+        guest_name: isWalkIn ? effectiveCustomer?.name || null : null,
+        guest_email: isWalkIn ? effectiveCustomer?.email?.toLowerCase().trim() || null : null,
+        guest_phone: isWalkIn ? effectiveCustomer?.phone || null : null,
       }).select("id").single();
       if (error) throw error;
 
-      // Confirmation email + SMS (best-effort; only possible with a linked account).
-      if (sendConfirmation && userIdToInsert && inserted?.id) {
+      // Confirmation email + SMS (best-effort). Clients without an account get the
+      // "create account & sign waiver" version at the email/phone they gave.
+      const guestContact = isWalkIn ? { email: effectiveCustomer?.email, phone: effectiveCustomer?.phone } : null;
+      if (sendConfirmation && inserted?.id && (userIdToInsert || guestContact?.email || guestContact?.phone)) {
         try {
           await sendSpaNotifications({
             appointment: {
@@ -612,7 +618,9 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
               staff_id: resolvedTherapist,
             } as any,
             kind: "confirmation",
+            guest: guestContact,
           });
+          (inserted as any).notified = true;
         } catch (e) {
           console.warn("admin spa confirmation notify failed (non-fatal):", e);
         }
@@ -626,13 +634,14 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
           toast.error(`Voucher redeem failed: ${e.message}. Mark voucher manually.`);
         }
       }
-      return (inserted?.id as string | undefined) ?? null;
+      return { id: (inserted?.id as string | undefined) ?? null, notified: !!(inserted as any)?.notified };
     },
-    onSuccess: (apptId) => {
+    onSuccess: (res) => {
+      const apptId = res?.id;
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-appointments"] });
       toast.success("Appointment booked successfully");
-      onBooked?.(apptId ?? null);
+      onBooked?.(apptId ?? null, res?.notified);
       onOpenChange(false);
       resetForm();
     },

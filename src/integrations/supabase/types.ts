@@ -13087,6 +13087,9 @@ export type Database = {
           credit_id: string | null
           credit_type: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes: number
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
           id: string
           member_id: string | null
           member_notes: string | null
@@ -13126,6 +13129,9 @@ export type Database = {
           credit_id?: string | null
           credit_type?: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes: number
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           member_id?: string | null
           member_notes?: string | null
@@ -13165,6 +13171,9 @@ export type Database = {
           credit_id?: string | null
           credit_type?: Database["public"]["Enums"]["credit_type"] | null
           duration_minutes?: number
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
           id?: string
           member_id?: string | null
           member_notes?: string | null
@@ -13676,6 +13685,7 @@ export type Database = {
           id: string
           message: string | null
           name: string
+          notified_at: string | null
           phone: string | null
           preferred_time: string | null
           requested_date: string | null
@@ -13695,6 +13705,7 @@ export type Database = {
           id?: string
           message?: string | null
           name: string
+          notified_at?: string | null
           phone?: string | null
           preferred_time?: string | null
           requested_date?: string | null
@@ -13714,6 +13725,7 @@ export type Database = {
           id?: string
           message?: string | null
           name?: string
+          notified_at?: string | null
           phone?: string | null
           preferred_time?: string | null
           requested_date?: string | null

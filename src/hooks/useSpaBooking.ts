@@ -77,16 +77,24 @@ export function spaServiceNeedsIntake(category?: string | null, name?: string | 
 export async function sendSpaNotifications(args: {
   appointment: SpaAppointment;
   kind: "confirmation" | "cancellation";
+  /** Contact for a client without an account (e.g. a booked public request). */
+  guest?: { email?: string | null; phone?: string | null } | null;
 }) {
   const a = args.appointment;
-  if (!a?.user_id) return;
+  const isGuest = !a?.user_id;
+  if (isGuest && !args.guest?.email && !args.guest?.phone) return;
 
   // Pull contact + sms_opt_in from profiles first, fall back to non_member_profiles.
   let email: string | null = null;
   let phone: string | null = null;
   let smsOptIn = false;
 
-
+  if (isGuest) {
+    email = args.guest?.email?.trim() || null;
+    phone = args.guest?.phone?.trim() || null;
+    // send-sms checks phone consent itself; it skips numbers that haven't agreed.
+    smsOptIn = !!phone;
+  } else {
   const { data: p } = await supabase
     .from("profiles")
     .select("email, phone, sms_opt_in")
@@ -109,6 +117,9 @@ export async function sendSpaNotifications(args: {
       smsOptIn = smsOptIn || (nm as any).sms_opt_in === true;
     }
   }
+  }
+
+
 
   // Provider name (optional).
   let provider = "Storm Wellness";
@@ -126,7 +137,7 @@ export async function sendSpaNotifications(args: {
 
   // Audience-aware bookings link: members → /member/bookings, everyone else → /portal/bookings.
   let isMember = false;
-  {
+  if (!isGuest) {
     const { data: m } = await supabase
       .from("members")
       .select("id")
@@ -138,6 +149,11 @@ export async function sendSpaNotifications(args: {
   const needsIntake =
     args.kind === "confirmation" &&
     spaServiceNeedsIntake(a.service_category, a.service_name);
+  // No account yet: one button → create account (email prefilled) → portal (waiver, then intake).
+  const setupUrlPath =
+    isGuest && args.kind === "confirmation" && email
+      ? `/auth?mode=signup&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(`/portal/bookings?intake=${a.id}`)}`
+      : null;
 
   const emailType =
     args.kind === "confirmation"
@@ -168,6 +184,7 @@ export async function sendSpaNotifications(args: {
               needsIntake,
               intakeKind: /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
               intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
+              setupUrlPath,
             },
           },
         })
@@ -176,7 +193,7 @@ export async function sendSpaNotifications(args: {
     phone && smsOptIn
       ? supabase.functions.invoke("send-sms", {
           body: {
-            to: { phone, userId: a.user_id },
+            to: { phone, userId: a.user_id || undefined },
             templateKey: smsKey,
             variables: smsVars,
             idempotencyKey: `spa-${args.kind}-${a.id}`,
