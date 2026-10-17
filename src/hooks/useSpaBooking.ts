@@ -77,16 +77,24 @@ export function spaServiceNeedsIntake(category?: string | null, name?: string | 
 export async function sendSpaNotifications(args: {
   appointment: SpaAppointment;
   kind: "confirmation" | "cancellation";
+  /** Contact for a client without an account (e.g. a booked public request). */
+  guest?: { email?: string | null; phone?: string | null } | null;
 }) {
   const a = args.appointment;
-  if (!a?.user_id) return;
+  const isGuest = !a?.user_id;
+  if (isGuest && !args.guest?.email && !args.guest?.phone) return;
 
   // Pull contact + sms_opt_in from profiles first, fall back to non_member_profiles.
   let email: string | null = null;
   let phone: string | null = null;
   let smsOptIn = false;
 
-
+  if (isGuest) {
+    email = args.guest?.email?.trim() || null;
+    phone = args.guest?.phone?.trim() || null;
+    // send-sms checks phone consent itself; it skips numbers that haven't agreed.
+    smsOptIn = !!phone;
+  } else {
   const { data: p } = await supabase
     .from("profiles")
     .select("email, phone, sms_opt_in")
@@ -109,6 +117,9 @@ export async function sendSpaNotifications(args: {
       smsOptIn = smsOptIn || (nm as any).sms_opt_in === true;
     }
   }
+  }
+
+
 
   // Provider name (optional).
   let provider = "Storm Wellness";
