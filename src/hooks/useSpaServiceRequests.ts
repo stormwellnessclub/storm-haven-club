@@ -82,12 +82,18 @@ export function useBookedRequestSetup(appointmentIds: string[]) {
         .select("id, user_id").in("id", appointmentIds);
       const userIds = (appts || []).map((a: any) => a.user_id).filter(Boolean);
       const waiver: Record<string, boolean> = {};
+      const card: Record<string, boolean> = {};
       if (userIds.length) {
-        const { data: w } = await (supabase.rpc as any)("effective_waiver_status", { _user_ids: userIds });
+        const [{ data: w }, { data: mc }, { data: nc }] = await Promise.all([
+          (supabase.rpc as any)("effective_waiver_status", { _user_ids: userIds }),
+          supabase.from("members").select("user_id, card_last4").in("user_id", userIds),
+          supabase.from("non_member_profiles").select("user_id, card_last4").in("user_id", userIds),
+        ]);
         for (const r of w || []) waiver[r.user_id] = r.status === "signed";
+        for (const r of [...(mc || []), ...(nc || [])] as any[]) if (r.card_last4) card[r.user_id] = true;
       }
-      const out: Record<string, { account: boolean; waiver: boolean }> = {};
-      for (const a of appts || []) out[a.id] = { account: !!a.user_id, waiver: !!(a.user_id && waiver[a.user_id]) };
+      const out: Record<string, { account: boolean; waiver: boolean; card: boolean }> = {};
+      for (const a of appts || []) out[a.id] = { account: !!a.user_id, waiver: !!(a.user_id && waiver[a.user_id]), card: !!(a.user_id && card[a.user_id]) };
       return out;
     },
   });
