@@ -381,8 +381,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       return;
     }
 
-    if (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) {
-      toast.error("Please select a payment method");
+    if (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId) {
+      toast.error("Please add and select a card before booking.");
       return;
     }
 
@@ -533,9 +533,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           });
 
           if (chargeError) throw chargeError;
-          if (chargeData?.error) throw new Error(chargeData.error);
+          if (!chargeData?.success) throw new Error(chargeData?.error || "Payment failed");
 
           paymentIntentId = chargeData?.paymentIntentId || chargeData?.id;
+          if (!paymentIntentId) throw new Error("Payment could not be confirmed. Please contact the front desk.");
           if (paymentIntentId) onCharged(paymentIntentId);
         }
 
@@ -572,7 +573,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             ? `$${total.toFixed(2)} charged to ${brand} •••• ${last4}`
             : `$${total.toFixed(2)} charged to your card`;
         } else if (paymentMethod === "member_account") {
-          paymentSummary = `$${finalPrice.toFixed(2)} charged to your member account`;
+          paymentSummary = `$${finalPrice.toFixed(2)} due at checkout — not charged yet`;
         }
 
         setConfirmation({
