@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Correct unpaid spa payment badges, booking records, and checkout balances without changing live appointments
+- [x] Correct unpaid spa payment badges, booking records, and checkout balances without changing live appointments
 
 - [x] Show complete appointment intakes and provide therapist printing in admin and front desk
 
