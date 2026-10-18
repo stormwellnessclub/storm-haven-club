@@ -22,7 +22,7 @@ import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { StaffIntakePanel } from "@/components/spa/StaffIntakePanel";
 import { useSpaAddons } from "@/hooks/useSpaManagement";
-import { getSpaPaymentState, spaBalanceDue } from "@/lib/spaPaymentState";
+import { getSpaPaymentState, spaBalanceDue, spaCheckoutPaymentError } from "@/lib/spaPaymentState";
 
 interface SelectedAddon {
   id: string;
@@ -83,7 +83,8 @@ export function SpaCompletionDialog({
   // Pre-populate fields when appointment changes — in useEffect, not during render
   useEffect(() => {
     if (!appointment) return;
-    setPaymentMethod(appointment.payment_method || "card");
+    setPaymentMethod(["card", "cash", "other", "no_charge"].includes(appointment.payment_method || "")
+      ? appointment.payment_method || "card" : "card");
     setTipMethod(
       (appointment as any).tip_payment_method ||
         (appointment.payment_method === "cash" ? "cash" : "card")
@@ -266,6 +267,12 @@ export function SpaCompletionDialog({
   };
 
   const handleSubmit = async () => {
+    if (isProcessing) return;
+    const paymentError = spaCheckoutPaymentError(paymentMethod, balanceDue, hasCardOnFile);
+    if (paymentError) {
+      toast.error(paymentError);
+      return;
+    }
     setIsProcessing(true);
     try {
       let paymentIntentId: string | null = null;
@@ -444,7 +451,7 @@ export function SpaCompletionDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {appointment.amount_paid && appointment.amount_paid > 0
+            {alreadyPaid > 0
               ? "Edit Payment"
               : retroactive
               ? "Charge for Appointment"
@@ -834,7 +841,7 @@ export function SpaCompletionDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isProcessing || (paymentMethod === "card" && !hasCardOnFile)}
+            disabled={isProcessing || !!spaCheckoutPaymentError(paymentMethod, balanceDue, hasCardOnFile)}
           >
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {paymentMethod === "card" && balanceDue > 0

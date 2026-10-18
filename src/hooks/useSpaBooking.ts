@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, addMinutes, parse } from "date-fns";
 import type { BookedSlot } from "@/lib/spaAvailability";
+import { spaBookingAmountPaid } from "@/lib/spaPaymentState";
 
 export interface SpaAppointment {
   id: string;
@@ -317,7 +318,7 @@ export function useSpaBookAppointment() {
             member_notes: memberNotesFinal,
             payment_method: params.paymentMethod,
             payment_intent_id: params.paymentIntentId || null,
-            amount_paid: usingVoucher ? 0 : finalPrice,
+            amount_paid: spaBookingAmountPaid(finalPrice, params.paymentMethod, params.paymentIntentId),
             staff_id: params.staffId || null,
             room_id: params.roomId || null,
             // Booking attribution: customer self-booked via portal
