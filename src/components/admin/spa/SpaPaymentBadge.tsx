@@ -5,7 +5,7 @@ export function SpaPaymentBadge({ appointment, className = "" }: { appointment: 
   const s = getSpaPaymentState(appointment);
   if (appointment?.status === "cancelled" && s.kind === "unpaid") return null;
   const tone =
-    s.kind === "prepaid_online" || s.kind === "paid_card"
+    s.kind === "prepaid_online" || s.kind === "paid_card" || s.kind === "covered"
       ? "bg-success/10 text-success border-success/40"
       : s.kind === "paid_desk"
       ? "bg-primary/10 text-primary border-primary/40"

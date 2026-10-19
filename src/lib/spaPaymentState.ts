@@ -1,4 +1,4 @@
-export type SpaPaymentKind = "prepaid_online" | "paid_card" | "paid_desk" | "no_charge" | "unpaid";
+export type SpaPaymentKind = "prepaid_online" | "paid_card" | "paid_desk" | "no_charge" | "covered" | "unpaid";
 
 export interface SpaPaymentState {
   kind: SpaPaymentKind;
@@ -15,6 +15,9 @@ export function getSpaPaymentState(appt: any): SpaPaymentState {
   const paid = Math.round((Number(appt?.amount_paid) || 0) * 100) / 100;
   const method = String(appt?.payment_method || "");
   if (method === "no_charge") return { kind: "no_charge", paid: 0, label: "No charge" };
+  // Vouchers and wellness credits cover the booked service; no money is collected.
+  if (method === "mothers_day_voucher") return { kind: "covered", paid: 0, label: "Covered · Mother's Day voucher" };
+  if (method === "credit") return { kind: "covered", paid: 0, label: "Covered · Credit" };
   if (paid <= 0) return { kind: "unpaid", paid: 0, label: "Not paid" };
   // Older self-bookings saved the price as amount_paid without collecting it.
   // Only explicit desk tenders or a card payment reference prove collection.
