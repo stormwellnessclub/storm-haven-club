@@ -2253,6 +2253,7 @@ export type Database = {
           fundraiser_beneficiary: string | null
           id: string
           instructor_id: string | null
+          instructor_overridden: boolean
           is_cancelled: boolean
           is_fundraiser: boolean
           is_hidden: boolean
@@ -2275,6 +2276,7 @@ export type Database = {
           fundraiser_beneficiary?: string | null
           id?: string
           instructor_id?: string | null
+          instructor_overridden?: boolean
           is_cancelled?: boolean
           is_fundraiser?: boolean
           is_hidden?: boolean
@@ -2297,6 +2299,7 @@ export type Database = {
           fundraiser_beneficiary?: string | null
           id?: string
           instructor_id?: string | null
+          instructor_overridden?: boolean
           is_cancelled?: boolean
           is_fundraiser?: boolean
           is_hidden?: boolean
