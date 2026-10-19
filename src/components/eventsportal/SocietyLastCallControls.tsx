@@ -18,7 +18,8 @@ type R = { email: string; name: string; phone: string | null; status: string; em
 
 const DEFAULT_HERO = "https://stormwellnessclub.com/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg";
 
-export function SocietyLastCallControls() {
+export function SocietyLastCallControls({ audience }: { audience?: "book_vote" } = {}) {
+  const vote = audience === "book_vote";
   const [roster, setRoster] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -47,13 +48,13 @@ export function SocietyLastCallControls() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.functions.invoke(FN, { body: { list: true } });
+    const { data } = await supabase.functions.invoke(FN, { body: { list: true, audience } });
     if (data?.ok) setRoster(data.roster); else toast.error("Could not load the list");
     setLoading(false);
   };
   useEffect(() => {
     load();
-    supabase.functions.invoke(FN, { body: { defaults: true } }).then(({ data }) => {
+    supabase.functions.invoke(FN, { body: { defaults: true, audience } }).then(({ data }) => {
       if (data?.ok) { setSubject(data.subject); setMessage(data.message); setSmsText(data.smsText); }
     });
   }, []);
@@ -69,7 +70,7 @@ export function SocietyLastCallControls() {
 
   const call = async (label: string, body: Record<string, unknown>) => {
     setBusy(label);
-    const { data, error } = await supabase.functions.invoke(FN, { body: { ...content, ...body } });
+    const { data, error } = await supabase.functions.invoke(FN, { body: { ...content, audience, ...body } });
     setBusy(null);
     if (error || !data?.ok) { toast.error(data?.error || "That didn't go through"); return null; }
     return data;
@@ -87,10 +88,10 @@ export function SocietyLastCallControls() {
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">Last call (email and text)</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM.
+          {vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
           Unsubscribed people and anyone who hasn't agreed to texts are skipped. Each person gets each message once.
         </p>
 
@@ -115,7 +116,7 @@ export function SocietyLastCallControls() {
             <div className="rounded border p-4 bg-muted text-sm space-y-2">
               <p className="font-semibold">{subject}</p><p>Dear Jane,</p>
               {message.split(/\n\s*\n/).map((p, i) => <p key={i}>{p}</p>)}
-              <p className="text-primary">[Save your seat]</p>
+              <p className="text-primary">[{vote ? "Cast your vote" : "Save your seat"}]</p>
             </div>
           )}
           <div className="flex gap-2">
@@ -170,9 +171,9 @@ export function SocietyLastCallControls() {
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send the last-call {confirm === "email" ? "email" : "text"}?</AlertDialogTitle>
+            <AlertDialogTitle>Send the {vote ? "book vote" : "last-call"} {confirm === "email" ? "email" : "text"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm === "email" ? `${emailCount} members will get the email.` : `Up to ${smsCount} members will get the text. Anyone who hasn't agreed to texts is skipped.`} This can't be undone.
+              {confirm === "email" ? `${emailCount} people will get the email.` : `Up to ${smsCount} people will get the text. Anyone who hasn't agreed to texts is skipped.`} This can't be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

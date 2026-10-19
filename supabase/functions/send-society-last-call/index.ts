@@ -21,12 +21,15 @@ let SMS_KEY = "hss-last-call-2026";
 let EYEBROW = "LAST CALL &middot; FOUNDING CIRCLE";
 let BUTTON = "Save your seat";
 const BASE_URL = "https://stormwellnessclub.com";
-const PAGE_URL = `${BASE_URL}/rituals/higher-self-society`;
+let PAGE_URL = `${BASE_URL}/rituals/higher-self-society`;
 const HERO = `${BASE_URL}/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg`;
 const FROM = "Storm Wellness Club <admin@stormwellnessclub.com>";
 export const DEFAULT_SUBJECT = "Last call: Higher Self Society sign-ups close Sunday";
 export const DEFAULT_MESSAGE =
   "Last call for Higher Self Society, our founding reading circle. Sign-ups close this Sunday, Oct. 18, and then members choose our first book together. We'll meet one Thursday evening a month, 7:00 to 9:00 PM.";
+export const VOTE_SUBJECT = "Choose our first book: the Higher Self Society vote is open";
+export const VOTE_MESSAGE =
+  "The founding circle is set, and now you choose what we read first. We've shortlisted nine titles, from Atomic Habits to The Courage to Be Disliked. Each one has a short synopsis on the book club page.\n\nSign in with the email you used to join and tap Vote for this book. You can change your pick anytime before voting closes this Friday, Oct. 23 at 11:59 PM.";
 const DEFAULT_SMS = `Storm Wellness Club: ${DEFAULT_MESSAGE} Save your seat: ${PAGE_URL} Reply STOP to opt out.`;
 
 function buildHtml(firstName: string | null, message: string, hero: string = HERO): string {
@@ -60,14 +63,20 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* none */ }
 
-  const signedUp = body.audience === "signed_up";
-  EMAIL_KEY = signedUp ? "higher_self_society_signed_up_update_2026" : "higher_self_society_last_call_2026";
-  SMS_KEY = signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
-  EYEBROW = signedUp ? "FOUNDING CIRCLE &middot; WHAT'S NEXT" : "LAST CALL &middot; FOUNDING CIRCLE";
-  BUTTON = signedUp ? "Visit Higher Self Society" : "Save your seat";
-  const message = String(body.message ?? DEFAULT_MESSAGE).trim().slice(0, 2000) || DEFAULT_MESSAGE;
-  const subject = String(body.subject ?? DEFAULT_SUBJECT).trim().slice(0, 200) || DEFAULT_SUBJECT;
-  const smsText = String(body.smsText ?? DEFAULT_SMS).trim().slice(0, 640) || DEFAULT_SMS;
+  const bookVote = body.audience === "book_vote";
+  const signedUp = body.audience === "signed_up" || bookVote;
+  PAGE_URL = `${BASE_URL}/rituals/higher-self-society`;
+  EMAIL_KEY = bookVote ? "higher_self_society_book_vote_2026" : signedUp ? "higher_self_society_signed_up_update_2026" : "higher_self_society_last_call_2026";
+  SMS_KEY = bookVote ? "hss-book-vote-2026" : signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
+  EYEBROW = bookVote ? "FOUNDING CIRCLE &middot; THE BOOK VOTE" : signedUp ? "FOUNDING CIRCLE &middot; WHAT'S NEXT" : "LAST CALL &middot; FOUNDING CIRCLE";
+  BUTTON = bookVote ? "Cast your vote" : signedUp ? "Visit Higher Self Society" : "Save your seat";
+  if (bookVote) PAGE_URL = `${PAGE_URL}#book-vote`;
+  const dSubject = bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
+  const dMessage = bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
+  const dSms = bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
+  const message = String(body.message ?? dMessage).trim().slice(0, 2000) || dMessage;
+  const subject = String(body.subject ?? dSubject).trim().slice(0, 200) || dSubject;
+  const smsText = String(body.smsText ?? dSms).trim().slice(0, 640) || dSms;
 
   let hero = HERO;
   const heroPath = typeof body.heroPath === "string" ? body.heroPath : "";
@@ -76,7 +85,7 @@ Deno.serve(async (req) => {
     const { data: su } = await adm.storage.from("email-images").createSignedUrl(heroPath, 60 * 60 * 24 * 365 * 5);
     if (su?.signedUrl) hero = su.signedUrl;
   }
-  if (body.defaults) return json({ ok: true, subject: DEFAULT_SUBJECT, message: DEFAULT_MESSAGE, smsText: DEFAULT_SMS });
+  if (body.defaults) return json({ ok: true, subject: dSubject, message: dMessage, smsText: dSms });
   if (body.preview) {
     return new Response(buildHtml("Jane", message, hero), { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
   }
