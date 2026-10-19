@@ -771,6 +771,13 @@
       "when": 1792432188465,
       "tag": "0109_spa_covered_checkout_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1792448799607,
+      "tag": "0110_society_book_vote",
+      "breakpoints": true
     }
   ]
 }

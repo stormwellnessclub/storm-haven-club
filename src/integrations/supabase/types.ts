@@ -13071,6 +13071,33 @@ export type Database = {
         }
         Relationships: []
       }
+      society_next_round_interest: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       spa_appointments: {
         Row: {
           addons: Json
@@ -16699,6 +16726,7 @@ export type Database = {
       is_email_blocked: { Args: { p_email: string }; Returns: boolean }
       is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
       is_privileged_row_writer: { Args: never; Returns: boolean }
+      is_society_roster_member: { Args: { _uid: string }; Returns: boolean }
       issue_guest_feedback_token: {
         Args: { p_guest_pass_id: string }
         Returns: string
