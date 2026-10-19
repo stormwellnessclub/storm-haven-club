@@ -1,8 +1,41 @@
 // @ts-nocheck
 import { describe, it, expect } from "bun:test";
-import { getSpaPaymentState, spaBalanceDue, spaBookingAmountPaid, spaCheckoutPaymentError } from "./spaPaymentState";
+import { getSpaPaymentState, spaBalanceDue, spaBookingAmountPaid, spaCheckoutPaymentError, spaCoveredServiceAmount, spaCheckoutSettlement } from "./spaPaymentState";
 
 describe("spa payment state", () => {
+  it("credit covers the $195 service without treating legacy amount_paid as money", () => {
+    const appt = { payment_method: "credit", service_price: 195, amount_paid: 195 };
+    expect(getSpaPaymentState(appt).paid).toBe(0);
+    expect(spaBalanceDue(195 - spaCoveredServiceAmount(appt), 0)).toBe(0);
+  });
+  it("voucher completion preserves coverage and records no fictitious money", () => {
+    const appt = { payment_method: "mothers_day_voucher", service_price: 0, amount_paid: 0 };
+    const saved = spaCheckoutSettlement(appt, 0, "card", 0);
+    expect(saved.payment_method).toBe("mothers_day_voucher");
+    expect(saved.amount_paid).toBe(0);
+    expect(getSpaPaymentState(saved).kind).toBe("covered");
+  });
+  it("credit checkout collects only $25 add-ons plus $30 tip, with nothing due on reopening", () => {
+    const appt = { payment_method: "credit", service_price: 195, amount_paid: 195 };
+    const due = spaBalanceDue(250 - spaCoveredServiceAmount(appt), getSpaPaymentState(appt).paid);
+    expect(due).toBe(55);
+    const saved = { ...appt, ...spaCheckoutSettlement(appt, 250, "cash", due) };
+    expect(saved.payment_method).toBe("credit");
+    expect(saved.amount_paid).toBe(55);
+    expect(saved.covered_checkout?.payment_method).toBe("cash");
+    expect(spaBalanceDue(250 - spaCoveredServiceAmount(saved), getSpaPaymentState(saved).paid)).toBe(0);
+  });
+  it("voucher extras collect $55 by card without losing coverage", () => {
+    const saved = spaCheckoutSettlement({ payment_method: "mothers_day_voucher", service_price: 0 }, 55, "card", 55);
+    expect(saved.payment_method).toBe("mothers_day_voucher");
+    expect(getSpaPaymentState(saved).paid).toBe(55);
+  });
+  it("a covered $195 base adjusted to $220 keeps the original coverage after collecting $25", () => {
+    const appt = { payment_method: "credit", service_price: 195 };
+    const saved = { ...appt, ...spaCheckoutSettlement(appt, 220, "card", 25), service_price: 220 };
+    expect(spaCoveredServiceAmount(saved)).toBe(195);
+    expect(spaBalanceDue(220 - spaCoveredServiceAmount(saved), getSpaPaymentState(saved).paid)).toBe(0);
+  });
   it("online prepaid booking shows Prepaid", () => {
     const s = getSpaPaymentState({ amount_paid: 195, payment_method: "card", payment_intent_id: "pi_1", status: "confirmed" });
     expect(s.kind).toBe("prepaid_online");
