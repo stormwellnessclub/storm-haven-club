@@ -1,5 +1,8 @@
 // Higher Self Society book selection vote — single source of truth for titles.
 export const SOCIETY_BOOK_VOTE_SLUG = "hss-book-vote-2026-1";
+/** Closes 11:59:59 PM Detroit time, Friday Oct 23, 2026 (EDT, UTC-4). Mirrored in the event_votes policy. */
+export const SOCIETY_BOOK_VOTE_CLOSES_AT = new Date("2026-10-24T03:59:59Z");
+export const isBookVoteOpen = (now: Date = new Date()) => now < SOCIETY_BOOK_VOTE_CLOSES_AT;
 
 export interface SocietyBook {
   key: string;
