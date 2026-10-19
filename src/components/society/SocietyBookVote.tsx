@@ -70,7 +70,7 @@ export function SocietyBookVote() {
       </p>
       {voteOpen && <p className={`text-center text-xs mt-2 tracking-wide ${gold}`}>Voting closes Friday, October 23 at 11:59 PM</p>}
 
-      {!canVote && !isLoading && <NextRoundPanel signedIn={!!user} />}
+      {!(user && eligible) && !isLoading && <NextRoundPanel signedIn={!!user} />}
 
       <ul className="mt-10 space-y-5">
         {SOCIETY_BOOKS.map((b) => {
