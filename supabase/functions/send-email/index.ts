@@ -637,11 +637,11 @@ serve(async (req) => {
                   </tr>
                 </table>
               </div>
-              <div style="${emailStyles.successBox}">
+              ${data.creditReturned === false ? '' : `<div style="${emailStyles.successBox}">
                 <p style="margin: 0; font-family: Georgia, serif; color: #1C170F;">
                   ✓ Your class credit has been automatically refunded to your account.
                 </p>
-              </div>
+              </div>`}
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 We apologize for the inconvenience. You're welcome to book another class at your convenience.
               </p>
