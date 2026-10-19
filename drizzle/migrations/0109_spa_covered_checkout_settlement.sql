@@ -1,0 +1,2 @@
+ALTER TABLE public.spa_appointments ADD COLUMN IF NOT EXISTS covered_checkout jsonb;
+COMMENT ON COLUMN public.spa_appointments.covered_checkout IS 'Checkout settlement for voucher/credit-covered services: covered base price, actual extras collected, and extra tender. Original payment_method retains coverage; legacy credit amount_paid is not evidence of extras collection.';

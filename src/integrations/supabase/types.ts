@@ -13083,6 +13083,7 @@ export type Database = {
           checked_in_at: string | null
           cleanup_minutes: number
           completed_at: string | null
+          covered_checkout: Json | null
           created_at: string
           created_by_admin_name: string | null
           created_by_user_id: string | null
@@ -13125,6 +13126,7 @@ export type Database = {
           checked_in_at?: string | null
           cleanup_minutes?: number
           completed_at?: string | null
+          covered_checkout?: Json | null
           created_at?: string
           created_by_admin_name?: string | null
           created_by_user_id?: string | null
@@ -13167,6 +13169,7 @@ export type Database = {
           checked_in_at?: string | null
           cleanup_minutes?: number
           completed_at?: string | null
+          covered_checkout?: Json | null
           created_at?: string
           created_by_admin_name?: string | null
           created_by_user_id?: string | null

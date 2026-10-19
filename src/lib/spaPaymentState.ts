@@ -16,8 +16,11 @@ export function getSpaPaymentState(appt: any): SpaPaymentState {
   const method = String(appt?.payment_method || "");
   if (method === "no_charge") return { kind: "no_charge", paid: 0, label: "No charge" };
   // Vouchers and wellness credits cover the booked service; no money is collected.
-  if (method === "mothers_day_voucher") return { kind: "covered", paid: 0, label: "Covered · Mother's Day voucher" };
-  if (method === "credit") return { kind: "covered", paid: 0, label: "Covered · Credit" };
+  if (method === "mothers_day_voucher" || method === "credit") {
+    // Legacy credit amount_paid is service value, not collected extras.
+    const extrasPaid = Math.max(0, Number(appt?.covered_checkout?.amount_paid) || 0);
+    return { kind: "covered", paid: extrasPaid, label: method === "credit" ? "Covered · Credit" : "Covered · Mother's Day voucher" };
+  }
   if (paid <= 0) return { kind: "unpaid", paid: 0, label: "Not paid" };
   // Older self-bookings saved the price as amount_paid without collecting it.
   // Only explicit desk tenders or a card payment reference prove collection.
@@ -51,4 +54,31 @@ export function spaCheckoutPaymentError(method: string, balance: number, hasCard
 /** Amount still to collect after what was already paid. Never negative. */
 export function spaBalanceDue(newTotal: number, alreadyPaid: number): number {
   return Math.max(0, Math.round((newTotal - alreadyPaid) * 100) / 100);
+}
+
+/** Coverage offsets only the booked base service, never add-ons or tips. */
+export function spaCoveredServiceAmount(appt: any): number {
+  if (getSpaPaymentState(appt).kind !== "covered") return 0;
+  return Math.max(0, Number(appt?.covered_checkout?.service_amount ?? appt?.member_price ?? appt?.service_price) || 0);
+}
+
+/** Retain coverage while recording actual extra money separately. */
+export function spaCheckoutSettlement(appt: any, total: number, method: string, balance: number) {
+  const state = getSpaPaymentState(appt);
+  const collected = Math.round((state.paid + (method === "no_charge" ? 0 : balance)) * 100) / 100;
+  if (state.kind === "covered") {
+    return {
+      amount_paid: collected,
+      payment_method: appt.payment_method,
+      covered_checkout: {
+        service_amount: spaCoveredServiceAmount(appt),
+        amount_paid: collected,
+        payment_method: balance > 0 && method !== "no_charge" ? method : appt?.covered_checkout?.payment_method ?? null,
+      },
+    };
+  }
+  return {
+    amount_paid: method === "no_charge" && state.paid === 0 ? 0 : Math.max(total, state.paid),
+    payment_method: state.paid > 0 && balance === 0 ? (appt.payment_method || method) : method,
+  };
 }

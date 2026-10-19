@@ -22,7 +22,7 @@ import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { StaffIntakePanel } from "@/components/spa/StaffIntakePanel";
 import { useSpaAddons } from "@/hooks/useSpaManagement";
-import { getSpaPaymentState, spaBalanceDue, spaCheckoutPaymentError } from "@/lib/spaPaymentState";
+import { getSpaPaymentState, spaBalanceDue, spaCheckoutPaymentError, spaCoveredServiceAmount, spaCheckoutSettlement } from "@/lib/spaPaymentState";
 
 interface SelectedAddon {
   id: string;
@@ -221,8 +221,11 @@ export function SpaCompletionDialog({
   const totalAmount = Math.round((subtotal + tipAmount) * 100) / 100;
   const payState = getSpaPaymentState(appointment);
   const alreadyPaid = payState.paid;
-  const balanceDue = paymentMethod === "no_charge" ? 0 : spaBalanceDue(totalAmount, alreadyPaid);
-  const overpaid = Math.max(0, Math.round((alreadyPaid - totalAmount) * 100) / 100);
+  const isCovered = payState.kind === "covered";
+  const coveredAmount = Math.min(servicePrice, spaCoveredServiceAmount(appointment));
+  const uncoveredTotal = Math.round((totalAmount - coveredAmount) * 100) / 100;
+  const balanceDue = paymentMethod === "no_charge" ? 0 : spaBalanceDue(uncoveredTotal, alreadyPaid);
+  const overpaid = Math.max(0, Math.round((alreadyPaid - uncoveredTotal) * 100) / 100);
 
   const category = String((appointment as any).service_category || "").trim().toLowerCase();
   const serviceName = String(appointment.service_name || "").toLowerCase();
@@ -328,9 +331,7 @@ export function SpaCompletionDialog({
       // Update the appointment record
       const prepaidKind = payState.kind === "prepaid_online" || payState.kind === "paid_card";
       const updateData: Record<string, any> = {
-        amount_paid: paymentMethod === "no_charge" && alreadyPaid === 0 ? 0 : Math.max(totalAmount, alreadyPaid),
-        // Keep the original method when the prepayment covered everything
-        payment_method: alreadyPaid > 0 && balanceDue === 0 ? (appointment.payment_method || paymentMethod) : paymentMethod,
+        ...spaCheckoutSettlement(appointment, totalAmount, paymentMethod, balanceDue),
         tip_amount: tipAmount,
         tip_payment_method: tipAmount > 0 ? tipMethod : null,
         addons: chargedAddons,
@@ -384,7 +385,7 @@ export function SpaCompletionDialog({
       const recipientEmail =
         customer?.email || appointment.member?.email || appointment.user?.email || null;
 
-      if (sendReceipt && recipientEmail && paymentMethod !== "no_charge" && totalAmount > 0) {
+      if (sendReceipt && recipientEmail && paymentMethod !== "no_charge" && uncoveredTotal > 0) {
         try {
           const { error: emailError } = await supabase.functions.invoke("send-email", {
             body: {
@@ -394,15 +395,15 @@ export function SpaCompletionDialog({
                 name: memberName,
                 serviceName: appointment.service_name,
                 durationMinutes: totalDuration,
-                servicePrice: servicePrice.toFixed(2),
+                servicePrice: (servicePrice - coveredAmount).toFixed(2),
                 addons: chargedAddons.map((a) => ({
                   name: a.name,
                   price: a.price.toFixed(2),
                 })),
 
-                subtotal: subtotal.toFixed(2),
+                subtotal: (subtotal - coveredAmount).toFixed(2),
                 tip: tipAmount.toFixed(2),
-                amount: totalAmount.toFixed(2),
+                amount: uncoveredTotal.toFixed(2),
                 paymentMethod,
                 cardLabel:
                   paymentMethod === "card" && cardSource?.card_last4
@@ -461,7 +462,12 @@ export function SpaCompletionDialog({
 
         <div className="space-y-5">
           {/* Previous payment notice */}
-          {payState.kind === "unpaid" ? (
+          {isCovered ? (
+            <div className="p-3 rounded-lg bg-success/10 border border-success/40 text-sm">
+              <p className="font-medium text-success">{payState.label}</p>
+              {alreadyPaid > 0 && <p className="text-xs text-muted-foreground">Extras already paid — ${alreadyPaid.toFixed(2)}</p>}
+            </div>
+          ) : payState.kind === "unpaid" ? (
             <div className="p-3 rounded-lg bg-muted border text-sm">
               <p className="font-medium">Not paid yet</p>
               <p className="text-xs text-muted-foreground">
@@ -672,7 +678,7 @@ export function SpaCompletionDialog({
 
           {/* Payment method */}
           <div className="space-y-2">
-            <Label className="font-medium">Payment Method</Label>
+            <Label className="font-medium">{isCovered ? "Payment for extras" : "Payment Method"}</Label>
             <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="card" id="pm-card" disabled={!hasCardOnFile} />
@@ -792,12 +798,18 @@ export function SpaCompletionDialog({
                 <span className="font-medium">Total</span>
                 <span className={alreadyPaid > 0 ? "font-semibold" : "text-lg font-bold"}>${totalAmount.toFixed(2)}</span>
               </div>
-              {alreadyPaid > 0 && (
+              {(alreadyPaid > 0 || isCovered) && (
                 <>
-                  <div className="flex justify-between text-success">
+                  {isCovered && (
+                    <div className="flex justify-between text-success">
+                      <span>Service covered</span>
+                      <span>−${coveredAmount.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {alreadyPaid > 0 && <div className="flex justify-between text-success">
                     <span>Already paid</span>
                     <span>−${alreadyPaid.toFixed(2)}</span>
-                  </div>
+                  </div>}
                   <div className="flex justify-between items-center border-t pt-2">
                     <span className="font-medium">Balance due</span>
                     <span className="text-lg font-bold">${balanceDue.toFixed(2)}</span>
@@ -827,7 +839,7 @@ export function SpaCompletionDialog({
           )}
 
 
-          {paymentMethod === "card" && !hasCardOnFile && (
+          {paymentMethod === "card" && !hasCardOnFile && balanceDue > 0 && (
             <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <p>This customer has no card on file. Select a different payment method.</p>
@@ -846,7 +858,7 @@ export function SpaCompletionDialog({
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {paymentMethod === "card" && balanceDue > 0
               ? `Charge $${balanceDue.toFixed(2)}`
-              : alreadyPaid > 0 && balanceDue === 0
+              : (alreadyPaid > 0 || isCovered) && balanceDue === 0
               ? (retroactive ? "Save" : "Mark Complete — nothing due")
               : retroactive
               ? "Record Payment"
