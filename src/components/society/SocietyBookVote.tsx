@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCastVote, useEventVoteTallies, useMyEventVote } from "@/hooks/useEventVote";
-import { SOCIETY_BOOKS, SOCIETY_BOOK_VOTE_SLUG, coverUrl } from "@/lib/societyBooks";
+import { SOCIETY_BOOKS, SOCIETY_BOOK_VOTE_SLUG, coverUrl, isBookVoteOpen } from "@/lib/societyBooks";
 
 const gold = "text-[hsl(var(--society-gold))]";
 const muted = "text-[hsl(var(--society-muted))]";
@@ -51,20 +51,24 @@ export function SocietyBookVote() {
 
   const total = tallies[0]?.total_votes ?? 0;
   const countFor = (k: string) => tallies.find((t) => t.option_key === k)?.vote_count ?? 0;
-  const canVote = !!user && eligible === true;
+  const voteOpen = isBookVoteOpen();
+  const canVote = !!user && eligible === true && voteOpen;
 
   return (
     <section id="book-vote" className="container mx-auto px-4 sm:px-6 py-16 max-w-4xl border-b border-[hsl(var(--society-line)/0.5)]">
       <p className={`uppercase tracking-[0.35em] text-xs text-center ${gold}`}>Choose our first book</p>
       <h2 className="font-serif text-3xl sm:text-4xl text-center mt-3">The Book Vote</h2>
       <p className={`text-center mt-3 ${muted}`}>
-        {canVote
+        {!voteOpen
+          ? "Voting has closed. Thank you to everyone who voted."
+          : canVote
           ? myVote
-            ? "Thank you for voting. You can change your choice anytime."
+            ? "Thank you for voting. You can change your choice until Friday."
             : "Pick the one title you would most like to read together."
           : "Voting is reserved for members of the reading circle."}
         {total > 0 && ` · ${total} vote${total === 1 ? "" : "s"} so far`}
       </p>
+      {voteOpen && <p className={`text-center text-xs mt-2 tracking-wide ${gold}`}>Voting closes Friday, October 23 at 11:59 PM</p>}
 
       {!canVote && !isLoading && <NextRoundPanel signedIn={!!user} />}
 
