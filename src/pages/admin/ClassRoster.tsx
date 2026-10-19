@@ -473,6 +473,12 @@ export default function ClassRoster() {
         profile = data as any;
       }
 
+      // Only credits or passes the person actually used are returned. Comped and
+      // other unpaid bookings have nothing to give back.
+      const returnsCredit =
+        (booking.payment_method === "credits" && !!booking.member_credit_id) ||
+        (booking.payment_method === "pass" && !!booking.pass_id);
+
       if (booking.payment_method === "credits" && booking.member_credit_id) {
         const { data: credit } = await supabase
           .from("member_credits")
@@ -571,6 +577,7 @@ export default function ClassRoster() {
                 className: className || "Class",
                 date: formattedDate,
                 time: formattedTime,
+                creditReturned: returnsCredit,
               },
             },
           }).catch((err) => console.error("Failed to send removal email:", err));
@@ -578,11 +585,14 @@ export default function ClassRoster() {
       } catch (err) {
         console.error("Failed to prepare removal email:", err);
       }
+      return { returnsCredit };
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       invalidateAll();
       setRemoveTarget(null);
-      toast.success("Attendee removed — credit/pass restored, member notified");
+      toast.success(res?.returnsCredit
+        ? "Attendee removed — credit/pass restored, member notified"
+        : "Attendee removed — nothing to restore (not paid with a credit or pass), member notified");
     },
     onError: (err: any) => toast.error(err?.message || "Failed to remove"),
   });
@@ -1842,8 +1852,8 @@ export default function ClassRoster() {
           <DialogHeader>
             <DialogTitle>Remove {removeTarget?.name} from class</DialogTitle>
             <DialogDescription>
-              Choose how this cancellation should be recorded. Their credit/pass is returned either way and
-              they'll be notified by email.
+              Choose how this cancellation should be recorded. If they used a credit or pass it's returned
+              either way (comped spots have nothing to return), and they'll be notified by email.
               {removeTarget?.isCheckedIn && " This will also undo their check-in."}
             </DialogDescription>
           </DialogHeader>
