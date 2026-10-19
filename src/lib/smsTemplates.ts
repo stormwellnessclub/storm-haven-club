@@ -109,7 +109,7 @@ export const SMS_TEMPLATES: SmsTemplate[] = [
   {
     key: "guest-pass-invite",
     label: "Guest pass invitation",
-    category: "Guests",
+    category: "Admin",
     body: "Storm Wellness Club: {{memberName}} invited you as their guest on {{date}}. 18340 Middlebelt Rd, Livonia. Check in at the front desk. Details in your email.",
     triggers: "Sent to the guest when a member registers them with a complimentary guest pass (only if that phone has agreed to texts).",
     sampleVariables: { memberName: "Sarah", date: "Oct 24" },
