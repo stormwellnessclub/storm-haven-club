@@ -34,7 +34,6 @@ function Cover({ isbn, title }: { isbn: string; title: string }) {
 
 export function SocietyBookVote() {
   const { user } = useAuth();
-  const qc = useQueryClient();
   const { data: tallies = [] } = useEventVoteTallies(SOCIETY_BOOK_VOTE_SLUG);
   const { data: myVote } = useMyEventVote(SOCIETY_BOOK_VOTE_SLUG);
   const cast = useCastVote(SOCIETY_BOOK_VOTE_SLUG, "member");
@@ -112,8 +111,11 @@ export function SocietyBookVote() {
       </ul>
     </section>
   );
+}
 
-  function NextRoundPanel({ signedIn }: { signedIn: boolean }) {
+function NextRoundPanel({ signedIn }: { signedIn: boolean }) {
+    const { user } = useAuth();
+    const qc = useQueryClient();
     const [name, setName] = useState("");
     const [email, setEmail] = useState(user?.email ?? "");
     const [phone, setPhone] = useState("");
@@ -154,4 +156,3 @@ export function SocietyBookVote() {
       </div>
     );
   }
-}
