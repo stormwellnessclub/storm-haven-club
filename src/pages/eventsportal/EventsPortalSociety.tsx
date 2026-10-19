@@ -8,6 +8,7 @@ import { SOCIETY_RHYTHMS, useSocietyRoster, useUpdateGuestStatus, useAdminRemove
 import { SocietyInviteEmailControls } from "@/components/eventsportal/SocietyInviteEmailControls";
 import { SocietyLastCallControls } from "@/components/eventsportal/SocietyLastCallControls";
 import { SocietyAddPersonPanel } from "@/components/eventsportal/SocietyAddPersonPanel";
+import { SocietyGuestApprovePanel } from "@/components/eventsportal/SocietyGuestApprovePanel";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 
 export default function EventsPortalSociety() {
@@ -16,6 +17,7 @@ export default function EventsPortalSociety() {
   const remove = useAdminRemoveSocietyPerson();
   const [adding, setAdding] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const doRemove = async (id: string) => {
     try {
@@ -93,6 +95,7 @@ export default function EventsPortalSociety() {
                   <div className="flex gap-1 mt-1">
                     <Badge variant={r.is_member === false ? "outline" : "secondary"}>{r.is_member === false ? "Non-member" : "Member"}</Badge>
                     {r.source === "staff" && <Badge variant="outline">Added by staff</Badge>}
+                    {r.source === "guest" && <Badge variant="outline">Approved guest</Badge>}
                   </div>
                   {r.staff_note && <div className="text-xs text-muted-foreground mt-1 italic">{r.staff_note}</div>}
                 </td>
@@ -103,12 +106,14 @@ export default function EventsPortalSociety() {
                   {r.guest_requested ? (
                     <div className="space-y-1">
                       <div>{r.guest_name || "Guest"} <Badge variant="outline">{r.guest_status}</Badge></div>
-                      {r.guest_status === "pending" && (
+                      {r.guest_status === "pending" && (approvingId === r.id ? (
+                        <SocietyGuestApprovePanel hostId={r.id} onDone={() => setApprovingId(null)} />
+                      ) : (
                         <div className="flex gap-1">
-                          <Button size="sm" onClick={() => setGuest(r.id, "approved")}>Approve</Button>
+                          <Button size="sm" onClick={() => setApprovingId(r.id)}>Approve</Button>
                           <Button size="sm" variant="outline" onClick={() => setGuest(r.id, "declined")}>Decline</Button>
                         </div>
-                      )}
+                      ))}
                     </div>
                   ) : "—"}
                 </td>
