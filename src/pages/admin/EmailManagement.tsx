@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageCircle, Send, Clock, CheckCircle2, AlertCircle, Loader2, User, Mail, CircleDot } from "lucide-react";
+import { MessageCircle, Send, Clock, CheckCircle2, AlertCircle, Loader2, User, Mail, CircleDot, BellOff } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -248,6 +248,27 @@ export default function EmailManagement() {
     },
   });
 
+  // Mark received — silences the reminder bell for this request on every device
+  const acknowledge = useMutation({
+    mutationFn: async ({ conversationId, acknowledged }: { conversationId: string; acknowledged: boolean }) => {
+      const { error } = await (supabase.rpc as any)('kiosk_acknowledge_conversation', {
+        p_conversation_id: conversationId,
+        p_staff_name: user?.email || 'Staff',
+        p_acknowledged: acknowledged,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-email-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-support-notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['checkin-support-conversations'] });
+      toast({ title: vars.acknowledged ? "Marked received — reminder silenced" : "Reminder re-enabled" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Couldn't update this request. Please try again.", variant: "destructive" });
+    },
+  });
+
   // Quick mark as resolved
   const handleMarkResolved = () => {
     if (selectedConversation) {
@@ -430,6 +451,9 @@ export default function EmailManagement() {
                               {(conversation as any).category === 'class_support' && (
                                 <Badge variant="outline" className="text-xs bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">Class Support</Badge>
                               )}
+                              {(conversation as any).acknowledged_at && conversation.status !== 'resolved' && conversation.status !== 'closed' && (
+                                <Badge variant="secondary" className="text-xs">Received</Badge>
+                              )}
                               <Badge variant={status.variant} className="text-xs">
                                 {status.icon}
                                 <span className="ml-1">{status.label}</span>
@@ -465,11 +489,28 @@ export default function EmailManagement() {
                       ) : (
                         'Unknown member'
                       )}
+                      {(selectedConv as any).acknowledged_at && (
+                        <span className="block text-xs mt-1">
+                          Received by {(selectedConv as any).acknowledged_by_name || 'staff'} · {format(new Date((selectedConv as any).acknowledged_at), 'MMM d, h:mm a')}
+                        </span>
+                      )}
                     </CardDescription>
                   )}
                 </div>
                 {selectedConv && (
                   <div className="flex items-center gap-2">
+                    {selectedConv.status !== 'resolved' && selectedConv.status !== 'closed' && (
+                      <Button
+                        variant={(selectedConv as any).acknowledged_at ? "ghost" : "default"}
+                        size="sm"
+                        onClick={() => acknowledge.mutate({ conversationId: selectedConv.id, acknowledged: !(selectedConv as any).acknowledged_at })}
+                        disabled={acknowledge.isPending}
+                        title={(selectedConv as any).acknowledged_at ? "Bell will start reminding again" : "Stops the reminder bell for this request"}
+                      >
+                        <BellOff className="h-4 w-4 mr-1" />
+                        {(selectedConv as any).acknowledged_at ? "Undo received" : "Mark received"}
+                      </Button>
+                    )}
                     {selectedConv.status !== 'resolved' && selectedConv.status !== 'closed' && (
                       <Button 
                         variant="outline" 
