@@ -10,6 +10,7 @@ import { SocietyLastCallControls } from "@/components/eventsportal/SocietyLastCa
 import { SocietyAddPersonPanel } from "@/components/eventsportal/SocietyAddPersonPanel";
 import { SocietyGuestApprovePanel } from "@/components/eventsportal/SocietyGuestApprovePanel";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
+import { SocietyBookVoteAdmin } from "@/components/eventsportal/SocietyBookVoteAdmin";
 
 export default function EventsPortalSociety() {
   const { data: rows = [], isLoading } = useSocietyRoster();
@@ -71,6 +72,7 @@ export default function EventsPortalSociety() {
         <Card><CardHeader><CardTitle className="text-sm">Top themes</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-1">{Object.entries(themeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, n]) => <div key={t} className="flex justify-between"><span>{t}</span><b>{n}</b></div>)}</CardContent></Card>
       </div>
+      <SocietyBookVoteAdmin />
       <div className="flex justify-between items-center mb-3 gap-2">
         <h2 className="font-semibold">Roster</h2>
         <div className="flex gap-2">
