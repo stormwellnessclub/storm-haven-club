@@ -2606,6 +2606,44 @@ serve(async (req) => {
         `;
         break;
 
+      case 'society_guest_approved_host':
+      case 'society_guest_welcome': {
+        const escS = (v: unknown) => String(v ?? '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;').slice(0, 200);
+        const isHost = type === 'society_guest_approved_host';
+        const hostName = escS(data.hostName) || 'A member';
+        const guestName = escS(data.guestName) || 'there';
+        const signupUrl = `${BASE_URL}/auth?mode=signup&email=${encodeURIComponent(String(to || ''))}`;
+        subject = isHost
+          ? `Your guest seat for ${guestName} is confirmed — Higher Self Society`
+          : `${hostName} reserved a seat for you at Higher Self Society`;
+        const bodyHtml = isHost
+          ? `<h2 style="${emailStyles.heading}">Dear ${hostName},</h2>
+             <p style="font-size:16px;line-height:1.8;color:#374151;">Your guest seat for <strong>${guestName}</strong> in the Higher Self Society founding circle is confirmed.</p>
+             <p style="font-size:16px;line-height:1.8;color:#374151;">We've sent ${guestName} a welcome note, and they'll receive the same reading selections and gathering details you do.</p>`
+          : `<h2 style="${emailStyles.heading}">Dear ${guestName},</h2>
+             <p style="font-size:16px;line-height:1.8;color:#374151;">${hostName} has reserved a guest seat for you in the Higher Self Society, the founding reading circle at Storm Wellness Club.</p>
+             <p style="font-size:16px;line-height:1.8;color:#374151;">We gather one Thursday evening a month, 7:00 to 9:00 PM, at 18340 Middlebelt Rd, Livonia. You'll receive our book selection and gathering dates by email.</p>
+             ${data.waiverSigned
+               ? `<p style="font-size:15px;line-height:1.8;color:#374151;">Your liability waiver is already on file, so there's nothing more you need to do.</p>`
+               : `<p style="font-size:15px;line-height:1.8;color:#374151;">Before the first gathering, please create your account with this email and sign the liability waiver.</p>
+                  <div style="text-align:center;margin:24px 0;"><a href="${signupUrl}" style="${emailStyles.button}">Create Account &amp; Sign Waiver</a></div>`}`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              ${bodyHtml}
+              <p style="font-size:14px;color:#6b7280;">Questions? Reply to this email or call (248) 232-8487.</p>
+              <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;">
+                <p style="font-style:italic;color:#6b7280;margin-bottom:5px;">With warmth,</p>
+                <p style="font-weight:600;color:#1f2937;margin:0;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getReceiptFooter()}
+          </div>`;
+        break;
+      }
       case 'guest_pass_invite': {
         const escI = (v: unknown) => String(v ?? '')
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
