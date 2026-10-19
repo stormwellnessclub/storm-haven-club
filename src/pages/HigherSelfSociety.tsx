@@ -1,4 +1,5 @@
 import { societySignupsClosed } from "@/lib/societySignup";
+import { SocietyBookVote } from "@/components/society/SocietyBookVote";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -118,6 +119,8 @@ export default function HigherSelfSociety() {
             <img key={alt} src={img.url} alt={alt} className="w-full aspect-square object-cover" loading="lazy" />
           ))}
         </section>
+
+        <SocietyBookVote />
 
         {/* Form or access message */}
         <section className="container mx-auto px-6 py-20 max-w-2xl">
