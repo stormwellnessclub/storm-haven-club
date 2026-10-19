@@ -47,6 +47,14 @@ describe("spa payment state", () => {
   it("records $195 only after a card payment reference is returned", () => {
     expect(spaBookingAmountPaid(195, "card", "pi_success")).toBe(195);
   });
+  it("Mother's Day voucher appointment shows as covered, not unpaid", () => {
+    const s = getSpaPaymentState({ amount_paid: 0, payment_method: "mothers_day_voucher", status: "confirmed" });
+    expect(s.kind).toBe("covered");
+    expect(s.paid).toBe(0);
+  });
+  it("credit appointment shows as covered", () => {
+    expect(getSpaPaymentState({ amount_paid: 0, payment_method: "credit", status: "confirmed" }).kind).toBe("covered");
+  });
   it("does not record voucher coverage as money collected", () => {
     expect(spaBookingAmountPaid(195, "mothers_day_voucher")).toBe(0);
   });
