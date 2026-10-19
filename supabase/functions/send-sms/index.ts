@@ -80,6 +80,8 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
       `Storm Wellness Club: You're on the waitlist for {{className}} on {{date}} at {{time}}. We'll text if a spot opens.`,
       v,
     ),
+  "guest-pass-invite": (v) =>
+    tmpl(`Storm Wellness Club: {{memberName}} invited you as their guest on {{date}}. 18340 Middlebelt Rd, Livonia. Check in at the front desk. Details in your email.`, v),
   "appointment-confirmation": (v) =>
     tmpl(
       `Storm Wellness Club: {{service}} confirmed for {{date}} at {{time}} with {{provider}}.`,

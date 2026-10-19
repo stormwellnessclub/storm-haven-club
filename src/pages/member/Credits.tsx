@@ -614,6 +614,7 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
   const [visitDate, setVisitDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [inviteSent, setInviteSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -639,6 +640,14 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
         throw new Error(result?.error || "Failed to redeem guest pass credit");
       }
 
+      try {
+        const { data: inv } = await supabase.functions.invoke("send-guest-pass-invite", {
+          body: { guestPassId: result.guest_pass_id },
+        });
+        setInviteSent(!!(inv?.emailSent || inv?.textSent));
+      } catch (inviteErr) {
+        console.error("Guest invite failed:", inviteErr);
+      }
       setIsRegistered(true);
       queryClient.invalidateQueries({ queryKey: ["user-credits"] });
       toast.success("Guest registered successfully!");
@@ -661,6 +670,11 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
               Your guest <strong>{guestFirstName} {guestLastName}</strong> is all set for their visit on{" "}
               {format(parseISO(visitDate), "MMMM d, yyyy")}.
             </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              {inviteSent
+                ? `We've sent ${guestFirstName} an invitation with the date, address and a link to sign the waiver.`
+                : `We couldn't send ${guestFirstName} an invitation — please share the visit details with them.`}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -678,7 +692,7 @@ function GuestPassRegistrationCard({ credit, memberId }: GuestPassRegistrationCa
           <CardTitle>Complimentary Guest Pass</CardTitle>
         </div>
         <CardDescription>
-          You have a free guest pass! Register your guest below to reserve their visit.
+          You have a complimentary guest pass. Register your guest below and we'll send them an invitation.
           {daysLeft > 0 && (
             <span className="block mt-1 text-xs">
               Expires in {daysLeft} day{daysLeft > 1 ? "s" : ""}
