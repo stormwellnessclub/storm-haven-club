@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Unify abandoned applications into a full searchable roster with time/stage filters and visible-list CSV export
+- [ ] Verify abandoned roster with real staff data — preview sign-in returns Access Denied; isolated controls and tests passed
+
 - [x] Preserve spa voucher/credit coverage at checkout and collect only uncovered extras without changing live appointments
 
 - [x] Correct unpaid spa payment badges, booking records, and checkout balances without changing live appointments

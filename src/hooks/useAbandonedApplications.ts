@@ -16,6 +16,8 @@ export interface AbandonedAttempt {
   metadata: {
     applicant_email?: string;
     applicant_name?: string;
+    applicant_phone?: string;
+    phone?: string;
   } | null;
   possibleDuplicateOf?: string | null;
   filterReason: FilterReason;
@@ -67,20 +69,23 @@ const TEST_EMAIL_PATTERN = /(test@|@example\.com|@test\.com)/i;
 
 const normalizeName = (v?: string | null) => (v || "").toLowerCase().replace(/[^a-z]/g, "");
 
-/** An attempt is only "resolved" when the matching record was created at/after the attempt. */
-const RESOLVED_GRACE_MS = 60 * 60 * 1000; // 1h grace for records written just before the attempt row
-
-function resolvedAfter(recordAt: string | null | undefined, attemptAt: string) {
-  if (!recordAt) return false;
-  return new Date(recordAt).getTime() >= new Date(attemptAt).getTime() - RESOLVED_GRACE_MS;
+/** Page through every record rather than relying on the API row cap. */
+async function allPages<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await fetchPage(offset, offset + 499);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < 500) return rows;
+  }
 }
 
 async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult> {
   // Only attempts that came from the public application form can be leads.
   // Anything tied to a member record, or made in the member/admin portal, is
   // card maintenance for an existing member and never belongs in this list.
-  const [{ data, error }, memberUpdatesRes] = await Promise.all([
-    supabase
+  const [data, memberUpdatesRes] = await Promise.all([
+    allPages((from, to) => supabase
       .from("card_setup_attempts")
       .select(
         "id, member_id, stripe_customer_id, status, source, created_at, reminder_sent_at, reminder_count, card_brand, card_last4, metadata",
@@ -90,7 +95,7 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       .eq("source", "self_service")
       .in("status", ["initiated", "abandoned", "failed", "succeeded"])
       .order("created_at", { ascending: false })
-      .limit(2000),
+      .order("id").range(from, to)),
     supabase
       .from("card_setup_attempts")
       .select("id", { count: "exact", head: true })
@@ -98,9 +103,9 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
       .not("member_id", "is", null),
   ]);
 
-  if (error) throw error;
+  if (memberUpdatesRes.error) throw memberUpdatesRes.error;
 
-  const rows = (data || []) as any[];
+  const rows = data as any[];
 
   // Rows with no identity captured at all — never dropped silently.
   const incomplete: AbandonedAttempt[] = [];
@@ -127,9 +132,9 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
     else byEmail.set(email, [attempt]);
   }
 
-  const [appsRes, membersRes] = await Promise.all([
-    supabase.from("membership_applications").select("email, full_name, created_at"),
-    supabase.from("members").select("email, first_name, last_name, created_at"),
+  const [appRows, memberRows] = await Promise.all([
+    allPages((from, to) => supabase.from("membership_applications").select("email, full_name, created_at").order("id").range(from, to)),
+    allPages((from, to) => supabase.from("members").select("email, first_name, last_name, created_at").order("id").range(from, to)),
   ]);
 
   // email -> newest record timestamp
@@ -140,12 +145,12 @@ async function fetchAbandonedApplications(): Promise<AbandonedApplicationsResult
     const prev = map.get(key);
     if (!prev || new Date(at).getTime() > new Date(prev).getTime()) map.set(key, at);
   };
-  for (const row of (appsRes.data || []) as any[]) {
+  for (const row of appRows as any[]) {
     if (row.email) keepNewest(appEmails, String(row.email).toLowerCase().trim(), row.created_at);
     const n = normalizeName(row.full_name);
     if (n) knownNames.set(n, row.email || row.full_name);
   }
-  for (const row of (membersRes.data || []) as any[]) {
+  for (const row of memberRows as any[]) {
     if (row.email)
       keepNewest(memberEmails, String(row.email).toLowerCase().trim(), row.created_at);
     const n = normalizeName(`${row.first_name || ""}${row.last_name || ""}`);
