@@ -1,78 +1,33 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { neutralizeCsvFormula } from "@/lib/csvSafe";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Loader2,
-  Send,
-  Mail,
-  Clock,
-  AlertCircle,
-  AlertTriangle,
-  CreditCard,
-  Download,
-  RefreshCw,
-  Eye,
-  HelpCircle,
-} from "lucide-react";
+import { Loader2, Send, Download, RefreshCw, Eye, Search } from "lucide-react";
 import { toast } from "sonner";
-import { format } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
+import { useAbandonedApplications, type AbandonedAttempt } from "@/hooks/useAbandonedApplications";
+import { applicationRoster, filterApplicationRoster, type RosterFilter, type SubmitFailure } from "@/lib/abandonedApplicationRoster";
 
 const CLUB_TZ = "America/Detroit";
-
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  useAbandonedApplications,
-  type AbandonedAttempt,
-  type FilterReason,
-} from "@/hooks/useAbandonedApplications";
-
-
-interface SubmitFailure {
-  id: string;
-  created_at: string;
-  status: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  phone: string | null;
-  error_message: string | null;
-  payload: Record<string, unknown> | null;
-}
-
-
-const REASON_LABEL: Record<FilterReason, string> = {
-  none: "",
-  already_applied: "Already applied",
-  already_member: "Already a member",
-  test_email: "Test record",
-};
+const dateLabel = (iso: string) => formatInTimeZone(new Date(iso), CLUB_TZ, "MMM d, yyyy h:mm a");
+const FILTERS: { key: RosterFilter; label: string }[] = [
+  { key: "unfinished", label: "All abandoned leads" },
+  { key: "week", label: "Started this week" },
+  { key: "month", label: "Started this month" },
+  { key: "card", label: "Card saved" },
+  { key: "no_card", label: "No card" },
+  { key: "failed", label: "Failed submits" },
+  { key: "history", label: "All history" },
+];
 
 function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows
-    .map((r) => r.map((c) => `"${neutralizeCsvFormula(c ?? "").replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+  const csv = rows.map(r => r.map(c => `"${neutralizeCsvFormula(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
@@ -87,58 +42,36 @@ export function AbandonedApplicationsTab() {
   const [isBulkSending, setIsBulkSending] = useState(false);
   const [isReconciling, setIsReconciling] = useState(false);
   const [payloadView, setPayloadView] = useState<SubmitFailure | null>(null);
-  const [showResolved, setShowResolved] = useState(true);
-  // Shown by default: these records are counted in the "with no email" figures above,
-  // so hiding them would make the headline numbers unverifiable on screen.
-  const [showIncomplete, setShowIncomplete] = useState(true);
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set());
-  const appliedRef = useRef<HTMLElement | null>(null);
-  const memberRef = useRef<HTMLElement | null>(null);
-
-
-  // ---- Failed / unresolved submit attempts (the provable group) -------------
-  const { data: submitFailures = [], isLoading: loadingFailures } = useQuery({
+  const [filter, setFilter] = useState<RosterFilter>("unfinished");
+  const [search, setSearch] = useState("");
+  const { data: submitFailures = [], isLoading: loadingFailures, error: failuresError } = useQuery({
     queryKey: ["application-submit-failures"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("application_submit_attempts")
-        .select(
-          "id, created_at, status, first_name, last_name, email, phone, error_message, payload",
-        )
-        .in("status", ["pending", "failed"])
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-
-      // A `pending` row younger than 5 minutes may still be in flight.
+      const all: SubmitFailure[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const { data, error } = await supabase.from("application_submit_attempts")
+          .select("id, created_at, status, first_name, last_name, email, phone, error_message, payload")
+          .in("status", ["pending", "failed"]).order("created_at", { ascending: false }).order("id").range(offset, offset + 499);
+        if (error) throw error;
+        const page = (data || []) as unknown as SubmitFailure[];
+        all.push(...page);
+        if (page.length < 500) break;
+      }
       const cutoff = Date.now() - 5 * 60 * 1000;
-      return ((data || []) as SubmitFailure[]).filter(
-        (r) => r.status === "failed" || new Date(r.created_at).getTime() < cutoff,
-      );
+      return all.filter(r => r.status === "failed" || new Date(r.created_at).getTime() < cutoff);
     },
   });
-
-  // ---- Card setup attempts, split by real Stripe outcome -------------------
-  const { data: grouped, isLoading } = useAbandonedApplications();
-
-
+  const { data: grouped, isLoading, error: attemptsError } = useAbandonedApplications();
   const cardSaved = grouped?.cardSaved ?? [];
   const noCard = grouped?.noCard ?? [];
-  const appliedLater = grouped?.appliedLater ?? [];
-  const memberLater = grouped?.memberLater ?? [];
-  const testRows = grouped?.testRows ?? [];
-  const incomplete = useMemo(() => grouped?.incomplete ?? [], [grouped]);
-  const totals = grouped?.totals;
-
-  const revealResolved = (target: "applied" | "member") => {
-    setShowResolved(true);
-    setTimeout(() => {
-      const el = target === "applied" ? appliedRef.current : memberRef.current;
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  };
-
-
+  const roster = useMemo(() => applicationRoster(grouped, submitFailures), [grouped, submitFailures]);
+  const visible = filterApplicationRoster(roster, filter, search);
+  const selectable = visible.filter(r => r.unfinished && r.attempt?.filterReason === "none" && r.email && r.attempt.metadata?.applicant_name);
+  const exportVisible = () => downloadCsv(`abandoned-applications-${filter}.csv`, [
+    ["Name", "Email", "Phone", "Started (Michigan time)", "Stage", "Card", "Attempts", "Reminders", "Last reminder (Michigan time)", "Error", "Stripe customer"],
+    ...visible.map(r => [r.name, r.email, r.phone, dateLabel(r.createdAt), r.stage, r.attempt?.card_last4 ? `${r.attempt.card_brand || "Card"} ****${r.attempt.card_last4}` : "", String(r.dates.length), String(r.attempt?.reminder_count || 0), r.attempt?.reminder_sent_at ? dateLabel(r.attempt.reminder_sent_at) : "", r.failure?.error_message || "", r.attempt?.stripe_customer_id || ""]),
+  ]);
   const sendReminderMutation = useMutation({
     mutationFn: async ({ id, email, name }: { id: string; email: string; name: string }) => {
       const { data, error } = await supabase.functions.invoke("send-application-reminder", {
@@ -266,573 +199,50 @@ export function AbandonedApplicationsTab() {
     }
   };
 
-  const exportGroup = (rows: AbandonedAttempt[], label: string) => {
-    if (rows.length === 0) {
-      toast.error("Nothing to export");
-      return;
-    }
-    downloadCsv(`${label}-${format(new Date(), "yyyy-MM-dd")}.csv`, [
-      [
-        "Name",
-        "Email",
-        "Date started",
-        "Card",
-        "Status",
-        "Attempts",
-        "Reminders",
-        "Filtered because",
-        "Stripe customer",
-      ],
-      ...rows.map((a) => [
-        a.metadata?.applicant_name || "",
-        a.metadata?.applicant_email || "",
-        format(new Date(a.created_at), "MMM d, yyyy"),
-        a.card_brand ? `${a.card_brand} ****${a.card_last4}` : "",
-        a.status,
-        String(a.attemptCount),
-        String(a.reminder_count || 0),
-        REASON_LABEL[a.filterReason],
-        a.stripe_customer_id || "",
-      ]),
-    ]);
-  };
 
-  const exportEverythingShown = () => {
-    const rows = [
-      ...cardSaved,
-      ...noCard,
-      ...(showResolved ? [...appliedLater, ...memberLater, ...testRows] : []),
-      ...(showIncomplete ? incomplete : []),
-    ];
-    exportGroup(rows, "abandoned-applications-visible");
-  };
+  if (isLoading || loadingFailures) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  if (attemptsError || failuresError) return <div role="alert" className="text-destructive">Could not load applications. <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: ["abandoned-applications"] }); queryClient.invalidateQueries({ queryKey: ["application-submit-failures"] }); }}>Try again</Button></div>;
 
-
-  const exportFailures = () => {
-    if (submitFailures.length === 0) {
-      toast.error("Nothing to export");
-      return;
-    }
-    downloadCsv(`failed-submits-${format(new Date(), "yyyy-MM-dd")}.csv`, [
-      ["Name", "Email", "Phone", "Attempted", "Status", "Error"],
-      ...submitFailures.map((f) => [
-        `${f.first_name || ""} ${f.last_name || ""}`.trim(),
-        f.email || "",
-        f.phone || "",
-        format(new Date(f.created_at), "MMM d, yyyy h:mm a"),
-        f.status,
-        f.error_message || "",
-      ]),
-    ]);
-  };
-
-  const renderAttemptTable = (
-    rows: AbandonedAttempt[],
-    showCard: boolean,
-    selectable = true,
-  ) => (
+  return <div className="space-y-4">
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-lg font-semibold">Abandoned applications</h2>
+        <p className="text-xs text-muted-foreground">{roster.length} total records · Latest activity: {roster[0] ? dateLabel(roster[0].createdAt) : "—"}</p>
+        <p className="text-xs text-muted-foreground">{grouped?.totals.memberCardUpdates ?? 0} member card updates excluded</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" onClick={exportVisible} disabled={!visible.length}><Download className="mr-2 h-4 w-4" />Export list</Button>
+        <Button size="sm" variant="outline" onClick={handleReconcile} disabled={isReconciling}><RefreshCw className={`mr-2 h-4 w-4 ${isReconciling ? "animate-spin" : ""}`} />Re-check with Stripe</Button>
+        {selectedIds.size > 0 && <Button size="sm" onClick={handleBulkSend} disabled={isBulkSending}><Send className="mr-2 h-4 w-4" />Send reminders ({selectedIds.size})</Button>}
+      </div>
+    </div>
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Application filters">
+      {FILTERS.map(f => <Button key={f.key} size="sm" variant={filter === f.key ? "default" : "outline"} aria-pressed={filter === f.key} onClick={() => { setFilter(f.key); setSelectedIds(new Set()); }}>{f.label} <span className="ml-2 tabular-nums">{filterApplicationRoster(roster, f.key).length}</span></Button>)}
+    </div>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative w-full sm:max-w-sm"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input aria-label="Search abandoned applications" placeholder="Search name, email or phone" className="pl-9" value={search} onChange={e => { setSearch(e.target.value); setSelectedIds(new Set()); }} /></div>
+      <span className="text-sm text-muted-foreground">{visible.length} {visible.length === 1 ? "person" : "people"} shown</span>
+    </div>
     <Table>
-      <TableHeader>
-        <TableRow>
-          {selectable && <TableHead className="w-10" />}
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Date Started</TableHead>
-          {showCard && <TableHead>Card</TableHead>}
-          <TableHead>{selectable ? "Source" : "Outcome"}</TableHead>
-          <TableHead>{selectable ? "Reminder Status" : "Attempts"}</TableHead>
-          {selectable && <TableHead className="text-right">Actions</TableHead>}
-        </TableRow>
-      </TableHeader>
+      <TableHeader><TableRow>
+        <TableHead className="w-10"><Checkbox aria-label="Select visible reminder recipients" disabled={!selectable.length} checked={selectable.length > 0 && selectable.every(r => selectedIds.has(r.id))} onCheckedChange={checked => setSelectedIds(checked ? new Set(selectable.map(r => r.id)) : new Set())} /></TableHead>
+        <TableHead>Applicant</TableHead><TableHead>Started · Michigan time</TableHead><TableHead>Stage / Card</TableHead><TableHead>Reminders</TableHead><TableHead className="text-right">Actions</TableHead>
+      </TableRow></TableHeader>
       <TableBody>
-        {rows.map((attempt) => {
-          const name = attempt.metadata?.applicant_name || "Unknown";
-          const email = attempt.metadata?.applicant_email || "Unknown";
-          const reminderCount = attempt.reminder_count || 0;
-          const expanded = expandedAttempts.has(attempt.id);
-
-          return (
-            <TableRow key={attempt.id}>
-              {selectable && (
-                <TableCell>
-                  <Checkbox
-                    checked={selectedIds.has(attempt.id)}
-                    onCheckedChange={(checked) => handleSelectOne(attempt.id, !!checked)}
-                  />
-                </TableCell>
-              )}
-              <TableCell className="font-medium">
-                {name}
-                {attempt.possibleDuplicateOf && (
-                  <Badge variant="outline" className="ml-2 text-[10px] text-muted-foreground">
-                    Possible duplicate of {attempt.possibleDuplicateOf}
-                  </Badge>
-                )}
-                {attempt.attemptCount > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => toggleAttempts(attempt.id)}
-                    className="ml-2 text-[10px] underline text-muted-foreground"
-                  >
-                    {attempt.attemptCount} attempts
-                  </button>
-                )}
-                {expanded && (
-                  <div className="mt-1 text-[10px] text-muted-foreground space-y-0.5">
-                    {attempt.attemptDates.map((d) => (
-                      <div key={d}>{format(new Date(d), "MMM d, yyyy h:mm a")}</div>
-                    ))}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{email}</TableCell>
-              <TableCell className="text-muted-foreground">
-                {format(new Date(attempt.created_at), "MMM d, yyyy")}
-              </TableCell>
-              {showCard && (
-                <TableCell className="text-muted-foreground text-sm">
-                  {attempt.card_brand
-                    ? `${attempt.card_brand} ****${attempt.card_last4}`
-                    : "On file"}
-                </TableCell>
-              )}
-              <TableCell>
-                {selectable ? (
-                  <Badge variant="outline" className="text-xs">
-                    {attempt.source === "self_service" ? "Self-Service" : attempt.source}
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="text-xs">
-                    {REASON_LABEL[attempt.filterReason]}
-                    {attempt.resolvedAt
-                      ? ` ${format(new Date(attempt.resolvedAt), "MMM d, yyyy")}`
-                      : ""}
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell>
-                {selectable ? (
-                  reminderCount > 0 ? (
-                    <Badge className="bg-accent/20 text-accent-foreground">
-                      <Mail className="h-3 w-3 mr-1" />
-                      Sent ({reminderCount})
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Not sent
-                    </Badge>
-                  )
-                ) : (
-                  <span className="text-xs text-muted-foreground">{attempt.attemptCount}</span>
-                )}
-              </TableCell>
-              {selectable && (
-                <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleSendReminder(attempt)}
-                    disabled={sendingId === attempt.id}
-                  >
-                    {sendingId === attempt.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <Send className="h-4 w-4 mr-1" />
-                        Send Reminder
-                      </>
-                    )}
-                  </Button>
-                </TableCell>
-              )}
-            </TableRow>
-          );
-        })}
+        {!visible.length && <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">{search ? "No matching applications." : filter === "unfinished" ? "No unfinished applications recorded." : "No applications in this view."}</TableCell></TableRow>}
+        {visible.map(r => <TableRow key={r.id}>
+          <TableCell>{selectable.some(s => s.id === r.id) && <Checkbox aria-label={`Select ${r.name}`} checked={selectedIds.has(r.id)} onCheckedChange={checked => handleSelectOne(r.id, !!checked)} />}</TableCell>
+          <TableCell className="min-w-[200px] max-w-[320px]">
+            <div className="font-medium break-words">{r.name}</div><div className="text-xs text-muted-foreground break-all">{r.email || "No email captured"}</div>{r.phone && <div className="text-xs text-muted-foreground">{r.phone}</div>}
+            {r.attempt?.possibleDuplicateOf && <div className="text-xs text-muted-foreground break-all">Possible duplicate: {r.attempt.possibleDuplicateOf}</div>}
+          </TableCell>
+          <TableCell className="min-w-[175px]"><div className="text-xs">{dateLabel(r.createdAt)}</div>{r.dates.length > 1 && <Button size="sm" variant="link" className="h-auto px-0 text-xs" onClick={() => toggleAttempts(r.id)}>{r.dates.length} attempts</Button>}{expandedAttempts.has(r.id) && <div className="space-y-1 text-xs text-muted-foreground">{r.dates.map(d => <div key={d}>{dateLabel(d)}</div>)}</div>}</TableCell>
+          <TableCell className="min-w-[165px]"><Badge variant={r.unfinished ? "outline" : "secondary"}>{r.stage}</Badge>{r.attempt?.card_last4 && <div className="mt-1 text-xs text-muted-foreground">{r.attempt.card_brand} ****{r.attempt.card_last4}</div>}{r.attempt?.resolvedAt && <div className="mt-1 text-xs text-muted-foreground">On file: {dateLabel(r.attempt.resolvedAt)}</div>}{!r.email && <div className="mt-1 text-xs text-muted-foreground">{r.attempt?.stripe_customer_id}</div>}{r.failure?.error_message && <div className="mt-1 max-w-[240px] break-words text-xs text-destructive">{r.failure.error_message}</div>}</TableCell>
+          <TableCell className="min-w-[140px]"><span className="text-xs">{r.attempt?.reminder_count ? `${r.attempt.reminder_count} sent` : "Not sent"}</span>{r.attempt?.reminder_sent_at && <div className="text-xs text-muted-foreground">{dateLabel(r.attempt.reminder_sent_at)}</div>}</TableCell>
+          <TableCell><div className="flex justify-end gap-2">{r.failure && <Button size="sm" variant="outline" onClick={() => setPayloadView(r.failure ?? null)}><Eye className="mr-1 h-4 w-4" />Answers</Button>}{selectable.some(s => s.id === r.id) && r.attempt && <Button size="sm" variant="outline" disabled={sendingId === r.id || isBulkSending} onClick={() => { if (r.attempt) handleSendReminder(r.attempt); }}>{sendingId === r.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="mr-1 h-4 w-4" />Remind</>}</Button>}</div></TableCell>
+        </TableRow>)}
       </TableBody>
     </Table>
-  );
-
-
-  if (isLoading || loadingFailures) {
-    return (
-      <div className="flex items-center justify-center h-32">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  const nothing =
-    submitFailures.length === 0 &&
-    cardSaved.length === 0 &&
-    noCard.length === 0 &&
-    appliedLater.length === 0 &&
-    memberLater.length === 0 &&
-    testRows.length === 0 &&
-    incomplete.length === 0;
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between gap-2 flex-wrap">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">
-            {submitFailures.length} failed submit{submitFailures.length !== 1 ? "s" : ""} ·{" "}
-            {cardSaved.length} card saved · {noCard.length} never entered a card
-          </p>
-          {totals && (
-            <p className="text-xs text-muted-foreground">
-              {totals.people} people · {totals.rows} card-setup attempts ·{" "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => revealResolved("applied")}
-              >
-                {totals.alreadyApplied + totals.alreadyMember + totals.testRows} finished later (
-                {totals.alreadyApplied} applied, {totals.alreadyMember} members,{" "}
-                {totals.testRows} test)
-              </button>{" "}
-              ·{" "}
-              <button
-                type="button"
-                className="underline"
-                onClick={() => setShowIncomplete((v) => !v)}
-              >
-                {incomplete.length} with no email captured
-              </button>
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={exportEverythingShown}>
-            <Download className="h-4 w-4 mr-2" />
-            Export what's shown
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleReconcile} disabled={isReconciling}>
-            {isReconciling ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Re-check with Stripe
-          </Button>
-          {selectedIds.size > 0 && (
-            <Button size="sm" onClick={handleBulkSend} disabled={isBulkSending}>
-              {isBulkSending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4 mr-2" />
-              )}
-              Send Reminders ({selectedIds.size})
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Last activity — proves tracking is live */}
-      {totals && (
-        <div className="grid gap-3 sm:grid-cols-5 rounded-lg border bg-muted/30 p-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Last person started</p>
-            <p className="text-sm font-semibold">
-              {totals.lastAttemptAt
-                ? formatInTimeZone(new Date(totals.lastAttemptAt), CLUB_TZ, "MMM d, yyyy h:mm a")
-                : "—"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Started this week</p>
-            <p className="text-sm font-semibold">
-              {totals.people7} {totals.people7 === 1 ? "person" : "people"}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {totals.last7} attempts · {totals.unfinished7} still unfinished
-              {totals.incomplete7 > 0 && <> · {totals.incomplete7} with no email</>}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Started this month</p>
-            <p className="text-sm font-semibold">
-              {totals.people30} {totals.people30 === 1 ? "person" : "people"}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              {totals.last30} attempts · {totals.unfinished30} still unfinished
-              {totals.incomplete30 > 0 && <> · {totals.incomplete30} with no email</>}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Finished later (not leads)</p>
-            <p className="text-sm font-semibold">
-              {totals.alreadyApplied + totals.alreadyMember + totals.testRows}
-            </p>
-            <button
-              type="button"
-              className="text-[11px] underline text-muted-foreground"
-              onClick={() => revealResolved("applied")}
-            >
-              {totals.alreadyApplied} applied · {totals.alreadyMember} members
-            </button>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Card updates by existing members</p>
-            <p className="text-sm font-semibold">{totals.memberCardUpdates}</p>
-            <p className="text-[11px] text-muted-foreground">Excluded — not applicants</p>
-          </div>
-        </div>
-      )}
-
-
-      {nothing && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            No one is waiting in this list right now — every started application has either been
-            completed or already matches a record you have.
-            {totals && (
-              <>
-                {" "}
-                {totals.people30} people started in the last 30 days and {totals.unfinished30} are
-                still unfinished. Set aside overall: {totals.alreadyApplied} applied afterwards,{" "}
-                {totals.alreadyMember} became members, {totals.testRows} test entries.
-              </>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-
-
-      {/* 1. Failed submits */}
-      {submitFailures.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                Failed submits ({submitFailures.length})
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                These people pressed Submit and it did not go through. Their answers are saved
-                below — you can re-create the application by hand.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={exportFailures}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Attempted</TableHead>
-                <TableHead>Reason</TableHead>
-                <TableHead className="text-right">Answers</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {submitFailures.map((f) => (
-                <TableRow key={f.id}>
-                  <TableCell className="font-medium">
-                    {`${f.first_name || ""} ${f.last_name || ""}`.trim() || "Unknown"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{f.email || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{f.phone || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(f.created_at), "MMM d, yyyy h:mm a")}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate">
-                    {f.error_message ||
-                      (f.status === "pending" ? "Never completed — connection lost" : "Unknown")}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => setPayloadView(f)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </section>
-      )}
-
-      {/* 2. Card saved, never submitted */}
-      {cardSaved.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-primary" />
-                Card saved, never submitted ({cardSaved.length})
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Verified against Stripe. High intent — they added a card and stopped at the
-                acknowledgments.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(cardSaved, "card-saved")}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          {renderAttemptTable(cardSaved, true)}
-        </section>
-      )}
-
-      {/* 3. Never entered a card */}
-      {noCard.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold">Never entered a card ({noCard.length})</h3>
-              <p className="text-sm text-muted-foreground">
-                Opened the card step and left without completing it.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(noCard, "no-card")}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          {renderAttemptTable(noCard, false)}
-        </section>
-      )}
-
-      {/* 4. Started, then applied — separate, never mixed into the lead list */}
-      {showResolved && appliedLater.length > 0 && (
-        <section className="space-y-3" ref={appliedRef}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold">
-                Started, then applied ({appliedLater.length})
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                They finished and submitted an application. Not leads — no reminders can be sent
-                from here.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(appliedLater, "started-then-applied")}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          {renderAttemptTable(appliedLater, true, false)}
-        </section>
-      )}
-
-      {/* 4b. Started, then joined as a member */}
-      {showResolved && memberLater.length > 0 && (
-        <section className="space-y-3" ref={memberRef}>
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold">
-                Started, then joined as a member ({memberLater.length})
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                These people are members today. Not leads — no reminders can be sent from here.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(memberLater, "started-then-joined")}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          {renderAttemptTable(memberLater, true, false)}
-        </section>
-      )}
-
-      {/* 4c. Test records */}
-      {showResolved && testRows.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold">Test records ({testRows.length})</h3>
-              <p className="text-sm text-muted-foreground">Internal or test email addresses.</p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(testRows, "test-records")}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          {renderAttemptTable(testRows, true, false)}
-        </section>
-      )}
-
-
-      {/* 5. Incomplete records — no email captured on the attempt */}
-      {showIncomplete && incomplete.length > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-semibold flex items-center gap-2">
-                <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                Incomplete record ({incomplete.length})
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                No name or email was captured on these attempts. Use "Re-check with Stripe" to pull
-                the identity from the Stripe customer, or look the customer up directly.
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={() => exportGroup(incomplete, "incomplete-records")}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Stripe customer</TableHead>
-                <TableHead>Card</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Source</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {incomplete.map((a) => (
-                <TableRow key={a.id}>
-                  <TableCell className="text-muted-foreground">
-                    {format(new Date(a.created_at), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {a.stripe_customer_id || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {a.card_brand ? `${a.card_brand} ****${a.card_last4}` : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-xs">
-                      {a.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{a.source}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </section>
-      )}
-
-      <Dialog open={!!payloadView} onOpenChange={(o) => !o && setPayloadView(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {`${payloadView?.first_name || ""} ${payloadView?.last_name || ""}`.trim() ||
-                "Submitted answers"}
-            </DialogTitle>
-            <DialogDescription>
-              Captured at submit time. Use this to re-create the application manually.
-            </DialogDescription>
-          </DialogHeader>
-          <pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-xs">
-            {JSON.stringify(payloadView?.payload ?? {}, null, 2)}
-          </pre>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+    {payloadView && <section className="border-t pt-4 space-y-3"><div className="flex items-center justify-between gap-3"><h3 className="font-semibold">Submitted answers · {payloadView.email}</h3><Button variant="outline" size="sm" onClick={() => setPayloadView(null)}>Close</Button></div><pre className="max-h-[60vh] overflow-auto rounded-md bg-muted p-4 text-xs">{JSON.stringify(payloadView.payload ?? {}, null, 2)}</pre></section>}
+  </div>;
 }
