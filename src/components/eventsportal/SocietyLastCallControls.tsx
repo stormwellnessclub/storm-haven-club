@@ -92,7 +92,7 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
       <CardHeader><CardTitle className="text-base">{reminder ? "Book vote reminder: hasn't voted yet (email and text)" : vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          {reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes tomorrow, Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
+          {reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
           Unsubscribed people and anyone who hasn't agreed to texts are skipped. Each person gets each message once.
         </p>
 
