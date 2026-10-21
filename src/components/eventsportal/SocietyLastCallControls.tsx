@@ -18,8 +18,9 @@ type R = { email: string; name: string; phone: string | null; status: string; em
 
 const DEFAULT_HERO = "https://stormwellnessclub.com/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg";
 
-export function SocietyLastCallControls({ audience }: { audience?: "book_vote" } = {}) {
-  const vote = audience === "book_vote";
+export function SocietyLastCallControls({ audience }: { audience?: "book_vote" | "book_vote_reminder" } = {}) {
+  const vote = audience === "book_vote" || audience === "book_vote_reminder";
+  const reminder = audience === "book_vote_reminder";
   const [roster, setRoster] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -88,10 +89,10 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" }
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{reminder ? "Book vote reminder: hasn't voted yet (email and text)" : vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          {vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
+          {reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes tomorrow, Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
           Unsubscribed people and anyone who hasn't agreed to texts are skipped. Each person gets each message once.
         </p>
 
