@@ -30,9 +30,9 @@ export const DEFAULT_MESSAGE =
 export const VOTE_SUBJECT = "Choose our first book: the Higher Self Society vote is open";
 export const VOTE_MESSAGE =
   "The founding circle is set, and now you choose what we read first. We've shortlisted nine titles, from Atomic Habits to The Courage to Be Disliked. Each one has a short synopsis on the book club page.\n\nSign in with the email you used to join and tap Vote for this book. You can change your pick anytime before voting closes this Friday, Oct. 23 at 11:59 PM.";
-export const REMINDER_SUBJECT = "Voting closes tomorrow: choose our first book";
+export const REMINDER_SUBJECT = "Voting closes Friday: choose our first book";
 export const REMINDER_MESSAGE =
-  "A quick reminder: the Higher Self Society book vote closes tomorrow, Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet.\n\nSign in with the email you used to join, read the nine synopses, and tap Vote for this book. It takes less than a minute.";
+  "A quick reminder: the Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet.\n\nSign in with the email you used to join, read the nine synopses, and tap Vote for this book. It takes less than a minute.";
 const DEFAULT_SMS = `Storm Wellness Club: ${DEFAULT_MESSAGE} Save your seat: ${PAGE_URL} Reply STOP to opt out.`;
 
 function buildHtml(firstName: string | null, message: string, hero: string = HERO): string {
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
   if (bookVote) PAGE_URL = `${PAGE_URL}#book-vote`;
   const dSubject = reminder ? REMINDER_SUBJECT : bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
   const dMessage = reminder ? REMINDER_MESSAGE : bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
-  const dSms = reminder ? `Storm Wellness Club: Higher Self Society book vote closes tomorrow, Fri. Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
+  const dSms = reminder ? `Storm Wellness Club: Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
   const message = String(body.message ?? dMessage).trim().slice(0, 2000) || dMessage;
   const subject = String(body.subject ?? dSubject).trim().slice(0, 200) || dSubject;
   const smsText = String(body.smsText ?? dSms).trim().slice(0, 640) || dSms;
