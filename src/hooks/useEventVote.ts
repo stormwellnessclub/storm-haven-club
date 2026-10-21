@@ -14,10 +14,10 @@ export function useEventVoteTallies(eventSlug: string) {
   return useQuery({
     queryKey: ["event-vote-tallies", eventSlug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("event_vote_tallies")
-        .select("*")
-        .eq("event_slug", eventSlug);
+      // Security-definer aggregate: everyone sees the true totals, never who voted.
+      const { data, error } = await supabase.rpc("get_event_vote_tallies" as any, {
+        _event_slug: eventSlug,
+      });
       if (error) throw error;
       return (data ?? []) as VoteTally[];
     },

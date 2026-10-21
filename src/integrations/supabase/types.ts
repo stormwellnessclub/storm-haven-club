@@ -16295,6 +16295,15 @@ export type Database = {
           is_waitlisted: boolean
         }[]
       }
+      get_event_vote_tallies: {
+        Args: { _event_slug: string }
+        Returns: {
+          option_key: string
+          percentage: number
+          total_votes: number
+          vote_count: number
+        }[]
+      }
       get_instructor_portal_status: {
         Args: never
         Returns: {
