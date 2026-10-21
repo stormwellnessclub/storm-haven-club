@@ -30,6 +30,9 @@ export const DEFAULT_MESSAGE =
 export const VOTE_SUBJECT = "Choose our first book: the Higher Self Society vote is open";
 export const VOTE_MESSAGE =
   "The founding circle is set, and now you choose what we read first. We've shortlisted nine titles, from Atomic Habits to The Courage to Be Disliked. Each one has a short synopsis on the book club page.\n\nSign in with the email you used to join and tap Vote for this book. You can change your pick anytime before voting closes this Friday, Oct. 23 at 11:59 PM.";
+export const REMINDER_SUBJECT = "Voting closes tomorrow: choose our first book";
+export const REMINDER_MESSAGE =
+  "A quick reminder: the Higher Self Society book vote closes tomorrow, Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet.\n\nSign in with the email you used to join, read the nine synopses, and tap Vote for this book. It takes less than a minute.";
 const DEFAULT_SMS = `Storm Wellness Club: ${DEFAULT_MESSAGE} Save your seat: ${PAGE_URL} Reply STOP to opt out.`;
 
 function buildHtml(firstName: string | null, message: string, hero: string = HERO): string {
@@ -63,17 +66,18 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* none */ }
 
-  const bookVote = body.audience === "book_vote";
+  const reminder = body.audience === "book_vote_reminder";
+  const bookVote = body.audience === "book_vote" || reminder;
   const signedUp = body.audience === "signed_up" || bookVote;
   PAGE_URL = `${BASE_URL}/rituals/higher-self-society`;
-  EMAIL_KEY = bookVote ? "higher_self_society_book_vote_2026" : signedUp ? "higher_self_society_signed_up_update_2026" : "higher_self_society_last_call_2026";
-  SMS_KEY = bookVote ? "hss-book-vote-2026" : signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
+  EMAIL_KEY = reminder ? "higher_self_society_book_vote_reminder_2026" : bookVote ? "higher_self_society_book_vote_2026" : signedUp ? "higher_self_society_signed_up_update_2026" : "higher_self_society_last_call_2026";
+  SMS_KEY = reminder ? "hss-book-vote-reminder-2026" : bookVote ? "hss-book-vote-2026" : signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
   EYEBROW = bookVote ? "FOUNDING CIRCLE &middot; THE BOOK VOTE" : signedUp ? "FOUNDING CIRCLE &middot; WHAT'S NEXT" : "LAST CALL &middot; FOUNDING CIRCLE";
   BUTTON = bookVote ? "Cast your vote" : signedUp ? "Visit Higher Self Society" : "Save your seat";
   if (bookVote) PAGE_URL = `${PAGE_URL}#book-vote`;
-  const dSubject = bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
-  const dMessage = bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
-  const dSms = bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
+  const dSubject = reminder ? REMINDER_SUBJECT : bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
+  const dMessage = reminder ? REMINDER_MESSAGE : bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
+  const dSms = reminder ? `Storm Wellness Club: Higher Self Society book vote closes tomorrow, Fri. Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
   const message = String(body.message ?? dMessage).trim().slice(0, 2000) || dMessage;
   const subject = String(body.subject ?? dSubject).trim().slice(0, 200) || dSubject;
   const smsText = String(body.smsText ?? dSms).trim().slice(0, 640) || dSms;
@@ -153,6 +157,19 @@ Deno.serve(async (req) => {
     if (signed.has(email) || (m.user_id && signedUsers.has(m.user_id))) continue;
     const phone = m.phone || (m.user_id ? profPhone.get(m.user_id) : null) || null;
     byEmail.set(email, { ...m, email, phone, phoneKey: digits(phone) });
+  }
+  if (reminder) {
+    // Skip anyone who already voted (matched by account, or by account email).
+    const voters = new Set<string>();
+    const { data: votes } = await sb.from("event_votes").select("user_id").eq("event_slug", "hss-book-vote-2026-1");
+    for (const v of votes ?? []) if (v.user_id) voters.add(v.user_id);
+    const voterEmails = new Set<string>();
+    const ids = [...voters];
+    for (let i = 0; i < ids.length; i += 300) {
+      const { data } = await sb.from("profiles").select("email").in("user_id", ids.slice(i, i + 300));
+      for (const p of data ?? []) if (p.email) voterEmails.add(String(p.email).toLowerCase());
+    }
+    for (const [email, r] of byEmail) if ((r.user_id && voters.has(r.user_id)) || voterEmails.has(email)) byEmail.delete(email);
   }
   const recipients = [...byEmail.values()].sort((a, b) =>
     `${a.first_name ?? ""} ${a.last_name ?? ""}`.localeCompare(`${b.first_name ?? ""} ${b.last_name ?? ""}`));
