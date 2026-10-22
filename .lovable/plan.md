@@ -9,7 +9,7 @@
 - No emails, texts or charges go out. No other records change.
 
 ## 2. Payroll log for Oct 5 – 18
-Completed sessions only. Cancelled sessions and the two sessions still marked "confirmed" on Oct 17 are listed separately so you can confirm whether they happened.
+Completed sessions only. Cancelled sessions (Oct 9 and Oct 16) are left out.
 
 | Date | Service | Paid by | Tip |
 |---|---|---|---|
@@ -18,8 +18,10 @@ Completed sessions only. Cancelled sessions and the two sessions still marked "c
 | Oct 14 | Lymph & Flow 60 | MD voucher | $0 |
 | Oct 14 | Lymph & Flow 60 | MD voucher | $0 |
 | Oct 17 | Storm Signature 60 | Card | $40 card |
+| Oct 17 | Prenatal 90 | Card | as recorded at checkout |
+| Oct 17 | Deep Relief 90 | Card | as recorded at checkout |
 
-Needs your confirmation: Oct 17, 12:00 PM Prenatal 90 and 2:00 PM Deep Relief 90 are still "confirmed," not completed.
+The two Oct 17 90-minute sessions are now marked complete and are included. Their tips will be read from what was saved at checkout.
 
 Pay is figured with Teresa's saved rates ($35/hr service, $26/hr turnover). Cash tips are listed but not added to the payout, the same as earlier payroll logs. Card tips are added.
 
