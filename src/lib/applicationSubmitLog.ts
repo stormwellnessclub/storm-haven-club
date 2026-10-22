@@ -83,3 +83,9 @@ export async function flushSubmitLogQueue() {
     await send(item, false);
   }
 }
+
+/** The database refused a second pending application for the same email. */
+export function isDuplicateApplicationError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  return error.code === "23505" || /membership_applications_one_pending_per_email/.test(error.message ?? "");
+}

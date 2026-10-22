@@ -26,6 +26,7 @@ import {
   logSubmitStart,
   logSubmitResult,
   flushSubmitLogQueue,
+  isDuplicateApplicationError,
 } from "@/lib/applicationSubmitLog";
 
 
@@ -614,6 +615,7 @@ export default function Apply() {
   
   const isHydrated = useRef(false);
   const submitKeyRef = useRef<string | null>(null);
+  const submitLockRef = useRef(false);
 
   const formDataRef = useRef(formData);
   
@@ -771,6 +773,10 @@ export default function Apply() {
       return;
     }
 
+    // Synchronous lock: a second tap before React re-renders must do nothing.
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+    setTimeout(() => { submitLockRef.current = false; }, 5000);
     setIsSubmitting(true);
 
     try {
@@ -841,7 +847,9 @@ export default function Apply() {
         .from("membership_applications")
         .insert(applicationPayload);
 
-      if (error) {
+      // A pending application already exists for this email (double tap or
+      // resent request): the first save went through, so treat it as success.
+      if (error && !isDuplicateApplicationError(error)) {
         console.error("Error submitting application:", error);
         logSubmitResult({
           clientKey: submitKey,
