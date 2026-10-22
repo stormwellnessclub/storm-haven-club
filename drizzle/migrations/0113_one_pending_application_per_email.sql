@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS membership_applications_one_pending_per_email ON public.membership_applications (lower(email)) WHERE status = 'pending';
