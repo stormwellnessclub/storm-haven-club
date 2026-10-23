@@ -267,6 +267,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     };
   }, [availability, service, selectedDate, effectiveDuration]);
 
+  // Must stay above the early return below (hooks order).
+  const [isProcessing, setIsProcessing] = useState(false);
+  const processingRef = useRef(false);
+
   // When no service is selected the booking dialog is hidden, but we still need
   // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
   // appear after the parent clears `selectedService`.
@@ -315,8 +319,6 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }
 
-  const [isProcessing, setIsProcessing] = useState(false);
-  const processingRef = useRef(false);
 
   const handleBook = async (
     intakeValues?: Omit<Parameters<typeof submitIntake.mutateAsync>[0], "appointment_id" | "member_id">,
