@@ -4,69 +4,20 @@
 // Triggered by pg_cron (every 5–15 min). Operates in America/Detroit timezone.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { appointmentLabels, isReminderDue, reminderBounds, type ReminderWindow } from "./timing.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-type Window = "24h" | "2h";
-
-function chicagoNow(): Date {
-  // Get current time as if it were Chicago local. We compute by formatting and reparsing.
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Detroit",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-  const parts = Object.fromEntries(
-    fmt.formatToParts(new Date()).filter((p) => p.type !== "literal").map((p) => [p.type, p.value]),
-  );
-  return new Date(
-    `${parts.year}-${parts.month}-${parts.day}T${parts.hour === "24" ? "00" : parts.hour}:${parts.minute}:${parts.second}`,
-  );
-}
-
-function formatChicago(d: Date) {
-  return {
-    date: d.toLocaleDateString("en-US", {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      timeZone: "America/Detroit",
-    }),
-    time: d.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: "America/Detroit",
-    }),
-  };
-}
+type Window = ReminderWindow;
 
 async function processWindow(admin: any, window: Window) {
-  // Compute the appointment_date / appointment_time slots that fall into the window.
-  // We use a generous +/- buffer so we catch them even with cron jitter.
-  const now = chicagoNow();
-  const targetMs =
-    now.getTime() + (window === "24h" ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000);
-  const target = new Date(targetMs);
-
-  // Window: target ± 15 minutes for 24h, ± 5 minutes for 2h (cron runs every 15/5 min).
-  const bufferMin = window === "24h" ? 15 : 5;
-  const lo = new Date(target.getTime() - bufferMin * 60 * 1000);
-  const hi = new Date(target.getTime() + bufferMin * 60 * 1000);
-
-  // Format date in Chicago for the SQL filter (appointment_date is a date column).
-  const loDate = lo.toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
-  const hiDate = hi.toLocaleDateString("en-CA", { timeZone: "America/Detroit" });
+  const bounds = reminderBounds(new Date(), window);
 
   const sentCol = window === "24h" ? "reminder_24h_sent_at" : "reminder_2h_sent_at";
 
@@ -78,7 +29,7 @@ async function processWindow(admin: any, window: Window) {
         sentCol,
     )
 
-    .in("appointment_date", Array.from(new Set([loDate, hiDate])))
+    .in("appointment_date", bounds.dates)
     .eq("status", "confirmed")
     .is(sentCol, null)
     .limit(500);
@@ -92,22 +43,7 @@ async function processWindow(admin: any, window: Window) {
 
   for (const a of appts ?? []) {
     try {
-      // Build the appointment local datetime in Chicago.
-      const apptLocal = new Date(`${a.appointment_date}T${a.appointment_time}`);
-      // apptLocal is interpreted as UTC by JS; we instead derive the offset by re-rendering both
-      // and comparing. Simpler: rely on the local-string interpretation matching server tz.
-      // We approximate by computing the minute-diff between target (Chicago wall clock now+offset)
-      // and apptLocal using string comparisons.
-      const apptKey = `${a.appointment_date} ${a.appointment_time.slice(0, 5)}`;
-      const targetKey = `${target.toLocaleDateString("en-CA", { timeZone: "America/Detroit" })} ${target.toLocaleTimeString("en-GB", { timeZone: "America/Detroit", hour: "2-digit", minute: "2-digit" })}`;
-      const apptMin =
-        new Date(`2000-01-01T${a.appointment_time}`).getHours() * 60 +
-        new Date(`2000-01-01T${a.appointment_time}`).getMinutes();
-      const tMin =
-        Number(targetKey.slice(11, 13)) * 60 + Number(targetKey.slice(14, 16));
-      const sameDay = apptKey.slice(0, 10) === targetKey.slice(0, 10);
-      if (!sameDay) continue;
-      if (Math.abs(apptMin - tMin) > bufferMin) continue;
+      if (!isReminderDue(a.appointment_date, a.appointment_time, bounds)) continue;
 
       // Look up contact (members → profiles, fall back to non_member_profiles).
       let email: string | null = null;
@@ -146,16 +82,7 @@ async function processWindow(admin: any, window: Window) {
         if (staff?.full_name) provider = staff.full_name;
       }
 
-      const dateLabel = new Date(`${a.appointment_date}T00:00:00`).toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-        timeZone: "America/Detroit",
-      });
-      const timeLabel = new Date(`2000-01-01T${a.appointment_time}`).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "2-digit",
-      });
+      const { date: dateLabel, time: timeLabel } = appointmentLabels(a.appointment_date, a.appointment_time);
 
       // Audience-aware links + intake reminder (massage/body services only).
       const { data: memberRow } = await admin
