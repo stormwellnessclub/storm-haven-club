@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Correct massage/body-wrap two-hour and 24-hour reminder timing in Detroit; verify without triggering client messages
+
 - [x] Unify abandoned applications into a full searchable roster with time/stage filters and visible-list CSV export
 - [ ] Verify abandoned roster with real staff data — preview sign-in returns Access Denied; isolated controls and tests passed
 
