@@ -19,3 +19,9 @@ describe("treatment duration upgrade prices", () => {
     expect(findTreatmentDuration([wrap], wrap.name, "Body Wraps", 75)).toBeUndefined();
   });
 });
+describe("70-minute seaweed wrap", () => {
+  it("upgrades the $220 70-minute wrap to the $290 90-minute menu price", () => {
+    const variant = findTreatmentDuration([wrap], "Detox Seaweed & Charcoal Wrap", "Body Wraps", 90);
+    expect(220 + treatmentExtensionCharge(variant, 220, false, 20, 2)).toBe(290);
+  });
+});

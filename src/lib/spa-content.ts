@@ -525,7 +525,7 @@ const bodyWraps: ServiceContent[] = [
       { q: "How is the Extended version different?", a: "Doubled cocoon time, deeper drawing action, and an added 30-minute lymphatic massage to finish." },
       { q: "How often can I do this?", a: "Every 2-3 weeks for active detox programs." },
     ],
-    durations: ["60 min", "90 min"],
+    durations: ["70 min", "90 min"],
     related: ["body-sculpting", "mud-therapy", "lymph-and-flow", "infrared-sauna"],
   },
   {

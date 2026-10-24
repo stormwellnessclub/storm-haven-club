@@ -186,8 +186,8 @@ export const FULL_SITE_CONTENT_HTML = `<!DOCTYPE html>
 <h3>Body Wraps</h3>
 <table>
 <tr><th>Service</th><th>Duration</th><th>Price</th><th>Description</th></tr>
-<tr><td>Detox Seaweed &amp; Charcoal Wrap</td><td>60 min</td><td class="price">$165</td><td>Purify skin and support body detoxification</td></tr>
-<tr><td>Detox Seaweed &amp; Charcoal Wrap (Extended)</td><td>90 min</td><td class="price">$225</td><td>Full body detox with exfoliating scrub + relaxation massage</td></tr>
+<tr><td>Detox Seaweed &amp; Charcoal Wrap</td><td>70 min</td><td class="price">$220</td><td>Purify skin and support body detoxification</td></tr>
+<tr><td>Detox Seaweed &amp; Charcoal Wrap (Extended)</td><td>90 min</td><td class="price">$290</td><td>Full body detox with exfoliating scrub + relaxation massage</td></tr>
 <tr><td>Anti-Aging Collagen Wrap ⭐</td><td>60 min</td><td class="price">$175</td><td>Improve elasticity, reduce dryness, support firmer skin</td></tr>
 <tr><td>Anti-Aging Collagen Wrap (Extended)</td><td>90 min</td><td class="price">$235</td><td>Collagen infusion with full body scrub + massage</td></tr>
 <tr><td>Brightening Vitamin C Wrap</td><td>60 min</td><td class="price">$165</td><td>Brighten, awaken, and even skin tone</td></tr>
