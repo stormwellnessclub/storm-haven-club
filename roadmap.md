@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Correct Linda’s 90-minute body-wrap price and prevent duration upgrades from retaining shorter-treatment prices; preserve intake/card links and do not charge
+
 - [x] Correct massage/body-wrap two-hour and 24-hour reminder timing in Detroit; verify without triggering client messages
 
 - [x] Unify abandoned applications into a full searchable roster with time/stage filters and visible-list CSV export
