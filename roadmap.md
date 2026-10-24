@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Combine seaweed wrap durations in one public listing, add supplied ritual description and highlighted/detailed benefits, verify duration-specific booking prices
+- [x] Combine seaweed wrap durations in one public listing, add supplied ritual description and highlighted/detailed benefits, verify duration-specific booking prices
+- [ ] Complete seaweed ritual booking verification — 90-minute service has no configured availability in the next 60 days; staff must set its hours before clients can reserve it
 
 - [x] Correct Linda’s 90-minute body-wrap price and prevent duration upgrades from retaining shorter-treatment prices; preserve intake/card links and do not charge
 - [ ] Verify upgraded treatment checkout through staff screen — requesting user's preview session returns Access Denied; menu-price tests pass and Linda's $290 price, intake and card link verified directly
