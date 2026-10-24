@@ -293,11 +293,14 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   // Treat massage/body services as intake-required even if the DB flag is off.
   const categoryLower = (service.category || "").toLowerCase();
   const nameLower = (service.name || "").toLowerCase();
-  const needsIntake =
+  // Body wraps use their own signed wrap intake (sent by the confirmation email and
+  // shown on the client's bookings), not this inline massage intake.
+  const isWrap = /wrap/.test(`${categoryLower} ${nameLower}`);
+  const needsIntake = !isWrap && (
     service.requires_intake_form === true ||
     categoryLower.includes("massage") ||
     categoryLower.includes("body") ||
-    nameLower.includes("massage");
+    nameLower.includes("massage"));
 
   const triggerIntake = (appointmentId: string, memberId: string | null) => {
     // Always remember so the confirmation screen can offer an "Open Intake Form" CTA.
