@@ -52,6 +52,7 @@ export default function SpaServicePage({ category }: Props) {
         `Available in ${durationsLabel}. Book online in under a minute — both members (with tier-based discounts) and guests are welcome.`,
       ]}
       benefits={service.benefits}
+      benefitDetails={service.benefitDetails}
       faqs={service.faqs}
       serviceName={service.name}
       ctaHref={`/spa?service=${service.slug}&category=${encodeURIComponent(cat.dbCategory)}`}

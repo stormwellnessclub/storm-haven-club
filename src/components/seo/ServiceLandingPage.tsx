@@ -28,6 +28,7 @@ export interface ServiceLandingPageProps {
   subhead: string;
   body: string[];
   benefits?: string[];
+  benefitDetails?: { title: string; detail: string }[];
   faqs?: FAQItem[];
   serviceName: string;
   ctaHref?: string;
@@ -51,6 +52,7 @@ export default function ServiceLandingPage({
   subhead,
   body,
   benefits,
+  benefitDetails,
   faqs,
   serviceName,
   ctaHref = "/apply",
@@ -179,7 +181,7 @@ export default function ServiceLandingPage({
           {benefits && benefits.length > 0 && (
             <div className="mt-10">
               <h2 className="font-serif text-2xl mb-4">Benefits</h2>
-              <ul className="space-y-2">
+              <ul className={benefitDetails ? "grid sm:grid-cols-2 gap-4" : "space-y-2"}>
                 {benefits.map((b, i) => (
                   <li key={i} className="flex gap-2 text-foreground/90">
                     <span className="text-accent mt-1">•</span>
@@ -187,6 +189,17 @@ export default function ServiceLandingPage({
                   </li>
                 ))}
               </ul>
+              {benefitDetails && (
+                <div className="mt-10 space-y-6">
+                  <h2 className="font-serif text-2xl">The benefits, in detail</h2>
+                  {benefitDetails.map(b => (
+                    <div key={b.title} className="border-l-2 border-accent pl-4">
+                      <h3 className="font-semibold mb-2">{b.title}</h3>
+                      <p className="text-muted-foreground leading-relaxed">{b.detail}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
