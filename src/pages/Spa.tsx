@@ -43,6 +43,9 @@ import { SpaReviewsTab } from "@/components/spa/SpaReviewsTab";
 import { useSpaServiceRatings } from "@/hooks/useSpaReviews";
 
 const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
+// Body wraps that clients book themselves (waiver + card gates, wrap intake after booking).
+// Every other wrap stays "Request Appointment".
+const ONLINE_BOOKABLE_WRAP_IDS = new Set(["3e53a2cf-02a1-44e3-b1fd-a2832d1b074c"]);
 
 const memberDiscounts = [
   { tier: "Silver", discount: "5% OFF", color: "bg-warm-gray" },
@@ -284,6 +287,13 @@ export default function Spa() {
 
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
+    if (ONLINE_BOOKABLE_WRAP_IDS.has(service.id)) {
+      return (
+        <Button variant="outline" size="sm" onClick={() => handleMassageBooking(service)}>
+          Book Now
+        </Button>
+      );
+    }
     if (isConsultRequestService(service) || service.category === "Body Wraps") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleRequestService(service)}>

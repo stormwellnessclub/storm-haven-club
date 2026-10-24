@@ -38,6 +38,9 @@ export function SpaServicesTab() {
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        This is the spa menu. Changing a price, length or description here updates the spa page, online booking, staff booking and checkout. Existing appointments keep the price they were booked at.
+      </p>
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -85,8 +88,8 @@ export function SpaServicesTab() {
                 <Badge variant={service.is_active ? "default" : "outline"} className="text-xs">
                   {service.is_active ? "Active" : "Inactive"}
                 </Badge>
-                <Button size="icon" variant="ghost" onClick={() => setEditing({ ...service })}>
-                  <Pencil className="h-4 w-4" />
+                <Button size="sm" variant="outline" onClick={() => setEditing({ ...service })}>
+                  <Pencil className="h-4 w-4 mr-1" /> Edit price & details
                 </Button>
               </div>
             ))}

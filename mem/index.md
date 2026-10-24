@@ -5,3 +5,4 @@
 - [Body Roller Presale](mem://features/promotions/body-roller-presale) — Regular/presale prices, red light included, creative emails
 - [Marketing Research](mem://reference/marketing-research) — Research + growth plan saved in Files 2026-10-15
 - [Hours and Contact](mem://business/hours-and-contact) — Phone (248) 232-8487; weekends open 8 AM–7 PM
+- [Seaweed Wrap](mem://features/spa/seaweed-wrap) — 70 min $220, only online-bookable wrap
