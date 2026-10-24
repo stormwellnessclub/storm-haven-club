@@ -57,6 +57,7 @@ import { useIntakeForm, useSubmitIntakeForm } from "@/hooks/useSpaIntake";
 import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useApplyMothersDayVoucher";
 import { Input } from "@/components/ui/input";
 import { Heart, X } from "lucide-react";
+import { isSeaweedRitual, SEAWEED_RITUAL_NAME, SEAWEED_RITUAL_PREPARATION } from "@/lib/seaweedRitual";
 
 
 interface SpaBookingModalProps {
@@ -741,7 +742,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
         ) : (
           <>
         <DialogHeader>
-          <DialogTitle>Book {service.name}</DialogTitle>
+          <DialogTitle>Book {isSeaweedRitual(service) ? SEAWEED_RITUAL_NAME : service.name}</DialogTitle>
           <DialogDescription>
             {isHourly
               ? `Choose how many hours you'd like, then pick your date and time. $${service.price.toFixed(0)} per hour.`
@@ -755,7 +756,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           <div className="p-4 bg-secondary/50 rounded-md">
             <div className="flex justify-between items-start mb-2">
               <div>
-                <h4 className="font-semibold">{service.name}</h4>
+                <h4 className="font-semibold">{isSeaweedRitual(service) ? SEAWEED_RITUAL_NAME : service.name}</h4>
                 <p className="text-sm text-muted-foreground">{service.category}</p>
               </div>
               <div className="text-right">
@@ -788,6 +789,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               </span>
               <span className="text-xs">+ {service.cleanup_minutes} min cleanup</span>
             </div>
+            {isSeaweedRitual(service) && <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{SEAWEED_RITUAL_PREPARATION}</p>}
           </div>
 
           {/* Hours selector for hourly rentals */}

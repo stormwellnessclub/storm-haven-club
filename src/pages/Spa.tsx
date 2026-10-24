@@ -41,11 +41,12 @@ import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
 import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
 import { SpaReviewsTab } from "@/components/spa/SpaReviewsTab";
 import { useSpaServiceRatings } from "@/hooks/useSpaReviews";
+import { SeaweedRitualCard } from "@/components/spa/SeaweedRitualCard";
+import { compactSeaweedMenu, isSeaweedRitual, seaweedRitualVariants } from "@/lib/seaweedRitual";
 
 const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
 // Body wraps that clients book themselves (waiver + card gates, wrap intake after booking).
 // Every other wrap stays "Request Appointment".
-const ONLINE_BOOKABLE_WRAP_IDS = new Set(["3e53a2cf-02a1-44e3-b1fd-a2832d1b074c"]);
 
 const memberDiscounts = [
   { tier: "Silver", discount: "5% OFF", color: "bg-warm-gray" },
@@ -132,9 +133,16 @@ export default function Spa() {
     })();
   }, [voucherFromUrl, spaServices, activeVoucherCode]);
 
-  const filteredServices = selectedCategory === "All" 
-    ? spaServices 
-    : spaServices.filter(s => s.category === selectedCategory);
+  const ritualVariants = seaweedRitualVariants(spaServices);
+  const filteredServices = compactSeaweedMenu(selectedCategory === "All"
+    ? spaServices
+    : spaServices.filter(s => s.category === selectedCategory));
+
+  useEffect(() => {
+    if (searchParams.get("service") === "detox-seaweed-charcoal" && !servicesLoading) {
+      document.getElementById("seaweed-ritual")?.scrollIntoView({ block: "center" });
+    }
+  }, [searchParams, servicesLoading]);
 
   const formatPrice = (price: number) => `$${price}`;
 
@@ -158,7 +166,7 @@ export default function Spa() {
   // Handle "Book Now" for Massage category
   const handleMassageBooking = (service: SpaService) => {
     if (!user) {
-      navigate(`/auth?returnTo=${encodeURIComponent("/spa?category=Massage")}`);
+      navigate(`/auth?returnTo=${encodeURIComponent(isSeaweedRitual(service) ? "/spa?category=Body%20Wraps&service=detox-seaweed-charcoal" : "/spa?category=Massage")}`);
       return;
     }
 
@@ -287,7 +295,7 @@ export default function Spa() {
 
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
-    if (ONLINE_BOOKABLE_WRAP_IDS.has(service.id)) {
+    if (isSeaweedRitual(service)) {
       return (
         <Button variant="outline" size="sm" onClick={() => handleMassageBooking(service)}>
           Book Now
@@ -556,7 +564,9 @@ export default function Spa() {
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-6">
-              {filteredServices.map((service) => (
+              {filteredServices.map((service) => isSeaweedRitual(service) ? (
+                <SeaweedRitualCard key={service.id} variants={ritualVariants} onBook={handleMassageBooking} />
+              ) : (
                 <div
                   key={service.id}
                   className="card-luxury p-6 flex flex-col"

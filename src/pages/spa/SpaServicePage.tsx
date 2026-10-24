@@ -52,10 +52,11 @@ export default function SpaServicePage({ category }: Props) {
         `Available in ${durationsLabel}. Book online in under a minute — both members (with tier-based discounts) and guests are welcome.`,
       ]}
       benefits={service.benefits}
+      benefitDetails={service.benefitDetails}
       faqs={service.faqs}
       serviceName={service.name}
       ctaHref={`/spa?service=${service.slug}&category=${encodeURIComponent(cat.dbCategory)}`}
-      ctaLabel={`Book ${service.name}`}
+      ctaLabel={service.slug === "detox-seaweed-charcoal" ? "Book the ritual" : `Book ${service.name}`}
       giftHref={`/shop?serviceName=${encodeURIComponent(service.name)}#gift-cards`}
       eyebrow={cat.name}
       extraBreadcrumbs={[{ label: cat.name, path: `/spa/${cat.slug}` }]}

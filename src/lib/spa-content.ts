@@ -1,5 +1,6 @@
 // Content bank for every Aella Spa service page.
 // Each entry powers a dedicated SEO-indexed URL.
+import { SEAWEED_RITUAL_NAME, SEAWEED_RITUAL_OVERVIEW, SEAWEED_RITUAL_BODY, SEAWEED_RITUAL_BENEFITS } from "./seaweedRitual";
 
 export interface ServiceContent {
   slug: string;
@@ -19,6 +20,7 @@ export interface ServiceContent {
   body: string[];
   /** Bullet benefits */
   benefits: string[];
+  benefitDetails?: { title: string; detail: string }[];
   /** FAQ entries — also rendered as FAQPage JSON-LD */
   faqs: { q: string; a: string }[];
   /** Durations available (e.g. ["60 min", "90 min"]) */
@@ -501,29 +503,19 @@ const bodyWraps: ServiceContent[] = [
   },
   {
     slug: "detox-seaweed-charcoal",
-    name: "Detox Seaweed & Charcoal Wrap",
-    tagline: "Deep detoxification using marine seaweed and activated charcoal.",
-    title: "Detox Body Wrap — Livonia, MI",
-    description: "Detox Seaweed & Charcoal body wrap in Livonia, MI. Marine seaweed and activated charcoal for deep detoxification. Storm Wellness Club.",
-    h1: "Detox Seaweed & Charcoal Wrap",
-    subhead: "Deep detoxification through the skin — marine seaweed minerals and activated charcoal in a warm cocoon to draw impurities and support lymphatic flow.",
-    body: [
-      "The Detox Wrap begins with a vigorous dry brushing to open lymphatic pathways, followed by a full-body application of warm marine seaweed mud blended with activated charcoal. You're wrapped in a thermal cocoon for 25 minutes — the warmth opens pores and amplifies the drawing action of the charcoal.",
-      "While you rest, your therapist performs a calming scalp and face massage. After unwrapping, the body is rinsed and buffed clean, and a light mineral oil is applied. The Extended (90-min) version doubles the cocoon time and adds a lymphatic finishing massage.",
-      "Many guests pair Detox wraps with the Infrared Sauna or a Salt Room session the same day for a fully detoxifying afternoon.",
-    ],
-    benefits: [
-      "Draws impurities through skin",
-      "Marine mineral infusion (iodine, magnesium, calcium)",
-      "Supports lymphatic drainage",
-      "Reduces water retention and puffiness",
-      "Skin looks visibly clearer and more refined",
-    ],
+    name: SEAWEED_RITUAL_NAME,
+    tagline: "Real seaweed, full-body exfoliation, facial care and nourishing massage in one restorative ritual.",
+    title: "Seaweed Body Wrap Ritual — Livonia, MI",
+    description: "Seaweed Body Wrap Ritual in Livonia: exfoliation, real seaweed, facial care and massage. Choose 70 minutes or 90 minutes with extended massage.",
+    h1: SEAWEED_RITUAL_NAME,
+    subhead: SEAWEED_RITUAL_OVERVIEW,
+    body: SEAWEED_RITUAL_BODY,
+    benefits: SEAWEED_RITUAL_BENEFITS.map(b => b.title),
+    benefitDetails: SEAWEED_RITUAL_BENEFITS,
     faqs: [
-      { q: "Will it stain my skin?", a: "No — the charcoal washes clean. You may want to wear darker clothing to the appointment just in case." },
-      { q: "Is this safe with thyroid conditions?", a: "Seaweed contains iodine. Tell your therapist if you have any thyroid condition — we may modify the formula." },
-      { q: "How is the Extended version different?", a: "Doubled cocoon time, deeper drawing action, and an added 30-minute lymphatic massage to finish." },
-      { q: "How often can I do this?", a: "Every 2-3 weeks for active detox programs." },
+      { q: "What is the difference between 70 and 90 minutes?", a: "Both include the complete ritual. Choose 90 minutes for an extended massage, allowing more time to release tension and settle into relaxation." },
+      { q: "Are the preparation sessions part of the treatment time?", a: "Both options include preparatory vibration therapy and red light in addition to your selected 70- or 90-minute treatment time." },
+      { q: "What happens while I am cocooned?", a: "As you rest for 30–40 minutes, a gentle facial lymphatic massage and face mask extend the experience to your complexion." },
     ],
     durations: ["70 min", "90 min"],
     related: ["body-sculpting", "mud-therapy", "lymph-and-flow", "infrared-sauna"],
