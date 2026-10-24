@@ -1,3 +1,4 @@
+// @ts-nocheck -- Bun is the project's test runner; browser compilation excludes its types.
 import { describe, expect, it } from "bun:test";
 import { findTreatmentDuration, treatmentExtensionCharge } from "./spaUpgradePricing";
 
