@@ -21,7 +21,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { StaffIntakePanel } from "@/components/spa/StaffIntakePanel";
-import { useSpaAddons } from "@/hooks/useSpaManagement";
+import { useSpaAddons, useSpaServices } from "@/hooks/useSpaManagement";
+import { findTreatmentDuration, treatmentExtensionCharge } from "@/lib/spaUpgradePricing";
 import { getSpaPaymentState, spaBalanceDue, spaCheckoutPaymentError, spaCoveredServiceAmount, spaCheckoutSettlement } from "@/lib/spaPaymentState";
 
 interface SelectedAddon {
@@ -79,6 +80,7 @@ export function SpaCompletionDialog({
 
   const { data: intake } = useIntakeForm(appointment?.id ?? null);
   const { data: allAddons = [] } = useSpaAddons();
+  const { data: services = [], isLoading: servicesLoading } = useSpaServices();
 
   // Pre-populate fields when appointment changes — in useEffect, not during render
   useEffect(() => {
@@ -159,7 +161,12 @@ export function SpaCompletionDialog({
     extraRate.trim() !== "" && !isNaN(parseFloat(extraRate))
       ? Math.max(0, parseFloat(extraRate))
       : DEFAULT_EXTENDED_RATE;
-  const extendedCharge = Math.round(extraMinutesNum * extraRateNum * 100) / 100;
+  const baseDuration = Math.max(0, (appointment?.duration_minutes || 0) - savedExtraMinutes);
+  const totalDuration = baseDuration + extraMinutesNum;
+  const durationMenu = extraMinutesNum > 0 && appointment
+    ? findTreatmentDuration(services, appointment.service_name, appointment.service_category, totalDuration)
+    : undefined;
+  const extendedCharge = treatmentExtensionCharge(durationMenu, bookedPrice, appointment?.member_price != null, extraMinutesNum, extraRateNum);
 
   /** What the session should cost before add-ons/tip: base price + extended time */
   const computedServiceTotal =
@@ -201,11 +208,6 @@ export function SpaCompletionDialog({
     ? [...selectedAddons, extendedEntry]
     : selectedAddons;
 
-  const baseDuration = Math.max(
-    0,
-    (appointment.duration_minutes || 0) - savedExtraMinutes
-  );
-  const totalDuration = baseDuration + extraMinutesNum;
 
   const addonsTotal =
     Math.round(chargedAddons.reduce((s, a) => s + a.price, 0) * 100) / 100;
@@ -271,6 +273,14 @@ export function SpaCompletionDialog({
 
   const handleSubmit = async () => {
     if (isProcessing) return;
+    if (extraMinutesNum > 0 && servicesLoading) {
+      toast.error("Please wait for treatment prices to load.");
+      return;
+    }
+    if (durationMenu && Math.abs(sessionTotal - computedServiceTotal) > 0.01) {
+      toast.error(`This ${totalDuration}-minute treatment costs $${computedServiceTotal.toFixed(2)}. Select Recalculate before checkout.`);
+      return;
+    }
     const paymentError = spaCheckoutPaymentError(paymentMethod, balanceDue, hasCardOnFile);
     if (paymentError) {
       toast.error(paymentError);
@@ -633,6 +643,7 @@ export function SpaCompletionDialog({
                     step="0.25"
                     className="w-24"
                     value={extraRate}
+                    disabled={!!durationMenu}
                     onChange={(e) => setExtraRate(e.target.value)}
                   />
                 </div>
@@ -654,7 +665,7 @@ export function SpaCompletionDialog({
               </div>
               <p className="text-xs text-muted-foreground">
                 {extraMinutesNum > 0
-                  ? `Extended time — ${extraMinutesNum} min × $${extraRateNum.toFixed(2)} = $${extendedCharge.toFixed(2)} · session ${baseDuration} → ${totalDuration} min`
+                  ? durationMenu ? `${totalDuration}-minute menu price: $${computedServiceTotal.toFixed(2)} · upgrade $${extendedCharge.toFixed(2)}` : `Extended time — ${extraMinutesNum} min × $${extraRateNum.toFixed(2)} = $${extendedCharge.toFixed(2)} · session ${baseDuration} → ${totalDuration} min`
                   : `Booked at ${baseDuration} min. Add minutes to upgrade (e.g. 90 → 120 min).`}
               </p>
             </div>
