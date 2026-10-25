@@ -7,7 +7,7 @@ import bodyRollerHero from "@/assets/body-roller/Image_9.jpeg.asset.json";
 import { PRESALE_OPTIONS, NON_MEMBER_OPTIONS, usd } from "@/lib/bodyRollerPresale";
 import { Clock, Star, Users, Info, ShieldCheck, CreditCard, ExternalLink, Loader2, Gift } from "lucide-react";
 import { RedeemVoucherDialog } from "@/components/spa/RedeemVoucherDialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
@@ -147,6 +147,23 @@ export default function Spa() {
   // Returning from sign-in with a chosen treatment: reopen its booking.
   const resumedBookRef = useRef(false);
   const bookFromUrl = searchParams.get("book");
+  useEffect(() => {
+    if (resumedBookRef.current || !bookFromUrl || !user || servicesLoading) return;
+    if (!memberProfile && !nonMemberProfile) return; // wait for waiver/card info
+    const svc = spaServices.find((s) => s.id === bookFromUrl);
+    if (!svc) return;
+    resumedBookRef.current = true;
+    const next = new URLSearchParams(searchParams);
+    next.delete("book");
+    setSearchParams(next, { replace: true });
+    if (svc.category === "Recovery") {
+      setSelectedService(svc);
+      setShowBookingModal(true);
+    } else {
+      handleMassageBooking(svc);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookFromUrl, user, servicesLoading, spaServices, memberProfile, nonMemberProfile]);
 
   const formatPrice = (price: number) => `$${price}`;
 
