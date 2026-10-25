@@ -13,6 +13,7 @@ import { AlertCircle, Loader2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { format as fmtDate, parseISO } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPass } from "@/lib/ptFormat";
+import { notifyPTBooking } from "@/lib/ptBookingConfirmation";
 
 interface Props {
   open: boolean;
@@ -285,7 +286,12 @@ export function BookPTSessionDialog({
         }
       }
 
-      // Confirmation emails are sent manually by staff ("Send confirmation"), never automatically.
+      const notificationResults = await Promise.all(booked.map((appt) =>
+        notifyPTBooking(appt.id, (name, options) => supabase.functions.invoke(name, options)),
+      ));
+      if (notificationResults.some(Boolean)) {
+        toast.warning("Session booked, but some confirmations need attention. Use Send confirmation to retry.");
+      }
 
       if (booked.length > 0) {
         setConflict(failures.length ? conflict : null);
@@ -301,6 +307,7 @@ export function BookPTSessionDialog({
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-appointments"] });
+      qc.invalidateQueries({ queryKey: ["upcoming-pt-appointments"] });
       qc.invalidateQueries({ queryKey: ["pt-group-occupancy"] });
 
       if (booked.length > 0) {

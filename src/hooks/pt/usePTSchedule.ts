@@ -305,14 +305,12 @@ export function usePTAppointmentActions() {
 
   const sendConfirmation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.functions.invoke("send-pt-booking-email", {
+      const { data, error } = await supabase.functions.invoke("send-pt-booking-email", {
         body: { appointment_id: id, type: "confirmation" },
       });
       if (error) throw error;
-      await (supabase as any)
-        .from("pt_appointments")
-        .update({ confirmation_email_sent_at: new Date().toISOString() })
-        .eq("id", id);
+      if (!data?.success) throw new Error(data?.error || "Could not send confirmation");
+      if (data.sms_warning) toast.warning("Email sent, but the confirmation text failed. Try Send confirmation again.");
     },
     onSuccess: () => { toast.success("Confirmation sent"); invalidate(); },
     onError: (e: any) => toast.error(e?.message ?? "Could not send confirmation"),
