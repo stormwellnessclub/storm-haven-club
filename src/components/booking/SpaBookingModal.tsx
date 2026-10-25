@@ -195,20 +195,22 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     }
   }, [canUseCredit]);
 
+  const [cardsLoaded, setCardsLoaded] = useState(false);
   useEffect(() => {
-    if (user && open && paymentMethod === "card") {
+    if (user && open) {
       supabase.functions.invoke("stripe-payment", {
         body: { action: "list_payment_methods" },
       }).then(({ data, error }) => {
         if (!error && data?.paymentMethods) {
           setSavedPaymentMethods(data.paymentMethods);
           if (data.paymentMethods.length > 0) {
-            setSelectedPaymentMethodId(data.paymentMethods[0].id);
+            setSelectedPaymentMethodId((cur) => cur || data.paymentMethods[0].id);
           }
+          setCardsLoaded(true);
         }
       });
     }
-  }, [user, open, paymentMethod]);
+  }, [user, open]);
 
   // Reset selected time whenever date, service, or requested hours change
   useEffect(() => {
@@ -819,76 +821,6 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             </div>
           )}
 
-          {/* Liability Waiver */}
-          {user && !hasLiabilityWaiver && (
-            <div className="space-y-3">
-              <Alert className="bg-destructive/10 border-destructive/30">
-                <FileCheck className="h-4 w-4 text-destructive" />
-                <AlertTitle className="text-destructive">Liability Waiver Required</AlertTitle>
-                <AlertDescription className="mt-1">
-                  Sign the liability waiver below to continue booking.
-                </AlertDescription>
-              </Alert>
-
-              {!showWaiverInline ? (
-                <Button
-                  onClick={() => setShowWaiverInline(true)}
-                  variant="outline"
-                  className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
-                >
-                  <FileCheck className="h-4 w-4 mr-2" />
-                  Sign Liability Waiver
-                </Button>
-              ) : (
-                <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
-                  <p className="text-sm font-medium">Liability Waiver</p>
-
-                  {liabilityWaiverPdf && (
-                    <Button variant="outline" size="sm" className="w-full gap-2" asChild>
-                      <a href={liabilityWaiverPdf} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4" />
-                        Open & Review Waiver PDF
-                      </a>
-                    </Button>
-                  )}
-
-                  <div className="flex items-start gap-3">
-                    <Checkbox
-                      id="spa-waiver-inline"
-                      checked={waiverAcknowledged}
-                      onCheckedChange={(v) => setWaiverAcknowledged(v === true)}
-                    />
-                    <label
-                      htmlFor="spa-waiver-inline"
-                      className="text-sm leading-snug cursor-pointer"
-                    >
-                      I have reviewed the Liability Waiver and agree to its terms
-                    </label>
-                  </div>
-
-                  <Button
-                    onClick={handleSignWaiverInline}
-                    disabled={!waiverAcknowledged || isSigningWaiver || isSigningNonMemberWaiver}
-                    className="w-full"
-                  >
-                    {(isSigningWaiver || isSigningNonMemberWaiver) ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Signing...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        I Agree — Sign Waiver & Continue
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {(!user || hasLiabilityWaiver) && (<>
           {/* Date Selection */}
           <div className="space-y-2">
             <Label>Select Date</Label>
@@ -1153,7 +1085,69 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               </>
             )}
           </div>
-          </>)}
+
+          {/* Waiver — asked only once they've picked a time */}
+          {user && !hasLiabilityWaiver && selectedTime && (
+            <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+              <div className="flex items-start gap-2">
+                <FileCheck className="h-4 w-4 mt-0.5 text-gold" />
+                <div>
+                  <p className="text-sm font-medium">One last thing: our liability waiver</p>
+                  <p className="text-xs text-muted-foreground">Sign once and you're set for every future visit.</p>
+                </div>
+              </div>
+              {liabilityWaiverPdf && (
+                <Button variant="outline" size="sm" className="w-full gap-2" asChild>
+                  <a href={liabilityWaiverPdf} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open & Review Waiver PDF
+                  </a>
+                </Button>
+              )}
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="spa-waiver-inline"
+                  checked={waiverAcknowledged}
+                  onCheckedChange={(v) => setWaiverAcknowledged(v === true)}
+                />
+                <label htmlFor="spa-waiver-inline" className="text-sm leading-snug cursor-pointer">
+                  I have reviewed the Liability Waiver and agree to its terms
+                </label>
+              </div>
+              <Button
+                onClick={handleSignWaiverInline}
+                disabled={!waiverAcknowledged || isSigningWaiver || isSigningNonMemberWaiver}
+                className="w-full"
+              >
+                {(isSigningWaiver || isSigningNonMemberWaiver) ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Signing...</>
+                ) : (
+                  <><Check className="h-4 w-4 mr-2" />I Agree — Sign Waiver</>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {/* Card to hold the appointment (no-show policy) */}
+          {needsCardHold && selectedTime && (
+            <Alert>
+              <CreditCard className="h-4 w-4" />
+              <AlertTitle>Add a card to hold this time</AlertTitle>
+              <AlertDescription className="mt-1 space-y-2">
+                <p className="text-sm">We keep a card on file for late cancellations and no-shows.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(membership ? "/member/billing" : "/portal/billing");
+                  }}
+                >
+                  Add a card
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         {user && !phoneLoading && !hasPhone && (
@@ -1194,7 +1188,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               bookAppointment.isPending ||
               isProcessing ||
               (!usingVoucher && paymentMethod === "card" && !selectedPaymentMethodId && savedPaymentMethods.length > 0) ||
-              (!!user && !hasPhone)
+              (!!user && !hasPhone) ||
+              (!!user && !hasLiabilityWaiver) ||
+              needsCardHold
             }
 
           >
