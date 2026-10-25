@@ -18,7 +18,7 @@ import { BookingModal } from "@/components/booking/BookingModal";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
 import { ClassDetailsSheet, ClassDetailsData } from "@/components/booking/ClassDetailsSheet";
 import { ClassSession as BookableSession } from "@/hooks/useClassSessions";
-import type { ClassBookingDraft } from "@/lib/bookingDraft";
+import { type ClassBookingDraft, readClassDraft, writeClassDraft } from "@/lib/bookingDraft";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
@@ -172,7 +172,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
 
   const handleBookFromDetails = (d: ClassDetailsData) => {
     if (!user) {
-      navigate(`/auth?redirect=${encodeURIComponent(authRedirect)}`);
+      sendToSignIn(d.sessionId, sessionMapRef.current.get(d.sessionId)?.session_date);
       return;
     }
     const bookable = sessionMapRef.current.get(d.sessionId);
@@ -307,6 +307,28 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
       }
     }
   };
+
+  // Sign-in from a class: remember the class and reopen it when they come back.
+  const sendToSignIn = (sessionId: string, sessionDate?: string) => {
+    writeClassDraft({ sessionId, sessionDate: sessionDate || "" });
+    const sep = authRedirect.includes("?") ? "&" : "?";
+    navigate(`/auth?redirect=${encodeURIComponent(`${authRedirect}${sep}resumeBooking=1`)}`);
+  };
+
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current || !user || sessions.length === 0) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resumeBooking") !== "1") return;
+    const draft = readClassDraft();
+    if (!draft?.sessionId) return;
+    resumedRef.current = true;
+    handleResumeBooking(draft);
+    params.delete("resumeBooking");
+    const qs = params.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, sessions]);
 
   return (
     <>
@@ -754,7 +776,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                     className="flex-1"
                                     onClick={() => {
                                       if (!user) {
-                                        navigate(`/auth?redirect=${encodeURIComponent(authRedirect)}`);
+                                        sendToSignIn(session.id, session.session_date);
                                         return;
                                       }
                                       setSelectedSession(buildBookable(session));
