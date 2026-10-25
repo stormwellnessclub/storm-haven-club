@@ -1,7 +1,7 @@
 # Project Architecture Rules
 
 - A frozen or past-due membership never blocks portal routing; benefits and facility access are enforced separately by status-aware UI and authoritative database functions.
-- Paying a future membership-freeze fee records payment only; the date-driven freeze activation path pauses billing and changes membership status together on the scheduled Detroit date.
+- Paying a future membership-freeze fee records payment only; the date-driven freeze activation path changes membership status on the scheduled Detroit date. Exception: the daily freeze-billing sweep pre-pauses dues (void) for an approved, paid freeze when the next renewal falls before the start and would bill frozen time (`_shared/freezePrePause.ts`). Why: a renewal the day before a freeze charged a member a full frozen month.
 - When a freeze ends, the dues subscription is unpaused with its billing anchor reset to that day (full charge, no proration); the freeze is only completed after Stripe confirms, otherwise billing_resume_error is set and the daily job retries. Why: members must never get unbilled days after a freeze.
 - A PT appointment covered by a package is always payment_status 'pass' (enforced by trigger), and past booked sessions held on a package are used automatically by an hourly job even if staff never check them out. Why: booked package sessions must always deduct and never show as unpaid.
 - A cancelled membership never counts as membership for pricing or portal access: member-rate checks and `useUserMembership` ignore `status = 'cancelled'`, so those people use the non-member portal and prices while their history stays. Why: cancelled members must not buy at member rates.
