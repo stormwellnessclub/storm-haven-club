@@ -144,6 +144,10 @@ export default function Spa() {
     }
   }, [searchParams, servicesLoading]);
 
+  // Returning from sign-in with a chosen treatment: reopen its booking.
+  const resumedBookRef = useRef(false);
+  const bookFromUrl = searchParams.get("book");
+
   const formatPrice = (price: number) => `$${price}`;
 
   // Determine if user is a member or non-member
