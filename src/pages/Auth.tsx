@@ -70,7 +70,7 @@ export default function Auth() {
   const getRedirectTarget = useCallback(() => {
     // Check query parameter first
     const searchParams = new URLSearchParams(window.location.search);
-    const fromQuery = searchParams.get("redirect");
+    const fromQuery = searchParams.get("redirect") || searchParams.get("returnTo");
     const voucherCode = searchParams.get("voucher");
 
     // Check router state as fallback

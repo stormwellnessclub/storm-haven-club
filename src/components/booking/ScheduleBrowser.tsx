@@ -172,7 +172,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
 
   const handleBookFromDetails = (d: ClassDetailsData) => {
     if (!user) {
-      navigate(`/auth?redirect=${encodeURIComponent(authRedirect)}`);
+      sendToSignIn(d.sessionId, sessionMapRef.current.get(d.sessionId)?.session_date);
       return;
     }
     const bookable = sessionMapRef.current.get(d.sessionId);
@@ -754,7 +754,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                                     className="flex-1"
                                     onClick={() => {
                                       if (!user) {
-                                        navigate(`/auth?redirect=${encodeURIComponent(authRedirect)}`);
+                                        sendToSignIn(session.id, session.session_date);
                                         return;
                                       }
                                       setSelectedSession(buildBookable(session));

@@ -166,7 +166,10 @@ export default function Spa() {
   // Handle "Book Now" for Massage category
   const handleMassageBooking = (service: SpaService) => {
     if (!user) {
-      navigate(`/auth?returnTo=${encodeURIComponent(isSeaweedRitual(service) ? "/spa?category=Body%20Wraps&service=detox-seaweed-charcoal" : "/spa?category=Massage")}`);
+      const back = isSeaweedRitual(service)
+        ? `/spa?category=Body%20Wraps&service=detox-seaweed-charcoal&book=${service.id}`
+        : `/spa?category=Massage&book=${service.id}`;
+      navigate(`/auth?redirect=${encodeURIComponent(back)}`);
       return;
     }
 
@@ -317,7 +320,7 @@ export default function Spa() {
           size="sm"
           onClick={() => {
             if (!user) {
-              navigate("/auth");
+              navigate(`/auth?redirect=${encodeURIComponent(`/spa?category=Recovery&book=${service.id}`)}`);
               return;
             }
             setSelectedService(service);
@@ -405,7 +408,11 @@ export default function Spa() {
               book today.
             </p>
             <div className="flex flex-wrap gap-3">
-              <Button variant="gold" size="lg">
+              <Button
+                variant="gold"
+                size="lg"
+                onClick={() => document.getElementById("spa-menu")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
                 Book a Treatment
               </Button>
               <Button variant="outline" size="lg" asChild className="bg-transparent text-primary-foreground border-primary-foreground/60 hover:bg-primary-foreground/10 hover:text-primary-foreground">
@@ -525,7 +532,7 @@ export default function Spa() {
       ) : (
       <>
       {/* Category Filters */}
-      <section className="py-8 bg-background border-b border-border sticky top-20 z-40">
+      <section id="spa-menu" className="py-8 bg-background border-b border-border sticky top-20 z-40 scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
