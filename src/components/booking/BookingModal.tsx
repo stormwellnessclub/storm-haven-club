@@ -330,10 +330,15 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     // Keep modal open so user sees their position
   };
 
+  const [buyOpen, setBuyOpen] = useState(false);
+  // Buy a pass without leaving: remember this class so it reopens after checkout.
   const handlePurchasePass = () => {
-    onOpenChange(false);
-    navigate("/class-passes");
+    if (session?.id) {
+      writeClassDraft({ sessionId: session.id, sessionDate: (session as any).session_date || "" });
+    }
+    setBuyOpen(true);
   };
+  const buyReturnPath = `${typeof window !== "undefined" ? window.location.pathname : "/schedule"}?resumeBooking=1`;
 
   const handleSignWaiverInline = async () => {
     await signWaiver();
@@ -446,7 +451,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
               <div className="flex gap-2">
                 <Button onClick={handlePurchasePass} className="flex-1">
                   <ShoppingBag className="h-4 w-4 mr-2" />
-                  Purchase Class Pass
+                  Buy a class pass
                 </Button>
                 <Button 
                   variant="outline" 

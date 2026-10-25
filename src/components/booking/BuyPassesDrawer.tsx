@@ -124,8 +124,8 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
           category: "pilatesCycling",
           passType,
           isMember,
-          successUrl: `${origin}${returnPath}?purchase=success`,
-          cancelUrl: `${origin}${returnPath}?purchase=cancelled`,
+          successUrl: `${origin}${returnPath}${returnPath.includes("?") ? "&" : "?"}purchase=success`,
+          cancelUrl: `${origin}${returnPath}${returnPath.includes("?") ? "&" : "?"}purchase=cancelled`,
         },
       });
       if (error) throw error;
