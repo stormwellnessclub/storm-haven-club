@@ -41,6 +41,7 @@ import saunaInterior from "@/assets/wellness/sauna-interior.jpg";
 import fracturedIce from "@/assets/wellness/fractured-ice.jpg";
 import { SpaReviewsTab } from "@/components/spa/SpaReviewsTab";
 import { useSpaServiceRatings } from "@/hooks/useSpaReviews";
+import { buildServiceLd } from "@/lib/seo/schemas";
 import { SeaweedRitualCard } from "@/components/spa/SeaweedRitualCard";
 import { compactSeaweedMenu, isSeaweedRitual, seaweedRitualVariants } from "@/lib/seaweedRitual";
 
@@ -194,22 +195,8 @@ export default function Spa() {
       return;
     }
 
-    setPendingMassageService(service);
-
-    // Gate 1: Waiver
-    if (!isWaiverSigned) {
-      setWaiverAgreed(false);
-      setShowWaiverGate(true);
-      return;
-    }
-
-    // Gate 2: Payment
-    if (!hasPaymentOnFile) {
-      setShowPaymentGate(true);
-      return;
-    }
-
-    // Both gates passed — open booking
+    // Show open times first; the booking window asks for the waiver and a
+    // card on file only after a time is picked.
     setSelectedService(service);
     setShowBookingModal(true);
     setPendingMassageService(null);
@@ -381,6 +368,13 @@ export default function Spa() {
         path="/spa"
         image="/og/og-spa.jpg"
         imageAlt="Aella Massage & Recovery Spa at Storm Wellness Club in Livonia, Michigan"
+        jsonLd={buildServiceLd({
+          name: "Aella Massage & Recovery Spa",
+          serviceType: "Day Spa",
+          description:
+            "Massage therapy, body wraps, facials and recovery (salt room, infrared sauna, red light, cold plunge, cryotherapy) in Livonia, MI. Open to the public.",
+          path: "/spa",
+        })}
       />
 
 
