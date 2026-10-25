@@ -4,6 +4,11 @@ const labels: Record<string, string> = {
   semi_private: "Semi-Private (max 4)",
 };
 
+export function isSmsDeliveryFailure(data: { success?: boolean; error?: string } | null, error: unknown) {
+  const expectedSkip = data?.error === "no_consent" || data?.error === "blocked" || data?.error === "No phone for recipient";
+  return !expectedSkip && (Boolean(error) || data?.success === false);
+}
+
 export function confirmationSms(appt: { id: string; user_id: string; format: string; starts_at: string; duration_minutes: number }, trainerName: string) {
   const when = new Date(appt.starts_at);
   const fmt = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", ...options }).format(when);

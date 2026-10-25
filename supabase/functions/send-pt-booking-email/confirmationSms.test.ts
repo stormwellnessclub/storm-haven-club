@@ -1,8 +1,15 @@
 // @ts-nocheck
 import { describe, it, expect } from "bun:test";
-import { confirmationSms } from "./confirmationSms";
+import { confirmationSms, isSmsDeliveryFailure } from "./confirmationSms";
 
 describe("PT booking confirmation texts", () => {
+  it("treats no consent, opt-out and no phone as intentional skips, not retryable failures", () => {
+    for (const error of ["no_consent", "blocked", "No phone for recipient"]) {
+      expect(isSmsDeliveryFailure({ success: false, error }, null)).toBe(false);
+    }
+    expect(isSmsDeliveryFailure({ success: false, error: "twilio_failed" }, null)).toBe(true);
+    expect(isSmsDeliveryFailure(null, new Error("offline"))).toBe(true);
+  });
   const appt = { id: "appt-1", user_id: "client-1", format: "one_on_one", starts_at: "2026-10-26T15:30:00Z", duration_minutes: 60 };
   it("targets the booked client through consent-checked send-sms", () => {
     const body = confirmationSms(appt, "Klaudia");

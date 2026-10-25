@@ -7,4 +7,4 @@
 - [x] Classes: buy a single class pass inside the booking window
 - [x] Real /classes page (studios, what to expect, beginner FAQs)
 - [x] Local search tags and business info for spa, massage and classes pages
-- [ ] Restore automatic staff-booked PT confirmation email and consent-checked text; verify without contacting clients
+- [x] Restore automatic staff-booked PT confirmation email and consent-checked text; safe mocked tests only (no client messages or real bookings)

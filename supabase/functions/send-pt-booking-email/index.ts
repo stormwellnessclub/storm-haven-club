@@ -4,7 +4,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { confirmationSms } from "./confirmationSms.ts";
+import { confirmationSms, isSmsDeliveryFailure } from "./confirmationSms.ts";
 
 const FROM = "Storm Wellness Club <hello@stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
@@ -206,7 +206,6 @@ serve(async (req) => {
         .select("email,first_name").eq("user_id", appt.user_id).maybeSingle();
       if (m) { email = email || m.email; if (m.first_name) name = m.first_name; }
     }
-    if (!email) throw new Error("recipient email not found");
 
     // Trainer
     let trainerName = "Your trainer";
@@ -223,7 +222,7 @@ serve(async (req) => {
         const { data, error: smsError } = await supabase.functions.invoke("send-sms", {
           body: confirmationSms(appt, trainerName),
         });
-        if (smsError || data?.success === false) {
+        if (isSmsDeliveryFailure(data, smsError)) {
           console.error("PT confirmation text failed", { appointment_id, error: smsError?.message, details: data });
           smsWarning = true;
         }
@@ -235,6 +234,7 @@ serve(async (req) => {
         return jsonResponse({ success: true, skipped: true, sms_warning: smsWarning }, 200);
       }
     }
+    if (!email) throw new Error("recipient email not found");
 
     // Pass for remaining
     let sessionsRemaining = 0;

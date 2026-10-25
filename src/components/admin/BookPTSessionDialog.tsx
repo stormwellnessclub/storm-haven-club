@@ -307,6 +307,7 @@ export function BookPTSessionDialog({
       qc.invalidateQueries({ queryKey: ["pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
       qc.invalidateQueries({ queryKey: ["my-pt-appointments"] });
+      qc.invalidateQueries({ queryKey: ["upcoming-pt-appointments"] });
       qc.invalidateQueries({ queryKey: ["pt-group-occupancy"] });
 
       if (booked.length > 0) {
