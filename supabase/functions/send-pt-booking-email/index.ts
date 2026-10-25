@@ -249,6 +249,26 @@ serve(async (req) => {
     });
     if (sendErr) throw new Error(sendErr.message);
 
+    if (kind === "cancellation" && appt.user_id) {
+      const when = new Date(appt.starts_at);
+      const fmt = (o: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", ...o }).format(when);
+      try {
+        await supabase.functions.invoke("send-sms", {
+          body: {
+            to: { userId: appt.user_id },
+            templateKey: "pt-session-cancelled",
+            variables: {
+              date: fmt({ weekday: "short", month: "short", day: "numeric" }),
+              time: fmt({ hour: "numeric", minute: "2-digit" }),
+              sessionNote: appt.status === "cancelled" ? " The session was returned to your pack." : "",
+            },
+            idempotencyKey: `pt-cancelled-${appointment_id}`,
+            metadata: { source: "send-pt-booking-email", appointment_id },
+          },
+        });
+      } catch (e) { console.error("PT cancellation text failed", e); }
+    }
+
     if (kind === "confirmation") {
       await supabase.from("pt_appointments")
         .update({ confirmation_email_sent_at: new Date().toISOString() })
