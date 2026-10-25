@@ -54,6 +54,7 @@ import {
   clearClassDraft,
 } from "@/lib/bookingDraft";
 import { BookingConfirmationDialog } from "./BookingConfirmationDialog";
+import { BuyPassesDrawer } from "./BuyPassesDrawer";
 
 interface BookingModalProps {
   session: ClassSession | null;
@@ -831,6 +832,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
         onOpenChange={(o) => { if (!o) setConfirmation(null); }}
         details={confirmation}
       />
+      <BuyPassesDrawer open={buyOpen} onOpenChange={setBuyOpen} returnPath={buyReturnPath} />
     </Dialog>
   );
 }
