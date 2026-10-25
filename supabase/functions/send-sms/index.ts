@@ -67,9 +67,13 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     tmpl(`Storm Wellness Club: {{className}} starts in 2 hrs at {{time}}. See you soon!`, v),
   "class-cancelled": (v) =>
     tmpl(
-      `Storm Wellness Club: Your {{className}} on {{date}} at {{time}} was cancelled. Credit refunded.`,
+      `Storm Wellness Club: Your {{className}} on {{date}} at {{time}} has been cancelled by the studio.{{creditNote}}`,
       v,
     ),
+  "spa-appointment-cancellation": (v) =>
+    tmpl(`Storm Wellness Club: Your {{service}} appointment on {{date}} at {{time}} has been cancelled.`, v),
+  "pt-session-cancelled": (v) =>
+    tmpl(`Storm Wellness Club: Your Personal Training session on {{date}} at {{time}} has been cancelled.{{sessionNote}}`, v),
   "waitlist-promoted": (v) =>
     tmpl(
       `Storm Wellness Club: A spot opened for {{className}} on {{date}} at {{time}}. You're booked.`,

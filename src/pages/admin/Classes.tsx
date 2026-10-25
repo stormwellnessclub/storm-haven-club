@@ -323,6 +323,18 @@ export default function Classes() {
                     },
                   },
                 }).catch(err => console.error('Failed to send cancellation email:', err));
+              }
+              if (booking.user_id) {
+                // send-sms checks consent; an opt-out always wins.
+                supabase.functions.invoke('send-sms', {
+                  body: {
+                    to: { userId: booking.user_id },
+                    templateKey: 'class-cancelled',
+                    variables: { className: selectedSession.class_types?.name || 'Class', date: sessionDate, time: sessionTime, creditNote: '' },
+                    idempotencyKey: `class-cancelled-${booking.id}`,
+                    metadata: { source: 'admin_class_cancel', booking_id: booking.id },
+                  },
+                }).catch(err => console.error('Failed to send cancellation text:', err));
               } else {
                 console.warn('[class-cancel] Could not resolve email for booking', booking.id, {
                   member_id: booking.member_id,

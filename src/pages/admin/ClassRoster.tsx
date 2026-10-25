@@ -582,6 +582,25 @@ export default function ClassRoster() {
             },
           }).catch((err) => console.error("Failed to send removal email:", err));
         }
+        const smsUserId = booking.user_id || member?.user_id;
+        if (smsUserId && session) {
+          const [h2, m2] = (session.start_time || "00:00:00").split(":").map(Number);
+          const t2 = new Date(); t2.setHours(h2, m2, 0, 0);
+          supabase.functions.invoke("send-sms", {
+            body: {
+              to: { userId: smsUserId },
+              templateKey: "class-cancelled",
+              variables: {
+                className: className || "Class",
+                date: format(sessionDate, "MMMM d, yyyy"),
+                time: format(t2, "h:mm a"),
+                creditNote: returnsCredit ? " Your credit was returned." : "",
+              },
+              idempotencyKey: `class-cancelled-${booking.id}`,
+              metadata: { source: "admin_roster_remove", booking_id: booking.id },
+            },
+          }).catch((err) => console.error("Failed to send removal text:", err));
+        }
       } catch (err) {
         console.error("Failed to prepare removal email:", err);
       }

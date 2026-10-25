@@ -176,11 +176,11 @@ export async function sendSpaNotifications(args: {
   const smsKey =
     args.kind === "confirmation"
       ? "appointment-confirmation"
-      : "class-booking-cancellation";
+      : "spa-appointment-cancellation";
   const smsVars: Record<string, string> =
     args.kind === "confirmation"
       ? { service: a.service_name, date: dateStr, time: timeStr, provider }
-      : { className: a.service_name, date: dateStr, time: timeStr, refundNote: "" };
+      : { service: a.service_name, date: dateStr, time: timeStr };
 
   await Promise.allSettled([
     email
