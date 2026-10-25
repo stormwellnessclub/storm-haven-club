@@ -1,11 +1,11 @@
 export const SEAWEED_RITUAL_NAME = "Seaweed Body Wrap Ritual";
 export const SEAWEED_RITUAL_PATH = "/spa/body-wraps/detox-seaweed-charcoal";
 export const SEAWEED_RITUAL_OVERVIEW = "A restorative experience that brings together real seaweed, herbal botanicals, full-body exfoliation, facial care, and massage—leaving your skin replenished and your body deeply relaxed.";
-export const SEAWEED_RITUAL_PREPARATION = "Both options include a preparatory vibration therapy and red light session, provided in addition to your selected treatment time. Non-members also receive wet spa access with their ritual.";
+export const SEAWEED_RITUAL_PREPARATION = "Both options include a preparatory vibration therapy and red light session, provided in addition to your selected treatment time.";
 export const SEAWEED_RITUAL_BODY = [
   "Your ritual begins with full-body exfoliation to lift away dullness and reveal smoother skin. Following a shower, you’re enveloped in real seaweed, with a complementary seaweed and herbal body mask applied to selected areas. Rich in naturally moisture-binding compounds, this marine treatment helps replenish hydration and soften dry skin for a supple, refreshed finish.",
   "As you rest cocooned for 30–40 minutes, a gentle facial lymphatic massage and face mask extend the experience to your complexion. After a second shower, a massage with natural seaweed body butter nourishes the skin while easing muscular tension.",
-  "Choose 70 minutes for the complete ritual or 90 minutes for an extended massage, allowing more time to release tension and fully settle into relaxation.",
+  "Choose 70 minutes for the complete ritual or 90 minutes for an extended massage, allowing more time to release tension and fully settle into relaxation. The 90-minute ritual also includes wet spa access for non-members.",
   SEAWEED_RITUAL_PREPARATION,
 ];
 export const SEAWEED_RITUAL_BENEFITS = [
