@@ -100,7 +100,7 @@ export const SMS_TEMPLATES: SmsTemplate[] = [
   {
     key: "pt-session-cancelled",
     label: "Personal Training session cancelled",
-    category: "Personal Training",
+    category: "Spa",
     body: "Storm Wellness Club: Your Personal Training session on {{date}} at {{time}} has been cancelled.{{sessionNote}}",
     triggers: "Sent with the PT cancellation email.",
     sampleVariables: { date: "Tue Jun 10", time: "7:00 AM", sessionNote: " The session was returned to your pack." },
