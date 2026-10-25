@@ -3,12 +3,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { confirmationSms } from "./confirmationSms.ts";
 
 const FROM = "Storm Wellness Club <hello@stormwellnessclub.com>";
 const SITE = "https://stormwellnessclub.com";
@@ -44,7 +40,7 @@ function buildConfirmation(opts: {
         <tr><td style="padding:6px 0;color:#6b5a3b;">Sessions left</td><td style="padding:6px 0;text-align:right;">${opts.sessionsRemaining}</td></tr>
       </table>
       <div style="background:#fef6e6;border-left:3px solid #c9a86a;padding:14px 16px;margin:18px 0;font-size:13px;color:#5b4a2c;">
-        <strong>Cancellation policy:</strong> Free cancellation up to <strong>24 hours</strong> before your session.
+        <strong>Cancellation policy:</strong> Cancellation at no charge up to <strong>24 hours</strong> before your session.
         Late cancellations and no-shows forfeit the session from your pack.
       </div>
       <p style="text-align:center;margin:24px 0 0;">
@@ -193,10 +189,8 @@ serve(async (req) => {
     }
 
 
-    if (kind === "confirmation" && appt.confirmation_email_sent_at) {
-      return new Response(JSON.stringify({ success: true, skipped: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
-      });
+    if (kind === "confirmation" && appt.status !== "scheduled") {
+      return jsonResponse({ success: false, error: "Only upcoming scheduled appointments can be confirmed" }, 400);
     }
 
     // Recipient
@@ -220,6 +214,26 @@ serve(async (req) => {
       const { data: ins } = await supabase.from("instructors")
         .select("first_name,last_name").eq("id", appt.instructor_id).maybeSingle();
       if (ins) trainerName = `${ins.first_name ?? ""} ${ins.last_name ?? ""}`.trim() || trainerName;
+    }
+
+    // SMS is independent of email delivery; retries use send-sms's appointment key.
+    let smsWarning = false;
+    if (kind === "confirmation") {
+      try {
+        const { data, error: smsError } = await supabase.functions.invoke("send-sms", {
+          body: confirmationSms(appt, trainerName),
+        });
+        if (smsError || data?.success === false) {
+          console.error("PT confirmation text failed", { appointment_id, error: smsError?.message, details: data });
+          smsWarning = true;
+        }
+      } catch (e) {
+        console.error("PT confirmation text failed", e);
+        smsWarning = true;
+      }
+      if (appt.confirmation_email_sent_at) {
+        return jsonResponse({ success: true, skipped: true, sms_warning: smsWarning }, 200);
+      }
     }
 
     // Pass for remaining
@@ -275,7 +289,7 @@ serve(async (req) => {
         .eq("id", appointment_id);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, sms_warning: smsWarning }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
     });
   } catch (e: any) {
