@@ -333,6 +333,8 @@ serve(async (req) => {
         log("Activation sweep complete", result);
         return json({ success: true, ...result });
       }
+      case "prepause":
+        return json({ success: true, ...(await runPrePauses()) });
       case "audit":
         return json({ success: true, ...(await auditDrift(false)) });
       case "repair":
