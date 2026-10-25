@@ -2,7 +2,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Info } from "lucide-react";
 
 export const CANCELLATION_POLICY_TEXT =
-  "Free cancellation up to 24 hours before class. Late cancellations forfeit your credit or pass.";
+  "Cancel up to 24 hours before class at no charge. Late cancellations forfeit your credit or pass.";
 
 export function CancellationPolicyInline({ className = "" }: { className?: string }) {
   return (

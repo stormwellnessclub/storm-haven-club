@@ -1057,12 +1057,12 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             {usingVoucher ? (
               <div className="flex justify-between items-center text-lg font-semibold">
                 <span>Total</span>
-                <span className="text-accent">FREE (Mother's Day Voucher)</span>
+                <span className="text-accent">Covered (Mother's Day Voucher)</span>
               </div>
             ) : paymentMethod === "credit" ? (
               <div className="flex justify-between items-center text-lg font-semibold">
                 <span>Total</span>
-                <span className="text-accent">FREE (1 Credit)</span>
+                <span className="text-accent">Covered (1 Credit)</span>
               </div>
             ) : (
               <>
