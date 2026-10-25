@@ -5,6 +5,7 @@ import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { SPA_CATEGORIES } from "@/lib/spa-content";
+import { buildFAQLd, buildServiceLd } from "@/lib/seo/schemas";
 
 const BASE_URL = "https://stormwellnessclub.com";
 
@@ -72,6 +73,23 @@ export default function SpaCategoryHub({ category }: Props) {
     })),
   };
 
+  const localFaqs = [
+    {
+      q: `Where can I get ${cat.name.toLowerCase()} near Livonia, MI?`,
+      a: `Aella Spa at Storm Wellness Club, 18340 Middlebelt Rd, Livonia, MI 48152 — a short drive from Farmington Hills, Plymouth, Northville, Novi, Redford and Westland.`,
+    },
+    {
+      q: `Do I need a membership to book ${cat.name.toLowerCase()}?`,
+      a: "No. The spa is open to the public. Create an account to book online; members receive member pricing.",
+    },
+  ];
+  const serviceLd = buildServiceLd({
+    name: `${cat.name} at Aella Spa`,
+    serviceType: cat.name,
+    description: cat.description,
+    path,
+  });
+
   return (
     <Layout>
       <SEOHead
@@ -84,6 +102,8 @@ export default function SpaCategoryHub({ category }: Props) {
       <Helmet>
         <script type="application/ld+json">{JSON.stringify(breadcrumbLd)}</script>
         <script type="application/ld+json">{JSON.stringify(itemListLd)}</script>
+        <script type="application/ld+json">{JSON.stringify(serviceLd)}</script>
+        <script type="application/ld+json">{JSON.stringify(buildFAQLd(localFaqs))}</script>
       </Helmet>
 
       {/* Hero */}
@@ -143,6 +163,18 @@ export default function SpaCategoryHub({ category }: Props) {
               </Link>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Local questions */}
+      <section className="py-12 bg-background border-t border-border">
+        <div className="container mx-auto px-6 max-w-3xl space-y-6">
+          {localFaqs.map((f) => (
+            <div key={f.q}>
+              <h2 className="font-serif text-xl mb-1">{f.q}</h2>
+              <p className="text-muted-foreground leading-relaxed">{f.a}</p>
+            </div>
+          ))}
         </div>
       </section>
 
