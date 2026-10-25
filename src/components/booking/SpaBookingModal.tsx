@@ -767,7 +767,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 {paymentMethod === "credit" ? (
                   <>
                     <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
-                    <p className="text-lg font-semibold text-accent">FREE</p>
+                    <p className="text-lg font-semibold text-accent">Covered</p>
                     <p className="text-xs text-muted-foreground">Using Member Credit</p>
                   </>
                 ) : membership && finalPrice < basePrice ? (
