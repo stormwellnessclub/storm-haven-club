@@ -19,6 +19,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
+import { needsPrePause, resumesAtUnix } from "../_shared/freezePrePause.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -214,8 +215,51 @@ async function runActivations() {
       failures.push({ freezeId: f.id, error: e instanceof Error ? e.message : String(e) });
     }
   }
-  return { checked: due?.length ?? 0, activated, skipped_unpaid, failures };
+  const prepause = await runPrePauses();
+  return { checked: due?.length ?? 0, activated, skipped_unpaid, failures, prepause };
+}
 
+/**
+ * Approved + paid freezes starting within 35 days: if the next renewal lands
+ * before the start and would bill frozen time, pause dues now (void) so it is
+ * never charged. Member status is untouched; activation still happens on the start date.
+ */
+async function runPrePauses() {
+  const today = detroitDateISO();
+  const horizon = detroitDateISO(new Date(Date.now() + 35 * 86400_000));
+  const { data, error } = await supabase
+    .from("member_freezes")
+    .select("id, member_id, fee_paid, freeze_fee_total, actual_start_date, requested_start_date, actual_end_date, requested_end_date")
+    .eq("status", "approved")
+    .gt("requested_start_date", today)
+    .lte("requested_start_date", horizon);
+  if (error) throw error;
+  const paused: string[] = [];
+  const failures: { freezeId: string; error: string }[] = [];
+  for (const f of data ?? []) {
+    if (!f.fee_paid && Number(f.freeze_fee_total ?? 0) > 0) continue;
+    const start = f.actual_start_date ?? f.requested_start_date;
+    const end = f.actual_end_date ?? f.requested_end_date;
+    if (!start || !end) continue;
+    try {
+      const member = await getMember(f.member_id);
+      if (!member.stripe_subscription_id) continue;
+      const sub = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
+      if (sub.pause_collection || sub.status === "canceled") continue;
+      const renewal = (sub.items?.data?.[0] as any)?.current_period_end ?? (sub as any).current_period_end;
+      if (!needsPrePause({ nextRenewalUnix: renewal, freezeStartISO: start, freezeEndISO: end, nowUnix: Math.floor(Date.now() / 1000) })) continue;
+      await stripe.subscriptions.update(member.stripe_subscription_id, {
+        pause_collection: { behavior: "void", resumes_at: resumesAtUnix(end) } as never,
+      });
+      const check = await stripe.subscriptions.retrieve(member.stripe_subscription_id);
+      if (!check.pause_collection) throw new Error("Stripe did not apply the pause");
+      paused.push(f.id);
+      log("Pre-paused dues before freeze start", { freezeId: f.id, start });
+    } catch (e) {
+      failures.push({ freezeId: f.id, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+  return { checked: data?.length ?? 0, paused, failures };
 }
 
 /** Compare our freeze state against live Stripe. Optionally repair mismatches. */
@@ -289,6 +333,8 @@ serve(async (req) => {
         log("Activation sweep complete", result);
         return json({ success: true, ...result });
       }
+      case "prepause":
+        return json({ success: true, ...(await runPrePauses()) });
       case "audit":
         return json({ success: true, ...(await auditDrift(false)) });
       case "repair":

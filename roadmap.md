@@ -48,3 +48,6 @@
 - [x] Cancelled members: non-member portal and pricing only
 - [ ] Remove 89 duplicate non-member records — waiting on user review of list
 - [ ] Book club last call: send email and text (owner presses Send), publish
+- [x] Freezes: pre-pause dues when renewal falls before an approved, paid freeze start (Nsreen paused manually)
+- [ ] Jenna Saleh $250 frozen-month charge — waiting on choice: account credit vs card refund
+- [ ] Cancellation texts for class, PT and spa cancellations (membership stays email only) — plan awaiting approval
