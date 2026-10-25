@@ -60,7 +60,7 @@ export default function Classes() {
     },
     {
       q: "What should I bring?",
-      a: "Comfortable workout clothes and a water bottle. Grip socks are recommended for Reformer classes. For cycling, athletic shoes work fine.",
+      a: "Comfortable workout clothes and a water bottle. Grip socks are required for all of our classes.",
     },
     { q: "What is the cancellation policy?", a: CANCELLATION_POLICY_TEXT },
     {
