@@ -582,7 +582,7 @@ export default function ClassRoster() {
             },
           }).catch((err) => console.error("Failed to send removal email:", err));
         }
-        const smsUserId = booking.user_id || member?.user_id;
+        const smsUserId = booking.user_id;
         if (smsUserId && session) {
           const [h2, m2] = (session.start_time || "00:00:00").split(":").map(Number);
           const t2 = new Date(); t2.setHours(h2, m2, 0, 0);
