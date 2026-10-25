@@ -194,22 +194,8 @@ export default function Spa() {
       return;
     }
 
-    setPendingMassageService(service);
-
-    // Gate 1: Waiver
-    if (!isWaiverSigned) {
-      setWaiverAgreed(false);
-      setShowWaiverGate(true);
-      return;
-    }
-
-    // Gate 2: Payment
-    if (!hasPaymentOnFile) {
-      setShowPaymentGate(true);
-      return;
-    }
-
-    // Both gates passed — open booking
+    // Show open times first; the booking window asks for the waiver and a
+    // card on file only after a time is picked.
     setSelectedService(service);
     setShowBookingModal(true);
     setPendingMassageService(null);
