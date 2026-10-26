@@ -55,6 +55,7 @@ import {
 } from "@/lib/bookingDraft";
 import { BookingConfirmationDialog } from "./BookingConfirmationDialog";
 import { BuyPassesDrawer } from "./BuyPassesDrawer";
+import { reconcileClassPayment } from "@/lib/classPassCheckout";
 
 interface BookingModalProps {
   session: ClassSession | null;
@@ -98,6 +99,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [passAgreementAcknowledged, setPassAgreementAcknowledged] = useState(false);
   const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
   const [confirmation, setConfirmation] = useState<import("./BookingConfirmationDialog").BookingConfirmationDetails | null>(null);
+  const [buyOpen, setBuyOpen] = useState(false);
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
@@ -193,6 +195,20 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   // Check liability waiver — check member profile first, fall back to non-member profile
   const hasLiabilityWaiver = profile?.waiver_signed === true || nonMemberProfile?.waiver_signed === true;
+
+  // A pass can arrive after the initial credits load (checkout/webhook/focus).
+  // Repair only invalid selections; never reset a valid user choice.
+  useEffect(() => {
+    if (!session || creditsLoading) return;
+    const next = reconcileClassPayment(
+      { paymentMethod, selectedPassId, selectedPassType },
+      !!canUseMemberCredits,
+      creditsData?.availablePasses || [],
+    );
+    if (next.paymentMethod !== paymentMethod) setPaymentMethod(next.paymentMethod);
+    if (next.selectedPassId !== selectedPassId) setSelectedPassId(next.selectedPassId);
+    if (next.selectedPassType !== selectedPassType) setSelectedPassType(next.selectedPassType);
+  }, [session?.id, creditsLoading, creditsData, paymentMethod, selectedPassId, selectedPassType]);
 
   if (!session) return null;
 
@@ -331,7 +347,6 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     // Keep modal open so user sees their position
   };
 
-  const [buyOpen, setBuyOpen] = useState(false);
   // Buy a pass without leaving: remember this class so it reopens after checkout.
   const handlePurchasePass = () => {
     if (session?.id) {
@@ -406,7 +421,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Free cancellation up to 24 hours before class. Late cancellations
+                Cancellation at no charge up to 24 hours before class. Late cancellations
                 will forfeit your credit or pass.
               </AlertDescription>
             </Alert>
@@ -810,6 +825,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
                 disabled={
                   bookClass.isPending ||
                   isFundraiserCheckingOut ||
+                  (!!user && !isFundraiser && paymentMethod === "pass" && !selectedPassId) ||
                   (!!user && !isFundraiser && (hasNoPaymentOptions || !hasLiabilityWaiver)) ||
                   (!!user && isFundraiser && !hasLiabilityWaiver) ||
                   (!!user && !hasPhone)
