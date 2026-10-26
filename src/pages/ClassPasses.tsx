@@ -1,5 +1,6 @@
 import { Fragment } from "react";
-import { useState, useEffect } from "react";
+import { useClassPassCheckoutReturn } from "@/hooks/useClassPassCheckoutReturn";
+import { useState, useEffect, useRef } from "react";
 import { SEOHead } from "@/components/SEOHead";
 import { buildBreadcrumbLd, buildProductLd, buildFAQLd } from "@/lib/seo/schemas";
 import { Layout } from "@/components/Layout";
@@ -398,7 +399,9 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
   } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { data: credits, refetch: refetchCredits } = useUserCredits();
+  const { data: credits } = useUserCredits();
+  const checkoutReturn = useClassPassCheckoutReturn();
+  const signedThisFlow = useRef(new Set<string>());
 
   const isMember = membership?.status === 'active';
   
@@ -419,33 +422,11 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
   // Inline guest checkout (account create / sign in) sheet
   const [guestSheetOpen, setGuestSheetOpen] = useState(false);
 
-  // Detect Stripe return: backend appends ?session_id={CHECKOUT_SESSION_ID} to successUrl
   useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-    const purchase = searchParams.get("purchase");
-    if (sessionId || purchase === "success") {
-      queryClient.invalidateQueries({ queryKey: ["user-credits"] });
-      refetchCredits();
-      if (sessionId) {
-        supabase.functions
-          .invoke("class-pass-confirm", { body: { session_id: sessionId } })
-          .then(({ data }: any) => {
-            if (data?.success && data?.paid) {
-              setSuccessPass(data.pass);
-              setSuccessOpen(true);
-            } else {
-              toast.success("Class pass purchased! Your pass is now active.");
-            }
-          })
-          .catch(() => {
-            toast.success("Class pass purchased! Your pass is now active.");
-          });
-      } else {
-        toast.success("Class pass purchased! Your pass is now active.");
-      }
-      setSearchParams({}, { replace: true });
-    }
-  }, []);
+    if (!checkoutReturn.pass) return;
+    setSuccessPass(checkoutReturn.pass);
+    setSuccessOpen(true);
+  }, [checkoutReturn.pass]);
 
   // If the user just authenticated (via the inline sheet or /auth) and we have
   // a stashed pending pass, resume the purchase automatically.
@@ -458,7 +439,8 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
     } catch { /* ignore */ }
     if (!pending) return;
     sessionStorage.removeItem(PENDING_PURCHASE_KEY);
-    setTimeout(() => handlePurchase(pending!.category, pending!.passType), 250);
+    const purchase = pending;
+    setTimeout(() => handlePurchase(purchase.category, purchase.passType), 250);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
@@ -481,20 +463,20 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
 
 
     // Check liability waiver first (universal requirement — covers both members and non-members)
-    if (!hasLiabilityWaiver) {
+    if (!hasLiabilityWaiver && !signedThisFlow.current.has("liability_waiver")) {
       setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pendingPurchase: { category, passType } });
       toast.info("Please sign the Liability Waiver below before purchasing");
       return;
     }
 
     // Check if the specific agreement is needed — show inline signing prompt instead of blocking
-    if (passType === 'single' && needsSingleClassAgreement) {
+    if (passType === 'single' && needsSingleClassAgreement && !signedThisFlow.current.has('single_class_pass')) {
       setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pendingPurchase: { category, passType } });
       toast.info("Please sign the agreement below before purchasing");
       return;
     }
     
-    if (passType === 'tenPack' && needsClassPackageAgreement) {
+    if (passType === 'tenPack' && needsClassPackageAgreement && !signedThisFlow.current.has('class_package')) {
       setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pendingPurchase: { category, passType } });
       toast.info("Please sign the agreement below before purchasing");
       return;
@@ -577,6 +559,12 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
           ]),
         ]}
       />}
+      {(checkoutReturn.isConfirming || checkoutReturn.error) && (
+        <div role="status" className="container mx-auto px-6 pt-24 text-sm">
+          {checkoutReturn.isConfirming ? "Confirming your class pass…" : checkoutReturn.error}
+          {checkoutReturn.error && <Button variant="outline" className="ml-3" onClick={() => void checkoutReturn.retry()}>Check again</Button>}
+        </div>
+      )}
       <ClassPassPurchaseSuccessDialog open={successOpen} onOpenChange={setSuccessOpen} pass={successPass} />
       <GuestCheckoutSheet
         open={guestSheetOpen}
@@ -630,7 +618,7 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
             <div className="max-w-4xl mx-auto">
               <h2 className="font-serif text-2xl mb-4">Your Active Passes</h2>
               <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {credits!.classPasses.map((pass) => (
+                {credits?.classPasses.map((pass) => (
                   <div key={pass.id} className="card-luxury p-5">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-medium capitalize">
@@ -668,6 +656,7 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
           agreementType={showWaiverFor.type}
           title={showWaiverFor.title}
           onSigned={() => {
+            signedThisFlow.current.add(showWaiverFor.type);
             const pending = showWaiverFor.pendingPurchase;
             setShowWaiverFor(null);
             if (pending) {
