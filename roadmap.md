@@ -1,6 +1,6 @@
 # Booking conversion roadmap
 
-- [ ] Fix class-pass checkout return, booking crash, and pass selection; verify safely without live payments or bookings
+- [x] Fix class-pass checkout return, booking crash, and pass selection; verified signed-in with real future class and simulated checkout/pass responses, no live payment or reservation
 
 - [x] Spa "Book a Treatment" button scrolls to the menu
 - [x] Sign-in returns clients to the treatment they picked and reopens booking
