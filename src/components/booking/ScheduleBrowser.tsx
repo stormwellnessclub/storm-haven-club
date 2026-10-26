@@ -24,6 +24,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useMyBookings } from "@/hooks/useBooking";
 import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
+import { useClassPassCheckoutReturn } from "@/hooks/useClassPassCheckoutReturn";
 
 type RoomFilter = "all" | "Reformer Studio" | "Cycle Studio" | "Aerobics Studio";
 type HeatFilter = "all" | "heated" | "non_heated";
@@ -88,6 +89,7 @@ interface ScheduleBrowserProps {
 export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }: ScheduleBrowserProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const checkoutReturn = useClassPassCheckoutReturn();
   const today = startOfDay(new Date());
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 1 }));
   const todayRef = React.useRef<HTMLDivElement>(null);
@@ -317,21 +319,33 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
 
   const resumedRef = useRef(false);
   useEffect(() => {
-    if (resumedRef.current || !user || sessions.length === 0) return;
+    if (resumedRef.current || !user || isLoading || checkoutReturn.isConfirming || checkoutReturn.error) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("resumeBooking") !== "1") return;
     const draft = readClassDraft();
     if (!draft?.sessionId) return;
-    resumedRef.current = true;
+    if (!sessions.some(s => s.id === draft.sessionId)) {
+      if (draft.sessionDate && (draft.sessionDate < startStr || draft.sessionDate > endStr)) {
+        handleResumeBooking(draft);
+      }
+      return;
+    }
     handleResumeBooking(draft);
+    resumedRef.current = true;
     params.delete("resumeBooking");
     const qs = params.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, sessions]);
+  }, [user, sessions, isLoading, startStr, endStr, checkoutReturn.isConfirming, checkoutReturn.error]);
 
   return (
     <>
+      {(checkoutReturn.isConfirming || checkoutReturn.error) && (
+        <div role="status" className="container mx-auto px-6 py-4 border-b border-border text-sm">
+          {checkoutReturn.isConfirming ? "Confirming your class pass…" : checkoutReturn.error}
+          {checkoutReturn.error && <Button variant="outline" size="sm" className="ml-3" onClick={() => void checkoutReturn.retry()}>Check again</Button>}
+        </div>
+      )}
       {/* Filters + Week Navigation */}
       <section
         className={

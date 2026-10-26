@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Loader2, ShoppingCart, Check, FileText } from "lucide-react";
@@ -50,6 +50,7 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
 
   const { data: pricingRows } = useClassPassPricing();
 
+  const signedThisFlow = useRef(new Set<string>());
   const [loadingPass, setLoadingPass] = useState<string | null>(null);
   const [showWaiverFor, setShowWaiverFor] = useState<{
     type: string;
@@ -101,15 +102,15 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
       return;
     }
 
-    if (!hasLiabilityWaiver) {
+    if (!hasLiabilityWaiver && !signedThisFlow.current.has("liability_waiver")) {
       setShowWaiverFor({ type: "liability_waiver", title: "Liability Waiver", pending: { passType, classes } });
       return;
     }
-    if (classes <= 1 && needsSingleAgreement) {
+    if (classes <= 1 && needsSingleAgreement && !signedThisFlow.current.has("single_class_pass")) {
       setShowWaiverFor({ type: "single_class_pass", title: "Single Class Pass Agreement", pending: { passType, classes } });
       return;
     }
-    if (classes > 1 && needsClassPackageAgreement) {
+    if (classes > 1 && needsClassPackageAgreement && !signedThisFlow.current.has("class_package")) {
       setShowWaiverFor({ type: "class_package", title: "Class Package Agreement", pending: { passType, classes } });
       return;
     }
@@ -122,7 +123,7 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
         body: {
           action: "create_class_pass_checkout",
           category: "pilatesCycling",
-          passType,
+          passType: passType === "10_pack" ? "tenPack" : passType,
           isMember,
           successUrl: `${origin}${returnPath}${returnPath.includes("?") ? "&" : "?"}purchase=success`,
           cancelUrl: `${origin}${returnPath}${returnPath.includes("?") ? "&" : "?"}purchase=cancelled`,
@@ -186,12 +187,13 @@ export function BuyPassesDrawer({ open, onOpenChange, returnPath }: BuyPassesDra
     const handleSign = () => {
       signer.sign(undefined, {
         onSuccess: () => {
+          signedThisFlow.current.add(type);
           queryClient.invalidateQueries({ queryKey: ["user-profile", user?.id] });
           queryClient.invalidateQueries({ queryKey: ["non-member-profile", user?.id] });
           toast.success(`${title} signed!`);
           setShowWaiverFor(null);
           // Resume the pending purchase
-          setTimeout(() => handlePurchase(pending.passType, pending.classes), 300);
+          void handlePurchase(pending.passType, pending.classes);
         },
       });
     };
