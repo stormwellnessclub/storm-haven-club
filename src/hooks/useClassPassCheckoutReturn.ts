@@ -6,10 +6,10 @@ import { checkoutSessionFromSearch } from "@/lib/classPassCheckout";
 import { toast } from "sonner";
 
 /** One consumer per page. Wait for auth and fulfillment before refreshing balances. */
-export function useClassPassCheckoutReturn() {
+export function useClassPassCheckoutReturn(enabled = true) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [returnSession] = useState(() => checkoutSessionFromSearch(window.location.search));
+  const [returnSession] = useState(() => enabled ? checkoutSessionFromSearch(window.location.search) : null);
   const [isConfirming, setIsConfirming] = useState(!!returnSession);
   const [error, setError] = useState<string | null>(null);
   const [pass, setPass] = useState<any>(null);
@@ -38,7 +38,7 @@ export function useClassPassCheckoutReturn() {
   }, [user?.id, returnSession, queryClient]);
 
   useEffect(() => {
-    if (!user || started.current) return;
+    if (!enabled || !user || started.current) return;
     started.current = true;
     if (returnSession) void confirm();
     else if (new URLSearchParams(window.location.search).get("purchase") === "cancelled") {
@@ -47,6 +47,6 @@ export function useClassPassCheckoutReturn() {
       params.delete("purchase");
       window.history.replaceState(window.history.state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
     }
-  }, [user?.id, returnSession, confirm]);
+  }, [enabled, user?.id, returnSession, confirm]);
   return { isConfirming, error, pass, retry: confirm };
 }

@@ -7,7 +7,7 @@ import { Layout } from "@/components/Layout";
 import { SectionHeading } from "@/components/SectionHeading";
 import { Button } from "@/components/ui/button";
 import { Check, Info, Clock, Loader2, ShoppingCart, FileText } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { calculateProcessingFeeFromDollars } from "@/lib/processingFee";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -397,10 +397,8 @@ export default function ClassPasses({ embedded = false }: { embedded?: boolean }
     title: string;
     pendingPurchase?: { category: 'pilatesCycling'; passType: 'single' | 'tenPack' };
   } | null>(null);
-  const [searchParams, setSearchParams] = useSearchParams();
-  const queryClient = useQueryClient();
   const { data: credits } = useUserCredits();
-  const checkoutReturn = useClassPassCheckoutReturn();
+  const checkoutReturn = useClassPassCheckoutReturn(!embedded);
   const signedThisFlow = useRef(new Set<string>());
 
   const isMember = membership?.status === 'active';
