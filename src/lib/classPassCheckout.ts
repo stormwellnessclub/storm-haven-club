@@ -3,9 +3,7 @@ export function checkoutSessionFromSearch(search: string): string | null {
   return new URLSearchParams(search.replace(/\?(?=session_id=)/g, "&")).get("session_id");
 }
 
-export function classPassSuccessUrl(url: string): string {
-  return `${url}${url.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`;
-}
+export { classPassSuccessUrl } from "../../supabase/functions/_shared/classPassCheckoutUrl";
 
 export interface ClassPaymentSelection {
   paymentMethod: "credits" | "pass";

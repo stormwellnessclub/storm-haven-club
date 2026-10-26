@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { isMembershipCollection, recordManualCharge, settleMembershipCollection } from "../_shared/manualChargeLedger.ts";
 import { selectChargePaymentMethod } from "../_shared/paymentMethods.ts";
 import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
+import { classPassSuccessUrl } from "../_shared/classPassCheckoutUrl.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1259,7 +1260,7 @@ serve(async (req) => {
           payment_intent_data: {
             setup_future_usage: 'off_session',
           },
-          success_url: `${successUrl}${successUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+          success_url: classPassSuccessUrl(successUrl),
           cancel_url: cancelUrl,
           metadata: {
             type: 'class_pass',
