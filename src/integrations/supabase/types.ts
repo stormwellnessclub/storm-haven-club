@@ -13392,6 +13392,7 @@ export type Database = {
           cleanup_minutes: number
           created_at: string
           duration_minutes: number
+          email_access_hash: string | null
           expires_at: string
           guest_email: string
           guest_name: string
@@ -13423,6 +13424,7 @@ export type Database = {
           cleanup_minutes: number
           created_at?: string
           duration_minutes: number
+          email_access_hash?: string | null
           expires_at?: string
           guest_email: string
           guest_name: string
@@ -13454,6 +13456,7 @@ export type Database = {
           cleanup_minutes?: number
           created_at?: string
           duration_minutes?: number
+          email_access_hash?: string | null
           expires_at?: string
           guest_email?: string
           guest_name?: string
@@ -18356,6 +18359,14 @@ export type Database = {
           p_ready_at?: string
         }
         Returns: string
+      }
+      staff_spa_guest_waiver: {
+        Args: { p_appointment_id: string }
+        Returns: {
+          waiver_agreement_id: string
+          waiver_name: string
+          waiver_signed_at: string
+        }[]
       }
       submit_class_review: {
         Args: {
