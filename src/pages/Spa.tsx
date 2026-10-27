@@ -190,7 +190,7 @@ export default function Spa() {
     if (!user) {
       const back = isSeaweedRitual(service)
         ? `/spa?category=Body%20Wraps&service=detox-seaweed-charcoal&book=${service.id}`
-        : `/spa?category=Massage&book=${service.id}`;
+        : `/spa?category=${encodeURIComponent(service.category)}&book=${service.id}`;
       navigate(`/auth?redirect=${encodeURIComponent(back)}`);
       return;
     }
@@ -306,7 +306,7 @@ export default function Spa() {
 
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
-    if (isSeaweedRitual(service)) {
+    if (isSeaweedRitual(service) || service.id === "b4981f5b-5299-4807-9a79-6ffe801b51ed") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleMassageBooking(service)}>
           Book Now

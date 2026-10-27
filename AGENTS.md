@@ -15,6 +15,7 @@
 - Staff intake viewers share the complete service-specific summary and print only that summary in an isolated document. Why: therapist copies must include every recorded answer and signature without payment controls.
 
 - Read subdirectory `AGENTS.md` before editing there.
+- Spa availability launch dates live on availability windows and are enforced by shared calendar helpers and an appointment trigger. Why: future launches must allow reservations now without permitting appointments before their start date.
 - Abandoned applications share an email-deduplicated roster for filters/export and paginate history; resolved/test rows never get reminder controls. Why: counts must match the full list without making members leads.
 - Spa request alerts and request handling views reuse `useSpaServiceRequests` across admin and front desk, with front desk links staying within its shell. Why: both staff entry points must show the same pending requests without sending staff into a different portal.
 - Admin-booked spa appointments for clients without an account store guest_email; a profiles trigger links them to the account created with that email, and the confirmation email carries a create-account-and-sign-waiver link. Why: public requests need no account, but booked clients must end up with an account and waiver.

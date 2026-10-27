@@ -71,6 +71,7 @@ export function findCoveringSlot(
 
   const onDate = availability.filter((a) => {
     if (a.service_id !== serviceId || !a.is_active) return false;
+    if (a.starts_on && iso < a.starts_on) return false;
     return a.specific_date ? a.specific_date === iso : a.day_of_week === dow;
   });
 
@@ -111,6 +112,7 @@ export function hasCoverageOnDate(
     (a) =>
       a.service_id === serviceId &&
       a.is_active &&
+      (!a.starts_on || iso >= a.starts_on) &&
       (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
 }
@@ -139,6 +141,7 @@ export function generateAvailableStartTimes(
     (a) =>
       a.service_id === serviceId &&
       a.is_active &&
+      (!a.starts_on || iso >= a.starts_on) &&
       (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
   if (windows.length === 0 && !allowOutsideWindow) return [];
@@ -244,6 +247,7 @@ export function getServiceWindowForDate(
     (a) =>
       a.service_id === serviceId &&
       a.is_active &&
+      (!a.starts_on || iso >= a.starts_on) &&
       (a.specific_date ? a.specific_date === iso : a.day_of_week === dow)
   );
   if (matches.length === 0) return null;
