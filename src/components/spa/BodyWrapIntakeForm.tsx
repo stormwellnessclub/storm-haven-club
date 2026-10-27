@@ -20,13 +20,14 @@ import {
 
 interface Props {
   appointmentId: string;
+  contactPrefill?: { fullName: string; email: string; phone: string };
   memberId?: string | null;
   initial?: BodyWrapIntake | null;
   isSubmitting: boolean;
   onSubmit: (v: BodyWrapIntakeInput) => Promise<void>;
 }
 
-export function BodyWrapIntakeForm({ appointmentId, memberId, initial, isSubmitting, onSubmit }: Props) {
+export function BodyWrapIntakeForm({ appointmentId, memberId, initial, contactPrefill, isSubmitting, onSubmit }: Props) {
   const { user } = useAuth();
   const { data: prof } = useQuery({
     queryKey: ["bw-intake-prefill", user?.id],
@@ -40,9 +41,9 @@ export function BodyWrapIntakeForm({ appointmentId, memberId, initial, isSubmitt
     },
   });
 
-  const [fullName, setFullName] = useState(initial?.full_name || "");
-  const [email, setEmail] = useState(initial?.email || "");
-  const [phone, setPhone] = useState(initial?.phone || "");
+  const [fullName, setFullName] = useState(initial?.full_name || contactPrefill?.fullName || "");
+  const [email, setEmail] = useState(initial?.email || contactPrefill?.email || "");
+  const [phone, setPhone] = useState(initial?.phone || contactPrefill?.phone || "");
   const [address, setAddress] = useState(initial?.address || "");
   const [dob, setDob] = useState(initial?.date_of_birth || "");
   const [ecName, setEcName] = useState(initial?.emergency_contact_name || "");

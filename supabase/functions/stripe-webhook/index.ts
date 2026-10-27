@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { handleEventInvoicePayment, handleEventInvoiceRefund, handleEventInvoicePaymentFailed } from "../_shared/eventFinancialsWebhook.ts";
 import { finalizeManualChargeFromIntent } from "../_shared/manualChargeLedger.ts";
 import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
+import { completeSpaGuestCheckout } from "../_shared/spaGuestCompletion.ts";
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -956,6 +957,9 @@ serve(async (req) => {
         try {
           const pi = event.data.object as Stripe.PaymentIntent;
           const md = pi.metadata || {};
+          if (md.type === 'spa_guest_checkout' && md.checkout_id) {
+            await completeSpaGuestCheckout(supabase, pi);
+          }
           // Body Roller presale settled (covers delayed bank transfers).
           if (md.type === 'body_roller_presale' && md.purchase_id) {
             try {

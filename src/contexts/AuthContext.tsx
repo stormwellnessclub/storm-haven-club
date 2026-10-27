@@ -24,6 +24,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
+    if (user?.email_confirmed_at) {
+      void supabase.rpc('claim_verified_spa_guest_bookings');
+    }
+  }, [user?.id, user?.email_confirmed_at]);
+
+  useEffect(() => {
     let isMounted = true;
     let initialRestoreDone = false;
 

@@ -58,6 +58,10 @@ import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useA
 import { Input } from "@/components/ui/input";
 import { Heart, X } from "lucide-react";
 import { isSeaweedRitual, SEAWEED_RITUAL_NAME, SEAWEED_RITUAL_PREPARATION } from "@/lib/seaweedRitual";
+import { SmsConsentCheckbox } from "@/components/SmsConsentCheckbox";
+import { SpaGuestCheckout } from "./SpaGuestCheckout";
+import { GuestSpaFollowUp } from "@/components/spa/GuestSpaFollowUp";
+import { spaGuestContactSchema, newGuestCheckoutAccess, rememberGuestCheckout, type GuestCheckoutAccess } from "@/lib/spaGuestCheckout";
 
 
 interface SpaBookingModalProps {
@@ -99,6 +103,12 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>("card");
   const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string | null>(null);
   const [savedPaymentMethods, setSavedPaymentMethods] = useState<any[]>([]);
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestSms, setGuestSms] = useState(false);
+  const [guestPayment, setGuestPayment] = useState<{access: GuestCheckoutAccess; clientSecret: string; amountCents: number} | null>(null);
+  const [guestFollowUp, setGuestFollowUp] = useState<GuestCheckoutAccess | null>(null);
 
   // Hourly-rental services (e.g. Private Outdoor Sauna) — member picks how many hours
   const isHourly = !!service && /outdoor sauna/i.test(service.name || "");
@@ -147,6 +157,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
   useEffect(() => {
     if (!open) {
+      setGuestPayment(null);
+      setGuestFollowUp(null);
       setShowWaiverInline(false);
       setWaiverAcknowledged(false);
       setConfirmation(null);
@@ -289,6 +301,19 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   }
 
   const durationMinutes = effectiveDuration;
+  const startGuestCheckout = async () => {
+    if (processingRef.current || !selectedDate || !selectedTime) return;
+    const contact = spaGuestContactSchema.safeParse({name:guestName,email:guestEmail,phone:guestPhone,smsOptIn:guestSms});
+    if (!contact.success) {toast.error(contact.error.issues[0]?.message || "Check your contact information");return;}
+    processingRef.current = true; setIsProcessing(true);
+    try {
+      const access = newGuestCheckoutAccess(); rememberGuestCheckout(access);
+      const {data,error} = await supabase.functions.invoke('spa-guest-checkout',{body:{action:'create',...access,...contact.data,serviceId:service.id,date:format(selectedDate,'yyyy-MM-dd'),time:selectedTime,hours,notes:memberNotes}});
+      if (error || !data?.clientSecret) throw new Error(data?.error || 'Unable to start payment. Please try again.');
+      setGuestPayment({access,clientSecret:data.clientSecret,amountCents:data.amountCents});
+    } catch(e) {toast.error(e instanceof Error ? e.message : 'Unable to start payment.');}
+    finally {processingRef.current=false;setIsProcessing(false);}
+  };
   const cleanupMinutes = service.cleanup_minutes;
   // Base (pre-discount) price — hourly services multiply by the hours selected
   const basePrice = isHourly ? Math.round(service.price * hours * 100) / 100 : service.price;
@@ -621,7 +646,11 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        {confirmation ? (
+        {guestFollowUp ? (
+          <><DialogHeader><DialogTitle>Your spa booking</DialogTitle><DialogDescription>Confirmation and pre-visit forms</DialogDescription></DialogHeader><GuestSpaFollowUp access={guestFollowUp} onDone={()=>onOpenChange(false)} /></>
+        ) : guestPayment ? (
+          <><DialogHeader><DialogTitle>Confirm your appointment</DialogTitle><DialogDescription>{service.name} · {selectedDate ? format(selectedDate,'EEE, MMM d') : ''} · {formatTime12h(selectedTime)}</DialogDescription></DialogHeader><SpaGuestCheckout {...guestPayment} contact={{name:guestName,email:guestEmail,phone:guestPhone,smsOptIn:guestSms}} onBack={()=>setGuestPayment(null)} onComplete={access=>{setGuestPayment(null);setGuestFollowUp(access);queryClient.invalidateQueries({queryKey:['spa-booked-slots']});}} /></>
+        ) : confirmation ? (
           <>
             <DialogHeader>
               <DialogTitle className="sr-only">Booking Confirmed</DialogTitle>
@@ -934,7 +963,18 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
             </div>
           )}
 
+          {!user && selectedTime && (
+            <section className="space-y-4 border-t border-border pt-4">
+              <h3 className="font-semibold">Your details</h3>
+              <div className="space-y-2"><Label htmlFor="spa-guest-name">Full name</Label><Input id="spa-guest-name" autoComplete="name" value={guestName} onChange={e=>setGuestName(e.target.value)} maxLength={120} required /></div>
+              <div className="space-y-2"><Label htmlFor="spa-guest-email">Email</Label><Input id="spa-guest-email" type="email" autoComplete="email" value={guestEmail} onChange={e=>setGuestEmail(e.target.value)} maxLength={255} required /></div>
+              <div className="space-y-2"><Label htmlFor="spa-guest-phone">Mobile number</Label><Input id="spa-guest-phone" type="tel" autoComplete="tel" value={guestPhone} onChange={e=>setGuestPhone(e.target.value)} maxLength={30} required /></div>
+              <SmsConsentCheckbox id="spa-guest-sms" checked={guestSms} onCheckedChange={setGuestSms} />
+            </section>
+          )}
+
           {/* Mother's Day Voucher */}
+          {user && <>
           <div className="rounded-md border p-3 space-y-2" style={{ borderColor: "#c9a86a", background: "#fdfaf3" }}>
             <Label className="flex items-center gap-2 text-sm" style={{ color: "#a17e3a" }}>
               <Heart className="h-4 w-4" /> Mother's Day Voucher
@@ -1040,6 +1080,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               </Select>
             </div>
           )}
+          </>}
 
           {/* Member Notes */}
           <div className="space-y-2">
@@ -1164,6 +1205,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           </Button>
           <Button
             onClick={() => {
+              if (!user) { void startGuestCheckout(); return; }
               if (needsIntake) {
                 // Validate prerequisites before advancing to intake step
                 if (!selectedDate || !selectedTime) {
@@ -1201,6 +1243,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 {paymentMethod === "card" && !usingVoucher ? "Processing payment…" : "Booking..."}
               </>
+            ) : !user ? (
+              <>Continue to Payment <ArrowRight className="w-4 h-4 ml-2" /></>
             ) : needsIntake ? (
               <>Continue to Intake <ArrowRight className="w-4 h-4 ml-2" /></>
             ) : usingVoucher ? (
