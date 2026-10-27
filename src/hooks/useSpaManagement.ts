@@ -60,6 +60,7 @@ export interface SpaServiceAvailability {
   max_bookings: number;
   is_active: boolean;
   specific_date?: string | null;
+  starts_on?: string | null;
 }
 
 export interface SpaServiceAddon {

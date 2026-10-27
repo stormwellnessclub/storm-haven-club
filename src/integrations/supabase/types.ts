@@ -13656,6 +13656,7 @@ export type Database = {
           service_id: string
           specific_date: string | null
           start_time: string
+          starts_on: string | null
           therapist_id: string | null
         }
         Insert: {
@@ -13668,6 +13669,7 @@ export type Database = {
           service_id: string
           specific_date?: string | null
           start_time: string
+          starts_on?: string | null
           therapist_id?: string | null
         }
         Update: {
@@ -13680,6 +13682,7 @@ export type Database = {
           service_id?: string
           specific_date?: string | null
           start_time?: string
+          starts_on?: string | null
           therapist_id?: string | null
         }
         Relationships: [
