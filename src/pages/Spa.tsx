@@ -44,10 +44,12 @@ import { useSpaServiceRatings } from "@/hooks/useSpaReviews";
 import { buildServiceLd } from "@/lib/seo/schemas";
 import { SeaweedRitualCard } from "@/components/spa/SeaweedRitualCard";
 import { compactSeaweedMenu, isSeaweedRitual, seaweedRitualVariants } from "@/lib/seaweedRitual";
+import { BodyWrapCard } from "@/components/spa/BodyWrapCard";
+import { compactBodyWrapMenu, bodyWrapVariants } from "@/lib/bodyWraps";
 
 const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
 // Body wraps that clients book themselves (waiver + card gates, wrap intake after booking).
-// Every other wrap stays "Request Appointment".
+// Active wraps use direct booking; availability controls launch dates.
 
 const memberDiscounts = [
   { tier: "Silver", discount: "5% OFF", color: "bg-warm-gray" },
@@ -135,9 +137,9 @@ export default function Spa() {
   }, [voucherFromUrl, spaServices, activeVoucherCode]);
 
   const ritualVariants = seaweedRitualVariants(spaServices);
-  const filteredServices = compactSeaweedMenu(selectedCategory === "All"
+  const filteredServices = compactBodyWrapMenu(compactSeaweedMenu(selectedCategory === "All"
     ? spaServices
-    : spaServices.filter(s => s.category === selectedCategory));
+    : spaServices.filter(s => s.category === selectedCategory)));
 
   useEffect(() => {
     if (searchParams.get("service") === "detox-seaweed-charcoal" && !servicesLoading) {
@@ -306,14 +308,14 @@ export default function Spa() {
 
   // Render button per service category
   const renderServiceButton = (service: SpaService) => {
-    if (isSeaweedRitual(service) || service.id === "b4981f5b-5299-4807-9a79-6ffe801b51ed") {
+    if (service.category === "Body Wraps") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleMassageBooking(service)}>
           Book Now
         </Button>
       );
     }
-    if (isConsultRequestService(service) || service.category === "Body Wraps") {
+    if (isConsultRequestService(service)) {
       return (
         <Button variant="outline" size="sm" onClick={() => handleRequestService(service)}>
           Request Appointment
@@ -588,6 +590,8 @@ export default function Spa() {
             <div className="grid md:grid-cols-2 gap-6">
               {filteredServices.map((service) => isSeaweedRitual(service) ? (
                 <SeaweedRitualCard key={service.id} variants={ritualVariants} onBook={handleMassageBooking} />
+              ) : service.category === "Body Wraps" ? (
+                <BodyWrapCard key={service.id} variants={bodyWrapVariants(spaServices, service)} onBook={handleMassageBooking} />
               ) : (
                 <div
                   key={service.id}

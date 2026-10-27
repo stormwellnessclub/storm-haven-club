@@ -6,6 +6,9 @@ import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { SPA_CATEGORIES } from "@/lib/spa-content";
 import { buildFAQLd, buildServiceLd } from "@/lib/seo/schemas";
+import { useSpaServices } from "@/hooks/useSpaManagement";
+import { bodyWrapVariants } from "@/lib/bodyWraps";
+import { isSeaweedRitual } from "@/lib/seaweedRitual";
 
 const BASE_URL = "https://stormwellnessclub.com";
 
@@ -25,18 +28,22 @@ interface Props {
 }
 
 export default function SpaCategoryHub({ category }: Props) {
+  const { data: services } = useSpaServices();
   const cat = SPA_CATEGORIES[category];
   if (!cat) return null;
   const path = `/spa/${cat.slug}`;
   const fullUrl = `${BASE_URL}${path}`;
 
   // Build list of all services in this category (handwritten + recovery standalone)
-  const items = cat.services.map((s) => ({
+  const items = cat.services.map((s) => {
+    const matched = category === "body-wraps" ? services?.find(v => v.is_active && (v.name === s.name || (s.slug === "detox-seaweed-charcoal" && isSeaweedRitual(v)))) : undefined;
+    const variants = matched ? bodyWrapVariants(services || [], matched) : [];
+    return ({
     to: `/spa/${cat.slug}/${s.slug}`,
     name: s.name,
     tagline: s.tagline,
-    durations: s.durations.join(" / "),
-  }));
+    durations: variants.length ? variants.map(v => `${v.duration_minutes} min · $${v.price}`).join(" / ") : s.durations.join(" / "),
+  }); });
 
   // Recovery hub also lists the 7 standalone recovery pages
   const standalone =

@@ -29,6 +29,7 @@ export interface ServiceLandingPageProps {
   body: string[];
   benefits?: string[];
   benefitDetails?: { title: string; detail: string }[];
+  sources?: { title: string; url: string }[];
   faqs?: FAQItem[];
   serviceName: string;
   ctaHref?: string;
@@ -53,6 +54,7 @@ export default function ServiceLandingPage({
   body,
   benefits,
   benefitDetails,
+  sources,
   faqs,
   serviceName,
   ctaHref = "/apply",
@@ -202,6 +204,7 @@ export default function ServiceLandingPage({
               )}
             </div>
           )}
+          {sources && <details className="mt-10 border-t border-border pt-5 text-sm text-muted-foreground"><summary className="cursor-pointer font-medium">Research references</summary><p className="mt-3 mb-3">These references discuss ingredients or specific products, not guaranteed results from a single spa wrap.</p><ul className="space-y-2">{sources.map(s => <li key={s.url}><a href={s.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4">{s.title}</a></li>)}</ul></details>}
         </div>
       </section>
 
