@@ -1,5 +1,9 @@
 # Booking conversion roadmap
 
+- [ ] Guest spa booking: choose time, enter contact/consent, inline card checkout and optional account setup
+- [ ] Post-booking service-specific intake and waiver without losing the reservation
+- [ ] Verify safely without real bookings, charges, or client messages
+
 - [x] Enable other active body wraps from October 29, preserving seaweed and keeping three inactive wraps hidden
 - [x] Combine shorter/extended wrap choices and expand research-grounded benefits with references
 - [x] Verify wrap choices and launch dates on phone and laptop without bookings or charges
