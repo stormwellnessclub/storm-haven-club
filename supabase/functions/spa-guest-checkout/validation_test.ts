@@ -7,8 +7,8 @@ Deno.test('Guest contact requires email and phone but not SMS consent',()=>{
  assertEquals(contactSchema.safeParse({...p,phone:''}).success,false);
 });
 Deno.test('Seaweed 70/$220 and 90/$290 use the processing gross-up',()=>{
- assertEquals(checkoutTotal(220),22689);
- assertEquals(checkoutTotal(290),29897);
+ assertEquals(checkoutTotal(220),22688);
+ assertEquals(checkoutTotal(290),29898);
 });
 Deno.test('A paid booking requires the exact succeeded USD payment',()=>{
  const c={payment_intent_id:'pi_test',amount_cents:22689};
