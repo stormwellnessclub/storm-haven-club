@@ -108,7 +108,9 @@ export function useSubmitCafeReview() {
         photoPath = await uploadReviewPhoto(input.photoFile, userId);
       }
 
+      const id = crypto.randomUUID();
       const row = {
+        id,
         menu_item_id: input.menuItemId,
         order_id: input.orderId ?? null,
         reviewer_user_id: userId,
@@ -120,13 +122,11 @@ export function useSubmitCafeReview() {
         photo_path: photoPath,
       };
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("cafe_reviews")
-        .insert(row)
-        .select("id")
-        .single();
+        .insert(row);
       if (error) throw error;
-      return data;
+      return { id };
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["cafe-reviews", vars.menuItemId] });
