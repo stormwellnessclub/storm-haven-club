@@ -442,21 +442,6 @@ export default function Spa() {
         </div>
       </section>
 
-      {/* Spa Aella Opening Notice */}
-      <section className="py-4 bg-accent/10 border-b border-accent/20">
-        <div className="container mx-auto px-6">
-          <div className="flex items-center justify-center gap-3 text-center">
-            <Info className="w-5 h-5 text-accent flex-shrink-0" />
-            <p className="text-sm font-medium text-foreground">
-              Recovery services — salt room, infrared sauna, red light, cold plunge, cryotherapy and
-              massage — are open now to members and non-members. Additional facial and body treatments
-              marked "Coming Soon" are still on the way.
-            </p>
-          </div>
-        </div>
-      </section>
-
-
       {/* Lymphatic Body Roller presale — Recovery & Massage */}
       <section className="py-14 bg-background border-b border-border">
         <div className="container mx-auto px-6 grid md:grid-cols-2 gap-10 items-center">
