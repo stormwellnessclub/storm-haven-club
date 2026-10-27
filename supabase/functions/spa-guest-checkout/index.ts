@@ -58,7 +58,7 @@ Deno.serve(async req => {
       if (userId) {
         const {data:m}=await admin.from('members').select('membership_type').eq('user_id',userId).neq('status','cancelled').maybeSingle();
         const tier=m?.membership_type?.toLowerCase() ?? '';
-        const discount=tier.includes('diamond')?.12:tier.includes('platinum')?.10:tier.includes('gold')?.08:tier.includes('silver')?.05:0;
+        const discount=tier.includes('diamond') ? 0.12 : tier.includes('platinum') ? 0.10 : tier.includes('gold') ? 0.08 : tier.includes('silver') ? 0.05 : 0;
         if (discount) memberPrice=Math.round(price*(1-discount)*100)/100;
       }
       const amount=checkoutTotal(memberPrice ?? price);
@@ -71,8 +71,8 @@ Deno.serve(async req => {
       if (saveError) throw saveError;
       return reply({clientSecret:pi.client_secret,amountCents:amount});
     }
-    const {data:c,error:cError}=await admin.from('spa_guest_checkouts').select('*').eq('id',input.id).eq('access_hash',accessHash).single();
-    if (cError || !c || new Date(c.access_expires_at).getTime()<Date.now()) return reply({error:'This private booking link has expired or is invalid. Sign in to view your appointments.'},403);
+    const {data:c,error:cError}=await admin.from('spa_guest_checkouts').select('*').eq('id',input.id).single();
+    if (cError || !c || (c.access_hash !== accessHash && c.email_access_hash !== accessHash) || new Date(c.access_expires_at).getTime()<Date.now()) return reply({error:'This private booking link has expired or is invalid. Sign in to view your appointments.'},403);
     if (c.user_id && userId && c.user_id!==userId) return reply({error:'This checkout belongs to another account.'},403);
     if (input.action==='reserve') {
       const pi=await stripe.paymentIntents.retrieve(c.payment_intent_id);
@@ -128,6 +128,9 @@ Deno.serve(async req => {
     return reply({success:true,appointment:a,contact:{name:c.guest_name,email:c.guest_email,phone:c.guest_phone},amountCents:c.amount_cents,intakeDone:!!intake,waiverDone:!!c.waiver_signed_at});
   } catch (error) {
     if (error instanceof SyntaxError) return reply({error:'Invalid request'},400);
+    if (error && typeof error === 'object' && 'type' in error && error.type === 'StripeCardError') {
+      return reply({success:false,error:'Your card was declined. Please check your card or try another payment method.'},200);
+    }
     return reply({success:false,error:'Unable to complete this step. Please try again; your existing payment will not be repeated.'},200);
   }
 });

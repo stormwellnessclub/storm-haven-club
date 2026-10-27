@@ -33,7 +33,12 @@ export async function completeSpaGuestCheckout(admin: SupabaseClient, pi: Stripe
     const time = `${h % 12 || 12}:${mm} ${h >= 12 ? 'PM' : 'AM'}`;
     const wrap = /wrap/i.test(`${appointment?.service_category} ${appointment?.service_name}`);
     const needsIntake = wrap || /massage|body/i.test(`${appointment?.service_category} ${appointment?.service_name}`);
-    const intakeUrlPath = token ? `/spa?guestCheckout=${c.id}#guestAccess=${token}` : `/auth?mode=signup&email=${encodeURIComponent(c.guest_email)}&redirect=${encodeURIComponent(`/portal/bookings?intake=${c.appointment_id}`)}`;
+    // Mint a separate hashed capability for the email; never store the plaintext token.
+    const emailToken = Array.from(crypto.getRandomValues(new Uint8Array(32))).map(v=>v.toString(16).padStart(2,'0')).join('');
+    const emailHash = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(emailToken)))).map(v=>v.toString(16).padStart(2,'0')).join('');
+    const {error:linkError} = await admin.from('spa_guest_checkouts').update({email_access_hash:emailHash}).eq('id',c.id);
+    if (linkError) throw linkError;
+    const intakeUrlPath = `/spa?guestCheckout=${c.id}#guestAccess=${emailToken}`;
     const results = await Promise.allSettled([
       admin.functions.invoke('send-email',{ body: { type:'spa_appointment_confirmation',to:c.guest_email,data:{ service:appointment?.service_name,date,time,duration:appointment?.duration_minutes,needsIntake,intakeKind:wrap?'body_wrap':'massage',intakeUrlPath,bookingsPath:'/portal/bookings',needsCard:false,guestCheckout:true } } }),
       c.sms_opt_in ? admin.functions.invoke('send-sms',{ body:{ to:{phone:c.guest_phone,userId:c.user_id || undefined},templateKey:'appointment-confirmation',variables:{ service:appointment?.service_name,date,time,provider:'Storm Wellness Club' },idempotencyKey:`spa-confirmation-${c.appointment_id}`,metadata:{source:'spa_guest_checkout',appointmentId:c.appointment_id} } }) : Promise.resolve(),
