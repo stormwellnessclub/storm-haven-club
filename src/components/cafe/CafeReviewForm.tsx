@@ -88,7 +88,7 @@ export function CafeReviewForm({
       onSubmitted?.();
     } catch (err: any) {
       console.error("Review submit failed:", err);
-      toast.error(err?.message || "Could not submit review");
+      toast.error(/permission|row-level|policy|jwt/i.test(err?.message || "") ? "We couldn't save your review. Please sign in again and retry." : "We couldn't save your review. Please try again in a moment.");
     }
   };
 
