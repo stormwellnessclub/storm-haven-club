@@ -1,6 +1,7 @@
 import { Navigate, useParams } from "react-router-dom";
 import ServiceLandingPage from "@/components/seo/ServiceLandingPage";
 import { SPA_CATEGORIES, getService } from "@/lib/spa-content";
+import { bodyWrapDetails } from "@/lib/bodyWraps";
 
 interface Props {
   category: string;
@@ -53,10 +54,11 @@ export default function SpaServicePage({ category }: Props) {
       ]}
       benefits={service.benefits}
       benefitDetails={service.benefitDetails}
+      sources={category === "body-wraps" ? bodyWrapDetails(service.name)?.sources : undefined}
       faqs={service.faqs}
       serviceName={service.name}
       ctaHref={`/spa?service=${service.slug}&category=${encodeURIComponent(cat.dbCategory)}`}
-      ctaLabel={service.slug === "detox-seaweed-charcoal" ? "Book the ritual" : `Book ${service.name}`}
+      ctaLabel={service.slug === "detox-seaweed-charcoal" ? "Book the ritual" : category === "body-wraps" ? "Book this wrap" : `Book ${service.name}`}
       giftHref={`/shop?serviceName=${encodeURIComponent(service.name)}#gift-cards`}
       eyebrow={cat.name}
       extraBreadcrumbs={[{ label: cat.name, path: `/spa/${cat.slug}` }]}

@@ -1,6 +1,7 @@
 // Content bank for every Aella Spa service page.
 // Each entry powers a dedicated SEO-indexed URL.
 import { SEAWEED_RITUAL_NAME, SEAWEED_RITUAL_OVERVIEW, SEAWEED_RITUAL_BODY, SEAWEED_RITUAL_BENEFITS } from "./seaweedRitual";
+import { bodyWrapDetails } from "./bodyWraps";
 
 export interface ServiceContent {
   slug: string;
@@ -665,7 +666,11 @@ const bodyWraps: ServiceContent[] = [
     durations: ["60 min"],
     related: ["avocado-coconut", "hydration-aloe", "prenatal", "heart-chakra"],
   },
-];
+].filter(s => !["avocado-coconut", "hydration-aloe", "relaxing-chamomile"].includes(s.slug)).map(s => {
+  const details = bodyWrapDetails(s.name);
+  if (!details) return s;
+  return { ...s, tagline: details.overview, description: `${details.name} in Livonia, MI. Cosmetic skin care and relaxation. View benefits, duration choices and book online.`, subhead: details.overview, body: details.body, benefits: details.benefits.map(b => b.title), benefitDetails: details.benefits, faqs: details.faqs, durations: details.durations };
+});
 
 // ────────────────────────────────────────────────────────────
 // BODY RITUALS (chakra-themed)
@@ -950,12 +955,12 @@ export const SPA_CATEGORIES: Record<string, CategoryContent> = {
     name: "Body Wraps",
     dbCategory: "Body Wraps",
     h1: "Body Wraps in Livonia, MI",
-    subhead: "Full-body therapeutic wraps for nourishment, detoxification, brightening, firming, and deep relaxation.",
+    subhead: "Full-body skin-care wraps for softness, radiance and relaxation. Choose your treatment and duration, then book an open time online.",
     title: "Body Wraps — Livonia, MI",
-    description: "Body wraps in Livonia, MI. Nourishing, detoxifying, brightening, firming, and relaxing full-body wrap treatments. Storm Wellness Club.",
+    description: "Body wraps in Livonia, MI. Seaweed, collagen, vitamin C, mud and body sculpting treatments. Compare durations and prices, and book online.",
     intro: [
-      "Body wraps are one of the most under-appreciated treatments in modern spa work. They combine full-body exfoliation, active-rich masks, a thermal cocoon, and targeted bodywork — delivering results across the entire body that no single facial or massage can match.",
-      "Our wrap menu includes nine distinct treatments addressing dry skin, congestion, pigmentation, firmness, water retention, sore muscles, sun damage, and deep relaxation.",
+      "Explore body wraps focused on conditioned skin, a refreshed appearance and time to relax. Seaweed, collagen, vitamin C, mud and caffeine-infused choices each offer a different skin-care focus.",
+      "Shorter and extended versions appear together so you can compare treatment lengths and current menu prices before booking. Cosmetic benefits vary by formulation and skin type; body wraps are not weight-loss or medical treatments.",
     ],
     services: bodyWraps,
   },
