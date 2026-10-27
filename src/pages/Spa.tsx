@@ -46,8 +46,9 @@ import { SeaweedRitualCard } from "@/components/spa/SeaweedRitualCard";
 import { compactSeaweedMenu, isSeaweedRitual, seaweedRitualVariants } from "@/lib/seaweedRitual";
 import { BodyWrapCard } from "@/components/spa/BodyWrapCard";
 import { compactBodyWrapMenu, bodyWrapVariants } from "@/lib/bodyWraps";
+import { orderedSpaMenu, spaMenuMode } from "@/lib/spaMenu";
 
-const categories = ["All", "Facials", "Massage", "Body Rituals", "Body Wraps", "Recovery"];
+const categories = ["All", "Massage", "Body Wraps", "Recovery", "Facials", "Body Rituals"];
 // Body wraps that clients book themselves (waiver + card gates, wrap intake after booking).
 // Active wraps use direct booking; availability controls launch dates.
 
@@ -137,9 +138,7 @@ export default function Spa() {
   }, [voucherFromUrl, spaServices, activeVoucherCode]);
 
   const ritualVariants = seaweedRitualVariants(spaServices);
-  const filteredServices = compactBodyWrapMenu(compactSeaweedMenu(selectedCategory === "All"
-    ? spaServices
-    : spaServices.filter(s => s.category === selectedCategory)));
+  const filteredServices = compactBodyWrapMenu(compactSeaweedMenu(orderedSpaMenu(spaServices, selectedCategory)));
 
   useEffect(() => {
     if (searchParams.get("service") === "detox-seaweed-charcoal" && !servicesLoading) {
@@ -315,7 +314,7 @@ export default function Spa() {
         </Button>
       );
     }
-    if (isConsultRequestService(service)) {
+    if (spaMenuMode(service) === "request") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleRequestService(service)}>
           Request Appointment
@@ -554,13 +553,14 @@ export default function Spa() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
-                <button
+                <Button
                   key={category}
+                  variant="ghost"
                   onClick={() => setSelectedCategory(category)}
                   className={`filter-badge ${selectedCategory === category ? "filter-badge-active" : ""}`}
                 >
-                  {category}
-                </button>
+                  {category === "Body Rituals" ? "Body Rituals · Coming Soon" : category}
+                </Button>
               ))}
             </div>
             <button
@@ -578,6 +578,7 @@ export default function Spa() {
       {/* Services */}
       <section className="py-16 bg-background">
         <div className="container mx-auto px-6">
+          {selectedCategory === "Body Rituals" && <div className="mb-8"><h2 className="font-serif text-3xl mb-2">Body Rituals</h2><p className="text-muted-foreground">Coming soon</p></div>}
           {servicesLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
