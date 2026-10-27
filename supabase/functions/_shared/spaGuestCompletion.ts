@@ -17,7 +17,7 @@ export async function completeSpaGuestCheckout(admin: SupabaseClient, pi: Stripe
       await admin.from('non_member_profiles').update({ stripe_customer_id: pi.customer }).eq('user_id', c.user_id).is('stripe_customer_id', null);
     }
   }
-  if (c.sms_opt_in) {
+  if (c.sms_opt_in && c.status !== 'booked') {
     const { data: optedOut } = await admin.from('profiles').select('id').eq('phone', c.guest_phone).not('sms_opt_out_at','is',null).limit(1);
     if (!optedOut?.length) {
       await admin.from('spa_guest_sms_consent').upsert({ phone: c.guest_phone, opted_in: true, updated_at: new Date().toISOString() });

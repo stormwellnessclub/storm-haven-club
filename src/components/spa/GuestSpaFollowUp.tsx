@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Check, Loader2 } from 'lucide-react';
+import { formatTime12h } from '@/lib/timeFormat';
 
 type Booking = {id:string;service_name:string;service_category:string;appointment_date:string;appointment_time:string;duration_minutes:number};
 export function GuestSpaFollowUp({access,onDone}: {access:GuestCheckoutAccess;onDone:()=>void}) {
@@ -39,7 +40,7 @@ export function GuestSpaFollowUp({access,onDone}: {access:GuestCheckoutAccess;on
   }
   const kind=booking?intakeKindFor(booking.service_category,booking.service_name):null;
   return <div className="space-y-5 py-3">
-    {booking && <div className="space-y-2 border-b border-border pb-4"><h2 className="text-xl font-semibold flex items-center gap-2"><Check className="h-5 w-5 text-accent" />Booking confirmed</h2><p className="font-medium">{booking.service_name} · {booking.duration_minutes} min</p><p className="text-sm text-muted-foreground">{booking.appointment_date} · {booking.appointment_time.slice(0,5)} Michigan time</p><p className="text-sm text-muted-foreground">A confirmation is on its way to {contact.email}.</p></div>}
+    {booking && <div className="space-y-2 border-b border-border pb-4"><h2 className="text-xl font-semibold flex items-center gap-2"><Check className="h-5 w-5 text-accent" />Booking confirmed</h2><p className="font-medium">{booking.service_name} · {booking.duration_minutes} min</p><p className="text-sm text-muted-foreground">{booking.appointment_date} · {formatTime12h(booking.appointment_time.slice(0,5))} Michigan time</p><p className="text-sm text-muted-foreground">A confirmation is on its way to {contact.email}.</p></div>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {!booking ? <Button onClick={()=>void load()} disabled={busy}>{busy?<Loader2 className="h-4 w-4 animate-spin" />:'Retry booking confirmation'}</Button> : kind && !intakeDone ? <>
       <h3 className="font-semibold">{kind==='body_wrap'?'Body Wrap Intake & Consent':'Your treatment intake'}</h3>
