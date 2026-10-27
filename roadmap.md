@@ -1,5 +1,9 @@
 # Booking conversion roadmap
 
+- [ ] Enable other active body wraps from October 29, preserving seaweed
+- [ ] Combine shorter/extended wrap choices and expand research-grounded benefits
+- [ ] Verify wrap choices and launch dates on phone and laptop without bookings or charges
+
 - [x] Fix class-pass checkout return, booking crash, and pass selection; verified signed-in with real future class and simulated checkout/pass responses, no live payment or reservation
 
 - [x] Spa "Book a Treatment" button scrolls to the menu
