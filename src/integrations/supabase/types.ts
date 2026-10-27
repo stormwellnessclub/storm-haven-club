@@ -13380,6 +13380,128 @@ export type Database = {
           },
         ]
       }
+      spa_guest_checkouts: {
+        Row: {
+          access_expires_at: string
+          access_hash: string
+          amount_cents: number
+          appointment_date: string
+          appointment_id: string | null
+          appointment_time: string
+          availability_id: string
+          cleanup_minutes: number
+          created_at: string
+          duration_minutes: number
+          expires_at: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          member_price: number | null
+          notes: string | null
+          notified_at: string | null
+          payment_intent_id: string | null
+          room_id: string | null
+          service_id: string
+          service_price: number
+          sms_opt_in: boolean
+          staff_id: string | null
+          status: string
+          user_id: string | null
+          waiver_agreement_id: string | null
+          waiver_name: string | null
+          waiver_signed_at: string | null
+        }
+        Insert: {
+          access_expires_at?: string
+          access_hash: string
+          amount_cents: number
+          appointment_date: string
+          appointment_id?: string | null
+          appointment_time: string
+          availability_id: string
+          cleanup_minutes: number
+          created_at?: string
+          duration_minutes: number
+          expires_at?: string
+          guest_email: string
+          guest_name: string
+          guest_phone: string
+          id: string
+          member_price?: number | null
+          notes?: string | null
+          notified_at?: string | null
+          payment_intent_id?: string | null
+          room_id?: string | null
+          service_id: string
+          service_price: number
+          sms_opt_in?: boolean
+          staff_id?: string | null
+          status?: string
+          user_id?: string | null
+          waiver_agreement_id?: string | null
+          waiver_name?: string | null
+          waiver_signed_at?: string | null
+        }
+        Update: {
+          access_expires_at?: string
+          access_hash?: string
+          amount_cents?: number
+          appointment_date?: string
+          appointment_id?: string | null
+          appointment_time?: string
+          availability_id?: string
+          cleanup_minutes?: number
+          created_at?: string
+          duration_minutes?: number
+          expires_at?: string
+          guest_email?: string
+          guest_name?: string
+          guest_phone?: string
+          id?: string
+          member_price?: number | null
+          notes?: string | null
+          notified_at?: string | null
+          payment_intent_id?: string | null
+          room_id?: string | null
+          service_id?: string
+          service_price?: number
+          sms_opt_in?: boolean
+          staff_id?: string | null
+          status?: string
+          user_id?: string | null
+          waiver_agreement_id?: string | null
+          waiver_name?: string | null
+          waiver_signed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_guest_checkouts_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_guest_sms_consent: {
+        Row: {
+          opted_in: boolean
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          opted_in?: boolean
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          opted_in?: boolean
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       spa_intake_forms: {
         Row: {
           allergies: string | null
@@ -16059,6 +16181,7 @@ export type Database = {
           pass_ids: string[]
         }[]
       }
+      claim_verified_spa_guest_bookings: { Args: never; Returns: undefined }
       copy_kids_care_hour_slots: {
         Args: { p_source: string; p_targets: string[] }
         Returns: undefined
@@ -18158,6 +18281,10 @@ export type Database = {
       reserve_event_seat: {
         Args: { _phone?: string; _slug: string }
         Returns: Json
+      }
+      reserve_spa_guest_checkout: {
+        Args: { p_id: string; p_intent: string }
+        Returns: string
       }
       resolve_class_pass_promotion: {
         Args: { _code?: string; _pricing_id: string }
