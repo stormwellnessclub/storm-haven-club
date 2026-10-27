@@ -813,6 +813,20 @@
       "when": 1793067118174,
       "tag": "0115_spa_availability_start_date",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1793075810919,
+      "tag": "0116_spa_guest_checkout",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1793076185741,
+      "tag": "0117_spa_guest_private_followup",
+      "breakpoints": true
     }
   ]
 }

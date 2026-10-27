@@ -87,7 +87,7 @@ export default function SpaCategoryHub({ category }: Props) {
     },
     {
       q: `Do I need a membership to book ${cat.name.toLowerCase()}?`,
-      a: "No. The spa is open to the public. Create an account to book online; members receive member pricing.",
+      a: "No. The spa is open to the public. Book available treatments online as a guest; account setup is optional during payment. Signed-in members receive member pricing.",
     },
   ];
   const serviceLd = buildServiceLd({

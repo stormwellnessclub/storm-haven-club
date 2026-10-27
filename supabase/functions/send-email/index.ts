@@ -3345,6 +3345,7 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">Appointment Confirmed ✓</h2>
               <p>Looking forward to seeing you. Here are the details:</p>
+              ${data.guestCheckout ? `<p>Your card payment is confirmed. Complete your intake and booking waiver before your visit. Account setup is optional; if you created an account, verify your email to access your appointment there.</p>` : ''}
               <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
                   <tr><td style="padding: 8px 0; color: #6b7280;">Service</td><td style="padding: 8px 0; font-weight: 600;">${data.service}</td></tr>

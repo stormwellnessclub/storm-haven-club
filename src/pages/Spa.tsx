@@ -47,6 +47,8 @@ import { compactSeaweedMenu, isSeaweedRitual, seaweedRitualVariants } from "@/li
 import { BodyWrapCard } from "@/components/spa/BodyWrapCard";
 import { compactBodyWrapMenu, bodyWrapVariants } from "@/lib/bodyWraps";
 import { orderedSpaMenu, spaMenuMode } from "@/lib/spaMenu";
+import { GuestSpaFollowUp } from "@/components/spa/GuestSpaFollowUp";
+import { readGuestCheckoutAccess } from "@/lib/spaGuestCheckout";
 
 const categories = ["All", "Massage", "Body Wraps", "Recovery", "Facials", "Body Rituals"];
 // Body wraps that clients book themselves (waiver + card gates, wrap intake after booking).
@@ -60,6 +62,7 @@ const memberDiscounts = [
 ];
 
 export default function Spa() {
+  const [guestReturn, setGuestReturn] = useState(readGuestCheckoutAccess);
   const { data: dbServices, isLoading: servicesLoading } = useSpaServices();
   const spaServices = (dbServices || []).filter(s => s.is_active);
 
@@ -188,14 +191,6 @@ export default function Spa() {
 
   // Handle "Book Now" for Massage category
   const handleMassageBooking = (service: SpaService) => {
-    if (!user) {
-      const back = isSeaweedRitual(service)
-        ? `/spa?category=Body%20Wraps&service=detox-seaweed-charcoal&book=${service.id}`
-        : `/spa?category=${encodeURIComponent(service.category)}&book=${service.id}`;
-      navigate(`/auth?redirect=${encodeURIComponent(back)}`);
-      return;
-    }
-
     // Show open times first; the booking window asks for the waiver and a
     // card on file only after a time is picked.
     setSelectedService(service);
@@ -328,10 +323,6 @@ export default function Spa() {
           variant="outline"
           size="sm"
           onClick={() => {
-            if (!user) {
-              navigate(`/auth?redirect=${encodeURIComponent(`/spa?category=Recovery&book=${service.id}`)}`);
-              return;
-            }
             setSelectedService(service);
             setShowBookingModal(true);
           }}
@@ -710,6 +701,16 @@ export default function Spa() {
       </section>
 
       {/* Booking Modal */}
+      <Dialog open={!!guestReturn} onOpenChange={(open) => { if (!open) setGuestReturn(null); }}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Your spa booking</DialogTitle><DialogDescription>Appointment confirmation and pre-visit forms</DialogDescription></DialogHeader>
+          {guestReturn && <GuestSpaFollowUp access={guestReturn} onDone={() => {
+            setGuestReturn(null);
+            const next = new URLSearchParams(searchParams); next.delete('guestCheckout'); setSearchParams(next, {replace:true});
+            window.history.replaceState(null, '', `${window.location.pathname}${next.size ? `?${next}` : ''}`);
+          }} />}
+        </DialogContent>
+      </Dialog>
       <SpaBookingModal
         service={selectedService}
         open={showBookingModal}
