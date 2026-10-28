@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [ ] Suppress the 17 requested marketing addresses and correct unsubscribe routing to the system instead of the admin inbox
+
 - [x] Restore Jessica's paid October 4 childcare pass (16 sessions through November 4) and deploy corrected renewal detection; three tests pass and booking eligibility verified from saved data; staff screen check unavailable because the preview account lacks admin access
 
 - [x] Correct cancelled-occurrence conflict warnings and refresh cancellation summaries; three tests pass and November 15 data checked; live admin screen verification blocked by test-session permissions
