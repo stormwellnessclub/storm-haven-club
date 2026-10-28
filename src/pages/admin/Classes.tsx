@@ -251,6 +251,10 @@ export default function Classes() {
       queryClient.invalidateQueries({ queryKey: ['public-schedule'] });
       
       // Send cancellation emails to all booked members
+      queryClient.invalidateQueries({ queryKey: ['schedule-generated-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['upcoming-sessions-count'] });
+      queryClient.invalidateQueries({ queryKey: ['conflict-schedule-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['class-studio-sessions'] });
       if (selectedSession) {
         try {
           // Only notify people whose booking was cancelled by THIS admin action.

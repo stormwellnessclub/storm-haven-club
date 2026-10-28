@@ -421,7 +421,7 @@ export default function ClassSchedules() {
       if (scheduleMode === "ongoing") {
         const warnings = checkNewScheduleConflicts(
           { ...scheduleData, id: editingSchedule?.id },
-          schedules
+          conflictSchedules
         );
         if (warnings.length > 0) {
           throw new Error(warnings.join(". "));
@@ -557,8 +557,15 @@ export default function ClassSchedules() {
 
   const activeScheduleCount = schedules.filter(s => s.is_active).length;
 
-  const conflictReport = useMemo(() => analyzeScheduleConflicts(schedules), [schedules]);
-  const conflicts = useMemo(() => detectScheduleConflicts(schedules), [schedules]);
+  const conflictSchedules = useMemo(() => schedules.map(schedule => ({
+    ...schedule,
+    cancelled_session_dates: (generatedSessionsBySchedule.get(schedule.id) ?? [])
+      .filter(session => session.is_cancelled && !(generatedSessionsBySchedule.get(schedule.id) ?? [])
+        .some(other => other.session_date === session.session_date && !other.is_cancelled))
+      .map(session => session.session_date),
+  })), [schedules, generatedSessionsBySchedule]);
+  const conflictReport = useMemo(() => analyzeScheduleConflicts(conflictSchedules), [conflictSchedules]);
+  const conflicts = useMemo(() => detectScheduleConflicts(conflictSchedules), [conflictSchedules]);
 
   const conflictScheduleIds = useMemo(() => {
     const ids = new Set<string>();
@@ -651,9 +658,9 @@ export default function ClassSchedules() {
         effective_until: until,
         is_one_time: isOneTime,
       },
-      schedules
+      conflictSchedules
     );
-  }, [classTypeId, instructorId, dayOfWeek, startTime, endTime, room, isActive, editingSchedule, schedules, scheduleMode, oneTimeDate, effectiveFrom, effectiveUntil]);
+  }, [classTypeId, instructorId, dayOfWeek, startTime, endTime, room, isActive, editingSchedule, conflictSchedules, scheduleMode, oneTimeDate, effectiveFrom, effectiveUntil]);
 
 
   function handleConflictEdit(scheduleId: string) {

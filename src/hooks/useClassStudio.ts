@@ -142,6 +142,13 @@ export function useStudioMutations() {
     qc.invalidateQueries({ queryKey: ["class-studio-sessions"] });
     qc.invalidateQueries({ queryKey: ["class-studio-templates"] });
     qc.invalidateQueries({ queryKey: ["admin-class-sessions-day"] });
+    qc.invalidateQueries({ queryKey: ["schedule-generated-sessions"] });
+    qc.invalidateQueries({ queryKey: ["upcoming-sessions-count"] });
+    qc.invalidateQueries({ queryKey: ["conflict-schedule-bookings"] });
+    qc.invalidateQueries({ queryKey: ["admin-class-sessions-upcoming"] });
+    qc.invalidateQueries({ queryKey: ["admin-sessions-calendar"] });
+    qc.invalidateQueries({ queryKey: ["class-sessions"] });
+    qc.invalidateQueries({ queryKey: ["public-schedule"] });
   };
 
   const updateSession = useMutation({
