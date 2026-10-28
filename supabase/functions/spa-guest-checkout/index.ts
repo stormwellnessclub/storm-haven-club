@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createSchema, accessSchema, wrapSchema, massageSchema, waiverSchema, checkoutTotal } from './validation.ts';
 import { completeSpaGuestCheckout } from '../_shared/spaGuestCompletion.ts';
+import { guestBookingDateError } from './bookingDate.ts';
 
 const hash = async (v: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,'0')).join('');
 const reply = (data: unknown, status=200) => new Response(JSON.stringify(data),{status,headers:{...corsHeaders,'Content-Type':'application/json'}});
@@ -45,8 +46,8 @@ Deno.serve(async req => {
       if (serviceError || !s || !['Massage','Body Wraps','Recovery'].includes(s.category) || /ozone/i.test(s.name)) return reply({error:'This treatment is not available for online booking.'},400);
       const hours = /outdoor sauna/i.test(s.name) ? p.hours : 1;
       const duration=s.duration_minutes*hours; const cleanup=s.cleanup_minutes ?? 15;
-      const detroit = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Detroit',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-      if (p.date<=detroit || p.date>new Date(Date.now()+94*86400000).toISOString().slice(0,10)) return reply({error:'Choose a future appointment date within three months.'},400);
+      const dateError = guestBookingDateError(s, p.date, p.time);
+      if (dateError) return reply({error:dateError},400);
       const day = new Date(`${p.date}T12:00:00Z`).getUTCDay();
       const {data:windows} = await admin.from('spa_service_availability').select('*').eq('service_id',s.id).eq('is_active',true);
       const minutes=(t:string)=>Number(t.slice(0,2))*60+Number(t.slice(3,5));
@@ -79,6 +80,14 @@ Deno.serve(async req => {
       if (pi.amount!==c.amount_cents || pi.currency!=='usd') return reply({error:'Payment amount does not match your booking.'},400);
       if (pi.status==='succeeded') { await completeSpaGuestCheckout(admin,pi,input.token); return reply({success:true}); }
       if (pi.status!=='requires_capture') return reply({error:'Please complete card authorization first.'},400);
+      if (!c.appointment_id) {
+        const {data:service,error:serviceError}=await admin.from('spa_services').select('name,category').eq('id',c.service_id).single();
+        const dateError=serviceError || !service ? 'This treatment is no longer available.' : guestBookingDateError(service,c.appointment_date,c.appointment_time);
+        if (dateError) {
+          await stripe.paymentIntents.cancel(pi.id,{},{idempotencyKey:`spa-guest-cancel-${c.id}`});
+          return reply({error:`${dateError} Your card has not been charged. Choose another time.`},409);
+        }
+      }
       const {data:appointmentId,error:reserveError}=await admin.rpc('reserve_spa_guest_checkout',{p_id:c.id,p_intent:pi.id});
       if (reserveError) {
         await stripe.paymentIntents.cancel(pi.id,{},{idempotencyKey:`spa-guest-cancel-${c.id}`});
