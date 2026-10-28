@@ -25,6 +25,7 @@ import { useMyBookings } from "@/hooks/useBooking";
 import { useWaitlistStatus, useWaitlistCounts } from "@/hooks/useWaitlist";
 import { useClassTypeRatings } from "@/hooks/useClassReviews";
 import { useClassPassCheckoutReturn } from "@/hooks/useClassPassCheckoutReturn";
+import { classScheduleWindowEnd } from "@/lib/classScheduleWindow";
 
 type RoomFilter = "all" | "Reformer Studio" | "Cycle Studio" | "Aerobics Studio";
 type HeatFilter = "all" | "heated" | "non_heated";
@@ -194,8 +195,12 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
     return new Set(myBookings.filter(b => b.status === "confirmed").map(b => b.session_id));
   }, [myBookings]);
 
-  const weekEnd = addDays(weekStart, 6);
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const maxSelectableDate = classScheduleWindowEnd(today);
+  const maxWeekStart = startOfWeek(maxSelectableDate, { weekStartsOn: 1 });
+  const naturalWeekEnd = addDays(weekStart, 6);
+  const weekEnd = isBefore(maxSelectableDate, naturalWeekEnd) ? maxSelectableDate : naturalWeekEnd;
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+    .filter(day => !isBefore(maxSelectableDate, day));
 
   const startStr = format(weekStart, "yyyy-MM-dd");
   const endStr = format(weekEnd, "yyyy-MM-dd");
@@ -260,10 +265,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   }, [filteredSessions, weekDays]);
 
   const canGoPrev = !isBefore(addWeeks(weekStart, -1), startOfWeek(today, { weekStartsOn: 1 }));
-  const maxWeekStart = useMemo(() => startOfWeek(addWeeks(today, 3), { weekStartsOn: 1 }), [today]);
-  const maxSelectableDate = useMemo(() => addDays(addWeeks(startOfWeek(today, { weekStartsOn: 1 }), 4), -1), [today]);
   const canGoNext = isBefore(weekStart, maxWeekStart);
-  const atHorizon = !canGoNext;
 
   const visibleWeekDays = useMemo(() => {
     if (selectedDate) {
@@ -424,13 +426,13 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
                 </>
               ) : (
                 <>
-                  <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => addWeeks(w, -1))} disabled={!canGoPrev}>
+                  <Button variant="outline" size="icon" aria-label="Previous week" onClick={() => setWeekStart((w) => addWeeks(w, -1))} disabled={!canGoPrev}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-sm font-medium min-w-[140px] sm:min-w-[180px] text-center">
                     {format(weekStart, "MMM d")} – {format(weekEnd, "MMM d")}
                   </span>
-                  <Button variant="outline" size="icon" onClick={() => setWeekStart((w) => addWeeks(w, 1))} disabled={!canGoNext}>
+                  <Button variant="outline" size="icon" aria-label="Next week" onClick={() => setWeekStart((w) => addWeeks(w, 1))} disabled={!canGoNext}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </>
@@ -482,26 +484,10 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
               <span>
                 Booking is open through{" "}
                 <span className="font-medium text-foreground">
-                  {format(addDays(maxWeekStart, 6), "EEE, MMM d")}
-                </span>
-                . The next 4 weeks release{" "}
-                <span className="font-medium text-foreground">
-                  {format(addWeeks(maxWeekStart, 1), "EEE, MMM d")}
+                  {format(maxSelectableDate, "EEE, MMM d")}
                 </span>
                 .
               </span>
-            </div>
-          )}
-          {atHorizon && !selectedDate && (
-            <div className="mb-6 flex items-start gap-3 rounded-md border border-accent/30 bg-accent/5 p-4 text-sm">
-              <Info className="h-4 w-4 mt-0.5 text-accent shrink-0" />
-              <p className="text-muted-foreground leading-relaxed">
-                You've reached the end of the current booking window. More classes release on{" "}
-                <span className="font-medium text-foreground">
-                  {format(addWeeks(maxWeekStart, 1), "EEEE, MMMM d")}
-                </span>
-                . We release the schedule in <span className="font-medium text-foreground">4-week blocks</span> so instructors and room assignments stay accurate — check back then to book the next block.
-              </p>
             </div>
           )}
           {error ? (
