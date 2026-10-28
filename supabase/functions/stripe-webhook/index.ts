@@ -5,6 +5,7 @@ import { handleEventInvoicePayment, handleEventInvoiceRefund, handleEventInvoice
 import { finalizeManualChargeFromIntent } from "../_shared/manualChargeLedger.ts";
 import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 import { completeSpaGuestCheckout } from "../_shared/spaGuestCompletion.ts";
+import { kidsCareRenewalPeriod } from "../_shared/kidsCareRenewal.ts";
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -2755,10 +2756,8 @@ serve(async (req) => {
           }
 
           // Check if this is a Kids Care Pass renewal
-          const kidsCarePassPriceId = 'price_1TCEyxLyZrsSqLhsHLRDNixO';
-          const isKidsCareInvoice = invoice.lines?.data?.some((line: Stripe.InvoiceLineItem) =>
-            line.price && line.price.id === kidsCarePassPriceId
-          ) || false;
+          const kidsCarePeriod = kidsCareRenewalPeriod(invoice);
+          const isKidsCareInvoice = kidsCarePeriod !== null;
 
           if (isKidsCareInvoice) {
             logStep("Kids Care Pass renewal detected", { subscriptionId: getInvoiceSubscriptionId(invoice) });
@@ -2809,63 +2808,31 @@ serve(async (req) => {
                 }
               }
 
-              if (subUserId) {
-                // Use Stripe's authoritative current_period_end so the pass window matches
-                // the subscription cycle exactly. Fall back to +30 days if unavailable.
-                const periodEndUnix = (subscription as unknown as { current_period_end?: number })
-                  .current_period_end
-                  ?? subscription.items?.data?.[0]?.current_period_end;
-                const expiresAt = periodEndUnix
-                  ? new Date(periodEndUnix * 1000)
-                  : (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d; })();
-
-                // Look up the most recent kids_care pass for this user regardless of status
-                // and reset it. Prevents duplicate rows when the previous pass already
-                // flipped to 'expired' before the renewal landed.
-                const { data: existingPass } = await supabase
-                  .from('class_passes')
-                  .select('id, status')
-                  .eq('user_id', subUserId)
-                  .eq('pass_type', 'kids_care')
-                  .order('created_at', { ascending: false })
-                  .limit(1)
-                  .maybeSingle();
-
-                if (existingPass) {
-                  await supabase
-                    .from('class_passes')
-                    .update({
-                      classes_remaining: 16,
-                      classes_total: 16,
-                      expires_at: expiresAt.toISOString(),
-                      status: 'active',
-                    })
-                    .eq('id', existingPass.id);
-                  logStep("Kids Care Pass renewed (reset existing)", {
-                    passId: existingPass.id,
-                    previousStatus: existingPass.status,
-                    expiresAt: expiresAt.toISOString(),
-                  });
-                } else {
-                  await supabase
-                    .from('class_passes')
-                    .insert({
-                      user_id: subUserId,
-                      member_id: subMemberId || null,
-                      category: 'other',
-                      pass_type: 'kids_care',
-                      classes_total: 16,
-                      classes_remaining: 16,
-                      price_paid: 75,
-                      is_member_price: true,
-                      expires_at: expiresAt.toISOString(),
-                      status: 'active',
-                    });
-                  logStep("Kids Care Pass renewed (created new)", {
-                    userId: subUserId,
-                    expiresAt: expiresAt.toISOString(),
-                  });
+              if (subUserId && kidsCarePeriod) {
+                const renewalPaymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
+                if (!renewalPaymentIntentId) throw new Error(`Missing payment reference for childcare invoice ${invoice.id}`);
+                // One row per paid cycle, never reset another child's pass or consumed sessions.
+                const { data: fulfilledPass, error: lookupError } = await supabase.from('class_passes')
+                  .select('id').eq('stripe_payment_intent_id', renewalPaymentIntentId).maybeSingle();
+                if (lookupError) throw lookupError;
+                if (!fulfilledPass) {
+                const { error: renewalError } = await supabase.from('class_passes').insert({
+                  user_id: subUserId,
+                  member_id: subMemberId || null,
+                  category: 'other',
+                  pass_type: 'kids_care',
+                  classes_total: 16,
+                  classes_remaining: 16,
+                  price_paid: (invoice.amount_paid || 0) / 100,
+                  is_member_price: true,
+                  purchased_at: kidsCarePeriod.purchasedAt,
+                  expires_at: kidsCarePeriod.expiresAt,
+                  stripe_payment_intent_id: renewalPaymentIntentId,
+                  status: 'active',
+                });
+                if (renewalError && renewalError.code !== '23505') throw renewalError;
                 }
+                logStep("Kids Care paid cycle fulfilled", { userId: subUserId, invoiceId: invoice.id, ...kidsCarePeriod });
               } else {
                 // Could not resolve a user from metadata or customer — surface as an error
                 // so the missed renewal shows up in logs instead of silently dropping.

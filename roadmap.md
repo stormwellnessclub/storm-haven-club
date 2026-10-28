@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [x] Restore Jessica's paid October 4 childcare pass (16 sessions through November 4) and deploy corrected renewal detection; three tests pass and booking eligibility verified from saved data; staff screen check unavailable because the preview account lacks admin access
+
 - [x] Correct cancelled-occurrence conflict warnings and refresh cancellation summaries; three tests pass and November 15 data checked; live admin screen verification blocked by test-session permissions
 
 - [x] Extend public and portal schedule visibility through November 30, 2026; verified live week navigation, calendar selection and both Maya classes on November 30, six tests passing, no booking or record changes

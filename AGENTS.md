@@ -15,6 +15,7 @@
 - Staff intake viewers share the complete service-specific summary and print only that summary in an isolated document. Why: therapist copies must include every recorded answer and signature without payment controls.
 
 - Read subdirectory `AGENTS.md` before editing there.
+- Kids Care renewal fulfillment reads legacy and current Stripe line pricing and creates one payment-deduplicated pass per paid invoice cycle, never resets the parent's latest pass. Why: current invoice formats skipped renewals and multi-child subscriptions could overwrite each other's sessions.
 - Spa availability launch dates live on availability windows and are enforced by shared calendar helpers and an appointment trigger. Why: future launches must allow reservations now without permitting appointments before their start date.
 - Abandoned applications share an email-deduplicated roster for filters/export and paginate history; resolved/test rows never get reminder controls. Why: counts must match the full list without making members leads.
 - Spa request alerts and request handling views reuse `useSpaServiceRequests` across admin and front desk, with front desk links staying within its shell. Why: both staff entry points must show the same pending requests without sending staff into a different portal.
