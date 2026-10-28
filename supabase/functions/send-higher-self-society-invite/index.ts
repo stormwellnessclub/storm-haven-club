@@ -5,6 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { sendMarketingEmail, loadSuppressedEmails } from "../_shared/marketingEmail.ts";
 import { escapeHtml, isAllowedTestRecipient } from "../_shared/security.ts";
 
 const corsHeaders = {
@@ -84,11 +85,13 @@ serve(async (req) => {
     .from("email_audit_log").select("recipient_email").eq("email_type", TEMPLATE_KEY).eq("status", "sent");
   const sentSet = new Set((sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()));
 
+  const suppressed = await loadSuppressedEmails(supabase);
+
   // De-dupe by email.
   const byEmail = new Map<string, any>();
   for (const m of members ?? []) {
     const email = String(m.email || "").trim().toLowerCase();
-    if (email && !byEmail.has(email)) byEmail.set(email, { ...m, email });
+    if (email && !suppressed.has(email) && !byEmail.has(email)) byEmail.set(email, { ...m, email });
   }
 
   if (body?.list) {
@@ -114,7 +117,7 @@ serve(async (req) => {
     if (!(await isAllowedTestRecipient(req, email))) {
       return json({ error: "Test emails can only go to club addresses or your own email" }, 400);
     }
-    const resp = await resend.emails.send({
+    const resp = await sendMarketingEmail(supabase, resend, {
       from: FROM, to: [email], subject: `[TEST] ${SUBJECT}`, html: buildHtml("Team"),
       reply_to: "admin@stormwellnessclub.com",
     });
@@ -140,7 +143,7 @@ serve(async (req) => {
     if (exclude.has(m.email)) { removed++; continue; }
     if (!resendAll && sentSet.has(m.email)) { skipped++; continue; }
     try {
-      const resp = await resend.emails.send({
+      const resp = await sendMarketingEmail(supabase, resend, {
         from: FROM, to: [m.email], subject: SUBJECT, html: buildHtml(m.first_name ?? null),
         reply_to: "admin@stormwellnessclub.com",
       });
