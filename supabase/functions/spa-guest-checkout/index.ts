@@ -80,6 +80,14 @@ Deno.serve(async req => {
       if (pi.amount!==c.amount_cents || pi.currency!=='usd') return reply({error:'Payment amount does not match your booking.'},400);
       if (pi.status==='succeeded') { await completeSpaGuestCheckout(admin,pi,input.token); return reply({success:true}); }
       if (pi.status!=='requires_capture') return reply({error:'Please complete card authorization first.'},400);
+      if (!c.appointment_id) {
+        const {data:service,error:serviceError}=await admin.from('spa_services').select('name,category').eq('id',c.service_id).single();
+        const dateError=serviceError || !service ? 'This treatment is no longer available.' : guestBookingDateError(service,c.appointment_date,c.appointment_time);
+        if (dateError) {
+          await stripe.paymentIntents.cancel(pi.id,{},{idempotencyKey:`spa-guest-cancel-${c.id}`});
+          return reply({error:`${dateError} Your card has not been charged. Choose another time.`},409);
+        }
+      }
       const {data:appointmentId,error:reserveError}=await admin.rpc('reserve_spa_guest_checkout',{p_id:c.id,p_intent:pi.id});
       if (reserveError) {
         await stripe.paymentIntents.cancel(pi.id,{},{idempotencyKey:`spa-guest-cancel-${c.id}`});
