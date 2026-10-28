@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [ ] Add and verify Maya’s November 1–30 class schedule: 10 weekly slots, Aerobics Studio, capacity 8, 50-minute sessions, no December recurrence
+
 - [x] Guest spa booking: choose time, enter contact/consent, inline card checkout and optional account setup
 - [x] Post-booking service-specific intake and waiver without losing the reservation
 - [x] Verify safely without real bookings, charges, or client messages — desktop/phone full guest journey with isolated payment/reservation responses; live invalid requests rejected; no real payment or account creation tested
