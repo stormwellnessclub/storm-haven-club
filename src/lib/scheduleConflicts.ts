@@ -11,6 +11,8 @@ interface ScheduleForConflict {
   effective_from?: string | null;
   effective_until?: string | null;
   is_one_time?: boolean;
+  /** Cancelled generated occurrences; hidden but live sessions still occupy resources. */
+  cancelled_session_dates?: string[];
   class_types?: { id: string; name: string; category: string } | null;
   instructors?: { id: string; first_name: string; last_name: string } | null;
 }
@@ -123,17 +125,33 @@ function earlierDate(a: string | null, b: string | null): string | null {
 }
 
 /** A shared date window must contain at least one occurrence of the recurring weekday. */
-function windowsShareWeekday(a: DateWindow, b: DateWindow, dayOfWeek: number): boolean {
+function windowsShareWeekday(a: DateWindow, b: DateWindow, dayOfWeek: number, cancelledDates: string[] = []): boolean {
   if (!windowsOverlap(a, b)) return false;
-  const from = laterDate(a.from, b.from);
+  const from = laterDate(laterDate(a.from, b.from), todayISO());
   const until = earlierDate(a.until, b.until);
-  if (!from || !until) return true;
+  if (!from) return true;
 
   const [year, month, day] = from.split("-").map(Number);
   const start = new Date(Date.UTC(year, month - 1, day));
   const daysAhead = (dayOfWeek - start.getUTCDay() + 7) % 7;
   start.setUTCDate(start.getUTCDate() + daysAhead);
-  return start.toISOString().slice(0, 10) <= until;
+  const cancelled = new Set(cancelledDates);
+  // At most one iteration per cancelled occurrence, including open-ended rules.
+  while (!until || start.toISOString().slice(0, 10) <= until) {
+    if (!cancelled.has(start.toISOString().slice(0, 10))) return true;
+    start.setUTCDate(start.getUTCDate() + 7);
+  }
+  return false;
+}
+
+function hasLiveOccurrence(s: ScheduleForConflict): boolean {
+  return windowsShareWeekday(scheduleWindow(s), scheduleWindow(s), s.day_of_week, s.cancelled_session_dates);
+}
+
+function schedulesShareOccurrence(a: ScheduleForConflict, b: ScheduleForConflict): boolean {
+  return windowsShareWeekday(scheduleWindow(a), scheduleWindow(b), a.day_of_week, [
+    ...(a.cancelled_session_dates ?? []), ...(b.cancelled_session_dates ?? []),
+  ]);
 }
 
 /** A rule whose window already ended can never conflict with anything upcoming. */
@@ -168,7 +186,7 @@ export function analyzeScheduleConflicts(
   schedules: ScheduleForConflict[]
 ): ScheduleConflictReport {
   const today = todayISO();
-  const active = schedules.filter((s) => s.is_active && !isExpired(s, today));
+  const active = schedules.filter((s) => s.is_active && !isExpired(s, today) && hasLiveOccurrence(s));
 
   // 1. Cluster exact duplicates: same day + room + start + end + same live date window
   const clusterMap = new Map<string, ScheduleSlotCluster>();
@@ -177,7 +195,7 @@ export function analyzeScheduleConflicts(
     if (!room) continue;
     const key = `${s.day_of_week}|${room}|${s.start_time}|${s.end_time}|${windowKey(
       scheduleWindow(s)
-    )}`;
+    )}|${[...(s.cancelled_session_dates ?? [])].sort().join(",")}`;
 
     const existing = clusterMap.get(key);
     if (existing) {
@@ -188,7 +206,7 @@ export function analyzeScheduleConflicts(
         dayOfWeek: s.day_of_week,
         startTime: s.start_time,
         endTime: s.end_time,
-        room: s.room!.trim(),
+        room: s.room?.trim() ?? room,
         schedules: [s],
       });
     }
@@ -210,13 +228,14 @@ export function analyzeScheduleConflicts(
       const a = active[i];
       const b = active[j];
       if (a.day_of_week !== b.day_of_week) continue;
-      if (!windowsShareWeekday(scheduleWindow(a), scheduleWindow(b), a.day_of_week)) continue;
+      if (!schedulesShareOccurrence(a, b)) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
 
 
       const sameCluster =
         clusteredIds.has(a.id) &&
         clusteredIds.has(b.id) &&
+        clusters.some(c => c.schedules.some(s => s.id === a.id) && c.schedules.some(s => s.id === b.id)) &&
         a.start_time === b.start_time &&
         a.end_time === b.end_time &&
         normRoom(a.room) !== null &&
@@ -254,7 +273,7 @@ export function analyzeScheduleConflicts(
 /** @deprecated Kept for compatibility — prefer analyzeScheduleConflicts. */
 export function detectScheduleConflicts(schedules: ScheduleForConflict[]): ScheduleConflict[] {
   const today = todayISO();
-  const active = schedules.filter((s) => s.is_active && !isExpired(s, today));
+  const active = schedules.filter((s) => s.is_active && !isExpired(s, today) && hasLiveOccurrence(s));
   const conflicts: ScheduleConflict[] = [];
 
   for (let i = 0; i < active.length; i++) {
@@ -263,7 +282,7 @@ export function detectScheduleConflicts(schedules: ScheduleForConflict[]): Sched
       const b = active[j];
 
       if (a.day_of_week !== b.day_of_week) continue;
-      if (!windowsShareWeekday(scheduleWindow(a), scheduleWindow(b), a.day_of_week)) continue;
+      if (!schedulesShareOccurrence(a, b)) continue;
       if (!timesOverlap(a.start_time, a.end_time, b.start_time, b.end_time)) continue;
 
 
@@ -350,6 +369,7 @@ export function checkNewScheduleConflicts(
     effective_from?: string | null;
     effective_until?: string | null;
     is_one_time?: boolean;
+    cancelled_session_dates?: string[];
   },
   existingSchedules: ScheduleForConflict[]
 ): string[] {
@@ -365,7 +385,9 @@ export function checkNewScheduleConflicts(
 
   for (const existing of active) {
     if (existing.day_of_week !== proposed.day_of_week) continue;
-    if (!windowsShareWeekday(proposedWindow, scheduleWindow(existing), proposed.day_of_week)) continue;
+    if (!windowsShareWeekday(proposedWindow, scheduleWindow(existing), proposed.day_of_week, [
+      ...(existing.cancelled_session_dates ?? []), ...(proposed.cancelled_session_dates ?? []),
+    ])) continue;
     if (!timesOverlap(proposed.start_time, proposed.end_time, existing.start_time, existing.end_time)) continue;
 
     const name = existing.class_types?.name || "another class";
