@@ -2812,7 +2812,11 @@ serve(async (req) => {
                 const renewalPaymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
                 if (!renewalPaymentIntentId) throw new Error(`Missing payment reference for childcare invoice ${invoice.id}`);
                 // One row per paid cycle, never reset another child's pass or consumed sessions.
-                const { error: renewalError } = await supabase.from('class_passes').upsert({
+                const { data: fulfilledPass, error: lookupError } = await supabase.from('class_passes')
+                  .select('id').eq('stripe_payment_intent_id', renewalPaymentIntentId).maybeSingle();
+                if (lookupError) throw lookupError;
+                if (!fulfilledPass) {
+                const { error: renewalError } = await supabase.from('class_passes').insert({
                   user_id: subUserId,
                   member_id: subMemberId || null,
                   category: 'other',
@@ -2825,8 +2829,9 @@ serve(async (req) => {
                   expires_at: kidsCarePeriod.expiresAt,
                   stripe_payment_intent_id: renewalPaymentIntentId,
                   status: 'active',
-                }, { onConflict: 'stripe_payment_intent_id', ignoreDuplicates: true });
-                if (renewalError) throw renewalError;
+                });
+                if (renewalError && renewalError.code !== '23505') throw renewalError;
+                }
                 logStep("Kids Care paid cycle fulfilled", { userId: subUserId, invoiceId: invoice.id, ...kidsCarePeriod });
               } else {
                 // Could not resolve a user from metadata or customer — surface as an error
