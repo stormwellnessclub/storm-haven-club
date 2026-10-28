@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [x] Suppress and verify all 17 requested addresses; deploy system unsubscribe links and consent gates for ten legacy blasts, with six isolated tests passing. Old email replies still reach admin; inbox reply ingestion is not configured. Live admin roster verification was unavailable (unauthorized).
+
 - [x] Restore Jessica's paid October 4 childcare pass (16 sessions through November 4) and deploy corrected renewal detection; three tests pass and booking eligibility verified from saved data; staff screen check unavailable because the preview account lacks admin access
 
 - [x] Correct cancelled-occurrence conflict warnings and refresh cancellation summaries; three tests pass and November 15 data checked; live admin screen verification blocked by test-session permissions

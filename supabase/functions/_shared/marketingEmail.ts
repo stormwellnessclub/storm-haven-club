@@ -29,7 +29,8 @@ export async function verifyUnsubToken(email: string, token: string): Promise<bo
 }
 
 export async function unsubscribeUrl(email: string): Promise<string> {
-  const base = Deno.env.get("SUPABASE_URL")!;
+  const base = Deno.env.get("SUPABASE_URL");
+  if (!base) throw new Error("SUPABASE_URL missing");
   return `${base}/functions/v1/email-unsubscribe?e=${encodeURIComponent(norm(email))}&t=${await hmac(email)}`;
 }
 
@@ -81,9 +82,28 @@ export async function loadSuppressedEmails(supabase: any): Promise<Set<string>> 
 
 export async function isSuppressed(supabase: any, email: string): Promise<boolean> {
   const e = norm(email);
-  const [{ data: mc }, { data: bl }] = await Promise.all([
+  const [{ data: mc, error: mcError }, { data: bl, error: blError }] = await Promise.all([
     supabase.from("marketing_contacts").select("id").ilike("email", e).or("unsubscribed_at.not.is.null,opted_in_email.eq.false").limit(1),
     supabase.from("blocked_persons").select("id").ilike("email", e).limit(1),
   ]);
+  if (mcError || blError) throw new Error("Could not verify marketing email consent");
   return (mc?.length ?? 0) > 0 || (bl?.length ?? 0) > 0;
+}
+
+/** Legacy blasts share the same consent gate and system unsubscribe path as campaigns. */
+export async function sendMarketingEmail(supabase: any, resend: any, message: any) {
+  const recipients = Array.isArray(message.to) ? message.to : [message.to];
+  if (recipients.length !== 1 || !recipients[0]) throw new Error("Marketing emails require one recipient");
+  const email = norm(recipients[0]);
+  if (await isSuppressed(supabase, email)) {
+    return { data: null, error: { message: "Recipient has unsubscribed from marketing" }, skipped: true };
+  }
+  const headers = await marketingHeaders(email);
+  return resend.emails.send({
+    ...message,
+    to: [email],
+    html: await withMarketingFooter(message.html, email),
+    ...(message.text ? { text: marketingText(message.text, await unsubscribeUrl(email)) } : {}),
+    headers: { ...message.headers, ...headers },
+  });
 }

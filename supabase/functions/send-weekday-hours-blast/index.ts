@@ -5,6 +5,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { sendMarketingEmail, loadSuppressedEmails } from "../_shared/marketingEmail.ts";
 import { isAllowedTestRecipient } from "../_shared/security.ts";
 
 const corsHeaders = {
@@ -91,7 +92,7 @@ serve(async (req) => {
       });
     }
     try {
-      const resp = await resend.emails.send({
+      const resp = await sendMarketingEmail(supabase, resend, {
         from: "Storm Wellness Club <admin@stormwellnessclub.com>",
         to: [email],
         subject: `[TEST] ${SUBJECT}`,
@@ -152,19 +153,21 @@ serve(async (req) => {
     ? new Set(body.onlyEmails.map((e: any) => String(e).trim().toLowerCase()))
     : null;
 
+  const suppressed = await loadSuppressedEmails(supabase);
+
   let queued = 0;
   let skipped = 0;
   const errors: Array<{ email: string; error: string }> = [];
 
   for (const m of members ?? []) {
     const email = String(m.email || "").trim().toLowerCase();
-    if (!email || alreadySent.has(email) || (onlyEmails && !onlyEmails.has(email))) {
+    if (!email || suppressed.has(email) || alreadySent.has(email) || (onlyEmails && !onlyEmails.has(email))) {
       skipped++;
       continue;
     }
 
     try {
-      const resp = await resend.emails.send({
+      const resp = await sendMarketingEmail(supabase, resend, {
         from: "Storm Wellness Club <admin@stormwellnessclub.com>",
         to: [email],
         subject: SUBJECT,

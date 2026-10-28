@@ -2,6 +2,7 @@
 // Links never expire; the HMAC token proves the link was issued for that email.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { verifyUnsubToken } from "../_shared/marketingEmail.ts";
+import { recordEmailPreference } from "../_shared/emailUnsubscribe.ts";
 
 const page = (title: string, body: string) => new Response(`<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${title}</title></head>
 <body style="margin:0;background:#1C170F;font-family:Georgia,serif;color:#F4EFE6;">
@@ -12,6 +13,7 @@ const page = (title: string, body: string) => new Response(`<!doctype html><html
   { headers: { "Content-Type": "text/html; charset=utf-8" } });
 
 Deno.serve(async (req) => {
+  if (req.method !== "GET" && req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   const url = new URL(req.url);
   const email = String(url.searchParams.get("e") || "").trim().toLowerCase();
   const token = String(url.searchParams.get("t") || "");
@@ -19,7 +21,10 @@ Deno.serve(async (req) => {
   if (email.length > 320 || !(await verifyUnsubToken(email, token))) {
     return page("This link isn't valid", `<p style="font-family:Arial,sans-serif;font-size:14px;color:#CFC6B8;">Reply to any of our emails and we'll take care of it.</p>`);
   }
-  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const base = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!base || !key) return new Response("Email preferences temporarily unavailable", { status: 503 });
+  const db = createClient(base, key);
   const self = `${url.origin}${url.pathname}?e=${encodeURIComponent(email)}&t=${token}`;
 
   // GET without action only shows a confirm button (mail scanners prefetch links).
@@ -29,18 +34,15 @@ Deno.serve(async (req) => {
   }
 
   if (action === "resub" && req.method === "POST") {
-    await db.from("marketing_contacts").update({ unsubscribed_at: null, opted_in_email: true }).ilike("email", email);
+    try { await recordEmailPreference(db, email, true); }
+    catch { return new Response("Could not save your email preference. Please retry.", { status: 503 }); }
     return page("You're back on the list", `<p style="font-family:Arial,sans-serif;font-size:14px;color:#CFC6B8;">Welcome back. You'll receive our emails again.</p>`);
   }
 
   // POST (one-click from inbox, or the confirm button): opt out every record with this email.
-  const now = new Date().toISOString();
-  const { data: rows } = await db.from("marketing_contacts").select("id").ilike("email", email);
-  if (rows && rows.length) {
-    await db.from("marketing_contacts").update({ unsubscribed_at: now, opted_in_email: false }).ilike("email", email);
-  } else {
-    await db.from("marketing_contacts").insert({ email, source: "manual", source_label: "Unsubscribed via email link", opted_in_email: false, unsubscribed_at: now });
-  }
+  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  try { await recordEmailPreference(db, email, false); }
+  catch { return new Response("Could not save your email preference. Please retry.", { status: 503 }); }
   return page("You've been unsubscribed", `<p style="font-family:Arial,sans-serif;font-size:14px;color:#CFC6B8;">${email} won't receive marketing emails from Storm Wellness Club. Receipts and booking emails still arrive.</p>
 <form method="POST" action="${self}&a=resub"><button style="background:transparent;color:#C9A96E;border:1px solid #C9A96E;padding:12px 26px;letter-spacing:3px;font-size:11px;cursor:pointer;margin-top:18px;">RESUBSCRIBE</button></form>`);
 });

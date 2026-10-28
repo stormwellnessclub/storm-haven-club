@@ -6,6 +6,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { sendMarketingEmail, loadSuppressedEmails } from "../_shared/marketingEmail.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,7 +107,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Test emails can only go to club addresses or your own email" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     try {
-      const resp = await resend.emails.send({
+      const resp = await sendMarketingEmail(supabase, resend, {
         from: FROM,
         to: [email],
         subject: `[TEST] ${SUBJECT}`,
@@ -172,18 +173,20 @@ serve(async (req) => {
     (sentRows ?? []).map((r: any) => String(r.recipient_email || "").toLowerCase()),
   );
 
+  const suppressed = await loadSuppressedEmails(supabase);
+
   let queued = 0;
   let skipped = 0;
   const errors: Array<{ email: string; error: string }> = [];
 
   for (const m of members ?? []) {
     const email = String(m.email || "").trim().toLowerCase();
-    if (!email || alreadySent.has(email)) {
+    if (!email || suppressed.has(email) || alreadySent.has(email)) {
       skipped++;
       continue;
     }
     try {
-      const resp = await resend.emails.send({
+      const resp = await sendMarketingEmail(supabase, resend, {
         from: FROM,
         to: [email],
         subject: SUBJECT,
