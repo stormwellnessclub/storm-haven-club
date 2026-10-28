@@ -3,6 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createSchema, accessSchema, wrapSchema, massageSchema, waiverSchema, checkoutTotal } from './validation.ts';
 import { completeSpaGuestCheckout } from '../_shared/spaGuestCompletion.ts';
+import { guestBookingDateError } from './bookingDate.ts';
 
 const hash = async (v: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,'0')).join('');
 const reply = (data: unknown, status=200) => new Response(JSON.stringify(data),{status,headers:{...corsHeaders,'Content-Type':'application/json'}});
@@ -45,8 +46,8 @@ Deno.serve(async req => {
       if (serviceError || !s || !['Massage','Body Wraps','Recovery'].includes(s.category) || /ozone/i.test(s.name)) return reply({error:'This treatment is not available for online booking.'},400);
       const hours = /outdoor sauna/i.test(s.name) ? p.hours : 1;
       const duration=s.duration_minutes*hours; const cleanup=s.cleanup_minutes ?? 15;
-      const detroit = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Detroit',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
-      if (p.date<=detroit || p.date>new Date(Date.now()+94*86400000).toISOString().slice(0,10)) return reply({error:'Choose a future appointment date within three months.'},400);
+      const dateError = guestBookingDateError(s, p.date, p.time);
+      if (dateError) return reply({error:dateError},400);
       const day = new Date(`${p.date}T12:00:00Z`).getUTCDay();
       const {data:windows} = await admin.from('spa_service_availability').select('*').eq('service_id',s.id).eq('is_active',true);
       const minutes=(t:string)=>Number(t.slice(0,2))*60+Number(t.slice(3,5));
