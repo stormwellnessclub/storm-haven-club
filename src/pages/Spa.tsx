@@ -745,12 +745,11 @@ export default function Spa() {
       <RedeemVoucherDialog
         open={showRedeemDialog}
         onOpenChange={setShowRedeemDialog}
+        onGiftCard={(code) => {
+          setActiveVoucherCode(code);
+          toast.success("Gift card saved — choose your treatment and time, and it will be applied at checkout.");
+        }}
         onResolved={(code, voucher) => {
-          if (!user) {
-            toast.error("Please sign in to redeem your voucher");
-            navigate(`/auth?redirect=${encodeURIComponent(`/spa?voucher=${code}`)}`);
-            return;
-          }
           const massage =
             spaServices.find(
               (s) =>

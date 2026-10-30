@@ -15,13 +15,14 @@ interface RedeemVoucherDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onResolved: (code: string, voucher: AppliedVoucher) => void;
+  /** Storm gift card codes; the balance is verified at checkout. */
+  onGiftCard?: (code: string) => void;
 }
 
 /**
- * Generic spa voucher redemption entry.
- * Today supports Mother's Day (`MOM-`). Future: gift cards (`GIFT-`).
+ * Generic spa voucher redemption entry: Mother's Day (`MOM-`) and Storm gift cards.
  */
-export function RedeemVoucherDialog({ open, onOpenChange, onResolved }: RedeemVoucherDialogProps) {
+export function RedeemVoucherDialog({ open, onOpenChange, onResolved, onGiftCard }: RedeemVoucherDialogProps) {
   const [code, setCode] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const { apply, applying } = useApplyMothersDayVoucher();
@@ -40,7 +41,7 @@ export function RedeemVoucherDialog({ open, onOpenChange, onResolved }: RedeemVo
       return;
     }
 
-    // Route by prefix. Today only MOM- is supported.
+    // Route by prefix: Mother's Day vouchers resolve to a massage; gift cards are checked at checkout.
     if (trimmed.startsWith("MOM-")) {
       const result = await apply(trimmed);
       if (!result.ok || !result.voucher) {
@@ -48,6 +49,13 @@ export function RedeemVoucherDialog({ open, onOpenChange, onResolved }: RedeemVo
         return;
       }
       onResolved(trimmed, result.voucher);
+      reset();
+      onOpenChange(false);
+      return;
+    }
+
+    if (onGiftCard && /^[A-Z0-9-]{6,40}$/.test(trimmed)) {
+      onGiftCard(trimmed);
       reset();
       onOpenChange(false);
       return;
