@@ -107,7 +107,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const [guestEmail, setGuestEmail] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [guestSms, setGuestSms] = useState(false);
-  const [guestPayment, setGuestPayment] = useState<{access: GuestCheckoutAccess; clientSecret: string; amountCents: number} | null>(null);
+  const [guestCode, setGuestCode] = useState("");
+  const [guestCodeError, setGuestCodeError] = useState("");
+  const [guestPayment, setGuestPayment] = useState<{access: GuestCheckoutAccess; clientSecret: string; amountCents: number; mode: 'payment' | 'setup'; coveredCents: number; couponKind: string | null} | null>(null);
   const [guestFollowUp, setGuestFollowUp] = useState<GuestCheckoutAccess | null>(null);
 
   // Hourly-rental services (e.g. Private Outdoor Sauna) — member picks how many hours
@@ -172,6 +174,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
 
   // Auto-apply voucher when modal opens with a code (from ?voucher= param or member card)
   useEffect(() => {
+    // Signed-out guests apply their code at checkout instead.
+    if (open && initialVoucherCode && !user) { setGuestCode(initialVoucherCode.trim().toUpperCase()); return; }
     if (open && initialVoucherCode && !appliedVoucher && !applyingVoucher) {
       const code = initialVoucherCode.trim().toUpperCase();
       setVoucherInput(code);
@@ -305,12 +309,13 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     if (processingRef.current || !selectedDate || !selectedTime) return;
     const contact = spaGuestContactSchema.safeParse({name:guestName,email:guestEmail,phone:guestPhone,smsOptIn:guestSms});
     if (!contact.success) {toast.error(contact.error.issues[0]?.message || "Check your contact information");return;}
-    processingRef.current = true; setIsProcessing(true);
+    processingRef.current = true; setIsProcessing(true); setGuestCodeError('');
     try {
       const access = newGuestCheckoutAccess(); rememberGuestCheckout(access);
-      const {data,error} = await supabase.functions.invoke('spa-guest-checkout',{body:{action:'create',...access,...contact.data,serviceId:service.id,date:format(selectedDate,'yyyy-MM-dd'),time:selectedTime,hours,notes:memberNotes}});
+      const {data,error} = await supabase.functions.invoke('spa-guest-checkout',{body:{action:'create',...access,...contact.data,serviceId:service.id,date:format(selectedDate,'yyyy-MM-dd'),time:selectedTime,hours,notes:memberNotes,couponCode:guestCode.trim()}});
+      if (data?.field === 'coupon') { setGuestCodeError(data.error); toast.error(data.error); return; }
       if (error || !data?.clientSecret) throw new Error(data?.error || 'Unable to start payment. Please try again.');
-      setGuestPayment({access,clientSecret:data.clientSecret,amountCents:data.amountCents});
+      setGuestPayment({access,clientSecret:data.clientSecret,amountCents:data.amountCents,mode:data.mode === 'setup' ? 'setup' : 'payment',coveredCents:data.coveredCents ?? 0,couponKind:data.couponKind ?? null});
     } catch(e) {toast.error(e instanceof Error ? e.message : 'Unable to start payment.');}
     finally {processingRef.current=false;setIsProcessing(false);}
   };
@@ -970,6 +975,11 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               <div className="space-y-2"><Label htmlFor="spa-guest-email">Email</Label><Input id="spa-guest-email" type="email" autoComplete="email" value={guestEmail} onChange={e=>setGuestEmail(e.target.value)} maxLength={255} required /></div>
               <div className="space-y-2"><Label htmlFor="spa-guest-phone">Mobile number</Label><Input id="spa-guest-phone" type="tel" autoComplete="tel" value={guestPhone} onChange={e=>setGuestPhone(e.target.value)} maxLength={30} required /></div>
               <SmsConsentCheckbox id="spa-guest-sms" checked={guestSms} onCheckedChange={setGuestSms} />
+              <div className="space-y-2 rounded-md border border-border p-3">
+                <Label htmlFor="spa-guest-code" className="flex items-center gap-2"><Heart className="h-4 w-4 text-accent" />Gift card or voucher code (optional)</Label>
+                <Input id="spa-guest-code" placeholder="MOM-XXXXXX or STORM-XXXX-XXXX" value={guestCode} onChange={e=>{setGuestCode(e.target.value.toUpperCase());setGuestCodeError('');}} maxLength={40} className="font-mono tracking-wider" autoComplete="off" />
+                {guestCodeError ? <p role="alert" className="text-xs text-destructive">{guestCodeError}</p> : <p className="text-xs text-muted-foreground">Enter your Storm gift card or Mother's Day code here — not in the card number box. Your card is only charged for anything the code doesn't cover.</p>}
+              </div>
             </section>
           )}
 
