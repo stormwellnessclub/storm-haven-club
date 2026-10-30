@@ -4,6 +4,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createSchema, accessSchema, wrapSchema, massageSchema, waiverSchema, checkoutTotal } from './validation.ts';
 import { completeSpaGuestCheckout } from '../_shared/spaGuestCompletion.ts';
 import { guestBookingDateError } from './bookingDate.ts';
+import { isGuestAuthorization } from './guestAuthorization.ts';
 
 const hash = async (v: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,'0')).join('');
 const reply = (data: unknown, status=200) => new Response(JSON.stringify(data),{status,headers:{...corsHeaders,'Content-Type':'application/json'}});
@@ -21,7 +22,7 @@ Deno.serve(async req => {
     const token = req.headers.get('Authorization')?.replace(/^Bearer /,'');
     let userId: string | null = null; let userEmail: string | null = null;
     // supabase.functions.invoke attaches the public project key for signed-out callers.
-    if (token && token !== Deno.env.get('SUPABASE_ANON_KEY')) {
+    if (token && !isGuestAuthorization(token, Deno.env.get('SUPABASE_ANON_KEY'))) {
       const {data,error} = await admin.auth.getUser(token);
       if (error || !data.user) return reply({error:'Your session expired. Please reload and try again.'},401);
       userId=data.user.id; userEmail=data.user.email ?? null;

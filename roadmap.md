@@ -1,5 +1,8 @@
 # Booking conversion roadmap
 
+- [x] Fix reproduced guest spa checkout authentication rejection; deployed, 12 tests passed, safe live invalid-date request now reaches date validation rather than expired-session rejection. Full paid booking intentionally untested; no charges/reservations/messages.
+- [x] Save wet spa/class-pack research as paused; resume only at the owner's explicit request
+
 - [x] Suppress and verify all 17 requested addresses; deploy system unsubscribe links and consent gates for ten legacy blasts, with six isolated tests passing. Old email replies still reach admin; inbox reply ingestion is not configured. Live admin roster verification was unavailable (unauthorized).
 
 - [x] Restore Jessica's paid October 4 childcare pass (16 sessions through November 4) and deploy corrected renewal detection; three tests pass and booking eligibility verified from saved data; staff screen check unavailable because the preview account lacks admin access
