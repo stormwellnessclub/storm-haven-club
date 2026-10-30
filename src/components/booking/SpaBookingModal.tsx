@@ -1001,7 +1001,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           {user && <>
           <div className="rounded-md border p-3 space-y-2" style={{ borderColor: "#c9a86a", background: "#fdfaf3" }}>
             <Label className="flex items-center gap-2 text-sm" style={{ color: "#a17e3a" }}>
-              <Heart className="h-4 w-4" /> Mother's Day Voucher
+              <Heart className="h-4 w-4" /> Mother's Day voucher or gift card
             </Label>
             {appliedVoucher ? (
               <div className="flex items-center justify-between gap-2 p-2 rounded bg-emerald-50 border border-emerald-200">
@@ -1019,7 +1019,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               <>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="MOM-XXXXXX"
+                    placeholder="MOM-XXXXXX or STORM-XXXX-XXXX"
                     value={voucherInput}
                     onChange={(e) => setVoucherInput(e.target.value.toUpperCase())}
                     className="font-mono tracking-wider"
@@ -1032,7 +1032,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                   <p className="text-xs text-destructive">{voucherError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Have a Mother's Day code? Enter it to skip payment.
+                  Have a Mother's Day or Storm gift card code? Enter it here (not in the card number box) — your card is only charged for anything it doesn't cover.
                 </p>
               </>
             )}
