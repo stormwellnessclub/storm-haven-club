@@ -105,3 +105,11 @@ describe("spa payment state", () => {
     expect(spaCheckoutPaymentError("card", 0, false)).toBeNull();
   });
 });
+
+describe("gift card bookings", () => {
+  it("an appointment paid with a gift card shows as covered, not unpaid", () => {
+    const s = getSpaPaymentState({ amount_paid: 0, payment_method: "gift_card", status: "confirmed", covered_checkout: { service_amount: 155, amount_paid: 0 } });
+    expect(s.kind).toBe("covered");
+    expect(s.label).toBe("Covered · Gift card");
+  });
+});

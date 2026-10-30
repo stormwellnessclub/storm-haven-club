@@ -5,16 +5,31 @@ import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 export async function completeSpaGuestCheckout(admin: SupabaseClient, pi: Stripe.PaymentIntent, token?: string) {
   const { data: c, error } = await admin.from('spa_guest_checkouts').select('*').eq('payment_intent_id', pi.id).single();
   if (error || !c || !c.appointment_id || pi.status !== 'succeeded' || pi.currency !== 'usd' || pi.amount !== c.amount_cents || pi.amount_received !== c.amount_cents) throw new Error('Payment has not been confirmed');
-  const { error: appointmentError } = await admin.from('spa_appointments').update({ amount_paid: Number(c.member_price ?? c.service_price) }).eq('id', c.appointment_id).eq('payment_intent_id', pi.id);
+  // Card money collected for the service: the full price, or only the part a gift card did not cover.
+  const base = Number(c.member_price ?? c.service_price);
+  const cardPart = Math.max(0, Math.round((base * 100 - (c.covered_cents ?? 0))) / 100);
+  const { error: appointmentError } = await admin.from('spa_appointments').update({ amount_paid: cardPart }).eq('id', c.appointment_id).eq('payment_intent_id', pi.id);
   if (appointmentError) throw appointmentError;
+  return finishGuestCheckout(admin, c, typeof pi.customer === 'string' ? pi.customer : pi.customer?.id ?? null, token);
+}
+
+/** Fully covered by a voucher/gift card: the card was only saved (Stripe-verified SetupIntent), nothing charged. */
+export async function completeSpaGuestSetupCheckout(admin: SupabaseClient, si: Stripe.SetupIntent, token?: string) {
+  const { data: c, error } = await admin.from('spa_guest_checkouts').select('*').eq('setup_intent_id', si.id).single();
+  if (error || !c || !c.appointment_id || si.status !== 'succeeded' || c.amount_cents !== 0) throw new Error('Card has not been saved');
+  return finishGuestCheckout(admin, c, typeof si.customer === 'string' ? si.customer : si.customer?.id ?? null, token);
+}
+
+// deno-lint-ignore no-explicit-any
+async function finishGuestCheckout(admin: SupabaseClient, c: any, customerId: string | null, _token?: string) {
   const { error: checkoutError } = await admin.from('spa_guest_checkouts').update({ status: 'booked' }).eq('id', c.id);
   if (checkoutError) throw checkoutError;
 
   // A verified account may attach its new card, never an unrelated same-email customer.
-  if (c.user_id) {
+  if (c.user_id && customerId) {
     const { data: auth } = await admin.auth.admin.getUserById(c.user_id);
     if (auth?.user?.email_confirmed_at && auth.user.email?.toLowerCase() === c.guest_email) {
-      await admin.from('non_member_profiles').update({ stripe_customer_id: pi.customer }).eq('user_id', c.user_id).is('stripe_customer_id', null);
+      await admin.from('non_member_profiles').update({ stripe_customer_id: customerId }).eq('user_id', c.user_id).is('stripe_customer_id', null);
     }
   }
   if (c.sms_opt_in && c.status !== 'booked') {

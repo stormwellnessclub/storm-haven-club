@@ -841,6 +841,20 @@
       "when": 1793333105386,
       "tag": "0119_fix_spa_launch_date_service_id_comparison",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1793391876565,
+      "tag": "0120_spa_guest_checkout_vouchers_gift_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793392030418,
+      "tag": "0121_release_spa_guest_coupon",
+      "breakpoints": true
     }
   ]
 }

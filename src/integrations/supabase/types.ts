@@ -13390,6 +13390,9 @@ export type Database = {
           appointment_time: string
           availability_id: string
           cleanup_minutes: number
+          coupon_code: string | null
+          coupon_kind: string | null
+          covered_cents: number
           created_at: string
           duration_minutes: number
           email_access_hash: string | null
@@ -13405,6 +13408,7 @@ export type Database = {
           room_id: string | null
           service_id: string
           service_price: number
+          setup_intent_id: string | null
           sms_opt_in: boolean
           staff_id: string | null
           status: string
@@ -13422,6 +13426,9 @@ export type Database = {
           appointment_time: string
           availability_id: string
           cleanup_minutes: number
+          coupon_code?: string | null
+          coupon_kind?: string | null
+          covered_cents?: number
           created_at?: string
           duration_minutes: number
           email_access_hash?: string | null
@@ -13437,6 +13444,7 @@ export type Database = {
           room_id?: string | null
           service_id: string
           service_price: number
+          setup_intent_id?: string | null
           sms_opt_in?: boolean
           staff_id?: string | null
           status?: string
@@ -13454,6 +13462,9 @@ export type Database = {
           appointment_time?: string
           availability_id?: string
           cleanup_minutes?: number
+          coupon_code?: string | null
+          coupon_kind?: string | null
+          covered_cents?: number
           created_at?: string
           duration_minutes?: number
           email_access_hash?: string | null
@@ -13469,6 +13480,7 @@ export type Database = {
           room_id?: string | null
           service_id?: string
           service_price?: number
+          setup_intent_id?: string | null
           sms_opt_in?: boolean
           staff_id?: string | null
           status?: string
@@ -18262,6 +18274,7 @@ export type Database = {
         Args: { p_waitlist_id: string }
         Returns: undefined
       }
+      release_spa_guest_coupon: { Args: { p_id: string }; Returns: undefined }
       replace_kids_care_hour_slots: {
         Args: { p_date: string; p_slots: Json }
         Returns: undefined
