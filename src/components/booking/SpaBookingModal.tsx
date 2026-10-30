@@ -167,6 +167,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
       setSelectedTime("");
       setMemberNotes("");
       setVoucherInput("");
+      setGuestCode("");
+      setGuestCodeError("");
       setStep("details");
       clearVoucher();
     }
