@@ -178,6 +178,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   useEffect(() => {
     // Signed-out guests apply their code at checkout instead.
     if (open && initialVoucherCode && !user) { setGuestCode(initialVoucherCode.trim().toUpperCase()); return; }
+    // Gift cards are applied when the client presses Apply after picking a time.
+    if (open && initialVoucherCode && !initialVoucherCode.trim().toUpperCase().startsWith("MOM-")) { setVoucherInput(initialVoucherCode.trim().toUpperCase()); return; }
     if (open && initialVoucherCode && !appliedVoucher && !applyingVoucher) {
       const code = initialVoucherCode.trim().toUpperCase();
       setVoucherInput(code);
