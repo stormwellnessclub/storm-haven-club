@@ -3,6 +3,7 @@
 - [x] Book Fatine Anani’s requested October 30 seaweed wrap, 10:30 AM, 90 minutes, $290 unpaid; correct launch-date trigger type comparison and send account/intake setup email and consent-checked text from authorized staff account.
 
 - [x] Fix reproduced guest spa checkout authentication rejection; deployed, 12 tests passed, safe live invalid-date request now reaches date validation rather than expired-session rejection. Full paid booking intentionally untested; no charges/reservations/messages.
+- [x] Guest spa checkout accepts Mother's Day vouchers and Storm gift cards (card charged only for the rest; $0 bookings just save the card). Live code checks verified; no real voucher, gift card or card used in testing.
 - [x] Save wet spa/class-pack research as paused; resume only at the owner's explicit request
 
 - [x] Suppress and verify all 17 requested addresses; deploy system unsubscribe links and consent gates for ten legacy blasts, with six isolated tests passing. Old email replies still reach admin; inbox reply ingestion is not configured. Live admin roster verification was unavailable (unauthorized).
