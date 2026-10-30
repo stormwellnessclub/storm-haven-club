@@ -1,5 +1,8 @@
 # Booking conversion roadmap
 
+- [ ] Diagnose and fix spa checkout failures safely, without real charges, reservations, or client messages
+- [ ] Keep wet spa/class-pack research paused until the owner explicitly resumes it
+
 - [x] Suppress and verify all 17 requested addresses; deploy system unsubscribe links and consent gates for ten legacy blasts, with six isolated tests passing. Old email replies still reach admin; inbox reply ingestion is not configured. Live admin roster verification was unavailable (unauthorized).
 
 - [x] Restore Jessica's paid October 4 childcare pass (16 sessions through November 4) and deploy corrected renewal detection; three tests pass and booking eligibility verified from saved data; staff screen check unavailable because the preview account lacks admin access
