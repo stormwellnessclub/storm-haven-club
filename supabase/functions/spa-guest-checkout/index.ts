@@ -2,9 +2,10 @@ import Stripe from 'https://esm.sh/stripe@18.5.0';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createSchema, accessSchema, wrapSchema, massageSchema, waiverSchema, checkoutTotal } from './validation.ts';
-import { completeSpaGuestCheckout } from '../_shared/spaGuestCompletion.ts';
+import { completeSpaGuestCheckout, completeSpaGuestSetupCheckout } from '../_shared/spaGuestCompletion.ts';
 import { guestBookingDateError } from './bookingDate.ts';
 import { isGuestAuthorization } from './guestAuthorization.ts';
+import { amountDueCents, giftCardCoverage, normalizeCode, voucherCoverage, type Coupon } from './coupon.ts';
 
 const hash = async (v: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,'0')).join('');
 const reply = (data: unknown, status=200) => new Response(JSON.stringify(data),{status,headers:{...corsHeaders,'Content-Type':'application/json'}});
@@ -35,7 +36,11 @@ Deno.serve(async req => {
         if (existing.access_hash !== accessHash || existing.user_id !== userId) return reply({error:'Invalid checkout'},403);
         if (existing.payment_intent_id) {
           const pi = await stripe.paymentIntents.retrieve(existing.payment_intent_id);
-          return reply({clientSecret:pi.client_secret,amountCents:existing.amount_cents});
+          return reply({clientSecret:pi.client_secret,amountCents:existing.amount_cents,mode:'payment',coveredCents:existing.covered_cents,couponKind:existing.coupon_kind});
+        }
+        if (existing.setup_intent_id) {
+          const si = await stripe.setupIntents.retrieve(existing.setup_intent_id);
+          return reply({clientSecret:si.client_secret,amountCents:0,mode:'setup',coveredCents:existing.covered_cents,couponKind:existing.coupon_kind});
         }
       }
       const email = userEmail?.toLowerCase() ?? p.email;
@@ -63,15 +68,39 @@ Deno.serve(async req => {
         const discount=tier.includes('diamond') ? 0.12 : tier.includes('platinum') ? 0.10 : tier.includes('gold') ? 0.08 : tier.includes('silver') ? 0.05 : 0;
         if (discount) memberPrice=Math.round(price*(1-discount)*100)/100;
       }
-      const amount=checkoutTotal(memberPrice ?? price);
-      const {error:insertError}=await admin.from('spa_guest_checkouts').upsert({id:p.id,user_id:userId,access_hash:accessHash,service_id:s.id,availability_id:a.id,appointment_date:p.date,appointment_time:p.time,duration_minutes:duration,cleanup_minutes:cleanup,staff_id:a.therapist_id,room_id:a.room_id,guest_name:p.name,guest_email:email,guest_phone:p.phone,sms_opt_in:p.smsOptIn,notes:p.notes,service_price:price,member_price:memberPrice,amount_cents:amount});
+      const baseCents=Math.round((memberPrice ?? price)*100);
+      // A Mother's Day voucher or gift card is applied here so the card is never charged for what it covers.
+      let coupon: Coupon | null = null;
+      const code = normalizeCode(p.couponCode);
+      if (code) {
+        let result: Coupon | string;
+        if (code.startsWith('MOM-')) {
+          const {data:v}=await admin.from('mothers_day_vouchers').select('code,status,expires_at,massage_duration').ilike('code',code).maybeSingle();
+          result=voucherCoverage(v,s,duration,baseCents);
+        } else {
+          const {data:g}=await admin.from('gift_cards').select('code,status,expires_at,balance_cents').ilike('code',code).maybeSingle();
+          result=giftCardCoverage(g,baseCents);
+        }
+        if (typeof result==='string') return reply({success:false,error:result,field:'coupon'},200);
+        coupon=result;
+      }
+      const amount=amountDueCents(baseCents,coupon?.coveredCents ?? 0);
+      const {error:insertError}=await admin.from('spa_guest_checkouts').upsert({id:p.id,user_id:userId,access_hash:accessHash,service_id:s.id,availability_id:a.id,appointment_date:p.date,appointment_time:p.time,duration_minutes:duration,cleanup_minutes:cleanup,staff_id:a.therapist_id,room_id:a.room_id,guest_name:p.name,guest_email:email,guest_phone:p.phone,sms_opt_in:p.smsOptIn,notes:p.notes,service_price:price,member_price:memberPrice,amount_cents:amount,coupon_kind:coupon?.kind ?? null,coupon_code:coupon?.code ?? null,covered_cents:coupon?.coveredCents ?? 0});
       if (insertError) throw insertError;
       // Never reuse an existing customer's saved cards based on a typed email.
       const customer=await stripe.customers.create({email,name:p.name,phone:p.phone},{idempotencyKey:`spa-guest-customer-${p.id}`});
-      const pi=await stripe.paymentIntents.create({amount,currency:'usd',customer:customer.id,payment_method_types:['card'],capture_method:'manual',setup_future_usage:'off_session',description:`Spa Service: ${s.name}`,metadata:{type:'spa_guest_checkout',checkout_id:p.id}},{idempotencyKey:`spa-guest-intent-${p.id}`});
+      const extra={coveredCents:coupon?.coveredCents ?? 0,couponKind:coupon?.kind ?? null};
+      if (amount===0) {
+        // Fully covered: save the card for no-show/late-cancel policy only; nothing is charged.
+        const si=await stripe.setupIntents.create({customer:customer.id,payment_method_types:['card'],usage:'off_session',description:`Card hold for spa booking: ${s.name}`,metadata:{type:'spa_guest_checkout_hold',checkout_id:p.id}},{idempotencyKey:`spa-guest-setup-${p.id}`});
+        const {error:saveError}=await admin.from('spa_guest_checkouts').update({setup_intent_id:si.id}).eq('id',p.id);
+        if (saveError) throw saveError;
+        return reply({clientSecret:si.client_secret,amountCents:0,mode:'setup',...extra});
+      }
+      const pi=await stripe.paymentIntents.create({amount,currency:'usd',customer:customer.id,payment_method_types:['card'],capture_method:'manual',setup_future_usage:'off_session',description:`Spa Service: ${s.name}${coupon?` (balance after ${coupon.label.toLowerCase()})`:''}`,metadata:{type:'spa_guest_checkout',checkout_id:p.id}},{idempotencyKey:`spa-guest-intent-${p.id}`});
       const {error:saveError}=await admin.from('spa_guest_checkouts').update({payment_intent_id:pi.id}).eq('id',p.id);
       if (saveError) throw saveError;
-      return reply({clientSecret:pi.client_secret,amountCents:amount});
+      return reply({clientSecret:pi.client_secret,amountCents:amount,mode:'payment',...extra});
     }
     const {data:c,error:cError}=await admin.from('spa_guest_checkouts').select('*').eq('id',input.id).single();
     if (cError || !c || (c.access_hash !== accessHash && c.email_access_hash !== accessHash) || new Date(c.access_expires_at).getTime()<Date.now()) return reply({error:'This private booking link has expired or is invalid. Sign in to view your appointments.'},403);
