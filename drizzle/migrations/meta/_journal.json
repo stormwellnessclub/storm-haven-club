@@ -848,6 +848,13 @@
       "when": 1793391876565,
       "tag": "0120_spa_guest_checkout_vouchers_gift_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793392030418,
+      "tag": "0121_release_spa_guest_coupon",
+      "breakpoints": true
     }
   ]
 }

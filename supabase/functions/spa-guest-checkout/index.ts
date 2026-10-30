@@ -105,6 +105,23 @@ Deno.serve(async req => {
     const {data:c,error:cError}=await admin.from('spa_guest_checkouts').select('*').eq('id',input.id).single();
     if (cError || !c || (c.access_hash !== accessHash && c.email_access_hash !== accessHash) || new Date(c.access_expires_at).getTime()<Date.now()) return reply({error:'This private booking link has expired or is invalid. Sign in to view your appointments.'},403);
     if (c.user_id && userId && c.user_id!==userId) return reply({error:'This checkout belongs to another account.'},403);
+    if (input.action==='reserve' && c.setup_intent_id && !c.payment_intent_id) {
+      // Fully covered by a voucher/gift card: the card is only saved, never charged.
+      const si=await stripe.setupIntents.retrieve(c.setup_intent_id);
+      if (si.status!=='succeeded') return reply({error:'Please finish saving your card first. You will not be charged.'},400);
+      if (!c.appointment_id) {
+        const {data:service,error:serviceError}=await admin.from('spa_services').select('name,category').eq('id',c.service_id).single();
+        const dateError=serviceError || !service ? 'This treatment is no longer available.' : guestBookingDateError(service,c.appointment_date,c.appointment_time);
+        if (dateError) return reply({error:`${dateError} You have not been charged and your code was not used. Choose another time.`},409);
+      }
+      const {data:appointmentId,error:reserveError}=await admin.rpc('reserve_spa_guest_checkout',{p_id:c.id,p_intent:si.id});
+      if (reserveError) {
+        const msg=/voucher|gift card/i.test(reserveError.message) ? `${reserveError.message}. You have not been charged.` : 'That time was just taken or checkout expired. You have not been charged and your code was not used. Choose another time.';
+        return reply({error:msg},409);
+      }
+      await completeSpaGuestSetupCheckout(admin,si,input.token);
+      return reply({success:true,appointmentId});
+    }
     if (input.action==='reserve') {
       const pi=await stripe.paymentIntents.retrieve(c.payment_intent_id);
       if (pi.amount!==c.amount_cents || pi.currency!=='usd') return reply({error:'Payment amount does not match your booking.'},400);
@@ -121,7 +138,8 @@ Deno.serve(async req => {
       const {data:appointmentId,error:reserveError}=await admin.rpc('reserve_spa_guest_checkout',{p_id:c.id,p_intent:pi.id});
       if (reserveError) {
         await stripe.paymentIntents.cancel(pi.id,{},{idempotencyKey:`spa-guest-cancel-${c.id}`});
-        return reply({error:'That time was just taken or checkout expired. Your card has not been charged. Choose another time.'},409);
+        const msg=/voucher|gift card/i.test(reserveError.message) ? `${reserveError.message}. Your card has not been charged.` : 'That time was just taken or checkout expired. Your card has not been charged. Choose another time.';
+        return reply({error:msg},409);
       }
       try {
         const paid=await stripe.paymentIntents.capture(pi.id,{},{idempotencyKey:`spa-guest-capture-${c.id}`});
@@ -133,11 +151,16 @@ Deno.serve(async req => {
         if (latest.status==='canceled' || latest.status==='requires_payment_method') {
           await admin.from('spa_appointments').update({status:'cancelled'}).eq('id',appointmentId).eq('amount_paid',0);
           await admin.from('spa_guest_checkouts').update({status:'payment_failed'}).eq('id',c.id);
+          // Give back any gift card balance used toward this failed booking.
+          await admin.rpc('release_spa_guest_coupon',{p_id:c.id});
         }
         return reply({error:'Payment could not be completed. Retry confirmation to check your booking; do not start another payment.'},409);
       }
     }
-    if (input.action==='complete') {
+    if (input.action==='complete' && c.setup_intent_id && !c.payment_intent_id) {
+      const si=await stripe.setupIntents.retrieve(c.setup_intent_id);
+      await completeSpaGuestSetupCheckout(admin,si,input.token);
+    } else if (input.action==='complete') {
       const pi=await stripe.paymentIntents.retrieve(c.payment_intent_id);
       await completeSpaGuestCheckout(admin,pi,input.token);
     }

@@ -18274,6 +18274,7 @@ export type Database = {
         Args: { p_waitlist_id: string }
         Returns: undefined
       }
+      release_spa_guest_coupon: { Args: { p_id: string }; Returns: undefined }
       replace_kids_care_hour_slots: {
         Args: { p_date: string; p_slots: Json }
         Returns: undefined
