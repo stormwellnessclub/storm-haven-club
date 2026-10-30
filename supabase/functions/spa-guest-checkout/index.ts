@@ -75,10 +75,10 @@ Deno.serve(async req => {
       if (code) {
         let result: Coupon | string;
         if (code.startsWith('MOM-')) {
-          const {data:v}=await admin.from('mothers_day_vouchers').select('code,status,expires_at,massage_duration').ilike('code',code).maybeSingle();
+          const {data:v}=await admin.from('mothers_day_vouchers').select('code,status,expires_at,massage_duration').eq('code',code).maybeSingle();
           result=voucherCoverage(v,s,duration,baseCents);
         } else {
-          const {data:g}=await admin.from('gift_cards').select('code,status,expires_at,balance_cents').ilike('code',code).maybeSingle();
+          const {data:g}=await admin.from('gift_cards').select('code,status,expires_at,balance_cents').eq('code',code).maybeSingle();
           result=giftCardCoverage(g,baseCents);
         }
         if (typeof result==='string') return reply({success:false,error:result,field:'coupon'},200);
