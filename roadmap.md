@@ -1,7 +1,7 @@
 # Booking conversion roadmap
 
-- [ ] Diagnose and fix spa checkout failures safely, without real charges, reservations, or client messages
-- [ ] Keep wet spa/class-pack research paused until the owner explicitly resumes it
+- [x] Fix reproduced guest spa checkout authentication rejection; deployed, 12 tests passed, safe live invalid-date request now reaches date validation rather than expired-session rejection. Full paid booking intentionally untested; no charges/reservations/messages.
+- [x] Save wet spa/class-pack research as paused; resume only at the owner's explicit request
 
 - [x] Suppress and verify all 17 requested addresses; deploy system unsubscribe links and consent gates for ten legacy blasts, with six isolated tests passing. Old email replies still reach admin; inbox reply ingestion is not configured. Live admin roster verification was unavailable (unauthorized).
 
