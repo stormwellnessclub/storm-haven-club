@@ -189,7 +189,15 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   }, [open, initialVoucherCode]);
 
   const handleApplyVoucher = async () => {
-    const res = await applyVoucher(voucherInput);
+    const code = voucherInput.trim().toUpperCase();
+    if (code && !code.startsWith("MOM-")) {
+      // Storm gift card: applied by the secure checkout so the card is charged only for what it doesn't cover.
+      const p = profile ?? nonMemberProfile;
+      const name = `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
+      await startGuestCheckout({ name, email: user?.email ?? p?.email ?? "", phone: p?.phone ?? "", code });
+      return;
+    }
+    const res = await applyVoucher(code);
     if (res.ok) toast.success("Mother's Day voucher applied — $0 due");
   };
 
@@ -307,14 +315,18 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   }
 
   const durationMinutes = effectiveDuration;
-  const startGuestCheckout = async () => {
-    if (processingRef.current || !selectedDate || !selectedTime) return;
-    const contact = spaGuestContactSchema.safeParse({name:guestName,email:guestEmail,phone:guestPhone,smsOptIn:guestSms});
+  // Signed-out guests use their typed details; signed-in clients paying with a gift card use their account details.
+  const startGuestCheckout = async (override?: {name:string;email:string;phone:string;code:string}) => {
+    if (processingRef.current) return;
+    if (!selectedDate || !selectedTime) { toast.error("Please select a date and time first"); return; }
+    const details = override ?? {name:guestName,email:guestEmail,phone:guestPhone,code:guestCode};
+    const contact = spaGuestContactSchema.safeParse({name:details.name,email:details.email,phone:details.phone,smsOptIn:override ? false : guestSms});
     if (!contact.success) {toast.error(contact.error.issues[0]?.message || "Check your contact information");return;}
+    if (override) { setGuestName(override.name); setGuestEmail(override.email); setGuestPhone(override.phone); setGuestSms(false); }
     processingRef.current = true; setIsProcessing(true); setGuestCodeError('');
     try {
       const access = newGuestCheckoutAccess(); rememberGuestCheckout(access);
-      const {data,error} = await supabase.functions.invoke('spa-guest-checkout',{body:{action:'create',...access,...contact.data,serviceId:service.id,date:format(selectedDate,'yyyy-MM-dd'),time:selectedTime,hours,notes:memberNotes,couponCode:guestCode.trim()}});
+      const {data,error} = await supabase.functions.invoke('spa-guest-checkout',{body:{action:'create',...access,...contact.data,serviceId:service.id,date:format(selectedDate,'yyyy-MM-dd'),time:selectedTime,hours,notes:memberNotes,couponCode:details.code.trim()}});
       if (data?.field === 'coupon') { setGuestCodeError(data.error); toast.error(data.error); return; }
       if (error || !data?.clientSecret) throw new Error(data?.error || 'Unable to start payment. Please try again.');
       setGuestPayment({access,clientSecret:data.clientSecret,amountCents:data.amountCents,mode:data.mode === 'setup' ? 'setup' : 'payment',coveredCents:data.coveredCents ?? 0,couponKind:data.couponKind ?? null});
