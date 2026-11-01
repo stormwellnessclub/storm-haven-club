@@ -1,4 +1,4 @@
-import { societySignupsClosed } from "@/lib/societySignup";
+import { canJoinSociety, societySignupsClosed } from "@/lib/societySignup";
 import { SocietyBookVote } from "@/components/society/SocietyBookVote";
 import { SocietyCurrentlyReading } from "@/components/society/SocietyCurrentlyReading";
 import { useEffect, useState } from "react";
@@ -47,8 +47,7 @@ export default function HigherSelfSociety() {
     setGuestName(mine.guest_name ?? "");
   }, [mine]);
 
-  const isMember =
-    !!membership && ["active", "frozen", "past_due"].includes(membership.status);
+  const isMember = canJoinSociety(membership);
   const guestAllowed =
     isMember &&
     (!!membership?.is_founding_member || /diamond/i.test(membership?.membership_type ?? ""));
@@ -58,6 +57,10 @@ export default function HigherSelfSociety() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user || !isMember) {
+      toast.error("Next-round sign-ups are reserved for Storm Wellness Club members.");
+      return;
+    }
     try {
       await submit.mutateAsync({ themes, rhythm, book, reason, guest, guestName });
       toast.success(mine ? "Your preferences are updated." : "Welcome to Higher Self Society.");
@@ -133,7 +136,7 @@ export default function HigherSelfSociety() {
           {!user ? (
             <AccessPanel
               title="Reserved for members"
-              body="Sign in to your Storm account to join the founding circle."
+              body="Sign in to your Storm Wellness Club member account to join the next round."
               cta={{ to: "/auth?redirect=/rituals/higher-self-society", label: "Sign in" }}
               secondary={{ to: "/memberships", label: "Explore membership" }}
             />
@@ -142,7 +145,7 @@ export default function HigherSelfSociety() {
           ) : !isMember ? (
             <AccessPanel
               title="A members' ritual"
-              body="The Higher Self Society is reserved for Storm Wellness Club members. We would love to welcome you."
+              body="Sign-ups are for Storm Wellness Club members only. Founding and Diamond members may request a guest seat, subject to approval and available space."
               cta={{ to: "/memberships", label: "Explore membership" }}
               secondary={{ to: "/apply", label: "Apply" }}
             />
