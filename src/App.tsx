@@ -130,6 +130,7 @@ import Reports from "./pages/admin/Reports";
 import FrontDeskPOS from "./pages/admin/FrontDeskPOS";
 import ClassRoster from "./pages/admin/ClassRoster";
 import Marketing from "./pages/admin/Marketing";
+import CampaignStudio from "./pages/admin/CampaignStudio";
 import EventVoteTracking from "./pages/admin/EventVoteTracking";
 import { ProtectedEventsPortalRoute } from "./components/eventsportal/ProtectedEventsPortalRoute";
 import EventsPortalDashboard from "./pages/eventsportal/EventsPortalDashboard";
@@ -530,6 +531,7 @@ const App = () => (
               <Route path="/admin/front-desk" element={<ProtectedAdminRoute><FrontDeskPOS /></ProtectedAdminRoute>} />
               <Route path="/admin/class-roster/:sessionId" element={<ProtectedAdminRoute><ClassRoster /></ProtectedAdminRoute>} />
               <Route path="/admin/marketing" element={<ProtectedAdminRoute><Marketing /></ProtectedAdminRoute>} />
+              <Route path="/admin/campaign-studio" element={<ProtectedAdminRoute><CampaignStudio /></ProtectedAdminRoute>} />
               <Route path="/admin/events" element={<Navigate to="/events-portal" replace />} />
               <Route path="/admin/private-events" element={<ProtectedAdminRoute><AdminPrivateEvents /></ProtectedAdminRoute>} />
 

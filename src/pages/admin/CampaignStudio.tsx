@@ -250,7 +250,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
 
   const uploadImage = async (i: number, file: File) => run("upload", async () => {
     const path = `campaign-studio/${c.id}/${Date.now()}-${file.name.replace(/[^\w.-]/g, "_")}`;
-    const { error } = await supabase.storage.from("email-images").upload(path, file, { upsert: true, contentType: file.type });
+    const { error } = await supabase.storage.from("email-images").upload(path, file, { upsert: false, contentType: file.type });
     if (error) throw error;
     const { data } = await supabase.storage.from("email-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
     if (!data?.signedUrl) throw new Error("Upload failed");
