@@ -33,6 +33,12 @@ export const VOTE_MESSAGE =
 export const REMINDER_SUBJECT = "Voting closes Friday: choose our first book";
 export const REMINDER_MESSAGE =
   "A quick reminder: the Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet.\n\nSign in with the email you used to join, read the nine synopses, and tap Vote for this book. It takes less than a minute.";
+export const WINNER_SUBJECT = "Our first book: The 48 Laws of Power";
+export const WINNER_MESSAGE =
+  "Thank you to everyone who voted. Our founding circle has chosen its first book: The 48 Laws of Power by Robert Greene.\n\nOur first gathering is Thursday, December 3, from 7:00 to 9:00 PM at the club. That gives everyone time to get the book and read it. We'll be in touch as we get closer with discussion points for what we know will be a very special first evening.\n\nOur next book round is now open. Share the titles you'd love to read on the book club page. Voting closes Sunday, November 15, our second book will be chosen by the end of November, and we'll meet to discuss it Thursday, January 7.";
+export const NEXT_ROUND_SUBJECT = "Join Higher Self Society: our next book round is open";
+export const NEXT_ROUND_MESSAGE =
+  "Higher Self Society is our reading circle at Storm Wellness Club: one Thursday evening a month, 7:00 to 9:00 PM, gathered around a book chosen together.\n\nOur founding circle just chose its first book, The 48 Laws of Power, and the next round is now open. Sign up and share the titles you'd love to read. Voting closes Sunday, November 15, the book will be chosen by the end of November, and we'll meet to discuss it Thursday, January 7.";
 const DEFAULT_SMS = `Storm Wellness Club: ${DEFAULT_MESSAGE} Save your seat: ${PAGE_URL} Reply STOP to opt out.`;
 
 function buildHtml(firstName: string | null, message: string, hero: string = HERO): string {
@@ -66,18 +72,22 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* none */ }
 
+  const winner = body.audience === "book_winner";
+  const nextRound = body.audience === "next_round";
   const reminder = body.audience === "book_vote_reminder";
   const bookVote = body.audience === "book_vote" || reminder;
-  const signedUp = body.audience === "signed_up" || bookVote;
+  const signedUp = body.audience === "signed_up" || bookVote || winner;
   PAGE_URL = `${BASE_URL}/rituals/higher-self-society`;
   EMAIL_KEY = reminder ? "higher_self_society_book_vote_reminder_2026" : bookVote ? "higher_self_society_book_vote_2026" : signedUp ? "higher_self_society_signed_up_update_2026" : "higher_self_society_last_call_2026";
   SMS_KEY = reminder ? "hss-book-vote-reminder-2026" : bookVote ? "hss-book-vote-2026" : signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
   EYEBROW = bookVote ? "FOUNDING CIRCLE &middot; THE BOOK VOTE" : signedUp ? "FOUNDING CIRCLE &middot; WHAT'S NEXT" : "LAST CALL &middot; FOUNDING CIRCLE";
   BUTTON = bookVote ? "Cast your vote" : signedUp ? "Visit Higher Self Society" : "Save your seat";
+  if (winner) { EMAIL_KEY = "higher_self_society_book_winner_2026"; SMS_KEY = "hss-book-winner-2026"; EYEBROW = "FOUNDING CIRCLE &middot; OUR FIRST BOOK"; BUTTON = "Visit Higher Self Society"; }
+  if (nextRound) { EMAIL_KEY = "higher_self_society_next_round_2026"; SMS_KEY = "hss-next-round-2026"; EYEBROW = "THE NEXT BOOK ROUND"; BUTTON = "Sign up and suggest a book"; }
   if (bookVote) PAGE_URL = `${PAGE_URL}#book-vote`;
-  const dSubject = reminder ? REMINDER_SUBJECT : bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
-  const dMessage = reminder ? REMINDER_MESSAGE : bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
-  const dSms = reminder ? `Storm Wellness Club: Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
+  const dSubject = winner ? WINNER_SUBJECT : nextRound ? NEXT_ROUND_SUBJECT : reminder ? REMINDER_SUBJECT : bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
+  const dMessage = winner ? WINNER_MESSAGE : nextRound ? NEXT_ROUND_MESSAGE : reminder ? REMINDER_MESSAGE : bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
+  const dSms = winner ? `Storm Wellness Club: Higher Self Society chose its first book, The 48 Laws of Power. We meet Thursday, Dec. 3, 7-9 PM. The next book round is open: share your picks by Sun., Nov. 15: ${PAGE_URL} Reply STOP to opt out.` : nextRound ? `Storm Wellness Club: The next Higher Self Society book round is open. Sign up and suggest a book by Sun., Nov. 15: ${PAGE_URL} Reply STOP to opt out.` : reminder ? `Storm Wellness Club: Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
   const message = String(body.message ?? dMessage).trim().slice(0, 2000) || dMessage;
   const subject = String(body.subject ?? dSubject).trim().slice(0, 200) || dSubject;
   const smsText = String(body.smsText ?? dSms).trim().slice(0, 640) || dSms;
@@ -208,6 +218,7 @@ Deno.serve(async (req) => {
     return r.ok ? json({ ok: true, status: r.status }) : json({ ok: false, error: r.blocked ? "That number hasn't agreed to texts from the club" : (r.error || "Text not sent") });
   }
 
+  if (body.sendSms && nextRound) return json({ error: "This message is email only" }, 400);
   if (body.sendSms) {
     let sent = 0, skipped = 0, failed = 0, removed = 0;
     const seen = new Set<string>();
