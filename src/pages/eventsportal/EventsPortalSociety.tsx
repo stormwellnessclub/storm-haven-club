@@ -135,6 +135,8 @@ export default function EventsPortalSociety() {
         </table>
       </div>
       <div className="pt-6">
+        <SocietyLastCallControls audience="book_winner" />
+        <SocietyLastCallControls audience="next_round" />
         <SocietyLastCallControls audience="book_vote_reminder" />
         <SocietyLastCallControls audience="book_vote" />
         <SocietyLastCallControls />
