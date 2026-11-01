@@ -11230,6 +11230,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          installment_count_override: number | null
           intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
@@ -11287,6 +11288,7 @@ export type Database = {
           idempotency_key: string
           installment_cents?: number | null
           installment_count?: number | null
+          installment_count_override?: number | null
           intended_billing_day?: number | null
           new_revenue_cents?: number | null
           notes?: string | null
@@ -11344,6 +11346,7 @@ export type Database = {
           idempotency_key?: string
           installment_cents?: number | null
           installment_count?: number | null
+          installment_count_override?: number | null
           intended_billing_day?: number | null
           new_revenue_cents?: number | null
           notes?: string | null
@@ -17234,6 +17237,18 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_build_plan_schedule_v3: {
+        Args: {
+          p_first_autopay: string
+          p_first_payment_cents?: number
+          p_installment_count?: number
+          p_pack_id: string
+          p_plan_id: string
+          p_quantity: number
+          p_sale_date?: string
+        }
+        Returns: Json
+      }
       pt_can_coach_client: {
         Args: { _client: string; _uid: string }
         Returns: boolean
@@ -17352,6 +17367,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          installment_count_override: number | null
           intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
@@ -17581,6 +17597,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          installment_count_override: number | null
           intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
@@ -17665,6 +17682,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          installment_count_override: number | null
           intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
@@ -17762,6 +17780,17 @@ export type Database = {
         Args: {
           p_first_autopay: string
           p_first_payment_cents?: number
+          p_pack_id: string
+          p_plan_id: string
+          p_quantity: number
+        }
+        Returns: Json
+      }
+      pt_plan_schedule_preview_v3: {
+        Args: {
+          p_first_autopay: string
+          p_first_payment_cents?: number
+          p_installment_count?: number
           p_pack_id: string
           p_plan_id: string
           p_quantity: number
@@ -17869,6 +17898,7 @@ export type Database = {
           idempotency_key: string
           installment_cents: number | null
           installment_count: number | null
+          installment_count_override: number | null
           intended_billing_day: number | null
           new_revenue_cents: number | null
           notes: string | null
