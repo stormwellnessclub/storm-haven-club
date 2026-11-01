@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 import { escapeHtml, isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
 
@@ -77,10 +78,20 @@ const digits = (p: unknown) => String(p ?? "").replace(/\D/g, "").slice(-10);
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
-  const gate = await requireStaff(req, ["admin", "super_admin"]);
-  if (!gate.ok) return gate.response;
   let body: any = {};
-  try { body = await req.json(); } catch { /* none */ }
+  const raw = await req.text();
+  try { body = raw ? JSON.parse(raw) : {}; } catch { /* none */ }
+  // Scheduled job path: vault-held internal token, winner announcement send only.
+  const presented = presentedInternalToken(req);
+  let gate: any;
+  if (presented && (await isValidInternalToken(presented))) {
+    if (body.audience !== "book_winner" || !(body.sendEmail || body.sendSms) || body.testEmail || body.testSms)
+      return json({ error: "Scheduled calls may only send the winner announcement" }, 403);
+    gate = { ok: true, userId: null };
+  } else {
+    gate = await requireStaff(req, ["admin", "super_admin"]);
+    if (!gate.ok) return gate.response;
+  }
 
   const rsvpReminder = body.audience === "rsvp_reminder";
   const winner = body.audience === "book_winner" || rsvpReminder;
@@ -222,7 +233,8 @@ Deno.serve(async (req) => {
     const r = await fetch(`${url}/functions/v1/send-sms`, {
       method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({ templateKey: "admin-custom", idempotencyKey: idem, to: userId ? { userId, phone } : { phone },
-        variables: { customBody: smsText }, metadata: { campaign: SMS_KEY } }),
+        variables: { customBody: smsText }, metadata: { campaign: SMS_KEY },
+        ...(COVER_ON ? { mediaUrls: [BOOK_COVER] } : {}) }),
     });
     const d = await r.json().catch(() => ({}));
     const blocked = d?.error === "no_consent" || d?.error === "blocked";
