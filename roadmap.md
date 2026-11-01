@@ -36,3 +36,9 @@
 - [x] Real /classes page (studios, what to expect, beginner FAQs)
 - [x] Local search tags and business info for spa, massage and classes pages
 - [x] Restore automatic staff-booked PT confirmation email and consent-checked text; safe mocked tests only (no client messages or real bookings)
+
+## Campaign Studio
+- [x] Phase 1: one campaign list, brand-locked email builder, text + picture, phone/laptop preview, tests, scheduling, calendar of all scheduled sends (incl. older ones, with Stop)
+- [x] Phase 2 (part): AI writer in brand voice, brand check, saved audiences (Higher Self Society roster / no RSVP / RSVP yes, members, non-members, email list)
+- [ ] Phase 3: funnels (follow-up steps) and opens/clicks/bookings results
+- [ ] Phase 4: retire older one-off send panels once each is moved over
