@@ -197,7 +197,7 @@ export function PTAppointmentDrawer({
               <div className="flex items-center justify-between text-xs">
                 <span className="text-pt-muted">This session</span>
                 <span className="text-pt-ink">
-                  {a.package_deducted ? "Paid by package credit" : (a as any).reservation_state === "reserved" ? "Credit reserved" : (a.payment_status ?? "—").replace(/_/g, " ")}
+                  {a.package_deducted ? "Paid by package credit" : (a as any).reservation_state === "reserved" ? "1 session held from package" : (a.payment_status ?? "—").replace(/_/g, " ")}
                 </span>
               </div>
               {(a as any).cancel_outcome_reason && (
