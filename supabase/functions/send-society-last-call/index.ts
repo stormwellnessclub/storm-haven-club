@@ -44,6 +44,12 @@ export const NEXT_ROUND_MESSAGE =
   "Higher Self Society is our reading circle at Storm Wellness Club: one Thursday evening a month, 7:00 to 9:00 PM, gathered around a book chosen together.\n\nOur founding circle just chose its first book, The 48 Laws of Power, and the next round is now open. Sign up and share the titles you'd love to read. Voting closes Sunday, November 15, the book will be chosen by the end of November, and we'll meet to discuss it Thursday, January 7.";
 const DEFAULT_SMS = `Storm Wellness Club: ${DEFAULT_MESSAGE} Save your seat: ${PAGE_URL} Reply STOP to opt out.`;
 
+const BOOK_COVER = "https://covers.openlibrary.org/b/isbn/9780140280197-L.jpg";
+let COVER_ON = false;
+function coverBlock(): string {
+  if (!COVER_ON) return "";
+  return `<div style="text-align:center;margin:0 0 26px;"><img src="${BOOK_COVER}" alt="The 48 Laws of Power by Robert Greene" width="180" style="display:inline-block;width:180px;max-width:60%;height:auto;border:0;border-radius:3px;box-shadow:0 6px 18px rgba(0,0,0,.45);" /><p style="margin:12px 0 0;font-size:18px;color:#FBF7F2;">The 48 Laws of Power</p><p style="margin:2px 0 0;font-family:Arial,sans-serif;font-size:12px;letter-spacing:2px;color:#C5A880;">ROBERT GREENE</p></div>`;
+}
 function buildHtml(firstName: string | null, message: string, hero: string = HERO): string {
   const greeting = firstName ? `Dear ${escapeHtml(firstName)},` : "Dear Member,";
   const paras = message.split(/\n\s*\n/).map((p) => `<p style="margin:0 0 16px;">${escapeHtml(p.trim())}</p>`).join("");
@@ -53,6 +59,7 @@ function buildHtml(firstName: string | null, message: string, hero: string = HER
     <div style="padding:36px 34px 10px;color:#FBF7F2;line-height:1.75;">
       <p style="color:#C5A880;font-family:Arial,sans-serif;letter-spacing:3px;font-size:11px;margin:0 0 10px;">${EYEBROW}</p>
       <h1 style="font-weight:400;margin:0 0 24px;font-size:32px;line-height:1.2;color:#FBF7F2;">Higher Self Society</h1>
+      ${coverBlock()}
       <p style="margin:0 0 16px;">${greeting}</p>
       ${paras}
       <div style="text-align:center;margin:30px 0 34px;">
@@ -78,6 +85,7 @@ Deno.serve(async (req) => {
   const rsvpReminder = body.audience === "rsvp_reminder";
   const winner = body.audience === "book_winner" || rsvpReminder;
   const nextRound = body.audience === "next_round";
+  COVER_ON = winner;
   const reminder = body.audience === "book_vote_reminder";
   const bookVote = body.audience === "book_vote" || reminder;
   const signedUp = body.audience === "signed_up" || bookVote || winner;
