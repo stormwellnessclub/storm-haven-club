@@ -563,3 +563,27 @@ function buildHistory(
   });
   return out.sort((x, y) => x.at.localeCompare(y.at));
 }
+
+/** Used / held for upcoming bookings / available. Held sessions still count in sessions_remaining until used. */
+function PassBalance({ pass }: { pass: any }) {
+  const { data: held = 0 } = useQuery({
+    queryKey: ["pt-pass-held", pass.id],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("pt_appointments")
+        .select("id", { count: "exact", head: true })
+        .eq("pass_id", pass.id)
+        .eq("reservation_state", "reserved")
+        .eq("status", "scheduled");
+      return count ?? 0;
+    },
+  });
+  const used = Math.max(0, (pass.sessions_total ?? 0) - (pass.sessions_remaining ?? 0));
+  const available = Math.max(0, (pass.sessions_remaining ?? 0) - held);
+  return (
+    <div className="shrink-0 text-right">
+      <div className="pt-serif text-2xl text-pt-gold">{available} available</div>
+      <div className="text-[11px] text-pt-muted">{used} used · {held} held for upcoming</div>
+    </div>
+  );
+}
