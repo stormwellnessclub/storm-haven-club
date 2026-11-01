@@ -70,6 +70,10 @@ export default function EventsPortalSociety() {
 
   return (
     <EventsPortalShell title="Higher Self Society" description="Members, rounds and RSVPs. Emails and texts live in Campaign Studio.">
+      <a href="/admin/campaign-studio?event=higher_self_society" className="mb-4 inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-muted">
+        Open Higher Self Society campaigns
+      </a>
+
       <Tabs value={tab} onValueChange={(v) => setParams(v === "members" ? {} : { round: v }, { replace: true })}>
         <TabsList className="mb-6 flex-wrap h-auto">
           <TabsTrigger value="members">Members</TabsTrigger>
