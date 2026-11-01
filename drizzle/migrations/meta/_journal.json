@@ -869,6 +869,13 @@
       "when": 1793518012823,
       "tag": "0123_pt_auto_complete_all_past_booked",
       "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793522264694,
+      "tag": "0124_society_meeting_rsvps",
+      "breakpoints": true
     }
   ]
 }
