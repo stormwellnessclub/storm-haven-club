@@ -182,9 +182,7 @@ export function PTAppointmentDrawer({
                       Expires {fmtDate(new Date(`${activePass.expires_at}T12:00:00`), "MMM d, yyyy")}
                     </div>
                   </div>
-                  <div className="pt-serif text-2xl text-pt-gold shrink-0">
-                    {activePass.sessions_remaining}/{activePass.sessions_total}
-                  </div>
+                  <PassBalance pass={activePass} />
                 </div>
               ) : (
                 <div className="text-xs text-pt-muted">No active package.
