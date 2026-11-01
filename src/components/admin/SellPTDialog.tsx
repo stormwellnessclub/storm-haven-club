@@ -102,6 +102,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [firstPayMethod, setFirstPayMethod] = useState<"card" | "cash" | "check" | "external">("card");
   const [firstPayDollars, setFirstPayDollars] = useState<string>("");
   const [firstPayRef, setFirstPayRef] = useState("");
+  /** Per-sale number of months (total payments, incl. the one due at sale). "" = plan default. */
+  const [monthsInput, setMonthsInput] = useState<string>("");
   /** Client-specific first future autopay date — never stored on the package. */
   const [firstAutopayDate, setFirstAutopayDate] = useState<string>(
     fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"),
@@ -305,19 +307,33 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     if (!allowPayInFull && !selectedPlanId && packPlans.length > 0) setSelectedPlanId(packPlans[0].id);
   }, [packPlans, selectedPlanId, allowPayInFull]);
   const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
-  // Reset the first-payment amount to the plan default whenever the plan or quantity changes.
+  const planMonths = selectedPlan ? selectedPlan.future_installment_count + 1 : 0;
+  const parsedMonths = parseInt(monthsInput, 10);
+  const monthsValid = Number.isInteger(parsedMonths) && parsedMonths >= 2 && parsedMonths <= 24;
+  const months = monthsValid ? parsedMonths : planMonths;
+  const customMonths = !!selectedPlan && monthsValid && parsedMonths !== planMonths;
+  const planTotalCents = selectedPlan ? selectedPlan.plan_total_cents * quantity : 0;
+  const planDefaultFirstCents = selectedPlan
+    ? customMonths
+      ? Math.floor(planTotalCents / months)
+      : selectedPlan.amount_due_at_sale_cents * quantity
+    : 0;
+  // Reset months when the plan changes.
   useEffect(() => {
-    setFirstPayDollars(selectedPlan ? ((selectedPlan.amount_due_at_sale_cents * quantity) / 100).toFixed(2) : "");
-  }, [selectedPlanId, quantity]);
+    setMonthsInput(selectedPlan ? String(selectedPlan.future_installment_count + 1) : "");
+  }, [selectedPlanId]);
+  // Reset the first-payment amount to the default whenever the plan, quantity or months change.
+  useEffect(() => {
+    setFirstPayDollars(selectedPlan ? (planDefaultFirstCents / 100).toFixed(2) : "");
+  }, [selectedPlanId, quantity, months]);
 
   // ----- Totals -----
   const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
   const planActive = willCharge && !!selectedPlan;
-  const futureCount = selectedPlan?.future_installment_count ?? 0;
+  const futureCount = selectedPlan ? months - 1 : 0;
   const withFee = (c: number) => c + calculateProcessingFee(c);
   const perInstallmentCents = selectedPlan ? withFee(selectedPlan.installment_cents * quantity) : 0;
-  const planDefaultFirstCents = selectedPlan ? selectedPlan.amount_due_at_sale_cents * quantity : 0;
   const parsedFirst = Math.round(parseFloat(firstPayDollars) * 100);
   const firstPayCents = Number.isFinite(parsedFirst) && parsedFirst >= 0 ? parsedFirst : planDefaultFirstCents;
   const customFirst = !!selectedPlan && firstPayCents !== planDefaultFirstCents;
@@ -336,16 +352,17 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     error: scheduleError,
     isFetching: scheduleLoading,
   } = useQuery({
-    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate, customFirst ? firstPayCents : null],
-    enabled: planActive && !!selectedPack && !!selectedPlanId && !!firstAutopayDate,
+    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate, customFirst ? firstPayCents : null, customMonths ? months : null],
+    enabled: planActive && !!selectedPack && !!selectedPlanId && !!firstAutopayDate && monthsValid,
     retry: false,
     queryFn: async (): Promise<PlanSchedule> => {
-      const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview_v2", {
+      const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview_v3", {
         p_pack_id: selectedPack!.id,
         p_plan_id: selectedPlanId,
         p_quantity: quantity,
         p_first_autopay: firstAutopayDate,
         p_first_payment_cents: customFirst ? firstPayCents : null,
+        p_installment_count: customMonths ? months : null,
       });
       if (error) throw new Error(error.message.replace(/^.*PT_AUTOPAY_DATE_INVALID: /, ""));
       return data as PlanSchedule;
@@ -476,6 +493,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             firstPaymentCents: customFirst ? firstPayCents : null,
             firstPaymentMethod: firstPayMethod,
             firstPaymentReference: firstPayRef.trim() || null,
+            installmentCount: customMonths ? months : null,
           },
         });
         if (error) throw error;
@@ -861,6 +879,31 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                         <div className="text-[11px] text-muted-foreground">
                           Future payments repeat on this day each period. Short months bill on the
                           last day and return to the chosen day afterwards.
+                        </div>
+                        <div className="pt-2 border-t space-y-2">
+                          <Label className="text-xs">Number of months</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              min={2}
+                              max={24}
+                              value={monthsInput}
+                              onChange={(e) => setMonthsInput(e.target.value.replace(/[^0-9]/g, ""))}
+                              className="w-24"
+                            />
+                            {customMonths && (
+                              <button type="button" className="text-xs underline text-muted-foreground"
+                                onClick={() => setMonthsInput(String(planMonths))}>
+                                Use plan length ({planMonths} months)
+                              </button>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {monthsValid
+                              ? `Total stays ${formatCents(planTotalCents)}: the first payment today, then ${months - 1} monthly payments.`
+                              : "Enter 2 to 24 months."}
+                          </div>
                         </div>
                         <div className="pt-2 border-t space-y-2">
                           <Label className="text-xs">First payment (due at sale)</Label>

@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
       firstPaymentCents = null,
       firstPaymentMethod = "card",
       firstPaymentReference = null,
+      installmentCount = null,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
@@ -51,6 +52,10 @@ Deno.serve(async (req) => {
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
     if (!["card", "cash", "check", "external"].includes(firstPaymentMethod)) {
       throw new Error("Invalid first payment method");
+    }
+    const customCount = installmentCount !== null && installmentCount !== undefined;
+    if (customCount && (!Number.isInteger(installmentCount) || installmentCount < 2 || installmentCount > 24)) {
+      throw new Error("Number of months must be a whole number from 2 to 24");
     }
     const customFirst = firstPaymentCents !== null && firstPaymentCents !== undefined;
     if (customFirst && (!Number.isInteger(firstPaymentCents) || firstPaymentCents < 0)) {
@@ -172,7 +177,7 @@ Deno.serve(async (req) => {
     // One stable reference per sale attempt — retries reuse it end to end.
     const saleRef: string = body.saleRef ?? crypto.randomUUID();
 
-    const futureCount: number = plan.future_installment_count;
+    let futureCount: number = customCount ? installmentCount - 1 : plan.future_installment_count;
     const totalCents = plan.plan_total_cents * quantity;
     const tentativeDown = customFirst ? firstPaymentCents : plan.amount_due_at_sale_cents * quantity;
 
@@ -197,6 +202,7 @@ Deno.serve(async (req) => {
     // Store the per-sale first-payment choices before the schedule is fixed.
     await supabase.from("pt_sale_intents").update({
       first_payment_override_cents: customFirst ? firstPaymentCents : null,
+      installment_count_override: customCount ? installmentCount : null,
       first_payment_method: firstPaymentMethod,
       first_payment_reference: firstPaymentReference || null,
       amount_due_today_cents: tentativeDown,
@@ -213,6 +219,7 @@ Deno.serve(async (req) => {
     const scheduleRows: Array<{ installment_number: number; due_date: string; amount_cents: number }> =
       schedule.installments ?? [];
     const futureRows = scheduleRows.filter((r) => r.installment_number > 0);
+    futureCount = Number(schedule.future_installment_count ?? futureRows.length);
 
     const scheduleCustom = !!schedule.first_payment_custom;
     const downCents: number = schedule.amount_due_at_sale_cents;
