@@ -41,7 +41,8 @@ const HISTORY_FIELDS: Record<string, string> = {
   payment_status: "Payment status changed", package_deducted: "Package credit changed", confirmed_at: "Confirmed",
 };
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { PTSessionCheckoutDialog } from "@/components/admin/pt/PTSessionCheckoutDialog";
 
 export function PTAppointmentDrawer({
