@@ -3,6 +3,12 @@
 ## The rule
 If a PT appointment is booked and not cancelled, the client came. Once the session's end time passes, it is marked completed and one session comes off their package automatically. No staff clicks needed.
 
+## No double deduction
+When you book a package session, the app sets one session aside ("held"). That's what the "session deducted" message means. When the session time passes, that same held session turns into a used one. It comes off **once**, never twice. To make this clearer:
+- The booking message will say **"1 session held from package"**, not "deducted".
+- The package will show three numbers: **Used**, **Held for upcoming**, and **Available**.
+- Cancelling a booking in time gives the held session back.
+
 ## What changes
 1. **Automatic completion for every booked session.** Today the hourly check only completes sessions already tied to a package at booking. Sessions booked without one (like Lora's Oct 26 session) are skipped. Now the check will:
    - Use the package already on the appointment, or else the client's active package with sessions left (same format, oldest expiring first).
