@@ -34,3 +34,22 @@ export const SOCIETY_BOOKS: SocietyBook[] = [
   { key: "four_thousand_weeks", title: "Four Thousand Weeks: Time Management for Mortals", author: "Oliver Burkeman", isbn: "9780374159122",
     synopsis: "A thoughtful exploration of time, ambition, and the pressure to get everything done. Starting with the roughly four thousand weeks in an eighty-year life, Burkeman asks readers to reconsider productivity, accept their limits, and make room for what they find most meaningful." },
 ];
+
+/** Book club rounds. Adding a round adds an admin tab; the current round drives "Currently Reading". */
+export interface SocietyRound {
+  key: string;
+  label: string;
+  bookKey?: string;
+  meetingLabel: string;
+  meetingAt: string; // ISO, Detroit evening start
+  voteClosesLabel?: string;
+}
+export const SOCIETY_ROUNDS: SocietyRound[] = [
+  { key: "round-1", label: "Round 1: The 48 Laws of Power", bookKey: "48_laws_of_power",
+    meetingLabel: "Thursday, December 3 · 7:00–9:00 PM", meetingAt: "2026-12-04T00:00:00Z" },
+  { key: "round-2", label: "Round 2: January", meetingLabel: "Thursday, January 7 · 7:00–9:00 PM",
+    meetingAt: "2027-01-08T00:00:00Z", voteClosesLabel: "Sunday, November 15" },
+];
+export const CURRENT_ROUND = SOCIETY_ROUNDS[0];
+export const NEXT_ROUND = SOCIETY_ROUNDS[1];
+export const currentBook = () => SOCIETY_BOOKS.find((b) => b.key === CURRENT_ROUND.bookKey)!;
