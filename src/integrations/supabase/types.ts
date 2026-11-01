@@ -5500,6 +5500,72 @@ export type Database = {
           },
         ]
       }
+      marketing_campaigns: {
+        Row: {
+          audience_key: string
+          blocks: Json
+          created_at: string
+          created_by: string | null
+          event_tag: string
+          id: string
+          last_error: string | null
+          name: string
+          preheader: string
+          scheduled_at: string | null
+          send_email: boolean
+          send_sms: boolean
+          sent_at: string | null
+          sms_body: string
+          sms_image_url: string | null
+          stats: Json
+          status: string
+          subject: string
+          updated_at: string
+        }
+        Insert: {
+          audience_key?: string
+          blocks?: Json
+          created_at?: string
+          created_by?: string | null
+          event_tag?: string
+          id?: string
+          last_error?: string | null
+          name?: string
+          preheader?: string
+          scheduled_at?: string | null
+          send_email?: boolean
+          send_sms?: boolean
+          sent_at?: string | null
+          sms_body?: string
+          sms_image_url?: string | null
+          stats?: Json
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Update: {
+          audience_key?: string
+          blocks?: Json
+          created_at?: string
+          created_by?: string | null
+          event_tag?: string
+          id?: string
+          last_error?: string | null
+          name?: string
+          preheader?: string
+          scheduled_at?: string | null
+          send_email?: boolean
+          send_sms?: boolean
+          sent_at?: string | null
+          sms_body?: string
+          sms_image_url?: string | null
+          stats?: Json
+          status?: string
+          subject?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       marketing_contacts: {
         Row: {
           created_at: string
@@ -15668,6 +15734,10 @@ export type Database = {
         Args: { p_booking_id: string; p_cancellation_reason?: string }
         Returns: Json
       }
+      admin_cancel_scheduled_send: {
+        Args: { _jobid: number }
+        Returns: undefined
+      }
       admin_clear_staff_pin: {
         Args: { _staff_user_id: string }
         Returns: undefined
@@ -15759,6 +15829,14 @@ export type Database = {
       admin_link_member_to_user: {
         Args: { _member_id: string; _user_email: string }
         Returns: boolean
+      }
+      admin_list_scheduled_sends: {
+        Args: never
+        Returns: {
+          jobid: number
+          jobname: string
+          schedule: string
+        }[]
       }
       admin_mark_instructor_invited: {
         Args: { _instructor_id: string }
@@ -15960,6 +16038,10 @@ export type Database = {
         Returns: Json
       }
       arm_body_roller_send: {
+        Args: { _id: string; _send_at: string }
+        Returns: undefined
+      }
+      arm_marketing_campaign: {
         Args: { _id: string; _send_at: string }
         Returns: undefined
       }
@@ -16261,6 +16343,7 @@ export type Database = {
         Returns: Json
       }
       delete_pt_pack: { Args: { p_pack_id: string }; Returns: Json }
+      disarm_marketing_campaign: { Args: { _id: string }; Returns: undefined }
       effective_waiver_status: {
         Args: { _user_ids: string[] }
         Returns: {

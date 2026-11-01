@@ -890,6 +890,13 @@
       "when": 1793523619930,
       "tag": "0126_society_next_round_members_only",
       "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1793524382826,
+      "tag": "0127_campaign_studio",
+      "breakpoints": true
     }
   ]
 }
