@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +9,6 @@ import { SOCIETY_BOOKS, SOCIETY_BOOK_VOTE_SLUG, coverUrl, isBookVoteOpen } from 
 
 const gold = "text-[hsl(var(--society-gold))]";
 const muted = "text-[hsl(var(--society-muted))]";
-const field =
-  "w-full bg-[hsl(var(--society-bg))] border border-[hsl(var(--society-line))] rounded-sm px-4 py-3 text-[hsl(var(--society-cream))] placeholder:text-[hsl(var(--society-muted))] focus:outline-none focus:border-[hsl(var(--society-gold))]";
 
 function Cover({ isbn, title }: { isbn: string; title: string }) {
   const [failed, setFailed] = useState(false);
@@ -43,7 +40,8 @@ export function SocietyBookVote() {
     queryKey: ["hss-vote-eligible", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("is_society_roster_member" as any, { _uid: user!.id });
+      if (!user) return false;
+      const { data, error } = await supabase.rpc("is_society_roster_member" as any, { _uid: user.id });
       if (error) throw error;
       return !!data;
     },
@@ -118,45 +116,14 @@ export function SocietyBookVote() {
 }
 
 function NextRoundPanel({ signedIn }: { signedIn: boolean }) {
-    const { user } = useAuth();
-    const qc = useQueryClient();
-    const [name, setName] = useState("");
-    const [email, setEmail] = useState(user?.email ?? "");
-    const [phone, setPhone] = useState("");
-    const [done, setDone] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const submit = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!name.trim() || !email.trim()) return toast.error("Please add your name and email.");
-      setBusy(true);
-      const { error } = await supabase.from("society_next_round_interest" as any).insert({
-        full_name: name.trim().slice(0, 120), email: email.trim().toLowerCase().slice(0, 255),
-        phone: phone.trim().slice(0, 30) || null, user_id: user?.id ?? null,
-      });
-      setBusy(false);
-      if (error && error.code !== "23505") return toast.error("We couldn't save that. Please try again.");
-      setDone(true);
-      qc.invalidateQueries({ queryKey: ["hss-next-round"] });
-    };
     return (
       <div className="mt-8 p-5 sm:p-6 border border-[hsl(var(--society-line))] rounded-sm">
-        <h3 className={`font-serif text-2xl ${gold}`}>Add your name to the next round</h3>
+        <h3 className={`font-serif text-2xl ${gold}`}>A members' reading circle</h3>
         <p className={`mt-2 text-sm ${muted}`}>
-          Not in the reading circle yet? Leave your details and we'll reach out when the next circle opens.
-          {!signedIn && <> Already signed up? <Link to="/auth?redirect=/rituals/higher-self-society" className="underline">Sign in to vote</Link>.</>}
+          Next-round sign-ups are reserved for Storm Wellness Club members. Founding and Diamond members may request a guest seat, subject to approval and available space.
         </p>
-        {done ? (
-          <p className="mt-4">You're on the list. We'll be in touch.</p>
-        ) : (
-          <form onSubmit={submit} className="mt-4 grid sm:grid-cols-3 gap-3">
-            <input className={field} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} autoComplete="name" />
-            <input className={field} type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={255} autoComplete="email" />
-            <input className={field} type="tel" placeholder="Phone (optional)" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={30} autoComplete="tel" />
-            <button disabled={busy} className="sm:col-span-3 min-h-11 bg-[hsl(var(--society-gold))] text-[hsl(var(--society-bg))] rounded-sm tracking-wide">
-              {busy ? "Saving…" : "Add my name"}
-            </button>
-          </form>
-        )}
+        {signedIn ? <a href="#join" className={`inline-block mt-4 underline ${gold}`}>Member sign-up</a> :
+          <Link to="/auth?redirect=/rituals/higher-self-society" className={`inline-block mt-4 underline ${gold}`}>Members: sign in to join</Link>}
       </div>
     );
   }

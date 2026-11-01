@@ -883,6 +883,13 @@
       "when": 1793522323831,
       "tag": "0125_reopen_society_signups_round2",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1793523619930,
+      "tag": "0126_society_next_round_members_only",
+      "breakpoints": true
     }
   ]
 }
