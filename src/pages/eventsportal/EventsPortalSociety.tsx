@@ -1,4 +1,8 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SocietyRsvpAdmin } from "@/components/eventsportal/SocietyRsvpAdmin";
+import { SOCIETY_ROUNDS } from "@/lib/societyBooks";
 import { EventsPortalShell } from "@/components/eventsportal/EventsPortalShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +23,8 @@ export default function EventsPortalSociety() {
   const [adding, setAdding] = useState(false);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const tab = params.get("round") ?? "members";
 
   const doRemove = async (id: string) => {
     try {
@@ -63,7 +69,39 @@ export default function EventsPortalSociety() {
   };
 
   return (
-    <EventsPortalShell title="Higher Self Society" description="Everyone who filled out the book club form">
+    <EventsPortalShell title="Higher Self Society" description="Members, rounds, RSVPs and messages for the book club">
+      <Tabs value={tab} onValueChange={(v) => setParams(v === "members" ? {} : { round: v }, { replace: true })}>
+        <TabsList className="mb-6 flex-wrap h-auto">
+          <TabsTrigger value="members">Members</TabsTrigger>
+          {SOCIETY_ROUNDS.map((r) => <TabsTrigger key={r.key} value={r.key}>{r.label}</TabsTrigger>)}
+        </TabsList>
+
+        <TabsContent value={SOCIETY_ROUNDS[0].key}>
+          <SocietyRsvpAdmin round={SOCIETY_ROUNDS[0]} roster={rows} />
+          <SocietyBookVoteAdmin />
+          <div className="space-y-6 pt-6">
+            <SocietyLastCallControls audience="book_winner" />
+            <SocietyLastCallControls audience="rsvp_reminder" />
+            <SocietyLastCallControls audience="book_vote_reminder" />
+            <SocietyLastCallControls audience="book_vote" />
+          </div>
+        </TabsContent>
+
+        <TabsContent value={SOCIETY_ROUNDS[1].key}>
+          <Card className="mb-6">
+            <CardHeader><CardTitle className="text-base">Book suggestions ({rows.filter((r: any) => r.book_suggestion).length})</CardTitle></CardHeader>
+            <CardContent className="text-sm divide-y">
+              {rows.filter((r: any) => r.book_suggestion).map((r: any) => (
+                <div key={r.id} className="py-2"><b>{r.book_suggestion}</b> <span className="text-muted-foreground">· {r.full_name || r.email}</span>
+                  {r.book_reason && <p className="text-muted-foreground mt-1">{r.book_reason}</p>}</div>
+              ))}
+            </CardContent>
+          </Card>
+          <p className="text-sm text-muted-foreground mb-4">Voting closes {SOCIETY_ROUNDS[1].voteClosesLabel}. The ballot is added once the book list is ready. Meeting: {SOCIETY_ROUNDS[1].meetingLabel}.</p>
+          <SocietyLastCallControls audience="next_round" />
+        </TabsContent>
+
+        <TabsContent value="members">
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <Card><CardHeader><CardTitle className="text-sm">Founding roster</CardTitle></CardHeader>
           <CardContent className="text-3xl font-semibold">{rows.length}</CardContent></Card>
@@ -72,7 +110,6 @@ export default function EventsPortalSociety() {
         <Card><CardHeader><CardTitle className="text-sm">Top themes</CardTitle></CardHeader>
           <CardContent className="text-sm space-y-1">{Object.entries(themeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([t, n]) => <div key={t} className="flex justify-between"><span>{t}</span><b>{n}</b></div>)}</CardContent></Card>
       </div>
-      <SocietyBookVoteAdmin />
       <div className="flex justify-between items-center mb-3 gap-2">
         <h2 className="font-semibold">Roster</h2>
         <div className="flex gap-2">
@@ -135,16 +172,14 @@ export default function EventsPortalSociety() {
         </table>
       </div>
       <div className="pt-6">
-        <SocietyLastCallControls audience="book_winner" />
-        <SocietyLastCallControls audience="next_round" />
-        <SocietyLastCallControls audience="book_vote_reminder" />
-        <SocietyLastCallControls audience="book_vote" />
         <SocietyLastCallControls />
       </div>
       <div className="pt-6">
         <h2 className="font-semibold mb-3">Invitation email</h2>
         <SocietyInviteEmailControls />
       </div>
+        </TabsContent>
+      </Tabs>
     </EventsPortalShell>
   );
 }
