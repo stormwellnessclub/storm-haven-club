@@ -505,8 +505,8 @@ export function BookPTSessionDialog({
               )}
 
               <p className="text-xs text-muted-foreground">
-                Each attendee gets their own appointment. Anyone with an active semi-private package is deducted a
-                session; anyone without one is booked as unpaid at the rate above.
+                Each attendee gets their own appointment. Anyone with an active semi-private package has one
+                session held (it is used once the session time passes); anyone without one is booked as unpaid at the rate above.
               </p>
             </div>
           )}
