@@ -236,7 +236,7 @@ export function PTAppointmentDrawer({
                 <div className="pt-eyebrow">Administrative override</div>
                 <div className="text-[11px] text-pt-muted">Managers only. Recorded on the package ledger with your name.</div>
                 <div className="grid grid-cols-3 gap-2">
-                  <button className={ptButtonClass("outline")} disabled={!a.package_deducted && (a as any).reservation_state !== "reserved"} onClick={() => setOverrideAction("restore_credit")}>Return credit</button>
+                  <button className={ptButtonClass("outline")} disabled={!isAdmin() || (!a.package_deducted && (a as any).reservation_state !== "reserved")} title={isAdmin() ? undefined : "Admins only"} onClick={() => setOverrideAction("restore_credit")}>Restore session</button>
                   <button className={ptButtonClass("outline")} disabled={!!a.package_deducted} onClick={() => setOverrideAction("consume_credit")}>Charge credit</button>
                   <button className={ptButtonClass("outline")} disabled={!(a.payment_status === "unpaid" || a.payment_status === "past_due")} onClick={() => setOverrideAction("waive_charge")}>Waive charge</button>
                 </div>
