@@ -69,6 +69,18 @@ export function SocietyBookVote() {
         {total > 0 && ` · ${total} vote${total === 1 ? "" : "s"} so far`}
       </p>
       {voteOpen && <p className={`text-center text-xs mt-2 tracking-wide ${gold}`}>Voting closes Friday, October 23 at 11:59 PM</p>}
+      {!voteOpen && (
+        <div className="mt-8 border border-[hsl(var(--society-gold)/0.5)] rounded-sm p-6 text-center">
+          <p className={`uppercase tracking-[0.3em] text-xs ${gold}`}>Our first book</p>
+          <p className="font-serif text-2xl sm:text-3xl mt-2">The 48 Laws of Power</p>
+          <p className={`mt-1 ${muted}`}>Robert Greene</p>
+          <p className="mt-4">First gathering: Thursday, December 3 · 7:00–9:00 PM</p>
+          <p className={`mt-4 text-sm leading-relaxed ${muted}`}>
+            The next book round is open. Sign up below and share the titles you would love to read. Voting closes Sunday, November 15,
+            the book is chosen by the end of November, and we meet to discuss it Thursday, January 7.
+          </p>
+        </div>
+      )}
 
       {!(user && eligible) && !isLoading && <NextRoundPanel signedIn={!!user} />}
 

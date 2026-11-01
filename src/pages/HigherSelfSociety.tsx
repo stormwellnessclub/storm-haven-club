@@ -91,7 +91,7 @@ export default function HigherSelfSociety() {
           {[
             ["Monthly gathering", "One carefully chosen book, discussed by candlelight in an unhurried evening."],
             ["Members only", "Open to every Storm Wellness Club member. Founding and Diamond members may request a guest seat."],
-            ["Shaped by you", "Your themes, preferred evening and book suggestions guide the first season."],
+            ["Shaped by you", "Your themes and book suggestions guide each round."],
           ].map(([t, d]) => (
             <div key={t}>
               <h3 className={`font-serif text-2xl ${gold}`}>{t}</h3>
@@ -183,21 +183,8 @@ export default function HigherSelfSociety() {
               </div>
 
               <div>
-                <label className="font-serif text-xl">Which evening suits you?</label>
-                <div className="mt-4 space-y-2">
-                  {SOCIETY_RHYTHMS.map((r) => (
-                    <label key={r.value} className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="rhythm"
-                        checked={rhythm === r.value}
-                        onChange={() => setRhythm(r.value)}
-                        className="accent-[hsl(var(--society-gold))]"
-                      />
-                      <span>{r.label}</span>
-                    </label>
-                  ))}
-                </div>
+                <p className="font-serif text-xl">When we meet</p>
+                <p className={`mt-2 ${muted}`}>One Thursday evening a month, 7:00–9:00 PM.</p>
               </div>
 
               <div className="space-y-3">

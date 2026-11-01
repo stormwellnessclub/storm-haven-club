@@ -18,9 +18,11 @@ type R = { email: string; name: string; phone: string | null; status: string; em
 
 const DEFAULT_HERO = "https://stormwellnessclub.com/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg";
 
-export function SocietyLastCallControls({ audience }: { audience?: "book_vote" | "book_vote_reminder" } = {}) {
+export function SocietyLastCallControls({ audience }: { audience?: "book_vote" | "book_vote_reminder" | "book_winner" | "next_round" } = {}) {
   const vote = audience === "book_vote" || audience === "book_vote_reminder";
   const reminder = audience === "book_vote_reminder";
+  const winner = audience === "book_winner";
+  const nextRound = audience === "next_round";
   const [roster, setRoster] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -89,10 +91,10 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{reminder ? "Book vote reminder: hasn't voted yet (email and text)" : vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{winner ? "Winning book announcement (email and text)" : nextRound ? "Next book round: active members not in the club (email only)" : reminder ? "Book vote reminder: hasn't voted yet (email and text)" : vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          {reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
+          {winner ? "Goes to everyone on the book club list. Announces The 48 Laws of Power, the Dec. 3 first meeting, and the next round (voting closes Nov. 15, meeting Jan. 7). " : nextRound ? "Goes to active and frozen members who aren't on the book club list yet. Cancelled members are never included. " : reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
           Unsubscribed people and anyone who hasn't agreed to texts are skipped. Each person gets each message once.
         </p>
 
@@ -117,7 +119,7 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
             <div className="rounded border p-4 bg-muted text-sm space-y-2">
               <p className="font-semibold">{subject}</p><p>Dear Jane,</p>
               {message.split(/\n\s*\n/).map((p, i) => <p key={i}>{p}</p>)}
-              <p className="text-primary">[{vote ? "Cast your vote" : "Save your seat"}]</p>
+              <p className="text-primary">[{winner ? "Visit Higher Self Society" : nextRound ? "Sign up and suggest a book" : vote ? "Cast your vote" : "Save your seat"}]</p>
             </div>
           )}
           <div className="flex gap-2">
@@ -128,7 +130,7 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
           </div>
         </div>
 
-        <div className="space-y-2">
+        {!nextRound && <div className="space-y-2">
           <label className="text-sm font-medium">Text message ({smsText.length} characters)</label>
           <Textarea rows={4} value={smsText} onChange={(e) => setSmsText(e.target.value)} />
           <div className="flex gap-2">
@@ -137,7 +139,7 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
               {busy === "ts" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send test"}
             </Button>
           </div>
-        </div>
+        </div>}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
@@ -163,16 +165,16 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
           <Button disabled={!!busy || !emailCount} onClick={() => setConfirm("email")}>
             {busy === "email" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}Send email ({emailCount})
           </Button>
-          <Button disabled={!!busy || !smsCount} onClick={() => setConfirm("sms")}>
+          {!nextRound && <Button disabled={!!busy || !smsCount} onClick={() => setConfirm("sms")}>
             {busy === "sms" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageSquare className="h-4 w-4 mr-2" />}Send text (up to {smsCount})
-          </Button>
+          </Button>}
         </div>
       </CardContent>
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Send the {vote ? "book vote" : "last-call"} {confirm === "email" ? "email" : "text"}?</AlertDialogTitle>
+            <AlertDialogTitle>Send the {winner ? "winning book" : nextRound ? "next-round" : vote ? "book vote" : "last-call"} {confirm === "email" ? "email" : "text"}?</AlertDialogTitle>
             <AlertDialogDescription>
               {confirm === "email" ? `${emailCount} people will get the email.` : `Up to ${smsCount} people will get the text. Anyone who hasn't agreed to texts is skipped.`} This can't be undone.
             </AlertDialogDescription>
