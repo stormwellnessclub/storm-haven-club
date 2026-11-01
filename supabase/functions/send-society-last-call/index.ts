@@ -35,7 +35,10 @@ export const REMINDER_MESSAGE =
   "A quick reminder: the Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet.\n\nSign in with the email you used to join, read the nine synopses, and tap Vote for this book. It takes less than a minute.";
 export const WINNER_SUBJECT = "Our first book: The 48 Laws of Power";
 export const WINNER_MESSAGE =
-  "Thank you to everyone who voted. Our founding circle has chosen its first book: The 48 Laws of Power by Robert Greene.\n\nOur first gathering is Thursday, December 3, from 7:00 to 9:00 PM at the club. That gives everyone time to get the book and read it. We'll be in touch as we get closer with discussion points for what we know will be a very special first evening.\n\nOur next book round is now open. Share the titles you'd love to read on the book club page. Voting closes Sunday, November 15, our second book will be chosen by the end of November, and we'll meet to discuss it Thursday, January 7.";
+  "Thank you to everyone who voted. Our founding circle has chosen its first book: The 48 Laws of Power by Robert Greene.\n\nOur first gathering is Thursday, December 3, from 7:00 to 9:00 PM at the club. That gives everyone time to get the book and read it. We'll be in touch as we get closer with discussion points for what we know will be a very special first evening. Please RSVP on the book club page so we can prepare for you.\n\nOur next book round is now open. Share the titles you'd love to read on the book club page. Voting closes Sunday, November 15, our second book will be chosen by the end of November, and we'll meet to discuss it Thursday, January 7.";
+export const RSVP_SUBJECT = "Will you join us December 3? Please RSVP";
+export const RSVP_MESSAGE =
+  "Our first Higher Self Society gathering is Thursday, December 3, from 7:00 to 9:00 PM at the club, where we'll discuss The 48 Laws of Power by Robert Greene.\n\nWe haven't received your RSVP yet. Sign in to the book club page and let us know if you'll be joining us so we can prepare the evening for you.";
 export const NEXT_ROUND_SUBJECT = "Join Higher Self Society: our next book round is open";
 export const NEXT_ROUND_MESSAGE =
   "Higher Self Society is our reading circle at Storm Wellness Club: one Thursday evening a month, 7:00 to 9:00 PM, gathered around a book chosen together.\n\nOur founding circle just chose its first book, The 48 Laws of Power, and the next round is now open. Sign up and share the titles you'd love to read. Voting closes Sunday, November 15, the book will be chosen by the end of November, and we'll meet to discuss it Thursday, January 7.";
@@ -72,7 +75,8 @@ Deno.serve(async (req) => {
   let body: any = {};
   try { body = await req.json(); } catch { /* none */ }
 
-  const winner = body.audience === "book_winner";
+  const rsvpReminder = body.audience === "rsvp_reminder";
+  const winner = body.audience === "book_winner" || rsvpReminder;
   const nextRound = body.audience === "next_round";
   const reminder = body.audience === "book_vote_reminder";
   const bookVote = body.audience === "book_vote" || reminder;
@@ -82,12 +86,13 @@ Deno.serve(async (req) => {
   SMS_KEY = reminder ? "hss-book-vote-reminder-2026" : bookVote ? "hss-book-vote-2026" : signedUp ? "hss-signed-up-update-2026" : "hss-last-call-2026";
   EYEBROW = bookVote ? "FOUNDING CIRCLE &middot; THE BOOK VOTE" : signedUp ? "FOUNDING CIRCLE &middot; WHAT'S NEXT" : "LAST CALL &middot; FOUNDING CIRCLE";
   BUTTON = bookVote ? "Cast your vote" : signedUp ? "Visit Higher Self Society" : "Save your seat";
-  if (winner) { EMAIL_KEY = "higher_self_society_book_winner_2026"; SMS_KEY = "hss-book-winner-2026"; EYEBROW = "FOUNDING CIRCLE &middot; OUR FIRST BOOK"; BUTTON = "Visit Higher Self Society"; }
+  if (winner) { EMAIL_KEY = "higher_self_society_book_winner_2026"; SMS_KEY = "hss-book-winner-2026"; EYEBROW = "FOUNDING CIRCLE &middot; OUR FIRST BOOK"; BUTTON = "RSVP for December 3"; PAGE_URL = `${PAGE_URL}#currently-reading`; }
+  if (rsvpReminder) { EMAIL_KEY = "higher_self_society_rsvp_reminder_dec3_2026"; SMS_KEY = "hss-rsvp-reminder-dec3-2026"; EYEBROW = "THE 48 LAWS OF POWER &middot; DECEMBER 3"; }
   if (nextRound) { EMAIL_KEY = "higher_self_society_next_round_2026"; SMS_KEY = "hss-next-round-2026"; EYEBROW = "THE NEXT BOOK ROUND"; BUTTON = "Sign up and suggest a book"; }
   if (bookVote) PAGE_URL = `${PAGE_URL}#book-vote`;
-  const dSubject = winner ? WINNER_SUBJECT : nextRound ? NEXT_ROUND_SUBJECT : reminder ? REMINDER_SUBJECT : bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
-  const dMessage = winner ? WINNER_MESSAGE : nextRound ? NEXT_ROUND_MESSAGE : reminder ? REMINDER_MESSAGE : bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
-  const dSms = winner ? `Storm Wellness Club: Higher Self Society chose its first book, The 48 Laws of Power. We meet Thursday, Dec. 3, 7-9 PM. The next book round is open: share your picks by Sun., Nov. 15: ${PAGE_URL} Reply STOP to opt out.` : nextRound ? `Storm Wellness Club: The next Higher Self Society book round is open. Sign up and suggest a book by Sun., Nov. 15: ${PAGE_URL} Reply STOP to opt out.` : reminder ? `Storm Wellness Club: Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
+  const dSubject = rsvpReminder ? RSVP_SUBJECT : winner ? WINNER_SUBJECT : nextRound ? NEXT_ROUND_SUBJECT : reminder ? REMINDER_SUBJECT : bookVote ? VOTE_SUBJECT : DEFAULT_SUBJECT;
+  const dMessage = rsvpReminder ? RSVP_MESSAGE : winner ? WINNER_MESSAGE : nextRound ? NEXT_ROUND_MESSAGE : reminder ? REMINDER_MESSAGE : bookVote ? VOTE_MESSAGE : DEFAULT_MESSAGE;
+  const dSms = rsvpReminder ? `Storm Wellness Club: Will you join Higher Self Society on Thursday, Dec. 3, 7-9 PM for The 48 Laws of Power? Please RSVP: ${PAGE_URL} Reply STOP to opt out.` : winner ? `Storm Wellness Club: Higher Self Society chose its first book, The 48 Laws of Power. We meet Thursday, Dec. 3, 7-9 PM. Please RSVP. The next book round is open: share your picks by Sun., Nov. 15: ${PAGE_URL} Reply STOP to opt out.` : nextRound ? `Storm Wellness Club: The next Higher Self Society book round is open. Sign up and suggest a book by Sun., Nov. 15: ${PAGE_URL} Reply STOP to opt out.` : reminder ? `Storm Wellness Club: Higher Self Society book vote closes Friday, Oct. 23 at 11:59 PM, and we haven't seen your pick yet. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : bookVote ? `Storm Wellness Club: Higher Self Society members, it's time to choose our first book. Voting closes Friday, Oct. 23 at 11:59 PM. Sign in to vote: ${PAGE_URL} Reply STOP to opt out.` : DEFAULT_SMS;
   const message = String(body.message ?? dMessage).trim().slice(0, 2000) || dMessage;
   const subject = String(body.subject ?? dSubject).trim().slice(0, 200) || dSubject;
   const smsText = String(body.smsText ?? dSms).trim().slice(0, 640) || dSms;
@@ -180,6 +185,11 @@ Deno.serve(async (req) => {
       for (const p of data ?? []) if (p.email) voterEmails.add(String(p.email).toLowerCase());
     }
     for (const [email, r] of byEmail) if ((r.user_id && voters.has(r.user_id)) || voterEmails.has(email)) byEmail.delete(email);
+  }
+  if (rsvpReminder) {
+    const { data: rs } = await sb.from("society_meeting_rsvps").select("user_id").eq("round_key", "round-1");
+    const replied = new Set((rs ?? []).map((r: any) => r.user_id));
+    for (const [email, r] of byEmail) if (r.user_id && replied.has(r.user_id)) byEmail.delete(email);
   }
   const recipients = [...byEmail.values()].sort((a, b) =>
     `${a.first_name ?? ""} ${a.last_name ?? ""}`.localeCompare(`${b.first_name ?? ""} ${b.last_name ?? ""}`));
