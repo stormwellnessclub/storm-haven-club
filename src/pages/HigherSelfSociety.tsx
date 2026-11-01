@@ -1,5 +1,6 @@
 import { societySignupsClosed } from "@/lib/societySignup";
 import { SocietyBookVote } from "@/components/society/SocietyBookVote";
+import { SocietyCurrentlyReading } from "@/components/society/SocietyCurrentlyReading";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -59,7 +60,7 @@ export default function HigherSelfSociety() {
     e.preventDefault();
     try {
       await submit.mutateAsync({ themes, rhythm, book, reason, guest, guestName });
-      toast.success(mine ? "Your preferences are updated." : "Welcome to the founding circle.");
+      toast.success(mine ? "Your preferences are updated." : "Welcome to Higher Self Society.");
     } catch (err: any) {
       toast.error(err?.message || "We couldn't save that. Please try again.");
     }
@@ -85,6 +86,8 @@ export default function HigherSelfSociety() {
             </p>
           </div>
         </section>
+
+        <SocietyCurrentlyReading />
 
         {/* What to expect */}
         <section className="container mx-auto px-6 py-16 max-w-5xl grid md:grid-cols-3 gap-10 border-b border-[hsl(var(--society-line)/0.5)]">
@@ -120,11 +123,9 @@ export default function HigherSelfSociety() {
           ))}
         </section>
 
-        <SocietyBookVote />
-
         {/* Form or access message */}
-        <section className="container mx-auto px-6 py-20 max-w-2xl">
-          <h2 className="font-serif text-4xl text-center">Join the founding circle</h2>
+        <section id="join" className="container mx-auto px-6 py-20 max-w-2xl">
+          <h2 className="font-serif text-4xl text-center">Join the next round</h2>
           <p className={`text-center mt-3 ${muted}`}>
             Share a few preferences and we will reach out with the first title and date.
           </p>
@@ -156,7 +157,7 @@ export default function HigherSelfSociety() {
             >
               {mine && (
                 <p className={`text-sm ${gold}`}>
-                  You're on the founding roster. Update your preferences any time.
+                  You're on the book club list. Update your preferences and book suggestions any time.
                 </p>
               )}
               <div>
@@ -216,11 +217,12 @@ export default function HigherSelfSociety() {
                 disabled={submit.isPending}
                 className="w-full py-4 uppercase tracking-[0.25em] text-sm bg-[hsl(var(--society-gold))] text-[hsl(var(--society-bg))] hover:opacity-90 disabled:opacity-50"
               >
-                {submit.isPending ? "Saving…" : mine ? "Update my preferences" : "Join the founding circle"}
+                {submit.isPending ? "Saving…" : mine ? "Update my preferences" : "Join the next round"}
               </button>
             </form>
           )}
         </section>
+        <SocietyBookVote />
       </div>
     </Layout>
   );

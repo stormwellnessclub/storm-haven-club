@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CLUB_TZ } from "@/lib/rituals";
 import { cn } from "@/lib/utils";
+import { SOCIETY_ROUNDS } from "@/lib/societyBooks";
 
 const dayKey = (iso: string) => formatInTimeZone(new Date(iso), CLUB_TZ, "yyyy-MM-dd");
 
@@ -21,6 +22,11 @@ export default function EventsPortalCalendar() {
     events.forEach((e) => {
       const k = dayKey(e.starts_at);
       (map[k] ||= [] as any).push(e);
+    });
+    // Book club meetings are managed on the Higher Self Society page, tab per round.
+    SOCIETY_ROUNDS.forEach((r) => {
+      (map[dayKey(r.meetingAt)] ||= [] as any).push({ id: r.key, slug: null, title: `Book club: ${r.label}`, starts_at: r.meetingAt,
+        status: "published", href: `/events-portal/society?round=${r.key}` } as any);
     });
     return map;
   }, [events]);
@@ -76,7 +82,7 @@ export default function EventsPortalCalendar() {
                   {items.map((e: any) => (
                     <Link
                       key={e.id}
-                      to={`/events-portal/events/${e.slug}`}
+                      to={e.href ?? `/events-portal/events/${e.slug}`}
                       className={cn(
                         "block rounded px-1.5 py-1 text-[11px] leading-tight truncate",
                         e.status === "draft"

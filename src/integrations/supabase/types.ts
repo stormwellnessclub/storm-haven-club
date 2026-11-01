@@ -13074,6 +13074,33 @@ export type Database = {
         }
         Relationships: []
       }
+      society_meeting_rsvps: {
+        Row: {
+          created_at: string
+          id: string
+          response: string
+          round_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          response: string
+          round_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          response?: string
+          round_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       society_next_round_interest: {
         Row: {
           created_at: string
