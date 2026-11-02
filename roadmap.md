@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [ ] Add Jennie R and two one-time Cycle classes November 5 at 6 PM and November 7 at 1 PM; verify public schedule.
+
 - [x] Identify Rhylie's $293.83 ten-class pack and add actual catalog/inline item names to all one-time stripe-payment Checkout Sessions; four isolated tests pass and function deployed, with no live purchases, messages or historical payment edits.
 
 - [x] Restrict book club next-round self-signups to members through the shared member form and database policies; remove public name collection, preserve approved guests, verify signed-out page and three eligibility tests without live registrations or messages.
