@@ -1,3 +1,4 @@
+// @ts-nocheck -- Bun test runner types are not part of browser compilation.
 import { describe, expect, it } from "bun:test";
 import { compactMassageMenu, massageName, massageVariants, massageDetails, CUPPING_PRICE_PER_AREA } from "./massages";
 
