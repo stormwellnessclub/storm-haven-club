@@ -38,6 +38,7 @@ interface GuestPass {
   checked_in_by?: string | null;
   no_show?: boolean | null;
   feedback_email_sent_at?: string | null;
+  visit_completed_at?: string | null;
 }
 
 interface GuestDetailSheetProps {
@@ -183,6 +184,10 @@ export function GuestDetailSheet({ guest, open, onOpenChange, onRefresh }: Guest
           )}
 
           {/* Contact Information */}
+          {isGuestPassCheckedIn(guest) && !guest.no_show && (guest.visit_completed_at ? <Badge variant="outline">Visit completed</Badge> : <Button variant="outline" onClick={async () => {
+            const { error } = await supabase.rpc('complete_guest_visit' as any, { _id: guest.id });
+            if (error) toast.error(error.message); else { toast.success('Visit completed'); onRefresh?.(); onOpenChange(false); }
+          }}><CheckCircle2 className="mr-2 h-4 w-4" />Complete visit</Button>)}
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-3">Contact Information</h4>
             <div className="space-y-2">

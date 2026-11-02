@@ -4229,6 +4229,140 @@ export type Database = {
           },
         ]
       }
+      google_review_messages: {
+        Row: {
+          attempted_at: string | null
+          channel: string
+          detail: string | null
+          due_at: string
+          id: string
+          request_id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempted_at?: string | null
+          channel: string
+          detail?: string | null
+          due_at: string
+          id?: string
+          request_id: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempted_at?: string | null
+          channel?: string
+          detail?: string | null
+          due_at?: string
+          id?: string
+          request_id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_review_messages_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "google_review_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      google_review_people: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          marked_by: string | null
+          name: string | null
+          phone: string | null
+          reviewed_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          marked_by?: string | null
+          name?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          marked_by?: string | null
+          name?: string | null
+          phone?: string | null
+          reviewed_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      google_review_requests: {
+        Row: {
+          email: string | null
+          first_name: string | null
+          id: string
+          phone: string | null
+          reserved_at: string
+          source: string
+          user_id: string | null
+          visit_at: string
+          visit_id: string
+          visit_type: string
+        }
+        Insert: {
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          phone?: string | null
+          reserved_at?: string
+          source: string
+          user_id?: string | null
+          visit_at: string
+          visit_id: string
+          visit_type: string
+        }
+        Update: {
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          phone?: string | null
+          reserved_at?: string
+          source?: string
+          user_id?: string | null
+          visit_at?: string
+          visit_id?: string
+          visit_type?: string
+        }
+        Relationships: []
+      }
+      google_review_settings: {
+        Row: {
+          activated_at: string
+          enabled: boolean
+          id: boolean
+          last_attempt_at: string | null
+        }
+        Insert: {
+          activated_at?: string
+          enabled?: boolean
+          id?: boolean
+          last_attempt_at?: string | null
+        }
+        Update: {
+          activated_at?: string
+          enabled?: boolean
+          id?: boolean
+          last_attempt_at?: string | null
+        }
+        Relationships: []
+      }
       guest_feedback: {
         Row: {
           comment: string | null
@@ -4306,6 +4440,7 @@ export type Database = {
           used_at: string | null
           user_id: string | null
           valid_date: string | null
+          visit_completed_at: string | null
           visit_interests: string[] | null
           visit_notes: string | null
         }
@@ -4341,6 +4476,7 @@ export type Database = {
           used_at?: string | null
           user_id?: string | null
           valid_date?: string | null
+          visit_completed_at?: string | null
           visit_interests?: string[] | null
           visit_notes?: string | null
         }
@@ -4376,6 +4512,7 @@ export type Database = {
           used_at?: string | null
           user_id?: string | null
           valid_date?: string | null
+          visit_completed_at?: string | null
           visit_interests?: string[] | null
           visit_notes?: string | null
         }
@@ -16041,6 +16178,7 @@ export type Database = {
         Args: { _id: string; _send_at: string }
         Returns: undefined
       }
+      arm_google_review_timer: { Args: never; Returns: undefined }
       arm_marketing_campaign: {
         Args: { _id: string; _send_at: string }
         Returns: undefined
@@ -16302,6 +16440,7 @@ export type Database = {
           has_conflict: boolean
         }[]
       }
+      claim_google_review_message: { Args: never; Returns: Json }
       claim_mothers_day_pack: {
         Args: { _email: string }
         Returns: {
@@ -16310,6 +16449,7 @@ export type Database = {
         }[]
       }
       claim_verified_spa_guest_bookings: { Args: never; Returns: undefined }
+      complete_guest_visit: { Args: { _id: string }; Returns: undefined }
       copy_kids_care_hour_slots: {
         Args: { p_source: string; p_targets: string[] }
         Returns: undefined
@@ -16929,6 +17069,7 @@ export type Database = {
           session_id: string
         }[]
       }
+      google_review_slot: { Args: { _at: string }; Returns: string }
       grant_cafe_cash_credit: {
         Args: { _amount_cents: number; _member_id: string; _reason: string }
         Returns: string

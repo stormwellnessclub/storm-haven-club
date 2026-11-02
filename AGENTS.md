@@ -1,5 +1,7 @@
 # Project Architecture Rules
 
+- Google review automation belongs to Campaign Studio; database completion triggers reserve a person-wide request and a single self-removing timer claims one channel under a shared locked daily budget. Guest check-in is not completion; use the separate staff completion action. Confirm reviewers manually using contact/account identity, never Google names or link clicks. Why: prevent premature, duplicate or sentiment-filtered requests and avoid idle polling costs.
+
 - A frozen or past-due membership never blocks portal routing; benefits and facility access are enforced separately by status-aware UI and authoritative database functions.
 - Paying a future membership-freeze fee records payment only; the date-driven freeze activation path changes membership status on the scheduled Detroit date. Exception: the daily freeze-billing sweep pre-pauses dues (void) for an approved, paid freeze when the next renewal falls before the start and would bill frozen time (`_shared/freezePrePause.ts`). Why: a renewal the day before a freeze charged a member a full frozen month.
 - When a freeze ends, the dues subscription is unpaused with its billing anchor reset to that day (full charge, no proration); the freeze is only completed after Stripe confirms, otherwise billing_resume_error is set and the daily job retries. Why: members must never get unbilled days after a freeze.

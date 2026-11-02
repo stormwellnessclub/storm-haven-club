@@ -9,6 +9,7 @@ import { isValidInternalToken, presentedInternalToken } from "../_shared/interna
 import { isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
 import { blocksText, brandIssues, renderCampaignHtml, type Block } from "../_shared/campaignRender.ts";
+import { runGoogleReviewTick, readGoogleReviews } from "../_shared/googleReviewFlow.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -209,7 +210,8 @@ Deno.serve(async (req) => {
   try {
     const presented = presentedInternalToken(req);
     if (presented) {
-      if (!(await isValidInternalToken(presented)) || body.action !== "run_scheduled") return json({ error: "Forbidden" }, 403);
+      if (!(await isValidInternalToken(presented)) || !["run_scheduled", "review_tick"].includes(body.action)) return json({ error: "Forbidden" }, 403);
+      if (body.action === "review_tick") return json(await runGoogleReviewTick(sb));
       const { data: c } = await sb.from("marketing_campaigns").select("*").eq("id", body.id).maybeSingle();
       if (!c || c.status !== "scheduled") return json({ ok: false, skipped: "not scheduled" });
       return json({ ok: true, stats: await runCampaign(sb, c, null) });
@@ -220,6 +222,14 @@ Deno.serve(async (req) => {
     const uid = gate.userId === "service_role" ? null : gate.userId;
 
     switch (body.action) {
+      case "google_reviews": return json(await readGoogleReviews());
+      case "review_people": {
+        const search = String(body.search ?? "").trim().replace(/[%_,()]/g, "").slice(0, 100);
+        if (search.length < 2) return json({ ok: true, people: [] });
+        const { data, error } = await sb.from("profiles").select("user_id,first_name,last_name,email,phone").or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`).limit(30);
+        if (error) throw error;
+        return json({ ok: true, people: data });
+      }
       case "audiences": {
         const out: any[] = [];
         for (const [k, label] of Object.entries(AUDIENCES)) {
