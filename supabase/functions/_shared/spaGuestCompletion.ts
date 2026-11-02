@@ -1,6 +1,11 @@
 import type Stripe from 'https://esm.sh/stripe@18.5.0';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
+export function guestAccountSetupUrl(email: string) {
+  const q = new URLSearchParams({ mode: 'signup', email, redirect: '/portal/bookings', from: 'spa-booking' });
+  return `https://stormwellnessclub.com/auth?${q.toString()}`;
+}
+
 /** Called only with a Stripe-retrieved intent or a signature-verified webhook event. */
 export async function completeSpaGuestCheckout(admin: SupabaseClient, pi: Stripe.PaymentIntent, token?: string) {
   const { data: c, error } = await admin.from('spa_guest_checkouts').select('*').eq('payment_intent_id', pi.id).single();
@@ -54,9 +59,12 @@ async function finishGuestCheckout(admin: SupabaseClient, c: any, customerId: st
     const {error:linkError} = await admin.from('spa_guest_checkouts').update({email_access_hash:emailHash}).eq('id',c.id);
     if (linkError) throw linkError;
     const intakeUrlPath = `/spa?guestCheckout=${c.id}#guestAccess=${emailToken}`;
+    // Guests without an account get one clear link: email pre-filled, they only choose a password.
+    const accountSetupUrl = c.user_id ? null : guestAccountSetupUrl(c.guest_email);
     const results = await Promise.allSettled([
-      admin.functions.invoke('send-email',{ body: { type:'spa_appointment_confirmation',to:c.guest_email,data:{ service:appointment?.service_name,date,time,duration:appointment?.duration_minutes,needsIntake,intakeKind:wrap?'body_wrap':'massage',intakeUrlPath,bookingsPath:'/portal/bookings',needsCard:false,guestCheckout:true } } }),
+      admin.functions.invoke('send-email',{ body: { type:'spa_appointment_confirmation',to:c.guest_email,data:{ service:appointment?.service_name,date,time,duration:appointment?.duration_minutes,needsIntake,intakeKind:wrap?'body_wrap':'massage',intakeUrlPath,bookingsPath:'/portal/bookings',needsCard:false,guestCheckout:true,accountSetupUrl } } }),
       c.sms_opt_in ? admin.functions.invoke('send-sms',{ body:{ to:{phone:c.guest_phone,userId:c.user_id || undefined},templateKey:'appointment-confirmation',variables:{ service:appointment?.service_name,date,time,provider:'Storm Wellness Club' },idempotencyKey:`spa-confirmation-${c.appointment_id}`,metadata:{source:'spa_guest_checkout',appointmentId:c.appointment_id} } }) : Promise.resolve(),
+      c.sms_opt_in && accountSetupUrl ? admin.functions.invoke('send-sms',{ body:{ to:{phone:c.guest_phone},templateKey:'admin-custom',variables:{ customBody:`Storm Wellness Club: Your spa visit is booked. Set up your account with ${c.guest_email} to manage it: ${accountSetupUrl} Reply STOP to opt out.` },idempotencyKey:`spa-account-setup-${c.appointment_id}`,metadata:{source:'spa_guest_checkout',appointmentId:c.appointment_id} } }) : Promise.resolve(),
     ]);
     if (results[0].status === 'rejected' || (results[0].status === 'fulfilled' && results[0].value?.error)) await admin.from('spa_guest_checkouts').update({notified_at:null}).eq('id',c.id);
   }

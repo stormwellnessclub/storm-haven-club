@@ -356,7 +356,7 @@ export default function Auth() {
           if (error.message.includes("Invalid login")) {
             toast({
               title: "Invalid credentials",
-              description: "Please check your email and password.",
+              description: "Please check your email and password. Booked a spa visit as a guest? You may not have an account yet. Tap Create Account and use the email you booked with.",
               variant: "destructive",
             });
           } else {
