@@ -19,8 +19,8 @@ export function MassageCard({ variants, onBook, isMember }: { variants: SpaServi
   const name = massageName(first.name);
   const selected = variants.find(s => s.id === choice);
   const cupping = isMember
-    ? `Member privilege: cupping, a ${money(CUPPING_PRICE_PER_AREA)}-per-area enhancement, is included with your massage.`
-    : `Add cupping: ${money(CUPPING_PRICE_PER_AREA)} per area. Included with every massage for members.`;
+    ? `Member privilege: cupping, a ${money(CUPPING_PRICE_PER_AREA)}-per-area enhancement, is extended to members at your therapist's discretion.`
+    : `Add cupping: ${money(CUPPING_PRICE_PER_AREA)} per area. A privilege extended to members.`;
 
   return (
     <article className="card-luxury p-6 flex flex-col min-w-0">
