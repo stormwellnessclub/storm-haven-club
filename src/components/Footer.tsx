@@ -22,6 +22,7 @@ const footerLinks = {
     { label: "Member Amenities", href: "/amenities" },
     { label: "Storm Shop", href: "/shop" },
     { label: "Gift Cards", href: "/shop#gift-cards" },
+    { label: "About Us", href: "/about" },
     { label: "FAQ", href: "/faq" },
   ],
 };
