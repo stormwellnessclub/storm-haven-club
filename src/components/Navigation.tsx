@@ -266,9 +266,9 @@ export function Navigation() {
                       Sign In
                     </Button>
                   </Link>
-                  <Link to="/apply" className="block">
+                  <Link to="/memberships#tiers" className="block">
                     <Button variant="default" className="w-full touch-target" size="lg">
-                      Apply for Membership
+                      Explore Memberships
                     </Button>
                   </Link>
                 </div>
