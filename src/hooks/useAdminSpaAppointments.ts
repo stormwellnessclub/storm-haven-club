@@ -227,7 +227,18 @@ export function useAdminSpaAppointments(filters?: AdminSpaAppointmentsFilters) {
             const notes: string = apt.staff_notes || "";
             const nameMatch = notes.match(/^Guest:\s*([^<\n]+?)(?:\s*<([^>]+)>)?\s*$/m);
             const phoneMatch = notes.match(/^Phone:\s*(.+?)\s*$/m);
-            if (nameMatch) {
+            if (apt.guest_name || apt.guest_email) {
+              const fullName = String(apt.guest_name || apt.guest_email).trim();
+              const parts = fullName.split(" ");
+              customer = {
+                type: "guest",
+                id: null,
+                first_name: parts[0] || "Guest",
+                last_name: parts.slice(1).join(" ") || "",
+                email: apt.guest_email || (nameMatch?.[2] ?? null),
+                phone: apt.guest_phone || (phoneMatch ? phoneMatch[1].trim() : null),
+              };
+            } else if (nameMatch) {
               const fullName = nameMatch[1].trim();
               const parts = fullName.split(" ");
               customer = {
