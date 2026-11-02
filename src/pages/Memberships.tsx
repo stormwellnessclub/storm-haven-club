@@ -167,7 +167,7 @@ export default function Memberships() {
         ]}
       />
       {/* Hero — full-bleed photo */}
-      <section className="relative bg-primary text-primary-foreground pt-28 lg:pt-24">
+      <section className="relative bg-primary text-primary-foreground pt-20 sm:pt-24">
         <div className="relative h-[55vh] md:h-[80vh] min-h-[420px] overflow-hidden">
           <img
             src={lounge}
@@ -177,7 +177,7 @@ export default function Memberships() {
             decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
-          <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3 px-4">
+          <div className="absolute bottom-12 left-0 right-0 hidden sm:flex justify-center gap-3 px-4">
             <Button variant="gold" size="lg" onClick={scrollToTiers}>View Tiers</Button>
             <Link to="/apply">
               <Button variant="hero-outline" size="lg">Apply for invitation</Button>
@@ -187,7 +187,7 @@ export default function Memberships() {
       </section>
 
       <div className="sticky top-20 sm:top-24 z-40 bg-primary/95 backdrop-blur border-b border-gold/20">
-        <div className="container mx-auto px-4 flex items-center justify-center gap-6 py-3 text-xs sm:text-sm uppercase tracking-[0.2em]">
+        <div className="container mx-auto px-4 flex items-center justify-center gap-3 sm:gap-6 py-3 text-[11px] sm:text-sm uppercase tracking-[0.12em] sm:tracking-[0.2em] whitespace-nowrap">
           <button type="button" onClick={scrollToTiers} className="text-gold-light hover:text-primary-foreground transition-colors">View Membership Tiers</button>
           <span className="text-primary-foreground/30">|</span>
           <Link to="/apply" className="text-primary-foreground/80 hover:text-gold-light transition-colors">Apply for Invitation</Link>
