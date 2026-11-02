@@ -65,3 +65,24 @@ test('Detroit pacing advances by 48 minutes and avoids overnight', async () => {
   const r=(await db.query(`SELECT google_review_slot('2026-11-04 14:01:00+00')::text slot,google_review_slot('2026-11-05 02:00:00+00')::text overnight`)).rows[0];
   expect(r.slot).toBe('2026-11-04 14:48:00+00'); expect(r.overnight).toBe('2026-11-05 14:00:00+00');
 });
+test('daily cap rejects a sixteenth attempt across both channels', async () => {
+  const def=(await db.query(`SELECT pg_get_functiondef('claim_google_review_message'::regproc) AS sql`)).rows[0].sql;
+  await db.exec(def.replaceAll('now()', "'2026-11-04 15:00:00+00'::timestamptz"));
+  await db.exec(`UPDATE google_review_messages SET due_at='2026-11-04 14:00:00+00';
+    INSERT INTO google_review_requests(id,source,visit_id,visit_at,visit_type) VALUES('${id(100)}','spa','${id(101)}',now(),'spa appointment');`);
+  for(let i=0;i<15;i++) await db.query(`INSERT INTO google_review_messages(request_id,channel,due_at,status,attempted_at) VALUES($1,$2,now(),'sent','2026-11-04 14:00:00+00')`,[i<2?id(100):(await db.query(`INSERT INTO google_review_requests(source,visit_id,visit_at,visit_type) VALUES('spa',$1,now(),'spa appointment') RETURNING id`,[id(200+i)])).rows[0].id,i%2?'email':'sms']);
+  expect((await db.query('SELECT claim_google_review_message() AS m')).rows[0].m).toBeNull();
+});
+test('one attempt is claimed at a time and a second cannot follow within 48 minutes', async () => {
+  await db.exec(`UPDATE google_review_messages SET attempted_at=NULL WHERE status='sent'; UPDATE google_review_settings SET last_attempt_at=NULL;`);
+  const first=(await db.query('SELECT claim_google_review_message() AS m')).rows[0].m;
+  expect(first.message_id).toBeTruthy();
+  expect((await db.query('SELECT claim_google_review_message() AS m')).rows[0].m).toBeNull();
+});
+test('marking a reviewer cancels the remaining email for that visit', async () => {
+  await db.exec(`UPDATE google_review_settings SET last_attempt_at=NULL; UPDATE google_review_messages SET status='sent' WHERE status='pending';`);
+  await spa(500,'completed','stop@example.invalid');
+  await db.exec(`UPDATE google_review_messages SET due_at='2026-11-04 14:00:00+00' WHERE status='pending'; INSERT INTO google_review_people(email,reviewed_at) VALUES('stop@example.invalid',now());`);
+  expect((await db.query('SELECT claim_google_review_message() AS m')).rows[0].m).toBeNull();
+  expect((await db.query(`SELECT count(*)::int n FROM google_review_messages m JOIN google_review_requests r ON r.id=m.request_id WHERE r.email='stop@example.invalid' AND m.status='skipped'`)).rows[0].n).toBe(2);
+});
