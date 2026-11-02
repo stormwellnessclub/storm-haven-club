@@ -38,6 +38,8 @@ interface GuestPass {
   status: string;
   valid_date?: string | null;
   used_at: string | null;
+  visit_completed_at?: string | null;
+  no_show?: boolean | null;
 }
 
 interface GuestInfo {
@@ -173,7 +175,7 @@ export default function FrontDeskGuestPassesPage() {
     const { data, error } = await (supabase
       .from("guest_passes" as any)
       .select(
-        "id, guest_name, guest_email, phone_number, status, valid_date, used_at, purchased_at",
+        "id, guest_name, guest_email, phone_number, status, valid_date, used_at, purchased_at, visit_completed_at, no_show",
       )
       .or(`valid_date.eq.${todayStr},and(valid_date.is.null,purchased_at.gte.${todayStr}T00:00:00)`)
       .order("guest_name", { ascending: true }) as any);
@@ -352,11 +354,16 @@ export default function FrontDeskGuestPassesPage() {
                             {p.guest_email || p.phone_number || "—"}
                           </div>
                         </div>
-                        {used ? (
+                        {used ? (<div className="flex shrink-0 flex-col items-end gap-2">
                           <Badge className="bg-green-100 text-green-800 border-green-200 gap-1">
                             <CheckCircle2 className="h-3 w-3" />
                             Checked in · {guestVisitDateLabel(p)}
                           </Badge>
+                          {!p.no_show && (p.visit_completed_at ? <Badge variant="outline">Visit completed</Badge> : <Button size="sm" variant="outline" onClick={async () => {
+                            const { error } = await supabase.rpc('complete_guest_visit' as any, { _id: p.id });
+                            if (error) toast.error(error.message); else { toast.success('Visit completed'); fetchPasses(); }
+                          }}>Complete visit</Button>)}
+                          </div>
                         ) : (
                           <Button size="sm" onClick={() => markUsed(p)}>
                             Check in
