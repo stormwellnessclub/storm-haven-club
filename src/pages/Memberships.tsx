@@ -1,4 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+
+const scrollToTiers = () => document.getElementById("tiers")?.scrollIntoView({ behavior: "smooth", block: "start" });
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
@@ -116,6 +119,10 @@ const luxuriousSpaAmenities = [
 ];
 
 export default function Memberships() {
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash === "#tiers") { const t = setTimeout(scrollToTiers, 150); return () => clearTimeout(t); }
+  }, [hash]);
   return (
     <Layout>
       <SEOHead
@@ -161,7 +168,7 @@ export default function Memberships() {
       />
       {/* Hero — full-bleed photo */}
       <section className="relative bg-primary text-primary-foreground pt-28 lg:pt-24">
-        <div className="relative h-[80vh] min-h-[480px] overflow-hidden">
+        <div className="relative h-[55vh] md:h-[80vh] min-h-[420px] overflow-hidden">
           <img
             src={lounge}
             alt="Stairway through an arch toward the glowing salt room at Storm Wellness Club"
@@ -170,13 +177,22 @@ export default function Memberships() {
             decoding="async"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent" />
-          <div className="absolute bottom-12 left-0 right-0 flex justify-center">
+          <div className="absolute bottom-12 left-0 right-0 flex justify-center gap-3 px-4">
+            <Button variant="gold" size="lg" onClick={scrollToTiers}>View Tiers</Button>
             <Link to="/apply">
-              <Button variant="gold" size="lg">Apply for invitation</Button>
+              <Button variant="hero-outline" size="lg">Apply for invitation</Button>
             </Link>
           </div>
         </div>
       </section>
+
+      <div className="sticky top-20 sm:top-24 z-40 bg-primary/95 backdrop-blur border-b border-gold/20">
+        <div className="container mx-auto px-4 flex items-center justify-center gap-6 py-3 text-xs sm:text-sm uppercase tracking-[0.2em]">
+          <button type="button" onClick={scrollToTiers} className="text-gold-light hover:text-primary-foreground transition-colors">View Membership Tiers</button>
+          <span className="text-primary-foreground/30">|</span>
+          <Link to="/apply" className="text-primary-foreground/80 hover:text-gold-light transition-colors">Apply for Invitation</Link>
+        </div>
+      </div>
 
       {/* Photo mosaic */}
       <section id="benefits" className="section-padding bg-background">
@@ -224,7 +240,7 @@ export default function Memberships() {
       </section>
 
       {/* Membership Tiers */}
-      <section id="tiers" className="section-padding bg-background scroll-mt-24">
+      <section id="tiers" className="section-padding bg-background scroll-mt-44">
         <div className="container mx-auto container-padding">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Membership</p>

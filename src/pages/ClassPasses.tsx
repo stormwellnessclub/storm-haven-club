@@ -373,7 +373,7 @@ function ClassPassPricingTables({ onPurchase, loadingPass, isMember, user, promo
               spa services, and priority booking.
             </p>
             <Button variant="gold" size="lg" asChild>
-              <Link to="/apply">Apply for Membership</Link>
+              <Link to="/memberships#tiers">Explore Memberships</Link>
             </Button>
           </div>
         </div>

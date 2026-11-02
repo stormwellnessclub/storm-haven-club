@@ -177,9 +177,9 @@ export function Navigation() {
                     Sign In
                   </Button>
                 </Link>
-                <Link to="/apply">
+                <Link to="/memberships#tiers">
                   <Button variant={isHome && !isScrolled ? "hero" : "default"} size="sm">
-                    Apply for Membership
+                    Explore Memberships
                   </Button>
                 </Link>
               </>
@@ -266,9 +266,9 @@ export function Navigation() {
                       Sign In
                     </Button>
                   </Link>
-                  <Link to="/apply" className="block">
+                  <Link to="/memberships#tiers" className="block">
                     <Button variant="default" className="w-full touch-target" size="lg">
-                      Apply for Membership
+                      Explore Memberships
                     </Button>
                   </Link>
                 </div>
