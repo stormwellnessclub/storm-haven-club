@@ -186,7 +186,7 @@ export default function Memberships() {
         </div>
       </section>
 
-      <div className="sticky top-16 lg:top-20 z-40 bg-primary/95 backdrop-blur border-b border-gold/20">
+      <div className="sticky top-20 sm:top-24 z-40 bg-primary/95 backdrop-blur border-b border-gold/20">
         <div className="container mx-auto px-4 flex items-center justify-center gap-6 py-3 text-xs sm:text-sm uppercase tracking-[0.2em]">
           <button type="button" onClick={scrollToTiers} className="text-gold-light hover:text-primary-foreground transition-colors">View Membership Tiers</button>
           <span className="text-primary-foreground/30">|</span>
@@ -240,7 +240,7 @@ export default function Memberships() {
       </section>
 
       {/* Membership Tiers */}
-      <section id="tiers" className="section-padding bg-background scroll-mt-40">
+      <section id="tiers" className="section-padding bg-background scroll-mt-44">
         <div className="container mx-auto container-padding">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Membership</p>
