@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { GoogleReviewRequests } from "@/components/admin/GoogleReviewRequests";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -131,7 +132,10 @@ export default function CampaignStudio() {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
+        <Tabs defaultValue={params.get('tab') === 'reviews' ? 'reviews' : 'campaigns'}>
+        <TabsList><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
+        <TabsContent value="reviews"><GoogleReviewRequests /></TabsContent>
+        <TabsContent value="campaigns"><div className="grid gap-4 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-4">
             <section className="rounded-lg border bg-card p-3">
               <h2 className="mb-2 flex items-center gap-1.5 text-sm font-medium"><CalendarClock className="h-4 w-4" />Scheduled</h2>
@@ -183,7 +187,7 @@ export default function CampaignStudio() {
               </div>
             )}
           </main>
-        </div>
+        </div></TabsContent></Tabs>
       </div>
     </AdminLayout>
   );
