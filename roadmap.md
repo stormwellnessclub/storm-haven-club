@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [ ] Automated Google review requests: completed non-member classes, spa and used guest passes; 24h SMS/48h email, 15/day shared pacing, 90-day cooldown, consent and reviewer suppression, isolated tests. Waiting for Google review link and approval to shorten SMS to fit under 160 characters; tracking method must not mistake clicks for reviews.
+
 - [x] Add Jennie R and two one-time Cycle classes November 5 at 6 PM and November 7 at 1 PM; both verified on public schedule, 50 minutes and 10 riders, no invitations sent.
 
 - [x] Identify Rhylie's $293.83 ten-class pack and add actual catalog/inline item names to all one-time stripe-payment Checkout Sessions; four isolated tests pass and function deployed, with no live purchases, messages or historical payment edits.
