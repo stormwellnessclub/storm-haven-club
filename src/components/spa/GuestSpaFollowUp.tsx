@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Check, Loader2 } from 'lucide-react';
 import { formatTime12h } from '@/lib/timeFormat';
+import { GuestAccountSetup } from './GuestAccountSetup';
 
 type Booking = {id:string;service_name:string;service_category:string;appointment_date:string;appointment_time:string;duration_minutes:number};
 export function GuestSpaFollowUp({access,onDone}: {access:GuestCheckoutAccess;onDone:()=>void}) {
@@ -40,7 +41,7 @@ export function GuestSpaFollowUp({access,onDone}: {access:GuestCheckoutAccess;on
   }
   const kind=booking?intakeKindFor(booking.service_category,booking.service_name):null;
   return <div className="space-y-5 py-3">
-    {booking && <div className="space-y-2 border-b border-border pb-4"><h2 className="text-xl font-semibold flex items-center gap-2"><Check className="h-5 w-5 text-accent" />Booking confirmed</h2><p className="font-medium">{booking.service_name} · {booking.duration_minutes} min</p><p className="text-sm text-muted-foreground">{booking.appointment_date} · {formatTime12h(booking.appointment_time.slice(0,5))} Michigan time</p><p className="text-sm text-muted-foreground">A confirmation is on its way to {contact.email}.</p></div>}
+    {booking && <div className="space-y-2 border-b border-border pb-4"><h2 className="text-xl font-semibold flex items-center gap-2"><Check className="h-5 w-5 text-accent" />Booking confirmed</h2><p className="font-medium">{booking.service_name} · {booking.duration_minutes} min</p><p className="text-sm text-muted-foreground">{booking.appointment_date} · {formatTime12h(booking.appointment_time.slice(0,5))} Michigan time</p><p className="text-sm text-muted-foreground">A confirmation is on its way to {contact.email}.</p><ol className="text-sm list-decimal pl-5 pt-1 space-y-0.5"><li className={intakeDone&&waiverDone?"text-muted-foreground line-through":""}>Complete your intake and booking waiver below</li><li>Set up your account to manage this visit</li></ol></div>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     {!booking ? <Button onClick={()=>void load()} disabled={busy}>{busy?<Loader2 className="h-4 w-4 animate-spin" />:'Retry booking confirmation'}</Button> : kind && !intakeDone ? <>
       <h3 className="font-semibold">{kind==='body_wrap'?'Body Wrap Intake & Consent':'Your treatment intake'}</h3>
@@ -51,6 +52,6 @@ export function GuestSpaFollowUp({access,onDone}: {access:GuestCheckoutAccess;on
       <div className="space-y-2"><Label htmlFor="guest-waiver-name">Full name as your signature</Label><Input id="guest-waiver-name" value={name} onChange={e=>setName(e.target.value)} maxLength={120} /></div>
       <label className="flex items-start gap-2 text-sm"><Checkbox checked={agreed} onCheckedChange={v=>setAgreed(v===true)} />I have read the liability waiver and agree to its terms. Typing my name is my electronic signature.</label>
       <Button className="w-full" disabled={busy || !agreed || name.trim().length<2 || !waiver} onClick={()=>void save('waiver',{name,agreementId:waiver?.id,acknowledged:agreed})}>{busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Sign booking waiver</Button>
-    </div> : <div className="space-y-4"><p className="font-medium">Your forms are complete. We look forward to seeing you.</p><Button className="w-full" onClick={onDone}>Done</Button></div>}
+    </div> : <div className="space-y-4"><p className="font-medium">Your forms are complete. We look forward to seeing you.</p><GuestAccountSetup contact={contact} /><Button className="w-full" onClick={onDone}>Done</Button></div>}
   </div>;
 }
