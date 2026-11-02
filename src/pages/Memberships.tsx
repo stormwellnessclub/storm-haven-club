@@ -167,7 +167,7 @@ export default function Memberships() {
         ]}
       />
       {/* Hero — full-bleed photo */}
-      <section className="relative bg-primary text-primary-foreground pt-28 lg:pt-24">
+      <section className="relative bg-primary text-primary-foreground pt-20 sm:pt-24">
         <div className="relative h-[55vh] md:h-[80vh] min-h-[420px] overflow-hidden">
           <img
             src={lounge}
