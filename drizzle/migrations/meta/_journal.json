@@ -904,6 +904,13 @@
       "when": 1793596263602,
       "tag": "0128_kiosk_pt_check_in",
       "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1793598127466,
+      "tag": "0129_link_guest_spa_to_existing_account",
+      "breakpoints": true
     }
   ]
 }
