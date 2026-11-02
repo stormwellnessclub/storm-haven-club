@@ -296,9 +296,9 @@ export default function Index() {
 
           {/* Buttons */}
           <AnimatedSection className="mt-12 flex flex-col sm:flex-row gap-4 justify-center" delay={200}>
-            <Link to="/apply">
+            <Link to="/memberships#tiers">
               <Button variant="gold" size="lg" className="group">
-                Apply for Membership
+                Explore Memberships
               </Button>
             </Link>
             <Link to="/amenities">
@@ -472,9 +472,9 @@ export default function Index() {
           <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10">
             Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
           </p>
-          <Link to="/apply">
+          <Link to="/memberships#tiers">
             <Button variant="gold" size="lg" className="animate-pulse-soft">
-              Apply for Membership
+              Explore Memberships
             </Button>
           </Link>
         </AnimatedSection>

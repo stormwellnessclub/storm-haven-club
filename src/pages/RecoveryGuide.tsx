@@ -115,7 +115,7 @@ export default function RecoveryGuide() {
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link to="/apply">Apply for Membership</Link>
+              <Link to="/memberships#tiers">Explore Memberships</Link>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link to="/spa">View all recovery services</Link>
@@ -302,7 +302,7 @@ export default function RecoveryGuide() {
             Hills, Plymouth, Northville, Novi, Redford, Westland, Canton, and the greater Detroit metro.
           </p>
           <Button asChild size="lg">
-            <Link to="/apply">Apply for Membership</Link>
+            <Link to="/memberships#tiers">Explore Memberships</Link>
           </Button>
         </div>
       </section>

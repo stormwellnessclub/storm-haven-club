@@ -264,9 +264,9 @@ export default function Amenities() {
               Every aspect of our space is designed with your holistic wellness in mind—nurturing body, mind, and spirit.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
-              <Link to="/apply">
+              <Link to="/memberships#tiers">
                 <Button variant="gold" size="lg" className="group">
-                  Apply for Membership
+                  Explore Memberships
                   <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </Button>
               </Link>
@@ -557,9 +557,9 @@ export default function Amenities() {
             <p className="text-primary-foreground/70 text-lg mb-10 max-w-xl mx-auto">
               Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
             </p>
-            <Link to="/apply">
+            <Link to="/memberships#tiers">
               <Button variant="gold" size="lg" className="group">
-                Apply for Membership
+                Explore Memberships
                 <ArrowRight className="ml-2 w-4 h-4 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>

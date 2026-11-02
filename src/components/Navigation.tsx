@@ -177,9 +177,9 @@ export function Navigation() {
                     Sign In
                   </Button>
                 </Link>
-                <Link to="/apply">
+                <Link to="/memberships#tiers">
                   <Button variant={isHome && !isScrolled ? "hero" : "default"} size="sm">
-                    Apply for Membership
+                    Explore Memberships
                   </Button>
                 </Link>
               </>

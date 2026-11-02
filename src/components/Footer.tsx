@@ -16,7 +16,7 @@ const footerLinks = {
   ],
   membership: [
     { label: "Memberships & Pricing", href: "/memberships" },
-    { label: "Apply Now", href: "/apply" },
+    { label: "Explore Memberships", href: "/memberships#tiers" },
     { label: "Class Passes", href: "/schedule#passes" },
     { label: "Guest Day Pass", href: "/guest-pass" },
     { label: "Member Amenities", href: "/amenities" },
