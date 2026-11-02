@@ -17078,6 +17078,7 @@ export type Database = {
         Args: { p_member_id_text: string }
         Returns: Json
       }
+      kiosk_check_in_pt: { Args: { p_pt_id: string }; Returns: Json }
       kiosk_check_in_spa: { Args: { p_spa_id: string }; Returns: Json }
       kiosk_check_in_spa_impl: { Args: { p_spa_id: string }; Returns: Json }
       kiosk_check_out_kids_care: {
@@ -17106,6 +17107,7 @@ export type Database = {
         Args: { p_conversation_id: string; p_resolved?: boolean }
         Returns: boolean
       }
+      kiosk_search_pt_impl: { Args: { p_query: string }; Returns: Json }
       kiosk_search_visitors: { Args: { p_query: string }; Returns: Json }
       kiosk_search_visitors_impl: { Args: { p_query: string }; Returns: Json }
       kiosk_send_staff_reply: {
@@ -17136,6 +17138,7 @@ export type Database = {
       }
       kiosk_todays_attendance: { Args: never; Returns: Json }
       kiosk_todays_attendance_impl: { Args: never; Returns: Json }
+      kiosk_todays_pt: { Args: never; Returns: Json }
       kiosk_update_cafe_order_status: {
         Args: { p_new_status: string; p_order_id: string }
         Returns: undefined
