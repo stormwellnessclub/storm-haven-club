@@ -1,5 +1,7 @@
 # Edge function billing & email rules
 
+- One-time Checkout Sessions in `stripe-payment` use `labelCheckoutPurchases` to copy actual catalog or inline item names onto the PaymentIntent, preserving explicit descriptions and all payment options. Why: named Checkout line items alone leave Stripe's main payment description blank.
+
 - Saved-card charges pick the card in this order: the card the payer chose (verified to belong to their Stripe customer), then the customer's default payment method, then the newest card. Never charge whatever card Stripe lists first. Why: charging the newest card sent café and register charges to declined cards no one chose.
 - Stripe is the source of truth for invoice status; `reconcile-billing` compares app billing records with Stripe nightly. It may only apply corrections that release a member (paid, voided, flag cleared, missed payment recorded); anything that would restrict a member goes to staff review. Why: lost webhooks left paid members flagged past due.
 - When staff collect dues in club, the amount applied to the open Stripe invoice includes the processing fee. Why: subscription invoices carry a fee line; leaving it out kept the invoice open and Stripe charged the member again.
