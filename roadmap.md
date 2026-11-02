@@ -1,6 +1,6 @@
 # Booking conversion roadmap
 
-- [ ] Add Jennie R and two one-time Cycle classes November 5 at 6 PM and November 7 at 1 PM; verify public schedule.
+- [x] Add Jennie R and two one-time Cycle classes November 5 at 6 PM and November 7 at 1 PM; both verified on public schedule, 50 minutes and 10 riders, no invitations sent.
 
 - [x] Identify Rhylie's $293.83 ten-class pack and add actual catalog/inline item names to all one-time stripe-payment Checkout Sessions; four isolated tests pass and function deployed, with no live purchases, messages or historical payment edits.
 
