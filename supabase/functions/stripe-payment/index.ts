@@ -5,6 +5,7 @@ import { isMembershipCollection, recordManualCharge, settleMembershipCollection 
 import { selectChargePaymentMethod } from "../_shared/paymentMethods.ts";
 import { invoiceServicePeriod } from "../_shared/invoicePeriod.ts";
 import { classPassSuccessUrl } from "../_shared/classPassCheckoutUrl.ts";
+import { labelCheckoutPurchases } from "../_shared/checkoutPurchaseLabels.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -552,6 +553,7 @@ serve(async (req) => {
   }
 
   const stripe = new Stripe(stripeSecretKey, { apiVersion: '2025-08-27.basil' });
+  labelCheckoutPurchases(stripe);
   
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

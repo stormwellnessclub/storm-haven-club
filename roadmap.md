@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [x] Identify Rhylie's $293.83 ten-class pack and add actual catalog/inline item names to all one-time stripe-payment Checkout Sessions; four isolated tests pass and function deployed, with no live purchases, messages or historical payment edits.
+
 - [x] Restrict book club next-round self-signups to members through the shared member form and database policies; remove public name collection, preserve approved guests, verify signed-out page and three eligibility tests without live registrations or messages.
 
 - [x] Book Fatine Anani’s requested October 30 seaweed wrap, 10:30 AM, 90 minutes, $290 unpaid; correct launch-date trigger type comparison and send account/intake setup email and consent-checked text from authorized staff account.
