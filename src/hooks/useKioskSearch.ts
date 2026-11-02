@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-export type KioskVisitorType = "member" | "guest_pass" | "class_booking" | "spa_appointment";
+export type KioskVisitorType = "member" | "guest_pass" | "class_booking" | "spa_appointment" | "pt_appointment";
 
 export interface KioskSearchResult {
   id: string;
@@ -23,6 +23,7 @@ export interface KioskSearchResult {
   guest_pass_id?: string;
   booking_id?: string;
   spa_id?: string;
+  pt_id?: string;
 }
 
 export function useKioskSearch() {
@@ -58,6 +59,7 @@ export function useKioskSearch() {
         guest_pass_id: r.guest_pass_id || null,
         booking_id: r.booking_id || null,
         spa_id: r.spa_id || null,
+        pt_id: r.pt_id || null,
       }));
 
       setResults(parsed);

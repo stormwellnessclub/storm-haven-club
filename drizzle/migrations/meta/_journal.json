@@ -897,6 +897,13 @@
       "when": 1793524382826,
       "tag": "0127_campaign_studio",
       "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1793596263602,
+      "tag": "0128_kiosk_pt_check_in",
+      "breakpoints": true
     }
   ]
 }

@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search, UserCheck, Clock, CheckCircle2, XCircle, User,
-  Calendar, Loader2, Ticket, BookOpen, Sparkles, Ban, Baby,
+  Calendar, Loader2, Ticket, Dumbbell, BookOpen, Sparkles, Ban, Baby,
   GraduationCap, Flame, MessageCircle, Send, ChevronDown, ChevronRight, PartyPopper, RefreshCw, BellRing,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -18,6 +18,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useKioskSearch, KioskSearchResult, KioskVisitorType } from "@/hooks/useKioskSearch";
 import { useKioskAttendance, KioskAttendanceType } from "@/hooks/useKioskAttendance";
 import { useKioskCheckIn } from "@/hooks/useKioskCheckIn";
+import { TodaysPT } from "@/components/frontdesk/TodaysPT";
 import stormLogo from "@/assets/storm-logo-gold.png";
 import { Textarea } from "@/components/ui/textarea";
 import { KioskClassRoster } from "@/components/kiosk/KioskClassRoster";
@@ -35,6 +36,8 @@ const typeBadgeConfig: Record<string, { label: string; className: string; icon: 
   class_booking: { label: "Class", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300", icon: BookOpen },
   class: { label: "Class", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300", icon: BookOpen },
   spa_appointment: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
+  pt_appointment: { label: "PT", className: "bg-primary/15 text-primary", icon: Dumbbell },
+  pt: { label: "PT", className: "bg-primary/15 text-primary", icon: Dumbbell },
   spa: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
 };
 
@@ -481,7 +484,7 @@ function FrontDeskKiosk() {
 
   const { results, isSearching, search, clearResults } = useKioskSearch();
   const { entries, stats, error: attendanceError, refetch } = useKioskAttendance();
-  const { checkInMember, checkInGuest, checkInClass, checkInSpa, isCheckingIn } = useKioskCheckIn();
+  const { checkInMember, checkInGuest, checkInClass, checkInSpa, checkInPt, isCheckingIn } = useKioskCheckIn();
 
   // ─── Search ────────────────────────────────────────────────────────
   const handleSearch = () => {
@@ -537,6 +540,12 @@ function FrontDeskKiosk() {
     if (selected.type === "spa_appointment" && selected.spa_id) {
       const ok = await checkInSpa(selected.spa_id);
       if (ok) { toast.success(`${selected.name} checked in for spa!`); refetch(); setSelected(null); }
+      return;
+    }
+
+    if (selected.type === "pt_appointment" && selected.pt_id) {
+      const ok = await checkInPt(selected.pt_id);
+      if (ok) { toast.success(`${selected.name} checked in for personal training!`); refetch(); setSelected(null); }
       return;
     }
   };
@@ -879,6 +888,7 @@ function FrontDeskKiosk() {
         {/* Today's Classes + Kids Care */}
         <div className="grid gap-6 lg:grid-cols-2">
           <TodaysClasses />
+          <TodaysPT />
           <TodaysKidsCare />
         </div>
       </main>

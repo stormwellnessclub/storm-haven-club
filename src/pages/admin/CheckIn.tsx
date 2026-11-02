@@ -41,6 +41,7 @@ import { useMemberArrears } from "@/hooks/useMemberArrears";
 import { formatSpaTime } from "@/lib/spaTime";
 import { clubMonthStart } from "@/lib/clubTime";
 import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
+import { TodaysPT } from "@/components/frontdesk/TodaysPT";
 
 // ─── Type badge config ───────────────────────────────────────────────
 const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; className: string; icon: typeof User }> = {
@@ -513,6 +514,7 @@ export default function CheckIn() {
     <AdminLayout title="Check-In Hub">
       <div className="space-y-6">
         <CheckInSupportPanel />
+        <TodaysPT />
 
         {/* Main Check-In Area */}
         <div className="grid gap-6 lg:grid-cols-5">

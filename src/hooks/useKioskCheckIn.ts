@@ -142,5 +142,23 @@ export function useKioskCheckIn() {
     }
   };
 
-  return { checkInMember, checkInGuest, checkInClass, checkInSpa, checkInKidsCare, checkOutKidsCare, isCheckingIn };
+  const checkInPt = async (ptId: string): Promise<boolean> => {
+    setIsCheckingIn(true);
+    try {
+      const { data, error } = await (supabase.rpc as any)("kiosk_check_in_pt", { p_pt_id: ptId });
+      if (error) throw error;
+      if (!data?.success) {
+        toast.error(data?.error || "Training check-in failed");
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      toast.error(err?.message || "Training check-in failed");
+      return false;
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  return { checkInMember, checkInGuest, checkInClass, checkInSpa, checkInPt, checkInKidsCare, checkOutKidsCare, isCheckingIn };
 }
