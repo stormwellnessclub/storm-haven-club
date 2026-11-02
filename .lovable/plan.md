@@ -22,8 +22,10 @@
 
 Wording stays careful (e.g. "supports," "helps ease"). No medical claims, no "free" (members see "Cupping included for members").
 
-## Open question
-- What does the cupping add-on cost for non-members? Until you tell me, the menu will say "Cupping add-on available, included for members" with no price.
+## Cupping add-on
+- Non-members: "Add cupping: $20 per area."
+- Members (signed in, active membership): a quiet "Member privilege" line showing the value without saying "savings," e.g. "Cupping, a $20-per-area enhancement, is included with your massage as a member privilege." Signed-out visitors see both lines so the membership value is visible.
+- Display copy only. Checkout pricing does not change in this step.
 
 ## Technical details
 - Add `src/lib/massages.ts`, modeled on `bodyWraps.ts`: base name from the "— 60/— 90" suffix, `massageVariants()`, shared "included in every massage" list, and per-treatment details.
