@@ -14,18 +14,19 @@ beforeAll(async () => {
     CREATE FUNCTION cron.unschedule(int) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;
     CREATE FUNCTION cron.schedule(text,text,text) RETURNS int LANGUAGE sql AS $$ SELECT 1 $$;
     CREATE TABLE profiles(user_id uuid,first_name text,email text,phone text);
-    CREATE TABLE members(id uuid,user_id uuid,email text,status text);
+    CREATE TABLE members(id uuid,user_id uuid,email text,status text,phone text,first_name text);
     CREATE TABLE class_types(id uuid,name text);
     CREATE TABLE class_sessions(id uuid,class_type_id uuid,session_date date,end_time time,is_cancelled boolean);
     CREATE TABLE class_bookings(id uuid,session_id uuid,user_id uuid,member_id uuid,status text,is_admin_hold boolean,walk_in_email text,walk_in_phone text,walk_in_name text);
-    CREATE TABLE spa_appointments(id uuid,user_id uuid,status text,completed_at timestamptz,appointment_date date,appointment_time time,duration_minutes int,guest_email text,guest_phone text,guest_name text);
+    CREATE TABLE spa_appointments(id uuid,user_id uuid,status text,completed_at timestamptz,appointment_date date,appointment_time time,duration_minutes int,guest_email text,guest_phone text,guest_name text,member_id uuid);
     CREATE TABLE guest_passes(id uuid,user_id uuid,used_at timestamptz,status text,no_show boolean,guest_email text,phone_number text,guest_name text);
   `);
   await db.exec(readFileSync('drizzle/migrations/0130_google_review_automation.sql','utf8'));
+  await db.exec(readFileSync('drizzle/migrations/0131_google_review_member_contact.sql','utf8'));
 });
 afterAll(async () => { await db.close(); });
 async function spa(n,status='completed',email=`person${n}@example.invalid`) {
-  await db.query(`INSERT INTO spa_appointments VALUES($1,NULL,$2,now(),current_date,'10:00',60,$3,NULL,'Alex')`,[id(n),status,email]);
+  await db.query(`INSERT INTO spa_appointments VALUES($1,NULL,$2,now(),current_date,'10:00',60,$3,NULL,'Alex',NULL)`,[id(n),status,email]);
 }
 test('cancellations and no-shows do not create requests', async () => {
   await spa(1,'cancelled'); await spa(2,'no_show');
@@ -54,7 +55,7 @@ test('confirmed reviewers are excluded without regard to rating', async () => {
   expect((await db.query('SELECT count(*)::int n FROM google_review_requests WHERE visit_id=$1',[id(7)])).rows[0].n).toBe(0);
 });
 test('member class visits excluded and non-member classes included', async () => {
-  await db.query(`INSERT INTO members VALUES($1,$2,'member@example.invalid','active')`,[id(10),id(11)]);
+  await db.query(`INSERT INTO members VALUES($1,$2,'member@example.invalid','active',NULL,'Member')`,[id(10),id(11)]);
   await db.query(`INSERT INTO class_sessions VALUES($1,NULL,current_date,'19:00',false)`,[id(12)]);
   await db.query(`INSERT INTO class_bookings(id,session_id,user_id,status) VALUES($1,$2,$3,'completed')`,[id(13),id(12),id(11)]);
   await db.query(`INSERT INTO class_bookings(id,session_id,status,walk_in_email) VALUES($1,$2,'completed','class@example.invalid')`,[id(14),id(12)]);
@@ -64,6 +65,11 @@ test('member class visits excluded and non-member classes included', async () =>
 test('Detroit pacing advances by 48 minutes and avoids overnight', async () => {
   const r=(await db.query(`SELECT google_review_slot('2026-11-04 14:01:00+00')::text slot,google_review_slot('2026-11-05 02:00:00+00')::text overnight`)).rows[0];
   expect(r.slot).toBe('2026-11-04 14:48:00+00'); expect(r.overnight).toBe('2026-11-05 14:00:00+00');
+});
+test('member spa appointment resolves membership-only contact', async () => {
+  await db.query(`INSERT INTO spa_appointments(id,member_id,status,completed_at,appointment_date,appointment_time,duration_minutes) VALUES($1,$2,'completed',now(),current_date,'10:00',60)`,[id(15),id(10)]);
+  const r=(await db.query('SELECT email,user_id FROM google_review_requests WHERE visit_id=$1',[id(15)])).rows[0];
+  expect(r.email).toBe('member@example.invalid'); expect(r.user_id).toBe(id(11));
 });
 test('daily cap rejects a sixteenth attempt across both channels', async () => {
   const def=(await db.query(`SELECT pg_get_functiondef('claim_google_review_message'::regproc) AS sql`)).rows[0].sql;

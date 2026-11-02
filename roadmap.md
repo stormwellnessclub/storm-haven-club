@@ -1,6 +1,6 @@
 # Booking conversion roadmap
 
-- [ ] Automated Google review requests: completed non-member classes, spa and used guest passes; 24h SMS/48h email, 15/day shared pacing, 90-day cooldown, consent and reviewer suppression, isolated tests. Waiting for Google review link and approval to shorten SMS to fit under 160 characters; tracking method must not mistake clicks for reviews.
+- [x] Automated Google review requests: new completed non-member classes, member/non-member spa and staff-completed guest visits; 24h SMS/48h email minimum, 15/day daytime slots 48 minutes apart, 90-day person cooldown, consent and manual reviewer suppression. Google connection verified with 44 reviews. Isolated database tests and checklist save/read-back checked; live staff page verification unavailable because preview account lacks staff permissions. No live client messages or visits used in tests.
 
 - [x] Add Jennie R and two one-time Cycle classes November 5 at 6 PM and November 7 at 1 PM; both verified on public schedule, 50 minutes and 10 riders, no invitations sent.
 
