@@ -79,6 +79,7 @@ import SmsOptInProof from "./pages/SmsOptInProof";
 import CardAdded from "./pages/CardAdded";
 
 import FAQ from "./pages/FAQ";
+import About from "./pages/About";
 import GuestPass from "./pages/GuestPass";
 import NotFound from "./pages/NotFound";
 import OAuthConsent from "./pages/OAuthConsent";
@@ -374,6 +375,8 @@ const App = () => (
               <Route path="/sms-opt-in-proof" element={<SmsOptInProof />} />
               <Route path="/card-added" element={<CardAdded />} />
               <Route path="/faq" element={<FAQ />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/about-us" element={<About />} />
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
               <Route path="/review/spa/:token" element={<SpaReview />} />

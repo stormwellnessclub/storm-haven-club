@@ -19,6 +19,7 @@ const moreLinks = [
   { href: "/amenities", label: "Amenities" },
   { href: "/gut-reset", label: "Gut Reset" },
   { href: "/guest-pass", label: "Guest Pass" },
+  { href: "/about", label: "About Us" },
 ];
 
 export function Navigation() {
