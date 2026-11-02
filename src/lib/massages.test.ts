@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { compactMassageMenu, massageName, massageVariants, massageDetails, CUPPING_PRICE_PER_AREA } from "./massages";
 
 const s = (id: string, name: string, duration_minutes: number, category = "Massage") => ({ id, name, duration_minutes, category, is_active: true });
