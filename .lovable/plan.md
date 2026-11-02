@@ -13,12 +13,12 @@
 - Weighted Himalayan salt bags and warm cherry-pit pillows
 - Cupping add-on, included for members with their massage
 
-## Draft overviews
-- Storm Signature: "Our full-body signature massage at medium to deep pressure. Your therapist uses trigger point therapy for knots, warm cherry-pit pillows and weighted salt bags to settle the body, and hot towels to finish. The 90 minutes gives more time on the neck, back and legs."
-- Deep Relief: "Firm, focused pressure for chronic tightness, with trigger point therapy on the areas that hold the most tension. Full body, with hot towels and warm salt and cherry-pit pillows. The 90 minutes allows deeper work on the areas you list."
-- Lymph & Flow: "Light, rhythmic full-body strokes that support circulation and help you feel less puffy and lighter. Finished with hot towels, warm cherry-pit pillows and weighted salt bags. The 90 minutes adds abdominal and scalp work."
-- Prenatal: "A full-body massage for pregnancy, done side-lying with support cushions. It eases the lower back, hips and legs, using trigger point therapy where appropriate, hot towels and warm cherry-pit pillows. The 90 minutes adds more hip and lower-body relief."
-- Sports Performance: "Full-body recovery massage with assisted stretching, compression and trigger point therapy, plus hot towels and weighted salt bags. Built for training and sore muscles. The 90 minutes adds more stretching and hip and shoulder mobility work."
+## Draft overviews (card text, then "Learn more" adds the full included list)
+- Storm Signature: "The massage you'll keep coming back for. Medium to deep pressure meets every knot with trigger point therapy, while warm cherry-pit pillows and weighted Himalayan salt bags sink you deeper into stillness. It ends with hot towels and a body that finally feels like yours again. Choose 90 minutes when one hour is never enough."
+- Deep Relief: "For the tension you've carried for months. Slow, firm pressure and trigger point work release the shoulders, back and hips layer by layer, never rushed. Warm salt bags and hot towels soften the body between the deep work, so you leave loose, light and grounded. The 90 minutes gives your therapist time to truly undo it."
+- Lymph & Flow: "Light, rhythmic strokes that wake up circulation from head to toe, including gentle work on the stomach, to help ease puffiness and that heavy, bloated feeling. You'll leave feeling lighter, clearer and calm. The 90 minutes slows everything down for more full-body work and a lymphatic facial massage to depuff and brighten the face."
+- Prenatal: "An hour that's entirely for you and your changing body. Rest face down on our specially designed pregnancy pillow, or side-lying, whichever feels best, while your therapist eases the lower back, hips, legs and swollen feet. Warm cherry-pit pillows and hot towels add comfort you'll want to come back for. The 90 minutes gives more time for the hips and lower body."
+- Sports Performance: "Recovery for people who train. Deep compression, trigger point therapy and assisted stretching work through tight hips, hamstrings and shoulders, so you move freer and bounce back faster. Finished with hot towels and weighted salt bags. The 90 minutes adds more stretching and mobility work."
 
 Wording stays careful (e.g. "supports," "helps ease"). No medical claims, no "free" (members see "Cupping included for members").
 
