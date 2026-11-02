@@ -46,6 +46,8 @@ import { SeaweedRitualCard } from "@/components/spa/SeaweedRitualCard";
 import { compactSeaweedMenu, isSeaweedRitual, seaweedRitualVariants } from "@/lib/seaweedRitual";
 import { BodyWrapCard } from "@/components/spa/BodyWrapCard";
 import { compactBodyWrapMenu, bodyWrapVariants } from "@/lib/bodyWraps";
+import { MassageCard } from "@/components/spa/MassageCard";
+import { compactMassageMenu, massageVariants } from "@/lib/massages";
 import { orderedSpaMenu, spaMenuMode } from "@/lib/spaMenu";
 import { GuestSpaFollowUp } from "@/components/spa/GuestSpaFollowUp";
 import { readGuestCheckoutAccess } from "@/lib/spaGuestCheckout";
@@ -141,7 +143,7 @@ export default function Spa() {
   }, [voucherFromUrl, spaServices, activeVoucherCode]);
 
   const ritualVariants = seaweedRitualVariants(spaServices);
-  const filteredServices = compactBodyWrapMenu(compactSeaweedMenu(orderedSpaMenu(spaServices, selectedCategory)));
+  const filteredServices = compactMassageMenu(compactBodyWrapMenu(compactSeaweedMenu(orderedSpaMenu(spaServices, selectedCategory))));
 
   useEffect(() => {
     if (searchParams.get("service") === "detox-seaweed-charcoal" && !servicesLoading) {
@@ -569,6 +571,8 @@ export default function Spa() {
                 <SeaweedRitualCard key={service.id} variants={ritualVariants} onBook={handleMassageBooking} />
               ) : service.category === "Body Wraps" ? (
                 <BodyWrapCard key={service.id} variants={bodyWrapVariants(spaServices, service)} onBook={handleMassageBooking} />
+              ) : service.category === "Massage" ? (
+                <MassageCard key={service.id} variants={massageVariants(spaServices, service)} onBook={handleMassageBooking} isMember={isMember} />
               ) : (
                 <div
                   key={service.id}
