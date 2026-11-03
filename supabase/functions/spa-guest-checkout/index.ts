@@ -98,6 +98,15 @@ Deno.serve(async req => {
       const amount=amountDueCents(baseCents,coupon?.coveredCents ?? 0);
       const {error:insertError}=await admin.from('spa_guest_checkouts').upsert({id:p.id,user_id:userId,access_hash:accessHash,service_id:s.id,availability_id:a.id,appointment_date:p.date,appointment_time:p.time,duration_minutes:duration,cleanup_minutes:cleanup,staff_id:a.therapist_id,room_id:a.room_id,guest_name:p.name,guest_email:email,guest_phone:p.phone,sms_opt_in:p.smsOptIn,notes:p.notes,service_price:price,member_price:memberPrice,amount_cents:amount,coupon_kind:coupon?.kind ?? null,coupon_code:coupon?.code ?? null,covered_cents:coupon?.coveredCents ?? 0});
       if (insertError) throw insertError;
+      // One unpaid payment per guest: cancel this email's earlier unfinished attempts so Stripe isn't left with "Incomplete" piles.
+      const {data:stale}=await admin.from('spa_guest_checkouts').select('id,payment_intent_id').eq('guest_email',email).eq('status','pending').is('appointment_id',null).not('payment_intent_id','is',null).neq('id',p.id).gte('created_at',new Date(Date.now()-86400000).toISOString()).limit(20);
+      for (const old of stale ?? []) {
+        try {
+          const prev=await stripe.paymentIntents.retrieve(old.payment_intent_id!);
+          if (['requires_payment_method','requires_confirmation','requires_action'].includes(prev.status)) await stripe.paymentIntents.cancel(prev.id,{cancellation_reason:'abandoned'},{idempotencyKey:`spa-guest-abandon-${old.id}`});
+          if (prev.status!=='requires_capture' && prev.status!=='succeeded') await admin.from('spa_guest_checkouts').update({status:'abandoned'}).eq('id',old.id).eq('status','pending');
+        } catch { /* never block a new booking on cleanup */ }
+      }
       // Never reuse an existing customer's saved cards based on a typed email.
       const customer=await stripe.customers.create({email,name:p.name,phone:p.phone},{idempotencyKey:`spa-guest-customer-${p.id}`});
       const extra={coveredCents:coupon?.coveredCents ?? 0,couponKind:coupon?.kind ?? null};
