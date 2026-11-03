@@ -1,5 +1,7 @@
 # Booking conversion roadmap
 
+- [ ] Include PT visits in check-in list and daily totals with a separate PT category, including members; verify without changing live visits.
+
 - [x] Automated Google review requests: new completed non-member classes, member/non-member spa and staff-completed guest visits; 24h SMS/48h email minimum, 15/day daytime slots 48 minutes apart, 90-day person cooldown, consent and manual reviewer suppression. Google connection verified with 44 reviews. Isolated database tests and checklist save/read-back checked; live staff page verification unavailable because preview account lacks staff permissions. No live client messages or visits used in tests.
 
 - [x] Add Jennie R and two one-time Cycle classes November 5 at 6 PM and November 7 at 1 PM; both verified on public schedule, 50 minutes and 10 riders, no invitations sent.
