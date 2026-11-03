@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
+import { fetchPTAttendance } from "./fetchPTAttendance";
+import { countAttendanceTypes } from "@/lib/ptAttendance";
 
-export type KioskAttendanceType = "member" | "guest" | "class" | "spa";
+export type KioskAttendanceType = "member" | "guest" | "class" | "spa" | "pt";
 
 export type FirstVisitKind = "first_ever" | "first_as_member" | "returning";
 
@@ -25,6 +27,7 @@ export interface KioskAttendanceStats {
   guests: number;
   classes: number;
   spa: number;
+  pt: number;
 }
 
 const EMPTY_STATS: KioskAttendanceStats = {
@@ -34,6 +37,7 @@ const EMPTY_STATS: KioskAttendanceStats = {
   guests: 0,
   classes: 0,
   spa: 0,
+  pt: 0,
 };
 
 const normalizeName = (...parts: Array<string | null | undefined>) =>
@@ -56,7 +60,7 @@ const normalizeRpcPayload = (data: any) => {
 
   return {
     entries: rawEntries,
-    stats: data?.stats || EMPTY_STATS,
+    stats: { ...EMPTY_STATS, ...data?.stats, ...countAttendanceTypes(rawEntries) },
   };
 };
 
@@ -80,7 +84,7 @@ export function useKioskAttendance() {
         return;
       }
 
-      const [memberRes, guestRes, classRes, spaRes, currentlyInRes] = await Promise.allSettled([
+      const [memberRes, guestRes, classRes, spaRes, currentlyInRes, ptRes] = await Promise.allSettled([
         supabase
           .from("check_ins")
           .select(`
@@ -123,6 +127,7 @@ export function useKioskAttendance() {
           .gte("checked_in_at", todayIso)
           .lt("checked_in_at", tomorrowIso)
           .is("checked_out_at", null),
+        fetchPTAttendance(todayIso, tomorrowIso).then(data => ({ data, error: null })),
       ]);
 
       const getResult = <T,>(result: PromiseSettledResult<{ data: T | null; error: any; count?: number | null }>) => {
@@ -134,9 +139,10 @@ export function useKioskAttendance() {
       const guestResult = getResult<any[]>(guestRes as any);
       const classResult = getResult<any[]>(classRes as any);
       const spaResult = getResult<any[]>(spaRes as any);
+      const ptResult = getResult<any[]>(ptRes as any);
       const currentlyInResult = getResult<any[]>(currentlyInRes as any);
 
-      const directErrors = [memberResult, guestResult, classResult, spaResult].filter((res) => res.error);
+      const directErrors = [memberResult, guestResult, classResult, spaResult, ptResult].filter((res) => res.error);
       if (directErrors.length > 0) {
         throw directErrors[0].error || rpcError;
       }
@@ -265,16 +271,17 @@ export function useKioskAttendance() {
         });
       });
 
+      (ptResult.data || []).forEach(row => all.push({
+        id: `pt-${row.id}`, type: "pt", name: row.name, time: row.checked_in_at,
+        subtitle: row.subtitle, sub_type: row.member ? "Member PT" : "Non-Member PT",
+        photo_url: row.member?.photo_url,
+      }));
       all.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
       setEntries(all);
       setStats({
-        total: all.length,
+        ...countAttendanceTypes(all),
         currently_in: currentlyInResult.count ?? memberCheckIns.filter((ci: any) => !ci.checked_out_at).length,
-        members: memberCheckIns.length,
-        guests: guestCheckIns.length,
-        classes: classCheckIns.length,
-        spa: spaCheckIns.length,
       });
       setError(null);
     } catch (err: any) {
@@ -286,6 +293,8 @@ export function useKioskAttendance() {
   useEffect(() => {
     fetchAll();
     const interval = setInterval(fetchAll, 15000);
+    const onPTCheckIn = () => { fetchAll(); };
+    document.addEventListener("pt-attendance-updated", onPTCheckIn);
 
     const channel = supabase
       .channel("kiosk-attendance-sync")
@@ -293,10 +302,12 @@ export function useKioskAttendance() {
       .on("postgres_changes", { event: "*", schema: "public", table: "guest_passes" }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "class_bookings" }, () => fetchAll())
       .on("postgres_changes", { event: "*", schema: "public", table: "spa_appointments" }, () => fetchAll())
+      .on("postgres_changes", { event: "*", schema: "public", table: "pt_appointments" }, () => fetchAll())
       .subscribe();
 
     return () => {
       clearInterval(interval);
+      document.removeEventListener("pt-attendance-updated", onPTCheckIn);
       supabase.removeChannel(channel);
     };
   }, [fetchAll]);

@@ -48,12 +48,14 @@ import { CafeAlertCard } from "@/components/admin/CafeAlertCard";
 import { AdminWidgetBoundary } from "@/components/admin/AdminWidgetBoundary";
 import { SocietySignupsWidget } from "@/components/admin/SocietySignupsWidget";
 import { toast } from "@/hooks/use-toast";
+import { useUnifiedAttendance } from "@/hooks/useUnifiedAttendance";
 
 export default function Dashboard() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
   const navigate = useNavigate();
   const { user, authReady } = useAuth();
+  const attendance = useUnifiedAttendance();
   const { isAdmin } = useUserRoles();
   const showAdminOnly = isAdmin();
 
@@ -189,35 +191,13 @@ export default function Dashboard() {
     enabled: authReady && !!user,
   });
 
-  // Fetch recent check-ins
-  const { data: recentCheckIns = [], isLoading: checkInsLoading } = useQuery({
-    queryKey: ['admin-recent-checkins'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('check_ins')
-        .select(`
-          id,
-          checked_in_at,
-          member_id,
-          members!inner (
-            first_name,
-            last_name,
-            membership_type
-          )
-        `)
-        .order('checked_in_at', { ascending: false })
-        .limit(10);
-
-      if (error) throw error;
-      return (data || []).map((checkIn: any) => ({
-        name: `${checkIn.members?.first_name || ''} ${checkIn.members?.last_name || ''}`.trim() || 'Unknown',
-        time: format(new Date(checkIn.checked_in_at), 'h:mm a'),
-        membership: checkIn.members?.membership_type || 'Member',
-        status: 'success'
-      }));
-    },
-    enabled: authReady && !!user,
-  });
+  const checkInsLoading = !authReady;
+  const recentCheckIns = attendance.entries.slice(0, 10).map(entry => ({
+    name: entry.name,
+    time: new Date(entry.time).toLocaleTimeString("en-US", { timeZone: "America/Detroit", hour: "numeric", minute: "2-digit" }),
+    membership: `${entry.type === "pt" ? "PT" : entry.type.charAt(0).toUpperCase() + entry.type.slice(1)} • ${entry.subtitle}`,
+    status: "success",
+  }));
 
   // Fetch upcoming appointments (spa + PT)
   const { data: upcomingAppointments = [], isLoading: appointmentsLoading } = useQuery({
@@ -367,8 +347,8 @@ export default function Dashboard() {
     },
     {
       title: "Today's Check-Ins",
-      value: stats?.todayCheckins ?? 0,
-      change: "Club entries today",
+      value: attendance.stats.total,
+      change: `${attendance.stats.members} Members • ${attendance.stats.guests} Guests • ${attendance.stats.classes} Class • ${attendance.stats.spa} Spa • ${attendance.stats.pt} PT`,
       icon: UserCheck,
       color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
     },
@@ -533,8 +513,8 @@ export default function Dashboard() {
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-green-600" />
                 Recent Check-Ins
-                {!checkInsLoading && recentCheckIns.length > 0 && stats?.todayCheckins ? (
-                  <Badge variant="secondary" className="text-[10px] ml-1">{stats.todayCheckins} today</Badge>
+                {!checkInsLoading && recentCheckIns.length > 0 ? (
+                  <Badge variant="secondary" className="text-[10px] ml-1">{attendance.stats.total} today</Badge>
                 ) : null}
               </CardTitle>
               <Button variant="ghost" size="sm" asChild>

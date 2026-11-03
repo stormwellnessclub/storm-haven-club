@@ -6,6 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, TrendingUp, Calendar, Clock } from "lucide-react";
+import { fetchPTAttendance } from "@/hooks/fetchPTAttendance";
+import { formatInTimeZone } from "date-fns-tz";
 
 interface Props {
   dateRange: { start: Date; end: Date };
@@ -23,10 +25,17 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
         .lte('checked_in_at', dateRange.end.toISOString());
 
       if (error) throw error;
+      const pt = await fetchPTAttendance(dateRange.start.toISOString(), dateRange.end.toISOString());
+      const ptByDate = new Map<string, number>();
+      for (const visit of pt) {
+        if (!visit.checked_in_at) continue;
+        const date = formatInTimeZone(visit.checked_in_at, "America/Detroit", "yyyy-MM-dd");
+        ptByDate.set(date, (ptByDate.get(date) || 0) + 1);
+      }
 
       // Group by date
       const dailyCounts = (checkins || []).reduce((acc, checkin) => {
-        const date = format(parseISO(checkin.checked_in_at), 'yyyy-MM-dd');
+        const date = formatInTimeZone(checkin.checked_in_at, "America/Detroit", 'yyyy-MM-dd');
         if (!acc[date]) {
           acc[date] = { date, count: 0, uniqueMembers: new Set() };
         }
@@ -43,19 +52,21 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
         return {
           date: format(date, 'MMM d'),
           fullDate: dateStr,
-          'Check-ins': dayData?.count || 0,
+          'Check-ins': (dayData?.count || 0) + (ptByDate.get(dateStr) || 0),
+          'Member Check-ins': dayData?.count || 0,
+          PT: ptByDate.get(dateStr) || 0,
           'Unique Members': dayData?.uniqueMembers.size || 0,
         };
       });
 
-      const total = (checkins || []).length;
+      const total = (checkins || []).length + pt.length;
       const uniqueTotal = new Set((checkins || []).map(c => c.member_id)).size;
       const avgPerDay = chartData.length > 0 ? total / chartData.length : 0;
 
       // Calculate avg visit duration from check-ins with checkout times
       const durationsMinutes = (checkins || [])
         .filter(c => c.checked_out_at)
-        .map(c => (new Date(c.checked_out_at!).getTime() - new Date(c.checked_in_at).getTime()) / 60000)
+        .map(c => c.checked_out_at ? (new Date(c.checked_out_at).getTime() - new Date(c.checked_in_at).getTime()) / 60000 : 0)
         .filter(d => d > 0 && d < 1440);
       const avgDuration = durationsMinutes.length > 0
         ? durationsMinutes.reduce((s, d) => s + d, 0) / durationsMinutes.length
@@ -129,7 +140,8 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
             <XAxis dataKey="date" className="text-xs" />
             <YAxis className="text-xs" />
             <Tooltip />
-            <Bar dataKey="Check-ins" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Member Check-ins" stackId="visits" fill="hsl(var(--primary))" />
+            <Bar dataKey="PT" stackId="visits" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -140,6 +152,8 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
           <TableRow>
             <TableHead>Date</TableHead>
             <TableHead className="text-right">Check-ins</TableHead>
+            <TableHead className="text-right">Member Check-ins</TableHead>
+            <TableHead className="text-right">PT</TableHead>
             <TableHead className="text-right">Unique Members</TableHead>
           </TableRow>
         </TableHeader>
@@ -152,6 +166,8 @@ export function DailyCheckinsReport({ dateRange, filters }: Props) {
               <TableRow key={row.fullDate}>
                 <TableCell className="font-medium">{row.date}</TableCell>
                 <TableCell className="text-right">{row['Check-ins']}</TableCell>
+                <TableCell className="text-right">{row['Member Check-ins']}</TableCell>
+                <TableCell className="text-right">{row.PT}</TableCell>
                 <TableCell className="text-right">{row['Unique Members']}</TableCell>
               </TableRow>
             ))}

@@ -26,6 +26,8 @@ import { CalendarIcon, Search, Users, Clock, TrendingUp, Loader2 } from "lucide-
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
+import { fetchPTAttendance } from "@/hooks/fetchPTAttendance";
+import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 
 const getStatusColor = (status: string) => {
   switch (status?.toLowerCase()) {
@@ -50,6 +52,7 @@ interface UnifiedCheckIn {
   checked_out_at: string | null;
   notes: string | null;
   is_guest: boolean;
+  visit_type?: "pt";
   member_id: string | null;
   member?: {
     id: string;
@@ -66,14 +69,17 @@ interface UnifiedCheckIn {
 export default function AdminCheckInHistory() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const [visitFilter, setVisitFilter] = useState<"all" | "member" | "guest" | "pt">("all");
   const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 7));
   const [endDate, setEndDate] = useState<Date>(new Date());
 
   const { data: checkIns, isLoading } = useQuery({
     queryKey: ["admin-check-in-history", startDate.toISOString(), endDate.toISOString()],
     queryFn: async () => {
-      const startISO = startOfDay(startDate).toISOString();
-      const endISO = endOfDay(endDate).toISOString();
+      const startISO = fromZonedTime(`${format(startDate, "yyyy-MM-dd")}T00:00:00`, "America/Detroit").toISOString();
+      const nextDate = new Date(endDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      const endISO = fromZonedTime(`${format(nextDate, "yyyy-MM-dd")}T00:00:00`, "America/Detroit").toISOString();
 
       // Fetch member check-ins in batches
       const memberResults: any[] = [];
@@ -102,7 +108,7 @@ export default function AdminCheckInHistory() {
             )
           `)
           .gte("checked_in_at", startISO)
-          .lte("checked_in_at", endISO)
+          .lt("checked_in_at", endISO)
           .order("checked_in_at", { ascending: false })
           .range(offset, offset + batchSize - 1);
 
@@ -125,7 +131,7 @@ export default function AdminCheckInHistory() {
         .in("status", ["used", "exhausted"])
         .not("used_at", "is", null)
         .gte("used_at", startISO)
-        .lte("used_at", endISO)
+        .lt("used_at", endISO)
         .order("used_at", { ascending: false });
 
       if (guestError) throw guestError;
@@ -150,14 +156,26 @@ export default function AdminCheckInHistory() {
       }));
 
       for (const g of guestData || []) {
+        if (!g.used_at) continue;
         unified.push({
           id: g.id,
-          checked_in_at: g.used_at!,
+          checked_in_at: g.used_at,
           checked_out_at: null,
           notes: null,
           is_guest: true,
           member_id: null,
           guest_name: g.guest_name,
+        });
+      }
+
+      const pt = await fetchPTAttendance(startISO, endISO);
+      for (const visit of pt) {
+        if (!visit.checked_in_at) continue;
+        unified.push({
+          id: `pt-${visit.id}`, visit_type: "pt", checked_in_at: visit.checked_in_at,
+          checked_out_at: null, notes: visit.notes || null,
+          is_guest: !visit.member, member_id: visit.member?.id || null,
+          member: visit.member, guest_name: visit.name,
         });
       }
 
@@ -170,9 +188,12 @@ export default function AdminCheckInHistory() {
 
   const filtered = useMemo(() => {
     if (!checkIns) return [];
-    if (!search.trim()) return checkIns;
+    const byType = checkIns.filter(ci => visitFilter === "all" ||
+      (visitFilter === "pt" ? ci.visit_type === "pt" : !ci.visit_type && (visitFilter === "guest" ? ci.is_guest : !ci.is_guest)));
+    if (!search.trim()) return byType;
     const q = search.toLowerCase();
-    return checkIns.filter((ci) => {
+    return byType.filter((ci) => {
+      if (ci.visit_type === "pt" && "personal training pt".includes(q)) return true;
       if (ci.is_guest) {
         return ci.guest_name?.toLowerCase().includes(q) || "guest".includes(q);
       }
@@ -185,10 +206,10 @@ export default function AdminCheckInHistory() {
         m.membership_type?.toLowerCase().includes(q)
       );
     });
-  }, [checkIns, search]);
+  }, [checkIns, search, visitFilter]);
 
   const stats = useMemo(() => {
-    if (!filtered?.length) return { total: 0, unique: 0, avgPerDay: 0, guests: 0 };
+    if (!filtered?.length) return { total: 0, unique: 0, avgPerDay: 0, guests: 0, pt: 0 };
     const memberCheckIns = filtered.filter((ci) => !ci.is_guest);
     const guestCheckIns = filtered.filter((ci) => ci.is_guest);
     const uniqueMembers = new Set(memberCheckIns.map((ci) => ci.member_id));
@@ -197,7 +218,8 @@ export default function AdminCheckInHistory() {
       total: filtered.length,
       unique: uniqueMembers.size + guestCheckIns.length,
       avgPerDay: Math.round((filtered.length / daysDiff) * 10) / 10,
-      guests: guestCheckIns.length,
+      guests: guestCheckIns.filter(ci => !ci.visit_type).length,
+      pt: filtered.filter(ci => ci.visit_type === "pt").length,
     };
   }, [filtered, startDate, endDate]);
 
@@ -206,11 +228,11 @@ export default function AdminCheckInHistory() {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Check-In History</h1>
-          <p className="text-muted-foreground">Browse all member and guest check-in records</p>
+          <p className="text-muted-foreground">Member, guest and personal training check-ins</p>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4">
           <Card>
             <CardContent className="pt-4 flex items-center gap-3">
               <Clock className="h-5 w-5 text-primary" />
@@ -247,9 +269,27 @@ export default function AdminCheckInHistory() {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <Users className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">{stats.pt}</p>
+                <p className="text-xs text-muted-foreground">PT Check-Ins</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Visit type">
+          {(["all", "member", "guest", "pt"] as const).map(type => (
+            <Button key={type} size="sm" variant={visitFilter === type ? "default" : "outline"}
+              aria-pressed={visitFilter === type} onClick={() => setVisitFilter(type)}>
+              {type === "pt" ? "PT" : type.charAt(0).toUpperCase() + type.slice(1)}
+              {type === "pt" ? ` (${checkIns?.filter(ci => ci.visit_type === "pt").length || 0})` : ""}
+            </Button>
+          ))}
+        </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -325,7 +365,7 @@ export default function AdminCheckInHistory() {
                         <TableCell className="font-mono text-xs text-muted-foreground">—</TableCell>
                         <TableCell>
                           <Badge className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300">
-                            Guest Pass
+                            {ci.visit_type === "pt" ? "PT" : "Guest Pass"}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -334,7 +374,7 @@ export default function AdminCheckInHistory() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {format(new Date(ci.checked_in_at), "MMM d, h:mm a")}
+                          {formatInTimeZone(ci.checked_in_at, "America/Detroit", "MMM d, h:mm a")}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">—</TableCell>
                         <TableCell className="text-sm text-muted-foreground">—</TableCell>
@@ -363,14 +403,14 @@ export default function AdminCheckInHistory() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-xs">{m?.member_id}</TableCell>
-                      <TableCell className="text-sm">{m?.membership_type}</TableCell>
+                      <TableCell className="text-sm">{ci.visit_type === "pt" ? <Badge variant="secondary">PT</Badge> : m?.membership_type}</TableCell>
                       <TableCell>
                         <Badge className={cn("text-xs", getStatusColor(m?.status || ""))}>
                           {m?.status?.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase())}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">
-                        {format(new Date(ci.checked_in_at), "MMM d, h:mm a")}
+                        {formatInTimeZone(ci.checked_in_at, "America/Detroit", "MMM d, h:mm a")}
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                         {ci.checked_out_at

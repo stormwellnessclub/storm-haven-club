@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { clubTodayStart, clubTodayEnd, clubTodayDateStr } from "@/lib/clubTime";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchPTAttendance } from "./fetchPTAttendance";
+import { countAttendanceTypes } from "@/lib/ptAttendance";
 
-export type AttendanceType = "member" | "guest" | "class" | "spa";
+export type AttendanceType = "member" | "guest" | "class" | "spa" | "pt";
 
 export interface AttendanceEntry {
   id: string;
@@ -23,6 +25,7 @@ export interface AttendanceStats {
   guests: number;
   classes: number;
   spa: number;
+  pt: number;
 }
 
 export interface AttendanceLoadErrors {
@@ -30,6 +33,7 @@ export interface AttendanceLoadErrors {
   guests: boolean;
   classes: boolean;
   spa: boolean;
+  pt: boolean;
   currentlyIn: boolean;
 }
 
@@ -37,13 +41,14 @@ export function useUnifiedAttendance() {
   const { user, authReady } = useAuth();
   const [entries, setEntries] = useState<AttendanceEntry[]>([]);
   const [stats, setStats] = useState<AttendanceStats>({
-    total: 0, currentlyIn: 0, members: 0, guests: 0, classes: 0, spa: 0,
+    total: 0, currentlyIn: 0, members: 0, guests: 0, classes: 0, spa: 0, pt: 0,
   });
   const [loadErrors, setLoadErrors] = useState<AttendanceLoadErrors>({
     members: false,
     guests: false,
     classes: false,
     spa: false,
+    pt: false,
     currentlyIn: false,
   });
   const cacheRef = useRef({
@@ -51,6 +56,7 @@ export function useUnifiedAttendance() {
     guestCheckins: [] as any[],
     classCheckins: [] as any[],
     spaCheckins: [] as any[],
+    ptCheckins: [] as any[],
     currentlyInCount: 0,
   });
 
@@ -62,7 +68,7 @@ export function useUnifiedAttendance() {
     const tomorrowIso = clubTodayEnd();
     const todayStr = clubTodayDateStr();
 
-    const [checkInsRes, guestsRes, classRes, spaRes, currentlyInRes] = await Promise.allSettled([
+    const [checkInsRes, guestsRes, classRes, spaRes, currentlyInRes, ptRes] = await Promise.allSettled([
       // Member check-ins
       supabase
         .from("check_ins")
@@ -110,6 +116,7 @@ export function useUnifiedAttendance() {
         .gte("checked_in_at", todayIso)
         .lt("checked_in_at", tomorrowIso)
         .is("checked_out_at", null),
+      fetchPTAttendance(todayIso, tomorrowIso).then(data => ({ data, error: null })),
     ]);
 
     const nextErrors: AttendanceLoadErrors = {
@@ -117,6 +124,7 @@ export function useUnifiedAttendance() {
       guests: false,
       classes: false,
       spa: false,
+      pt: false,
       currentlyIn: false,
     };
 
@@ -144,12 +152,14 @@ export function useUnifiedAttendance() {
     const guestResult = resolveQuery(guestsRes as any, "guests", "guests");
     const classResult = resolveQuery(classRes as any, "classes", "classes");
     const spaResult = resolveQuery(spaRes as any, "spa", "spa");
+    const ptResult = resolveQuery(ptRes as any, "pt", "PT");
     const currentlyInResult = resolveQuery(currentlyInRes as any, "currentlyIn", "currently-in count");
 
     if (memberResult?.data) cacheRef.current.memberCheckIns = memberResult.data as any[];
     if (guestResult?.data) cacheRef.current.guestCheckins = guestResult.data as any[];
     if (classResult?.data) cacheRef.current.classCheckins = classResult.data as any[];
     if (spaResult?.data) cacheRef.current.spaCheckins = spaResult.data as any[];
+    if (ptResult?.data) cacheRef.current.ptCheckins = ptResult.data as any[];
     if (currentlyInResult?.count !== undefined && currentlyInResult?.count !== null) {
       cacheRef.current.currentlyInCount = currentlyInResult.count;
     }
@@ -264,17 +274,22 @@ export function useUnifiedAttendance() {
       });
     });
 
+    cacheRef.current.ptCheckins.forEach(row => {
+      all.push({
+        id: `pt-${row.id}`, type: "pt", name: row.name,
+        time: row.checked_in_at, subtitle: row.subtitle, notes: row.notes,
+        photoUrl: row.member?.photo_url,
+        navigateTo: row.member?.id ? `/admin/members/${row.member.id}` : "/admin/personal-training/schedule",
+      });
+    });
+
     // Sort by time descending
     all.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
     setEntries(all);
     setStats({
-      total: all.length,
+      ...countAttendanceTypes(all),
       currentlyIn: cacheRef.current.currentlyInCount || 0,
-      members: memberCheckIns.length,
-      guests: guestCheckins.length,
-      classes: classCheckins.length,
-      spa: spaCheckins.length,
     });
     setLoadErrors(nextErrors);
   }, [authReady, user]);
@@ -292,9 +307,11 @@ export function useUnifiedAttendance() {
       if (typeof document !== "undefined" && !document.hidden) fetchAll();
     };
     document.addEventListener("visibilitychange", onVisible);
+    document.addEventListener("pt-attendance-updated", onVisible);
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("pt-attendance-updated", onVisible);
     };
   }, [authReady, fetchAll, user]);
 
