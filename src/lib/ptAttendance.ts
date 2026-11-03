@@ -8,8 +8,10 @@ export interface PTAttendanceRow {
 }
 
 export function checkedInPT(rows: PTAttendanceRow[], start: string, end: string) {
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
   return rows.filter(row => row.checked_in_at &&
-    row.checked_in_at >= start && row.checked_in_at < end &&
+    new Date(row.checked_in_at).getTime() >= startMs && new Date(row.checked_in_at).getTime() < endMs &&
     (row.status === "scheduled" || row.status === "completed"));
 }
 

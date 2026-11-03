@@ -24,4 +24,7 @@ describe("PT check-in reporting", () => {
   it("uses Detroit day boundaries, including late evening and excluding next midnight", () => {
     expect(checkedInPT([{ ...visit, checked_in_at: "2026-11-03T04:59:00+00:00" }, { ...visit, checked_in_at: end }], start, end)).toHaveLength(1);
   });
+  it("compares timestamps as instants regardless of offset formatting", () => {
+    expect(checkedInPT([{ ...visit, checked_in_at: "2026-11-02T00:00:00-05:00" }], "2026-11-02T05:00:00.000Z", "2026-11-03T05:00:00.000Z")).toHaveLength(1);
+  });
 });

@@ -269,6 +269,15 @@ export default function AdminCheckInHistory() {
               </div>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-4 flex items-center gap-3">
+              <Users className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-2xl font-bold">{stats.pt}</p>
+                <p className="text-xs text-muted-foreground">PT Check-Ins</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
