@@ -1,5 +1,8 @@
 # Booking conversion roadmap
 
+- [ ] Extend membership commitment calculations by actual frozen time, including historical freezes; show adjusted terms in staff member details.
+- [ ] Audit ended-freeze billing resumption and Anaya's expected November 3 resumption; fix and verify any resumption failures without test charges or client messages.
+
 - [x] Add therapist Block Time/edit/remove controls in Therapist Schedule; Teresa November 6, 10:30 AM–12:30 PM saved with “Facial Training with French Company.” Busy slots and date-locked booking triggers prevent overlaps. Six isolated database tests pass; schedule note and form verified with isolated staff-page data. Live staff flow unavailable to preview account; no test bookings or notifications sent.
 
 - [x] Include PT visits in check-in list, dashboard, history and daily report as a separate PT category, including members. Seven counting tests pass; isolated admin filter shows 14 PT rows. Live data confirms 14 arrivals November 2; live staff verification unavailable because the preview account lacks staff roles. No live visits changed.
