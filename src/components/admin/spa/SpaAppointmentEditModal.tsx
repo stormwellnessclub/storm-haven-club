@@ -1,3 +1,4 @@
+import { MothersDayArrivalNote } from "@/components/admin/spa/MothersDayArrivalNote";
 import { SpaPaymentBadge } from "./SpaPaymentBadge";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -310,6 +311,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
         <DialogHeader>
           <DialogTitle>Edit Appointment</DialogTitle>
         </DialogHeader>
+        <MothersDayArrivalNote appointment={appointment as any} />
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">

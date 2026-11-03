@@ -1,3 +1,4 @@
+import { MothersDayArrivalNote } from "@/components/admin/spa/MothersDayArrivalNote";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -469,6 +470,7 @@ export function SpaCompletionDialog({
               : "Complete Appointment"}
           </DialogTitle>
         </DialogHeader>
+        <MothersDayArrivalNote appointment={appointment as any} />
 
         <div className="space-y-5">
           {/* Previous payment notice */}
