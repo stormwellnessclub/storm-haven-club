@@ -245,6 +245,7 @@ export default function Appointments() {
           </Badge>
           <SpaPaymentBadge appointment={appointment} />
         </div>
+        <div className="mt-2"><MothersDayArrivalNote appointment={appointment} /></div>
         {appointment.bookedBy ? (
           <p className="text-xs text-muted-foreground mt-1">
             Booked by: <span className="font-medium">{appointment.bookedBy.name}</span>

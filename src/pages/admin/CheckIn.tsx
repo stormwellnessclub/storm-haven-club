@@ -481,6 +481,7 @@ export default function CheckIn() {
             <div>
               <h3 className="text-lg font-semibold">{sa.memberName}</h3>
               <p className="text-sm text-muted-foreground">{sa.service_name}</p>
+              <div className="mt-2"><MothersDayArrivalNote appointment={sa} /></div>
             </div>
           </div>
           <div className="grid gap-3">

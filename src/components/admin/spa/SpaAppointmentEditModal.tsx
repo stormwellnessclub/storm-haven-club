@@ -310,6 +310,7 @@ export function SpaAppointmentEditModal({ appointment, open, onOpenChange }: Pro
         <DialogHeader>
           <DialogTitle>Edit Appointment</DialogTitle>
         </DialogHeader>
+        <MothersDayArrivalNote appointment={appointment as any} />
 
         <div className="space-y-4">
           <div className="flex items-center justify-between">
