@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -94,10 +94,18 @@ export function CafeAddonDialog({
   // multiSelections: set of addon ids
   const [multiSelections, setMultiSelections] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
+  const initializedItemRef = useRef<string | null>(null);
 
   // Reset / initialize selections when item or dialog opens
   useEffect(() => {
-    if (!open) return;
+    if (!open || !item) {
+      initializedItemRef.current = null;
+      return;
+    }
+    // Menu refreshes can recreate groups while someone is typing. Initialize
+    // only once per open item, not whenever the add-on array changes identity.
+    if (initializedItemRef.current === item.id) return;
+    initializedItemRef.current = item.id;
     const defaults: Record<string, string> = {};
     for (const g of groups) {
       if (g.name === "Sweetness") {
