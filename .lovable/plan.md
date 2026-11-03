@@ -1,26 +1,35 @@
-# Extend membership commitments for freezes
+# Gusto payroll with clock-in hours for every hourly team
 
-## Result
-Membership freezes will pause the commitment clock as well as billing. Staff will see the adjusted commitment date and time remaining in the member's details.
+## How hours get tracked (the answer to your question)
+Gusto doesn't track hours inside our building. It only pays whatever hours we send it. So the app has to collect hours, and it already partly does: front desk staff clock in and out at the front desk screen today. The plan is to give that same clock-in to every hourly team.
 
-Deana Boussi started February 9, 2026 and was frozen August 1–October 2, 2026 (62 days). Her 12-month commitment therefore runs through April 12, 2027: 5 months and 9 days remaining as of November 3, 2026.
+- **Front desk, cafe, kids care:** clock in and out with their staff PIN on the front desk/kiosk screen (or their phone, if signed in). A shift left open is closed automatically at closing time and flagged for a manager to check, the way front desk works now.
+- **Spa therapists:** paid from completed appointments and tips we already record. No clock-in needed unless they also get hourly pay.
+- **PT trainers:** paid from completed sessions, which the hourly job already marks.
+- **Class instructors:** paid from the instructor pay periods that already exist (per class or hourly).
 
-## Changes
-- Calculate the original commitment date from the membership start date and the existing 12-month commitment.
-- Extend it by actual frozen days, including completed historical freezes. Early-ended freezes count only the time actually frozen.
-- Show the adjusted date, frozen days and remaining commitment in staff member details. For an ongoing freeze, clearly label the date as provisional and count elapsed frozen time only.
-- Do not count pending, rejected or cancelled requests that never became active.
-- A commitment end date is not an automatic membership cancellation date; keep annual fees and cancellation decisions unchanged.
-- Scheduled and early freeze endings will share one verified billing restart: collect a full dues period without proration, reset the monthly billing day, and complete the freeze only after Stripe confirms.
-- Prevent repeated billing-anchor resets on retries, use Detroit dates consistently, and never let the drift repair re-pause an ended freeze.
-- Audit ended freezes and Ayana Silmi's November 4 restart using read-only live records; do not resume her early.
+## Pay period review (manager screen)
+- One "Payroll" page lists each person for the pay period: hours (regular and overtime over 40 a week), services, sessions, classes and tips, with each item linked back to its record.
+- Managers can fix a missed clock-out or wrong time. Every change is logged with who made it and why.
+- Nothing goes to Gusto until a manager clicks Approve.
 
-## Technical approach
-- Use one shared commitment calculation based on member start dates and authoritative freeze records, with overlapping freeze days counted once. Keep commitment dates separate from the existing optional membership end date.
-- Recalculate on read rather than incrementing a stored end date, so repeated completion attempts cannot extend the term twice and historical freezes are included without rewriting member records.
-- Reuse the calculation wherever remaining commitment is displayed, and refresh the member detail after a freeze changes.
-- Add isolated tests for Deana's exact 62-day extension, early termination, overlapping freezes, ongoing freezes and excluded requests. No test will modify live clients, charge cards or send messages.
-- Share a durable Stripe freeze-operation marker and idempotency key across both restart paths, read the subscription back, and finish freeze/member updates atomically through a service-only function. Record failures for retries instead of silently completing a freeze.
+## Sending to Gusto
+- After approval, one click sends hours, commissions/service pay and tips to the matching Gusto payroll as a draft. You still review it and submit in Gusto, and Gusto handles the paying, taxes and filing.
+- Staff are matched to Gusto employees once, on a setup screen.
+- A pay period can only be sent once. Sending it again updates the same draft and never makes a second payroll.
+- A CSV download is always there as a backup.
 
-## Verification
-Run the calculation and billing-retry tests, verify the staff display where access permits, and confirm deployed expiration responses and scheduler results. Check live billing pauses and invoices read-only; no test charges or client notifications.
+## What I need from you
+- A Gusto account. Connecting it needs a Gusto developer app (I'll guide you through it). If that slows us down, we start with the CSV upload.
+- Pay rates and pay type for each person: hourly, per service, commission %, or per class.
+- Your pay schedule (weekly or every two weeks) and the day it starts.
+
+## Testing
+- Tests run against a Gusto demo account and sample staff only. No real payroll gets created and no real person's pay changes.
+
+## Technical details
+- Expand `staff_shift_clocks` to all hourly roles (cafe_staff, childcare_staff, front_desk) through the existing PIN kiosk RPCs; add a role/department column and an audit table for edits.
+- New tables: `payroll_periods`, `payroll_lines` (source type + source id, for traceability), `payroll_staff_links` (user to Gusto employee id), `staff_pay_rates`.
+- Pay amounts come from completed spa appointments, `pt_appointments` (completed), `instructor_pay_items`, and clock rows, all on Detroit days.
+- Edge function `gusto-payroll` (Gusto OAuth, tokens kept on the server): sync employees, then PUT to the unprocessed payroll's employee compensations using a stored payroll version, idempotent per period.
+- Admin-only access through user_roles. Record the decision in AGENTS.md.
