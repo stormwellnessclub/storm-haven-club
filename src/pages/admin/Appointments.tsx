@@ -25,6 +25,10 @@ import { SpaCompletionDialog } from "@/components/admin/spa/SpaCompletionDialog"
 import { SpaAppointmentEditModal } from "@/components/admin/spa/SpaAppointmentEditModal";
 import { AdminSpaAppointment } from "@/hooks/useAdminSpaAppointments";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useSpaTherapists } from "@/hooks/useSpaManagement";
+import { Ban } from "lucide-react";
 
 const DEFAULT_SLOTS = [
   "06:00", "07:00", "08:00", "09:00", "10:00", "11:00", "12:00",
@@ -95,6 +99,15 @@ export default function Appointments() {
 
   // Use the date string directly instead of re-parsing with new Date()
   const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+  const { data: therapists } = useSpaTherapists();
+  const { data: therapistBlocks = [] } = useQuery({
+    queryKey: ["spa-therapist-blocks", selectedDateStr],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("spa_therapist_blocks").select("*").eq("block_date", selectedDateStr).order("start_time");
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
   const allAppointmentsForDate = useMemo(() => {
     return (appointments || []).filter(apt => apt.appointment_date === selectedDateStr);
@@ -477,10 +490,13 @@ export default function Appointments() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {timeSlots.map((slot) => {
+                  {timeSlots.map((slot, i) => {
                     const slotAppointments = appointmentsBySlot[slot] || [];
                     const ongoing = ongoingBySlot[slot] || [];
-                    const hasContent = slotAppointments.length > 0 || ongoing.length > 0;
+                    const rowStart = toMinutes(slot);
+                    const rowEnd = i + 1 < timeSlots.length ? toMinutes(timeSlots[i + 1]) : rowStart + 60;
+                    const slotBlocks = therapistBlocks.filter(b => toMinutes(b.start_time) < rowEnd && toMinutes(b.end_time) > rowStart);
+                    const hasContent = slotAppointments.length > 0 || ongoing.length > 0 || slotBlocks.length > 0;
                     return (
                       <div
                         key={slot}
@@ -493,6 +509,15 @@ export default function Appointments() {
                         </div>
                         {hasContent ? (
                           <div className="flex-1 space-y-2">
+                            {slotBlocks.map(b => (
+                              <div key={`block-${b.id}`} className="flex items-center gap-2 px-3 py-2 rounded-md border border-destructive/40 bg-destructive/10 text-sm">
+                                <Ban className="h-4 w-4 text-destructive shrink-0" />
+                                <span className="font-medium">
+                                  {therapists?.find(t => t.id === b.therapist_id)?.full_name || "Therapist"} blocked · {formatTime(b.start_time)}–{formatTime(b.end_time)}
+                                </span>
+                                {b.note && <span className="text-muted-foreground">· {b.note}</span>}
+                              </div>
+                            ))}
                             {slotAppointments.map(apt => renderAppointmentCard(apt))}
                             {ongoing.map(({ apt, phase }) => renderOngoingStrip(apt, phase))}
                           </div>
