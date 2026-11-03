@@ -22,6 +22,7 @@ import { parseTimeInput } from "@/lib/parseTimeInput";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useIntakeFormStatuses } from "@/hooks/useSpaIntake";
 import { IntakeFormViewDialog } from "@/components/spa/IntakeFormViewDialog";
+import { TherapistBlocks } from "./TherapistBlocks";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -337,6 +338,8 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
               {DAYS[scheduleDayOfWeek]}
             </span>
           </div>
+
+          <TherapistBlocks date={scheduleDate} />
 
           {therapistSchedule.assigned.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">

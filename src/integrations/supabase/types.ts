@@ -14193,6 +14193,44 @@ export type Database = {
         }
         Relationships: []
       }
+      spa_therapist_blocks: {
+        Row: {
+          block_date: string
+          created_at: string
+          end_time: string
+          id: string
+          note: string
+          start_time: string
+          therapist_id: string
+        }
+        Insert: {
+          block_date: string
+          created_at?: string
+          end_time: string
+          id?: string
+          note?: string
+          start_time: string
+          therapist_id: string
+        }
+        Update: {
+          block_date?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          note?: string
+          start_time?: string
+          therapist_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_therapist_blocks_therapist_id_fkey"
+            columns: ["therapist_id"]
+            isOneToOne: false
+            referencedRelation: "spa_therapists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_therapist_services: {
         Row: {
           id: string
