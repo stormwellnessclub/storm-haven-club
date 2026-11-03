@@ -6242,6 +6242,7 @@ export type Database = {
         Row: {
           actual_end_date: string | null
           actual_start_date: string | null
+          billing_resume_date: string | null
           billing_resume_error: string | null
           created_at: string | null
           duration_months: number
@@ -6264,6 +6265,7 @@ export type Database = {
         Insert: {
           actual_end_date?: string | null
           actual_start_date?: string | null
+          billing_resume_date?: string | null
           billing_resume_error?: string | null
           created_at?: string | null
           duration_months: number
@@ -6286,6 +6288,7 @@ export type Database = {
         Update: {
           actual_end_date?: string | null
           actual_start_date?: string | null
+          billing_resume_date?: string | null
           billing_resume_error?: string | null
           created_at?: string | null
           duration_months?: number
@@ -16553,6 +16556,10 @@ export type Database = {
         }
         Returns: string
       }
+      finish_freeze_billing_resume: {
+        Args: { p_freeze_id: string; p_next_billing_date: string }
+        Returns: boolean
+      }
       frontdesk_auto_close_stale_shifts: { Args: never; Returns: number }
       frontdesk_clock_in: {
         Args: { _device_label?: string; _pin: string }
@@ -17409,6 +17416,10 @@ export type Database = {
       post_concierge_auto_reply: {
         Args: { p_conversation_id: string; p_message: string }
         Returns: string
+      }
+      prepare_freeze_billing_resume: {
+        Args: { p_early?: boolean; p_freeze_id: string }
+        Returns: Json
       }
       preview_marketing_contacts: { Args: { rows: Json }; Returns: Json }
       preview_private_event_financial_import: { Args: never; Returns: Json }

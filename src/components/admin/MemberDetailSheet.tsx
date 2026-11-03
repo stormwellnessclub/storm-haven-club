@@ -67,6 +67,7 @@ import { checkMemberPaymentStatus } from "@/hooks/usePaymentStatus";
 import { useAdminMemberPaymentMethods, useRefreshAdminMemberPaymentMethods } from "@/hooks/useAdminMemberPaymentMethods";
 import { useRetryInvoice, useSyncMemberStatus, useDeactivateMember } from "@/hooks/usePaymentTracking";
 import { NextPaymentCard } from "./MemberDetail/NextPaymentCard";
+import { MemberCommitmentSummary } from "./MemberCommitmentSummary";
 
 interface Member {
   id: string;
@@ -1220,6 +1221,8 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   </div>
                 </div>
               )}
+
+              <MemberCommitmentSummary memberId={member.id} startDate={member.membership_start_date} />
 
               <div className="border-t pt-4 mt-4">
                 <p className="text-sm font-medium mb-2 flex items-center gap-2">

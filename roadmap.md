@@ -1,5 +1,9 @@
 # Booking conversion roadmap
 
+- [x] Extend staff commitment dates by merged actual frozen days; Deana's April 12, 2027 date and 5 months/9 days verified with isolated rendered data. Historical freezes included without changing membership end/cancellation dates.
+- [x] Audit ended-freeze billing: no overdue active freezes November 3; Ayana Silmi ends November 4 and remains paused; Deana, Susu and Nahla have resumed Stripe dues (Nahla past due). Deploy shared verified retry-safe scheduled/early restart and atomic completion; 19 isolated tests pass, no test charges/messages.
+- [ ] Verify tomorrow's actual Ayana restart and live staff commitment screen; blocked until November 4 billing run and staff-capable preview access. Current owner test session receives Access Denied; authorized deployed audit also returns 401.
+
 - [x] Add therapist Block Time/edit/remove controls in Therapist Schedule; Teresa November 6, 10:30 AM–12:30 PM saved with “Facial Training with French Company.” Busy slots and date-locked booking triggers prevent overlaps. Six isolated database tests pass; schedule note and form verified with isolated staff-page data. Live staff flow unavailable to preview account; no test bookings or notifications sent.
 
 - [x] Include PT visits in check-in list, dashboard, history and daily report as a separate PT category, including members. Seven counting tests pass; isolated admin filter shows 14 PT rows. Live data confirms 14 arrivals November 2; live staff verification unavailable because the preview account lacks staff roles. No live visits changed.

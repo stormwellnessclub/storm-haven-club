@@ -294,6 +294,7 @@ export function useActivateFreeze() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      queryClient.invalidateQueries({ queryKey: ["member-commitment"] });
       toast.success(
         result?.pausedSubscription
           ? "Freeze activated — billing paused in Stripe (verified)"
@@ -318,6 +319,7 @@ export function useEndFreezeEarly() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-freeze-requests"] });
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      queryClient.invalidateQueries({ queryKey: ["member-commitment"] });
       toast.success("Freeze ended early — member reactivated and billing resumed (verified)");
     },
     onError: (error) => {

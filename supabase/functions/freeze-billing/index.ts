@@ -21,6 +21,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 import { needsPrePause, resumesAtUnix } from "../_shared/freezePrePause.ts";
 
+import { completeFreezeBilling, detroitDateISO, freezeStillInEffect } from "../_shared/freezeResume.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -46,15 +48,6 @@ const supabase = createClient(
   { auth: { persistSession: false } },
 );
 
-function detroitDateISO(date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Detroit",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
 /** Pause dues collection and verify it actually took effect in Stripe. */
 async function pauseVerified(subscriptionId: string, resumesAtISO?: string | null) {
   const pause_collection: Record<string, unknown> = { behavior: "keep_as_draft" };
@@ -75,16 +68,6 @@ async function pauseVerified(subscriptionId: string, resumesAtISO?: string | nul
     throw new Error(
       `Stripe did not apply the pause to ${subscriptionId} (subscription status: ${verified.status}). Billing is still active.`,
     );
-  }
-  return verified;
-}
-
-/** Resume dues collection and verify the pause is gone. */
-async function resumeVerified(subscriptionId: string) {
-  await stripe.subscriptions.update(subscriptionId, { pause_collection: null });
-  const verified = await stripe.subscriptions.retrieve(subscriptionId);
-  if (verified.pause_collection) {
-    throw new Error(`Stripe did not lift the pause on ${subscriptionId}.`);
   }
   return verified;
 }
@@ -156,37 +139,8 @@ async function activateFreeze(freezeId: string, waiveFee: boolean) {
 }
 
 async function endFreezeEarly(freezeId: string) {
-  const freeze = await getFreeze(freezeId);
-  const member = await getMember(freeze.member_id);
-  const today = new Date().toISOString().split("T")[0];
-
-  if (member.stripe_subscription_id) {
-    await resumeVerified(member.stripe_subscription_id);
-    // Realign the billing anchor to today so the member is not immediately
-    // charged for the days they were frozen.
-    try {
-      await stripe.subscriptions.update(member.stripe_subscription_id, {
-        billing_cycle_anchor: "now",
-        proration_behavior: "none",
-      } as never);
-    } catch (e) {
-      log("Billing anchor realign failed (subscription resumed)", { error: String(e) });
-    }
-  }
-
-  const { error: freezeErr } = await supabase
-    .from("member_freezes")
-    .update({ status: "completed", actual_end_date: today, updated_at: new Date().toISOString() })
-    .eq("id", freezeId);
-  if (freezeErr) throw freezeErr;
-
-  const { error: memberErr } = await supabase
-    .from("members")
-    .update({ status: "active", updated_at: new Date().toISOString() })
-    .eq("id", member.id);
-  if (memberErr) throw memberErr;
-
-  return { freezeId, memberId: member.id, resumed: !!member.stripe_subscription_id };
+  const result = await completeFreezeBilling(supabase, stripe, freezeId, true);
+  return { freezeId, ...result, resumed: result.completed || result.alreadyCompleted };
 }
 
 /** Cron: activate APPROVED freezes whose start date has arrived. Pending never auto-activates. */
@@ -266,12 +220,14 @@ async function runPrePauses() {
 async function auditDrift(repair: boolean) {
   const { data: freezes, error } = await supabase
     .from("member_freezes")
-    .select("id, member_id, status, actual_start_date, actual_end_date, members!inner(first_name, last_name, stripe_subscription_id)")
+    .select("id, member_id, status, actual_start_date, actual_end_date, requested_end_date, billing_resume_date, members!inner(first_name, last_name, stripe_subscription_id)")
     .eq("status", "active");
   if (error) throw error;
 
   const mismatches: Record<string, unknown>[] = [];
   for (const f of (freezes ?? []) as Record<string, any>[]) {
+    // Ended freezes and a committed early-end intent must never be re-paused.
+    if (!freezeStillInEffect(f.actual_end_date ?? f.requested_end_date, detroitDateISO(), f.billing_resume_date)) continue;
     const subId = f.members?.stripe_subscription_id;
     if (!subId) continue;
     let sub: Stripe.Subscription;
