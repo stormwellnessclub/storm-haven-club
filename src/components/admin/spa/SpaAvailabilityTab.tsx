@@ -339,6 +339,8 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
             </span>
           </div>
 
+          <TherapistBlocks date={scheduleDate} />
+
           {therapistSchedule.assigned.length === 0 ? (
             <Card><CardContent className="p-8 text-center text-muted-foreground">
               No active therapists found.
