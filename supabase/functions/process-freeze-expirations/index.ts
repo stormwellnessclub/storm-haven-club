@@ -37,7 +37,7 @@ serve(async (req) => {
       .from('member_freezes')
       .select('id, member_id, actual_end_date')
       .eq('status', 'active')
-      .or(`actual_end_date.lte.${today},and(actual_end_date.is.null,requested_end_date.lte.${today})`);
+      .or(`billing_resume_date.not.is.null,actual_end_date.lte.${today},and(actual_end_date.is.null,requested_end_date.lte.${today})`);
 
     if (fetchError) {
       logStep("Error fetching expired freezes", { error: fetchError });
