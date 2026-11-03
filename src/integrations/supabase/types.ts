@@ -8002,6 +8002,69 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_pay_settings: {
+        Row: {
+          gusto_employee_id: string | null
+          per_pt_session: number | null
+          person_key: string
+          spa_commission_pct: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          gusto_employee_id?: string | null
+          per_pt_session?: number | null
+          person_key: string
+          spa_commission_pct?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          gusto_employee_id?: string | null
+          per_pt_session?: number | null
+          person_key?: string
+          spa_commission_pct?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      payroll_periods: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          end_date: string
+          gusto_payroll_id: string | null
+          id: string
+          sent_at: string | null
+          snapshot: Json
+          start_date: string
+          status: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          end_date: string
+          gusto_payroll_id?: string | null
+          id?: string
+          sent_at?: string | null
+          snapshot: Json
+          start_date: string
+          status?: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          end_date?: string
+          gusto_payroll_id?: string | null
+          id?: string
+          sent_at?: string | null
+          snapshot?: Json
+          start_date?: string
+          status?: string
+        }
+        Relationships: []
+      }
       pending_class_pass_checkouts: {
         Row: {
           amount_cents: number | null
@@ -14670,6 +14733,50 @@ export type Database = {
           },
         ]
       }
+      staff_shift_clock_edits: {
+        Row: {
+          created_at: string
+          edited_by: string
+          id: string
+          new_clock_in_at: string | null
+          new_clock_out_at: string | null
+          old_clock_in_at: string | null
+          old_clock_out_at: string | null
+          reason: string
+          shift_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_by: string
+          id?: string
+          new_clock_in_at?: string | null
+          new_clock_out_at?: string | null
+          old_clock_in_at?: string | null
+          old_clock_out_at?: string | null
+          reason: string
+          shift_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_by?: string
+          id?: string
+          new_clock_in_at?: string | null
+          new_clock_out_at?: string | null
+          old_clock_in_at?: string | null
+          old_clock_out_at?: string | null
+          reason?: string
+          shift_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_shift_clock_edits_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "staff_shift_clocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_shift_clocks: {
         Row: {
           admin_adjusted: boolean
@@ -14679,6 +14786,7 @@ export type Database = {
           clock_out_at: string | null
           clock_out_ip: string | null
           created_at: string
+          department: string
           device_label: string | null
           id: string
           notes: string | null
@@ -14693,6 +14801,7 @@ export type Database = {
           clock_out_at?: string | null
           clock_out_ip?: string | null
           created_at?: string
+          department?: string
           device_label?: string | null
           id?: string
           notes?: string | null
@@ -14707,6 +14816,7 @@ export type Database = {
           clock_out_at?: string | null
           clock_out_ip?: string | null
           created_at?: string
+          department?: string
           device_label?: string | null
           id?: string
           notes?: string | null
@@ -15866,6 +15976,7 @@ export type Database = {
       }
     }
     Functions: {
+      _clock_department: { Args: { _uid: string }; Returns: string }
       _staff_pin_hash: { Args: { _pin: string }; Returns: string }
       adjust_cafe_credit: {
         Args: { _amount_cents: number; _member_id: string; _reason: string }
@@ -15899,6 +16010,15 @@ export type Database = {
           _user_id: string
         }
         Returns: Json
+      }
+      admin_adjust_shift_clock: {
+        Args: {
+          _clock_in: string
+          _clock_out: string
+          _reason: string
+          _shift_id: string
+        }
+        Returns: undefined
       }
       admin_cancel_class_session: {
         Args: {
@@ -16043,6 +16163,15 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      admin_payroll_sources: {
+        Args: { _end: string; _start: string }
+        Returns: {
+          detail: Json
+          person_key: string
+          person_name: string
+          source: string
+        }[]
       }
       admin_person_activity: {
         Args: never

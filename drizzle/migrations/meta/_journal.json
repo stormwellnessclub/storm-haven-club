@@ -946,6 +946,13 @@
       "when": 1793700791600,
       "tag": "0134_freeze_billing_resume_atomic",
       "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1793704346525,
+      "tag": "0135_payroll_clock_and_periods",
+      "breakpoints": true
     }
   ]
 }
