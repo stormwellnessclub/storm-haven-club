@@ -24,6 +24,7 @@ import {
   BookOpen,
   Sparkles,
   Ban,
+  Dumbbell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatTime12h } from "@/lib/timeFormat";
@@ -52,6 +53,7 @@ const typeBadgeConfig: Record<VisitorType | AttendanceType, { label: string; cla
   class: { label: "Class", className: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300", icon: BookOpen },
   spa_appointment: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
   spa: { label: "Spa", className: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300", icon: Sparkles },
+  pt: { label: "PT", className: "bg-primary/15 text-primary", icon: Dumbbell },
 };
 
 function TypeBadge({ type }: { type: VisitorType | AttendanceType }) {
@@ -63,6 +65,7 @@ export default function CheckIn() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [attendanceType, setAttendanceType] = useState<AttendanceType | "all">("all");
   const [selected, setSelected] = useState<UnifiedSearchResult | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [memberCheckInCount, setMemberCheckInCount] = useState(0);
@@ -611,6 +614,7 @@ export default function CheckIn() {
               {stats.guests > 0 && <span>{stats.guests} Guests</span>}
               {stats.classes > 0 && <span>{stats.classes} Class</span>}
               {stats.spa > 0 && <span>{stats.spa} Spa</span>}
+              <span>{stats.pt} PT</span>
               {stats.total === 0 && <span className="text-muted-foreground">—</span>}
             </div>
             <p className="text-xs text-muted-foreground">Breakdown</p>
@@ -636,6 +640,14 @@ export default function CheckIn() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Attendance type">
+              {(["all", "member", "guest", "class", "spa", "pt"] as const).map(type => (
+                <Button key={type} size="sm" variant={attendanceType === type ? "default" : "outline"}
+                  aria-pressed={attendanceType === type} onClick={() => setAttendanceType(type)}>
+                  {type === "all" ? "All" : typeBadgeConfig[type].label} ({type === "all" ? entries.length : entries.filter(e => e.type === type).length})
+                </Button>
+              ))}
+            </div>
             {entries.length > 0 ? (
               <div className="overflow-y-auto">
                 <Table>
@@ -650,7 +662,7 @@ export default function CheckIn() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.map((entry) => {
+                    {entries.filter(entry => attendanceType === "all" || entry.type === attendanceType).map((entry) => {
                       const initials = entry.name
                         .split(" ")
                         .map((n) => n[0])

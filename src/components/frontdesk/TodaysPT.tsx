@@ -50,7 +50,11 @@ export function TodaysPT() {
                     size="sm"
                     disabled={isCheckingIn}
                     onClick={async () => {
-                      if (await checkInPt(s.id)) { toast.success(`${s.name} checked in for personal training!`); refetch(); }
+                      if (await checkInPt(s.id)) {
+                        toast.success(`${s.name} checked in for personal training!`);
+                        refetch();
+                        document.dispatchEvent(new Event("pt-attendance-updated"));
+                      }
                     }}
                   >
                     Check in

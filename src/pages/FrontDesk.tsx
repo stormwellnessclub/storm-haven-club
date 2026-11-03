@@ -474,6 +474,7 @@ export default function FrontDeskPage() {
 
 function FrontDeskKiosk() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [attendanceType, setAttendanceType] = useState<KioskAttendanceType | "all">("all");
   const [selected, setSelected] = useState<KioskSearchResult | null>(null);
   const [firstVisit, setFirstVisit] = useState<{
     checkInId?: string;
@@ -785,7 +786,7 @@ function FrontDeskKiosk() {
         </div>
 
         {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-7">
           <div className="text-center p-6 bg-green-50 dark:bg-green-950/30 rounded-lg border">
             <p className="text-4xl font-bold text-green-700 dark:text-green-400">{stats.total}</p>
             <p className="text-sm text-green-600 dark:text-green-500 mt-1">Total Check-Ins</p>
@@ -799,9 +800,15 @@ function FrontDeskKiosk() {
             <p className="text-sm text-muted-foreground mt-1">Members</p>
           </div>
           <div className="text-center p-6 bg-secondary/50 rounded-lg border">
-            <p className="text-4xl font-bold">{stats.guests + stats.classes + stats.spa}</p>
-            <p className="text-sm text-muted-foreground mt-1">Guests / Class / Spa</p>
+            <p className="text-4xl font-bold">{stats.guests}</p>
+            <p className="text-sm text-muted-foreground mt-1">Guests</p>
           </div>
+          {([['Class', stats.classes], ['Spa', stats.spa], ['PT', stats.pt]] as const).map(([label, count]) => (
+            <div key={label} className="text-center p-6 bg-secondary/50 rounded-lg border">
+              <p className="text-4xl font-bold">{count}</p>
+              <p className="text-sm text-muted-foreground mt-1">{label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Attendance Feed */}
@@ -823,6 +830,14 @@ function FrontDeskKiosk() {
                 <Button variant="outline" size="sm" onClick={() => refetch()} className="h-7">Retry</Button>
               </div>
             )}
+            <div className="flex flex-wrap gap-2 mb-4" role="group" aria-label="Attendance type">
+              {(["all", "member", "guest", "class", "spa", "pt"] as const).map(type => (
+                <Button key={type} size="sm" variant={attendanceType === type ? "default" : "outline"}
+                  aria-pressed={attendanceType === type} onClick={() => setAttendanceType(type)}>
+                  {type === "all" ? "All" : typeBadgeConfig[type].label} ({type === "all" ? entries.length : entries.filter(e => e.type === type).length})
+                </Button>
+              ))}
+            </div>
             {entries.length > 0 ? (
               <div className="overflow-y-auto max-h-[400px]">
                 <Table>
@@ -835,7 +850,7 @@ function FrontDeskKiosk() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.map((entry) => {
+                    {entries.filter(entry => attendanceType === "all" || entry.type === attendanceType).map((entry) => {
                       const initials = entry.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
                       return (
                         <TableRow key={entry.id}>
