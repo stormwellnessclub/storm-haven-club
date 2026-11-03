@@ -1,6 +1,6 @@
 # Booking conversion roadmap
 
-- [ ] Add therapist time-block controls and block Teresa November 6, 10:30 AM–12:30 PM, “Facial Training with French Company”; prevent overlapping bookings.
+- [x] Add therapist Block Time/edit/remove controls in Therapist Schedule; Teresa November 6, 10:30 AM–12:30 PM saved with “Facial Training with French Company.” Busy slots and date-locked booking triggers prevent overlaps. Six isolated database tests pass; schedule note and form verified with isolated staff-page data. Live staff flow unavailable to preview account; no test bookings or notifications sent.
 
 - [x] Include PT visits in check-in list, dashboard, history and daily report as a separate PT category, including members. Seven counting tests pass; isolated admin filter shows 14 PT rows. Live data confirms 14 arrivals November 2; live staff verification unavailable because the preview account lacks staff roles. No live visits changed.
 
