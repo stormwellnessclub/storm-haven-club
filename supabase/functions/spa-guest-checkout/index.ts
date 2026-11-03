@@ -25,8 +25,9 @@ Deno.serve(async req => {
     // supabase.functions.invoke attaches the public project key for signed-out callers.
     if (token && !isGuestAuthorization(token, Deno.env.get('SUPABASE_ANON_KEY'))) {
       const {data,error} = await admin.auth.getUser(token);
-      if (error || !data.user) return reply({error:'Your session expired. Please reload and try again.'},401);
-      userId=data.user.id; userEmail=data.user.email ?? null;
+      // An expired sign-in continues as a guest checkout for 'create' instead of blocking the booking.
+      if ((error || !data.user) && body.action !== 'create') return reply({error:'Your session expired. Please reload and try again.'},401);
+      if (data?.user) { userId=data.user.id; userEmail=data.user.email ?? null; }
     }
     const accessHash = await hash(input.token);
     if (input.action === 'create') {
@@ -44,23 +45,33 @@ Deno.serve(async req => {
         }
       }
       const email = userEmail?.toLowerCase() ?? p.email;
+      // Every refusal is shown to the guest verbatim and logged so staff can see who could not book and why.
+      const reject = async (reason: string, error: string, status: number) => {
+        await admin.from('spa_guest_checkout_rejections').insert({reason,message:error,guest_name:p.name,guest_email:email,guest_phone:p.phone,service_id:p.serviceId,appointment_date:p.date,appointment_time:p.time,signed_in:!!userId}).then(()=>{},()=>{});
+        return reply({success:false,error,reason},status);
+      };
       const {data: blocked} = await admin.from('blocked_persons').select('id').eq('email',email).limit(1);
-      if (blocked?.length) return reply({error:'Unable to book online. Please contact the club.'},403);
-      const {count} = await admin.from('spa_guest_checkouts').select('id',{count:'exact',head:true}).eq('guest_email',email).gte('created_at',new Date(Date.now()-3600000).toISOString());
-      if ((count ?? 0)>=6 && !existing) return reply({error:'Too many checkout attempts. Please try again later.'},429);
+      if (blocked?.length) return reject('blocked','Unable to book online. Please contact the club.',403);
+      // Retrying the same treatment and time never counts against the limit; only distinct selections do.
+      const {data:recent} = await admin.from('spa_guest_checkouts').select('service_id,appointment_date,appointment_time').eq('guest_email',email).gte('created_at',new Date(Date.now()-3600000).toISOString()).limit(200);
+      const selections=new Set((recent ?? []).map(r=>`${r.service_id}|${r.appointment_date}|${String(r.appointment_time).slice(0,5)}`));
+      const same=selections.has(`${p.serviceId}|${p.date}|${p.time}`);
+      if (selections.size>=10 && !same && !existing) return reject('rate_limited','Too many booking attempts in the last hour. Please call the club and we will book you directly.',429);
       const {data:s,error:serviceError} = await admin.from('spa_services').select('*').eq('id',p.serviceId).eq('is_active',true).single();
-      if (serviceError || !s || !['Massage','Body Wraps','Recovery'].includes(s.category) || /ozone/i.test(s.name)) return reply({error:'This treatment is not available for online booking.'},400);
+      if (serviceError || !s || !['Massage','Body Wraps','Recovery'].includes(s.category) || /ozone/i.test(s.name)) return reject('service_unavailable','This treatment is not available for online booking. Please call the club to book it.',400);
       const hours = /outdoor sauna/i.test(s.name) ? p.hours : 1;
       const duration=s.duration_minutes*hours; const cleanup=s.cleanup_minutes ?? 15;
       const dateError = guestBookingDateError(s, p.date, p.time);
-      if (dateError) return reply({error:dateError},400);
+      if (dateError) return reject('date_not_allowed',dateError,400);
       const day = new Date(`${p.date}T12:00:00Z`).getUTCDay();
       const {data:windows} = await admin.from('spa_service_availability').select('*').eq('service_id',s.id).eq('is_active',true);
       const minutes=(t:string)=>Number(t.slice(0,2))*60+Number(t.slice(3,5));
-      const a=windows?.find(w => (!w.starts_on || p.date>=w.starts_on) && (w.specific_date ? w.specific_date===p.date : w.day_of_week===day) && minutes(p.time)>=minutes(w.start_time) && minutes(p.time)+duration+cleanup<=minutes(w.end_time));
-      if (!a || (!a.therapist_id && !a.room_id)) return reply({error:'That time is no longer available. Please choose another.'},409);
+      // Same rule as the public time list: the treatment itself must end within the window (cleanup may run past it).
+      const a=windows?.find(w => (!w.starts_on || p.date>=w.starts_on) && (w.specific_date ? w.specific_date===p.date : w.day_of_week===day) && minutes(p.time)>=minutes(w.start_time) && minutes(p.time)+duration<=minutes(w.end_time));
+      if (!a || (!a.therapist_id && !a.room_id)) return reject('outside_availability','That time is no longer available. Please choose another time.',409);
       const {data:conflicts,error:conflictError}=await admin.rpc('check_spa_appointment_conflict',{p_appointment_date:p.date,p_appointment_time:p.time,p_duration_minutes:duration,p_cleanup_minutes:cleanup,p_staff_id:a.therapist_id,p_room_id:a.room_id,p_exclude_appointment_id:null});
-      if (conflictError || conflicts?.some((v: {has_conflict:boolean})=>v.has_conflict)) return reply({error:'That time is already booked. Please choose another.'},409);
+      if (conflictError) return reject('conflict_check_failed','We could not check that time just now. Please try again in a moment.',409);
+      if (conflicts?.some((v: {has_conflict:boolean})=>v.has_conflict)) return reject('time_taken','That time was just booked. Please choose another time.',409);
       let price=Number(s.price)*hours; let memberPrice=null;
       if (userId) {
         const {data:m}=await admin.from('members').select('membership_type').eq('user_id',userId).neq('status','cancelled').maybeSingle();
@@ -87,6 +98,15 @@ Deno.serve(async req => {
       const amount=amountDueCents(baseCents,coupon?.coveredCents ?? 0);
       const {error:insertError}=await admin.from('spa_guest_checkouts').upsert({id:p.id,user_id:userId,access_hash:accessHash,service_id:s.id,availability_id:a.id,appointment_date:p.date,appointment_time:p.time,duration_minutes:duration,cleanup_minutes:cleanup,staff_id:a.therapist_id,room_id:a.room_id,guest_name:p.name,guest_email:email,guest_phone:p.phone,sms_opt_in:p.smsOptIn,notes:p.notes,service_price:price,member_price:memberPrice,amount_cents:amount,coupon_kind:coupon?.kind ?? null,coupon_code:coupon?.code ?? null,covered_cents:coupon?.coveredCents ?? 0});
       if (insertError) throw insertError;
+      // One unpaid payment per guest: cancel this email's earlier unfinished attempts so Stripe isn't left with "Incomplete" piles.
+      const {data:stale}=await admin.from('spa_guest_checkouts').select('id,payment_intent_id').eq('guest_email',email).eq('status','pending').is('appointment_id',null).not('payment_intent_id','is',null).neq('id',p.id).gte('created_at',new Date(Date.now()-86400000).toISOString()).limit(20);
+      for (const old of stale ?? []) {
+        try {
+          const prev=await stripe.paymentIntents.retrieve(old.payment_intent_id!);
+          if (['requires_payment_method','requires_confirmation','requires_action'].includes(prev.status)) await stripe.paymentIntents.cancel(prev.id,{cancellation_reason:'abandoned'},{idempotencyKey:`spa-guest-abandon-${old.id}`});
+          if (prev.status!=='requires_capture' && prev.status!=='succeeded') await admin.from('spa_guest_checkouts').update({status:'abandoned'}).eq('id',old.id).eq('status','pending');
+        } catch { /* never block a new booking on cleanup */ }
+      }
       // Never reuse an existing customer's saved cards based on a typed email.
       const customer=await stripe.customers.create({email,name:p.name,phone:p.phone},{idempotencyKey:`spa-guest-customer-${p.id}`});
       const extra={coveredCents:coupon?.coveredCents ?? 0,couponKind:coupon?.kind ?? null};

@@ -13,6 +13,7 @@ import { AdminSpaBookingModal } from "@/components/admin/spa/AdminSpaBookingModa
 import { useSpaServiceRequests, setSpaRequestStatus, useBookedRequestSetup, type SpaRequest } from "@/hooks/useSpaServiceRequests";
 import { formatTime12h } from "@/lib/timeFormat";
 import { useIntakeFormStatuses } from "@/hooks/useSpaIntake";
+import { UnfinishedOnlineBookings } from "@/components/admin/spa/UnfinishedOnlineBookings";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "New",
@@ -61,6 +62,7 @@ export function SpaRequestsTab() {
 
   return (
     <div className="space-y-3">
+      <UnfinishedOnlineBookings />
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {newCount} new request{newCount === 1 ? "" : "s"}

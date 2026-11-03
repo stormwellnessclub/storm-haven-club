@@ -13679,6 +13679,48 @@ export type Database = {
           },
         ]
       }
+      spa_guest_checkout_rejections: {
+        Row: {
+          appointment_date: string | null
+          appointment_time: string | null
+          created_at: string
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
+          id: string
+          message: string | null
+          reason: string
+          service_id: string | null
+          signed_in: boolean
+        }
+        Insert: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          created_at?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          message?: string | null
+          reason: string
+          service_id?: string | null
+          signed_in?: boolean
+        }
+        Update: {
+          appointment_date?: string | null
+          appointment_time?: string | null
+          created_at?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          message?: string | null
+          reason?: string
+          service_id?: string | null
+          signed_in?: boolean
+        }
+        Relationships: []
+      }
       spa_guest_checkouts: {
         Row: {
           access_expires_at: string

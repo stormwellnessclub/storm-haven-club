@@ -62,6 +62,8 @@ import { SmsConsentCheckbox } from "@/components/SmsConsentCheckbox";
 import { SpaGuestCheckout } from "./SpaGuestCheckout";
 import { GuestSpaFollowUp } from "@/components/spa/GuestSpaFollowUp";
 import { spaGuestContactSchema, newGuestCheckoutAccess, rememberGuestCheckout, type GuestCheckoutAccess } from "@/lib/spaGuestCheckout";
+import { suggestEmailFix } from "@/lib/emailTypo";
+import { readFunctionError } from "@/lib/functionError";
 
 
 interface SpaBookingModalProps {
@@ -301,6 +303,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   // Must stay above the early return below (hooks order).
   const [isProcessing, setIsProcessing] = useState(false);
   const processingRef = useRef(false);
+  const typoWarnedRef = useRef<string | null>(null);
 
   // When no service is selected the booking dialog is hidden, but we still need
   // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
@@ -324,15 +327,25 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     const details = override ?? {name:guestName,email:guestEmail,phone:guestPhone,code:guestCode};
     const contact = spaGuestContactSchema.safeParse({name:details.name,email:details.email,phone:details.phone,smsOptIn:override ? false : guestSms});
     if (!contact.success) {toast.error(contact.error.issues[0]?.message || "Check your contact information");return;}
+    const emailFix = override ? null : suggestEmailFix(contact.data.email);
+    if (emailFix && typoWarnedRef.current !== contact.data.email) {
+      // Ask once; tapping Continue again keeps what they typed.
+      typoWarnedRef.current = contact.data.email;
+      toast.warning(`Did you mean ${emailFix}?`, { description: "Your confirmation is sent to this email.", action: { label: "Use it", onClick: () => setGuestEmail(emailFix) }, duration: 10000 });
+      return;
+    }
     if (override) { setGuestName(override.name); setGuestEmail(override.email); setGuestPhone(override.phone); setGuestSms(false); }
     processingRef.current = true; setIsProcessing(true); setGuestCodeError('');
     try {
       const access = newGuestCheckoutAccess(); rememberGuestCheckout(access);
       const {data,error} = await supabase.functions.invoke('spa-guest-checkout',{body:{action:'create',...access,...contact.data,serviceId:service.id,date:format(selectedDate,'yyyy-MM-dd'),time:selectedTime,hours,notes:memberNotes,couponCode:details.code.trim()}});
-      if (data?.field === 'coupon') { setGuestCodeError(data.error); toast.error(data.error); return; }
-      if (error || !data?.clientSecret) throw new Error(data?.error || 'Unable to start payment. Please try again.');
-      setGuestPayment({access,clientSecret:data.clientSecret,amountCents:data.amountCents,mode:data.mode === 'setup' ? 'setup' : 'payment',coveredCents:data.coveredCents ?? 0,couponKind:data.couponKind ?? null});
-    } catch(e) {toast.error(e instanceof Error ? e.message : 'Unable to start payment.');}
+      // Refusals arrive as non-2xx responses; read the club's actual reason instead of a generic message.
+      let reply = data as { error?: string; field?: string; clientSecret?: string; amountCents?: number; mode?: string; coveredCents?: number; couponKind?: string | null } | null;
+      if (error && !reply) reply = await readFunctionError(error);
+      if (reply?.field === 'coupon') { setGuestCodeError(reply.error ?? ''); toast.error(reply.error); return; }
+      if (!reply?.clientSecret) throw new Error(reply?.error || 'We could not reach the booking system. Check your connection and try again, or call the club.');
+      setGuestPayment({access,clientSecret:reply.clientSecret,amountCents:reply.amountCents ?? 0,mode:reply.mode === 'setup' ? 'setup' : 'payment',coveredCents:reply.coveredCents ?? 0,couponKind:reply.couponKind ?? null});
+    } catch(e) {toast.error(e instanceof Error ? e.message : 'Unable to start payment.', { duration: 10000 });}
     finally {processingRef.current=false;setIsProcessing(false);}
   };
   const cleanupMinutes = service.cleanup_minutes;

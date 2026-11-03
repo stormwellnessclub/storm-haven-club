@@ -953,6 +953,27 @@
       "when": 1793704346525,
       "tag": "0135_payroll_clock_and_periods",
       "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1793714516718,
+      "tag": "0136_spa_guest_checkout_rejections",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1793714627097,
+      "tag": "0137_spa_guest_reserve_window_matches_calendar",
+      "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1793714773529,
+      "tag": "0138_staff_read_spa_guest_checkouts",
+      "breakpoints": true
     }
   ]
 }
