@@ -62,6 +62,8 @@ import { SmsConsentCheckbox } from "@/components/SmsConsentCheckbox";
 import { SpaGuestCheckout } from "./SpaGuestCheckout";
 import { GuestSpaFollowUp } from "@/components/spa/GuestSpaFollowUp";
 import { spaGuestContactSchema, newGuestCheckoutAccess, rememberGuestCheckout, type GuestCheckoutAccess } from "@/lib/spaGuestCheckout";
+import { suggestEmailFix } from "@/lib/emailTypo";
+import { readFunctionError } from "@/lib/functionError";
 
 
 interface SpaBookingModalProps {
@@ -301,6 +303,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   // Must stay above the early return below (hooks order).
   const [isProcessing, setIsProcessing] = useState(false);
   const processingRef = useRef(false);
+  const typoWarnedRef = useRef<string | null>(null);
 
   // When no service is selected the booking dialog is hidden, but we still need
   // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
