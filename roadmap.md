@@ -56,3 +56,6 @@
 - [x] Phase 2 (part): AI writer in brand voice, brand check, saved audiences (Higher Self Society roster / no RSVP / RSVP yes, members, non-members, email list)
 - [ ] Phase 3: funnels (follow-up steps) and opens/clicks/bookings results
 - [ ] Phase 4: retire older one-off send panels once each is moved over
+
+- [ ] Gusto direct send — waiting on Gusto developer app credentials from owner (CSV export works now)
+- [ ] Enter spa commission % and PT per-session rates on Payroll page
