@@ -279,7 +279,7 @@ export function useUnifiedAttendance() {
         id: `pt-${row.id}`, type: "pt", name: row.name,
         time: row.checked_in_at, subtitle: row.subtitle, notes: row.notes,
         photoUrl: row.member?.photo_url,
-        navigateTo: row.member?.id ? `/admin/members/${row.member.id}` : "/admin/personal-training",
+        navigateTo: row.member?.id ? `/admin/members/${row.member.id}` : "/admin/personal-training/schedule",
       });
     });
 
