@@ -25,8 +25,9 @@ Deno.serve(async req => {
     // supabase.functions.invoke attaches the public project key for signed-out callers.
     if (token && !isGuestAuthorization(token, Deno.env.get('SUPABASE_ANON_KEY'))) {
       const {data,error} = await admin.auth.getUser(token);
-      if (error || !data.user) return reply({error:'Your session expired. Please reload and try again.'},401);
-      userId=data.user.id; userEmail=data.user.email ?? null;
+      // An expired sign-in continues as a guest checkout for 'create' instead of blocking the booking.
+      if ((error || !data.user) && body.action !== 'create') return reply({error:'Your session expired. Please reload and try again.'},401);
+      if (data?.user) { userId=data.user.id; userEmail=data.user.email ?? null; }
     }
     const accessHash = await hash(input.token);
     if (input.action === 'create') {
