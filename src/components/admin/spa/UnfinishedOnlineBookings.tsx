@@ -18,7 +18,7 @@ export function UnfinishedOnlineBookings() {
     queryFn: async () => {
       const since = new Date(Date.now() - 14 * 86400000).toISOString();
       const [{ data: pending }, { data: refused }, { data: booked }, { data: services }] = await Promise.all([
-        supabase.from("spa_guest_checkouts").select("id,created_at,guest_name,guest_email,guest_phone,service_id,appointment_date,appointment_time,status,appointment_id").is("appointment_id", null).gte("created_at", since).order("created_at", { ascending: false }).limit(500),
+        supabase.from("spa_guest_checkouts").select("id,created_at,guest_name,guest_email,guest_phone,service_id,appointment_date,appointment_time,status,appointment_id,stop_reason,decline_message").is("appointment_id", null).gte("created_at", since).order("created_at", { ascending: false }).limit(500),
         supabase.from("spa_guest_checkout_rejections").select("id,created_at,guest_name,guest_email,guest_phone,service_id,appointment_date,appointment_time,message").gte("created_at", since).order("created_at", { ascending: false }).limit(500),
         supabase.from("spa_appointments").select("guest_email").gte("created_at", since).not("guest_email", "is", null).limit(1000),
         supabase.from("spa_services").select("id,name"),
@@ -26,7 +26,7 @@ export function UnfinishedOnlineBookings() {
       const bookedEmails = new Set((booked ?? []).map((b) => b.guest_email?.toLowerCase()));
       const serviceName = new Map((services ?? []).map((s) => [s.id, s.name]));
       const rows: Row[] = [
-        ...(pending ?? []).map((c) => ({ key: c.id, at: c.created_at, name: c.guest_name, email: c.guest_email, phone: c.guest_phone, serviceId: c.service_id, date: c.appointment_date, time: c.appointment_time, stopped: "Reached card screen, didn't pay" })),
+        ...(pending ?? []).map((c) => ({ key: c.id, at: c.created_at, name: c.guest_name, email: c.guest_email, phone: c.guest_phone, serviceId: c.service_id, date: c.appointment_date, time: c.appointment_time, stopped: c.stop_reason ?? (c.status === "pending" ? "On the card screen now, or reason still being checked" : "Left at card screen"), detail: c.decline_message })),
         ...(refused ?? []).map((r) => ({ key: r.id, at: r.created_at, name: r.guest_name, email: r.guest_email, phone: r.guest_phone, serviceId: r.service_id, date: r.appointment_date, time: r.appointment_time, stopped: `Refused: ${r.message ?? ""}` })),
       ].filter((r) => !isTest(r.email) && !bookedEmails.has(r.email?.toLowerCase()));
       // One line per person, newest attempt first.
