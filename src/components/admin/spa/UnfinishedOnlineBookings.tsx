@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { formatTime12h } from "@/lib/timeFormat";
 
-type Row = { key: string; at: string; name: string | null; email: string | null; phone: string | null; serviceId: string | null; date: string | null; time: string | null; stopped: string };
+type Row = { key: string; at: string; name: string | null; email: string | null; phone: string | null; serviceId: string | null; date: string | null; time: string | null; stopped: string; detail?: string | null };
 
 const isTest = (e: string | null) => !e || /@example\.|\.invalid$|qa-probe|checkout-test/i.test(e);
 
@@ -27,7 +27,7 @@ export function UnfinishedOnlineBookings() {
       const serviceName = new Map((services ?? []).map((s) => [s.id, s.name]));
       const rows: Row[] = [
         ...(pending ?? []).map((c) => ({ key: c.id, at: c.created_at, name: c.guest_name, email: c.guest_email, phone: c.guest_phone, serviceId: c.service_id, date: c.appointment_date, time: c.appointment_time, stopped: c.stop_reason ?? (c.status === "pending" ? "On the card screen now, or reason still being checked" : "Left at card screen"), detail: c.decline_message })),
-        ...(refused ?? []).map((r) => ({ key: r.id, at: r.created_at, name: r.guest_name, email: r.guest_email, phone: r.guest_phone, serviceId: r.service_id, date: r.appointment_date, time: r.appointment_time, stopped: `Refused: ${r.message ?? ""}` })),
+        ...(refused ?? []).map((r) => ({ key: r.id, at: r.created_at, name: r.guest_name, email: r.guest_email, phone: r.guest_phone, serviceId: r.service_id, date: r.appointment_date, time: r.appointment_time, stopped: `Turned down: ${r.message ?? ""}` })),
       ].filter((r) => !isTest(r.email) && !bookedEmails.has(r.email?.toLowerCase()));
       // One line per person, newest attempt first.
       const byPerson = new Map<string, Row & { tries: number }>();
@@ -52,7 +52,8 @@ export function UnfinishedOnlineBookings() {
             <div className="min-w-0">
               <div className="font-medium">{r.name} {r.tries > 1 && <Badge variant="outline" className="ml-1">{r.tries} tries</Badge>}</div>
               <div className="text-muted-foreground">{r.service}{r.date ? ` · ${format(parseISO(r.date), "EEE, MMM d")}` : ""}{r.time ? ` at ${formatTime12h(String(r.time).slice(0, 5))}` : ""}</div>
-              <div className="text-xs text-muted-foreground">{r.stopped} · {format(parseISO(r.at), "MMM d, h:mm a")}</div>
+              <div className="text-xs"><span className={/declined/i.test(r.stopped) ? "font-medium text-destructive" : "text-muted-foreground"}>{r.stopped}</span><span className="text-muted-foreground"> · {format(parseISO(r.at), "MMM d, h:mm a")}</span></div>
+              {r.detail && <div className="text-xs text-muted-foreground italic">Bank said: {r.detail}</div>}
             </div>
             <div className="flex flex-col items-end gap-1 text-xs">
               {r.phone && <a className="flex items-center gap-1 text-primary" href={`tel:${r.phone}`}><Phone className="h-3 w-3" />{r.phone}</a>}
