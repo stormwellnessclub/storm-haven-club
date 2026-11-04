@@ -13735,6 +13735,7 @@ export type Database = {
           coupon_kind: string | null
           covered_cents: number
           created_at: string
+          decline_message: string | null
           duration_minutes: number
           email_access_hash: string | null
           expires_at: string
@@ -13753,6 +13754,8 @@ export type Database = {
           sms_opt_in: boolean
           staff_id: string | null
           status: string
+          stop_reason: string | null
+          swept_at: string | null
           user_id: string | null
           waiver_agreement_id: string | null
           waiver_name: string | null
@@ -13771,6 +13774,7 @@ export type Database = {
           coupon_kind?: string | null
           covered_cents?: number
           created_at?: string
+          decline_message?: string | null
           duration_minutes: number
           email_access_hash?: string | null
           expires_at?: string
@@ -13789,6 +13793,8 @@ export type Database = {
           sms_opt_in?: boolean
           staff_id?: string | null
           status?: string
+          stop_reason?: string | null
+          swept_at?: string | null
           user_id?: string | null
           waiver_agreement_id?: string | null
           waiver_name?: string | null
@@ -13807,6 +13813,7 @@ export type Database = {
           coupon_kind?: string | null
           covered_cents?: number
           created_at?: string
+          decline_message?: string | null
           duration_minutes?: number
           email_access_hash?: string | null
           expires_at?: string
@@ -13825,6 +13832,8 @@ export type Database = {
           sms_opt_in?: boolean
           staff_id?: string | null
           status?: string
+          stop_reason?: string | null
+          swept_at?: string | null
           user_id?: string | null
           waiver_agreement_id?: string | null
           waiver_name?: string | null
@@ -16399,6 +16408,7 @@ export type Database = {
         Args: { _id: string; _send_at: string }
         Returns: undefined
       }
+      arm_spa_checkout_sweep: { Args: never; Returns: undefined }
       assert_kiosk_staff: { Args: never; Returns: undefined }
       award_class_milestones: {
         Args: { p_booking_id: string }

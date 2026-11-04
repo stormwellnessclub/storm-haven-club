@@ -30,13 +30,15 @@ function GuestPaymentForm({access,amountCents,contact,mode='payment',coveredCent
     try {
       if (!authorized.current) {
         const confirmParams={return_url:guestCheckoutReturnUrl(access),payment_method_data:{billing_details:{name:contact.name,email:contact.email,phone:contact.phone}}};
+        // An expired hold's payment is closed by the club; tell the guest plainly instead of Stripe's technical message.
+        const expired = 'Your time hold expired. Nothing was charged. Go back to Booking details and tap Continue to hold your time again.';
         if (saveOnly) {
           const result=await stripe.confirmSetup({elements,confirmParams,redirect:'if_required'});
-          if (result.error) throw new Error(result.error.message || 'Please check your card details.');
+          if (result.error) throw new Error(result.error.code === 'setup_intent_unexpected_state' ? expired : result.error.message || 'Please check your card details.');
           if (result.setupIntent?.status !== 'succeeded') throw new Error('Your card is not saved yet. Please try again.');
         } else {
           const result=await stripe.confirmPayment({elements,confirmParams,redirect:'if_required'});
-          if (result.error) throw new Error(result.error.message || 'Please check your card details.');
+          if (result.error) throw new Error(result.error.code === 'payment_intent_unexpected_state' ? expired : result.error.message || 'Please check your card details.');
           if (!result.paymentIntent || !['requires_capture','succeeded'].includes(result.paymentIntent.status)) throw new Error('Your card authorization is not complete yet.');
         }
         authorized.current=true;
@@ -55,7 +57,7 @@ function GuestPaymentForm({access,amountCents,contact,mode='payment',coveredCent
       <Gift className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
       <p>{codeName} applied: ${(coveredCents/100).toFixed(2)} of your treatment is covered. {saveOnly ? 'Nothing will be charged today.' : `Only the remaining $${(amountCents/100).toFixed(2)} goes on your card.`}</p>
     </div>}
-    <PaymentElement options={{layout:'tabs'}} onReady={()=>setReady(true)} onLoadError={()=>setError('The payment form could not load. Go back and try again.')} />
+    <PaymentElement options={{layout:'tabs',wallets:{applePay:'auto',googlePay:'auto'}}} onReady={()=>setReady(true)} onLoadError={()=>setError('The payment form could not load. Go back and try again.')} />
     <p className="text-xs text-muted-foreground flex gap-2"><ShieldCheck className="h-4 w-4 shrink-0" />{saveOnly ? 'Your card is saved securely and only used for late-cancellation or no-show charges.' : 'Your card is saved securely for this appointment and applicable late-cancellation or no-show charges.'}</p>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     <Button className="w-full" size="lg" disabled={!stripe || !ready || busy} onClick={()=>void confirm()}>{busy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}{buttonLabel}</Button>
