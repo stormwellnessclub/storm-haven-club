@@ -974,6 +974,13 @@
       "when": 1793714773529,
       "tag": "0138_staff_read_spa_guest_checkouts",
       "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1793756715104,
+      "tag": "0139_kids_care_slot_check_security_definer",
+      "breakpoints": true
     }
   ]
 }
