@@ -6,15 +6,52 @@ import { completeSpaGuestCheckout, completeSpaGuestSetupCheckout } from '../_sha
 import { guestBookingDateError } from './bookingDate.ts';
 import { isGuestAuthorization } from './guestAuthorization.ts';
 import { amountDueCents, giftCardCoverage, normalizeCode, voucherCoverage, type Coupon } from './coupon.ts';
+import { SWEEP_GRACE_MS, shouldCancel, stopReasonFor } from './sweep.ts';
+import { isValidInternalToken, presentedInternalToken } from '../_shared/internalTaskToken.ts';
 
 const hash = async (v: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v)))).map(b=>b.toString(16).padStart(2,'0')).join('');
 const reply = (data: unknown, status=200) => new Response(JSON.stringify(data),{status,headers:{...corsHeaders,'Content-Type':'application/json'}});
+
+// Expired, unbooked holds: record why they stopped and close their Stripe payment so it doesn't sit as "Incomplete".
+// deno-lint-ignore no-explicit-any
+async function sweepExpiredHolds(admin: any, stripe: Stripe) {
+  const cutoff=new Date(Date.now()-SWEEP_GRACE_MS).toISOString();
+  const {data:rows}=await admin.from('spa_guest_checkouts').select('id,payment_intent_id,setup_intent_id').eq('status','pending').is('appointment_id',null).is('swept_at',null).lt('expires_at',cutoff).limit(50);
+  let closed=0; const failed: string[]=[];
+  for (const r of rows ?? []) {
+    try {
+      const now=new Date().toISOString();
+      if (r.payment_intent_id) {
+        const pi=await stripe.paymentIntents.retrieve(r.payment_intent_id);
+        const why=stopReasonFor(pi);
+        if (pi.status==='succeeded') { await admin.from('spa_guest_checkouts').update({stop_reason:'Paid but not booked: staff check',swept_at:now}).eq('id',r.id); continue; }
+        if (shouldCancel(pi.status)) await stripe.paymentIntents.cancel(pi.id,{cancellation_reason:'abandoned'},{idempotencyKey:`spa-guest-expire-${r.id}`});
+        await admin.from('spa_guest_checkouts').update({status:'expired',stop_reason:why.reason,decline_message:why.message,swept_at:now}).eq('id',r.id).eq('status','pending').is('appointment_id',null);
+      } else if (r.setup_intent_id) {
+        const si=await stripe.setupIntents.retrieve(r.setup_intent_id);
+        const why=stopReasonFor(si);
+        if (si.status==='succeeded') { await admin.from('spa_guest_checkouts').update({stop_reason:'Card saved but not booked: staff check',swept_at:now}).eq('id',r.id); continue; }
+        if (si.status!=='canceled') await stripe.setupIntents.cancel(si.id,{cancellation_reason:'abandoned'},{idempotencyKey:`spa-guest-expire-${r.id}`});
+        await admin.from('spa_guest_checkouts').update({status:'expired',stop_reason:why.reason,decline_message:why.message,swept_at:now}).eq('id',r.id).eq('status','pending').is('appointment_id',null);
+      }
+      closed++;
+    } catch (e) { failed.push(r.id); console.error('[spa-guest-checkout] sweep failed',r.id,e instanceof Error?e.message:e); }
+  }
+  await admin.rpc('arm_spa_checkout_sweep');
+  return {success:true,closed,failed:failed.length};
+}
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok',{headers:corsHeaders});
   if (req.method !== 'POST') return reply({error:'Method not allowed'},405);
   try {
     const rawText = await req.text(); if (rawText.length > 1200000) return reply({error:'Form too large'},400);
     const body = JSON.parse(rawText);
+    if (body?.action === 'sweep') {
+      if (!(await isValidInternalToken(presentedInternalToken(req)))) return reply({error:'Unauthorized'},401);
+      const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+      const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '',{apiVersion:'2025-08-27.basil'});
+      return reply(await sweepExpiredHolds(admin,stripe));
+    }
     const parsed = (body.action === 'create' ? createSchema : accessSchema).safeParse(body);
     if (!parsed.success) return reply({error:'Please check your contact details and booking selection.'},400);
     const input = parsed.data;
@@ -104,7 +141,8 @@ Deno.serve(async req => {
         try {
           const prev=await stripe.paymentIntents.retrieve(old.payment_intent_id!);
           if (['requires_payment_method','requires_confirmation','requires_action'].includes(prev.status)) await stripe.paymentIntents.cancel(prev.id,{cancellation_reason:'abandoned'},{idempotencyKey:`spa-guest-abandon-${old.id}`});
-          if (prev.status!=='requires_capture' && prev.status!=='succeeded') await admin.from('spa_guest_checkouts').update({status:'abandoned'}).eq('id',old.id).eq('status','pending');
+          const why=stopReasonFor(prev);
+          if (prev.status!=='requires_capture' && prev.status!=='succeeded') await admin.from('spa_guest_checkouts').update({status:'abandoned',stop_reason:why.reason,decline_message:why.message,swept_at:new Date().toISOString()}).eq('id',old.id).eq('status','pending');
         } catch { /* never block a new booking on cleanup */ }
       }
       // Never reuse an existing customer's saved cards based on a typed email.
