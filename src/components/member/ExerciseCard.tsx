@@ -63,11 +63,11 @@ export function ExerciseCard({ exercise, index, imageUrl }: ExerciseCardProps) {
   return (
     <Card className="overflow-hidden">
       {showImage && (
-        <div className="w-full h-32 bg-muted overflow-hidden">
+        <div className="w-full h-48 bg-card border-b border-border overflow-hidden p-2">
           <img
             src={imageUrl}
             alt={exercise.equipment || exercise.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={() => setImgError(true)}
           />
         </div>
