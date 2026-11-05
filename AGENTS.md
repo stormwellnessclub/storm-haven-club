@@ -46,5 +46,5 @@
 - New marketing emails/texts are built and sent from Campaign Studio (`marketing_campaigns` + `campaign-studio` function, brand-locked renderer in `_shared/campaignRender.ts`); do not add new one-off blast senders or per-event send panels. Why: separate panels made sends impossible to find and every email needed new code.
 - Massage menu groups 60/90 variants by base name via src/lib/massages.ts; booking receives the selected original record and copy lives in that file. Why: one listing per treatment without changing pricing, intake or history.
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
-- Workouts: in-progress state in localStorage + `workout_sessions_in_progress` (newest wins), Detroit weeks via `workoutJournal.ts`; 3D demos (`exerciseMotions.ts`) match exact names only. Why: resume mid-workout; never show a wrong movement.
+- Workouts: resume state in localStorage + workout_sessions_in_progress (newest wins); 3D demos match exact names only. Why: never show a wrong movement.
 - Planner reminders: one self-removing timer wakes planner-reminders; texts only via send-sms, 3/day cap. Why: no polling or double texts.
