@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+// @ts-nocheck
+import { describe, it, expect } from "bun:test";
 import { weekStartISO, weekDays, detroitTodayISO, createWorkoutState, restoreWorkoutState, newerState } from "./workoutJournal";
 
 const ex = [{ exerciseId: "a", name: "Squat", bodyPart: "legs", equipment: "bar", sets: 3, reps: 10, rest: 60 }];
