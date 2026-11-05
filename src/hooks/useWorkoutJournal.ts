@@ -196,10 +196,10 @@ export function useWeekBookings(weekStart: string) {
       const out: BookedItem[] = [];
       for (const b of cls.data || []) {
         const s = b.class_sessions; if (!s || s.is_cancelled) continue;
-        out.push({ id: `c-${b.id}`, kind: "class", date: s.session_date, time: s.start_time, title: s.class_types?.name || "Class", href: "/member/classes" });
+        out.push({ id: `c-${b.id}`, kind: "class", date: s.session_date, time: s.start_time, title: s.class_types?.name || "Class", href: "/member/bookings" });
       }
       for (const a of spa.data || []) {
-        out.push({ id: `s-${a.id}`, kind: "spa", date: a.appointment_date, time: a.appointment_time, title: a.service_name || "Spa appointment", href: "/member/spa" });
+        out.push({ id: `s-${a.id}`, kind: "spa", date: a.appointment_date, time: a.appointment_time, title: a.service_name || "Spa appointment", href: "/member/bookings" });
       }
       return out;
     },
