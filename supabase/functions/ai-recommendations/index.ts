@@ -11,6 +11,25 @@ interface RecommendationRequest {
   preferences?: Record<string, any>;
 }
 
+
+// Snap AI equipment text to an exact gym equipment name; anything that doesn't
+// match exactly is left as plain text so no wrong machine photo is attached.
+function snapEquipment(node: any, names: string[]): void {
+  const norm = (s: string) => s.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9/ ]+/g, " ").replace(/\s+/g, " ").trim();
+  const map = new Map(names.flatMap((n) => [[n.toLowerCase(), n], [norm(n), n]] as [string, string][]));
+  const walk = (x: any) => {
+    if (Array.isArray(x)) return x.forEach(walk);
+    if (x && typeof x === "object") {
+      if (typeof x.equipment === "string") {
+        const hit = map.get(x.equipment.toLowerCase().trim()) ?? map.get(norm(x.equipment));
+        if (hit) x.equipment = hit;
+      }
+      Object.values(x).forEach(walk);
+    }
+  };
+  walk(node);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -249,6 +268,12 @@ MEMBER PROFILE:
 - Primary Goal: ${fitnessProfile?.primary_goal || 'general fitness'}
 - Injuries/Limitations: ${JSON.stringify(fitnessProfile?.injuries_limitations || [])}
 
+EQUIPMENT RULES (strict):
+- The "equipment" value must be copied EXACTLY from the list above, or be "Bodyweight".
+- Only assign a machine if the exercise is actually performed on that specific machine (e.g. Leg Curl only on the Leg Curl machine, Lat Pulldown only on Vertical Traction, Hip Thrust only on the Hip Thrust machine). Never put an exercise on a machine built for a different movement.
+- Cable exercises use "Technogym Cable Stations 4 Evolution" or "Technogym Selection 900 Pulley Machine". Barbell squats/presses use "Technogym Power Rack" or "Technogym Multi Power Smith".
+- If no listed machine fits, use free weights from the list or "Bodyweight".
+
 Generate a complete workout in valid JSON format. For each exercise:
 1. Use equipment from the gym's available list when possible
 2. Include clear instructions and form cues
@@ -326,6 +351,12 @@ MEMBER PROFILE:
 - Fitness Level: ${fitnessProfile?.fitness_level || 'intermediate'}
 - Primary Goal: ${fitnessProfile?.primary_goal || 'general fitness'}
 - Injuries/Limitations: ${JSON.stringify(fitnessProfile?.injuries_limitations || [])}
+
+EQUIPMENT RULES (strict):
+- The "equipment" value must be copied EXACTLY from the list above, or be "Bodyweight".
+- Only assign a machine if the exercise is actually performed on that specific machine (e.g. Leg Curl only on the Leg Curl machine, Lat Pulldown only on Vertical Traction, Hip Thrust only on the Hip Thrust machine). Never put an exercise on a machine built for a different movement.
+- Cable exercises use "Technogym Cable Stations 4 Evolution" or "Technogym Selection 900 Pulley Machine". Barbell squats/presses use "Technogym Power Rack" or "Technogym Multi Power Smith".
+- If no listed machine fits, use free weights from the list or "Bodyweight".
 
 Create a progressive program that:
 1. Builds intensity across weeks
@@ -432,6 +463,7 @@ Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts
         }
         
         const workoutJson = JSON.parse(workoutData);
+        snapEquipment(workoutJson, (equipmentDetails || []).map((e: any) => e.name));
         
         // Save to ai_workouts table
         const { data: savedWorkout, error: saveError } = await supabase
@@ -502,6 +534,7 @@ Generate a complete ${programDuration}-week program with ${daysPerWeek} workouts
           .replace(/[\x00-\x1F\x7F]/g, (ch: string) => ch === '\n' || ch === '\r' || ch === '\t' ? ch : '');
         
         const programJson = JSON.parse(programData);
+        { const { data: eqn } = await supabase.from('equipment').select('name').eq('is_active', true); snapEquipment(programJson, (eqn || []).map((e: any) => e.name)); }
         
         // Deactivate any existing active programs for this member
         await supabase

@@ -40,27 +40,30 @@ export function useEquipmentImages() {
   });
 }
 
+const norm = (s: string) =>
+  s.toLowerCase().replace(/\([^)]*\)/g, " ").replace(/[^a-z0-9/ ]+/g, " ").replace(/\s+/g, " ").trim()
+    .split(" ").map((w) => (w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w)).join(" ");
+
 /**
- * Find the best matching equipment image for a given equipment name.
- * Does fuzzy matching by checking if the equipment name contains any known equipment key.
+ * Find the photo for an exercise's equipment. Strict on purpose: exact name, or the
+ * exercise's equipment text contains the full machine name. Never matches on a shared
+ * word ("cable", "leg"), so a different machine is never shown.
  */
 export function findEquipmentImage(
   equipmentName: string | undefined,
   imageMap: EquipmentImageMap | undefined
 ): string | null {
   if (!equipmentName || !imageMap) return null;
-
-  const lower = equipmentName.toLowerCase();
-
-  // Exact match first
+  const lower = equipmentName.toLowerCase().trim();
   if (imageMap[lower]) return imageMap[lower];
-
-  // Partial match: check if any equipment name is contained in the exercise equipment field
+  const target = norm(equipmentName);
+  if (!target) return null;
+  let best: { len: number; url: string } | null = null;
   for (const [key, url] of Object.entries(imageMap)) {
-    if (lower.includes(key) || key.includes(lower)) {
-      return url;
-    }
+    const k = norm(key);
+    if (!k) continue;
+    if (k === target) return url;
+    if (` ${target} `.includes(` ${k} `) && (!best || k.length > best.len)) best = { len: k.length, url };
   }
-
-  return null;
+  return best?.url ?? null;
 }

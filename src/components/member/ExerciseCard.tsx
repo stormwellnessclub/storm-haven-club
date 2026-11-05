@@ -11,8 +11,11 @@ import {
   Weight,
   Info,
   Target,
+  PlayCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ExerciseHelp } from "./ExerciseHelp";
+import { getExerciseMotion } from "@/lib/exerciseMotions";
 
 interface Exercise {
   name: string;
@@ -56,6 +59,8 @@ const getBodyPartStyle = (bodyPart?: string) => {
 export function ExerciseCard({ exercise, index, imageUrl }: ExerciseCardProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const hasDemo = !!getExerciseMotion(exercise.name);
   const bodyPartStyle = getBodyPartStyle(exercise.bodyPart);
 
   const showImage = imageUrl && !imgError;
@@ -63,11 +68,11 @@ export function ExerciseCard({ exercise, index, imageUrl }: ExerciseCardProps) {
   return (
     <Card className="overflow-hidden">
       {showImage && (
-        <div className="w-full h-32 bg-muted overflow-hidden">
+        <div className="w-full h-48 bg-card border-b border-border overflow-hidden p-2">
           <img
             src={imageUrl}
             alt={exercise.equipment || exercise.name}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={() => setImgError(true)}
           />
         </div>
@@ -147,6 +152,11 @@ export function ExerciseCard({ exercise, index, imageUrl }: ExerciseCardProps) {
                 {exercise.notes}
               </p>
             )}
+
+            <Button variant="outline" size="sm" className="h-8 mt-3 gap-1" onClick={() => setHelpOpen(true)}>
+              <PlayCircle className="h-4 w-4" />{hasDemo ? "Watch demo" : "How to do it"}
+            </Button>
+            <ExerciseHelp name={exercise.name} equipment={exercise.equipment} open={helpOpen} onOpenChange={setHelpOpen} />
 
             {/* Instructions collapsible */}
             {exercise.instructions && exercise.instructions.length > 0 && (

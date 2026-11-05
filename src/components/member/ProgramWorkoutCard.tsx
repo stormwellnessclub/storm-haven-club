@@ -84,7 +84,7 @@ export function ProgramWorkoutCard({ workout, onComplete, onStart, isCompleting,
                         <img
                           src={imgUrl}
                           alt={exercise.equipment || exercise.name}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                           onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       </div>
