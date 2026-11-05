@@ -76,6 +76,11 @@ import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { clearPersisted } from "@/hooks/usePersistedState";
+import { useSearchParams } from "react-router-dom";
+import { WorkoutPlayer, WorkoutViewer } from "@/components/member/WorkoutPlayer";
+import { WeekPlanner } from "@/components/member/WeekPlanner";
+import { useActiveWorkoutSession, useFinishWorkout } from "@/hooks/useWorkoutJournal";
+import { createWorkoutState, completedSetCount } from "@/lib/workoutJournal";
 
 const WORKOUT_TYPES = [
   "Strength Training",
@@ -122,6 +127,22 @@ export default function Workouts() {
   const completeAIWorkout = useCompleteAIWorkout();
   const deleteAIWorkout = useDeleteAIWorkout();
   const generateProgram = useGenerateProgram();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "week";
+  const setTab = (v: string) => { const n = new URLSearchParams(searchParams); n.set("tab", v); setSearchParams(n, { replace: true }); };
+  const viewingId = searchParams.get("workout");
+  const setViewing = (id: string | null) => { const n = new URLSearchParams(searchParams); if (id) n.set("workout", id); else n.delete("workout"); setSearchParams(n, { replace: true }); };
+  const viewingTemplate = templates?.find((t) => t.id === viewingId) || null;
+  const active = useActiveWorkoutSession();
+  const finishWorkout = useFinishWorkout();
+  const [playerHidden, setPlayerHidden] = useState(false);
+  const startTemplate = (t: WorkoutTemplate, planEntryId: string | null = null) => {
+    if (active.state && !confirm("You have a workout in progress. Replace it?")) return;
+    active.save(createWorkoutState({ templateId: t.id, planEntryId, name: t.template_name, workoutType: t.workout_type, exercises: t.exercises }));
+    setViewing(null);
+    setPlayerHidden(false);
+  };
 
   // Get active program
   const activeProgram = programs?.find(p => p.is_active);
@@ -510,21 +531,45 @@ export default function Workouts() {
           </Card>
         </div>
 
-        <Tabs defaultValue={activeProgram ? "programs" : "logged"} className="space-y-4">
+        {active.state && (
+          <Card className="p-4 border-primary flex items-center gap-3">
+            <Play className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium truncate">{active.state.name} in progress</p>
+              <p className="text-xs text-muted-foreground">
+                Exercise {active.state.index + 1} of {active.state.exercises.length} · {completedSetCount(active.state).done}/{completedSetCount(active.state).total} sets
+              </p>
+            </div>
+            <Button onClick={() => setPlayerHidden(false)}>Resume</Button>
+          </Card>
+        )}
+
+        <Tabs value={tab} onValueChange={setTab} className="space-y-4">
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
             <TabsList className="w-max sm:w-auto">
+              <TabsTrigger value="week" className="gap-1.5 whitespace-nowrap">
+                <Calendar className="h-4 w-4" />
+                My Week
+              </TabsTrigger>
               <TabsTrigger value="programs" className="gap-1.5 whitespace-nowrap">
                 <Calendar className="h-4 w-4" />
                 Programs {activeProgram && <Badge variant="secondary" className="ml-1 text-xs">Active</Badge>}
               </TabsTrigger>
               <TabsTrigger value="templates" className="gap-1.5 whitespace-nowrap">
                 <LayoutTemplate className="h-4 w-4" />
-                Templates ({templates?.length || 0})
+                My Workouts ({templates?.length || 0})
               </TabsTrigger>
               <TabsTrigger value="logged" className="whitespace-nowrap">Logged ({workouts?.length || 0})</TabsTrigger>
               <TabsTrigger value="ai" className="whitespace-nowrap">AI Workouts ({aiWorkouts?.length || 0})</TabsTrigger>
             </TabsList>
           </div>
+
+          <TabsContent value="week">
+            <WeekPlanner templates={templates || []} onStart={(e, t) => startTemplate(t, e.id)} />
+            {(!templates || templates.length === 0) && (
+              <p className="text-sm text-muted-foreground text-center mt-3">Build a workout first, then plan it on any day.</p>
+            )}
+          </TabsContent>
 
           <TabsContent value="programs">
             {programsLoading ? (
@@ -624,9 +669,9 @@ export default function Workouts() {
                 {templates.map((template) => (
                   <Card key={template.id} className="p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
+                      <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setViewing(template.id)}>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-sm">{template.template_name}</h3>
+                          <h3 className="font-medium text-base">{template.template_name}</h3>
                           {template.is_favorite && <Star className="h-3.5 w-3.5 text-accent fill-accent" />}
                         </div>
                         <div className="flex flex-wrap gap-2 mt-1">
@@ -641,16 +686,19 @@ export default function Workouts() {
                           )}
                           <span className="text-xs text-muted-foreground">· Used {template.times_used}×</span>
                         </div>
-                      </div>
+                        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
+                          {template.exercises.map((e) => e.name).join(" · ")}
+                        </p>
+                        <span className="text-xs text-primary mt-1 inline-block">Tap to open</span>
+                      </button>
                       <div className="flex gap-1.5 shrink-0">
                         <Button
                           variant="gold"
                           size="sm"
-                          onClick={() => logFromTemplate.mutate(template)}
-                          disabled={logFromTemplate.isPending}
+                          onClick={() => startTemplate(template)}
                         >
                           <Play className="h-3.5 w-3.5 mr-1" />
-                          Log
+                          Start
                         </Button>
                         <Button
                           variant="ghost"
@@ -969,6 +1017,28 @@ export default function Workouts() {
           onOpenChange={setShowBuilder}
           editingTemplate={editingTemplate}
         />
+
+        {viewingTemplate && (
+          <WorkoutViewer
+            open
+            onOpenChange={(o) => { if (!o) setViewing(null); }}
+            name={viewingTemplate.template_name}
+            notes={viewingTemplate.notes}
+            exercises={viewingTemplate.exercises}
+            onStart={() => startTemplate(viewingTemplate)}
+          />
+        )}
+
+        {active.state && !playerHidden && (
+          <WorkoutPlayer
+            state={active.state}
+            onChange={active.save}
+            onMinimize={() => setPlayerHidden(true)}
+            onDiscard={() => active.save(null)}
+            finishing={finishWorkout.isPending}
+            onFinish={() => finishWorkout.mutate(active.state!, { onSuccess: () => active.save(null) })}
+          />
+        )}
       </div>
     </MemberLayout>
   );
