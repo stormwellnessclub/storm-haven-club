@@ -12,6 +12,8 @@ export interface WorkoutExercise {
   reps: number;
   weight?: number;
   rest: number; // seconds
+  /** Original rep text from a program, e.g. "8-10" or "30 sec". */
+  repsLabel?: string;
 }
 
 export interface WorkoutTemplate {

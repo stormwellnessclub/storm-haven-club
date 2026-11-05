@@ -134,15 +134,26 @@ export function useFinishWorkout() {
         const { data: t } = await db.from("workout_templates").select("times_used").eq("id", s.templateId).maybeSingle();
         if (t) await db.from("workout_templates").update({ times_used: (t.times_used || 0) + 1 }).eq("id", s.templateId);
       }
+      if (s.programWorkoutId) {
+        await db.from("program_workouts").update({ is_completed: true, completed_at: new Date().toISOString() }).eq("id", s.programWorkoutId);
+      }
       if (s.planEntryId) {
         await db.from("workout_plan_entries").update({ status: "done", workout_log_id: log.id }).eq("id", s.planEntryId);
       }
     },
     onSuccess: () => {
-      ["workout-logs", "workout-templates", "workout-plan", "member-activities"].forEach((k) =>
+      ["workout-logs", "workout-templates", "workout-plan", "member-activities", "program-workouts"].forEach((k) =>
         qc.invalidateQueries({ queryKey: [k] }));
       toast.success("Workout saved to your journal");
     },
     onError: (e: Error) => toast.error(e.message || "Couldn't save workout"),
   });
+}
+
+/** Weights the member used last time for each of these exercises. */
+export async function fetchLastWeights(userId: string, exercises: { name: string }[]) {
+  const { lastWeightsFor } = await import("@/lib/workoutJournal");
+  const { data } = await db.from("workout_logs").select("exercises").eq("user_id", userId)
+    .order("logged_at", { ascending: false }).limit(40);
+  return lastWeightsFor(data || [], exercises);
 }
