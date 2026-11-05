@@ -47,3 +47,4 @@
 - Massage menu groups 60/90 variants by base name via src/lib/massages.ts; booking receives the selected original record and copy lives in that file. Why: one listing per treatment without changing pricing, intake or history.
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
 - Workout journal: in-progress state in localStorage + `workout_sessions_in_progress` (newest wins); plans in `workout_plan_entries`, Detroit weeks via `workoutJournal.ts`. Why: resume mid-workout.
+- 3D exercise demos live in `src/lib/exerciseMotions.ts`, keyed by exact exercise name; never fuzzy-match or reuse a demo for a different exercise. Why: members must never see the wrong movement.
