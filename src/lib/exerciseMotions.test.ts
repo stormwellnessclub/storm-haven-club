@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { computeJoints, getExerciseMotion, lerpPose, demoExerciseNames, LEN } from "./exerciseMotions";
 import { parseReps, parseRestSeconds, programExercisesToWorkout, createWorkoutState, lastWeightsFor } from "./workoutJournal";
 
