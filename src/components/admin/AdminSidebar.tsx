@@ -222,6 +222,7 @@ const departments: DepartmentSection[] = [
       { title: "Announcements", url: "/admin/marketing?tab=announcements", icon: Bell },
       { title: "Events Portal", url: "/events-portal", icon: Sparkles },
       { title: "Higher Self Society", url: "/events-portal/society", icon: Sparkles, highlight: true },
+      { title: "Round 2 sign-ups", url: "/events-portal/society?round=round-2", icon: Sparkles },
       { title: "Private Events", url: "/admin/private-events", icon: PartyPopper },
 
       { title: "Email Templates", url: "/admin/email-templates", icon: MessageSquare },
