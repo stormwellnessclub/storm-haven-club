@@ -65,7 +65,7 @@ export default function HigherSelfSociety() {
     }
     try {
       await submit.mutateAsync({ themes, rhythm, book, reason, guest, guestName });
-      toast.success(mine ? "Your preferences are updated." : "Welcome to Higher Self Society.");
+      toast.success((mine as any)?.joined_round_key === "round-2" ? "Your preferences are updated." : "You're on the list for the next round.");
     } catch (err: any) {
       toast.error(err?.message || "We couldn't save that. Please try again.");
     }
