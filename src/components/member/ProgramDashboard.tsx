@@ -18,7 +18,8 @@ import {
   useCompleteProgramWorkout, 
   useCompleteProgram,
   useDeleteProgram,
-  type WorkoutProgram 
+  type WorkoutProgram,
+  type ProgramWorkout,
 } from "@/hooks/useWorkoutPrograms";
 import { ProgramWorkoutCard } from "./ProgramWorkoutCard";
 import { useEquipmentImages } from "@/hooks/useEquipmentImages";
@@ -38,9 +39,10 @@ interface ProgramDashboardProps {
   program: WorkoutProgram;
   onProgramDeleted?: () => void;
   onRegenerateProgram?: () => void;
+  onStartWorkout?: (workout: ProgramWorkout) => void;
 }
 
-export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgram }: ProgramDashboardProps) {
+export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgram, onStartWorkout }: ProgramDashboardProps) {
   const [currentWeek, setCurrentWeek] = useState(program.current_week || 1);
   const { data: workouts = [], isLoading } = useProgramWorkouts(program.id);
   const completeWorkout = useCompleteProgramWorkout();
@@ -274,6 +276,7 @@ export function ProgramDashboard({ program, onProgramDeleted, onRegenerateProgra
                   key={workout.id}
                   workout={workout}
                   onComplete={() => handleCompleteWorkout(workout.id)}
+                  onStart={onStartWorkout ? () => onStartWorkout(workout) : undefined}
                   isCompleting={completeWorkout.isPending}
                   equipmentImages={equipmentImages}
                 />
