@@ -41,8 +41,10 @@ export default function HigherSelfSociety() {
     if (!mine) return;
     setThemes(mine.themes ?? []);
     setRhythm(mine.preferred_rhythm ?? "either");
-    setBook(mine.book_suggestion ?? "");
-    setReason(mine.book_reason ?? "");
+    // Old round answers shouldn't prefill the next-round book pick.
+    const inNextRound = (mine as any).joined_round_key === "round-2";
+    setBook(inNextRound ? mine.book_suggestion ?? "" : "");
+    setReason(inNextRound ? mine.book_reason ?? "" : "");
     setGuest(!!mine.guest_requested);
     setGuestName(mine.guest_name ?? "");
   }, [mine]);
@@ -63,7 +65,7 @@ export default function HigherSelfSociety() {
     }
     try {
       await submit.mutateAsync({ themes, rhythm, book, reason, guest, guestName });
-      toast.success(mine ? "Your preferences are updated." : "Welcome to Higher Self Society.");
+      toast.success((mine as any)?.joined_round_key === "round-2" ? "Your preferences are updated." : "You're on the list for the next round.");
     } catch (err: any) {
       toast.error(err?.message || "We couldn't save that. Please try again.");
     }

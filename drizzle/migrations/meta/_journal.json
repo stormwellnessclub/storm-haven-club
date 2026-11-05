@@ -988,6 +988,13 @@
       "when": 1793767299516,
       "tag": "0140_spa_guest_checkout_expiry_sweep",
       "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1793844228612,
+      "tag": "0141_society_next_round_signups",
+      "breakpoints": true
     }
   ]
 }
