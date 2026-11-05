@@ -44,6 +44,10 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     tmpl(`Storm Cafe at Storm Wellness Club: {{name}}, your café order is ready for pickup.`, v),
   "cafe-order-delay": (v) =>
     tmpl(`Storm Cafe at Storm Wellness Club: {{name}}, your order needs a few more minutes. New ready time: {{time}}.`, v),
+  "planner-reminder": (v) =>
+    tmpl(`Storm Wellness Club: {{name}}, reminder from your weekly plan: {{item}}{{when}}. Reply STOP to opt out.`, v),
+  "planner-daily-summary": (v) =>
+    tmpl(`Storm Wellness Club: Good morning {{name}}. Today's plan: {{items}}. Reply STOP to opt out.`, v),
   "test-message": (v) =>
     `Storm Wellness Club: test message${v.note ? ` — ${v.note}` : ""}. Reply STOP to opt out.`,
   "opt-in-confirmation": () =>
