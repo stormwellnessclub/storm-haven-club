@@ -154,11 +154,11 @@ const beltSquat: ExerciseMotion = {
 const hipThrust: ExerciseMotion = {
   title: "Hip thrust", cue: "Upper back on the pad, chin tucked. Drive the hips up until body is level from shoulders to knees, squeeze, lower slowly.",
   keys: [
-    { pelvis: [0, 0.3, 0], lean: -62, ua: [0.3, -0.5, 1], fa: [0.1, -0.6, 1], th: [0, 0.55, 0.83], sh: [0, -1, -0.3] },
+    { pelvis: [0, 0.3, 0], lean: -74, ua: [0.3, -0.5, 1], fa: [0.1, -0.6, 1], th: [0, 0.55, 0.83], sh: [0, -1, -0.3] },
     { pelvis: [0, 0.3, 0], lean: -86, ua: [0.3, -0.2, 1], fa: [0.1, -0.5, 1], th: [0, 0.03, 1], sh: [0, -1, -0.05] },
   ],
   anchor: feetAt(0.55), tempo: [1, 0.8, 1.6, 0.3],
-  props: [pad([0, 0.36, -0.5], [0.5, 0.1, 0.22]), frame([0, 0.35, 0.1], [0.75, 0.05, 0.05])],
+  props: [pad([0, 0.36, -0.25], [0.5, 0.1, 0.22]), frame([0, 0.35, 0.1], [0.75, 0.05, 0.05])],
   cam: [2.4, 1.1, 1.4], target: [0, 0.4, 0.1],
 };
 
@@ -205,7 +205,7 @@ const loadedBackExt: ExerciseMotion = {
     { pelvis: [0, 0.9, 0], lean: 45, ua: [0, -0.3, 0.8], fa: [-0.7, 0.4, 0.3], armsInTorso: true, th: [0, -0.7, -0.7], sh: [0, -0.7, -0.7] },
   ],
   hands: "plate", anchor: feetAt(-0.55, 0.12), tempo: [1.3, 0.6, 1.8, 0.3],
-  props: [pad([0, 0.78, 0.06], [0.45, 0.08, 0.26], -45), frame([0, 0.06, -0.62], [0.5, 0.05, 0.3], -45)],
+  props: [pad([0, 0.64, 0.14], [0.45, 0.08, 0.26], -45), frame([0, 0.06, -0.62], [0.5, 0.05, 0.3], -45)],
   cam: [2.6, 1.3, 0.6], target: [0, 0.7, 0],
 };
 
@@ -308,7 +308,7 @@ const captainLegRaise: ExerciseMotion = {
     { pelvis: [0, 1.05, 0], lean: 0, ua: D, fa: [0, 0, 1], th: [0, -1, 0.05], sh: D },
     { pelvis: [0, 1.05, 0], lean: -4, ua: D, fa: [0, 0, 1], th: [0, -0.02, 1], sh: [0, -0.15, 1] },
   ],
-  props: [pad([0, 1.3, -0.12], [0.35, 0.6, 0.07]), pad([0.22, 1.22, 0.12], [0.1, 0.06, 0.32]), pad([-0.22, 1.22, 0.12], [0.1, 0.06, 0.32]), frame([0, 0.04, 0.05], [0.6, 0.06, 0.4])],
+  props: [pad([0, 1.3, -0.12], [0.35, 0.6, 0.07]), pad([0.22, 1.22, 0.12], [0.1, 0.06, 0.32]), pad([-0.22, 1.22, 0.12], [0.1, 0.06, 0.32])],
   cam: [2.6, 1.5, 1.2], target: [0, 1, 0],
 };
 
