@@ -15,6 +15,8 @@ import { SocietyAddPersonPanel } from "@/components/eventsportal/SocietyAddPerso
 import { SocietyGuestApprovePanel } from "@/components/eventsportal/SocietyGuestApprovePanel";
 import { neutralizeCsvFormula as csvSafe } from "@/lib/csvSafe";
 import { SocietyBookVoteAdmin } from "@/components/eventsportal/SocietyBookVoteAdmin";
+import { SocietyRoundSignups } from "@/components/eventsportal/SocietyRoundSignups";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function EventsPortalSociety() {
   const { data: rows = [], isLoading } = useSocietyRoster();
@@ -24,7 +26,11 @@ export default function EventsPortalSociety() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [params, setParams] = useSearchParams();
-  const tab = params.get("round") ?? "members";
+  const tab = params.get("round") ?? SOCIETY_ROUNDS[SOCIETY_ROUNDS.length - 1].key;
+  const [roundFilter, setRoundFilter] = useState<string>("all");
+  const roundOf = (r: any) => r.joined_round_key ?? SOCIETY_ROUNDS[0].key;
+  const roundLabelOf = (r: any) => SOCIETY_ROUNDS.find((x) => x.key === roundOf(r))?.label ?? SOCIETY_ROUNDS[0].label;
+  const visibleRows = roundFilter === "all" ? rows : rows.filter((r: any) => roundOf(r) === roundFilter);
 
   const doRemove = async (id: string) => {
     try {
@@ -92,36 +98,15 @@ export default function EventsPortalSociety() {
         </TabsContent>
 
         <TabsContent value={SOCIETY_ROUNDS[1].key}>
-          {(() => {
-            const joined = rows.filter((r: any) => r.joined_round_key === SOCIETY_ROUNDS[1].key)
-              .sort((a: any, b: any) => String(b.joined_round_at).localeCompare(String(a.joined_round_at)));
-            return (
-              <Card className="mb-6">
-                <CardHeader><CardTitle className="text-base">Signed up for this round ({joined.length})</CardTitle></CardHeader>
-                <CardContent className="text-sm divide-y">
-                  {joined.length === 0 && <p className="text-muted-foreground py-2">No sign-ups yet.</p>}
-                  {joined.map((r: any) => (
-                    <div key={r.id} className="py-2 flex justify-between gap-3">
-                      <span className="min-w-0 truncate">{r.full_name || r.email} <span className="text-muted-foreground">· {r.email}</span></span>
-                      <span className="text-muted-foreground shrink-0">{r.joined_round_at ? new Date(r.joined_round_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" }) : ""}</span>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            );
-          })()}
-          <Card className="mb-6">
-            <CardHeader><CardTitle className="text-base">Book suggestions for this round ({rows.filter((r: any) => r.book_suggestion && r.joined_round_key === SOCIETY_ROUNDS[1].key).length})</CardTitle></CardHeader>
-            <CardContent className="text-sm divide-y">
-              {rows.filter((r: any) => r.book_suggestion && r.joined_round_key === SOCIETY_ROUNDS[1].key).map((r: any) => (
-                <div key={r.id} className="py-2"><b>{r.book_suggestion}</b> <span className="text-muted-foreground">· {r.full_name || r.email}</span>
-                  {r.book_reason && <p className="text-muted-foreground mt-1">{r.book_reason}</p>}</div>
-              ))}
-            </CardContent>
-          </Card>
           <p className="text-sm text-muted-foreground mb-4">Voting closes {SOCIETY_ROUNDS[1].voteClosesLabel}. The ballot is added once the book list is ready. Meeting: {SOCIETY_ROUNDS[1].meetingLabel}.</p>
-          <SocietyLastCallControls audience="stay_next_round" />
-          <SocietyLastCallControls audience="next_round" />
+          <SocietyRoundSignups rows={rows} roundKey={SOCIETY_ROUNDS[1].key} roundLabel={SOCIETY_ROUNDS[1].label} />
+          <Collapsible>
+            <CollapsibleTrigger asChild><Button variant="outline" size="sm">Messages for this round</Button></CollapsibleTrigger>
+            <CollapsibleContent className="pt-4 space-y-6">
+              <SocietyLastCallControls audience="stay_next_round" />
+              <SocietyLastCallControls audience="next_round" />
+            </CollapsibleContent>
+          </Collapsible>
         </TabsContent>
 
         <TabsContent value="members">
@@ -136,6 +121,10 @@ export default function EventsPortalSociety() {
       <div className="flex justify-between items-center mb-3 gap-2">
         <h2 className="font-semibold">Roster</h2>
         <div className="flex gap-2">
+          <select value={roundFilter} onChange={(e) => setRoundFilter(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+            <option value="all">All rounds</option>
+            {SOCIETY_ROUNDS.map((r) => <option key={r.key} value={r.key}>{r.label}</option>)}
+          </select>
           <Button size="sm" onClick={() => setAdding((v) => !v)}>{adding ? "Close" : "Add person"}</Button>
           <Button size="sm" variant="outline" onClick={exportCsv} disabled={!rows.length}>Export CSV</Button>
         </div>
@@ -149,10 +138,10 @@ export default function EventsPortalSociety() {
           <tbody>
             {isLoading && <tr><td className="p-3" colSpan={6}>Loading…</td></tr>}
             {!isLoading && !rows.length && <tr><td className="p-3 text-muted-foreground" colSpan={6}>No sign-ups yet.</td></tr>}
-            {rows.map((r: any) => (
+            {visibleRows.map((r: any) => (
               <tr key={r.id} className="border-t align-top">
                 <td className="p-2">
-                  <div className="font-medium">{r.full_name}</div>
+                  <div className="font-medium">{r.full_name} <Badge variant="outline" className="ml-1">{roundLabelOf(r)}</Badge></div>
                   <div className="text-xs text-muted-foreground">{r.email}{r.phone && ` · ${r.phone}`}</div>
                   <div className="flex gap-1 mt-1">
                     <Badge variant={r.is_member === false ? "outline" : "secondary"}>{r.is_member === false ? "Non-member" : "Member"}</Badge>
