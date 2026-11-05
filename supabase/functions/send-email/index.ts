@@ -181,6 +181,21 @@ serve(async (req) => {
       );
     }
 
+    // One approval letter per application: skip repeats within 10 minutes (double taps, two staff).
+    if (type === 'approval_letter_personalized' && !preview && to) {
+      try {
+        const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+        const since = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+        const { data: recent } = await admin.from('email_audit_log').select('id')
+          .eq('email_type', 'approval_letter_personalized').ilike('recipient_email', String(to).trim())
+          .gte('created_at', since).limit(1);
+        if (recent && recent.length) {
+          return new Response(JSON.stringify({ success: true, skipped: 'duplicate' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 });
+        }
+      } catch (dupErr) { console.warn('Approval duplicate check failed:', dupErr); }
+    }
+
     // Unauthenticated callers supply plain text only: escape every string field.
     if (PUBLIC_EMAIL_TYPES.has(type) && data && typeof data === 'object') {
       const esc = (v: unknown) => String(v ?? '')
@@ -3744,6 +3759,11 @@ serve(async (req) => {
         sent_at: new Date().toISOString(),
         trigger_source: 'send-email-function',
         template_data: data || null,
+        ...(type === 'approval_letter_personalized' ? {
+          application_id: (data as any)?.applicationId || null,
+          triggered_by: (data as any)?.triggeredBy || null,
+          custom_content: (data as any)?.customBody || null,
+        } : {}),
       });
     } catch (auditErr) {
       console.warn("Failed to log email audit:", auditErr);
