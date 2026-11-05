@@ -11,7 +11,12 @@
 3. **Easier program day cards**
    - Readable list with sets × reps, rest and equipment photo (already in the app).
    - Shows "Done · Nov 3 · 4,350 lb total" for finished days.
-4. **"How to do it" form guide** instead of videos (no YouTube, no stock or AI images):
+4. **3D exercise demo** at the top of each exercise in the player and in "How to do it":
+   - A smooth, faceless 3D mannequin (no people, photos or AI images) loops the movement; members can drag to turn it and pause it.
+   - Built from about 15 core movement types: squat, lunge, deadlift/hinge, bench/push-up, overhead press, row, pull-down/pull-up, curl, triceps extension, lateral raise, glute bridge/hip thrust, calf raise, plank/core, crunch, cable/machine press.
+   - Each exercise is matched to the closest movement (e.g. "Goblet Squat" uses squat, "Seated Cable Row" uses row). Exercises with no good match show the written guide only, never a wrong demo.
+   - Limit: it shows the movement shape and range, not exact equipment or every small variation.
+5. **"How to do it" written guide** (kept as backup, no YouTube, no stock or AI images):
    - A "How to do it" button on each exercise opens a short written guide: Set up, The movement (3–4 steps), Breathing, Common mistakes, Easier / harder option.
    - Written once per exercise in the club's calm, premium voice, then saved and reused for every member.
    - When you later upload your own exercise library videos, the clip will show at the top of this same panel automatically; nothing else needs to change.
@@ -25,4 +30,5 @@
 - On finish: save session through the existing workout-session save path (sets + weights), then set `program_workouts.is_completed/completed_at`.
 - Last-weights lookup: newest saved session sets for the same exercise name (case-insensitive) for that user.
 - New table `exercise_form_guides` (exercise name key, guide JSON, optional `media_url`), readable by signed-in users, written only by an edge function `exercise-form-guide` that generates a missing guide once with Lovable AI (text only) and caches it. Later the guide reads `pt_exercise_library.media_url` when a matching exercise has a clip.
-- Add a test for parsing "8-10" / "60s" into the player and for finish marking the day complete.
+- 3D demo: `@react-three/fiber@^8.18` + `@react-three/drei@^9.122.0` + `three`; a primitive-shape jointed mannequin (`ExerciseDemo3D`) animated by keyframed joint angles per movement in `src/lib/exerciseMotions.ts`; name-to-motion matcher with keyword rules, returns null when unsure. Lazy-loaded so the Workouts page stays fast on phones.
+- Add tests for the motion matcher (squat/row/curl names map correctly, unknown returns none) and for parsing "8-10" / "60s" into the player and for finish marking the day complete.
