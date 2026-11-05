@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ChevronLeft, ChevronRight, Check, Timer, X, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Timer, X, Play, BookOpen, Box } from "lucide-react";
+import { ExerciseHelp } from "./ExerciseHelp";
+import { getExerciseMotion } from "@/lib/exerciseMotions";
 import { ActiveWorkoutState, completedSetCount } from "@/lib/workoutJournal";
 import type { WorkoutExercise } from "@/hooks/useWorkoutTemplates";
 import { cn } from "@/lib/utils";
@@ -50,6 +52,9 @@ export function WorkoutPlayer({ state, onChange, onFinish, onDiscard, onMinimize
 }) {
   const ex = state.exercises[state.index];
   const [restEnd, setRestEnd] = useState<number | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const hasDemo = !!getExerciseMotion(ex.name);
+  const last = state.lastWeights?.[state.index] ?? [];
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!restEnd) return;
@@ -60,7 +65,7 @@ export function WorkoutPlayer({ state, onChange, onFinish, onDiscard, onMinimize
   useEffect(() => { if (restEnd && restLeft === 0) setRestEnd(null); }, [restLeft, restEnd]);
 
   const { done, total } = completedSetCount(state);
-  const last = state.index === state.exercises.length - 1;
+  const isLast = state.index === state.exercises.length - 1;
 
   const toggle = (setIdx: number) => {
     const d = state.done.map((r) => [...r]);
@@ -91,9 +96,14 @@ export function WorkoutPlayer({ state, onChange, onFinish, onDiscard, onMinimize
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           <div>
             <h2 className="text-3xl font-serif leading-tight">{ex.name}</h2>
-            <p className="text-lg mt-1">{ex.sets} × {ex.reps} reps</p>
-            <p className="text-sm text-muted-foreground">Rest {ex.rest}s between sets</p>
+            <p className="text-lg mt-1">{ex.sets} × {ex.repsLabel || ex.reps} reps</p>
+            <p className="text-sm text-muted-foreground">Rest {ex.rest}s between sets{ex.equipment ? ` · ${ex.equipment}` : ""}</p>
+            <Button variant="outline" size="sm" className="mt-3 h-10 gap-2" onClick={() => setHelpOpen(true)}>
+              {hasDemo ? <Box className="h-4 w-4" /> : <BookOpen className="h-4 w-4" />}
+              {hasDemo ? "Watch 3D demo" : "How to do it"}
+            </Button>
           </div>
+          <ExerciseHelp name={ex.name} equipment={ex.equipment} open={helpOpen} onOpenChange={setHelpOpen} />
 
           {restEnd && (
             <div className="rounded-lg bg-secondary p-4 flex items-center justify-between">
@@ -108,7 +118,10 @@ export function WorkoutPlayer({ state, onChange, onFinish, onDiscard, onMinimize
                 <span className="w-14 text-sm font-medium">Set {s + 1}</span>
                 <Input inputMode="decimal" type="number" placeholder="lb" className="h-12 text-base w-24"
                   value={state.weights[state.index][s] ?? ""} onChange={(e) => setWeight(s, e.target.value)} />
-                <span className="text-sm text-muted-foreground flex-1">{ex.reps} reps</span>
+                <span className="text-sm text-muted-foreground flex-1 leading-tight">
+                  {ex.repsLabel || ex.reps} reps
+                  {last[s] != null && <span className="block text-xs">Last: {last[s]} lb</span>}
+                </span>
                 <Button size="icon" variant={isDone ? "default" : "outline"} className="h-12 w-12" onClick={() => toggle(s)} aria-label={`Mark set ${s + 1} done`}>
                   <Check className="h-5 w-5" />
                 </Button>
@@ -122,7 +135,7 @@ export function WorkoutPlayer({ state, onChange, onFinish, onDiscard, onMinimize
             <Button variant="outline" size="lg" className="h-14 flex-1" disabled={state.index === 0} onClick={() => go(state.index - 1)}>
               <ChevronLeft className="h-5 w-5" /> Back
             </Button>
-            {last ? (
+            {isLast ? (
               <Button size="lg" className="h-14 flex-[2]" onClick={onFinish} disabled={finishing}>Finish & save</Button>
             ) : (
               <Button size="lg" className="h-14 flex-[2]" onClick={() => go(state.index + 1)}>
