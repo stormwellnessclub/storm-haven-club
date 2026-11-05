@@ -15468,6 +15468,45 @@ export type Database = {
           },
         ]
       }
+      workout_plan_entries: {
+        Row: {
+          created_at: string
+          id: string
+          label: string | null
+          notes: string | null
+          plan_date: string
+          status: string
+          template_id: string | null
+          updated_at: string
+          user_id: string
+          workout_log_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          plan_date: string
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id: string
+          workout_log_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          plan_date?: string
+          status?: string
+          template_id?: string | null
+          updated_at?: string
+          user_id?: string
+          workout_log_id?: string | null
+        }
+        Relationships: []
+      }
       workout_programs: {
         Row: {
           ai_reasoning: string | null
@@ -15552,6 +15591,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workout_sessions_in_progress: {
+        Row: {
+          state: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          state: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          state?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       workout_templates: {
         Row: {
