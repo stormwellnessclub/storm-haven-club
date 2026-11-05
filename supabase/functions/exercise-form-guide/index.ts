@@ -28,35 +28,43 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) return json({ error: "Guide unavailable" }, 500);
-    const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const str = { type: "string" };
+    const schema = {
+      type: "object", additionalProperties: false,
+      required: ["setup", "steps", "breathing", "mistakes", "easier", "harder"],
+      properties: { setup: str, steps: { type: "array", items: str }, breathing: str,
+        mistakes: { type: "array", items: str }, easier: str, harder: str },
+    };
+    const r = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { "Lovable-API-Key": apiKey, Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "X-Lovable-AIG-SDK": "fetch" },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "You are a certified strength coach at a premium wellness club. Write calm, precise, safe exercise form guidance for exactly the named exercise and equipment. Never substitute a different exercise. No hype, no emojis, plain sentences." },
-          { role: "user", content: `Exercise: ${name}\nEquipment: ${equipment || "as named"}` },
-        ],
-        tools: [{ type: "function", function: { name: "guide", parameters: {
-          type: "object",
-          properties: {
-            setup: { type: "string" },
-            steps: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
-            breathing: { type: "string" },
-            mistakes: { type: "array", items: { type: "string" }, maxItems: 3 },
-            easier: { type: "string" },
-            harder: { type: "string" },
-          },
-          required: ["setup", "steps", "breathing", "mistakes", "easier", "harder"],
-        } } }],
-        tool_choice: { type: "function", function: { name: "guide" } },
+        model: "openai/gpt-6-astra",
+        stream: true,
+        store: false,
+        reasoning: { effort: "low" },
+        instructions: "You are a certified strength coach at a premium wellness club. Write calm, precise, safe form guidance for exactly the named exercise on the named equipment. Never substitute a different exercise. 3-5 short steps, up to 3 common mistakes. No hype, no emojis, plain sentences.",
+        input: `Exercise: ${name}\nEquipment: ${equipment || "as named"}`,
+        text: { format: { type: "json_schema", name: "guide", strict: true, schema } },
       }),
     });
     if (r.status === 429) return json({ error: "Busy right now, try again in a minute" }, 429);
-    if (!r.ok) return json({ error: "Guide unavailable" }, 500);
-    const out = await r.json();
-    const args = JSON.parse(out.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments || "null");
-    if (!args?.steps) return json({ error: "Guide unavailable" }, 500);
+    if (!r.ok || !r.body) return json({ error: "Guide unavailable" }, 500);
+    let text = "", buf = "";
+    const reader = r.body.pipeThrough(new TextDecoderStream()).getReader();
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += value;
+      const lines = buf.split("\n"); buf = lines.pop() || "";
+      for (const l of lines) {
+        if (!l.startsWith("data:")) continue;
+        try { const ev = JSON.parse(l.slice(5)); if (ev.type === "response.output_text.delta") text += ev.delta; } catch { /* skip */ }
+      }
+    }
+    let args: any = null;
+    try { args = JSON.parse(text); } catch { /* invalid */ }
+    if (!args?.steps?.length) return json({ error: "Guide unavailable" }, 500);
     const row = { name_key: key, display_name: name.trim(), guide: args };
     await admin.from("exercise_form_guides").upsert(row, { onConflict: "name_key", ignoreDuplicates: true });
     return json({ guide: row });
