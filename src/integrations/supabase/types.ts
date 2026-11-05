@@ -15431,6 +15431,39 @@ export type Database = {
         }
         Relationships: []
       }
+      workout_day_checkins: {
+        Row: {
+          check_date: string
+          energy: number | null
+          habits: Json
+          id: string
+          mood: number | null
+          note: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          check_date: string
+          energy?: number | null
+          habits?: Json
+          id?: string
+          mood?: number | null
+          note?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          check_date?: string
+          energy?: number | null
+          habits?: Json
+          id?: string
+          mood?: number | null
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       workout_logs: {
         Row: {
           calories_burned: number | null
@@ -15494,11 +15527,21 @@ export type Database = {
       }
       workout_plan_entries: {
         Row: {
+          activity_key: string | null
+          category: string
+          class_session_id: string | null
+          completed_at: string | null
           created_at: string
+          duration_min: number | null
           id: string
           label: string | null
           notes: string | null
           plan_date: string
+          reminder_at: string | null
+          reminder_offset_min: number | null
+          reminder_sent_at: string | null
+          sort_order: number
+          start_time: string | null
           status: string
           template_id: string | null
           updated_at: string
@@ -15506,11 +15549,21 @@ export type Database = {
           workout_log_id: string | null
         }
         Insert: {
+          activity_key?: string | null
+          category?: string
+          class_session_id?: string | null
+          completed_at?: string | null
           created_at?: string
+          duration_min?: number | null
           id?: string
           label?: string | null
           notes?: string | null
           plan_date: string
+          reminder_at?: string | null
+          reminder_offset_min?: number | null
+          reminder_sent_at?: string | null
+          sort_order?: number
+          start_time?: string | null
           status?: string
           template_id?: string | null
           updated_at?: string
@@ -15518,11 +15571,21 @@ export type Database = {
           workout_log_id?: string | null
         }
         Update: {
+          activity_key?: string | null
+          category?: string
+          class_session_id?: string | null
+          completed_at?: string | null
           created_at?: string
+          duration_min?: number | null
           id?: string
           label?: string | null
           notes?: string | null
           plan_date?: string
+          reminder_at?: string | null
+          reminder_offset_min?: number | null
+          reminder_sent_at?: string | null
+          sort_order?: number
+          start_time?: string | null
           status?: string
           template_id?: string | null
           updated_at?: string
@@ -15615,6 +15678,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      workout_reminder_prefs: {
+        Row: {
+          daily_summary: boolean
+          next_summary_at: string | null
+          summary_time: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          daily_summary?: boolean
+          next_summary_at?: string | null
+          summary_time?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          daily_summary?: boolean
+          next_summary_at?: string | null
+          summary_time?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workout_reminder_sends: {
+        Row: {
+          dedupe_key: string
+          id: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          dedupe_key: string
+          id?: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          dedupe_key?: string
+          id?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       workout_sessions_in_progress: {
         Row: {
@@ -16491,6 +16599,7 @@ export type Database = {
         Args: { _id: string; _send_at: string }
         Returns: undefined
       }
+      arm_planner_reminder_timer: { Args: never; Returns: undefined }
       arm_sms_campaign: {
         Args: { _id: string; _send_at: string }
         Returns: undefined
