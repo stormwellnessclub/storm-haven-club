@@ -3966,6 +3966,30 @@ export type Database = {
           },
         ]
       }
+      exercise_form_guides: {
+        Row: {
+          created_at: string
+          display_name: string
+          guide: Json
+          media_url: string | null
+          name_key: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          guide: Json
+          media_url?: string | null
+          name_key: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          guide?: Json
+          media_url?: string | null
+          name_key?: string
+        }
+        Relationships: []
+      }
       gift_card_redemptions: {
         Row: {
           amount_cents: number
