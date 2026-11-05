@@ -1,20 +1,37 @@
-# Show all usable guest passes at the front desk
+# Workout Journal: readable workouts, resume where you left off, weekly plan
 
-## Why front desk can't see them
-The front desk Guest Passes page only lists passes **dated for today** (or bought today with no date). Any other pass is hidden, even though admin can see it:
-- passes dated for another day, like Brittany Yaffa's (Mon Nov 9)
-- passes bought earlier with no date set
-- passes for a guest who comes on a different day than planned
+## What members will get
 
-## Changes
-1. **Three sections on the front desk Guest Passes page:**
-   - **Today:** passes dated today, plus undated passes bought today (same as now).
-   - **Upcoming:** active, unused passes dated for a later day, soonest first.
-   - **Unused, no date / past date:** active passes that haven't been used yet, so a guest who shows up on a different day can still be checked in.
-2. **Search box** (name, email, phone) across all three sections.
-3. **Checking in from any section** works the same as today. It moves the pass's date to today, using the existing front desk check-in.
-4. Used, expired and refunded passes stay hidden, as they are now.
+1. **Open and follow a workout**
+   - Tapping a saved workout opens a full-screen, phone-friendly view: big exercise names, sets x reps x weight, rest time, notes.
+   - "Start workout" mode: one exercise at a time, check off each set, enter the weight actually lifted, a rest countdown, and Next/Back buttons.
+   - "Finish" saves it into their journal (logged workouts) with what they really did.
+
+2. **Pick up where they left off**
+   - If they lock their phone, switch apps or close the browser mid-workout, reopening the Workouts page brings them straight back to the same workout, same exercise, with sets already checked.
+   - A "Resume workout" banner shows at the top until they finish or discard it.
+   - Progress is saved on the phone instantly and to their account, so it also survives a different device.
+
+3. **Workout journal with a weekly plan**
+   - New "My Week" tab first on the Workouts page: Mon–Sun, Detroit dates, with arrows to move between weeks.
+   - Members assign a saved workout (or a rest day / class note) to any day.
+   - Each day shows Planned, Done (with what they lifted) or Missed.
+   - Tapping a planned day opens the workout and starts it; finishing marks the day done.
+   - Journal notes per day ("felt strong", "knee sore").
+   - A "Copy last week" button to repeat a routine.
+
+4. **Easier to read overall**
+   - Saved workout cards show the exercise list preview, not just a count.
+   - Larger text and tap targets on phones.
+
+## Not changing
+- AI workouts and programs keep working as now.
+- Nothing is sent to members (no emails/texts).
 
 ## Technical details
-- `src/pages/frontdesk/GuestPassesPage.tsx`: replace the today-only `.or(...)` filter with one query for passes that are either valid today/purchased today, or `status = 'active'` and `used_at is null` (limit 500), then group on the client by `valid_date` using the Detroit date. Add a search input.
-- Front desk staff can already read every guest pass (permissions checked), so no database changes are needed.
+- New table `workout_plan_entries` (user_id, member_id, plan_date, template_id nullable, label, notes, status planned/done/skipped, workout_log_id) with RLS by `auth.uid()` + grants.
+- New table `workout_sessions_in_progress` (one row per user: template snapshot, current exercise index, per-set results JSON, started_at, updated_at) with owner RLS; client also mirrors to localStorage for instant restore.
+- New components: `WorkoutViewer` (read/follow), `WorkoutPlayer` (guided mode, rest timer), `WeekPlanner`; new hooks `useWorkoutPlan`, `useActiveWorkoutSession`.
+- Finish writes a `workout_logs` row, increments template `times_used`, links the plan entry, clears the in-progress row.
+- Active tab and open workout kept in the URL (`?tab=week&workout=...`) so reopening lands on the same screen.
+- Small tests for week date math (Detroit Mon–Sun) and resume-state restore.
