@@ -102,6 +102,7 @@ export default function EventsPortalSociety() {
             </CardContent>
           </Card>
           <p className="text-sm text-muted-foreground mb-4">Voting closes {SOCIETY_ROUNDS[1].voteClosesLabel}. The ballot is added once the book list is ready. Meeting: {SOCIETY_ROUNDS[1].meetingLabel}.</p>
+          <SocietyLastCallControls audience="stay_next_round" />
           <SocietyLastCallControls audience="next_round" />
         </TabsContent>
 

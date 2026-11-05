@@ -18,12 +18,13 @@ type R = { email: string; name: string; phone: string | null; status: string; em
 
 const DEFAULT_HERO = "https://stormwellnessclub.com/__l5e/assets-v1/762dc417-e0d1-4d2a-ba3e-813f57319098/hss-shelf.jpg";
 
-export function SocietyLastCallControls({ audience }: { audience?: "book_vote" | "book_vote_reminder" | "book_winner" | "next_round" | "rsvp_reminder" } = {}) {
+export function SocietyLastCallControls({ audience }: { audience?: "book_vote" | "book_vote_reminder" | "book_winner" | "next_round" | "rsvp_reminder" | "stay_next_round" } = {}) {
   const vote = audience === "book_vote" || audience === "book_vote_reminder";
   const reminder = audience === "book_vote_reminder";
   const winner = audience === "book_winner";
   const nextRound = audience === "next_round";
   const rsvpReminder = audience === "rsvp_reminder";
+  const stayNext = audience === "stay_next_round";
   const [roster, setRoster] = useState<R[]>([]);
   const [loading, setLoading] = useState(true);
   const [removed, setRemoved] = useState<Set<string>>(new Set());
@@ -92,10 +93,10 @@ export function SocietyLastCallControls({ audience }: { audience?: "book_vote" |
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{rsvpReminder ? "RSVP reminder: hasn't replied yet (email and text)" : winner ? "Winning book announcement (email and text)" : nextRound ? "Next book round: active members not in the club (email only)" : reminder ? "Book vote reminder: hasn't voted yet (email and text)" : vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="text-base">{stayNext ? "Round 2: invite current book club to stay (email and text)" : rsvpReminder ? "RSVP reminder: hasn't replied yet (email and text)" : winner ? "Winning book announcement (email and text)" : nextRound ? "Next book round: active members not in the club (email and text)" : reminder ? "Book vote reminder: hasn't voted yet (email and text)" : vote ? "Book vote announcement (email and text)" : "Last call (email and text)"}</CardTitle></CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          {rsvpReminder ? "Goes only to people on the book club list who haven't RSVP'd for Dec. 3. " : winner ? "Goes to everyone on the book club list. Announces The 48 Laws of Power, the Dec. 3 first meeting, and the next round (voting closes Nov. 15, meeting Jan. 7). " : nextRound ? "Goes to active and frozen members who aren't on the book club list yet. Cancelled members are never included. " : reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
+          {stayNext ? "Goes to everyone on the book club list, asking them to add their name to Round 2. " : rsvpReminder ? "Goes only to people on the book club list who haven't RSVP'd for Dec. 3. " : winner ? "Goes to everyone on the book club list. Announces The 48 Laws of Power, the Dec. 3 first meeting, and the next round (voting closes Nov. 15, meeting Jan. 7). " : nextRound ? "Goes to active and frozen members who aren't on the book club list yet. Cancelled members are never included. " : reminder ? "Goes only to people on the book club list who haven't voted yet. Says voting closes Friday, Oct. 23 at 11:59 PM." : vote ? "Goes to everyone on the book club list, including approved guests. Voting closes Friday, Oct. 23 at 11:59 PM." : "Goes to active and frozen members who haven't signed up yet. Sign-ups close on their own Sunday, Oct. 18 at 11:59 PM."}
           Unsubscribed people and anyone who hasn't agreed to texts are skipped. Each person gets each message once.
         </p>
 
