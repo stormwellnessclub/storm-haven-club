@@ -1,3 +1,4 @@
+import DemoCheckPage from "@/pages/dev/DemoCheck";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -377,6 +378,7 @@ const App = () => (
               <Route path="/card-added" element={<CardAdded />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/about" element={<About />} />
+              {import.meta.env.DEV && <Route path="/dev/demo-check" element={<DemoCheckPage />} />}
               <Route path="/about-us" element={<About />} />
               <Route path="/guest-pass" element={<GuestPass />} />
               <Route path="/guest-feedback" element={<GuestFeedback />} />
