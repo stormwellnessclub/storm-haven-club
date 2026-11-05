@@ -63,7 +63,7 @@ export function ExercisePickerDialog({ open, onOpenChange, onAdd }: ExercisePick
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search exercises..."
+              placeholder="Search or type your own exercise..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9"
@@ -112,6 +112,29 @@ export function ExercisePickerDialog({ open, onOpenChange, onAdd }: ExercisePick
             ))}
           </div>
 
+          {/* Custom exercise */}
+          {query.trim() && (
+            <Button
+              variant="outline"
+              className="w-full justify-start min-h-[44px]"
+              onClick={() => {
+                onAdd({
+                  exerciseId: `custom-${Date.now()}`,
+                  name: query.trim(),
+                  bodyPart: bodyPart ?? "Custom",
+                  equipment: equipmentCategory ?? "Custom",
+                  sets: 3,
+                  reps: 10,
+                  rest: 60,
+                });
+                setQuery("");
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2 shrink-0" />
+              <span className="truncate">Add “{query.trim()}” as my own exercise</span>
+            </Button>
+          )}
+
           {/* Results */}
           <ScrollArea className="h-[350px]">
             <div className="space-y-1">
@@ -132,7 +155,7 @@ export function ExercisePickerDialog({ open, onOpenChange, onAdd }: ExercisePick
                     <Button
                       size="icon-sm"
                       variant="ghost"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2"
+                      className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0 ml-2"
                       onClick={() => handleAdd(ex)}
                     >
                       <Plus className="h-4 w-4" />
