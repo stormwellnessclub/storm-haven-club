@@ -92,10 +92,28 @@ export default function EventsPortalSociety() {
         </TabsContent>
 
         <TabsContent value={SOCIETY_ROUNDS[1].key}>
+          {(() => {
+            const joined = rows.filter((r: any) => r.joined_round_key === SOCIETY_ROUNDS[1].key)
+              .sort((a: any, b: any) => String(b.joined_round_at).localeCompare(String(a.joined_round_at)));
+            return (
+              <Card className="mb-6">
+                <CardHeader><CardTitle className="text-base">Signed up for this round ({joined.length})</CardTitle></CardHeader>
+                <CardContent className="text-sm divide-y">
+                  {joined.length === 0 && <p className="text-muted-foreground py-2">No sign-ups yet.</p>}
+                  {joined.map((r: any) => (
+                    <div key={r.id} className="py-2 flex justify-between gap-3">
+                      <span className="min-w-0 truncate">{r.full_name || r.email} <span className="text-muted-foreground">· {r.email}</span></span>
+                      <span className="text-muted-foreground shrink-0">{r.joined_round_at ? new Date(r.joined_round_at).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Detroit" }) : ""}</span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            );
+          })()}
           <Card className="mb-6">
-            <CardHeader><CardTitle className="text-base">Book suggestions ({rows.filter((r: any) => r.book_suggestion).length})</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Book suggestions for this round ({rows.filter((r: any) => r.book_suggestion && r.joined_round_key === SOCIETY_ROUNDS[1].key).length})</CardTitle></CardHeader>
             <CardContent className="text-sm divide-y">
-              {rows.filter((r: any) => r.book_suggestion).map((r: any) => (
+              {rows.filter((r: any) => r.book_suggestion && r.joined_round_key === SOCIETY_ROUNDS[1].key).map((r: any) => (
                 <div key={r.id} className="py-2"><b>{r.book_suggestion}</b> <span className="text-muted-foreground">· {r.full_name || r.email}</span>
                   {r.book_reason && <p className="text-muted-foreground mt-1">{r.book_reason}</p>}</div>
               ))}

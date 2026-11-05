@@ -41,8 +41,10 @@ export default function HigherSelfSociety() {
     if (!mine) return;
     setThemes(mine.themes ?? []);
     setRhythm(mine.preferred_rhythm ?? "either");
-    setBook(mine.book_suggestion ?? "");
-    setReason(mine.book_reason ?? "");
+    // Old round answers shouldn't prefill the next-round book pick.
+    const inNextRound = (mine as any).joined_round_key === "round-2";
+    setBook(inNextRound ? mine.book_suggestion ?? "" : "");
+    setReason(inNextRound ? mine.book_reason ?? "" : "");
     setGuest(!!mine.guest_requested);
     setGuestName(mine.guest_name ?? "");
   }, [mine]);
