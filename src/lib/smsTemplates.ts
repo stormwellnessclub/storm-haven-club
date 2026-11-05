@@ -235,7 +235,7 @@ export const SMS_TEMPLATES: SmsTemplate[] = [
   {
     key: "planner-reminder",
     label: "Week planner reminder",
-    category: "Member",
+    category: "System",
     body: "Storm Wellness Club: {{name}}, reminder from your weekly plan: {{item}}{{when}}. Reply STOP to opt out.",
     triggers: "Sent when a member turns on a reminder for an item in Plan My Week (max 3 texts/day).",
     sampleVariables: { name: "Sara", item: "Red Light", when: " at 6:00 PM" },
@@ -244,7 +244,7 @@ export const SMS_TEMPLATES: SmsTemplate[] = [
   {
     key: "planner-daily-summary",
     label: "Week planner morning summary",
-    category: "Member",
+    category: "System",
     body: "Storm Wellness Club: Good morning {{name}}. Today's plan: {{items}}. Reply STOP to opt out.",
     triggers: "Optional morning text a member turns on in Plan My Week.",
     sampleVariables: { name: "Sara", items: "Leg day, Sauna" },
