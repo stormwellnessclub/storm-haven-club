@@ -25,6 +25,7 @@ import { KioskClassRoster } from "@/components/kiosk/KioskClassRoster";
 import { ChimeSoundControls } from "@/components/admin/ChimeSoundControls";
 import { formatTime12h } from "@/lib/timeFormat";
 import { NoIndex } from "@/components/seo/NoIndex";
+import { ExpectedGuestsCard } from "@/components/frontdesk/ExpectedGuestsCard";
 import { SignedMemberPhoto } from "@/components/member/SignedMemberPhoto";
 
 // ─── Type badge config ───────────────────────────────────────────────
@@ -784,6 +785,16 @@ function FrontDeskKiosk() {
             <CardContent>{renderDetailPanel()}</CardContent>
           </Card>
         </div>
+
+        <ExpectedGuestsCard
+          busy={isCheckingIn}
+          refreshKey={entries.length}
+          onCheckIn={async (id, name) => {
+            const ok = await checkInGuest(id);
+            if (ok) { toast.success(`${name} checked in as guest!`); refetch(); }
+            return !!ok;
+          }}
+        />
 
         {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-7">

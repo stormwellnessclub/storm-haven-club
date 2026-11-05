@@ -17464,6 +17464,7 @@ export type Database = {
       }
       kiosk_class_roster: { Args: { p_session_id: string }; Returns: Json }
       kiosk_class_roster_impl: { Args: { p_session_id: string }; Returns: Json }
+      kiosk_expected_guests: { Args: never; Returns: Json }
       kiosk_kids_care_roster: {
         Args: { p_booking_date: string }
         Returns: Json
