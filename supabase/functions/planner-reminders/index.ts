@@ -42,6 +42,11 @@ Deno.serve(async (req) => {
     }
     return names.get(uid)!;
   };
+  const templateName = async (id: string | null) => {
+    if (!id) return null;
+    const { data } = await db.from("workout_templates").select("template_name").eq("id", id).maybeSingle();
+    return data?.template_name ?? null;
+  };
   const sendCapped = async (uid: string, dedupe: string, templateKey: string, variables: Record<string, string>) => {
     const { count } = await db.from("workout_reminder_sends").select("id", { count: "exact", head: true })
       .eq("user_id", uid).gte("sent_at", dayStartUtc);
@@ -58,12 +63,12 @@ Deno.serve(async (req) => {
 
   // Item reminders
   const { data: due } = await db.from("workout_plan_entries")
-    .select("id,user_id,plan_date,label,start_time,status,template_id,workout_templates(template_name)")
+    .select("id,user_id,plan_date,label,start_time,status,template_id")
     .is("reminder_sent_at", null).not("reminder_at", "is", null).lte("reminder_at", now.toISOString())
     .gte("reminder_at", new Date(now.getTime() - 2 * 3600_000).toISOString()).eq("status", "planned").limit(200);
   for (const e of due || []) {
     await db.from("workout_plan_entries").update({ reminder_sent_at: now.toISOString() }).eq("id", e.id);
-    const item = (e as any).workout_templates?.template_name || e.label || "your workout";
+    const item = (await templateName(e.template_id)) || e.label || "your workout";
     await sendCapped(e.user_id, `entry:${e.id}`, "planner-reminder", {
       name: await firstName(e.user_id), item, when: e.start_time ? ` at ${fmtTime(e.start_time)}` : " today",
     });
@@ -75,10 +80,10 @@ Deno.serve(async (req) => {
   for (const p of prefs || []) {
     const tomorrow = detroitDate(new Date(now.getTime() + 24 * 3600_000));
     await db.from("workout_reminder_prefs").update({ next_summary_at: wallToUtc(tomorrow, p.summary_time.slice(0, 5)).toISOString() }).eq("user_id", p.user_id);
-    const { data: items } = await db.from("workout_plan_entries").select("label,start_time,workout_templates(template_name)")
+    const { data: items } = await db.from("workout_plan_entries").select("label,start_time,template_id")
       .eq("user_id", p.user_id).eq("plan_date", today).eq("status", "planned").neq("category", "habit").order("start_time");
     if (!items?.length) continue;
-    const list = items.slice(0, 4).map((i: any) => `${i.workout_templates?.template_name || i.label}${i.start_time ? ` ${fmtTime(i.start_time)}` : ""}`).join(", ");
+    const list = (await Promise.all(items.slice(0, 4).map(async (i: any) => `${(await templateName(i.template_id)) || i.label}${i.start_time ? ` ${fmtTime(i.start_time)}` : ""}`))).join(", ");
     await sendCapped(p.user_id, `summary:${p.user_id}:${today}`, "planner-daily-summary", { name: await firstName(p.user_id), items: list });
   }
 
