@@ -4873,6 +4873,8 @@ export type Database = {
           id: string
           is_founding: boolean
           is_member: boolean
+          joined_round_at: string | null
+          joined_round_key: string | null
           member_id: string | null
           membership_type: string | null
           phone: string | null
@@ -4897,6 +4899,8 @@ export type Database = {
           id?: string
           is_founding?: boolean
           is_member?: boolean
+          joined_round_at?: string | null
+          joined_round_key?: string | null
           member_id?: string | null
           membership_type?: string | null
           phone?: string | null
@@ -4921,6 +4925,8 @@ export type Database = {
           id?: string
           is_founding?: boolean
           is_member?: boolean
+          joined_round_at?: string | null
+          joined_round_key?: string | null
           member_id?: string | null
           membership_type?: string | null
           phone?: string | null
