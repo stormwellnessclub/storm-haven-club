@@ -82,6 +82,7 @@ import { WeekPlanner } from "@/components/member/WeekPlanner";
 import { useActiveWorkoutSession, useFinishWorkout, fetchLastWeights } from "@/hooks/useWorkoutJournal";
 import { createWorkoutState, completedSetCount, programExercisesToWorkout } from "@/lib/workoutJournal";
 import type { ProgramWorkout } from "@/hooks/useWorkoutPrograms";
+import { useAuth } from "@/contexts/AuthContext";
 
 const WORKOUT_TYPES = [
   "Strength Training",
@@ -145,6 +146,7 @@ export default function Workouts() {
     setPlayerHidden(false);
   };
 
+  const { user } = useAuth();
   const startProgramWorkout = async (w: ProgramWorkout) => {
     if (active.state && !confirm("You have a workout in progress. Replace it?")) return;
     const exercises = programExercisesToWorkout(w.exercises as any);

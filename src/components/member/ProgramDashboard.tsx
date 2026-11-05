@@ -18,7 +18,8 @@ import {
   useCompleteProgramWorkout, 
   useCompleteProgram,
   useDeleteProgram,
-  type WorkoutProgram 
+  type WorkoutProgram,
+  type ProgramWorkout,
 } from "@/hooks/useWorkoutPrograms";
 import { ProgramWorkoutCard } from "./ProgramWorkoutCard";
 import { useEquipmentImages } from "@/hooks/useEquipmentImages";
