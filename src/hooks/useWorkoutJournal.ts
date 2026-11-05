@@ -95,19 +95,25 @@ export function usePlanMutations() {
   });
   const copyWeek = useMutation({
     mutationFn: async ({ from, to }: { from: string; to: string }) => {
-      const { data, error } = await db.from("workout_plan_entries").select("plan_date,template_id,label")
+      const { data, error } = await db.from("workout_plan_entries").select("plan_date,template_id,label,category,activity_key,start_time,duration_min")
         .eq("user_id", user!.id).gte("plan_date", from).lte("plan_date", addDaysISO(from, 6));
       if (error) throw error;
       if (!data?.length) throw new Error("Last week has nothing planned");
       const rows = data.map((r: any) => {
         const offset = Math.round((Date.parse(r.plan_date) - Date.parse(from)) / 86400000);
-        return { user_id: user!.id, plan_date: addDaysISO(to, offset), template_id: r.template_id, label: r.label };
+        return { user_id: user!.id, plan_date: addDaysISO(to, offset), template_id: r.template_id, label: r.label, category: r.category, activity_key: r.activity_key, start_time: r.start_time, duration_min: r.duration_min };
       });
       const { error: e2 } = await db.from("workout_plan_entries").insert(rows);
       if (e2) throw e2;
     }, onSuccess: () => { done(); toast.success("Copied last week"); }, onError,
   });
-  return { add, update, remove, copyWeek };
+  const addMany = useMutation({
+    mutationFn: async (rows: (Partial<PlanEntry> & { plan_date: string })[]) => {
+      const { error } = await db.from("workout_plan_entries").insert(rows.map((r) => ({ user_id: user!.id, ...r })));
+      if (error) throw error;
+    }, onSuccess: () => { done(); toast.success("Week planned"); }, onError,
+  });
+  return { add, update, remove, copyWeek, addMany };
 }
 
 /** Saves a finished guided workout to the journal. */
