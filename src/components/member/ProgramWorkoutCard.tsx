@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Check, ChevronDown, Clock, Dumbbell } from "lucide-react";
+import { Check, ChevronDown, Clock, Dumbbell, Play, Box, BookOpen } from "lucide-react";
+import { ExerciseHelp } from "./ExerciseHelp";
+import { getExerciseMotion } from "@/lib/exerciseMotions";
 import { cn } from "@/lib/utils";
 import type { ProgramWorkout, Exercise } from "@/hooks/useWorkoutPrograms";
 import { type EquipmentImageMap, findEquipmentImage } from "@/hooks/useEquipmentImages";
@@ -11,12 +13,14 @@ import { type EquipmentImageMap, findEquipmentImage } from "@/hooks/useEquipment
 interface ProgramWorkoutCardProps {
   workout: ProgramWorkout;
   onComplete: () => void;
+  onStart?: () => void;
   isCompleting?: boolean;
   equipmentImages?: EquipmentImageMap;
 }
 
-export function ProgramWorkoutCard({ workout, onComplete, isCompleting, equipmentImages }: ProgramWorkoutCardProps) {
+export function ProgramWorkoutCard({ workout, onComplete, onStart, isCompleting, equipmentImages }: ProgramWorkoutCardProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [help, setHelp] = useState<Exercise | null>(null);
 
   return (
     <Card className={cn(
@@ -92,6 +96,10 @@ export function ProgramWorkoutCard({ workout, onComplete, isCompleting, equipmen
                           {exercise.equipment}
                         </p>
                       )}
+                      <Button variant="link" size="sm" className="h-7 px-0 gap-1 text-xs" onClick={() => setHelp(exercise)}>
+                        {getExerciseMotion(exercise.name) ? <Box className="h-3.5 w-3.5" /> : <BookOpen className="h-3.5 w-3.5" />}
+                        {getExerciseMotion(exercise.name) ? "3D demo & how to" : "How to do it"}
+                      </Button>
                     </div>
                     <div className="text-right text-sm flex-shrink-0">
                       <p className="text-foreground">
@@ -115,15 +123,18 @@ export function ProgramWorkoutCard({ workout, onComplete, isCompleting, equipmen
               </div>
             )}
 
-            {/* Complete Button */}
-            {!workout.is_completed && (
-              <Button 
-                onClick={onComplete} 
-                disabled={isCompleting}
-                className="w-full"
-              >
-                {isCompleting ? "Marking Complete..." : "Mark as Complete"}
+            {onStart && (
+              <Button onClick={onStart} size="lg" className="w-full h-12 gap-2">
+                <Play className="h-4 w-4" /> {workout.is_completed ? "Do this workout again" : "Start this workout"}
               </Button>
+            )}
+            {!workout.is_completed && (
+              <Button variant="ghost" size="sm" onClick={onComplete} disabled={isCompleting} className="w-full text-muted-foreground">
+                {isCompleting ? "Marking complete..." : "Mark complete without logging"}
+              </Button>
+            )}
+            {help && (
+              <ExerciseHelp name={help.name} equipment={help.equipment} open={!!help} onOpenChange={(o) => !o && setHelp(null)} />
             )}
 
             {workout.is_completed && workout.completed_at && (

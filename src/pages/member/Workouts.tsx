@@ -79,8 +79,9 @@ import { clearPersisted } from "@/hooks/usePersistedState";
 import { useSearchParams } from "react-router-dom";
 import { WorkoutPlayer, WorkoutViewer } from "@/components/member/WorkoutPlayer";
 import { WeekPlanner } from "@/components/member/WeekPlanner";
-import { useActiveWorkoutSession, useFinishWorkout } from "@/hooks/useWorkoutJournal";
-import { createWorkoutState, completedSetCount } from "@/lib/workoutJournal";
+import { useActiveWorkoutSession, useFinishWorkout, fetchLastWeights } from "@/hooks/useWorkoutJournal";
+import { createWorkoutState, completedSetCount, programExercisesToWorkout } from "@/lib/workoutJournal";
+import type { ProgramWorkout } from "@/hooks/useWorkoutPrograms";
 
 const WORKOUT_TYPES = [
   "Strength Training",
@@ -141,6 +142,18 @@ export default function Workouts() {
     if (active.state && !confirm("You have a workout in progress. Replace it?")) return;
     active.save(createWorkoutState({ templateId: t.id, planEntryId, name: t.template_name, workoutType: t.workout_type, exercises: t.exercises }));
     setViewing(null);
+    setPlayerHidden(false);
+  };
+
+  const startProgramWorkout = async (w: ProgramWorkout) => {
+    if (active.state && !confirm("You have a workout in progress. Replace it?")) return;
+    const exercises = programExercisesToWorkout(w.exercises as any);
+    let lastWeights: (number | null)[][] = [];
+    try { if (user) lastWeights = await fetchLastWeights(user.id, exercises); } catch { /* start without */ }
+    active.save(createWorkoutState({
+      templateId: null, name: `Day ${w.day_number}: ${w.workout_name}`, workoutType: w.workout_type || w.workout_name,
+      exercises, programWorkoutId: w.id, programId: w.program_id, lastWeights,
+    }));
     setPlayerHidden(false);
   };
 
@@ -581,6 +594,7 @@ export default function Workouts() {
               <ProgramDashboard 
                 program={activeProgram} 
                 onRegenerateProgram={() => setShowProgramModal(true)}
+                onStartWorkout={startProgramWorkout}
               />
             ) : (
               <Card>
