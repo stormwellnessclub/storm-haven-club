@@ -253,7 +253,6 @@ Deno.serve(async (req) => {
     return r.ok ? json({ ok: true, status: r.status }) : json({ ok: false, error: r.blocked ? "That number hasn't agreed to texts from the club" : (r.error || "Text not sent") });
   }
 
-  if (body.sendSms && nextRound) return json({ error: "This message is email only" }, 400);
   if (body.sendSms) {
     let sent = 0, skipped = 0, failed = 0, removed = 0;
     const seen = new Set<string>();
