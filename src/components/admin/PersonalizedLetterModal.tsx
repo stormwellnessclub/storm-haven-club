@@ -118,8 +118,9 @@ export function PersonalizedLetterModal({
 
     setIsSending(true);
     try {
-      // Step 1: Send the email
-      const { error } = await supabase.functions.invoke("send-email", {
+      // Step 1: Send the email (the send service records it once in email history)
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: sendResult, error } = await supabase.functions.invoke("send-email", {
         body: {
           type: "approval_letter_personalized",
           to: applicant.email,
@@ -128,31 +129,15 @@ export function PersonalizedLetterModal({
             membershipTier: applicant.tier,
             customSubject: subject,
             customBody: body,
+            applicationId: applicant.id,
+            triggeredBy: user?.id ?? null,
           },
         },
       });
 
       if (error) throw error;
-
-      // Step 2: Log to email audit
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("email_audit_log" as any).insert({
-          email_type: "approval_letter_personalized",
-          recipient_email: applicant.email,
-          recipient_name: applicant.name,
-          triggered_by: user.id,
-          trigger_source: "admin_personalized_letter",
-          subject: subject,
-          custom_content: body,
-          application_id: applicant.id,
-          template_data: {
-            membershipTier: applicant.tier,
-            wellness_goals: applicant.wellness_goals,
-          },
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        });
+      if ((sendResult as any)?.skipped === "duplicate") {
+        toast.info("Approval letter already sent.");
       }
 
       // Step 3: ONLY NOW approve the application (if not already approved)
