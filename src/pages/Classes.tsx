@@ -26,9 +26,9 @@ const STUDIOS = [
   {
     icon: Flame,
     name: "Aerobics Studio",
-    cap: "Mat, yoga & strength",
+    cap: "Mat & strength",
     body:
-      "Yoga, mat Pilates, barre, sculpt, bootcamp and HIIT-style classes for building strength, mobility and endurance.",
+      "Mat Pilates, barre, sculpt, bootcamp and HIIT-style classes for building strength, mobility and endurance.",
   },
 ];
 
@@ -72,8 +72,8 @@ export default function Classes() {
   return (
     <Layout>
       <SEOHead
-        title="Reformer Pilates, Cycling & Yoga Classes in Livonia, MI"
-        description="Small-group Reformer Pilates (heated & non-heated), indoor cycling, yoga, barre and HIIT classes in Livonia, MI. No membership needed — book online with a class pass."
+        title="Reformer Pilates, Cycling & Aerobics Classes in Livonia, MI"
+        description="Small-group Reformer Pilates (heated & non-heated), indoor cycling, barre and HIIT classes in Livonia, MI. No membership needed — book online with a class pass."
         path="/classes"
         image="/og/og-classes.jpg"
         imageAlt="Reformer Pilates studio at Storm Wellness Club in Livonia, Michigan"
@@ -83,10 +83,10 @@ export default function Classes() {
             { name: "Classes", path: "/classes" },
           ]),
           buildServiceLd({
-            name: "Reformer Pilates, Cycling & Yoga Classes",
+            name: "Reformer Pilates, Cycling & Aerobics Classes",
             serviceType: "Group Fitness Classes",
             description:
-              "Small-group Reformer Pilates (8 max), indoor cycling (10 max), yoga, barre and HIIT classes at Storm Wellness Club in Livonia, Michigan. Open to members and class-pass holders.",
+              "Small-group Reformer Pilates (8 max), indoor cycling (10 max), barre and HIIT classes at Storm Wellness Club in Livonia, Michigan. Open to members and class-pass holders.",
             path: "/classes",
           }),
           buildFAQLd(faqs),
@@ -96,7 +96,7 @@ export default function Classes() {
       <section className="pt-32 pb-16 bg-secondary/30">
         <div className="container mx-auto px-6 max-w-4xl">
           <p className="text-accent text-sm uppercase tracking-widest mb-4">Group Classes</p>
-          <h1 className="heading-display mb-4">Reformer Pilates, Cycling & Yoga Classes in Livonia, MI</h1>
+          <h1 className="heading-display mb-4">Reformer Pilates, Cycling & Aerobics Classes in Livonia, MI</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
             Small classes where the instructor knows your name, watches your form and adjusts it as you go — so you leave stronger and more confident in how you move. No membership needed; book with a class pass online in about a minute.
           </p>
