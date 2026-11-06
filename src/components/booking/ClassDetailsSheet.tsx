@@ -57,7 +57,7 @@ export function ClassDetailsSheet({ open, onOpenChange, details, onBook }: Props
       return (
         <Button asChild className="w-full" size="lg">
           <Link to={`/auth?redirect=/schedule`}>
-            {details.isFull ? "Sign in to Join Waitlist" : "Sign in to Book"}
+            {details.isFull ? "Join Waitlist" : "Book this class"}
           </Link>
         </Button>
       );
