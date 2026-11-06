@@ -646,7 +646,7 @@ export default function Spa() {
         <div className="container mx-auto px-6">
           <SectionHeading
             title="Our Treatment Spaces"
-            subtitle="Experience tranquility in our thoughtfully designed treatment rooms."
+            subtitle="Quiet, warm rooms set up for the treatment you came for."
           />
           
           <div className="grid md:grid-cols-3 gap-8 mb-12">
@@ -656,7 +656,7 @@ export default function Spa() {
               </div>
               <h3 className="font-serif text-lg mb-2">Treatment Rooms</h3>
               <p className="text-sm text-muted-foreground">
-                Thoughtfully designed spaces for your wellness journey
+                Private rooms for massage, facials and body treatments
               </p>
             </div>
             
