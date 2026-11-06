@@ -48,8 +48,8 @@ export function Footer() {
           <div className="lg:col-span-1">
             <img src={logo} alt="Storm Wellness Club" className="h-10 w-auto mb-6" />
             <p className="text-primary-foreground/70 text-sm leading-relaxed">
-              An exclusive wellness sanctuary where luxury meets performance. 
-              Experience the storm of transformation.
+              Training, recovery and care, in one place you want to return to.
+              Livonia, Michigan.
             </p>
           </div>
 
