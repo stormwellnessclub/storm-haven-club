@@ -80,6 +80,8 @@ export async function sendSpaNotifications(args: {
   kind: "confirmation" | "cancellation";
   /** Contact for a client without an account (e.g. a booked public request). */
   guest?: { email?: string | null; phone?: string | null } | null;
+  /** Staff booking for a client who hasn't signed the waiver yet — text them the link too. */
+  waiverPending?: boolean;
 }) {
   const a = args.appointment;
   const isGuest = !a?.user_id;
@@ -165,8 +167,14 @@ export async function sendSpaNotifications(args: {
     spaServiceNeedsIntake(a.service_category, a.service_name);
   // No account yet: one button → create account (email prefilled) → portal (waiver, then intake).
   const setupUrlPath =
-    isGuest && args.kind === "confirmation" && email
-      ? `/auth?mode=signup&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(`/portal/bookings?intake=${a.id}`)}`
+    isGuest && args.kind === "confirmation"
+      ? `/auth?mode=signup${email ? `&email=${encodeURIComponent(email)}` : ""}&redirect=${encodeURIComponent(`/portal/bookings?intake=${a.id}`)}`
+      : null;
+  // One link for the text: new clients create their account; existing accounts open the booking
+  // (portal asks for the waiver, then the intake).
+  const textLinkPath =
+    args.kind === "confirmation" && (isGuest || args.waiverPending)
+      ? setupUrlPath || `${bookingsPath}?intake=${a.id}`
       : null;
 
   const emailType =
@@ -214,6 +222,19 @@ export async function sendSpaNotifications(args: {
             variables: smsVars,
             idempotencyKey: `spa-${args.kind}-${a.id}`,
             metadata: { source: "spa_booking", appointmentId: a.id },
+          },
+        })
+      : Promise.resolve(),
+    phone && smsOptIn && textLinkPath
+      ? supabase.functions.invoke("send-sms", {
+          body: {
+            to: { phone, userId: a.user_id || undefined },
+            templateKey: "admin-custom",
+            variables: {
+              customBody: `Storm Wellness Club: Before your ${a.service_name} on ${dateStr}, please ${isGuest ? "set up your account, " : ""}sign the waiver and complete your intake here: https://stormwellnessclub.com${textLinkPath} Reply STOP to opt out.`,
+            },
+            idempotencyKey: `spa-setup-link-${a.id}-${Date.now() > 0 && args.waiverPending === undefined ? "auto" : "staff"}`,
+            metadata: { source: "spa_booking_setup_link", appointmentId: a.id },
           },
         })
       : Promise.resolve(),
