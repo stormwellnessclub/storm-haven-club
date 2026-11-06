@@ -32,7 +32,7 @@ import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
 const classStudios = [{
   icon: CircleDot,
   title: "Reformer Pilates",
-  description: "Precision movement on state-of-the-art reformers. Heated and non-heated sessions for all levels. Small class sizes — 8 members maximum.",
+  description: "Build strength and control with an instructor who corrects your form as you go. Heated and non-heated sessions for all levels, never more than 8 people.",
   image: reformerPilates,
   isHeated: false,
   color: "text-foreground",
@@ -89,7 +89,7 @@ const recoverySuiteAmenities = [
 ];
 
 const lifestyleAmenities = [
-  { icon: Bath, label: "Luxury Locker Rooms" },
+  { icon: Bath, label: "Locker Rooms" },
   { icon: Sparkles, label: "Relaxation Lounge" },
   { icon: Coffee, label: "Café Access" },
   { icon: Baby, label: "Kids Care" },
@@ -98,7 +98,7 @@ export default function Index() {
   const { isIOS, isStandalone, showIOSModal, handleInstall, closeIOSModal } = usePWAInstall();
 
   return <Layout>
-      <SEOHead title="Wellness Club in Livonia, MI" description="Storm Wellness Club is Livonia's premier wellness club & fitness center — Reformer Pilates, cycling, recovery spa, sauna, café, kids care & family memberships." path="/" />
+      <SEOHead title="Wellness Club in Livonia, MI" description="Storm Wellness Club is A wellness club in Livonia, MI where training, recovery, Spa Aella, the café and kids care fit into one routine you can keep." path="/" />
 
 
 
@@ -126,7 +126,7 @@ export default function Index() {
             <span>to finally </span><span className="text-accent">arrive.</span>
           </h2>
           <p className="text-primary-foreground/80 text-base sm:text-lg max-w-xl mx-auto mb-8 sm:mb-10 animate-fade-up opacity-0 stagger-3 px-4 sm:px-0">
-            A private wellness club designed for people who take every detail of their life seriously.
+            Training, recovery and personal care in one place, so taking care of yourself becomes part of how you live — not something you keep trying to get back to.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-up opacity-0 stagger-4 px-4 sm:px-0">
             <Link to="/memberships" className="w-full sm:w-auto">
@@ -240,7 +240,7 @@ export default function Index() {
                 Recovery is not optional here. It's built in.
               </h2>
               <p className="text-primary-foreground/80 mb-8 leading-relaxed">
-                Every membership includes full access to our recovery suite — no booking required, no extra cost. The Himalayan salt room, dry heat sauna, steam room, and cold plunge are yours every time you walk in. This is where the real work happens.
+                Training creates the stimulus. Recovery is where your body adapts. Every membership includes the recovery suite — the Himalayan salt room, dry heat sauna, steam room and cold plunge — every time you walk in, with nothing to book.
               </p>
               
               {/* Recovery Suite */}
@@ -370,11 +370,10 @@ export default function Index() {
           <AnimatedSection className="text-center mb-12">
             {/* Aella logo removed */}
             <h2 className="heading-section mb-4">
-              A Sanctuary for Renewal & Restoration
+              Spa Aella
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Open to all—no membership required. Our holistic approach encompasses a wide range of 
-              treatments designed to support every step of your wellness journey.
+              Massage, facials and body treatments from therapists who pay attention to what your body needs that day. Open to everyone — no membership required.
             </p>
           </AnimatedSection>
 
@@ -426,10 +425,9 @@ export default function Index() {
             </AnimatedSection>
             <AnimatedSection animation="fade-left" delay={150}>
               <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
-              <h2 className="heading-section mb-6">Nourish From Within</h2>
+              <h2 className="heading-section mb-6">Good food, close to your routine</h2>
               <p className="text-muted-foreground mb-8 leading-relaxed">
-                Support your wellness journey with our curated menu of fresh juices, smoothies, 
-                and health-forward cuisine designed to fuel your transformation.
+                Fresh juices, smoothies and made-to-order plates worth staying for — before a class, after the sauna, or between meetings.
               </p>
               <Link to="/cafe">
                 <Button variant="outline" size="lg" className="group">
@@ -448,8 +446,7 @@ export default function Index() {
             <p className="text-muted-foreground text-sm uppercase tracking-widest mb-4">For Families</p>
             <h2 className="heading-section mb-6">Storm Kids Care</h2>
             <p className="text-muted-foreground mb-8 leading-relaxed">
-              Prioritize your health while your little ones enjoy supervised care in our 
-              dedicated space. Available to members with a Kids Care add-on.
+              Your workout shouldn't depend on finding a sitter. Your children are cared for in their own supervised space while you train or recover. Available to members with a Kids Care add-on.
             </p>
             <Link to="/kids-care">
               <Button variant="outline" size="lg" className="group">
@@ -467,10 +464,10 @@ export default function Index() {
         </div>
         <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
           <h2 className="heading-section text-primary-foreground mb-6">
-            Begin Your Wellness Journey
+            Somewhere you actually want to be
           </h2>
           <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10">
-            Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
+            There is a difference between having somewhere to work out and having somewhere you want to stay. See how membership fits into your week.
           </p>
           <Link to="/memberships#tiers">
             <Button variant="gold" size="lg" className="animate-pulse-soft">

@@ -111,7 +111,7 @@ const coreAmenities = [
 const luxuriousSpaAmenities = [
   { name: "Himalayan Salt Room", description: "Walls of hand-cut Himalayan salt. Sit, breathe, reset." },
   { name: "Steam Room", description: "Gold mosaic and eucalyptus steam. Open the lungs, clear the head." },
-  { name: "Sauna", description: "Cedar, high heat, deep sweat. The oldest recovery ritual there is." },
+  { name: "Sauna", description: "Cedar and high, dry heat. The oldest recovery ritual there is." },
   { name: "Cold Plunge", description: "Held cold, on your terms. The fastest way back to clarity." },
   { name: "Dry Cryo Bed", description: "Minus temperatures in minutes, fully dressed. Built for inflammation and recovery." },
   { name: "Red Light Therapy", description: "Clinical-grade red and near-infrared panels, full body." },
@@ -127,7 +127,7 @@ export default function Memberships() {
     <Layout>
       <SEOHead
         title="Gym & Wellness Memberships in Livonia, MI"
-        description="Compare Silver, Gold, Platinum & Diamond memberships in Livonia, MI — Reformer Pilates, cycling, recovery spa credits, sauna, café and kids care included. Apply online."
+        description="Compare Silver, Gold, Platinum & Diamond memberships at Storm Wellness Club in Livonia, MI — training, the recovery suite and member spa pricing in one routine. Apply online."
         path="/memberships"
         image="/og/og-memberships.jpg"
         imageAlt="Membership at Storm Wellness Club in Livonia, Michigan"
@@ -245,6 +245,7 @@ export default function Memberships() {
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-accent text-xs uppercase tracking-[0.3em] mb-4">Membership</p>
             <h2 className="font-serif text-4xl md:text-5xl mb-5">Four ways to belong.</h2>
+            <p className="text-muted-foreground mb-3">Each tier gives you a place where training, recovery and care fit into the same week. Higher tiers add more classes and recovery sessions to that routine.</p>
             <p className="text-muted-foreground">Every membership is a one-year commitment, billed monthly. A {membershipTiers[0].annualFee} annual fee applies to every tier.</p>
           </div>
 

@@ -98,8 +98,7 @@ export default function Classes() {
           <p className="text-accent text-sm uppercase tracking-widest mb-4">Group Classes</p>
           <h1 className="heading-display mb-4">Reformer Pilates, Cycling & Yoga Classes in Livonia, MI</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">
-            Small, coached classes in three dedicated studios. No membership needed — grab a class
-            pass and book your spot online in about a minute.
+            Small classes where the instructor knows your name, watches your form and adjusts it as you go — so you leave stronger and more confident in how you move. No membership needed; book with a class pass online in about a minute.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">

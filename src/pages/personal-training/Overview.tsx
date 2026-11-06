@@ -95,7 +95,8 @@ export default function PersonalTrainingOverview() {
               </h2>
               <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
                 Private coaching at Storm Wellness Club. Every session is programmed
-                around your goal, your level, and where your body is today.
+                around your goal, your level and where your body is today — with the technique
+                and progression that help you understand your own body better over time.
               </p>
               <div className="mt-10 flex flex-wrap gap-3">
                 <Button asChild size="lg">

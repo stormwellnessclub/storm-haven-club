@@ -98,7 +98,7 @@ const signatureClasses = [
   {
     icon: CircleDot,
     title: "Reformer Pilates",
-    description: "Precision-based movement on state-of-the-art reformers. Build strength, flexibility, and body awareness.",
+    description: "Coached movement on the reformer. Build strength, flexibility and body awareness, with corrections as you go.",
     image: reformerPilates,
   },
   {
@@ -116,7 +116,7 @@ const signatureClasses = [
   {
     icon: Dumbbell,
     title: "Strength & Sculpt",
-    description: "Full-body conditioning combining weights and functional training for total-body transformation.",
+    description: "Full-body conditioning that combines weights and functional training to build lasting strength.",
     image: strengthSculpt,
   },
 ];
@@ -125,7 +125,7 @@ const signatureClasses = [
 const lifestyleAmenities = [
   {
     icon: Bath,
-    title: "Luxury Locker Rooms",
+    title: "Locker Rooms",
     description: "Spa-grade facilities with private showers, premium toiletries, and plush towels.",
   },
   {
@@ -164,7 +164,7 @@ const membershipTiers = [
     price: "$200",
     period: "/month",
     annualFee: "$300",
-    description: "Begin your wellness journey",
+    description: "Start with a routine you can keep",
     features: [
       "Full gym access",
       "Wet spa amenities (sauna, steam, salt room, cold plunge)",
@@ -191,7 +191,7 @@ const membershipTiers = [
   },
   {
     name: "Platinum",
-    subtitle: "The Pinnacle of Luxury",
+    subtitle: "More recovery, built in",
     price: "$350",
     period: "/month",
     annualFee: "$300",
@@ -207,7 +207,7 @@ const membershipTiers = [
   },
   {
     name: "Diamond",
-    subtitle: "The Ultimate Commitment",
+    subtitle: "The most integrated routine",
     price: "$500",
     period: "/month",
     annualFee: "$300",
@@ -228,7 +228,7 @@ export default function Amenities() {
     <Layout>
       <SEOHead
         title="Sauna, Salt Room & Cold Plunge Amenities in Livonia, MI"
-        description="Infrared sauna, Himalayan salt room, cold plunge, steam room, luxury locker rooms, café and kids care — all included with membership at Storm Wellness Club in Livonia, MI."
+        description="Infrared sauna, Himalayan salt room, cold plunge, steam room, locker rooms, café and kids care — all included with membership at Storm Wellness Club in Livonia, MI."
         path="/amenities"
         jsonLd={[
           buildBreadcrumbLd([
@@ -239,7 +239,7 @@ export default function Amenities() {
             name: "Club Amenities",
             serviceType: "Health Club Amenities",
             description:
-              "Infrared sauna, Himalayan salt room, cold plunge, steam room, luxury locker rooms, café, and kids care at Storm Wellness Club in Livonia, Michigan.",
+              "Infrared sauna, Himalayan salt room, cold plunge, steam room, locker rooms, café, and kids care at Storm Wellness Club in Livonia, Michigan.",
             path: "/amenities",
           }),
         ]}
@@ -258,10 +258,10 @@ export default function Amenities() {
           <div className="max-w-2xl">
             <p className="text-gold-light text-sm uppercase tracking-[0.3em] mb-6 font-medium">Members Only</p>
             <h2 className="text-5xl md:text-6xl lg:text-7xl font-serif text-primary-foreground mb-8 leading-[1.1]">
-              A Sanctuary of<br />Wellness & Luxury
+              Somewhere you<br />want to stay
             </h2>
             <p className="text-primary-foreground/80 text-lg md:text-xl leading-relaxed max-w-lg">
-              Every aspect of our space is designed with your holistic wellness in mind—nurturing body, mind, and spirit.
+              Training, recovery and rest in the same building, so taking care of yourself fits into a real week.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Link to="/memberships#tiers">
@@ -282,7 +282,7 @@ export default function Amenities() {
             <p className="text-muted-foreground text-sm uppercase tracking-[0.3em] mb-4 font-medium">Open Access</p>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-serif text-foreground mb-6">Recovery Suite</h2>
             <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-              Our recovery sanctuary supports your journey toward continuous growth and restoration.
+              Training creates the stimulus. Recovery is where your body adapts — and progress is not only what happens while you train.
             </p>
           </div>
           
@@ -467,7 +467,7 @@ export default function Amenities() {
         <div className="relative z-10 container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center mb-16">
             <p className="text-gold text-sm uppercase tracking-[0.2em] mb-4">Membership</p>
-            <h2 className="text-4xl md:text-5xl font-serif mb-6">Your Wellness Journey</h2>
+            <h2 className="text-4xl md:text-5xl font-serif mb-6">How it fits into your week</h2>
             <p className="text-muted-foreground text-lg">
               Select the membership that aligns with your wellness goals and lifestyle.
             </p>
@@ -552,10 +552,10 @@ export default function Amenities() {
         <div className="relative container mx-auto px-6">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-serif text-primary-foreground mb-6">
-              Begin Your Transformation
+              See where you fit
             </h2>
             <p className="text-primary-foreground/70 text-lg mb-10 max-w-xl mx-auto">
-              Embark on a journey where physical, mental, and spiritual wellness converge in an exclusive sanctuary.
+              Compare memberships and find the routine that suits how you want to live.
             </p>
             <Link to="/memberships#tiers">
               <Button variant="gold" size="lg" className="group">
