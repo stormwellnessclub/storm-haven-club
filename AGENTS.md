@@ -48,3 +48,4 @@
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
 - Workouts: resume state in localStorage + workout_sessions_in_progress; 3D demos exact names only. Why: no wrong movements.
 - Planner reminders: self-removing timer, send-sms only, 3/day cap. Why: no polling.
+- Public marketing pages compose from `src/components/editorial` (Reveal, EdImage, Chapter, Caption, QuietLink) and `.ed-*` type classes; portal, admin and checkout keep shadcn cards. Why: art direction keeps the public site editorial without changing transactional UX.
