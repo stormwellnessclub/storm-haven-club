@@ -89,7 +89,7 @@ const recoverySuiteAmenities = [
 ];
 
 const lifestyleAmenities = [
-  { icon: Bath, label: "Luxury Locker Rooms" },
+  { icon: Bath, label: "Locker Rooms" },
   { icon: Sparkles, label: "Relaxation Lounge" },
   { icon: Coffee, label: "Café Access" },
   { icon: Baby, label: "Kids Care" },

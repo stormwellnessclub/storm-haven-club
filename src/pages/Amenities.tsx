@@ -191,7 +191,7 @@ const membershipTiers = [
   },
   {
     name: "Platinum",
-    subtitle: "The Pinnacle of Luxury",
+    subtitle: "More recovery, built in",
     price: "$350",
     period: "/month",
     annualFee: "$300",
@@ -207,7 +207,7 @@ const membershipTiers = [
   },
   {
     name: "Diamond",
-    subtitle: "The Ultimate Commitment",
+    subtitle: "The most integrated routine",
     price: "$500",
     period: "/month",
     annualFee: "$300",
