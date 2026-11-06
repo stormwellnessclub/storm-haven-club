@@ -59,3 +59,10 @@
 
 - [ ] Gusto direct send — waiting on Gusto developer app credentials from owner (CSV export works now)
 - [ ] Enter spa commission % and PT per-session rates on Payroll page
+
+## Classes booking overhaul
+- [x] Phase 1a: signed-out Book stays in the booking window (inline account/sign-in), no-pass step without membership pitch, auto-reserve after pass purchase, funnel events
+- [ ] Phase 1b: end-to-end paid test with a Stripe test card (needs test-mode checkout)
+- [ ] Phase 2: schedule rows/filters redesign
+- [ ] Phase 3: Classes page, class pages, Help me choose, first-visit guide, catalog cleanup (needs third-studio name from owner)
+- [ ] Phase 4: admin funnel report + message delivery audit

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,9 @@ interface GuestCheckoutSheetProps {
   /** Optional heading override. */
   title?: string;
   description?: string;
+  initialMode?: "signup" | "signin";
+  /** Hide the waiver/Stripe footer note. */
+  footnote?: string;
 }
 
 /**
@@ -29,10 +32,13 @@ export function GuestCheckoutSheet({
   onAuthenticated,
   title = "Create your account to check out",
   description = "You need a free account so your class pass can be saved to you. Takes 20 seconds.",
+  initialMode = "signup",
+  footnote = "After your account is ready you'll sign the standard class waiver and go straight to secure Stripe checkout.",
 }: GuestCheckoutSheetProps) {
   const { signUp, signIn } = useAuth();
-  const [mode, setMode] = useState<"signup" | "signin">("signup");
+  const [mode, setMode] = useState<"signup" | "signin">(initialMode);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) { setMode(initialMode); setBusy(false); } }, [open, initialMode]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -67,7 +73,8 @@ export function GuestCheckoutSheet({
           setBusy(false);
           return;
         }
-        toast.success("Account created — continuing to checkout…");
+        window.__lovableEvents?.track?.("project.account_created", { source: "class_booking" });
+        toast.success("You're set up — continuing your booking…");
         onOpenChange(false);
         // Give AuthContext a tick to hydrate the new user before we invoke edge fns
         setTimeout(() => onAuthenticated(), 400);
@@ -83,7 +90,7 @@ export function GuestCheckoutSheet({
           setBusy(false);
           return;
         }
-        toast.success("Welcome back — continuing to checkout…");
+        toast.success("Welcome back — continuing your booking…");
         onOpenChange(false);
         setTimeout(() => onAuthenticated(), 400);
       }
@@ -94,7 +101,7 @@ export function GuestCheckoutSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto sm:max-w-md sm:mx-auto sm:rounded-t-xl">
+      <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto px-6 sm:max-w-md sm:mx-auto sm:rounded-t-xl">
         <SheetHeader className="text-left">
           <SheetTitle className="font-serif text-2xl">{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
@@ -158,7 +165,7 @@ export function GuestCheckoutSheet({
           </div>
 
           <p className="text-[11px] text-muted-foreground pt-2 text-center">
-            After your account is ready you'll sign the standard class waiver and go straight to secure Stripe checkout.
+            {footnote}
           </p>
         </form>
       </SheetContent>

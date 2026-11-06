@@ -2,7 +2,6 @@ import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import ClassPasses from "@/pages/ClassPasses";
 import { useScrollToHash } from "@/pages/StormShop";
-import { Link } from "react-router-dom";
 import { ScheduleBrowser } from "@/components/booking/ScheduleBrowser";
 import { buildBreadcrumbLd, buildServiceLd } from "@/lib/seo/schemas";
 
@@ -12,7 +11,7 @@ export default function Schedule() {
     <Layout>
       <SEOHead
         title="Reformer Pilates & Cycling Class Schedule in Livonia, MI"
-        description="See this week's Reformer Pilates, Indoor Cycling, Yoga and aerobics classes in Livonia, MI. Small groups, book online — class passes available, no membership required."
+        description="See this week's Reformer Pilates, cycling and aerobics classes in Livonia, MI. Small coached classes, book online — no membership required."
         path="/schedule"
         image="/og/og-classes.jpg"
         imageAlt="Reformer Pilates studio at Storm Wellness Club in Livonia, Michigan"
@@ -25,50 +24,21 @@ export default function Schedule() {
             name: "Group Fitness Classes",
             serviceType: "Fitness Classes",
             description:
-              "Reformer Pilates (8 max), Indoor Cycling (10 max), Yoga and aerobics classes at Storm Wellness Club in Livonia, Michigan. Open to members and class-pass holders.",
+              "Reformer Pilates (8 max), Indoor Cycling (10 max) and aerobics classes at Storm Wellness Club in Livonia, Michigan. Open to members and class-pass holders.",
             path: "/schedule",
           }),
         ]}
       />
 
-      {/* Hero */}
-      <section className="pt-32 pb-12 bg-secondary/30">
-        <div className="container mx-auto px-6">
-          <div className="max-w-3xl">
-            <p className="text-accent text-sm uppercase tracking-widest mb-4">Weekly Schedule</p>
-            <h1 className="heading-display mb-4">Reformer Pilates & Cycling Class Schedule in Livonia</h1>
-            <p className="text-muted-foreground text-lg leading-relaxed">
-              Browse this week's Reformer Pilates, Indoor Cycling, Yoga, and aerobics classes.
-              Reformer studio caps at 8 riders and cycling at 10, so every class stays small and
-              coached. Sign in to book your spot.
+      <section className="pt-32 pb-10 bg-background">
+        <div className="container mx-auto px-6 md:px-12">
+          <div className="max-w-2xl">
+            <p className="ed-caption text-muted-foreground">Class Schedule</p>
+            <h1 className="ed-headline mt-6">Find your class.</h1>
+            <p className="ed-body text-muted-foreground mt-6">
+              Reformer Pilates, cycling and aerobics in small, coached classes. You don’t need to be a member — new here? Add a single class as you reserve your spot.
             </p>
-            <p className="text-muted-foreground text-sm leading-relaxed mt-4">
-              New here? Buy a{" "}
-              <Link to="/class-passes" className="text-accent underline underline-offset-4">
-                class pass
-              </Link>{" "}
-              or a{" "}
-              <Link to="/guest-pass" className="text-accent underline underline-offset-4">
-                guest day pass
-              </Link>{" "}
-              — no membership required. Members can also add{" "}
-              <Link to="/personal-training" className="text-accent underline underline-offset-4">
-                personal training
-              </Link>{" "}
-              or recovery at the{" "}
-              <Link to="/spa" className="text-accent underline underline-offset-4">
-                Aella Spa
-              </Link>
-              .
-            </p>
-            <p className="mt-4">
-              <Link
-                to="/reviews"
-                className="text-accent underline underline-offset-4 text-sm"
-              >
-                Read member reviews of our classes
-              </Link>
-            </p>
+            <p className="ed-caption text-muted-foreground mt-6">Grip socks required for every class.</p>
           </div>
         </div>
       </section>

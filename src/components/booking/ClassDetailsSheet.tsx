@@ -53,15 +53,6 @@ export function ClassDetailsSheet({ open, onOpenChange, details, onBook }: Props
   const cta = (() => {
     if (details.isBooked) return <Button disabled className="w-full" size="lg">Booked</Button>;
     if (details.isOnWaitlist) return <Button disabled className="w-full" size="lg">On Waitlist</Button>;
-    if (!user) {
-      return (
-        <Button asChild className="w-full" size="lg">
-          <Link to={`/auth?redirect=/schedule`}>
-            {details.isFull ? "Sign in to Join Waitlist" : "Sign in to Book"}
-          </Link>
-        </Button>
-      );
-    }
     return (
       <Button
         className="w-full"
