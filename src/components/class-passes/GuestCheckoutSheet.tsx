@@ -101,7 +101,7 @@ export function GuestCheckoutSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto sm:max-w-md sm:mx-auto sm:rounded-t-xl">
+      <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto px-6 sm:max-w-md sm:mx-auto sm:rounded-t-xl">
         <SheetHeader className="text-left">
           <SheetTitle className="font-serif text-2xl">{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
