@@ -99,6 +99,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
   const [signatureFilter, setSignatureFilter] = useState<SignatureFilter>("all");
   const [selectedSession, setSelectedSession] = useState<BookableSession | null>(null);
   const [bookingOpen, setBookingOpen] = useState(false);
+  const [returnedFromPurchase] = useState(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("purchase") === "success");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsData, setDetailsData] = useState<ClassDetailsData | null>(null);
   const sessionMapRef = useRef<Map<string, BookableSession>>(new Map());
@@ -812,6 +813,7 @@ export function ScheduleBrowser({ embedded = false, authRedirect = "/schedule" }
         session={selectedSession}
         open={bookingOpen}
         onOpenChange={setBookingOpen}
+        autoConfirm={returnedFromPurchase}
       />
 
       <ClassDetailsSheet

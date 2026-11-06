@@ -56,15 +56,19 @@ import {
 import { BookingConfirmationDialog } from "./BookingConfirmationDialog";
 import { BuyPassesDrawer } from "./BuyPassesDrawer";
 import { reconcileClassPayment } from "@/lib/classPassCheckout";
+import { GuestCheckoutSheet } from "@/components/class-passes/GuestCheckoutSheet";
+import { useClassPassPricing } from "@/hooks/useClassPassPricing";
 
 interface BookingModalProps {
   session: ClassSession | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Reserve automatically once a pass bought for this class is available. */
+  autoConfirm?: boolean;
 }
 
 
-export function BookingModal({ session, open, onOpenChange }: BookingModalProps) {
+export function BookingModal({ session, open, onOpenChange, autoConfirm = false }: BookingModalProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const {
@@ -100,6 +104,10 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const [isFundraiserCheckingOut, setIsFundraiserCheckingOut] = useState(false);
   const [confirmation, setConfirmation] = useState<import("./BookingConfirmationDialog").BookingConfirmationDetails | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"signup" | "signin">("signup");
+  const { data: pricingRows } = useClassPassPricing();
+  const singlePrice = (pricingRows ?? []).find((r) => r.category === "pilates_cycling" && r.audience === "non_member" && r.classes_included === 1);
 
   const bookClass = useBookClass();
   const joinWaitlist = useJoinWaitlist();
@@ -210,6 +218,18 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     if (next.selectedPassType !== selectedPassType) setSelectedPassType(next.selectedPassType);
   }, [session?.id, creditsLoading, creditsData, paymentMethod, selectedPassId, selectedPassType]);
 
+  const handleBookRef = useRef<() => Promise<void>>();
+  const autoBookedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!autoConfirm || !open || !session || !user || creditsLoading || phoneLoading) return;
+    if (autoBookedRef.current === session.id) return;
+    const full = session.max_capacity - session.current_enrollment <= 0;
+    if (full || hasNoPaymentOptions || !hasLiabilityWaiver || !hasPhone || session.is_fundraiser) return;
+    if (paymentMethod === "pass" && !selectedPassId) return;
+    autoBookedRef.current = session.id;
+    void handleBookRef.current?.();
+  }, [autoConfirm, open, session, user, creditsLoading, phoneLoading, hasNoPaymentOptions, hasLiabilityWaiver, hasPhone, paymentMethod, selectedPassId]);
+
   if (!session) return null;
 
   const startTime = parse(session.start_time, "HH:mm:ss", new Date());
@@ -225,8 +245,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
   const handleFundraiserCheckout = async () => {
     if (!session) return;
     if (!user) {
-      navigate("/auth");
-      onOpenChange(false);
+      openAuth("signup");
       return;
     }
     try {
@@ -258,10 +277,16 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     }
   };
 
+  const openAuth = (mode: "signup" | "signin") => {
+    writeClassDraft({ sessionId: session.id, sessionDate: session.session_date });
+    window.__lovableEvents?.track?.(mode === "signup" ? "project.account_creation_started" : "project.login_started", { category: session.class_type.category });
+    setAuthMode(mode);
+    setAuthOpen(true);
+  };
+
   const handleBook = async () => {
     if (!user) {
-      navigate("/auth");
-      onOpenChange(false);
+      openAuth("signup");
       return;
     }
 
@@ -276,6 +301,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
     }
 
     let result: any;
+    window.__lovableEvents?.track?.("project.class_book_click", { category: session.class_type.category, payment: paymentMethod, auto: autoConfirm });
     try {
       result = await bookClass.mutateAsync({
         sessionId: session.id,
@@ -288,9 +314,11 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
         setPassAgreement({ type: err.agreementType, title: err.agreementTitle });
         return;
       }
+      window.__lovableEvents?.track?.("project.reservation_failed", { category: session.class_type.category, reason: String(err?.code || err?.name || "error").slice(0, 40) });
       return; // other errors already surfaced via toast
     }
 
+    window.__lovableEvents?.track?.("project.reservation_created", { category: session.class_type.category, payment: paymentMethod, auto: autoConfirm });
     clearClassDraft();
     onOpenChange(false);
 
@@ -306,6 +334,8 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
       toast.success("Class booked successfully!");
     }
   };
+
+  handleBookRef.current = handleBook;
 
   const handleSignPassAgreement = async () => {
     if (!passAgreement) return;
@@ -334,8 +364,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   const handleJoinWaitlist = async () => {
     if (!user) {
-      navigate("/auth");
-      onOpenChange(false);
+      openAuth("signup");
       return;
     }
     if (paymentMethod === "pass" && !selectedPassId) return;
@@ -349,6 +378,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
   // Buy a pass without leaving: remember this class so it reopens after checkout.
   const handlePurchasePass = () => {
+    window.__lovableEvents?.track?.("project.checkout_started", { category: session.class_type.category });
     if (session?.id) {
       writeClassDraft({ sessionId: session.id, sessionDate: (session as any).session_date || "" });
     }
@@ -452,33 +482,15 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
 
           {/* No Payment Options Available - Prompt to Purchase (non-fundraiser only) */}
           {user && !isClassFull && !creditsLoading && hasNoPaymentOptions && !isFundraiser && (
-            <div className="space-y-4">
-              <Alert variant="destructive">
-                <ShoppingBag className="h-4 w-4" />
-                <AlertTitle>No payment method available</AlertTitle>
-                <AlertDescription className="mt-2">
-                  <p className="mb-2">To book this class, you need:</p>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li>Diamond membership credits (included monthly), or</li>
-                    <li>A pre-purchased class pass</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={handlePurchasePass} className="flex-1">
-                  <ShoppingBag className="h-4 w-4 mr-2" />
-                  Buy a class pass
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    onOpenChange(false);
-                    navigate("/memberships");
-                  }}
-                >
-                  View Memberships
-                </Button>
-              </div>
+            <div className="space-y-3 border-t border-border pt-4">
+              <p className="font-serif text-xl">Add a class for this booking</p>
+              <p className="text-sm text-muted-foreground">
+                Choose a single class or a class pack. When payment goes through, we reserve this class for you automatically.
+              </p>
+              <Button onClick={handlePurchasePass} className="w-full min-h-[44px]">
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Choose a class pass
+              </Button>
             </div>
           )}
 
@@ -718,12 +730,20 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
           )}
 
           {!user && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Please sign in or create an account to book this class.
-              </AlertDescription>
-            </Alert>
+            <div className="space-y-4 border-t border-border pt-4">
+              <div>
+                <p className="font-serif text-xl">New to Storm Wellness?</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  You don’t need to be a member to take a class.
+                  {singlePrice ? ` A single class is $${(singlePrice.price_cents / 100).toFixed(0)}.` : ""}
+                </p>
+              </div>
+              <Button onClick={() => openAuth("signup")} className="w-full min-h-[44px]">Continue</Button>
+              <p className="text-sm text-muted-foreground text-center">
+                Already have an account?{" "}
+                <button type="button" className="underline underline-offset-4 text-foreground" onClick={() => openAuth("signin")}>Sign in</button>
+              </p>
+            </div>
           )}
 
           {/* Member Reviews */}
@@ -809,7 +829,7 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
             </Button>
           )}
           {/* Normal booking button when class has spots */}
-          {!isClassFull && (!user || isFundraiser || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
+          {!isClassFull && !!user && (isFundraiser || (!hasNoPaymentOptions && hasLiabilityWaiver)) && (
             <div className="flex flex-col gap-2 w-full sm:w-auto">
               {!!user && isPastDue && (
                 <Alert className="border-amber-500/40 bg-amber-500/10">
@@ -847,6 +867,15 @@ export function BookingModal({ session, open, onOpenChange }: BookingModalProps)
         open={!!confirmation}
         onOpenChange={(o) => { if (!o) setConfirmation(null); }}
         details={confirmation}
+      />
+      <GuestCheckoutSheet
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        initialMode={authMode}
+        title={`You're booking ${session.class_type.name}`}
+        description={`${format(sessionDate, "EEEE, MMMM d")} · ${format(startTime, "h:mm a")}${session.instructor ? ` · ${session.instructor.first_name}` : ""}. A few details and you're in.`}
+        footnote="Next: the class waiver and your payment — this class stays selected the whole way."
+        onAuthenticated={() => { /* modal stays open on the same class */ }}
       />
       <BuyPassesDrawer open={buyOpen} onOpenChange={setBuyOpen} returnPath={buyReturnPath} />
     </Dialog>
