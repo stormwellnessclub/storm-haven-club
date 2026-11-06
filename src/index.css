@@ -177,6 +177,47 @@
     @apply font-light tracking-tight;
   }
 
+  /* ========================================
+     EDITORIAL SYSTEM (public site only)
+     ======================================== */
+  .ed-statement {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.75rem, 7.5vw, 7.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.015em;
+    font-weight: 300;
+    text-wrap: balance;
+  }
+  .ed-headline {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(2.25rem, 4.5vw, 4.75rem);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    font-weight: 300;
+    text-wrap: balance;
+  }
+  .ed-quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: clamp(1.75rem, 3.6vw, 3.5rem);
+    line-height: 1.15;
+    font-weight: 300;
+    text-wrap: balance;
+  }
+  .ed-body {
+    font-size: 0.9375rem;
+    line-height: 1.85;
+    max-width: 34ch;
+    font-weight: 300;
+  }
+  .ed-caption {
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.6875rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-weight: 400;
+  }
+
   .heading-section {
     font-family: 'Cormorant Garamond', serif;
     font-size: clamp(1.75rem, 3vw + 0.5rem, 2.5rem);
