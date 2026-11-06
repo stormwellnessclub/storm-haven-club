@@ -67,4 +67,4 @@
 - [ ] Phase 3: Classes page, class pages, Help me choose, first-visit guide, catalog cleanup (needs third-studio name from owner)
 - [ ] Phase 4: admin funnel report + message delivery audit
 
-- [ ] Café page: no story sections; straight to menu, menu cards cleaner (no numbering/mono clutter)
+- [x] Café page: no story sections; straight to menu, menu cards cleaner (no numbering/mono clutter)
