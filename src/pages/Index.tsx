@@ -198,7 +198,7 @@ export default function Index() {
         <div className="mt-10 flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-pl-6 md:scroll-pl-12 px-6 md:px-12 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Photographs from inside the club">
           {lifeStrip.map((p) => (
             <figure key={p.cap} className="snap-start shrink-0">
-              <EdImage src={p.src} alt={p.alt} className={`h-[240px] sm:h-[52svh] sm:max-h-[440px] sm:min-h-[300px] ${p.shape === "tall" ? "aspect-[2/3]" : "aspect-[3/2]"}`} />
+              <EdImage src={p.src} alt={p.alt} className={`h-[200px] sm:h-[52svh] sm:max-h-[440px] sm:min-h-[300px] ${p.shape === "tall" ? "aspect-[2/3]" : "aspect-[3/2]"}`} />
               <figcaption><Caption>{p.cap}</Caption></figcaption>
             </figure>
           ))}
