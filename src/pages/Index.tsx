@@ -169,8 +169,7 @@ export default function Index() {
           <div className="md:col-span-5 order-2 md:order-1">
             <Reveal><Chapter n="04" label="Spa Aella" /></Reveal>
             <Reveal delay={200}>
-              <h2 className="ed-headline mt-10">Spa Aella</h2>
-              <div className="mt-10"><QuietLink to="/spa">Spa Aella</QuietLink></div>
+              <div className="mt-10"><QuietLink to="/spa">Visit Spa Aella</QuietLink></div>
             </Reveal>
           </div>
           <div className="md:col-span-6 md:col-start-7 order-1 md:order-2 grid grid-cols-5 gap-4">
@@ -202,7 +201,7 @@ export default function Index() {
       {/* 07 — LIFE INSIDE STORM WELLNESS */}
       <section className="bg-background pb-24 md:pb-40">
         <div className="container mx-auto px-6 md:px-12">
-          <Reveal><Chapter n="06" label="Life inside Storm Wellness" /></Reveal>
+          <Reveal><Chapter n="06" label="Life at Storm" /></Reveal>
         </div>
         <div className="mt-10 flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory px-6 md:px-12 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Photographs from inside the club">
           {lifeStrip.map((p) => (
