@@ -27,7 +27,7 @@ export function BodyWrapCard({ variants, onBook }: { variants: SpaService[]; onB
         {variants.map(s => <div key={s.id} className="flex justify-between gap-3 text-sm"><span>{s.duration_minutes} min{variants.length > 1 ? ` · ${/\(extended\)/i.test(s.name) ? "Extended treatment" : "Body wrap"}` : ""}</span><span className="font-semibold text-accent shrink-0">{money(s.price)}</span></div>)}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           {details && <Button asChild variant="link" className="p-0 h-auto"><Link to={`/spa/body-wraps/${details.slug}`}>Learn more <ArrowUpRight className="h-4 w-4 ml-1" /></Link></Button>}
-          <Button variant="outline" size="sm" onClick={() => { if (variants.length === 1) { onBook(first); return; } setChoice(first.id); setOpen(true); }}>Find Your Time</Button>
+          <Button variant="outline" size="sm" onClick={() => { if (variants.length === 1) { onBook(first); return; } setChoice(first.id); setOpen(true); }}>Book Now</Button>
         </div>
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
