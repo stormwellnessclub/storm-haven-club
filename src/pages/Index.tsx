@@ -182,9 +182,12 @@ export default function Index() {
             <EdImage src={smoothie} alt="A Storm Café smoothie on marble" className="aspect-[4/5]" />
           </div>
           <div className="md:col-span-4 md:col-start-7">
-            <Reveal><Chapter n="05" label="Storm Café" /></Reveal>
+            <Reveal><Chapter n="05" label="Storm Wellness Café" /></Reveal>
             <Reveal delay={150}>
-              <div className="mt-10"><QuietLink to="/cafe">The café menu</QuietLink></div>
+              <h3 className="ed-headline mt-8 mb-6">The part you'll want to stay for.</h3>
+                <p className="ed-body text-muted-foreground mb-3">Coffee, smoothies, chia pudding, toast and café bites made for before class, after class — or no class at all.</p>
+                <p className="ed-body text-muted-foreground">Open to the public.</p>
+                <div className="mt-10"><QuietLink to="/cafe">Explore the Café</QuietLink></div>
             </Reveal>
           </div>
         </div>

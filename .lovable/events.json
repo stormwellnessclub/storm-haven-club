@@ -243,6 +243,26 @@
           }
         }
       }
+    },
+    "project.cafe_menu_click": {
+      "event_schema_version": 1,
+      "description": "A visitor jumped from the caf\u00e9 story to the menu.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source"
+        ],
+        "properties": {
+          "source": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

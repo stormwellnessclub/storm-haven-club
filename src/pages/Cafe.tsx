@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { CafeOrderContent } from "@/components/cafe/CafeOrderContent";
+import { CafeStory, CafeVisit } from "@/components/cafe/CafeStory";
 
 const BASE_URL = "https://stormwellnessclub.com";
 
@@ -34,17 +35,17 @@ export default function Cafe() {
   const restaurantLd = {
     "@context": "https://schema.org",
     "@type": "CafeOrCoffeeShop",
-    name: "Storm Café at Storm Wellness Club",
+    name: "Storm Wellness Café",
+    hasMenu: `${BASE_URL}/cafe#cafe-menu`,
     image: `${BASE_URL}/pwa-512x512.png`,
     url: `${BASE_URL}/cafe`,
-    telephone: "",
-    servesCuisine: [
+        servesCuisine: [
       "Smoothies",
       "Protein Shakes",
       "Açaí Bowls",
       "Cold-Pressed Juice",
       "Coffee",
-      "Healthy Snacks",
+      "Café food",
     ],
     priceRange: "$$",
     address: {
@@ -60,18 +61,6 @@ export default function Cafe() {
       latitude: 42.4034,
       longitude: -83.3497,
     },
-    areaServed: [
-      "Livonia, MI",
-      "Farmington Hills, MI",
-      "Plymouth, MI",
-      "Northville, MI",
-      "Novi, MI",
-      "Redford, MI",
-      "Westland, MI",
-      "Canton, MI",
-      "Garden City, MI",
-      "Southfield, MI",
-    ],
     acceptsReservations: false,
     parentOrganization: {
       "@type": "HealthClub",
@@ -102,11 +91,11 @@ export default function Cafe() {
   return (
     <Layout>
       <SEOHead
-        title="Café, Juice & Smoothie Bar in Livonia"
-        description="Healthy café in Livonia, MI — smoothies, protein shakes, açaí bowls, cold-pressed juice & espresso. Open to the public at Storm Wellness Club."
+        title="Storm Wellness Café | Coffee, Smoothies & Café in Livonia, MI"
+        description="Visit Storm Wellness Café in Livonia for espresso, functional smoothies, chia pudding, toast and café bites. Open to members and the public."
         path="/cafe"
         image="/og/og-cafe.jpg"
-        imageAlt="Smoothies, açaí bowls and espresso at the Storm Wellness Club café in Livonia, Michigan"
+        imageAlt="Smoothies and café food at Storm Wellness Café"
       />
 
       <Helmet>
@@ -115,23 +104,14 @@ export default function Cafe() {
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
       </Helmet>
 
-      {/* Hidden SEO content — crawlable, not visible to users */}
-      <h1 className="sr-only">Café, Juice Bar & Smoothie Bar in Livonia, MI — Storm Café at Storm Wellness Club</h1>
-      <section className="sr-only" aria-hidden="true">
-        <h2>Storm Café</h2>
-        <p>
-          Storm Café is the in-house café, juice bar, and smoothie bar inside Storm Wellness Club at
-          18340 Middlebelt Rd in Livonia, Michigan. Open to members and the public, the café serves
-          fresh smoothies, protein shakes, açaí and pitaya bowls, cold-pressed juice, espresso, and
-          clean snacks daily.
-        </p>
-      </section>
+      <CafeStory />
 
       {/* Live ordering UI */}
-      <div className="pt-20">
-        <CafeOrderContent variant="public" showHero />
+      <div id="cafe-menu" className="scroll-mt-20">
+        <CafeOrderContent variant="public" />
       </div>
 
+      <CafeVisit />
     </Layout>
   );
 }
