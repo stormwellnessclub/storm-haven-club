@@ -27,21 +27,24 @@ function TextLink({ children, light, onClick = toMenu }: { children: React.React
 export function CafeStory() {
   return (
     <>
-      {/* Hero */}
-      <section className="relative min-h-[100svh] flex items-end bg-charcoal">
-        <img src={coconutCloud} alt="Coconut Cloud smoothie at Storm Wellness Café" className="absolute inset-0 h-full w-full object-cover" loading="eager" />
-        <div className="absolute inset-0 bg-gradient-to-t from-charcoal/90 via-charcoal/40 to-charcoal/10" />
-        <div className="relative z-10 container mx-auto px-6 pb-20 pt-40 md:pb-28">
-          <div className="max-w-3xl">
-            <p className="ed-caption text-primary-foreground/70 mb-6">Storm Wellness Café</p>
-            <h1 className="ed-statement text-primary-foreground mb-8">Good for you should still be something you want.</h1>
-            <p className="ed-body text-primary-foreground/80 max-w-xl mb-3">Coffee worth stopping for. Smoothies with a purpose. Food made to satisfy first — with ingredients chosen more thoughtfully.</p>
-            <p className="ed-body text-primary-foreground/80 max-w-xl mb-3">Come after a workout. Come before one. Or just come because you wanted the Coconut Cloud.</p>
-            <p className="ed-body text-primary-foreground/70 max-w-xl mb-10">Open to the public.</p>
-            <div className="flex flex-wrap items-center gap-8">
-              <button type="button" onClick={toMenu} className="bg-primary-foreground text-foreground px-8 py-4 ed-caption hover:bg-primary-foreground/90 transition-colors">Explore the Menu</button>
-              <TextLink light>Order Ahead</TextLink>
+      {/* Hero — type on its own ground, photo shown whole beside it */}
+      <section className="bg-background pt-32 md:pt-40 pb-20 md:pb-32">
+        <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-12 md:gap-10 items-end">
+          <div className="md:col-span-6 lg:col-span-5">
+            <p className="ed-caption text-muted-foreground mb-8">Storm Wellness Café</p>
+            <h1 className="ed-statement mb-10">Good for you should still be something you want.</h1>
+            <div className="ed-body text-muted-foreground space-y-4 max-w-md mb-12">
+              <p>Coffee worth stopping for. Smoothies with a purpose. Food made to satisfy first — with ingredients chosen more thoughtfully.</p>
+              <p>Come after a workout. Come before one. Or just come because you wanted the Coconut Cloud.</p>
+              <p className="text-foreground">Open to the public.</p>
             </div>
+            <div className="flex flex-wrap items-center gap-8">
+              <button type="button" onClick={toMenu} className="bg-foreground text-background px-8 py-4 ed-caption hover:bg-foreground/90 transition-colors">Explore the Menu</button>
+              <TextLink>Order Ahead</TextLink>
+            </div>
+          </div>
+          <div className="md:col-span-6 md:col-start-7 lg:col-span-6 lg:col-start-7">
+            <EdImage src={coconutCloud} alt="Coconut Cloud smoothie at Storm Wellness Café" className="aspect-[4/5]" eager />
           </div>
         </div>
       </section>
