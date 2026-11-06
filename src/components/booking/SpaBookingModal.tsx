@@ -958,6 +958,11 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                   <p className="text-sm font-medium">
                     No openings on {format(selectedDate, "EEEE, MMMM d")} that fit this service.
                   </p>
+                  {isSameDay(selectedDate, new Date()) && (
+                    <p className="text-xs text-muted-foreground">
+                      Online bookings need at least 2 hours' notice. Members can message us to request a time sooner today.
+                    </p>
+                  )}
                   {nextAvailable && (
                     <Button
                       variant="outline"
