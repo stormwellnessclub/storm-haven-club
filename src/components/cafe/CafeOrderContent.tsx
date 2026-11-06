@@ -977,7 +977,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                       <button
                         key={c.id}
                         onClick={() => setSelectedCategoryId(c.id)}
-                        className={`whitespace-nowrap px-4 py-1.5 font-cafe-mono text-[9px] tracking-widest uppercase rounded-full border transition-colors ${
+                        className={`whitespace-nowrap px-1 py-1.5 mr-4 font-cafe-mono text-[10px] tracking-widest uppercase border-b transition-colors ${
                           active
                             ? "bg-[hsl(var(--cafe-terracotta))] text-white border-[hsl(var(--cafe-terracotta))]"
                             : "border-cafe-line text-cafe-burgundy/60"
@@ -999,7 +999,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                       <button
                         key={d.id}
                         onClick={() => setBitesSubId(d.id)}
-                        className={`whitespace-nowrap px-4 py-1.5 font-cafe-mono text-[9px] tracking-widest uppercase rounded-full border transition-colors ${
+                        className={`whitespace-nowrap px-1 py-1.5 mr-4 font-cafe-mono text-[10px] tracking-widest uppercase border-b transition-colors ${
                           active
                             ? "bg-[hsl(var(--cafe-terracotta))] text-white border-[hsl(var(--cafe-terracotta))]"
                             : "border-cafe-line text-cafe-burgundy/60"
@@ -1078,10 +1078,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                               onClick={() => setGroupPickerItems(g.items)}
                               className={`group flex flex-col cursor-pointer ${isSoldOut ? "opacity-50" : ""}`}
                             >
-                              <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
-                                <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
-                                  {idx3}
-                                </span>
+                              <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5">
                                 {groupImage ? (
                                   <img
                                     src={groupImage}
@@ -1145,10 +1142,7 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                             className={`group flex flex-col ${isSoldOut ? "opacity-50" : ""} ${hasDetails ? "cursor-pointer" : ""}`}
                           >
                             {/* Image / Coming soon placeholder */}
-                            <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5 border border-cafe-line/60">
-                              <span className="absolute top-3 left-3 font-cafe-mono text-[9px] tracking-[0.25em] text-cafe-burgundy/50">
-                                {idx3}
-                              </span>
+                            <div className="relative aspect-[4/5] bg-cafe-stone overflow-hidden mb-5">
                               {getPrimaryItemImage(item) ? (
                                 <img
                                   src={getPrimaryItemImage(item) ?? ""}
@@ -1191,28 +1185,11 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                             <div className="flex items-baseline justify-between gap-3 mb-3">
                               <p className="font-cafe-mono text-[10px] tracking-widest uppercase text-cafe-burgundy/60">
                                 {[catName, sizeMeta].filter(Boolean).join(" / ")}
-                                {item.calories ? ` · ${item.calories} kcal` : ""}
                               </p>
                               <CafeRatingBadge itemId={item.id} />
                             </div>
 
-                            {/* Benefit pills */}
-                            {(() => {
-                              const tags = getBenefitTags(item, parsed).slice(0, 3);
-                              if (tags.length === 0) return null;
-                              return (
-                                <div className="flex flex-wrap gap-1.5 mb-3">
-                                  {tags.map((t) => (
-                                    <span
-                                      key={t}
-                                      className="font-cafe-mono text-[9px] tracking-widest uppercase text-cafe-terracotta border border-cafe-line rounded-full px-2.5 py-0.5"
-                                    >
-                                      {t}
-                                    </span>
-                                  ))}
-                                </div>
-                              );
-                            })()}
+
 
                             {/* Short teaser + tap to expand */}
                             {parsed.description && (
