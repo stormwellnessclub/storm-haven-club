@@ -203,6 +203,46 @@
           }
         }
       }
+    },
+    "project.spa_category_click": {
+      "event_schema_version": 1,
+      "description": "A visitor chose a Spa Aella treatment category.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "project.spa_book_click": {
+      "event_schema_version": 1,
+      "description": "A visitor tapped to find a time for a spa treatment.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }
