@@ -19077,6 +19077,10 @@ export type Database = {
           id: string
         }[]
       }
+      staff_record_spa_sms_consent: {
+        Args: { _phone: string }
+        Returns: boolean
+      }
       staff_set_cafe_ready_time: {
         Args: {
           p_add_minutes?: number
