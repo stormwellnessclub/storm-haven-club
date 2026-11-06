@@ -13,7 +13,7 @@ import { Reveal, EdImage, Chapter, Caption, QuietLink } from "@/components/edito
 
 // Real club photography only.
 import lobbyHero from "@/assets/lobby-hero.jpeg";
-import marbleStair from "@/assets/interiors/marble-staircase.jpg";
+import marbleStair from "@/assets/interiors/marble-staircase-clean.jpg";
 import reformer from "@/assets/reformer-pilates-hero.jpg";
 import cycling from "@/assets/cycling-studio-hero.jpg";
 import gymFloor from "@/assets/gym-area-1.jpg";
@@ -101,14 +101,13 @@ export default function Index() {
             </Reveal>
             <Reveal delay={300}>
               <p className="ed-body text-muted-foreground mt-10">
-                Storm Wellness Club was built so strength, rest and personal care could share one routine — one you keep, instead of one you keep restarting.
+                One routine for strength, rest and care. The kind you keep.
               </p>
               <div className="mt-10"><QuietLink to="/about">Our story</QuietLink></div>
             </Reveal>
           </div>
           <div className="md:col-span-5 md:col-start-8">
             <EdImage src={marbleStair} alt="Veined marble staircase inside the club" className="aspect-[3/4] md:aspect-[4/5]" />
-            <Caption>The marble stair</Caption>
           </div>
         </div>
       </section>
@@ -120,25 +119,22 @@ export default function Index() {
           <div className="mt-10 grid md:grid-cols-12 gap-4 md:gap-6">
             <div className="md:col-span-8">
               <EdImage src={reformer} alt="A member working on a reformer in the Reformer Pilates studio" className="aspect-[4/5] md:aspect-[16/11]" />
-              <Caption>Reformer Pilates — eight people, one instructor watching your form</Caption>
             </div>
             <div className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-4 md:gap-6 content-start">
               <div>
                 <EdImage src={cycling} alt="Rows of bikes beneath arched lights in the Cycle Studio" className="aspect-[4/5] md:aspect-[4/3]" />
-                <Caption>Cycle Studio</Caption>
               </div>
               <div>
                 <EdImage src={gymFloor} alt="The training floor with marble flooring and strength equipment" className="aspect-[4/5] md:aspect-[4/3]" />
-                <Caption>The training floor</Caption>
               </div>
             </div>
           </div>
           <div className="mt-16 md:mt-20 grid md:grid-cols-12 gap-8 items-start">
             <Reveal className="md:col-span-6">
-              <h2 className="ed-headline max-w-[16ch]">Get stronger with people who know what they’re doing.</h2>
+              <h2 className="ed-headline max-w-[16ch]">Coached, not counted.</h2>
             </Reveal>
             <Reveal delay={150} className="md:col-span-4 md:col-start-8">
-              <p className="ed-body text-muted-foreground">Small classes, coached corrections and personal training that grows with you.</p>
+              <p className="ed-body text-muted-foreground">Every rep seen. Every correction made in the room.</p>
               <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5">
                 <QuietLink to="/classes">Classes</QuietLink>
                 <QuietLink to="/personal-training">Personal training</QuietLink>
@@ -158,7 +154,7 @@ export default function Index() {
           </Reveal>
           <Reveal delay={400}>
             <p className="ed-body text-primary-foreground/70 mt-12 md:ml-[40%]">
-              Training creates the stimulus. Recovery is where your body adapts. The salt room, sauna, steam and cold plunge come with every membership, with nothing to book.
+              Training asks. Recovery answers. Salt, heat, steam and cold — part of every membership.
             </p>
           </Reveal>
           <div className="mt-24 md:mt-36 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-20 md:gap-y-32">
@@ -186,7 +182,7 @@ export default function Index() {
             </Reveal>
             <Reveal delay={350}>
               <p className="ed-body text-muted-foreground mt-10">
-                Massage, facials and body treatments from therapists who notice what your body needs that day. Open to everyone — no membership required.
+                Therapists who read what your body needs that day. Open to members and guests.
               </p>
               <div className="mt-10"><QuietLink to="/spa">Enter Spa Aella</QuietLink></div>
             </Reveal>
@@ -197,7 +193,6 @@ export default function Index() {
             </div>
             <div className="col-span-2 self-end">
               <EdImage src={spaShower} alt="Marble shower and soaking tub in the spa" className="aspect-[3/4]" />
-              <Caption>Spa Aella</Caption>
             </div>
           </div>
         </div>
@@ -213,7 +208,7 @@ export default function Index() {
             <Reveal><Chapter n="05" label="Nourish" /></Reveal>
             <Reveal delay={150}>
               <h2 className="ed-headline mt-10">Worth staying for.</h2>
-              <p className="ed-body text-muted-foreground mt-8">Fresh juices, smoothies and made-to-order plates — before a class, after the sauna, or between meetings.</p>
+              <p className="ed-body text-muted-foreground mt-8">Pressed juice, made-to-order plates, an unhurried table.</p>
               <div className="mt-10"><QuietLink to="/cafe">The café menu</QuietLink></div>
             </Reveal>
           </div>
@@ -249,7 +244,7 @@ export default function Index() {
           </div>
           <Reveal delay={350} className="md:col-span-4">
             <p className="ed-body text-primary-foreground/70">
-              Four tiers, one year, billed monthly. Members with children can add Kids Care, a supervised space of its own.
+              Four tiers. Kids Care for the youngest members of the household.
             </p>
             <div className="mt-10 flex flex-col gap-6 items-start">
               <QuietLink to="/memberships#tiers" light>Explore Memberships</QuietLink>
