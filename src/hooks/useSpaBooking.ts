@@ -82,6 +82,10 @@ export async function sendSpaNotifications(args: {
   guest?: { email?: string | null; phone?: string | null } | null;
   /** Staff booking for a client who hasn't signed the waiver yet — text them the link too. */
   waiverPending?: boolean;
+  /** Staff recorded the client's agreement to receive texts (send-sms still enforces consent). */
+  textConsent?: boolean;
+  /** Set when staff tap "Resend link" so the text isn't deduplicated. */
+  resendKey?: string;
 }) {
   const a = args.appointment;
   const isGuest = !a?.user_id;
@@ -121,8 +125,7 @@ export async function sendSpaNotifications(args: {
     }
   }
   }
-
-
+  if (args.textConsent && phone) smsOptIn = true;
 
   // Provider name (optional).
   let provider = "Storm Wellness";
@@ -233,7 +236,7 @@ export async function sendSpaNotifications(args: {
             variables: {
               customBody: `Storm Wellness Club: Before your ${a.service_name} on ${dateStr}, please ${isGuest ? "set up your account, " : ""}sign the waiver and complete your intake here: https://stormwellnessclub.com${textLinkPath} Reply STOP to opt out.`,
             },
-            idempotencyKey: `spa-setup-link-${a.id}-${Date.now() > 0 && args.waiverPending === undefined ? "auto" : "staff"}`,
+            idempotencyKey: `spa-setup-link-${a.id}${args.resendKey ? `-${args.resendKey}` : ""}`,
             metadata: { source: "spa_booking_setup_link", appointmentId: a.id },
           },
         })
