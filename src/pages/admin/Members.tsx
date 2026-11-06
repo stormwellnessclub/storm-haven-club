@@ -156,6 +156,22 @@ export default function Members() {
   const [memberToActivate, setMemberToActivate] = useState<any | null>(null);
   const [showActivateDialog, setShowActivateDialog] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  // Pending members whose first dues payment has gone through (staff still decide activation)
+  const { data: readyToActivate = [] } = useQuery({
+    queryKey: ["admin-members-ready-to-activate"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("members")
+        .select("*")
+        .eq("status", "pending_activation")
+        .eq("subscription_status", "active")
+        .not("stripe_subscription_id", "is", null)
+        .order("approved_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 60_000,
+  });
   const [isSendingActivationEmail, setIsSendingActivationEmail] = useState(false);
   const [isSendingBulkEmails, setIsSendingBulkEmails] = useState(false);
   const [isSendingWaiverReminder, setIsSendingWaiverReminder] = useState(false);
@@ -725,6 +741,7 @@ export default function Members() {
       if (error) throw error;
       toast.success("Member activated successfully");
       queryClient.invalidateQueries({ queryKey: ["admin-members"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-members-ready-to-activate"] });
       setShowActivateDialog(false);
       setMemberToActivate(null);
       setIsSheetOpen(false);
