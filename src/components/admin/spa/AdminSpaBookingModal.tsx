@@ -99,6 +99,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
   const { apply: applyVoucher, clear: clearVoucher, applying: applyingVoucher, applied: appliedVoucher, error: voucherError } = useApplyMothersDayVoucher();
   const [reminderSending, setReminderSending] = useState(false);
   const [sendConfirmation, setSendConfirmation] = useState(true);
+  const [textConsent, setTextConsent] = useState(false);
+  const [verbalWaiver, setVerbalWaiver] = useState(false);
 
   // Prefill from a client request (service, day/time, contact, notes)
   useEffect(() => {
@@ -527,11 +529,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
         throw new Error("That therapist or room is already blocked for the full service plus cleanup time.");
       }
 
-      // Block massage bookings for guests with no portal account / signed waiver
-      if (effectiveCustomer && !effectiveCustomer.waiverSigned) {
-        if ((selectedService.category || "").toLowerCase().includes("massage")) {
-          throw new Error("This customer must sign the liability waiver before booking a massage.");
-        }
+      // No waiver yet: booking is allowed, but we need a way to send them the sign-up/waiver link.
+      const waiverPending = !!effectiveCustomer && !effectiveCustomer.waiverSigned;
+      if (waiverPending && effectiveCustomer.type === "guest" && !effectiveCustomer.userId
+          && !effectiveCustomer.email && !effectiveCustomer.phone) {
+        throw new Error("Add an email or phone number so we can send them the waiver and intake link.");
       }
 
       const memberIdToInsert = effectiveCustomer?.type === "member" ? effectiveCustomer.memberId : null;
@@ -567,6 +569,17 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
       }
 
       const isWalkIn = !userIdToInsert;
+      if (waiverPending) {
+        const stamp = new Date().toLocaleString("en-US", { timeZone: "America/Detroit", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+        const line = verbalWaiver
+          ? `Waiver pending — client verbally agreed to waiver terms (taken by ${adminDisplayName || "staff"}, ${stamp}). Signed waiver still required.`
+          : "Waiver pending — sign-up/waiver link sent; have them sign on arrival if not done.";
+        finalNotes = finalNotes ? `${line}\n${finalNotes}` : line;
+      }
+      const phoneForText = effectiveCustomer?.phone || null;
+      if (textConsent && phoneForText) {
+        try { await (supabase.rpc as any)("staff_record_spa_sms_consent", { _phone: phoneForText }); } catch (e) { console.warn("consent record failed", e); }
+      }
 
       const usingVoucher = !!appliedVoucher;
       const finalNotesWithVoucher = usingVoucher
@@ -619,6 +632,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
             } as any,
             kind: "confirmation",
             guest: guestContact,
+            waiverPending,
+            textConsent: textConsent && !!phoneForText,
           });
           (inserted as any).notified = true;
         } catch (e) {
@@ -668,6 +683,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     setConflict(null);
     setVoucherInput("");
     setSendConfirmation(true);
+    setTextConsent(false);
+    setVerbalWaiver(false);
     clearVoucher();
   };
 
@@ -820,22 +837,19 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
           </div>
 
 
-          {selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest" && (
-            <Alert className="bg-destructive/10 border-destructive/30">
-              <FileCheck className="h-4 w-4 text-destructive" />
-              <AlertTitle className="text-destructive">Liability Waiver Not Signed</AlertTitle>
-              <AlertDescription className="mt-1">
-                This customer has not signed the liability waiver. They must sign it via the portal before a spa appointment can be booked.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {selectedCustomer && selectedCustomer.type === "guest" && (
+          {selectedCustomer && !selectedCustomer.waiverSigned && (
             <Alert className="bg-amber-500/10 border-amber-500/30">
               <FileCheck className="h-4 w-4" />
-              <AlertTitle>Walk-in guest — no portal account</AlertTitle>
-              <AlertDescription className="mt-1">
-                Massage services require a signed waiver. Have the guest sign in person before booking a massage. Other services are allowed.
+              <AlertTitle>Waiver and intake not done yet</AlertTitle>
+              <AlertDescription className="mt-1 space-y-2">
+                <p>You can still book. We'll send them a link to {selectedCustomer.userId ? "" : "create their account, "}sign the waiver and fill out the intake.</p>
+                {!selectedCustomer.userId && !selectedCustomer.email && !selectedCustomer.phone && (
+                  <p className="font-medium">Add an email or phone number above so the link can reach them.</p>
+                )}
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <Checkbox checked={verbalWaiver} onCheckedChange={(v) => setVerbalWaiver(v === true)} />
+                  <span className="text-xs">Client verbally agreed to the waiver terms (noted on the appointment; they still sign before their visit)</span>
+                </label>
               </AlertDescription>
             </Alert>
           )}
@@ -1089,8 +1103,14 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
               <p className="text-xs text-muted-foreground">
                 {selectedCustomer?.userId
                   ? "Includes the intake form link for massage & body services."
-                  : "Walk-in guests without an account can't be emailed — take the intake form at the front desk."}
+                  : "Emails go to their email; if you only have a phone, we text the link."}
               </p>
+              {selectedCustomer?.phone && sendConfirmation && (
+                <label className="flex items-start gap-2 cursor-pointer pt-1">
+                  <Checkbox checked={textConsent} onCheckedChange={(v) => setTextConsent(v === true)} />
+                  <span className="text-xs">Client agreed to receive a text at {selectedCustomer.phone}</span>
+                </label>
+              )}
             </div>
           </div>
 
@@ -1110,7 +1130,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
             onClick={() => bookMutation.mutate()}
-            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!!selectedCustomer && !selectedCustomer.waiverSigned && selectedCustomer.type !== "guest") || (!selectedCustomer && !(walkInOpen && walkInName.trim()))}
+            disabled={!serviceId || !appointmentTime || !appointmentDate || bookMutation.isPending || !!conflict || !!timeError || (!selectedCustomer && !(walkInOpen && walkInName.trim()))}
           >
             {bookMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Book Appointment
