@@ -979,8 +979,8 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                         onClick={() => setSelectedCategoryId(c.id)}
                         className={`whitespace-nowrap px-1 py-1.5 mr-4 font-cafe-mono text-[10px] tracking-widest uppercase border-b transition-colors ${
                           active
-                            ? "bg-[hsl(var(--cafe-terracotta))] text-white border-[hsl(var(--cafe-terracotta))]"
-                            : "border-cafe-line text-cafe-burgundy/60"
+                            ? "text-cafe-terracotta border-[hsl(var(--cafe-terracotta))]"
+                            : "border-transparent text-cafe-burgundy/60 hover:text-cafe-burgundy"
                         }`}
                       >
                         {displayCategoryName(c.name)}
@@ -1001,8 +1001,8 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                         onClick={() => setBitesSubId(d.id)}
                         className={`whitespace-nowrap px-1 py-1.5 mr-4 font-cafe-mono text-[10px] tracking-widest uppercase border-b transition-colors ${
                           active
-                            ? "bg-[hsl(var(--cafe-terracotta))] text-white border-[hsl(var(--cafe-terracotta))]"
-                            : "border-cafe-line text-cafe-burgundy/60"
+                            ? "text-cafe-terracotta border-[hsl(var(--cafe-terracotta))]"
+                            : "border-transparent text-cafe-burgundy/60 hover:text-cafe-burgundy"
                         }`}
                       >
                         {d.label}
@@ -1051,7 +1051,6 @@ export function CafeOrderContent({ variant, showHero = false, section = "cafe" }
                         );
                         const sizeMeta = parsed.size || item.size || "";
                         const itemAddons = getAddonsForItem(item);
-                        const idx3 = String(idx + 1).padStart(3, "0");
 
                         const hasDetails =
                           !!parsed.description ||
