@@ -30,9 +30,9 @@ export function CafeStory() {
       {/* Hero — type on its own ground, photo shown whole beside it */}
       <section className="bg-background pt-32 md:pt-40 pb-20 md:pb-32">
         <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-12 md:gap-10 items-end">
-          <div className="md:col-span-6 lg:col-span-5">
+          <div className="md:col-span-6">
             <p className="ed-caption text-muted-foreground mb-8">Storm Wellness Café</p>
-            <h1 className="ed-statement mb-10">Good for you should still be something you want.</h1>
+            <h1 className="ed-statement mb-10 lg:!text-[4.25rem] lg:!leading-[1.05]">Good for you should still be something you want.</h1>
             <div className="ed-body text-muted-foreground space-y-4 max-w-md mb-12">
               <p>Coffee worth stopping for. Smoothies with a purpose. Food made to satisfy first — with ingredients chosen more thoughtfully.</p>
               <p>Come after a workout. Come before one. Or just come because you wanted the Coconut Cloud.</p>
