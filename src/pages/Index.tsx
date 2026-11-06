@@ -325,4 +325,5 @@ export default function Index() {
           </Button>
         </DialogContent>
       </Dialog>
+    </Layout>;
 }
