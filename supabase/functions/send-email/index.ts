@@ -2880,6 +2880,39 @@ serve(async (req) => {
         `;
         break;
 
+      case 'spa_checkout_resume': {
+        const nm = data.name && String(data.name).trim() ? String(data.name).trim().split(' ')[0] : 'there';
+        const when = [data.visitDate, data.visitTime].filter(Boolean).join(' at ');
+        const link = `${BASE_URL}/spa${data.category ? '?category=' + encodeURIComponent(String(data.category)) : ''}`;
+        subject = 'Finishing your Spa Aella booking';
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${nm},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                We noticed your booking for the ${data.serviceName || 'spa treatment'}${when ? ' on ' + when : ''} wasn't completed, and no payment went through.
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                You can finish your booking below. If that time is no longer open, simply choose another.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${link}" style="${emailStyles.button}">Finish My Booking</a>
+              </div>
+              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+                If you'd rather book by phone, reply to this email and we'll take care of it for you.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Warmly,</p>
+                <p style="font-weight: 600; color: #1f2937; margin: 0;">The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       case 'spa_review_request': {
         const reviewUrl = data.reviewUrl || `${BASE_URL}/review/spa/${data.token}`;
         const greetingName = data.name && String(data.name).trim() ? String(data.name).trim() : 'there';
