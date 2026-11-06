@@ -16866,6 +16866,10 @@ export type Database = {
           pass_ids: string[]
         }[]
       }
+      claim_spa_appointment_link: {
+        Args: { _appointment_id: string }
+        Returns: boolean
+      }
       claim_verified_spa_guest_bookings: { Args: never; Returns: undefined }
       complete_guest_visit: { Args: { _id: string }; Returns: undefined }
       copy_kids_care_hour_slots: {
@@ -19076,6 +19080,10 @@ export type Database = {
           full_name: string
           id: string
         }[]
+      }
+      staff_record_spa_sms_consent: {
+        Args: { _phone: string }
+        Returns: boolean
       }
       staff_set_cafe_ready_time: {
         Args: {

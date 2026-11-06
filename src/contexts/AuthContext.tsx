@@ -29,6 +29,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id, user?.email_confirmed_at]);
 
+  // Staff-booked spa link: /portal/bookings?intake=<appointment id> (possibly inside ?redirect=).
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      const redirect = sp.get("redirect");
+      const inner = redirect ? new URLSearchParams(redirect.split("?")[1] || "") : null;
+      const id = sp.get("intake") || inner?.get("intake");
+      if (id && /^[0-9a-f-]{36}$/i.test(id)) sessionStorage.setItem("spa_claim_appt", id);
+      const pending = sessionStorage.getItem("spa_claim_appt");
+      if (user && pending) {
+        void (supabase.rpc as any)("claim_spa_appointment_link", { _appointment_id: pending }).then(
+          ({ data }: { data: boolean }) => { if (data) sessionStorage.removeItem("spa_claim_appt"); },
+        );
+      }
+    } catch { /* non-fatal */ }
+  }, [user?.id, user?.email_confirmed_at]);
+
   useEffect(() => {
     let isMounted = true;
     let initialRestoreDone = false;
