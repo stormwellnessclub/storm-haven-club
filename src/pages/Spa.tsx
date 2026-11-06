@@ -315,7 +315,7 @@ export default function Spa() {
     if (service.category === "Body Wraps") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleMassageBooking(service)}>
-          Book Now
+          Find Your Time
         </Button>
       );
     }
@@ -337,7 +337,7 @@ export default function Spa() {
             setShowBookingModal(true);
           }}
         >
-          Book Now
+          Find Your Time
         </Button>
       );
     }
@@ -349,7 +349,7 @@ export default function Spa() {
           size="sm"
           onClick={() => handleMassageBooking(service)}
         >
-          Book Now
+          Find Your Time
         </Button>
       );
     }
@@ -468,7 +468,7 @@ export default function Spa() {
               className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 hover:underline whitespace-nowrap"
             >
               <Gift className="w-4 h-4" />
-              Have a voucher or gift card? Redeem
+              Have a voucher or gift card?
             </button>
           </div>
         </div>
