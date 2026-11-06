@@ -91,9 +91,9 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   const bookAppointment = useSpaBookAppointment();
   const queryClient = useQueryClient();
 
-  // Wellness services (red light / dry cryo) allow same-day booking with 20-min notice
+  // Online spa bookings allow same-day appointments with at least 2 hours' notice
   const creditTypeForService = service ? getWellnessCreditType(service.name) : null;
-  const isSameDayEligible = creditTypeForService !== null;
+  const isSameDayEligible = true;
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     isSameDayEligible ? startOfDay(new Date()) : addDays(new Date(), 1)
@@ -254,7 +254,8 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
     // For same-day wellness bookings, require ≥ 20 min notice from now
     let minStartTime: string | undefined;
     if (isSameDayEligible && isSameDay(selectedDate, new Date())) {
-      const cutoff = addMinutesFn(new Date(), 20);
+      const cutoff = addMinutesFn(new Date(), 120);
+      if (!isSameDay(cutoff, selectedDate)) return [];
       minStartTime = format(cutoff, "HH:mm");
     }
     return generateAvailableStartTimes(
