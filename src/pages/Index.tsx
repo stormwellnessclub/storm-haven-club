@@ -28,7 +28,7 @@ import spaDoor from "@/assets/spa-hallway.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import matcha from "@/assets/food/matcha-latte.jpg";
 import cafeTree from "@/assets/textures/cafe-tree.jpg";
-import community from "@/assets/community-banner.png";
+import gymFloor2 from "@/assets/gym-area-2.jpg";
 import lockers from "@/assets/interiors/wooden-lockers-gold.jpg";
 
 /** One real, recent, written member review, set large. Never rewritten. */
@@ -60,7 +60,7 @@ const recoverRooms = [
 ];
 
 const lifeStrip = [
-  { src: community, alt: "Members talking between reformers after class", cap: "After class" },
+  { src: gymFloor2, alt: "Strength equipment on the marble training floor", cap: "The training floor" },
   { src: lockers, alt: "Oak lockers with brass details in the locker room", cap: "The locker room" },
   { src: cafeTree, alt: "Olive tree beside the café seating", cap: "The café" },
   { src: steamRoom, alt: "Steam rising in the gold mosaic steam room", cap: "Steam" },
