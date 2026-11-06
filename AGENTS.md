@@ -47,4 +47,4 @@
 - Massage menu groups 60/90 variants by base name via src/lib/massages.ts; booking receives the selected original record and copy lives in that file. Why: one listing per treatment without changing pricing, intake or history.
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
 - Workouts resume via localStorage+workout_sessions_in_progress, demos exact-name only; planner reminders: self-removing timer, send-sms, 3/day. Why: accuracy, no polling.
-- Public pages use `components/editorial`; portal keeps cards. Why: editorial site, simple checkout.
+- Public pages use components/editorial. Why: editorial site.
