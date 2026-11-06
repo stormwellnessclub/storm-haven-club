@@ -38,7 +38,7 @@ function GuestPaymentForm({access,amountCents,contact,mode='payment',coveredCent
           if (result.setupIntent?.status !== 'succeeded') throw new Error('Your card is not saved yet. Please try again.');
         } else {
           const result=await stripe.confirmPayment({elements,confirmParams,redirect:'if_required'});
-          if (result.error) throw new Error(result.error.code === 'payment_intent_unexpected_state' ? expired : result.error.message || 'Please check your card details.');
+          if (result.error) throw new Error(result.error.code === 'payment_intent_unexpected_state' ? expired : (result.error.decline_code === 'fraudulent' || result.error.decline_code === 'merchant_blacklist') ? "Your card couldn't be accepted. Nothing was charged. Please try a different debit or credit card, or call us to book." : result.error.message || 'Please check your card details.');
           if (!result.paymentIntent || !['requires_capture','succeeded'].includes(result.paymentIntent.status)) throw new Error('Your card authorization is not complete yet.');
         }
         authorized.current=true;

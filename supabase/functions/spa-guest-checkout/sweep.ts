@@ -6,7 +6,7 @@ export const SWEEP_GRACE_MS = 10 * 60 * 1000;
 
 type IntentLike = {
   status: string;
-  last_payment_error?: { code?: string | null; decline_code?: string | null; message?: string | null } | null;
+  last_payment_error?: { code?: string | null; decline_code?: string | null; message?: string | null; payment_method?: { card?: { funding?: string | null } | null } | null } | null;
   last_setup_error?: { code?: string | null; decline_code?: string | null; message?: string | null } | null;
 };
 
@@ -27,6 +27,8 @@ const DECLINE_LABELS: Record<string, string> = {
   do_not_honor: 'bank declined',
   generic_decline: 'bank declined',
   card_velocity_exceeded: 'card limit reached',
+  fraudulent: 'bank fraud check',
+  merchant_blacklist: 'bank fraud check',
   authentication_required: 'bank verification not finished',
 };
 
@@ -35,7 +37,9 @@ export function stopReasonFor(intent: IntentLike): { reason: string; message: st
   const err = intent.last_payment_error ?? intent.last_setup_error ?? null;
   if (err) {
     const code = err.decline_code ?? err.code ?? '';
-    const label = DECLINE_LABELS[code] ?? (code ? code.replace(/_/g, ' ') : 'card problem');
+    let label = DECLINE_LABELS[code] ?? (code ? code.replace(/_/g, ' ') : 'card problem');
+    const prepaid = (err as { payment_method?: { card?: { funding?: string | null } | null } | null }).payment_method?.card?.funding === 'prepaid';
+    if (prepaid) label += ' (prepaid card)';
     return { reason: `Card declined: ${label}`, message: err.message ?? null };
   }
   if (intent.status === 'requires_action') return { reason: 'Stopped at bank verification', message: null };
