@@ -33,7 +33,7 @@ export function MassageCard({ variants, onBook, isMember }: { variants: SpaServi
         {variants.map(s => <div key={s.id} className="flex justify-between gap-3 text-sm"><span>{s.duration_minutes} min</span><span className="font-semibold text-accent shrink-0">{money(s.price)}</span></div>)}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <Button variant="link" className="p-0 h-auto" onClick={() => setDetailsOpen(true)}>What's included</Button>
-          <Button variant="outline" size="sm" onClick={() => { if (variants.length === 1) { onBook(first); return; } setChoice(first.id); setOpen(true); }}>Book Now</Button>
+          <Button variant="outline" size="sm" onClick={() => { if (variants.length === 1) { onBook(first); return; } setChoice(first.id); setOpen(true); }}>Find Your Time</Button>
         </div>
       </div>
 

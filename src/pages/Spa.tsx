@@ -49,6 +49,7 @@ import { compactBodyWrapMenu, bodyWrapVariants } from "@/lib/bodyWraps";
 import { MassageCard } from "@/components/spa/MassageCard";
 import { compactMassageMenu, massageVariants } from "@/lib/massages";
 import { orderedSpaMenu, spaMenuMode } from "@/lib/spaMenu";
+import { AellaHero, AellaStory } from "@/components/spa/AellaStory";
 import { GuestSpaFollowUp } from "@/components/spa/GuestSpaFollowUp";
 import { readGuestCheckoutAccess } from "@/lib/spaGuestCheckout";
 
@@ -79,6 +80,12 @@ export default function Spa() {
   const { data: serviceRatings = {} } = useSpaServiceRatings();
   const [selectedService, setSelectedService] = useState<SpaService | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const goCategory = (category: string) => {
+    window.__lovableEvents?.track?.("project.spa_category_click", { category });
+    setSelectedCategory(category);
+    setView("services");
+    setTimeout(() => document.getElementById("spa-menu")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
   const [activeVoucherCode, setActiveVoucherCode] = useState<string | null>(null);
   const [showRedeemDialog, setShowRedeemDialog] = useState(false);
   // Post-booking intake form (owned by page so it survives the booking modal closing)
@@ -195,6 +202,7 @@ export default function Spa() {
   const handleMassageBooking = (service: SpaService) => {
     // Show open times first; the booking window asks for the waiver and a
     // card on file only after a time is picked.
+    window.__lovableEvents?.track?.("project.spa_book_click", { category: service.category ?? "unknown" });
     setSelectedService(service);
     setShowBookingModal(true);
     setPendingMassageService(null);
@@ -307,7 +315,7 @@ export default function Spa() {
     if (service.category === "Body Wraps") {
       return (
         <Button variant="outline" size="sm" onClick={() => handleMassageBooking(service)}>
-          Book Now
+          Find Your Time
         </Button>
       );
     }
@@ -329,7 +337,7 @@ export default function Spa() {
             setShowBookingModal(true);
           }}
         >
-          Book Now
+          Find Your Time
         </Button>
       );
     }
@@ -341,7 +349,7 @@ export default function Spa() {
           size="sm"
           onClick={() => handleMassageBooking(service)}
         >
-          Book Now
+          Find Your Time
         </Button>
       );
     }
@@ -398,98 +406,11 @@ export default function Spa() {
           Novi, Redford, Westland, Canton, Garden City, and Southfield.
         </p>
       </section>
-      {/* Hero */}
-      <section className="relative pt-20 min-h-[70vh] flex items-center">
-        <div className="absolute inset-0">
-          <img src={treatmentRoom} alt="Aella Recovery Spa treatment room at Storm Wellness Club in Livonia, MI" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-charcoal/90 via-charcoal/70 to-charcoal/40" />
-        </div>
-        <div className="relative z-10 container mx-auto px-6 py-24">
-          <div className="max-w-xl">
-            <img src={aellaLogo} alt="Aella" className="h-24 w-auto mb-6" />
-            <p className="text-gold-light text-sm uppercase tracking-widest mb-4">by Storm Wellness Club</p>
-            <h2 className="heading-display text-primary-foreground mb-6">
-              Recovery Spa &amp; Massage in Livonia
-            </h2>
-            <p className="text-primary-foreground/80 text-lg leading-relaxed mb-8">
-              Open to the public — no membership required. Himalayan salt room, infrared sauna,
-              red light therapy, cold plunge, cryotherapy and licensed massage are available to
-              book today.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="gold"
-                size="lg"
-                onClick={() => document.getElementById("spa-menu")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-              >
-                Book a Treatment
-              </Button>
-              <Button variant="outline" size="lg" asChild className="bg-transparent text-primary-foreground border-primary-foreground/60 hover:bg-primary-foreground/10 hover:text-primary-foreground">
-                <Link to="/shop#gift-cards">
-                  <Gift className="w-4 h-4 mr-2" />
-                  Give the Gift of Storm
-                </Link>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Lymphatic Body Roller presale — Recovery & Massage */}
-      <section className="py-14 bg-background border-b border-border">
-        <div className="container mx-auto px-6 grid md:grid-cols-2 gap-10 items-center">
-          <img src={bodyRollerHero.url} alt="The Lymphatic Body Roller at Storm Wellness Club" className="w-full h-80 object-cover" loading="lazy" />
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-accent mb-2">Recovery &amp; Massage · Presale</p>
-            <h2 className="font-serif text-3xl mb-3">Lymphatic Body Roller</h2>
-            <p className="text-muted-foreground mb-6">
-              Warm, rhythmic compression across sculpted wooden rollers to encourage circulation, ease tension and leave the body lighter. Arriving early November — reserve your sessions now.
-            </p>
-            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-              <div className="border border-border p-4">
-                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Member presale</p>
-                {PRESALE_OPTIONS.filter((o) => o.sessions === 1).map((o) => (
-                  <p key={o.key}>{o.duration} min <span className="line-through text-muted-foreground mx-1">{usd(o.regular_cents)}</span><strong>{usd(o.cents)}</strong></p>
-                ))}
-                <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3000)}/session</p>
-              </div>
-              <div className="border border-border p-4">
-                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Non-member presale</p>
-                {NON_MEMBER_OPTIONS.filter((o) => o.sessions === 1).map((o) => (
-                  <p key={o.key}>{o.duration} min <span className="line-through text-muted-foreground mx-1">{usd(o.regular_cents)}</span><strong>{usd(o.cents)}</strong></p>
-                ))}
-                <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3600)}/session</p>
-              </div>
-            </div>
-            <Button variant="gold" size="lg" asChild>
-              <Link to="/body-roller-presale">Buy Presale</Link>
-            </Button>
-            <Link to="/journal/lymphatic-body-roller" className="block mt-4 text-sm underline underline-offset-4 text-muted-foreground hover:text-foreground">Read about the ritual</Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Member Discounts Banner */}
-      <section className="py-6 bg-secondary/50 border-b border-border">
-        <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Users className="w-5 h-5" />
-              <span className="text-sm font-medium">Member Spa Discounts:</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              {memberDiscounts.map((item) => (
-                <div key={item.tier} className="flex items-center gap-2">
-                  <span className={`w-3 h-3 rounded-full ${item.color}`} />
-                  <span className="text-sm">
-                    <span className="font-medium">{item.tier}:</span> {item.discount}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <AellaHero
+        onExplore={() => document.getElementById("aella-discover")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        onAvailability={() => goCategory("All")}
+      />
+      <AellaStory go={goCategory} />
 
       {/* Services / Reviews tab */}
       <section className="py-6 bg-background border-b border-border">
@@ -526,7 +447,7 @@ export default function Spa() {
       ) : (
       <>
       {/* Category Filters */}
-      <section id="spa-menu" className="py-8 bg-background border-b border-border sticky top-20 z-40 scroll-mt-20">
+      <section id="spa-menu" className="py-8 bg-background border-b border-border scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
@@ -547,7 +468,7 @@ export default function Spa() {
               className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 hover:underline whitespace-nowrap"
             >
               <Gift className="w-4 h-4" />
-              Have a voucher or gift card? Redeem
+              Have a voucher or gift card?
             </button>
           </div>
         </div>
@@ -700,6 +621,62 @@ export default function Spa() {
             <img src={sauna} alt="Sauna" className="rounded-sm h-64 w-full object-cover" />
             <img src={spaShower} alt="Spa Shower" className="rounded-sm h-64 w-full object-cover" />
             <img src={treatmentRoom} alt="Treatment Room" className="rounded-sm h-64 w-full object-cover" />
+          </div>
+        </div>
+      </section>
+
+      {/* Lymphatic Body Roller presale — Recovery & Massage */}
+      <section className="py-14 bg-background border-b border-border">
+        <div className="container mx-auto px-6 grid md:grid-cols-2 gap-10 items-center">
+          <img src={bodyRollerHero.url} alt="The Lymphatic Body Roller at Storm Wellness Club" className="w-full h-80 object-cover" loading="lazy" />
+          <div>
+            <p className="text-xs uppercase tracking-[0.3em] text-accent mb-2">Recovery &amp; Massage · Presale</p>
+            <h2 className="font-serif text-3xl mb-3">Lymphatic Body Roller</h2>
+            <p className="text-muted-foreground mb-6">
+              Warm, rhythmic compression across sculpted wooden rollers to encourage circulation, ease tension and leave the body lighter. Arriving early November — reserve your sessions now.
+            </p>
+            <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+              <div className="border border-border p-4">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Member presale</p>
+                {PRESALE_OPTIONS.filter((o) => o.sessions === 1).map((o) => (
+                  <p key={o.key}>{o.duration} min <span className="line-through text-muted-foreground mx-1">{usd(o.regular_cents)}</span><strong>{usd(o.cents)}</strong></p>
+                ))}
+                <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3000)}/session</p>
+              </div>
+              <div className="border border-border p-4">
+                <p className="text-xs uppercase tracking-widest text-muted-foreground mb-2">Non-member presale</p>
+                {NON_MEMBER_OPTIONS.filter((o) => o.sessions === 1).map((o) => (
+                  <p key={o.key}>{o.duration} min <span className="line-through text-muted-foreground mx-1">{usd(o.regular_cents)}</span><strong>{usd(o.cents)}</strong></p>
+                ))}
+                <p className="text-xs text-muted-foreground mt-2">5 &amp; 10 packs from {usd(3600)}/session</p>
+              </div>
+            </div>
+            <Button variant="gold" size="lg" asChild>
+              <Link to="/body-roller-presale">Buy Presale</Link>
+            </Button>
+            <Link to="/journal/lymphatic-body-roller" className="block mt-4 text-sm underline underline-offset-4 text-muted-foreground hover:text-foreground">Read about the ritual</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Member Discounts Banner */}
+      <section className="py-6 bg-secondary/50 border-b border-border">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Users className="w-5 h-5" />
+              <span className="text-sm font-medium">Member Spa Discounts:</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {memberDiscounts.map((item) => (
+                <div key={item.tier} className="flex items-center gap-2">
+                  <span className={`w-3 h-3 rounded-full ${item.color}`} />
+                  <span className="text-sm">
+                    <span className="font-medium">{item.tier}:</span> {item.discount}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
