@@ -1,481 +1,265 @@
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/Layout";
-import { SectionHeading } from "@/components/SectionHeading";
-import { AnimatedSection, StaggerContainer } from "@/components/AnimatedSection";
-import { ArrowRight, Sparkles, CircleDot, Bike, Activity, Bath, Droplets, Wind, Coffee, Baby, Flame, Sun, Snowflake, Download, Share, Plus, X } from "lucide-react";
+import { Share, Plus } from "lucide-react";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import gymArea1 from "@/assets/gym-area-1.jpg";
-import lobbyHero from "@/assets/lobby-hero.jpeg";
-import treatmentRoom from "@/assets/treatment-room.jpg";
-import reformerPilates from "@/assets/reformer-pilates-hero.jpg";
-import cycling from "@/assets/cycling-studio-hero.jpg";
-import aerobicsStudio from "@/assets/aerobics-studio-hero.jpg";
-import communityBanner from "@/assets/community-banner.png";
-import stormLogoDark from "@/assets/storm-logo-dark.png";
-import therapeuticMassage from "@/assets/therapeutic-massage.jpg";
-import bodyTreatments from "@/assets/body-treatments.jpg";
-import sauna from "@/assets/sauna.jpg";
-import saunaBlue from "@/assets/sauna-blue.jpeg";
-import saltRoom from "@/assets/salt-room.jpg";
-import zerobodyFloat from "@/assets/zerobody-float.jpeg";
 import { SmsSignupSection } from "@/components/home/SmsSignupSection";
-import { HomeReviews } from "@/components/home/HomeReviews";
+import { usePublicClassReviews } from "@/hooks/usePublicClassReviews";
+import { useSpaReviewsList } from "@/hooks/useSpaReviews";
+import { Reveal, EdImage, Chapter, Caption, QuietLink } from "@/components/editorial/Editorial";
 
-// Brand imagery
-import mainLobby from "@/assets/main-lobby.jpeg";
-import avocadoToast from "@/assets/food/avocado-toast.jpg";
-import cafeHeroImage from "@/assets/food/matcha-latte.jpg";
+// Real club photography only.
+import lobbyHero from "@/assets/lobby-hero.jpeg";
+import marbleStair from "@/assets/interiors/marble-staircase.jpg";
+import reformer from "@/assets/reformer-pilates-hero.jpg";
+import cycling from "@/assets/cycling-studio-hero.jpg";
+import gymFloor from "@/assets/gym-area-1.jpg";
+import aerobics from "@/assets/aerobics-studio-hero.jpg";
+import saltRoom from "@/assets/salt-room.jpg";
+import steamRoom from "@/assets/wellness/steam-room.jpg";
+import sauna from "@/assets/wellness/sauna-interior-wide.jpg";
+import plunge from "@/assets/wellness/cold-plunge-premium.jpg";
+import redLight from "@/assets/wellness/red-light-therapy.jpg";
+import zeroBody from "@/assets/zerobody-float.jpeg";
+import spaDoor from "@/assets/spa-hallway.jpg";
+import spaShower from "@/assets/spa-shower.jpg";
+import matcha from "@/assets/food/matcha-latte.jpg";
+import cafeTree from "@/assets/textures/cafe-tree.jpg";
+import gymFloor2 from "@/assets/gym-area-2.jpg";
+import lockers from "@/assets/interiors/wooden-lockers-gold.jpg";
 
-const classStudios = [{
-  icon: CircleDot,
-  title: "Reformer Pilates",
-  description: "Build strength and control with an instructor who corrects your form as you go. Heated and non-heated sessions for all levels, never more than 8 people.",
-  image: reformerPilates,
-  isHeated: false,
-  color: "text-foreground",
-  bgColor: "bg-secondary/30"
-}, {
-  icon: Bike,
-  title: "Cycling Studio",
-  description: "Immersive rides in a studio built for energy. Dynamic lighting, Technogym bikes, instructor-driven intensity. 10 riders maximum per session.",
-  image: cycling,
-  isHeated: true,
-  badgeText: "Cycling",
-  color: "text-foreground",
-  bgColor: "bg-secondary/30"
-}, {
-  icon: Activity,
-  title: "Aerobics Room",
-  description: "Yoga, HIIT, Barre, Bootcamp, Sculpt and more — in a mixed heated and non-heated studio built for variety. Whatever you need that day, there's a class designed around it.",
-  image: aerobicsStudio,
-  isHeated: true,
-  badgeText: "AEROBICS",
-  color: "text-foreground",
-  bgColor: "bg-secondary/30"
-}];
+/** One real, recent, written member review, set large. Never rewritten. */
+function MemberVoice() {
+  const { data: classReviews = [] } = usePublicClassReviews();
+  const { data: spaReviews = [] } = useSpaReviewsList(null);
+  const pick = useMemo(() => {
+    const all = [
+      ...classReviews.map((r) => ({ text: (r.review_text || "").trim(), name: r.reviewer_name, what: r.class_type_name || "Class", rating: r.rating, date: r.created_at })),
+      ...spaReviews.map((r) => ({ text: (r.review_text || "").trim(), name: r.reviewer_name, what: r.service_name || "Spa Aella", rating: r.rating, date: r.created_at })),
+    ].filter((r) => r.rating >= 5 && r.text.length >= 60 && r.text.length <= 240);
+    return all.sort((a, b) => b.date.localeCompare(a.date))[0];
+  }, [classReviews, spaReviews]);
+  if (!pick) return null;
+  return (
+    <Reveal className="max-w-4xl">
+      <blockquote className="ed-quote">“{pick.text}”</blockquote>
+      <p className="ed-caption text-muted-foreground mt-8">{pick.name} — {pick.what}</p>
+      <div className="mt-6"><QuietLink to="/reviews">Read member reviews</QuietLink></div>
+    </Reveal>
+  );
+}
 
-const quickLinks = [{
-  href: "/classes",
-  icon: Activity,
-  label: "View Classes",
-  description: "Explore our full schedule"
-}, {
-  href: "/spa",
-  icon: Sparkles,
-  label: "Book Aella Spa",
-  description: "Open to all, no membership"
-}, {
-  href: "/cafe",
-  icon: Coffee,
-  label: "Café Menu",
-  description: "Fresh & healthy options"
-}, {
-  href: "/amenities",
-  icon: Bath,
-  label: "Amenities",
-  description: "Member facilities"
-}];
-
-const recoverySuiteAmenities = [
-  { icon: Flame, label: "Infrared Sauna", description: "" },
-  { icon: Wind, label: "Steam Room", description: "" },
-  { icon: Droplets, label: "Cold Plunge Pool", description: "" },
-  { icon: Sparkles, label: "Himalayan Salt Room", description: "Floor-to-ceiling Himalayan salt walls with an active halogenerator dispersing pharmaceutical-grade salt microparticles into the air. Used clinically for respiratory health, skin conditions, and immune support. No appointment needed — included in every membership." },
-  { icon: Sun, label: "Red Light Therapy", description: "Precision wavelengths that reduce inflammation, accelerate recovery, and restore skin at the cellular level." },
-  { icon: Snowflake, label: "Starpool ZeroBody Cryo", description: "Dry floatation in complete weightlessness. The nervous system resets. The mind follows." },
+const recoverRooms = [
+  { src: sauna, title: "Sauna", line: "Cedar and dry heat, under a ceiling of small lights." },
+  { src: plunge, title: "Cold Plunge", line: "Held cold, on your terms." },
+  { src: redLight, title: "Red Light", line: "Full-body red and near-infrared panels." },
+  { src: zeroBody, title: "Starpool ZeroBody", line: "Warm, weightless and completely still." },
 ];
 
-const lifestyleAmenities = [
-  { icon: Bath, label: "Locker Rooms" },
-  { icon: Sparkles, label: "Relaxation Lounge" },
-  { icon: Coffee, label: "Café Access" },
-  { icon: Baby, label: "Kids Care" },
+const lifeStrip = [
+  { src: gymFloor2, alt: "Strength equipment on the marble training floor", cap: "The training floor" },
+  { src: lockers, alt: "Oak lockers with brass details in the locker room", cap: "The locker room" },
+  { src: cafeTree, alt: "Olive tree beside the café seating", cap: "The café" },
+  { src: steamRoom, alt: "Steam rising in the gold mosaic steam room", cap: "Steam" },
+  { src: aerobics, alt: "Arched windows and mats in the aerobics studio", cap: "The aerobics studio" },
 ];
+
 export default function Index() {
-  const { isIOS, isStandalone, showIOSModal, handleInstall, closeIOSModal } = usePWAInstall();
+  const { isIOS, showIOSModal, closeIOSModal } = usePWAInstall();
 
   return <Layout>
-      <SEOHead title="Wellness Club in Livonia, MI" description="Storm Wellness Club is A wellness club in Livonia, MI where training, recovery, Spa Aella, the café and kids care fit into one routine you can keep." path="/" />
+      <SEOHead title="Wellness Club in Livonia, MI" description="A wellness club in Livonia, MI where training, recovery, Spa Aella, the café and kids care fit into one routine you can keep." path="/" />
 
-
-
-
-      {/* Hero Section */}
-      <section className="relative min-h-[100svh] flex items-center justify-center overflow-hidden bg-primary">
-        <div className="absolute inset-0">
-          <img 
-            src={lobbyHero} 
-            alt="Storm Wellness Club lobby interior in Livonia, Michigan — entry to fitness studios, recovery spa, and café" 
-            className="w-full h-full object-cover object-center opacity-60"
-            width={1920}
-            height={1080}
-            fetchPriority="high"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-charcoal/20 via-charcoal/35 to-charcoal/55" />
-        </div>
-        
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 text-center py-20 sm:py-0">
+      {/* 01 — ARRIVAL */}
+      <section className="relative h-[100svh] min-h-[560px] overflow-hidden bg-primary">
+        <EdImage eager src={lobbyHero} alt="The Storm Wellness Club lobby in Livonia, Michigan: arched doorway, marble and warm light" className="absolute inset-0 bg-primary" imgClassName="opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-t from-charcoal/70 via-charcoal/10 to-transparent" />
+        <div className="relative z-10 h-full container mx-auto px-6 md:px-12 flex flex-col justify-end pb-14 md:pb-20">
           <h1 className="sr-only">Storm Wellness Club · Wellness Club &amp; Fitness Center in Livonia, MI</h1>
-          <h2 className="heading-display text-primary-foreground mb-4 sm:mb-6 animate-fade-up opacity-0 stagger-2 text-3xl sm:text-4xl md:text-5xl lg:text-6xl">
-
-            This is what it feels like
-            <br />
-            <span>to finally </span><span className="text-accent">arrive.</span>
-          </h2>
-          <p className="text-primary-foreground/80 text-base sm:text-lg max-w-xl mx-auto mb-8 sm:mb-10 animate-fade-up opacity-0 stagger-3 px-4 sm:px-0">
-            Training, recovery and personal care in one place, so taking care of yourself becomes part of how you live — not something you keep trying to get back to.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center animate-fade-up opacity-0 stagger-4 px-4 sm:px-0">
-            <Link to="/memberships" className="w-full sm:w-auto">
-              <Button variant="hero" size="lg" className="w-full sm:w-auto">
-                Explore Memberships
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden sm:block">
-          <div className="w-6 h-10 border-2 border-primary-foreground/30 rounded-full flex justify-center pt-2">
-            <div className="w-1 h-2 bg-primary-foreground/50 rounded-full" />
-          </div>
+          <Reveal>
+            <p className="ed-statement text-primary-foreground max-w-[12ch]">
+              Taking care of yourself, <span className="italic">built in.</span>
+            </p>
+          </Reveal>
+          <Reveal delay={400} className="mt-10 flex flex-col sm:flex-row sm:items-center gap-6 sm:gap-12">
+            <QuietLink to="/memberships#tiers" light>Explore Memberships</QuietLink>
+            <p className="ed-caption text-primary-foreground/60">Livonia, Michigan</p>
+          </Reveal>
         </div>
       </section>
 
-      {/* Quick Navigation */}
-      <section className="py-8 bg-background border-b border-border">
-        <div className="container mx-auto px-6">
-          <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-4 [grid-auto-rows:1fr]" staggerDelay={75}>
-            {quickLinks.map(link => (
-              <Link key={link.href} to={link.href} className="card-luxury p-4 h-full flex items-center gap-4 hover:border-accent transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover">
-                <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
-                  <link.icon className="w-5 h-5 text-foreground" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{link.label}</p>
-                  <p className="text-muted-foreground text-xs">{link.description}</p>
-                </div>
-              </Link>
-            ))}
-          </StaggerContainer>
-        </div>
-      </section>
-
-      {/* Class Studios Section */}
-      <section className="py-24 bg-background">
-        <div className="container mx-auto px-6">
-          <SectionHeading title="Where you train matters as much as how you train." subtitle="Three purpose-built studios. Each one designed to feel as intentional as the rest of this space." />
-          
-          <StaggerContainer className="grid md:grid-cols-3 gap-8 [grid-auto-rows:1fr]" staggerDelay={150}>
-            {classStudios.map((studio, index) => (
-              <div key={index} className="card-luxury overflow-hidden group hover-lift h-full flex flex-col">
-                <div className="relative h-64 overflow-hidden">
-                  <img 
-                    src={studio.image} 
-                    alt={studio.title} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-gradient-hero opacity-60 group-hover:opacity-40 transition-opacity duration-500" />
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    {studio.isHeated ? (
-                      <span className="flex items-center gap-1 px-3 py-1 text-accent-foreground text-xs uppercase tracking-wider bg-secondary">
-                        {studio.badgeText || "Heated Options"}
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 px-3 py-1 text-secondary-foreground text-xs uppercase tracking-wider bg-secondary">
-                        Reformer Pilates
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-6 flex-1 flex flex-col">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className={`w-10 h-10 rounded-full ${studio.bgColor} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
-                      <studio.icon className={`w-5 h-5 ${studio.color}`} />
-                    </div>
-                    <h3 className="font-serif text-xl group-hover:text-muted-foreground transition-colors duration-300">{studio.title}</h3>
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-3 min-h-[3rem]">{studio.description}</p>
-                  <Link to="/classes" className="text-accent text-sm font-medium hover:underline inline-flex items-center gap-1 group/link mt-auto">
-                    View Classes 
-                    <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover/link:translate-x-1" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </StaggerContainer>
-
-          <AnimatedSection className="mt-16" delay={300}>
-            <img 
-              src={communityBanner} 
-              alt="Storm Wellness Club members training together inside our Livonia fitness studio" 
-              className="w-full rounded-sm" 
-              loading="lazy"
-            />
-          </AnimatedSection>
-
-          <AnimatedSection className="text-center mt-12" delay={400}>
-            <Link to="/classes">
-              <Button variant="outline" size="lg" className="group">
-                View Full Schedule <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      {/* Membership Benefits / Recovery */}
-      <section className="relative py-24 bg-primary text-primary-foreground overflow-hidden">
-        <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <AnimatedSection animation="fade-right">
-              <img src={saunaBlue} alt="Dry heat sauna with blue star-point ceiling lighting" className="rounded-sm shadow-2xl" loading="lazy" />
-            </AnimatedSection>
-            <AnimatedSection animation="fade-left" delay={150}>
-              <p className="text-accent text-sm uppercase tracking-widest mb-4">Members Only</p>
-              <h2 className="heading-section text-primary-foreground mb-6">
-                Recovery is not optional here. It's built in.
-              </h2>
-              <p className="text-primary-foreground/80 mb-8 leading-relaxed">
-                Training creates the stimulus. Recovery is where your body adapts. Every membership includes the recovery suite — the Himalayan salt room, dry heat sauna, steam room and cold plunge — every time you walk in, with nothing to book.
+      {/* 02 — THE IDEA */}
+      <section className="bg-background py-28 md:py-44">
+        <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-14 md:gap-8 items-end">
+          <div className="md:col-span-6 md:col-start-1">
+            <Reveal><Chapter n="01" label="The Idea" /></Reveal>
+            <Reveal delay={150}>
+              <h2 className="ed-headline mt-10 max-w-[14ch]">Training, recovery and care no longer live in separate places.</h2>
+            </Reveal>
+            <Reveal delay={300}>
+              <p className="ed-body text-muted-foreground mt-10">
+                Storm Wellness Club was built so strength, rest and personal care could share one routine — one you keep, instead of one you keep restarting.
               </p>
-              
-              {/* Recovery Suite */}
-              <div className="mb-6">
-                <p className="text-accent text-xs uppercase tracking-widest mb-3 font-medium">Recovery Suite</p>
-                <div className="space-y-3">
-                  {recoverySuiteAmenities.map((amenity) => (
-                    <div 
-                      key={amenity.label} 
-                      className="transition-all duration-300 hover:translate-x-1"
-                    >
-                      <div className="flex items-center gap-2 text-sm text-primary-foreground/90 hover:text-primary-foreground">
-                        <amenity.icon className="w-4 h-4 text-accent" />
-                        <span>{amenity.label}</span>
-                      </div>
-                      {amenity.description && (
-                        <p className="text-primary-foreground/60 text-xs ml-6 mt-0.5 leading-relaxed">{amenity.description}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Lifestyle & Comfort */}
-              <div className="mb-10">
-                <p className="text-accent text-xs uppercase tracking-widest mb-3 font-medium">Lifestyle & Comfort</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {lifestyleAmenities.map((amenity) => (
-                    <div 
-                      key={amenity.label} 
-                      className="flex items-center gap-2 text-sm text-primary-foreground/90 transition-all duration-300 hover:text-primary-foreground hover:translate-x-1"
-                    >
-                      <amenity.icon className="w-4 h-4 text-accent" />
-                      <span>{amenity.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </AnimatedSection>
+              <div className="mt-10"><QuietLink to="/about">Our story</QuietLink></div>
+            </Reveal>
           </div>
-
-          {/* Himalayan Salt Room Banner */}
-          <AnimatedSection className="mt-16" animation="fade-up">
-            <div className="relative w-full rounded-sm overflow-hidden" style={{ height: '500px' }}>
-              <img src={saltRoom} alt="Himalayan Salt Room" className="w-full h-full object-cover" loading="lazy" />
-              <div className="absolute inset-0 bg-charcoal/40" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6">
-                <p className="text-primary-foreground/90 text-xs uppercase tracking-[0.25em] mb-4">Himalayan Salt Room · Active Halotherapy</p>
-                <h3 className="font-serif text-2xl md:text-3xl text-primary-foreground">Step inside. Everything outside stays there.</h3>
-              </div>
-            </div>
-          </AnimatedSection>
-
-          {/* Buttons */}
-          <AnimatedSection className="mt-12 flex flex-col sm:flex-row gap-4 justify-center" delay={200}>
-            <Link to="/memberships#tiers">
-              <Button variant="gold" size="lg" className="group">
-                Explore Memberships
-              </Button>
-            </Link>
-            <Link to="/amenities">
-              <Button variant="hero-outline" size="lg" className="group">
-                View All Amenities <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </AnimatedSection>
-
-          {/* ZeroBody Float Image */}
-          <AnimatedSection className="mt-16" animation="fade-up" delay={100}>
-            <div className="relative w-full rounded-sm overflow-hidden" style={{ height: '600px' }}>
-              <img src={zerobodyFloat} alt="ZeroBody dry floatation experience" className="w-full h-full object-cover" loading="lazy" />
-            </div>
-          </AnimatedSection>
+          <div className="md:col-span-5 md:col-start-8">
+            <EdImage src={marbleStair} alt="Veined marble staircase inside the club" className="aspect-[3/4] md:aspect-[4/5]" />
+            <Caption>The marble stair</Caption>
+          </div>
         </div>
       </section>
 
-      {/* Member reviews */}
-      <HomeReviews />
+      {/* 03 — MOVE (tighter rhythm) */}
+      <section className="bg-background pb-24 md:pb-36">
+        <div className="container mx-auto px-6 md:px-12">
+          <Reveal><Chapter n="02" label="Move" /></Reveal>
+          <div className="mt-10 grid md:grid-cols-12 gap-4 md:gap-6">
+            <div className="md:col-span-8">
+              <EdImage src={reformer} alt="A member working on a reformer in the Reformer Pilates studio" className="aspect-[4/5] md:aspect-[16/11]" />
+              <Caption>Reformer Pilates — eight people, one instructor watching your form</Caption>
+            </div>
+            <div className="md:col-span-4 grid grid-cols-2 md:grid-cols-1 gap-4 md:gap-6 content-start">
+              <div>
+                <EdImage src={cycling} alt="Rows of bikes beneath arched lights in the Cycle Studio" className="aspect-[4/5] md:aspect-[4/3]" />
+                <Caption>Cycle Studio</Caption>
+              </div>
+              <div>
+                <EdImage src={gymFloor} alt="The training floor with marble flooring and strength equipment" className="aspect-[4/5] md:aspect-[4/3]" />
+                <Caption>The training floor</Caption>
+              </div>
+            </div>
+          </div>
+          <div className="mt-16 md:mt-20 grid md:grid-cols-12 gap-8 items-start">
+            <Reveal className="md:col-span-6">
+              <h2 className="ed-headline max-w-[16ch]">Get stronger with people who know what they’re doing.</h2>
+            </Reveal>
+            <Reveal delay={150} className="md:col-span-4 md:col-start-8">
+              <p className="ed-body text-muted-foreground">Small classes, coached corrections and personal training that grows with you.</p>
+              <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5">
+                <QuietLink to="/classes">Classes</QuietLink>
+                <QuietLink to="/personal-training">Personal training</QuietLink>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
 
-      {/* SMS lead capture */}
+      {/* 04 — RECOVER (slower, darker, more space) */}
+      <section className="bg-primary text-primary-foreground">
+        <EdImage src={saltRoom} alt="Glowing walls of hand-cut Himalayan salt in the salt room" className="h-[85svh] min-h-[480px] w-full bg-primary" />
+        <div className="container mx-auto px-6 md:px-12 py-28 md:py-48">
+          <Reveal><Chapter n="03" label="Recover" light /></Reveal>
+          <Reveal delay={200}>
+            <p className="ed-statement mt-12 max-w-[14ch]">Progress isn’t only what happens while you train.</p>
+          </Reveal>
+          <Reveal delay={400}>
+            <p className="ed-body text-primary-foreground/70 mt-12 md:ml-[40%]">
+              Training creates the stimulus. Recovery is where your body adapts. The salt room, sauna, steam and cold plunge come with every membership, with nothing to book.
+            </p>
+          </Reveal>
+          <div className="mt-24 md:mt-36 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-20 md:gap-y-32">
+            {recoverRooms.map((r, i) => (
+              <div key={r.title} className={i % 2 === 1 ? "md:mt-40" : ""}>
+                <EdImage src={r.src} alt={`${r.title} at Storm Wellness Club`} className="aspect-[4/5] bg-primary" />
+                <div className="mt-6 flex items-baseline justify-between gap-6 border-t border-primary-foreground/15 pt-5">
+                  <h3 className="font-serif text-2xl md:text-3xl font-light">{r.title}</h3>
+                  <p className="text-sm text-primary-foreground/60 font-light text-right max-w-[24ch]">{r.line}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-20"><QuietLink to="/amenities" light>The recovery suite</QuietLink></div>
+        </div>
+      </section>
+
+      {/* 05 — SPA AELLA (its own warmer, quieter layer) */}
+      <section className="bg-secondary py-28 md:py-48">
+        <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-14 md:gap-8 items-center">
+          <div className="md:col-span-5 order-2 md:order-1">
+            <Reveal><Chapter n="04" label="Spa Aella" /></Reveal>
+            <Reveal delay={200}>
+              <h2 className="ed-headline mt-10 max-w-[12ch] italic">Warm stone, low light, unhurried hands.</h2>
+            </Reveal>
+            <Reveal delay={350}>
+              <p className="ed-body text-muted-foreground mt-10">
+                Massage, facials and body treatments from therapists who notice what your body needs that day. Open to everyone — no membership required.
+              </p>
+              <div className="mt-10"><QuietLink to="/spa">Enter Spa Aella</QuietLink></div>
+            </Reveal>
+          </div>
+          <div className="md:col-span-6 md:col-start-7 order-1 md:order-2 grid grid-cols-5 gap-4">
+            <div className="col-span-3">
+              <EdImage src={spaDoor} alt="An arched oak door leading into a Spa Aella treatment room" className="aspect-[3/5]" />
+            </div>
+            <div className="col-span-2 self-end">
+              <EdImage src={spaShower} alt="Marble shower and soaking tub in the spa" className="aspect-[3/4]" />
+              <Caption>Spa Aella</Caption>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 06 — NOURISH */}
+      <section className="bg-background py-24 md:py-40">
+        <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-12 md:gap-8 items-center">
+          <div className="md:col-span-7">
+            <EdImage src={matcha} alt="Matcha being poured over oat milk at the Storm Café" className="aspect-[4/5] md:aspect-[5/4]" />
+          </div>
+          <div className="md:col-span-4 md:col-start-9">
+            <Reveal><Chapter n="05" label="Nourish" /></Reveal>
+            <Reveal delay={150}>
+              <h2 className="ed-headline mt-10">Worth staying for.</h2>
+              <p className="ed-body text-muted-foreground mt-8">Fresh juices, smoothies and made-to-order plates — before a class, after the sauna, or between meetings.</p>
+              <div className="mt-10"><QuietLink to="/cafe">The café menu</QuietLink></div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* 07 — LIFE INSIDE STORM WELLNESS */}
+      <section className="bg-background pb-24 md:pb-40">
+        <div className="container mx-auto px-6 md:px-12">
+          <Reveal><Chapter n="06" label="Life inside Storm Wellness" /></Reveal>
+        </div>
+        <div className="mt-10 flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory px-6 md:px-12 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Photographs from inside the club">
+          {lifeStrip.map((p) => (
+            <figure key={p.cap} className="snap-start shrink-0 w-[78vw] sm:w-[48vw] md:w-[30vw]">
+              <EdImage src={p.src} alt={p.alt} className="aspect-[4/5]" />
+              <figcaption><Caption>{p.cap}</Caption></figcaption>
+            </figure>
+          ))}
+        </div>
+        <div className="container mx-auto px-6 md:px-12 mt-24 md:mt-36">
+          <MemberVoice />
+        </div>
+      </section>
+
+      {/* 08 — MEMBERSHIP */}
+      <section className="bg-primary text-primary-foreground py-28 md:py-44 border-t border-primary-foreground/10">
+        <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-12 md:gap-8 items-end">
+          <div className="md:col-span-8">
+            <Reveal><Chapter n="07" label="Membership" light /></Reveal>
+            <Reveal delay={200}>
+              <p className="ed-statement mt-12 max-w-[13ch]">Somewhere you actually want to be.</p>
+            </Reveal>
+          </div>
+          <Reveal delay={350} className="md:col-span-4">
+            <p className="ed-body text-primary-foreground/70">
+              Four tiers, one year, billed monthly. Members with children can add Kids Care, a supervised space of its own.
+            </p>
+            <div className="mt-10 flex flex-col gap-6 items-start">
+              <QuietLink to="/memberships#tiers" light>Explore Memberships</QuietLink>
+              <QuietLink to="/kids-care" light>Kids Care</QuietLink>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       <SmsSignupSection />
-
-      {/* Philosophy - Why We Exist */}
-      <section className="relative py-32 bg-background text-foreground overflow-hidden">
-        <AnimatedSection className="container mx-auto px-6 text-center" animation="scale-in">
-          <div className="max-w-3xl mx-auto">
-            <p className="text-accent text-sm uppercase tracking-widest mb-6">Why We Exist</p>
-            <h2 className="heading-section mb-12">
-              We built the thing that didn't exist.
-            </h2>
-            <div className="text-muted-foreground text-lg leading-relaxed space-y-6">
-              <p>
-                Wellness became a word that lost its meaning. A trend. A product. An aesthetic.
-              </p>
-              <p>
-                Storm Wellness Club exists because of what wellness actually is — and what it has always deserved to be.
-              </p>
-              <p className="my-10 text-foreground font-serif text-xl italic">
-                A ritual. A right.
-              </p>
-              <p>
-                Not a reward for the disciplined few, but a daily practice available to anyone willing to show up for themselves.
-              </p>
-              <p>
-                This space was built by someone who lived through both extremes. Who understood from the inside what it means to neglect yourself — and what it means to finally stop. Who saw that the offerings that truly support human wellbeing were scarce, fragmented, or made to feel inaccessible.
-              </p>
-              <p className="my-10 text-foreground font-serif text-xl italic">
-                So we built the thing that didn't exist.
-              </p>
-              <p>
-                A place where training and recovery and restoration live together — not as separate expenses or separate trips or separate disciplines, but as one seamless ritual you return to because it genuinely makes you feel like yourself again.
-              </p>
-              <p>
-                You are allowed to take care of yourself. Fully. Intentionally. Without apology.
-              </p>
-              <p>
-                That is what Storm Wellness Club was built to say. Every corner of it. Every day.
-              </p>
-            </div>
-          </div>
-        </AnimatedSection>
-      </section>
-
-      {/* Aella Spa Section */}
-      <section className="relative py-24 bg-secondary/30 overflow-hidden">
-        <div className="container mx-auto px-6">
-          <AnimatedSection className="text-center mb-12">
-            {/* Aella logo removed */}
-            <h2 className="heading-section mb-4">
-              Spa Aella
-            </h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Massage, facials and body treatments from therapists who pay attention to what your body needs that day. Open to everyone — no membership required.
-            </p>
-          </AnimatedSection>
-
-          {/* Services with Images */}
-          <StaggerContainer className="grid md:grid-cols-3 gap-6 mb-12" staggerDelay={150}>
-            <Link to="/spa?category=Facials" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
-              <img src={treatmentRoom} alt="Signature Facials" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between transform group-hover:translate-y-0 transition-transform duration-300">
-                <h3 className="font-serif text-xl text-primary-foreground">Signature Facials</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
-              </div>
-            </Link>
-            <Link to="/spa?category=Massage" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
-              <img src={therapeuticMassage} alt="Therapeutic Massage" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
-                <h3 className="font-serif text-xl text-primary-foreground">Therapeutic Massage</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
-              </div>
-            </Link>
-            <Link to="/spa?category=Body Wraps" className="group relative rounded-sm overflow-hidden h-72 block hover-lift">
-              <img src={bodyTreatments} alt="Body Treatments" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal/80 via-charcoal/30 to-transparent group-hover:from-charcoal/70 transition-all duration-500" />
-              <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between">
-                <h3 className="font-serif text-xl text-primary-foreground">Body Treatments</h3>
-                <span className="text-primary-foreground/90 text-sm font-medium border border-primary-foreground/30 px-3 py-1 rounded-sm group-hover:bg-primary-foreground/20 transition-all duration-300">Explore</span>
-              </div>
-            </Link>
-          </StaggerContainer>
-
-          <AnimatedSection className="text-center" delay={300}>
-            <Link to="/spa">
-              <Button variant="gold" size="lg" className="group">
-                Explore Aella <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      <section className="relative py-24 bg-background overflow-hidden">
-        <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <AnimatedSection animation="fade-right">
-              <div className="relative h-96 rounded-sm overflow-hidden group">
-                <img src={avocadoToast} alt="Fresh, healthy cuisine at Storm Café" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" />
-              </div>
-            </AnimatedSection>
-            <AnimatedSection animation="fade-left" delay={150}>
-              <p className="text-accent text-sm uppercase tracking-widest mb-4">The Storm Café</p>
-              <h2 className="heading-section mb-6">Good food, close to your routine</h2>
-              <p className="text-muted-foreground mb-8 leading-relaxed">
-                Fresh juices, smoothies and made-to-order plates worth staying for — before a class, after the sauna, or between meetings.
-              </p>
-              <Link to="/cafe">
-                <Button variant="outline" size="lg" className="group">
-                  View Menu & Order <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-                </Button>
-              </Link>
-            </AnimatedSection>
-          </div>
-        </div>
-      </section>
-
-      {/* Kids Care */}
-      <section className="py-24 bg-secondary/30">
-        <div className="container mx-auto px-6">
-          <AnimatedSection className="max-w-3xl mx-auto text-center">
-            <p className="text-muted-foreground text-sm uppercase tracking-widest mb-4">For Families</p>
-            <h2 className="heading-section mb-6">Storm Kids Care</h2>
-            <p className="text-muted-foreground mb-8 leading-relaxed">
-              Your workout shouldn't depend on finding a sitter. Your children are cared for in their own supervised space while you train or recover. Available to members with a Kids Care add-on.
-            </p>
-            <Link to="/kids-care">
-              <Button variant="outline" size="lg" className="group">
-                Learn More <ArrowRight className="ml-2 w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
-              </Button>
-            </Link>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section className="py-24 bg-charcoal relative overflow-hidden">
-        <div className="absolute inset-0 opacity-20">
-          <img src={gymArea1} alt="" className="w-full h-full object-cover" loading="lazy" />
-        </div>
-        <AnimatedSection className="relative z-10 container mx-auto px-6 text-center" animation="scale-in">
-          <h2 className="heading-section text-primary-foreground mb-6">
-            Somewhere you actually want to be
-          </h2>
-          <p className="text-primary-foreground/70 max-w-xl mx-auto mb-10">
-            There is a difference between having somewhere to work out and having somewhere you want to stay. See how membership fits into your week.
-          </p>
-          <Link to="/memberships#tiers">
-            <Button variant="gold" size="lg" className="animate-pulse-soft">
-              Explore Memberships
-            </Button>
-          </Link>
-        </AnimatedSection>
-      </section>
 
       {/* iOS Install Instructions Modal */}
       <Dialog open={showIOSModal} onOpenChange={closeIOSModal}>

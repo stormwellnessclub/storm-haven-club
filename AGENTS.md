@@ -18,7 +18,7 @@
 - Spa intakes are per appointment and typed by service: wrap services use `spa_body_wrap_intakes` (drawn signatures, practitioner sign-off only by staff via trigger), other massage/body services use `spa_intake_forms`; pick the type with `intakeKindFor()`. Why: each service needs its own consent, and both feed the profile Forms list.
 - Staff intake viewers share the complete service-specific summary and print only that summary in an isolated document. Why: therapist copies must include every recorded answer and signature without payment controls.
 
-- Read subdirectory `AGENTS.md` before editing there.
+- Read subdirectory AGENTS.md before editing there.
 - Commitment displays use membershipCommitment's start date plus merged actual freeze days, separate from membership_end_date. Why: historical freezes extend terms once without cancelling memberships.
 - Kids Care renewal fulfillment reads legacy and current Stripe line pricing and creates one payment-deduplicated pass per paid invoice cycle, never resets the parent's latest pass. Why: current invoice formats skipped renewals and multi-child subscriptions could overwrite each other's sessions.
 - Spa availability launch dates live on availability windows and are enforced by shared calendar helpers and an appointment trigger. Why: future launches must allow reservations now without permitting appointments before their start date.
@@ -46,5 +46,5 @@
 - New marketing emails/texts are built and sent from Campaign Studio (`marketing_campaigns` + `campaign-studio` function, brand-locked renderer in `_shared/campaignRender.ts`); do not add new one-off blast senders or per-event send panels. Why: separate panels made sends impossible to find and every email needed new code.
 - Massage menu groups 60/90 variants by base name via src/lib/massages.ts; booking receives the selected original record and copy lives in that file. Why: one listing per treatment without changing pricing, intake or history.
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
-- Workouts: resume state in localStorage + workout_sessions_in_progress; 3D demos exact names only. Why: no wrong movements.
-- Planner reminders: self-removing timer, send-sms only, 3/day cap. Why: no polling.
+- Workouts resume via localStorage+workout_sessions_in_progress, demos exact-name only; planner reminders: self-removing timer, send-sms, 3/day. Why: accuracy, no polling.
+- Public pages use components/editorial. Why: editorial site.
