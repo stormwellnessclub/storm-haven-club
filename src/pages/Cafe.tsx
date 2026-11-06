@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { SEOHead } from "@/components/SEOHead";
 import { Layout } from "@/components/Layout";
 import { CafeOrderContent } from "@/components/cafe/CafeOrderContent";
-import { CafeStory, CafeVisit } from "@/components/cafe/CafeStory";
 
 const BASE_URL = "https://stormwellnessclub.com";
 
@@ -104,14 +103,9 @@ export default function Cafe() {
         <script type="application/ld+json">{JSON.stringify(faqLd)}</script>
       </Helmet>
 
-      <CafeStory />
-
-      {/* Live ordering UI */}
-      <div id="cafe-menu" className="scroll-mt-20">
-        <CafeOrderContent variant="public" />
+      <div className="pt-20">
+        <CafeOrderContent variant="public" showHero />
       </div>
-
-      <CafeVisit />
     </Layout>
   );
 }
