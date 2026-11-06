@@ -25,7 +25,6 @@ import plunge from "@/assets/wellness/cold-plunge-premium.jpg";
 import redLight from "@/assets/wellness/red-light-therapy.jpg";
 import zeroBody from "@/assets/zerobody-float.jpeg";
 import spaDoor from "@/assets/spa-hallway.jpg";
-import treatmentRoom from "@/assets/treatment-room.jpg";
 import showers from "@/assets/locker-room.jpg";
 import matcha from "@/assets/food/matcha-latte.jpg";
 import smoothie from "@/assets/cafe/smoothie-orange-creamsicle.jpg";
@@ -161,16 +160,13 @@ export default function Index() {
 
       {/* 05 — SPA AELLA (its own warmer, quieter layer) */}
       <section className="bg-secondary py-28 md:py-48">
-        <div className="container mx-auto px-6 md:px-12 grid md:grid-cols-12 gap-12 md:gap-6 items-end">
-          <div className="md:col-span-4 order-2 md:order-1">
-            <Reveal><Chapter n="04" label="Spa Aella" /></Reveal>
-            <Reveal delay={200}>
-              <div className="mt-10"><QuietLink to="/spa">Visit Spa Aella</QuietLink></div>
-            </Reveal>
-          </div>
-          <div className="md:col-span-7 md:col-start-6 order-1 md:order-2 grid grid-cols-[3fr_2fr] gap-4 md:gap-6 items-end">
+        <div className="container mx-auto px-6 md:px-12">
+          <Reveal><Chapter n="04" label="Spa Aella" /></Reveal>
+          <Reveal delay={150}>
+            <div className="mt-8 mb-12 md:mb-16"><QuietLink to="/spa">Visit Spa Aella</QuietLink></div>
+          </Reveal>
+          <div className="md:w-5/12">
             <EdImage src={spaDoor} alt="An arched oak door leading into a Spa Aella treatment room" className="aspect-[2/3]" />
-            <EdImage src={treatmentRoom} alt="A Spa Aella treatment room with a glowing salt wall" className="aspect-[2/3]" />
           </div>
         </div>
       </section>
