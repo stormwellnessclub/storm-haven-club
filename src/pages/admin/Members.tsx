@@ -739,6 +739,21 @@ export default function Members() {
   return (
     <AdminLayout title="Members">
       <div className="space-y-4">
+        {readyToActivate.length > 0 && (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardContent className="py-3 space-y-2">
+              <p className="text-sm font-medium">Payment received — ready to activate</p>
+              {readyToActivate.map((m: any) => (
+                <div key={m.id} className="flex items-center justify-between gap-2 text-sm">
+                  <span>{m.first_name} {m.last_name} <span className="text-muted-foreground">· {m.membership_type}</span></span>
+                  <Button size="sm" onClick={() => { setMemberToActivate(m); setShowActivateDialog(true); }}>
+                    Activate
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
         {/* Header Actions */}
         <div className="flex flex-col sm:flex-row gap-4 justify-between">
           <div className="relative flex-1 max-w-md">

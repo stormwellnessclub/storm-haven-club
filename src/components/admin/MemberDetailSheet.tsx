@@ -784,7 +784,8 @@ export function MemberDetailSheet({ member, open, onOpenChange, onRequestSuperAc
                   <Button
                     variant="default"
                     size="sm"
-                    onClick={() => {/* Will be handled by parent component */}}
+                    onClick={() => onRequestSuperActivate?.(member)}
+                    disabled={!onRequestSuperActivate}
                     title="Activate Membership"
                   >
                     <PlayCircle className="h-4 w-4 mr-1" />
