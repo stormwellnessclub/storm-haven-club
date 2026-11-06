@@ -25,7 +25,6 @@ import plunge from "@/assets/wellness/cold-plunge-premium.jpg";
 import redLight from "@/assets/wellness/red-light-therapy.jpg";
 import zeroBody from "@/assets/zerobody-float.jpeg";
 import spaDoor from "@/assets/spa-hallway.jpg";
-import treatmentRoom from "@/assets/treatment-room.jpg";
 import showers from "@/assets/locker-room.jpg";
 import matcha from "@/assets/food/matcha-latte.jpg";
 import smoothie from "@/assets/cafe/smoothie-orange-creamsicle.jpg";
