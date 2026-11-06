@@ -19,15 +19,20 @@ import cycling from "@/assets/cycling-studio-hero.jpg";
 import gymFloor from "@/assets/gym-area-1.jpg";
 import aerobics from "@/assets/aerobics-studio-hero.jpg";
 import saltRoom from "@/assets/salt-room.jpg";
-import steamRoom from "@/assets/wellness/steam-room.jpg";
+import steamRoom from "@/assets/wellness/steam-room-clean.jpg";
 import sauna from "@/assets/wellness/sauna-interior-wide.jpg";
 import plunge from "@/assets/wellness/cold-plunge-premium.jpg";
 import redLight from "@/assets/wellness/red-light-therapy.jpg";
 import zeroBody from "@/assets/zerobody-float.jpeg";
 import spaDoor from "@/assets/spa-hallway.jpg";
-import spaShower from "@/assets/spa-shower.jpg";
+import treatmentRoom from "@/assets/treatment-room.jpg";
+import lobby from "@/assets/main-lobby.jpeg";
+import reformer2 from "@/assets/reformer-pilates-2.jpg";
+import cycling2 from "@/assets/cycling-2.jpg";
+import zeroRoom from "@/assets/zerobody-room.jpg";
+import showers from "@/assets/locker-room.jpg";
 import matcha from "@/assets/food/matcha-latte.jpg";
-import cafeTree from "@/assets/textures/cafe-tree.jpg";
+import smoothie from "@/assets/cafe/smoothie-orange-creamsicle.jpg";
 import gymFloor2 from "@/assets/gym-area-2.jpg";
 import lockers from "@/assets/interiors/wooden-lockers-gold.jpg";
 
@@ -60,11 +65,16 @@ const recoverRooms = [
 ];
 
 const lifeStrip = [
+  { src: lobby, alt: "The lobby with marble floors and arched doorway", cap: "The lobby" },
   { src: gymFloor2, alt: "Strength equipment on the marble training floor", cap: "The training floor" },
-  { src: lockers, alt: "Oak lockers with brass details in the locker room", cap: "The locker room" },
-  { src: cafeTree, alt: "Olive tree beside the café seating", cap: "The café" },
-  { src: steamRoom, alt: "Steam rising in the gold mosaic steam room", cap: "Steam" },
-  { src: aerobics, alt: "Arched windows and mats in the aerobics studio", cap: "The aerobics studio" },
+  { src: reformer2, alt: "Members on reformers in the Reformer Pilates studio", cap: "Reformer Pilates" },
+  { src: cycling2, alt: "Bikes beneath arched lights in the Cycle Studio", cap: "Cycle Studio" },
+  { src: aerobics, alt: "Arched windows and mats in the aerobics studio", cap: "Aerobics Studio" },
+  { src: steamRoom, alt: "Steam rising in the gold mosaic steam room", cap: "Steam Room" },
+  { src: zeroRoom, alt: "Starpool ZeroBody beds behind an arched glass door", cap: "Starpool ZeroBody" },
+  { src: lockers, alt: "Oak lockers with brass details in the locker room", cap: "Locker Room" },
+  { src: showers, alt: "Marble showers and soaking tub", cap: "Showers" },
+  { src: smoothie, alt: "A Storm Café smoothie on marble", cap: "Storm Café" },
 ];
 
 export default function Index() {
@@ -129,17 +139,9 @@ export default function Index() {
               </div>
             </div>
           </div>
-          <div className="mt-16 md:mt-20 grid md:grid-cols-12 gap-8 items-start">
-            <Reveal className="md:col-span-6">
-              <h2 className="ed-headline max-w-[16ch]">Coached, not counted.</h2>
-            </Reveal>
-            <Reveal delay={150} className="md:col-span-4 md:col-start-8">
-              <p className="ed-body text-muted-foreground">Every rep seen. Every correction made in the room.</p>
-              <div className="mt-8 flex flex-wrap gap-x-10 gap-y-5">
-                <QuietLink to="/classes">Classes</QuietLink>
-                <QuietLink to="/personal-training">Personal training</QuietLink>
-              </div>
-            </Reveal>
+          <div className="mt-10 flex flex-wrap gap-x-10 gap-y-5">
+            <QuietLink to="/classes">Classes</QuietLink>
+            <QuietLink to="/personal-training">Personal training</QuietLink>
           </div>
         </div>
       </section>
@@ -149,22 +151,11 @@ export default function Index() {
         <EdImage src={saltRoom} alt="Glowing walls of hand-cut Himalayan salt in the salt room" className="h-[85svh] min-h-[480px] w-full bg-primary" />
         <div className="container mx-auto px-6 md:px-12 py-28 md:py-48">
           <Reveal><Chapter n="03" label="Recover" light /></Reveal>
-          <Reveal delay={200}>
-            <p className="ed-statement mt-12 max-w-[14ch]">Progress isn’t only what happens while you train.</p>
-          </Reveal>
-          <Reveal delay={400}>
-            <p className="ed-body text-primary-foreground/70 mt-12 md:ml-[40%]">
-              Training asks. Recovery answers. Salt, heat, steam and cold — part of every membership.
-            </p>
-          </Reveal>
-          <div className="mt-24 md:mt-36 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-20 md:gap-y-32">
+          <div className="mt-16 md:mt-24 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-20 md:gap-y-32">
             {recoverRooms.map((r, i) => (
               <div key={r.title} className={i % 2 === 1 ? "md:mt-40" : ""}>
                 <EdImage src={r.src} alt={`${r.title} at Storm Wellness Club`} className="aspect-[4/5] bg-primary" />
-                <div className="mt-6 flex items-baseline justify-between gap-6 border-t border-primary-foreground/15 pt-5">
-                  <h3 className="font-serif text-2xl md:text-3xl font-light">{r.title}</h3>
-                  <p className="text-sm text-primary-foreground/60 font-light text-right max-w-[24ch]">{r.line}</p>
-                </div>
+                <h3 className="mt-6 border-t border-primary-foreground/15 pt-5 font-serif text-2xl md:text-3xl font-light">{r.title}</h3>
               </div>
             ))}
           </div>
@@ -178,13 +169,7 @@ export default function Index() {
           <div className="md:col-span-5 order-2 md:order-1">
             <Reveal><Chapter n="04" label="Spa Aella" /></Reveal>
             <Reveal delay={200}>
-              <h2 className="ed-headline mt-10 max-w-[12ch] italic">Warm stone, low light, unhurried hands.</h2>
-            </Reveal>
-            <Reveal delay={350}>
-              <p className="ed-body text-muted-foreground mt-10">
-                Therapists who read what your body needs that day. Open to members and guests.
-              </p>
-              <div className="mt-10"><QuietLink to="/spa">Enter Spa Aella</QuietLink></div>
+              <div className="mt-10"><QuietLink to="/spa">Visit Spa Aella</QuietLink></div>
             </Reveal>
           </div>
           <div className="md:col-span-6 md:col-start-7 order-1 md:order-2 grid grid-cols-5 gap-4">
@@ -192,7 +177,7 @@ export default function Index() {
               <EdImage src={spaDoor} alt="An arched oak door leading into a Spa Aella treatment room" className="aspect-[3/5]" />
             </div>
             <div className="col-span-2 self-end">
-              <EdImage src={spaShower} alt="Marble shower and soaking tub in the spa" className="aspect-[3/4]" />
+              <EdImage src={treatmentRoom} alt="A Spa Aella treatment room with a glowing salt wall" className="aspect-[3/4]" />
             </div>
           </div>
         </div>
@@ -205,10 +190,8 @@ export default function Index() {
             <EdImage src={matcha} alt="Matcha being poured over oat milk at the Storm Café" className="aspect-[4/5] md:aspect-[5/4]" />
           </div>
           <div className="md:col-span-4 md:col-start-9">
-            <Reveal><Chapter n="05" label="Nourish" /></Reveal>
+            <Reveal><Chapter n="05" label="Storm Café" /></Reveal>
             <Reveal delay={150}>
-              <h2 className="ed-headline mt-10">Worth staying for.</h2>
-              <p className="ed-body text-muted-foreground mt-8">Pressed juice, made-to-order plates, an unhurried table.</p>
               <div className="mt-10"><QuietLink to="/cafe">The café menu</QuietLink></div>
             </Reveal>
           </div>
@@ -218,7 +201,7 @@ export default function Index() {
       {/* 07 — LIFE INSIDE STORM WELLNESS */}
       <section className="bg-background pb-24 md:pb-40">
         <div className="container mx-auto px-6 md:px-12">
-          <Reveal><Chapter n="06" label="Life inside Storm Wellness" /></Reveal>
+          <Reveal><Chapter n="06" label="Life at Storm" /></Reveal>
         </div>
         <div className="mt-10 flex gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory px-6 md:px-12 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Photographs from inside the club">
           {lifeStrip.map((p) => (
