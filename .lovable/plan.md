@@ -1,19 +1,26 @@
-# Let staff book spa appointments before the waiver is signed
+# Let staff book spa appointments without a waiver or card
 
 ## What changes
-Staff can book any spa service (massages included) for a non-member or a member who hasn't signed the waiver yet. No more red "must sign via the portal" block.
+Staff can book any spa service (massages included) for walk-ins or phone callers, members or non-members, even when they have no signed waiver and no card on file.
 
-1. **Booking no longer blocked.** The staff booking window shows a gentle notice instead of an error: "Waiver not signed yet — we'll send them a link."
-2. **Email or phone required when the waiver is missing.** Staff must enter at least one so the link can reach them.
-3. **Confirmation carries the waiver link.** The booking email and/or text (text only if they've agreed to texts) includes the create-account-and-sign-waiver link, same as walk-in guests get today.
-4. **Verbal consent checkbox.** An optional "Client verbally agreed to the waiver terms" box. When ticked, the appointment saves a note with the staff name and time (e.g. "Verbal waiver consent — taken by Sahar, Nov 6 3:05 PM"). It does not replace the signed waiver, which still appears as missing on their profile.
-5. **Check-in reminder.** The appointment shows "Waiver pending" in the schedule and check-out views so the desk can have them sign on arrival.
+1. **Booking no longer blocked.** The red "must sign via the portal" message goes away. Staff see a short notice instead: "Waiver and intake not done yet — we'll send them a link."
+2. **No card needed.** The missing-card note stays as a reminder only (it doesn't block today); staff take payment at the desk.
+3. **Email or phone required.** When the waiver is missing, staff must enter at least one so the link can reach the client.
+4. **One link, no loopholes.** The confirmation goes by email if we have one, and by text if we only have a phone (or both). The link opens one page that:
+   - shows their appointment,
+   - creates their account with name, email and phone already filled in from the booking,
+   - goes straight into the intake form for that appointment, then the waiver,
+   - saves progress, so closing the page and coming back doesn't lose what they entered.
+5. **Text without prior opt-in.** A booking text is a one-time confirmation the client asked for by phone or in person. Staff tick "Client agreed to receive a text" before it sends, and we record that agreement.
+6. **Verbal waiver note.** Optional "Client verbally agreed to the waiver terms" box. It saves a note with staff name and time. Their profile still shows the signed waiver as missing until they sign.
+7. **Reminder at arrival.** The schedule and check-out views show "Waiver pending" / "Intake pending" so the desk can finish it on arrival.
+8. **Resend link.** A "Resend link" button on the appointment for anyone who didn't get or lost it.
 
-Online self-booking stays as is (waiver still required there).
+Online self-booking stays as is.
 
 ## Technical details
-- `AdminSpaBookingModal.tsx`: remove the waiver throw in the booking mutation and the `waiverSigned` condition in the Book button's `disabled`; replace both alerts with one amber notice; require email or phone when `!waiverSigned`; for account customers with no waiver, still pass contact to `sendSpaNotifications` so the waiver-link version is used.
-- Add verbal-consent checkbox; prepend a dated line to `staff_notes` when checked.
-- Show a "Waiver pending" badge in `Appointments.tsx` / completion dialog when the client has no signed waiver.
-- No database change needed (no database rule enforces the waiver on staff bookings).
-- Test with a fake client and confirmations turned off, so no real messages go out.
+- `AdminSpaBookingModal.tsx`: remove the waiver throw in the booking mutation and the `waiverSigned` term in the Book button's `disabled`; merge the two alerts into one amber notice; require email or phone when `!waiverSigned`; pass contact to `sendSpaNotifications` for account customers missing a waiver too.
+- Booking link: a signed per-appointment token page (reuse the existing guest create-account-and-waiver link) that prefills signup, auto-links the appointment via the existing guest_email trigger (and a phone match for phone-only guests), then routes to the correct intake by `intakeKindFor()` and the waiver. Intake drafts autosave per appointment.
+- SMS goes through `send-sms`; staff-confirmed consent is recorded in `phone_sms_consent` with source "staff_booking"; an account opt-out still wins.
+- Verbal consent line prepended to `staff_notes`. "Waiver/Intake pending" badges in `Appointments.tsx` and the completion dialog. Resend button reuses `sendSpaNotifications`.
+- Test with a fake client and sends disabled; no real messages or charges.
