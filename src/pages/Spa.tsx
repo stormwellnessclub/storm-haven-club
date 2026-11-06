@@ -202,6 +202,7 @@ export default function Spa() {
   const handleMassageBooking = (service: SpaService) => {
     // Show open times first; the booking window asks for the waiver and a
     // card on file only after a time is picked.
+    window.__lovableEvents?.track?.("project.spa_book_click", { category: service.category ?? "unknown" });
     setSelectedService(service);
     setShowBookingModal(true);
     setPendingMassageService(null);
@@ -446,7 +447,7 @@ export default function Spa() {
       ) : (
       <>
       {/* Category Filters */}
-      <section id="spa-menu" className="py-8 bg-background border-b border-border sticky top-20 z-40 scroll-mt-20">
+      <section id="spa-menu" className="py-8 bg-background border-b border-border scroll-mt-20">
         <div className="container mx-auto px-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
