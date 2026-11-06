@@ -554,7 +554,7 @@ export default function Spa() {
               className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 hover:underline whitespace-nowrap"
             >
               <Gift className="w-4 h-4" />
-              Have a voucher or gift card?
+              Have a voucher or gift card? Redeem
             </button>
           </div>
         </div>
