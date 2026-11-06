@@ -21,3 +21,8 @@ Deno.test('insufficient funds decline is named for staff', () => {
 Deno.test('no card entered reads as left at card screen', () => {
   assertEquals(stopReasonFor({ status: 'requires_payment_method', last_payment_error: null }).reason, 'Left at card screen');
 });
+
+Deno.test('prepaid fraud decline is named for staff', () => {
+  const r = stopReasonFor({ status: 'requires_payment_method', last_payment_error: { code: 'card_declined', decline_code: 'fraudulent', message: 'Your card was declined.', payment_method: { card: { funding: 'prepaid' } } } });
+  assertEquals(r.reason, 'Card declined: bank fraud check (prepaid card)');
+});
