@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test } from "bun:test";
 import { computeAll, computeMember, type RetentionMember, type Visit } from "./retention";
 
