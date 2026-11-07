@@ -131,6 +131,7 @@ const departments: DepartmentSection[] = [
       { title: "Signature Certificates", url: "/admin/signature-certificates", icon: FileText },
       { title: "Cancelled Members", url: "/admin/cancelled-members", icon: UserMinus },
       { title: "Membership Health", url: "/admin/membership-health", icon: Activity },
+      { title: "Retention", url: "/admin/retention", icon: TrendingUp },
       { title: "Growth Report", url: "/admin/member-growth", icon: TrendingUp },
     ],
   },
