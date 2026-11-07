@@ -242,7 +242,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
   const aiWrite = () => run("ai", async () => {
     const d = (await call("ai_draft", { goal, current: c.blocks.map((b) => b.text ?? "").join("\n") })).draft;
     setSubjectOptions(d.subject_options ?? []);
-    const cover = c.blocks.find((b) => b.type === "cover" || b.type === "image");
+    const cover = c.blocks.find((b) => b.type === "cover" || b.type === "image" || b.type === "event_photo");
     const details = c.blocks.find((b) => b.type === "details");
     const url = c.blocks.find((b) => b.type === "button")?.url ?? "https://stormwellnessclub.com";
     set({
