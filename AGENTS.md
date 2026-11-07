@@ -48,4 +48,4 @@
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
 - Workouts resume via localStorage+workout_sessions_in_progress, demos exact-name only; planner reminders: self-removing timer, send-sms, 3/day. Why: accuracy, no polling.
 - Public pages use components/editorial. Why: editorial site.
-- Retention portal metrics come only from `admin_retention_visits` (one visit per member per Detroit day per activity) plus `src/lib/retention.ts`; outreach is logged in `retention_outreach`. Manager/admin only, never sends messages. Why: one tested source for segments and no idle scheduled jobs.
+- Retention uses only `admin_retention_visits` + `src/lib/retention.ts`. Why: one tested source.
