@@ -12691,6 +12691,58 @@ export type Database = {
           },
         ]
       }
+      retention_outreach: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          member_id: string
+          note: string | null
+          outcome: string
+          staff_id: string | null
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          id?: string
+          member_id: string
+          note?: string | null
+          outcome?: string
+          staff_id?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          member_id?: string
+          note?: string | null
+          outcome?: string
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retention_outreach_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_check_in_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retention_outreach_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "member_limited_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "retention_outreach_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revenue_ledger: {
         Row: {
           area: string
@@ -16456,6 +16508,14 @@ export type Database = {
         Returns: Json
       }
       admin_remove_society_person: { Args: { _id: string }; Returns: Json }
+      admin_retention_visits: {
+        Args: { p_days?: number }
+        Returns: {
+          kind: string
+          member_id: string
+          visit_day: string
+        }[]
+      }
       admin_set_class_session_hidden: {
         Args: { _is_hidden: boolean; _session_id: string }
         Returns: Json
