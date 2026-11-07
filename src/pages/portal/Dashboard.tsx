@@ -17,6 +17,7 @@ import { getCategoryDisplayName } from "@/lib/classCategories";
 import { MyCafeOrdersCard } from "@/components/portal/MyCafeOrdersCard";
 import { MyCafeCreditCard } from "@/components/portal/MyCafeCreditCard";
 import { UpcomingPTAppointmentsCard } from "@/components/portal/UpcomingPTAppointmentsCard";
+import { PTSessionRequestCard } from "@/components/portal/PTSessionRequestCard";
 import { UpcomingSpaAppointmentsCard } from "@/components/portal/UpcomingSpaAppointmentsCard";
 import { useMyReviews } from "@/hooks/useClassReviews";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
@@ -185,6 +186,7 @@ export default function PortalDashboard() {
         )}
 
         <UpcomingPTAppointmentsCard />
+        <PTSessionRequestCard />
         <UpcomingSpaAppointmentsCard />
         <ClassMilestonesCard />
 

@@ -9564,6 +9564,27 @@ export type Database = {
         }
         Relationships: []
       }
+      pt_client_booking_settings: {
+        Row: {
+          client_booking_mode: string
+          id: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          client_booking_mode?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          client_booking_mode?: string
+          id?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       pt_client_profiles: {
         Row: {
           body_fat_pct: number | null
@@ -12339,6 +12360,49 @@ export type Database = {
             foreignKeyName: "pt_trainer_availability_instructor_id_fkey"
             columns: ["instructor_id"]
             isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_trainer_client_booking: {
+        Row: {
+          client_booking_mode: string
+          instructor_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          client_booking_mode?: string
+          instructor_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          client_booking_mode?: string
+          instructor_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_trainer_client_booking_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: true
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_client_booking_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: true
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_client_booking_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: true
             referencedRelation: "public_instructors_view"
             referencedColumns: ["id"]
           },
@@ -17994,6 +18058,10 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_assert_client_request_allowed: {
+        Args: { _instructor_id: string }
+        Returns: undefined
+      }
       pt_attach_plan_schedule: {
         Args: { p_first_autopay: string; p_idempotency_key: string }
         Returns: Json
@@ -18078,6 +18146,7 @@ export type Database = {
         Args: { p_appointment_id: string; p_start?: boolean }
         Returns: Json
       }
+      pt_client_booking_admin_state: { Args: never; Returns: Json }
       pt_complete_session: {
         Args: { p_appointment_id: string; p_deduct?: boolean; p_note?: Json }
         Returns: Json
@@ -18109,6 +18178,10 @@ export type Database = {
           p_user_id: string
         }
         Returns: Json
+      }
+      pt_effective_client_booking_mode: {
+        Args: { _instructor_id: string }
+        Returns: string
       }
       pt_eligible_past_appointments: {
         Args: { p_user_id: string }
@@ -18234,9 +18307,12 @@ export type Database = {
           user_id: string
         }[]
       }
+      pt_instant_booking_ready: { Args: never; Returns: boolean }
+      pt_is_client: { Args: { _uid: string }; Returns: boolean }
       pt_is_desk: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_manager: { Args: { _uid: string }; Returns: boolean }
       pt_is_financial_staff: { Args: { _uid: string }; Returns: boolean }
+      pt_is_pt_trainer: { Args: { _instructor_id: string }; Returns: boolean }
       pt_is_service_or_financial: { Args: never; Returns: boolean }
       pt_is_staff: { Args: { _uid: string }; Returns: boolean }
       pt_is_staff_or_desk: { Args: { _uid: string }; Returns: boolean }
@@ -18340,6 +18416,7 @@ export type Database = {
         Args: { p_idempotency_key: string; p_subscription_id?: string }
         Returns: Json
       }
+      pt_my_client_booking: { Args: never; Returns: Json }
       pt_my_financial_history: { Args: never; Returns: Json }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       pt_open_sale_intent: {
@@ -18941,6 +19018,7 @@ export type Database = {
         Args: { p_invoice_id: string; p_recipient?: string }
         Returns: Json
       }
+      pt_set_client_booking_mode: { Args: { p_mode: string }; Returns: string }
       pt_set_package_deduction: {
         Args: { p_appointment_id: string; p_deduct: boolean }
         Returns: Json
@@ -18948,6 +19026,10 @@ export type Database = {
       pt_set_pass_status: {
         Args: { p_pass_id: string; p_reason: string; p_status: string }
         Returns: Json
+      }
+      pt_set_trainer_client_booking_mode: {
+        Args: { p_instructor_id: string; p_mode: string }
+        Returns: string
       }
       pt_settle_with_package: {
         Args: {
