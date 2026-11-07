@@ -1072,6 +1072,13 @@
       "when": 1794051100055,
       "tag": "0152_pt_harden_request_update_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1794051481209,
+      "tag": "0153_pt_client_booking_mode",
+      "breakpoints": true
     }
   ]
 }
