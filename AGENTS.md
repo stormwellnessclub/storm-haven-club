@@ -35,7 +35,7 @@
 - Successful staff PT bookings invoke send-pt-booking-email for each saved appointment; it sends consent-checked SMS with appointment-level deduplication independently of email, and notification failures never retry the booking. Why: clients need immediate confirmations without duplicate sessions or texts.
 - Class-pass returns use one auth-aware confirmation consumer per page, refresh credits after fulfillment, preserve the saved class until its week loads, and reconcile invalid payment selections; every BookingModal hook runs before null-session returns. Why: checkout returns and opening a class must not crash, lose intent, or use unavailable credits.
 - Guest spa checkout: new card, date-locked reserve, one capture; window fit uses treatment length only. Refusals logged/shown verbatim; a self-removing timer closes expired unbooked holds with a stop reason, never succeeded ones. Why: generic refusals and "Incomplete" piles.
-- Online spa bookings (member and guest) permit same-day appointments for every treatment with at least 2 hours of Detroit-time notice, enforced in SpaBookingModal and spa-guest-checkout/bookingDate.ts. Why: owner policy; shorter notice goes through staff requests.
+- Online spa same-day notice is enforced in both SpaBookingModal and spa-guest-checkout/bookingDate.ts. Why: shorter notice goes via staff requests.
 - Guest spa checkout accepts any public anon key; account tokens need verified auth. Why: rotated keys must not break guests.
 - Class schedule navigation, calendar selection and displayed days share the horizon from classScheduleWindowEnd. Why: extending visibility must work equally on public and embedded portal schedules without exposing dates beyond that horizon.
 - Class schedule conflict checks exclude cancelled occurrence dates, not whole recurring rules or hidden live classes; cancellation refreshes generated-session queries. Why: a cancelled occurrence must not cause a false warning while future real overlaps remain visible.
@@ -48,6 +48,6 @@
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
 - Workouts resume via localStorage+workout_sessions_in_progress, demos exact-name only; planner reminders: self-removing timer, send-sms, 3/day. Why: accuracy, no polling.
 - Public pages use components/editorial. Why: editorial site.
-- Retention uses only `admin_retention_visits` + `src/lib/retention.ts`. Why: one tested source.
-- HSS gatherings are `events` rows; one reply per event+member via `eventRsvp.ts`. Why: replies missed calendars.
-- PT client booking gates only via `pt_effective_client_booking_mode` (+`ptClientBooking.ts`); instant off until `pt_instant_booking_ready()`. Why: one gate.
+- Retention: only `admin_retention_visits` + `retention.ts`. Why: one tested source.
+- HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
+- PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
