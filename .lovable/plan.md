@@ -1,26 +1,30 @@
-# Win-back outreach to Tiffany Wu
+# Personal check-in email to Tiffany Wu
 
-Tiffany is an active Diamond member who signed up September 10 and hasn't been in yet. She opted out of texts, so this goes out as **one personal email only**. No text will be sent.
+Tiffany is an active Diamond member who joined September 10 and hasn't come in yet. She opted out of texts, so this will be **one short email**, written like a note from a real person. No text will be sent.
 
 ## Draft email
 
-**Subject:** Your first visit at Storm, Tiffany
+**From:** [your name] at Storm
+**Subject:** Hi Tiffany, just checking in
 
 Hi Tiffany,
 
-We've been looking forward to welcoming you since you joined in September, and we noticed you haven't had a chance to come in yet.
+It's [your name] from Storm. I was going through our new members and realized we haven't gotten to meet you yet. I wanted to reach out myself and say hi.
 
-Life gets full, and we'd love to make your first visit easy. Reply to this email or call us and we'll set it up around your schedule. That could be a walkthrough of the club, a Reformer or Cycle class, or time in the recovery rooms: the Starpool ZeroBody, red light or the salt room.
+No pressure at all. I just want to make sure you feel welcome and know how to get started. If it helps, I'd love to show you around myself the first time you come in. It only takes about 20 minutes, and you'll know where everything is.
 
-As a Diamond member, everything is ready for you whenever you are. If something has kept you from coming in, we'd like to hear about it.
+Is there a day this week or next that works for you? Just reply here and I'll set it up.
 
-See you soon,
-The Storm Wellness Club Team
+And if something's been getting in the way, I'd honestly like to know.
 
-(Includes the standard one-click unsubscribe footer.)
+Talk soon,
+[your name]
+Storm Wellness Club
 
-## How it sends
-- Sent once, through the standard marketing email with unsubscribe, to Tiffany only.
-- Nothing about her membership or billing changes.
+(The standard unsubscribe link is added at the bottom.)
 
-Send this, or tell me what to change (tone, offer, a specific class or time, a personal note from you).
+## Before sending
+- Tell me **whose name to sign it with**. A real name is what makes it feel personal.
+- It goes to Tiffany only, one time. Her membership and billing stay exactly as they are.
+
+Tell me to send it, or what to change.
