@@ -55,6 +55,9 @@ export function SocietyRsvp({ eventId, compact = false, allowDismiss = false }: 
   const { data: mine = {} } = useMySocietyRsvps();
   const save = useSaveSocietyRsvp();
   const [editing, setEditing] = useState(false);
+  if (!user && !compact) return (
+    <a href="/auth?redirect=/rituals/higher-self-society" className="inline-block mt-6 mr-6 text-xs uppercase tracking-[0.2em] text-[hsl(var(--society-gold))]">Sign in to RSVP</a>
+  );
   if (!user || eligible !== true || !eventId) return null;
   const current = mine[eventId];
   const answered = current && current !== "dismissed";
