@@ -49,3 +49,5 @@
 - Workouts resume via localStorage+workout_sessions_in_progress, demos exact-name only; planner reminders: self-removing timer, send-sms, 3/day. Why: accuracy, no polling.
 - Public pages use components/editorial. Why: editorial site.
 - Retention uses only `admin_retention_visits` + `src/lib/retention.ts`. Why: one tested source.
+- Higher Self Society gatherings are `events` rows (`series_key='higher-self-society'`, one per date); replies live in `society_meeting_rsvps`, one row per member per event (`event_id,user_id` unique), and every page reads them via `useSocietyGatherings` + `src/lib/eventRsvp.ts`. No sign-in pop-ups. Why: replies saved against a round label never reached calendars or Upcoming.
+- Event email photos resolve through `_shared/eventEmailImage.ts` (event email → event hero → series → logo-only). Why: one shared image made every event email look the same.
