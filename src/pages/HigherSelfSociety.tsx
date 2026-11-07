@@ -1,6 +1,6 @@
 import { canJoinSociety, societySignupsClosed } from "@/lib/societySignup";
 import { SocietyBookVote } from "@/components/society/SocietyBookVote";
-import { SocietyCurrentlyReading } from "@/components/society/SocietyCurrentlyReading";
+import { SocietyCurrentlyReading, SocietyNextRound, useSocietyRounds, gatheringWhen, bookFor } from "@/components/society/SocietyCurrentlyReading";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -50,6 +50,11 @@ export default function HigherSelfSociety() {
   }, [mine]);
 
   const isMember = canJoinSociety(membership);
+  const rounds = useSocietyRounds();
+  const curBook = bookFor(rounds.current);
+  const statusLine = rounds.current
+    ? `Now reading ${curBook?.title ?? "our next book"} · gathering ${gatheringWhen(rounds.current).split(" · ")[0]}`
+    : null;
   const guestAllowed =
     isMember &&
     (!!membership?.is_founding_member || /diamond/i.test(membership?.membership_type ?? ""));
@@ -89,50 +94,21 @@ export default function HigherSelfSociety() {
               An intimate reading circle for members who read to grow — one book, one evening a month, and
               the conversations that stay with you long after.
             </p>
+            {statusLine && <p className={`mt-6 text-sm ${gold}`}>{statusLine}</p>}
+            <a href={rounds.current ? "#currently-reading" : "#next-round"}
+              className="inline-block mt-6 px-6 py-3 uppercase tracking-[0.2em] text-xs bg-[hsl(var(--society-gold))] text-[hsl(var(--society-bg))]">
+              {rounds.current ? "RSVP for the gathering" : "Join the next round"}
+            </a>
           </div>
         </section>
 
         <SocietyCurrentlyReading />
-
-        {/* What to expect */}
-        <section className="container mx-auto px-6 py-16 max-w-5xl grid md:grid-cols-3 gap-10 border-b border-[hsl(var(--society-line)/0.5)]">
-          {[
-            ["Monthly gathering", "One carefully chosen book, discussed by candlelight in an unhurried evening."],
-            ["Members only", "Open to every Storm Wellness Club member. Founding and Diamond members may request a guest seat."],
-            ["Shaped by you", "Your themes and book suggestions guide each round."],
-          ].map(([t, d]) => (
-            <div key={t}>
-              <h3 className={`font-serif text-2xl ${gold}`}>{t}</h3>
-              <p className={`mt-3 leading-relaxed ${muted}`}>{d}</p>
-            </div>
-          ))}
-        </section>
-
-        {/* Quote & imagery */}
-        <section className="container mx-auto px-6 py-20 max-w-5xl grid md:grid-cols-2 gap-12 items-center">
-          <img src={quoteImg.url} alt="An open book reading: Self love is the highest frequency" className="w-full aspect-[4/5] object-cover rounded-sm" loading="lazy" />
-          <div>
-            <p className={`uppercase tracking-[0.35em] text-xs ${gold}`}>The spirit of the circle</p>
-            <p className="font-serif text-3xl md:text-4xl mt-5 leading-snug italic">
-              "A room of people who read to become more fully themselves."
-            </p>
-            <p className={`mt-6 leading-relaxed ${muted}`}>
-              Each month we gather around one book: part reflection, part conversation, all intention. Come as you are, and leave with a new way of seeing.
-            </p>
-          </div>
-        </section>
-
-        <section className="grid grid-cols-3 gap-1 md:gap-2 px-1 md:px-2">
-          {[[pagesImg, "Open pages scattered together"], [heartImg, "Book pages folded into a heart"], [botanicalImg, "Book pages with pressed flowers"]].map(([img, alt]: any) => (
-            <img key={alt} src={img.url} alt={alt} className="w-full aspect-square object-cover" loading="lazy" />
-          ))}
-        </section>
-
+        <SocietyNextRound>
         {/* Form or access message */}
-        <section id="join" className="container mx-auto px-6 py-20 max-w-2xl">
-          <h2 className="font-serif text-4xl text-center">Join the next round</h2>
+        <details id="join" className="mt-8 text-left group"><summary className={`cursor-pointer list-none text-center text-xs uppercase tracking-[0.2em] ${gold}`}>Join or update your place in the next round</summary><div className="max-w-2xl mx-auto">
+          
           <p className={`text-center mt-3 ${muted}`}>
-            Share a few preferences and we will reach out with the first title and date.
+            Share a few preferences and a book suggestion for the next round.
           </p>
 
           {!user ? (
@@ -226,8 +202,61 @@ export default function HigherSelfSociety() {
               </button>
             </form>
           )}
+        </div></details>
+        </SocietyNextRound>
+
+        {/* About the Society */}
+        <section className="container mx-auto px-6 py-16 max-w-5xl grid md:grid-cols-3 gap-10 border-b border-[hsl(var(--society-line)/0.5)]">
+          {[
+            ["Monthly gathering", "One carefully chosen book, discussed by candlelight in an unhurried evening."],
+            ["Members only", "Open to every Storm Wellness Club member. Founding and Diamond members may request a guest seat."],
+            ["How books are chosen", "Members suggest titles, then vote. The top choice becomes the next round."],
+          ].map(([t, d]) => (
+            <div key={t}>
+              <h3 className={`font-serif text-2xl ${gold}`}>{t}</h3>
+              <p className={`mt-3 leading-relaxed ${muted}`}>{d}</p>
+            </div>
+          ))}
         </section>
-        <SocietyBookVote />
+
+        {/* Quote & imagery */}
+        <section className="container mx-auto px-6 py-20 max-w-5xl grid md:grid-cols-2 gap-12 items-center">
+          <img src={quoteImg.url} alt="An open book reading: Self love is the highest frequency" className="w-full aspect-[4/5] object-cover rounded-sm" loading="lazy" />
+          <div>
+            <p className={`uppercase tracking-[0.35em] text-xs ${gold}`}>The spirit of the circle</p>
+            <p className="font-serif text-3xl md:text-4xl mt-5 leading-snug italic">
+              "A room of people who read to become more fully themselves."
+            </p>
+            <p className={`mt-6 leading-relaxed ${muted}`}>
+              Each month we gather around one book: part reflection, part conversation, all intention. Come as you are, and leave with a new way of seeing.
+            </p>
+          </div>
+        </section>
+
+        <section className="grid grid-cols-3 gap-1 md:gap-2 px-1 md:px-2">
+          {[[pagesImg, "Open pages scattered together"], [heartImg, "Book pages folded into a heart"], [botanicalImg, "Book pages with pressed flowers"]].map(([img, alt]: any) => (
+            <img key={alt} src={img.url} alt={alt} className="w-full aspect-square object-cover" loading="lazy" />
+          ))}
+        </section>
+
+        <section className="container mx-auto px-6 py-12 max-w-4xl space-y-4">
+          {rounds.past.length > 0 && (
+            <details className="border-t border-[hsl(var(--society-line)/0.5)] pt-4">
+              <summary className="cursor-pointer font-serif text-2xl">Past Rounds</summary>
+              <ul className="mt-4 space-y-3">
+                {rounds.past.map((g) => (
+                  <li key={g.id} className={muted}>
+                    <span className="font-serif text-lg text-[hsl(var(--society-cream))]">{bookFor(g)?.title ?? g.subtitle}</span> · {gatheringWhen(g).split(" · ")[0]}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <details className="border-t border-[hsl(var(--society-line)/0.5)] pt-4">
+            <summary className="cursor-pointer font-serif text-2xl">How the First Book Was Chosen</summary>
+            <SocietyBookVote />
+          </details>
+        </section>
       </div>
     </Layout>
   );
