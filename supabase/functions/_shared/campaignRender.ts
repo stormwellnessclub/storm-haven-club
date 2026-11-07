@@ -7,6 +7,8 @@ export type Block =
   | { type: "text"; text: string }
   | { type: "image"; url: string; alt?: string }
   | { type: "cover"; url: string; title?: string; author?: string }
+  // Event photo: large for invitations, thumbnail for confirmations, none = logo-only.
+  | { type: "event_photo"; eventId?: string; url?: string | null; alt?: string; size?: "large" | "thumbnail" | "none"; position?: "top" | "center" | "bottom" }
   | { type: "button"; label: string; url: string }
   | { type: "details"; items: { label: string; value: string }[] }
   | { type: "divider" }
@@ -32,6 +34,13 @@ function block(b: Block, firstName: string | null): string {
     case "image": {
       const u = safeUrl(b.url); if (!u) return "";
       return `<img src="${u}" alt="${esc(b.alt)}" width="532" style="display:block;width:100%;height:auto;border:0;margin:0 0 22px;border-radius:3px;" />`;
+    }
+    case "event_photo": {
+      const u = safeUrl(b.url); if (!u || b.size === "none") return "";
+      const pos = ["top", "center", "bottom"].includes(String(b.position)) ? b.position : "center";
+      if (b.size === "thumbnail")
+        return `<img src="${u}" alt="${esc(b.alt)}" width="140" height="94" style="display:block;width:140px;height:94px;object-fit:cover;object-position:${pos};border:0;margin:0 0 20px;border-radius:3px;" />`;
+      return `<img src="${u}" alt="${esc(b.alt)}" width="532" style="display:block;width:100%;height:auto;max-height:340px;object-fit:cover;object-position:${pos};border:0;margin:0 0 22px;border-radius:3px;" />`;
     }
     case "cover": {
       const u = safeUrl(b.url); if (!u) return "";
