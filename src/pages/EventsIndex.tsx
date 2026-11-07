@@ -438,9 +438,9 @@ export default function EventsIndex() {
                   {filter === "open" ? "Open to all" : "Coming next"}
                 </p>
                 <h3 className="font-serif text-2xl md:text-3xl text-primary mt-4 leading-snug">
-                  {gridEvents.length === 0 && featured
-                    ? "One experience on the calendar right now"
-                    : "More experiences are being planned"}
+                  {!featured
+                    ? "More experiences are being planned"
+                    : "New gatherings are added through the season"}
                 </h3>
                 <p className="mt-4 text-muted-foreground leading-relaxed">
                   New gatherings are announced through the season — screenings, conversations,
