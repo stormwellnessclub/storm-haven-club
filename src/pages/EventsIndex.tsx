@@ -91,6 +91,8 @@ export default function EventsIndex() {
   );
 
   const openEvent = (e: EventDetailRecord) => {
+    // Society gatherings share one RSVP on the society page.
+    if (e.slug?.startsWith("higher-self-society-")) { navigate("/rituals/higher-self-society#currently-reading"); return; }
     setActive(e);
     window.history.replaceState(null, "", `/events/${e.slug}`);
   };
@@ -230,8 +232,8 @@ export default function EventsIndex() {
           <div className="relative p-8 md:p-14 max-w-xl">
             <p className="text-[11px] uppercase tracking-[0.35em] text-[hsl(var(--society-gold))]">New · Member Ritual</p>
             <h2 className="font-serif text-4xl md:text-5xl mt-3">The Higher Self Society</h2>
-            <p className="mt-4 text-[hsl(var(--society-muted))]">A monthly reading circle for members. Join the founding circle and help choose our first book.</p>
-            <span className="inline-block mt-6 text-xs uppercase tracking-[0.25em] text-[hsl(var(--society-gold))]">Join the founding circle →</span>
+            <p className="mt-4 text-[hsl(var(--society-muted))]">A monthly reading circle for members, gathering one Thursday evening a month.</p>
+            <span className="inline-block mt-6 text-xs uppercase tracking-[0.25em] text-[hsl(var(--society-gold))]">See the current round →</span>
           </div>
         </Link>
       </section>
