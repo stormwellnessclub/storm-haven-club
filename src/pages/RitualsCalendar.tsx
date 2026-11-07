@@ -201,7 +201,7 @@ export default function RitualsCalendar() {
                   key={e.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setActive(e)}
+                  onClick={() => e.slug.startsWith("higher-self-society-") ? navigate("/rituals/higher-self-society#currently-reading") : setActive(e)}
                   onKeyDown={(k) => {
                     if (k.key === "Enter" || k.key === " ") {
                       k.preventDefault();
@@ -311,7 +311,7 @@ export default function RitualsCalendar() {
                       .map((e) => (
                         <button
                           key={e.id}
-                          onClick={() => setActive(e)}
+                          onClick={() => e.slug.startsWith("higher-self-society-") ? navigate("/rituals/higher-self-society#currently-reading") : setActive(e)}
                           className="w-full text-left rounded bg-primary/10 hover:bg-primary/20 px-2 py-1 text-[11px] leading-tight text-primary"
                         >
                           <span className="block font-medium truncate">{e.title}</span>

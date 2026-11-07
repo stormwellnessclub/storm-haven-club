@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { GoogleReviewRequests } from "@/components/admin/GoogleReviewRequests";
+import { EventPhotoBlockEditor } from "@/components/admin/EventPhotoBlockEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,12 +33,12 @@ const EVENT_TAGS: Record<string, string> = {
   kids_care: "Kids Care", cafe: "Café", events: "Events", membership: "Membership",
 };
 const BLOCK_LABELS: Record<string, string> = {
-  eyebrow: "Small label", heading: "Headline", text: "Paragraphs", image: "Photo", cover: "Book or product cover",
+  eyebrow: "Small label", heading: "Headline", text: "Paragraphs", image: "Photo", event_photo: "Event photo", cover: "Book or product cover",
   button: "Button", details: "Event details", divider: "Divider", signature: "Sign-off",
 };
 const newBlock = (type: string): Block => ({
   eyebrow: { type, text: "HIGHER SELF SOCIETY" }, heading: { type, text: "Headline" }, text: { type, text: "Dear {first_name},\n\nWrite your message here." },
-  image: { type, url: "", alt: "" }, cover: { type, url: "", title: "", author: "" }, button: { type, label: "Learn more", url: "https://stormwellnessclub.com" },
+  image: { type, url: "", alt: "" }, event_photo: { type, eventId: "", url: null, alt: "", size: "large", position: "center", source: "logo_only" }, cover: { type, url: "", title: "", author: "" }, button: { type, label: "Learn more", url: "https://stormwellnessclub.com" },
   details: { type, items: [{ label: "Date", value: "" }, { label: "Time", value: "" }] }, divider: { type }, signature: { type },
 } as Record<string, Block>)[type];
 
@@ -241,7 +242,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
   const aiWrite = () => run("ai", async () => {
     const d = (await call("ai_draft", { goal, current: c.blocks.map((b) => b.text ?? "").join("\n") })).draft;
     setSubjectOptions(d.subject_options ?? []);
-    const cover = c.blocks.find((b) => b.type === "cover" || b.type === "image");
+    const cover = c.blocks.find((b) => b.type === "cover" || b.type === "image" || b.type === "event_photo");
     const details = c.blocks.find((b) => b.type === "details");
     const url = c.blocks.find((b) => b.type === "button")?.url ?? "https://stormwellnessclub.com";
     set({
@@ -258,7 +259,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
     if (error) throw error;
     const { data } = await supabase.storage.from("email-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
     if (!data?.signedUrl) throw new Error("Upload failed");
-    if (i < 0) set({ sms_image_url: data.signedUrl }); else setBlock(i, { url: data.signedUrl });
+    if (i < 0) set({ sms_image_url: data.signedUrl }); else setBlock(i, { url: data.signedUrl, source: "event_email" });
   });
 
   const schedule = () => run("schedule", async () => {
@@ -375,6 +376,9 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
                         {b.type === "image" && <Input placeholder="Describe the photo (for screen readers)" value={b.alt ?? ""} onChange={(e) => setBlock(i, { alt: e.target.value })} />}
                         {b.type === "cover" && <div className="grid grid-cols-2 gap-2"><Input placeholder="Title" value={b.title ?? ""} onChange={(e) => setBlock(i, { title: e.target.value })} /><Input placeholder="Author" value={b.author ?? ""} onChange={(e) => setBlock(i, { author: e.target.value })} /></div>}
                       </>
+                    )}
+                    {b.type === "event_photo" && (
+                      <EventPhotoBlockEditor block={b} onChange={(patch) => setBlock(i, patch)} onUpload={(f) => uploadImage(i, f)} />
                     )}
                     {b.type === "button" && <div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Button words" value={b.label} onChange={(e) => setBlock(i, { label: e.target.value })} /><Input placeholder="https://…" value={b.url} onChange={(e) => setBlock(i, { url: e.target.value })} /></div>}
                     {b.type === "details" && (

@@ -3860,19 +3860,27 @@ export type Database = {
           early_access_starts_at: string | null
           eligibility: string
           eligible_tiers: string[]
+          email_image_position: string | null
+          email_image_url: string | null
+          email_layout: string | null
           ends_at: string | null
           facilitator: string | null
           general_access_starts_at: string | null
           hide_capacity: boolean
           id: string
+          image_alt: string | null
           image_url: string | null
           is_included: boolean
           is_ritual: boolean
           member_price_cents: number
           member_stripe_price_id: string | null
           members_only: boolean
+          mobile_image_url: string | null
           non_member_price_cents: number
           non_member_stripe_price_id: string | null
+          round_key: string | null
+          round_state: string | null
+          series_key: string | null
           slug: string
           starts_at: string
           status: string
@@ -3896,19 +3904,27 @@ export type Database = {
           early_access_starts_at?: string | null
           eligibility?: string
           eligible_tiers?: string[]
+          email_image_position?: string | null
+          email_image_url?: string | null
+          email_layout?: string | null
           ends_at?: string | null
           facilitator?: string | null
           general_access_starts_at?: string | null
           hide_capacity?: boolean
           id?: string
+          image_alt?: string | null
           image_url?: string | null
           is_included?: boolean
           is_ritual?: boolean
           member_price_cents?: number
           member_stripe_price_id?: string | null
           members_only?: boolean
+          mobile_image_url?: string | null
           non_member_price_cents?: number
           non_member_stripe_price_id?: string | null
+          round_key?: string | null
+          round_state?: string | null
+          series_key?: string | null
           slug: string
           starts_at: string
           status?: string
@@ -3932,19 +3948,27 @@ export type Database = {
           early_access_starts_at?: string | null
           eligibility?: string
           eligible_tiers?: string[]
+          email_image_position?: string | null
+          email_image_url?: string | null
+          email_layout?: string | null
           ends_at?: string | null
           facilitator?: string | null
           general_access_starts_at?: string | null
           hide_capacity?: boolean
           id?: string
+          image_alt?: string | null
           image_url?: string | null
           is_included?: boolean
           is_ritual?: boolean
           member_price_cents?: number
           member_stripe_price_id?: string | null
           members_only?: boolean
+          mobile_image_url?: string | null
           non_member_price_cents?: number
           non_member_stripe_price_id?: string | null
+          round_key?: string | null
+          round_state?: string | null
+          series_key?: string | null
           slug?: string
           starts_at?: string
           status?: string
@@ -12885,6 +12909,7 @@ export type Database = {
           created_at: string
           description: string | null
           eligibility_note: string | null
+          email_image_url: string | null
           expectation: string | null
           id: string
           image_url: string | null
@@ -12900,6 +12925,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           eligibility_note?: string | null
+          email_image_url?: string | null
           expectation?: string | null
           id?: string
           image_url?: string | null
@@ -12915,6 +12941,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           eligibility_note?: string | null
+          email_image_url?: string | null
           expectation?: string | null
           id?: string
           image_url?: string | null
@@ -13427,7 +13454,9 @@ export type Database = {
       }
       society_meeting_rsvps: {
         Row: {
+          confirmation_sent_at: string | null
           created_at: string
+          event_id: string | null
           id: string
           response: string
           round_key: string
@@ -13435,7 +13464,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          confirmation_sent_at?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           response: string
           round_key: string
@@ -13443,14 +13474,24 @@ export type Database = {
           user_id: string
         }
         Update: {
+          confirmation_sent_at?: string | null
           created_at?: string
+          event_id?: string | null
           id?: string
           response?: string
           round_key?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "society_meeting_rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       society_next_round_interest: {
         Row: {

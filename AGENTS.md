@@ -49,3 +49,4 @@
 - Workouts resume via localStorage+workout_sessions_in_progress, demos exact-name only; planner reminders: self-removing timer, send-sms, 3/day. Why: accuracy, no polling.
 - Public pages use components/editorial. Why: editorial site.
 - Retention uses only `admin_retention_visits` + `src/lib/retention.ts`. Why: one tested source.
+- HSS gatherings are `events` rows; one reply per event+member via `eventRsvp.ts`. Why: replies missed calendars.
