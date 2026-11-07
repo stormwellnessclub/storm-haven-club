@@ -50,4 +50,4 @@
 - Public pages use components/editorial. Why: editorial site.
 - Retention uses only `admin_retention_visits` + `src/lib/retention.ts`. Why: one tested source.
 - HSS gatherings are `events` rows; one reply per event+member via `eventRsvp.ts`. Why: replies missed calendars.
-- PT client booking mode (club + per-trainer) resolves only via `pt_effective_client_booking_mode` (mirrored in `src/lib/ptClientBooking.ts`); request/book RPCs and the client-request insert trigger enforce it, and instant stays off until `pt_instant_booking_ready()`. Why: one gate for members and non-members.
+- PT client booking gates only via `pt_effective_client_booking_mode` (+`ptClientBooking.ts`); instant off until `pt_instant_booking_ready()`. Why: one gate.
