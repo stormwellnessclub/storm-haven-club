@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   PTShell, PTPageHeader, PTCard, PTSectionTitle, PTBadge, PTTable, PTColumn, PTEmptyState,
 } from "@/components/admin/pt/PTUI";
+import { PTClientBookingSettings } from "@/components/admin/pt/PTClientBookingSettings";
 
 export default function PTSettings() {
   const navigate = useNavigate();
@@ -56,6 +57,8 @@ export default function PTSettings() {
         title="Settings"
         subtitle="Locations, session formats and everything that shapes the training operation."
       />
+
+      <PTClientBookingSettings />
 
       <PTSectionTitle>Shortcuts</PTSectionTitle>
       <div className="grid gap-3 md:grid-cols-3 mb-8">
