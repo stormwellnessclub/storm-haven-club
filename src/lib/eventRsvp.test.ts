@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+// @ts-nocheck
+import { describe, it, expect } from "bun:test";
 import { portalBucket, eventActionLabel, arrangeRounds } from "./eventRsvp";
 
 const now = new Date("2026-11-07T12:00:00Z");
