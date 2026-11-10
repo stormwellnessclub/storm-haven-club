@@ -20,6 +20,7 @@ import {
   usePTAppointmentActions, usePTAppointmentHistory, usePTClientPasses, usePTLookupMaps,
 } from "@/hooks/pt/usePTSchedule";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { slotProblems } from "@/lib/ptAvailability";
 
 type CancelOutcome =
   | "timely_client_cancel" | "late_client_cancel" | "staff_cancel" | "facility_cancel"
@@ -506,22 +507,33 @@ export function PTAppointmentDrawer({
       <PTConfirmDialog
         open={!!pendingConflict}
         onOpenChange={(v) => !v && setPendingConflict(null)}
-        title="Scheduling conflict"
-        description={`${pendingConflict?.summary ?? ""} Book anyway?`}
-        confirmLabel="Book anyway"
+        title="Not available"
+        description={`${pendingConflict?.summary ?? ""} Only an admin or manager can override, and a reason is required.`}
+        confirmLabel="Override and save"
         destructive
         onConfirm={async () => {
           if (!pendingConflict) return;
-          const res = await actions.reschedule.mutateAsync({ ...pendingConflict.payload, force: true });
-          if (res?.success) toast.success("Saved with a conflict override");
+          if (!availabilityOverrideReason.trim()) { toast.error("Add a reason for the override"); return; }
+          const res = await actions.reschedule.mutateAsync({ ...pendingConflict.payload, force: true, overrideReason: availabilityOverrideReason.trim() });
+          if (res?.success) toast.success("Saved with an availability override");
           setPendingConflict(null);
+          setAvailabilityOverrideReason("");
         }}
-      />
+      >
+        <Textarea
+          value={availabilityOverrideReason}
+          onChange={(e) => setAvailabilityOverrideReason(e.target.value)}
+          placeholder="Reason for override (required)"
+          className="bg-white border-pt-line"
+        />
+      </PTConfirmDialog>
     </>
   );
 }
 
 function conflictSummary(c: any): string {
+  const reasons = slotProblems(c);
+  if (reasons.length) return reasons.join(" ");
   const t = c?.trainer_conflicts?.length ?? 0;
   const r = c?.room_conflicts?.length ?? 0;
   const k = c?.client_conflicts?.length ?? 0;
