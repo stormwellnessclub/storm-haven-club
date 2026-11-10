@@ -80,9 +80,32 @@ export function usePTPeople(userIds: string[]) {
   });
 }
 
-export function usePTTrainers() {
+/** PT selectors: only trainers eligible for PT services (not the whole class roster). */
+export function usePTTrainers(opts: { sessionCode?: string | null; format?: string | null } = {}) {
   return useQuery({
-    queryKey: ["pt-trainers-list"],
+    queryKey: ["pt-eligible-trainers", opts.sessionCode ?? null, opts.format ?? null],
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("get_pt_eligible_trainers", {
+        p_session_code: opts.sessionCode ?? null,
+        p_format: opts.format ?? null,
+      });
+      if (error) throw error;
+      return (data ?? []).map((i: any) => ({
+        id: i.id as string,
+        name: `${i.first_name} ${i.last_name}`.trim(),
+        first_name: i.first_name as string,
+        last_name: i.last_name as string,
+        session_codes: (i.session_codes ?? []) as string[],
+      }));
+    },
+  });
+}
+
+/** Full roster for names on past appointments/history (includes non-PT instructors). */
+function usePTRosterNames() {
+  return useQuery({
+    queryKey: ["pt-roster-names"],
     staleTime: 300_000,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("get_public_instructors");
@@ -93,7 +116,7 @@ export function usePTTrainers() {
 }
 
 export function usePTTrainerMap() {
-  const { data: trainers = [] } = usePTTrainers();
+  const { data: trainers = [] } = usePTRosterNames();
   return useMemo(() => {
     const m: Record<string, string> = {};
     trainers.forEach((t) => { m[t.id] = t.name; });
