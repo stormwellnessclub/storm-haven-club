@@ -1,3 +1,4 @@
+import { PTSchedulingReadiness } from "@/components/admin/pt/PTSchedulingReadiness";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -169,6 +170,8 @@ export default function PersonalTrainingTrainers() {
           <SummaryCard label="Public packs" value={publicPackCount} icon={<Eye className="h-4 w-4" />} tone="ok" />
           <SummaryCard label="Hidden packs" value={hiddenPackCount} icon={<EyeOff className="h-4 w-4" />} />
         </div>
+
+        <PTSchedulingReadiness />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Shared notes */}

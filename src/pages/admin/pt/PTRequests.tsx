@@ -9,6 +9,7 @@ import { PTShell, PTPageHeader, PTCard, PTBadge, PTEmptyState, ptButtonClass, PT
 import { usePTTrainers, usePTPeople } from "@/hooks/pt/usePTPortal";
 import { usePTRequests, usePTSessionTypes, usePTRequestContext, usePTRequestActions, REQUEST_STATUS_LABEL } from "@/hooks/pt/usePTRequests";
 import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
+import { PTWaitlistPanel } from "@/components/admin/pt/PTWaitlistPanel";
 import { PTHistoricalReconciliation } from "@/components/admin/pt/PTHistoricalReconciliation";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,6 +116,7 @@ export default function PTRequests() {
         {selected ? <RequestDetail key={selected.id} r={selected} trainers={trainers} types={types} trainerName={trainerName} typeName={typeName} />
           : <PTCard><p className="text-sm text-muted-foreground">Select a request to review it.</p></PTCard>}
       </div>
+      <PTWaitlistPanel trainers={trainers} types={types} clientName={(id) => (people as any)[id]?.name ?? "Client"} />
     </PTShell>
   );
 }
