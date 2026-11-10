@@ -129,7 +129,7 @@ export function PTAppointmentDrawer({
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
       const r = res?.conflict?.room_conflicts?.length ?? 0;
-      setPendingConflict({ payload, summary: `That room is already booked for ${r} session${r > 1 ? "s" : ""} at this time.` });
+      setPendingConflict({ payload, summary: `That room is already booked for ${r} session${r > 1 ? "s" : ""} at this time.`, hard: true });
     }
   }
 
