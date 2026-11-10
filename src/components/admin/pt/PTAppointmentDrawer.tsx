@@ -77,6 +77,7 @@ export function PTAppointmentDrawer({
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [pendingConflict, setPendingConflict] = useState<{ payload: any; summary: string } | null>(null);
+  const [availabilityOverrideReason, setAvailabilityOverrideReason] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
