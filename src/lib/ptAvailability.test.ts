@@ -35,3 +35,22 @@ describe("client availability window", () => {
     expect(withinClientWindow({ ...req, flexibility: "exact" }, "11:00", 60)).toBe(false);
   });
 });
+
+import { isHardConflict } from "./ptAvailability";
+describe("override rules", () => {
+  it("outside hours alone can be overridden", () => {
+    expect(isHardConflict({ has_conflict: true, availability: "outside_hours", trainer_conflicts: [], client_conflicts: [] })).toBe(false);
+  });
+  it("time off alone can be overridden", () => {
+    expect(isHardConflict({ has_conflict: true, availability: "time_off" })).toBe(false);
+  });
+  it("trainer already booked can never be overridden", () => {
+    expect(isHardConflict({ availability: "outside_hours", trainer_conflicts: [{ id: "x" }] })).toBe(true);
+  });
+  it("client already booked can never be overridden", () => {
+    expect(isHardConflict({ client_conflicts: [{ id: "x" }] })).toBe(true);
+  });
+  it("full group can never be overridden", () => {
+    expect(isHardConflict({ group_full: true })).toBe(true);
+  });
+});
