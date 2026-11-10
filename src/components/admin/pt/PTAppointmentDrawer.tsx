@@ -109,7 +109,7 @@ export function PTAppointmentDrawer({
     const payload = { id: a.id, startsAt: new Date(rescheduleAt).toISOString(), force, reason: rescheduleReason || null };
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
-      setPendingConflict({ payload, summary: conflictSummary(res?.conflict), hard: !!res?.hard || isHardConflict(res?.conflict) });
+      setPendingConflict({ payload, summary: conflictSummary(res?.conflict), hard: !!(res as any)?.hard || isHardConflict(res?.conflict) });
     }
   }
 
@@ -119,7 +119,7 @@ export function PTAppointmentDrawer({
     const payload = value ? { id: a.id, instructorId: value } : { id: a.id, clearInstructor: true };
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
-      setPendingConflict({ payload, summary: conflictSummary(res?.conflict), hard: !!res?.hard || isHardConflict(res?.conflict) });
+      setPendingConflict({ payload, summary: conflictSummary(res?.conflict), hard: !!(res as any)?.hard || isHardConflict(res?.conflict) });
     }
   }
 
