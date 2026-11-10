@@ -73,6 +73,13 @@ export default function PersonalTrainingSchedule() {
       return data ?? [];
     },
   });
+  const { data: ptTrainers = [] } = useQuery({
+    queryKey: ["pt-eligible-trainers-all"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("get_pt_eligible_trainers");
+      return data ?? [];
+    },
+  });
   const trainerMap = useMemo(() => {
     const m: Record<string, string> = {};
     (instructors as any[]).forEach((i) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
@@ -131,7 +138,7 @@ export default function PersonalTrainingSchedule() {
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Any trainer</SelectItem>
-              {(instructors as any[]).map((i) => (<SelectItem key={i.id} value={i.id}>{i.first_name} {i.last_name}</SelectItem>))}
+              {(ptTrainers as any[]).map((i) => (<SelectItem key={i.id} value={i.id}>{i.first_name} {i.last_name}</SelectItem>))}
             </SelectContent>
           </Select>
           <Select value={formatFilter} onValueChange={setFormatFilter}>

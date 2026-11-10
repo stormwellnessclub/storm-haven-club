@@ -173,9 +173,9 @@ export function BookPTSessionDialog({
 
   // Instructors
   const { data: instructors = [] } = useQuery({
-    queryKey: ["pt-instructors"],
+    queryKey: ["pt-eligible-trainers-format", format],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("get_public_instructors");
+      const { data, error } = await (supabase as any).rpc("get_pt_eligible_trainers", { p_session_code: null, p_format: format });
       if (error) throw error;
       return data ?? [];
     },

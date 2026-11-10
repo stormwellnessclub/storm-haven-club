@@ -1,0 +1,1 @@
+- PT trainer lists come from `pt_trainer_services` via `get_pt_eligible_trainers` (never the class instructor roster); a trigger blocks new PT appointments with ineligible trainers, and PT ignores room occupancy (gym floor). Why: one person can teach classes and train, and class-only instructors must not appear in PT.

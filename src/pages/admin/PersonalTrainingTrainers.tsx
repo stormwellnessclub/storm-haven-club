@@ -76,9 +76,18 @@ export default function PersonalTrainingTrainers() {
     },
   });
 
+  // PT roster = instructors with PT service eligibility (class-only instructors stay in Classes).
+  const { data: eligible = [] } = useQuery({
+    queryKey: ["pt-eligible-trainers-all"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("get_pt_eligible_trainers");
+      return (data ?? []) as { id: string }[];
+    },
+  });
+  const eligibleIds = useMemo(() => new Set(eligible.map((e) => e.id)), [eligible]);
   const instructors = useMemo(
-    () => allInstructors.filter((i) => showInactive || i.is_active),
-    [allInstructors, showInactive],
+    () => allInstructors.filter((i) => showInactive || (i.is_active && eligibleIds.has(i.id))),
+    [allInstructors, showInactive, eligibleIds],
   );
   const inactiveCount = allInstructors.filter((i) => !i.is_active).length;
 
