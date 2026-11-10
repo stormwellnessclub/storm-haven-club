@@ -1,4 +1,5 @@
-import { slotProblems, parseSlotError } from "@/lib/ptAvailability";
+import { slotProblems, parseSlotError, isHardConflict } from "@/lib/ptAvailability";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,9 @@ export function BookPTSessionDialog({
   const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
+  const [conflictHard, setConflictHard] = useState(false);
+  const { hasRole, isAdmin } = useUserRoles();
+  const canOverride = isAdmin() || hasRole("manager" as any);
   const [overrideReason, setOverrideReason] = useState("");
   const [extras, setExtras] = useState<UserOption[]>([]);
   const [extraSearch, setExtraSearch] = useState("");
@@ -285,8 +289,13 @@ export function BookPTSessionDialog({
           else if (msg.includes("OVERRIDE_REASON_REQUIRED")) failures.push(`${a.label}: add a reason to override`);
           else if (msg.includes("OVERRIDE_NOT_ALLOWED")) failures.push(`${a.label}: only an admin or manager can book outside availability`);
           else if (msg.includes("CONFLICT")) {
-            const reasons = slotProblems(parseSlotError(msg));
-            setConflict(`${reasons.join(" ") || "That time isn't available."} Pick another time, or an admin/manager can override with a reason.`);
+            const parsed = parseSlotError(msg);
+            const reasons = slotProblems(parsed);
+            const hard = isHardConflict(parsed) || !parsed;
+            setConflictHard(hard);
+            setConflict(hard
+              ? `${reasons.join(" ") || "That time isn't available."} This can't be overridden. Pick another time.`
+              : `${reasons.join(" ") || "Trainer is not normally available at this time."}`);
             failures.push(`${a.label}: not available`);
           } else failures.push(`${a.label}: ${msg}`);
         }
@@ -571,11 +580,18 @@ export function BookPTSessionDialog({
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <div className="space-y-2">
                 <div>{conflict}</div>
-                <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
-                  placeholder="Reason for override (required)" rows={2} />
-                <Button size="sm" variant="outline" disabled={submitting || !overrideReason.trim()} onClick={() => submit(true)}>
-                  Override and book
-                </Button>
+                {!conflictHard && canOverride && (
+                  <>
+                    <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+                      placeholder="Override reason (required)" rows={2} aria-label="Override reason" />
+                    <Button size="sm" variant="outline" disabled={submitting || !overrideReason.trim()} onClick={() => submit(true)}>
+                      Book anyway
+                    </Button>
+                  </>
+                )}
+                {!conflictHard && !canOverride && (
+                  <div className="text-muted-foreground">Only an admin or manager can book outside availability.</div>
+                )}
               </div>
             </div>
           )}

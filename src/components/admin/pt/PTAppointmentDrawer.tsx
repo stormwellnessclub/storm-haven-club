@@ -20,7 +20,7 @@ import {
   usePTAppointmentActions, usePTAppointmentHistory, usePTClientPasses, usePTLookupMaps,
 } from "@/hooks/pt/usePTSchedule";
 import { useUserRoles } from "@/hooks/useUserRoles";
-import { slotProblems } from "@/lib/ptAvailability";
+import { slotProblems, isHardConflict } from "@/lib/ptAvailability";
 
 type CancelOutcome =
   | "timely_client_cancel" | "late_client_cancel" | "staff_cancel" | "facility_cancel"
@@ -76,7 +76,7 @@ export function PTAppointmentDrawer({
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [confirmNoShow, setConfirmNoShow] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
-  const [pendingConflict, setPendingConflict] = useState<{ payload: any; summary: string } | null>(null);
+  const [pendingConflict, setPendingConflict] = useState<{ payload: any; summary: string; hard: boolean } | null>(null);
   const [availabilityOverrideReason, setAvailabilityOverrideReason] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
@@ -109,7 +109,7 @@ export function PTAppointmentDrawer({
     const payload = { id: a.id, startsAt: new Date(rescheduleAt).toISOString(), force, reason: rescheduleReason || null };
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
-      setPendingConflict({ payload, summary: conflictSummary(res?.conflict) });
+      setPendingConflict({ payload, summary: conflictSummary(res?.conflict), hard: !!(res as any)?.hard || isHardConflict(res?.conflict) });
     }
   }
 
@@ -119,7 +119,7 @@ export function PTAppointmentDrawer({
     const payload = value ? { id: a.id, instructorId: value } : { id: a.id, clearInstructor: true };
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
-      setPendingConflict({ payload, summary: conflictSummary(res?.conflict) });
+      setPendingConflict({ payload, summary: conflictSummary(res?.conflict), hard: !!(res as any)?.hard || isHardConflict(res?.conflict) });
     }
   }
 
@@ -129,7 +129,7 @@ export function PTAppointmentDrawer({
     const res = await actions.reschedule.mutateAsync(payload);
     if (!res?.success) {
       const r = res?.conflict?.room_conflicts?.length ?? 0;
-      setPendingConflict({ payload, summary: `That room is already booked for ${r} session${r > 1 ? "s" : ""} at this time.` });
+      setPendingConflict({ payload, summary: `That room is already booked for ${r} session${r > 1 ? "s" : ""} at this time.`, hard: true });
     }
   }
 
@@ -506,7 +506,16 @@ export function PTAppointmentDrawer({
       </PTConfirmDialog>
 
       <PTConfirmDialog
-        open={!!pendingConflict}
+        open={!!pendingConflict && pendingConflict.hard}
+        onOpenChange={(v) => !v && setPendingConflict(null)}
+        title="Can't move here"
+        description={`${pendingConflict?.summary ?? ""} This is a real booking clash and can't be overridden. Pick another time or trainer.`}
+        confirmLabel="OK"
+        onConfirm={() => setPendingConflict(null)}
+      />
+
+      <PTConfirmDialog
+        open={!!pendingConflict && !pendingConflict.hard && isManager}
         onOpenChange={(v) => !v && setPendingConflict(null)}
         title="Not available"
         description={`${pendingConflict?.summary ?? ""} Only an admin or manager can override, and a reason is required.`}
@@ -522,12 +531,22 @@ export function PTAppointmentDrawer({
         }}
       >
         <Textarea
+          aria-label="Override reason"
           value={availabilityOverrideReason}
           onChange={(e) => setAvailabilityOverrideReason(e.target.value)}
           placeholder="Reason for override (required)"
           className="bg-white border-pt-line"
         />
       </PTConfirmDialog>
+
+      <PTConfirmDialog
+        open={!!pendingConflict && !pendingConflict.hard && !isManager}
+        onOpenChange={(v) => !v && setPendingConflict(null)}
+        title="Not available"
+        description={`${pendingConflict?.summary ?? ""} Only an admin or manager can override this.`}
+        confirmLabel="OK"
+        onConfirm={() => setPendingConflict(null)}
+      />
     </>
   );
 }

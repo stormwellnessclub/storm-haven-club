@@ -19243,6 +19243,7 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_slot_hard_conflict: { Args: { p: Json }; Returns: boolean }
       pt_trainer_day_windows: {
         Args: { p_date: string; p_instructor_id: string }
         Returns: {

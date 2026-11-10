@@ -31,6 +31,15 @@ export function slotProblems(c: SlotCheck | null | undefined): string[] {
   return out;
 }
 
+/**
+ * Mirrors server `pt_slot_hard_conflict`: real collisions (trainer, client, room, group full)
+ * can never be overridden. Only hours/time-off problems are soft.
+ */
+export function isHardConflict(c: SlotCheck | null | undefined): boolean {
+  if (!c) return false;
+  return !!c.group_full || len(c.trainer_conflicts) > 0 || len(c.client_conflicts) > 0 || len(c.room_conflicts) > 0;
+}
+
 /** Shown when a trainer has no hours set; booking is allowed but flagged. */
 export function slotWarning(c: SlotCheck | null | undefined): string | null {
   return c?.availability === "not_configured"
