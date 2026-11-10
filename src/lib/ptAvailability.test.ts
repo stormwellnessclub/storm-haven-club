@@ -54,3 +54,12 @@ describe("override rules", () => {
     expect(isHardConflict({ group_full: true })).toBe(true);
   });
 });
+
+describe("PT gym floor: rooms never block", () => {
+  it("a room clash alone is not a hard collision", () => {
+    expect(isHardConflict({ room_conflicts: [{ id: "r" }] } as any)).toBe(false);
+  });
+  it("trainer overlap is still hard", () => {
+    expect(isHardConflict({ trainer_conflicts: [{ id: "t" }], room_conflicts: [{ id: "r" }] } as any)).toBe(true);
+  });
+});
