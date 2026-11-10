@@ -15,7 +15,7 @@ const STATUS = ["waiting", "contacted", "booked", "closed"] as const;
  * Staff-only PT waitlist. Adding someone never creates an appointment and nothing is sent automatically.
  * Openings: pick a trainer/date/time to see matching waitlisted clients (oldest first).
  */
-export function PTWaitlistPanel({ trainers, types }: { trainers: { id: string; name: string }[]; types: { id: string; name: string; duration_minutes: number }[] }) {
+export function PTWaitlistPanel({ trainers, types, clientName }: { trainers: { id: string; name: string }[]; types: { id: string; name: string; duration_minutes: number }[]; clientName?: (id: string) => string }) {
   const qc = useQueryClient();
   const [client, setClient] = useState<{ id: string; label?: string } | null>(null);
   const [f, setF] = useState({ trainer: "", type: "", date: "", time: "", earliest: "", latest: "", flex: "window", notes: "" });
@@ -115,7 +115,7 @@ export function PTWaitlistPanel({ trainers, types }: { trainers: { id: string; n
         </div>
         {matches.data && (
           <div className="text-sm">{matches.data.length === 0 ? "No waitlisted clients match this opening." :
-            matches.data.map((m) => <div key={m.id}>• {line(m)} · added {fmt(new Date(m.created_at), "MMM d, h:mm a")}</div>)}</div>
+            matches.data.map((m) => <div key={m.id}>• {clientName?.(m.client_user_id) ?? "Client"} · {line(m)} · added {fmt(new Date(m.created_at), "MMM d, h:mm a")}</div>)}</div>
         )}
       </div>
 
@@ -123,7 +123,7 @@ export function PTWaitlistPanel({ trainers, types }: { trainers: { id: string; n
         {rows.length === 0 ? <div className="p-3 text-sm text-muted-foreground">No one on the waitlist.</div> : rows.map((w) => (
           <div key={w.id} className="p-3 flex flex-wrap items-center gap-2 text-sm">
             <div className="flex-1 min-w-[200px]">
-              <div>{tName(w.preferred_trainer_id)} · {sName(w.session_type_id)}</div>
+              <div><span className="font-medium">{clientName?.(w.client_user_id) ?? "Client"}</span> · {tName(w.preferred_trainer_id)} · {sName(w.session_type_id)}</div>
               <div className="text-xs text-muted-foreground">{line(w)} · added {fmt(new Date(w.created_at), "MMM d, h:mm a")}{w.notes ? ` · ${w.notes}` : ""}</div>
             </div>
             <Select value={w.status} onValueChange={(v) => setStatus(w.id, v)}>
