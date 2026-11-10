@@ -51,5 +51,3 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
-
-- PT availability is decided only by server `pt_check_slot`/`pt_available_slots`; the UI only words its answer via `src/lib/ptAvailability.ts`, and overrides need an admin/manager reason. Why: one engine for staff booking, requests and future client booking.

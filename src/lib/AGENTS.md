@@ -1,0 +1,1 @@
+- PT availability is decided only by server `pt_check_slot`/`pt_available_slots`; the UI only words its answer via `src/lib/ptAvailability.ts`, and overrides need an admin/manager reason. Why: one engine for staff booking, requests and future client booking.
