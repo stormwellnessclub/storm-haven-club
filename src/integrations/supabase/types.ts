@@ -9192,6 +9192,10 @@ export type Database = {
       pt_appointments: {
         Row: {
           amount_due_cents: number
+          availability_override_at: string | null
+          availability_override_by: string | null
+          availability_override_detail: Json | null
+          availability_override_reason: string | null
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
           cancel_outcome_reason: string | null
@@ -9253,6 +9257,10 @@ export type Database = {
         }
         Insert: {
           amount_due_cents?: number
+          availability_override_at?: string | null
+          availability_override_by?: string | null
+          availability_override_detail?: Json | null
+          availability_override_reason?: string | null
           booked_by_admin_id?: string | null
           cancel_credit_outcome?: string | null
           cancel_outcome_reason?: string | null
@@ -9314,6 +9322,10 @@ export type Database = {
         }
         Update: {
           amount_due_cents?: number
+          availability_override_at?: string | null
+          availability_override_by?: string | null
+          availability_override_detail?: Json | null
+          availability_override_reason?: string | null
           booked_by_admin_id?: string | null
           cancel_credit_outcome?: string | null
           cancel_outcome_reason?: string | null
@@ -11546,6 +11558,41 @@ export type Database = {
           },
         ]
       }
+      pt_request_events: {
+        Row: {
+          actor: string | null
+          created_at: string
+          detail: Json
+          event_type: string
+          id: string
+          request_id: string
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          event_type: string
+          id?: string
+          request_id: string
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          id?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_request_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "training_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pt_sale_intents: {
         Row: {
           activated_at: string
@@ -12558,6 +12605,86 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_waitlist: {
+        Row: {
+          client_user_id: string
+          created_at: string
+          created_by: string | null
+          earliest_time: string | null
+          flexibility: string
+          id: string
+          latest_time: string | null
+          notes: string | null
+          preferred_date: string | null
+          preferred_time: string | null
+          preferred_trainer_id: string | null
+          session_type_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_user_id: string
+          created_at?: string
+          created_by?: string | null
+          earliest_time?: string | null
+          flexibility?: string
+          id?: string
+          latest_time?: string | null
+          notes?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          preferred_trainer_id?: string | null
+          session_type_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_user_id?: string
+          created_at?: string
+          created_by?: string | null
+          earliest_time?: string | null
+          flexibility?: string
+          id?: string
+          latest_time?: string | null
+          notes?: string | null
+          preferred_date?: string | null
+          preferred_time?: string | null
+          preferred_trainer_id?: string | null
+          session_type_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_waitlist_preferred_trainer_id_fkey"
+            columns: ["preferred_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_waitlist_preferred_trainer_id_fkey"
+            columns: ["preferred_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_waitlist_preferred_trainer_id_fkey"
+            columns: ["preferred_trainer_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_waitlist_session_type_id_fkey"
+            columns: ["session_type_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_types"
             referencedColumns: ["id"]
           },
         ]
@@ -15361,17 +15488,23 @@ export type Database = {
           appointment_id: string | null
           client_note: string | null
           client_user_id: string | null
+          confirmation_outcome: string | null
+          confirmed_starts_at: string | null
+          confirmed_trainer_id: string | null
           converted_at: string | null
           converted_by: string | null
           created_at: string
           decline_reason: string | null
+          earliest_time: string | null
           email: string
           experience_level: string | null
+          flexibility: string
           flexibility_note: string | null
           full_name: string
           goals: string | null
           id: string
           is_member: boolean
+          latest_time: string | null
           offered_at: string | null
           offered_by: string | null
           origin: string
@@ -15401,17 +15534,23 @@ export type Database = {
           appointment_id?: string | null
           client_note?: string | null
           client_user_id?: string | null
+          confirmation_outcome?: string | null
+          confirmed_starts_at?: string | null
+          confirmed_trainer_id?: string | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
           decline_reason?: string | null
+          earliest_time?: string | null
           email: string
           experience_level?: string | null
+          flexibility?: string
           flexibility_note?: string | null
           full_name: string
           goals?: string | null
           id?: string
           is_member?: boolean
+          latest_time?: string | null
           offered_at?: string | null
           offered_by?: string | null
           origin?: string
@@ -15441,17 +15580,23 @@ export type Database = {
           appointment_id?: string | null
           client_note?: string | null
           client_user_id?: string | null
+          confirmation_outcome?: string | null
+          confirmed_starts_at?: string | null
+          confirmed_trainer_id?: string | null
           converted_at?: string | null
           converted_by?: string | null
           created_at?: string
           decline_reason?: string | null
+          earliest_time?: string | null
           email?: string
           experience_level?: string | null
+          flexibility?: string
           flexibility_note?: string | null
           full_name?: string
           goals?: string | null
           id?: string
           is_member?: boolean
+          latest_time?: string | null
           offered_at?: string | null
           offered_by?: string | null
           origin?: string
@@ -16636,6 +16781,10 @@ export type Database = {
         }
         Returns: {
           amount_due_cents: number
+          availability_override_at: string | null
+          availability_override_by: string | null
+          availability_override_detail: Json | null
+          availability_override_reason: string | null
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
           cancel_outcome_reason: string | null
@@ -16807,6 +16956,7 @@ export type Database = {
           p_instructor_id?: string
           p_location_id?: string
           p_notes?: string
+          p_override_reason?: string
           p_pass_id?: string
           p_rate_cents?: number
           p_starts_at: string
@@ -16815,6 +16965,10 @@ export type Database = {
         }
         Returns: {
           amount_due_cents: number
+          availability_override_at: string | null
+          availability_override_by: string | null
+          availability_override_detail: Json | null
+          availability_override_reason: string | null
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
           cancel_outcome_reason: string | null
@@ -16919,6 +17073,10 @@ export type Database = {
         }
         Returns: {
           amount_due_cents: number
+          availability_override_at: string | null
+          availability_override_by: string | null
+          availability_override_detail: Json | null
+          availability_override_reason: string | null
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
           cancel_outcome_reason: string | null
@@ -18067,6 +18225,18 @@ export type Database = {
         Returns: Json
       }
       pt_auto_consume_past_reservations: { Args: never; Returns: number }
+      pt_available_slots: {
+        Args: {
+          p_from: string
+          p_instructor_id: string
+          p_location_id?: string
+          p_session_type_id: string
+          p_step_minutes?: number
+          p_to: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       pt_bind_plan_subscription: {
         Args: { p_sale_ref: string; p_subscription_id: string }
         Returns: Json
@@ -18144,6 +18314,19 @@ export type Database = {
           }
       pt_check_in_appointment: {
         Args: { p_appointment_id: string; p_start?: boolean }
+        Returns: Json
+      }
+      pt_check_slot: {
+        Args: {
+          p_ends_at: string
+          p_exclude_id?: string
+          p_format?: Database["public"]["Enums"]["pt_format"]
+          p_instructor_id?: string
+          p_location_id?: string
+          p_session_type_id?: string
+          p_starts_at: string
+          p_user_id?: string
+        }
         Returns: Json
       }
       pt_client_booking_admin_state: { Args: never; Returns: Json }
@@ -18346,6 +18529,10 @@ export type Database = {
         }
         Returns: {
           amount_due_cents: number
+          availability_override_at: string | null
+          availability_override_by: string | null
+          availability_override_detail: Json | null
+          availability_override_reason: string | null
           booked_by_admin_id: string | null
           cancel_credit_outcome: string | null
           cancel_outcome_reason: string | null
@@ -18829,7 +19016,11 @@ export type Database = {
         Returns: boolean
       }
       pt_request_confirm: {
-        Args: { p_request_id: string; p_use_alternate?: boolean }
+        Args: {
+          p_confirm_time?: string
+          p_request_id: string
+          p_use_alternate?: boolean
+        }
         Returns: Json
       }
       pt_request_convert_inquiry: {
@@ -18843,17 +19034,23 @@ export type Database = {
           appointment_id: string | null
           client_note: string | null
           client_user_id: string | null
+          confirmation_outcome: string | null
+          confirmed_starts_at: string | null
+          confirmed_trainer_id: string | null
           converted_at: string | null
           converted_by: string | null
           created_at: string
           decline_reason: string | null
+          earliest_time: string | null
           email: string
           experience_level: string | null
+          flexibility: string
           flexibility_note: string | null
           full_name: string
           goals: string | null
           id: string
           is_member: boolean
+          latest_time: string | null
           offered_at: string | null
           offered_by: string | null
           origin: string
@@ -18914,17 +19111,23 @@ export type Database = {
           appointment_id: string | null
           client_note: string | null
           client_user_id: string | null
+          confirmation_outcome: string | null
+          confirmed_starts_at: string | null
+          confirmed_trainer_id: string | null
           converted_at: string | null
           converted_by: string | null
           created_at: string
           decline_reason: string | null
+          earliest_time: string | null
           email: string
           experience_level: string | null
+          flexibility: string
           flexibility_note: string | null
           full_name: string
           goals: string | null
           id: string
           is_member: boolean
+          latest_time: string | null
           offered_at: string | null
           offered_by: string | null
           origin: string
@@ -18960,6 +19163,7 @@ export type Database = {
           p_force?: boolean
           p_instructor_id?: string
           p_location_id?: string
+          p_override_reason?: string
           p_reason?: string
           p_starts_at?: string
         }
@@ -19039,6 +19243,19 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_trainer_day_windows: {
+        Args: { p_date: string; p_instructor_id: string }
+        Returns: {
+          source: string
+          win_end: string
+          win_start: string
+        }[]
+      }
+      pt_trainer_has_schedule: {
+        Args: { p_instructor_id: string }
+        Returns: boolean
+      }
+      pt_trainer_readiness: { Args: never; Returns: Json }
       pt_transfer_pass_sessions: {
         Args: {
           p_from_pass_id: string
@@ -19067,6 +19284,15 @@ export type Database = {
       }
       pt_void_invoice: {
         Args: { p_invoice_id: string; p_reason: string }
+        Returns: Json
+      }
+      pt_waitlist_matches: {
+        Args: {
+          p_ends_at: string
+          p_instructor_id: string
+          p_session_type_id?: string
+          p_starts_at: string
+        }
         Returns: Json
       }
       pt_waive_sessions: {

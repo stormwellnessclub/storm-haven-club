@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { parseSlotError, slotProblems } from "@/lib/ptAvailability";
 
 export const REQUEST_STATUS_LABEL: Record<string, string> = {
   requested: "Requested",
@@ -58,7 +59,9 @@ export function usePTRequestContext(userId: string | null) {
 
 function errMsg(e: any) {
   const m = String(e?.message ?? e ?? "Something went wrong");
-  return m.replace(/^(TRAINER_CONFLICT|CLIENT_CONFLICT|CONFLICT|NO_SESSIONS|ALREADY_BOOKED):\s*/, "");
+  const slot = parseSlotError(m);
+  if (slot) return slotProblems(slot).join(" ") || "That time isn't available.";
+  return m.replace(/^(TRAINER_CONFLICT|CLIENT_CONFLICT|CONFLICT|NO_SESSIONS|ALREADY_BOOKED|OUTSIDE_WINDOW):\s*/, "");
 }
 
 export function usePTRequestActions() {
@@ -79,8 +82,10 @@ export function usePTRequestActions() {
     onSuccess: done,
   });
   const confirm = useMutation({
-    mutationFn: async (args: { id: string; useAlternate: boolean }) => {
-      const { data, error } = await (supabase as any).rpc("pt_request_confirm", { p_request_id: args.id, p_use_alternate: args.useAlternate });
+    mutationFn: async (args: { id: string; useAlternate: boolean; confirmTime?: string | null }) => {
+      const { data, error } = await (supabase as any).rpc("pt_request_confirm", {
+        p_request_id: args.id, p_use_alternate: args.useAlternate, p_confirm_time: args.confirmTime ?? null,
+      });
       if (error) throw new Error(errMsg(error));
       return data as { appointment_id: string; already_confirmed: boolean; package_used?: boolean };
     },

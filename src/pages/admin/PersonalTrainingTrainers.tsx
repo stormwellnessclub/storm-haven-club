@@ -50,7 +50,7 @@ interface Availability {
   effective_start: string | null; effective_end: string | null; is_public: boolean; label: string | null;
 }
 interface Override {
-  id: string; instructor_id: string; date: string; end_date: string | null; kind: "block" | "extra";
+  id: string; instructor_id: string; date: string; end_date: string | null; kind: "block" | "extra" | "replace";
   start_time: string | null; end_time: string | null; note: string | null;
   is_public: boolean; is_public_reason: boolean;
 }
@@ -545,7 +545,7 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
   const qc = useQueryClient();
   const [date, setDate] = useState(fmtDate(new Date(), "yyyy-MM-dd"));
   const [endDate, setEndDate] = useState("");
-  const [kind, setKind] = useState<"block" | "extra">("block");
+  const [kind, setKind] = useState<"block" | "extra" | "replace">("block");
   const [allDay, setAllDay] = useState(true);
   const [start, setStart] = useState("08:00");
   const [end, setEnd] = useState("12:00");
@@ -611,14 +611,15 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
               <SelectContent>
                 <SelectItem value="block">Block (time off)</SelectItem>
                 <SelectItem value="extra">Extra window</SelectItem>
+                <SelectItem value="replace">Different hours (replaces normal week)</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          {kind === "block" && (
+          {(kind === "block" || kind === "replace") && (
             <div className="flex items-end">
               <label className="flex items-center gap-2 text-sm border rounded-md px-3 py-2 w-full bg-background cursor-pointer">
                 <Checkbox checked={allDay} onCheckedChange={(v) => setAllDay(!!v)} />
-                All day
+                {kind === "replace" ? "Unavailable all day" : "All day"}
               </label>
             </div>
           )}
@@ -677,7 +678,7 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
                     {o.end_date && o.end_date !== o.date && ` – ${fmtDate(parseISO(o.end_date), "EEE, MMM d, yyyy")}`}
                   </span>
                   <Badge variant={o.kind === "block" ? "destructive" : "secondary"} className="text-[10px]">
-                    {o.kind === "block" ? "Blocked" : "Extra"}
+                    {o.kind === "block" ? "Blocked" : o.kind === "replace" ? "Changed hours" : "Extra"}
                   </Badge>
                   {o.kind === "extra" && !o.is_public && (
                     <Badge variant="outline" className="text-[10px] gap-1"><EyeOff className="h-3 w-3" />Internal</Badge>
@@ -686,7 +687,7 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
                 <div className="text-xs text-muted-foreground">
                   {o.start_time && o.end_time
                     ? `${o.start_time.slice(0, 5)} – ${o.end_time.slice(0, 5)}`
-                    : o.kind === "block" ? "All day" : ""}
+                    : o.kind === "block" ? "All day" : o.kind === "replace" ? "Unavailable all day" : ""}
                   {o.note && ` · ${o.note}`}
                   {o.kind === "block" && o.note && (o.is_public_reason ? " (shown publicly)" : " (internal)")}
                 </div>

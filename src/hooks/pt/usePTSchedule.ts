@@ -327,6 +327,7 @@ export function usePTAppointmentActions() {
       force?: boolean;
       reason?: string | null;
       clearInstructor?: boolean;
+      overrideReason?: string | null;
     }) => {
       const { data, error } = await (supabase as any).rpc("pt_reschedule_appointment", {
         p_appointment_id: input.id,
@@ -337,6 +338,7 @@ export function usePTAppointmentActions() {
         p_force: input.force ?? false,
         p_reason: input.reason ?? null,
         p_clear_instructor: input.clearInstructor ?? false,
+        p_override_reason: input.overrideReason ?? null,
       });
       if (error) throw error;
       return data as { success: boolean; conflict: any };

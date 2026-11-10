@@ -13,9 +13,14 @@ import { PTHistoricalReconciliation } from "@/components/admin/pt/PTHistoricalRe
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { slotProblems, slotWarning, capacityLine, withinClientWindow, type SlotCheck } from "@/lib/ptAvailability";
 
 const OPEN = ["requested", "under_review", "alternate_offered"];
 const FILTERS = ["open", "requested", "under_review", "alternate_offered", "confirmed", "declined", "cancelled", "all"] as const;
+
+const FLEX_LABEL: Record<string, string> = {
+  exact: "Exact time", window: "Within window", any_time_that_day: "Any time that day", any_day: "Any day",
+};
 
 function tone(s: string) {
   return s === "confirmed" ? "green" : s === "declined" || s === "cancelled" ? "red" : s === "alternate_offered" ? "amber" : "gold";
@@ -126,6 +131,23 @@ function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
   const [altDate, setAltDate] = useState(""); const [altTime, setAltTime] = useState(""); const [altTrainer, setAltTrainer] = useState(r.requested_trainer_id ?? "");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [windowTime, setWindowTime] = useState("");
+  const typeRow = types.find((t: any) => t.id === r.pt_session_type_id);
+  const slot = useQuery({
+    queryKey: ["pt-slot-check", r.id, r.preferred_date, r.preferred_time, r.requested_trainer_id, r.pt_session_type_id],
+    enabled: open && !!r.preferred_date && !!r.preferred_time && !!r.requested_trainer_id && !!typeRow,
+    queryFn: async () => {
+      const start = new Date(`${r.preferred_date}T${r.preferred_time.slice(0, 5)}:00`);
+      const end = new Date(start.getTime() + typeRow.duration_minutes * 60000);
+      const { data, error } = await (supabase as any).rpc("pt_check_slot", {
+        p_starts_at: start.toISOString(), p_ends_at: end.toISOString(), p_instructor_id: r.requested_trainer_id,
+        p_user_id: r.client_user_id ?? null, p_session_type_id: r.pt_session_type_id,
+      });
+      if (error) throw error;
+      return data as SlotCheck;
+    },
+  });
+  const canPickInWindow = open && r.flexibility && r.flexibility !== "exact" && !!typeRow;
 
   const run = async (p: Promise<any>, ok: string) => {
     setError(null);
@@ -157,7 +179,11 @@ function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
         <dt className="text-muted-foreground">Session type</dt><dd>{typeName(r)}</dd>
         <dt className="text-muted-foreground">Requested trainer</dt><dd>{trainerName(r.requested_trainer_id)}</dd>
         <dt className="text-muted-foreground">Preferred</dt><dd>{r.preferred_date ? `${fmtDate(r.preferred_date)} · ${fmtTime(r.preferred_time)}` : r.preferred_times || "—"}</dd>
-        <dt className="text-muted-foreground">Flexibility</dt><dd>{r.flexibility_note || "—"}</dd>
+        <dt className="text-muted-foreground">Availability window</dt><dd>{r.earliest_time && r.latest_time ? `${fmtTime(r.earliest_time)} – ${fmtTime(r.latest_time)}` : "—"}</dd>
+        <dt className="text-muted-foreground">Flexibility</dt><dd>{FLEX_LABEL[r.flexibility] ?? "Exact time"}{r.flexibility_note ? ` — ${r.flexibility_note}` : ""}</dd>
+        <dt className="text-muted-foreground">Submitted</dt><dd>{fmt(new Date(r.created_at), "MMM d, yyyy h:mm:ss a")}</dd>
+        {slot.data && <><dt className="text-muted-foreground">At this time</dt><dd>{slotProblems(slot.data).join(" ") || slotWarning(slot.data) || "Available"}{capacityLine(slot.data) ? <div className="text-xs text-muted-foreground">{capacityLine(slot.data)}</div> : null}</dd></>}
+        {r.confirmed_starts_at && <><dt className="text-muted-foreground">Confirmed for</dt><dd>{fmt(new Date(r.confirmed_starts_at), "MMM d · h:mm a")}{r.confirmation_outcome === "within_window" ? " (within client's window)" : ""}</dd></>}
         <dt className="text-muted-foreground">Client message</dt><dd className="whitespace-pre-wrap">{r.client_note || r.goals || "—"}</dd>
         {r.alt_date && <><dt className="text-muted-foreground">Alternate offered</dt><dd>{fmtDate(r.alt_date)} · {fmtTime(r.alt_time)} · {trainerName(r.alt_trainer_id)}{r.alt_note ? ` — ${r.alt_note}` : ""}</dd></>}
         {r.decline_reason && <><dt className="text-muted-foreground">Internal reason</dt><dd>{r.decline_reason}</dd></>}
@@ -204,6 +230,17 @@ function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
               <button disabled={busy} className={ptButtonClass("ghost")} onClick={() => run(update.mutateAsync({ id: r.id, action: "review" }), "Marked under review")}>Mark under review</button>
             )}
             <button disabled={busy || dirty} className={ptButtonClass("gold")} onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: false }), "Confirmed — appointment created")}>Confirm requested time</button>
+            {canPickInWindow && (
+              <span className="flex items-center gap-1">
+                <Input type="time" className="w-28" value={windowTime} onChange={(e) => setWindowTime(e.target.value)} />
+                <button disabled={busy || dirty || !windowTime || !withinClientWindow(r, windowTime, typeRow.duration_minutes)}
+                  title="Only times inside the client's availability window"
+                  className={ptButtonClass("outline")}
+                  onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: false, confirmTime: windowTime }), "Confirmed within the client's window")}>
+                  Confirm this time
+                </button>
+              </span>
+            )}
             {r.request_status === "alternate_offered" && (
               <button disabled={busy} className={ptButtonClass("gold")} onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: true }), "Client accepted — appointment created")}>Client accepted alternate</button>
             )}

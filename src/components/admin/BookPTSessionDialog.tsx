@@ -1,3 +1,4 @@
+import { slotProblems, parseSlotError } from "@/lib/ptAvailability";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -77,6 +78,7 @@ export function BookPTSessionDialog({
   const [rate, setRate] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
+  const [overrideReason, setOverrideReason] = useState("");
   const [extras, setExtras] = useState<UserOption[]>([]);
   const [extraSearch, setExtraSearch] = useState("");
 
@@ -240,6 +242,7 @@ export function BookPTSessionDialog({
       p_rate_cents: asUnpaid ? rateCents : 0,
       p_location_id: null,
       p_force: force,
+      p_override_reason: force ? overrideReason.trim() || null : null,
     });
     if (error) throw error;
     return Array.isArray(data) ? data[0] : data;
@@ -279,9 +282,12 @@ export function BookPTSessionDialog({
           else if (msg.includes("ALREADY_BOOKED")) failures.push(`${a.label}: already booked at that time`);
           else if (msg.includes("NO_SESSIONS")) failures.push(`${a.label}: no active sessions`);
           else if (msg.includes("RATE_REQUIRED")) failures.push(`${a.label}: no package — enter a session rate`);
+          else if (msg.includes("OVERRIDE_REASON_REQUIRED")) failures.push(`${a.label}: add a reason to override`);
+          else if (msg.includes("OVERRIDE_NOT_ALLOWED")) failures.push(`${a.label}: only an admin or manager can book outside availability`);
           else if (msg.includes("CONFLICT")) {
-            setConflict("That trainer is already booked at this time. Pick another slot, or book anyway to double-book on purpose.");
-            failures.push(`${a.label}: trainer conflict`);
+            const reasons = slotProblems(parseSlotError(msg));
+            setConflict(`${reasons.join(" ") || "That time isn't available."} Pick another time, or an admin/manager can override with a reason.`);
+            failures.push(`${a.label}: not available`);
           } else failures.push(`${a.label}: ${msg}`);
         }
       }
@@ -565,8 +571,10 @@ export function BookPTSessionDialog({
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <div className="space-y-2">
                 <div>{conflict}</div>
-                <Button size="sm" variant="outline" disabled={submitting} onClick={() => submit(true)}>
-                  Book anyway
+                <Textarea value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="Reason for override (required)" rows={2} />
+                <Button size="sm" variant="outline" disabled={submitting || !overrideReason.trim()} onClick={() => submit(true)}>
+                  Override and book
                 </Button>
               </div>
             </div>
