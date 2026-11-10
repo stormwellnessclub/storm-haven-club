@@ -103,6 +103,25 @@ export function PTSessionRequestCard() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Online PT scheduling is not active until the owner approves it: PT clients see a
+  // non-interactive "Coming Soon" action. It never opens trainer availability.
+  if (booking?.is_client) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <CalendarPlus className="h-4 w-4" /> Request / Book a Session
+          </CardTitle>
+          <Button size="sm" variant="outline" disabled aria-disabled="true">Coming Soon</Button>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            Online scheduling is coming soon. Message us or ask your trainer to book your next session.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
   if (!canRequest) return null;
 
   const trainerRequired = !anyAllowed;
