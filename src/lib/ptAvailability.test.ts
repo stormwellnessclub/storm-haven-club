@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+// @ts-nocheck
+import { describe, it, expect } from "bun:test";
 import { slotProblems, slotWarning, parseSlotError, capacityLine, withinClientWindow } from "./ptAvailability";
 
 describe("PT availability display", () => {
