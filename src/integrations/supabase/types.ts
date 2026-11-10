@@ -12094,6 +12094,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          request_only: boolean
           required_format: Database["public"]["Enums"]["pt_format"] | null
           requires_package: boolean
           updated_at: string
@@ -12112,6 +12113,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          request_only?: boolean
           required_format?: Database["public"]["Enums"]["pt_format"] | null
           requires_package?: boolean
           updated_at?: string
@@ -12130,6 +12132,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          request_only?: boolean
           required_format?: Database["public"]["Enums"]["pt_format"] | null
           requires_package?: boolean
           updated_at?: string
@@ -12605,6 +12608,53 @@ export type Database = {
             columns: ["instructor_id"]
             isOneToOne: false
             referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pt_trainer_services: {
+        Row: {
+          created_at: string
+          instructor_id: string
+          session_type_id: string
+        }
+        Insert: {
+          created_at?: string
+          instructor_id: string
+          session_type_id: string
+        }
+        Update: {
+          created_at?: string
+          instructor_id?: string
+          session_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pt_trainer_services_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructor_public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_services_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "instructors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_services_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "public_instructors_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pt_trainer_services_session_type_id_fkey"
+            columns: ["session_type_id"]
+            isOneToOne: false
+            referencedRelation: "pt_session_types"
             referencedColumns: ["id"]
           },
         ]
@@ -17648,6 +17698,18 @@ export type Database = {
           service_name: string
           therapist_id: string
           therapist_name: string
+        }[]
+      }
+      get_pt_eligible_trainers: {
+        Args: {
+          p_format?: Database["public"]["Enums"]["pt_format"]
+          p_session_code?: string
+        }
+        Returns: {
+          first_name: string
+          id: string
+          last_name: string
+          session_codes: string[]
         }[]
       }
       get_public_class_reviews: {

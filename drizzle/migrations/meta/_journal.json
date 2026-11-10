@@ -1093,6 +1093,13 @@
       "when": 1794303714528,
       "tag": "0155_pt_override_soft_only",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1794306997498,
+      "tag": "0156_pt_gym_floor_and_trainer_eligibility",
+      "breakpoints": true
     }
   ]
 }
