@@ -1100,6 +1100,13 @@
       "when": 1794306997498,
       "tag": "0156_pt_gym_floor_and_trainer_eligibility",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1794307276267,
+      "tag": "0157_pt_client_scheduling_privacy_lock",
+      "breakpoints": true
     }
   ]
 }
