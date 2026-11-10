@@ -37,7 +37,7 @@ export function slotProblems(c: SlotCheck | null | undefined): string[] {
  */
 export function isHardConflict(c: SlotCheck | null | undefined): boolean {
   if (!c) return false;
-  return !!c.group_full || len(c.trainer_conflicts) > 0 || len(c.client_conflicts) > 0 || len(c.room_conflicts) > 0;
+  return !!c.group_full || len(c.trainer_conflicts) > 0 || len(c.client_conflicts) > 0; // PT is on the gym floor: rooms never block
 }
 
 /** Shown when a trainer has no hours set; booking is allowed but flagged. */
