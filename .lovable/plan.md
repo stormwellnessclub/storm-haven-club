@@ -1,32 +1,39 @@
-# Send Amta Alkhateeb her finish-booking email and text at 7:00 AM
+# Send Amta Alkhateeb a finish-booking email and text at 7:00 AM
 
 ## Why her booking was cancelled
-Stripe never turned her down, and she wasn't charged. She got to the card screen for a Mud Therapy Wrap (Fri Nov 13, 1:45 PM, $165.09) but didn't enter a card. After 20 minutes the system let the time go and marked it "Left at card screen."
+Stripe never turned her down, and she wasn't charged. She got to the card screen for a Mud Therapy Wrap (Fri Nov 13, 1:45 PM) but didn't enter a card. After 20 minutes the system let the time go.
 
-## What she'll get at 7:00 AM Michigan time today (Wed Nov 11)
+## New email (replaces the old wording for every finish-booking email, not just Amta's)
 
-**Email** — subject: "Finishing your Spa Aella booking"
+Subject: **Your Mud Therapy Wrap is waiting**
 
-> Hi Amta,
+> Amta,
 >
-> We noticed your booking for the Mud Therapy Wrap on Friday, November 13 at 1:45 PM wasn't completed, and no payment went through.
+> Your Mud Therapy Wrap for Friday, November 13 at 1:45 PM is almost set. There's just one step left to hold your time.
 >
-> You can finish your booking below. If that time is no longer open, simply choose another.
+> [ Complete My Booking ]
 >
-> [ Finish My Booking ]  (opens the wraps section of the spa page)
+> If you'd like a different day or time, you can choose one there.
 >
-> If you'd rather book by phone, reply to this email and we'll take care of it for you.
+> We look forward to welcoming you to Spa Aella.
 >
-> Warmly,
 > The Storm Wellness Club Team
 
-**Text** to (313) 455-9023 (she agreed to texts at checkout):
+What changed from the old email:
+- Payment isn't mentioned anywhere.
+- "Reply to this email" is gone.
+- It's shorter and calmer, with no "we noticed" or "wasn't completed."
 
-> Storm Wellness Club: your Mud Therapy Wrap booking wasn't completed. Finish it here: https://stormwellnessclub.com/spa
+## New text to (313) 455-9023 (she agreed to texts)
 
-Her note asks for a female therapist and to add the Moroccan scrub. The standard message doesn't mention either. Before 7 AM, check that the Nov 13 1:45 PM time is still open. If you'd like her note answered in the message, tell me and I'll add a line.
+> Storm Wellness Club: Amta, your Mud Therapy Wrap on Fri Nov 13 at 1:45 PM is one step from booked. Complete it here: https://stormwellnessclub.com/spa
 
-## How it's sent
-- A one-time timer goes off at 7:00 AM Detroit time (12:00 UTC), sends once, then deletes itself. Nothing checks over and over.
-- It uses the same email and text senders as the "Send finish-booking link" button. Texts still go through the normal consent check, and a fixed send key keeps her from getting it twice.
-- Only Amta gets this. No other people or records are touched, and no card is charged.
+The "Send finish-booking link" button will use this same text from now on.
+
+## Sending
+- Sent once at 7:00 AM Michigan time by a one-time timer that deletes itself afterward. If 7:00 has already passed when this is approved, it goes out right away.
+- The text goes through the normal consent check, and a fixed send key makes sure she only gets it once.
+- Only Amta gets a message. No cards are charged and no other records are changed.
+
+## Open item
+Her note asks for a female therapist and to add the Moroccan scrub. The message doesn't mention either. Before Friday, staff should check that the 1:45 PM time is still open.
