@@ -73,7 +73,7 @@ export default function PersonalTrainingPasses() {
     queryFn: async (): Promise<Record<string, UserLite>> => {
       const [{ data: profiles }, { data: members }] = await Promise.all([
         supabase.from("profiles").select("user_id, email, first_name, last_name").in("user_id", userIds),
-        supabase.from("members").select("user_id, email, first_name, last_name").in("user_id", userIds),
+        supabase.from("members").select("user_id, email, first_name, last_name, status").in("user_id", userIds),
       ]);
       const map: Record<string, UserLite> = {};
       (profiles ?? []).forEach((p: any) => {
@@ -84,7 +84,8 @@ export default function PersonalTrainingPasses() {
           id: m.user_id,
           email: m.email,
           name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email,
-          isMember: true,
+          // A cancelled membership never shows as a member.
+          isMember: m.status !== "cancelled" || !!map[m.user_id]?.isMember,
         };
       });
       return map;

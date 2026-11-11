@@ -23,3 +23,27 @@ export function relationshipMap(members: { user_id: string | null; status?: stri
   Object.entries(byUser).forEach(([id, rows]) => { out[id] = relationshipFromMemberRows(rows); });
   return out;
 }
+
+/** Non-member PT packs are named "Non-Member …". */
+export function isNonMemberPackName(name: string | null | undefined): boolean {
+  return /^non[-\s]?member/i.test((name ?? "").trim());
+}
+
+/**
+ * Default single-session PT rate for a person. Current members get the member
+ * single-session price; non-members and former (cancelled) members get the
+ * "Non-Member" single-session price when one exists for that format.
+ */
+export function singleSessionRateCents(
+  packs: { format: string; price_cents: number; name?: string | null }[],
+  format: string,
+  relationship: PTRelationship,
+): number {
+  const forFormat = packs
+    .filter((p) => p.format === format && p.price_cents > 0)
+    .sort((a, b) => a.price_cents - b.price_cents);
+  const memberRate = forFormat.find((p) => !isNonMemberPackName(p.name));
+  const nonMemberRate = forFormat.find((p) => isNonMemberPackName(p.name));
+  if (relationship !== "Member" && nonMemberRate) return nonMemberRate.price_cents;
+  return (memberRate ?? nonMemberRate)?.price_cents ?? 0;
+}

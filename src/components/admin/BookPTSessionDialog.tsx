@@ -1,5 +1,6 @@
 import { slotProblems, parseSlotError, isHardConflict } from "@/lib/ptAvailability";
 import { useUserRoles } from "@/hooks/useUserRoles";
+import { relationshipMap, singleSessionRateCents, type PTRelationship } from "@/lib/ptIdentity";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,15 +46,20 @@ async function searchPeople(term: string): Promise<UserOption[]> {
   const [{ data: profiles }, { data: members }, { data: nonMembers }] = await Promise.all([
     supabase.from("profiles").select("user_id, email, first_name, last_name")
       .or(`email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`).limit(10),
-    supabase.from("members").select("user_id, email, first_name, last_name")
+    supabase.from("members").select("user_id, email, first_name, last_name, status")
       .or(`email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`).limit(10),
     supabase.from("non_member_profiles").select("user_id, email, first_name, last_name")
       .or(`email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%`).limit(10),
   ]);
+  // A cancelled membership never counts as a member (pricing or labels).
+  const rel = relationshipMap((members ?? []) as any[]);
   const list: UserOption[] = [
     ...(profiles ?? []).map((p: any) => ({ id: p.user_id, email: p.email, name: [p.first_name, p.last_name].filter(Boolean).join(" ") || p.email, isMember: false })),
     ...(nonMembers ?? []).map((n: any) => ({ id: n.user_id, email: n.email, name: `${n.first_name ?? ""} ${n.last_name ?? ""}`.trim() || n.email, isMember: false, isNonMember: true })),
-    ...(members ?? []).map((m: any) => ({ id: m.user_id, email: m.email, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, isMember: true })),
+    ...(members ?? []).map((m: any) => {
+      const isMember = rel[m.user_id] === "Member";
+      return { id: m.user_id, email: m.email, name: `${m.first_name ?? ""} ${m.last_name ?? ""}`.trim() || m.email, isMember, isNonMember: !isMember };
+    }),
   ].filter((u) => u.id);
   return Array.from(new Map(list.map((u) => [u.id, u])).values());
 }
@@ -77,6 +83,7 @@ export function BookPTSessionDialog({
   const [submitting, setSubmitting] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"package" | "unpaid">("package");
   const [rate, setRate] = useState("");
+  const [rateEdited, setRateEdited] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [conflict, setConflict] = useState<string | null>(null);
   const [conflictHard, setConflictHard] = useState(false);
@@ -93,6 +100,7 @@ export function BookPTSessionDialog({
       if (presetDate) setDate(presetDate);
       setPaymentMode("package");
       setRate("");
+      setRateEdited(false);
       setErr(null);
       setExtras([]);
       setExtraSearch("");
@@ -102,6 +110,7 @@ export function BookPTSessionDialog({
   useEffect(() => {
     setDuration(DEFAULT_DURATION[format]);
     setRate("");
+    setRateEdited(false);
   }, [format]);
 
   // Customer search
@@ -140,16 +149,33 @@ export function BookPTSessionDialog({
     queryKey: ["pt-single-session-rates"],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from("pt_packs")
-        .select("format, price_cents")
+        .select("format, price_cents, name")
         .eq("is_active", true)
         .eq("sessions", 1)
         .order("price_cents", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as Array<{ format: PtFormat; price_cents: number }>;
+      return (data ?? []) as Array<{ format: PtFormat; price_cents: number; name: string | null }>;
     },
   });
 
-  const defaultRateCents = singleSessionRates.find((pack) => pack.format === format)?.price_cents ?? 0;
+  // Current membership status for everyone being booked, so non-members and
+  // cancelled members default to the non-member single-session rate.
+  const relationshipIds = useMemo(
+    () => Array.from(new Set([userId, ...extras.map((e) => e.id)].filter(Boolean))) as string[],
+    [userId, extras],
+  );
+  const { data: relationships = {} } = useQuery({
+    queryKey: ["pt-book-relationships", relationshipIds],
+    enabled: open && relationshipIds.length > 0,
+    queryFn: async (): Promise<Record<string, PTRelationship>> => {
+      const { data, error } = await supabase.from("members").select("user_id, status").in("user_id", relationshipIds);
+      if (error) throw error;
+      return relationshipMap((data ?? []) as any[]);
+    },
+  });
+  const rateFor = (id: string | undefined) =>
+    singleSessionRateCents(singleSessionRates, format, (id && relationships[id]) || "Non-member");
+  const defaultRateCents = rateFor(userId);
 
   useEffect(() => {
     if (formatPasses.length > 0 && !formatPasses.find((p) => p.id === passId)) {
@@ -166,10 +192,10 @@ export function BookPTSessionDialog({
   }, [userId, format, formatPasses.length, passesLoading]);
 
   useEffect(() => {
-    if (paymentMode === "unpaid" && !rate && defaultRateCents > 0) {
+    if (paymentMode === "unpaid" && !rateEdited && defaultRateCents > 0) {
       setRate((defaultRateCents / 100).toFixed(2));
     }
-  }, [paymentMode, rate, defaultRateCents]);
+  }, [paymentMode, rateEdited, defaultRateCents]);
 
   // Instructors
   const { data: instructors = [] } = useQuery({
@@ -277,7 +303,8 @@ export function BookPTSessionDialog({
     try {
       for (const a of attendees) {
         try {
-          const appt = await bookOne(a.id, startsAtLocal.toISOString(), force, rateCents);
+          const attendeeRate = rateEdited && enteredCents > 0 ? enteredCents : (rateFor(a.id) || rateCents);
+          const appt = await bookOne(a.id, startsAtLocal.toISOString(), force, attendeeRate);
           booked.push(appt);
           bookedIds.push(a.id);
         } catch (e: any) {
@@ -457,7 +484,7 @@ export function BookPTSessionDialog({
                   step="0.01"
                   placeholder={defaultRateCents ? (defaultRateCents / 100).toFixed(2) : "Enter session rate"}
                   value={rate}
-                  onChange={(e) => setRate(e.target.value)}
+                  onChange={(e) => { setRate(e.target.value); setRateEdited(true); }}
                 />
               </div>
             )}
