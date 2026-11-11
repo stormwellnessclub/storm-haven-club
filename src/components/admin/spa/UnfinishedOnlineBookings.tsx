@@ -61,7 +61,7 @@ export function UnfinishedOnlineBookings() {
         body: {
           to: { phone: r.phone },
           templateKey: "admin-custom",
-          variables: { customBody: `Storm Wellness Club: your ${r.service} booking wasn't completed. Finish it here: https://stormwellnessclub.com/spa` },
+          variables: { customBody: `Spa Aella at Storm Wellness Club: ${(r.name ?? "").trim().split(" ")[0] ? (r.name ?? "").trim().split(" ")[0] + ", y" : "Y"}our ${r.service}${visitDate ? ` on ${format(parseISO(r.date!), "EEE MMM d")}${visitTime ? ` at ${visitTime}` : ""}` : ""} is one step from confirmed. Complete your booking here: https://stormwellnessclub.com/spa` },
           idempotencyKey: `spa-resume-${r.key}`,
           metadata: { source: "UnfinishedOnlineBookings" },
         },
