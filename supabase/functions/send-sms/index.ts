@@ -1,3 +1,4 @@
+import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 // Outbound transactional SMS sender via Twilio REST (HTTP Basic Auth).
 // Hard-gates on sms_opt_in, checks blocked_persons, idempotent on idempotency_key.
 //
@@ -169,11 +170,15 @@ Deno.serve(async (req) => {
     // key ships in the client bundle and cannot prove server origin, so it
     // must not grant admin trust or consent bypass.
     const isServerCaller = token === SERVICE_ROLE;
+    // Scheduled jobs present the vault-held internal task token. They are
+    // trusted senders but can never skip consent.
+    const presentedTask = presentedInternalToken(req);
+    const isInternalJob = !isServerCaller && !!presentedTask && await isValidInternalToken(presentedTask);
 
     let callerUserId: string | null = null;
-    let callerIsAdmin = isServerCaller; // server callers can bypassConsent
+    let callerIsAdmin = isServerCaller || isInternalJob; // only the service role may bypassConsent
 
-    if (!isServerCaller) {
+    if (!isServerCaller && !isInternalJob) {
       const userClient = createClient(SUPABASE_URL, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
@@ -355,7 +360,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const allowSend = optedIn || (callerIsAdmin && body.bypassConsent === true);
+    const allowSend = optedIn || (callerIsAdmin && !isInternalJob && body.bypassConsent === true);
 
     if (!allowSend) {
       await admin.from("sms_messages").insert({
