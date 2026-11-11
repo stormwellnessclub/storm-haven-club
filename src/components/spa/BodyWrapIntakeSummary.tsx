@@ -1,3 +1,4 @@
+import { BODY_WRAP_ARRIVAL_NOTE } from "@/lib/bodyWrapArrival";
 import { useState } from "react";
 import { formatInTimeZone } from "date-fns-tz";
 import { AlertCircle, ClipboardCheck } from "lucide-react";
@@ -58,7 +59,7 @@ export function BodyWrapIntakeSummary({
       <Row q="Any other allergies?" v={intake.other_allergies} />
       <Row q="Current medications" v={intake.medications} />
       <Row q="What personal goals are you hoping to reach with your body wrap?" v={intake.goals} />
-      <p className="text-muted-foreground">Please eat a light meal, drink plenty of water before your wrap, and arrive 10 minutes early.</p>
+      <p className="text-muted-foreground">Please eat a light meal and drink plenty of water before your wrap. {BODY_WRAP_ARRIVAL_NOTE}</p>
       <Row q="I will eat a light meal and be well hydrated before my session." v={intake.ate_and_hydrated === null ? "Not answered" : intake.ate_and_hydrated ? "Checked — agreed" : "Not checked"} />
       <Row q="Optional: I agree to before and after measurements to track my results." v={intake.measurement_consent ? "Checked — agreed" : "Not checked"} />
       <div className="py-1 border-b border-border/50 space-y-1">

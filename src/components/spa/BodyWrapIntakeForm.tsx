@@ -1,3 +1,4 @@
+import { BODY_WRAP_ARRIVAL_NOTE } from "@/lib/bodyWrapArrival";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -172,7 +173,7 @@ export function BodyWrapIntakeForm({ appointmentId, memberId, initial, contactPr
 
       <section className="space-y-3">
         <h3 className="font-medium">Before your session</h3>
-        <p className="text-sm text-muted-foreground">Please eat a light meal, drink plenty of water before your wrap, and arrive 10 minutes early.</p>
+        <p className="text-sm text-muted-foreground">Please eat a light meal and drink plenty of water before your wrap. {BODY_WRAP_ARRIVAL_NOTE}</p>
         <label className="flex items-start gap-2 text-sm">
           <Checkbox checked={hydrated} onCheckedChange={(v) => setHydrated(v === true)} />
           I will eat a light meal and be well hydrated before my session.

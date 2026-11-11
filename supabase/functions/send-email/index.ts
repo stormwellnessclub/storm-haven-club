@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { spaArrivalNote } from "../_shared/spaArrival.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
@@ -3406,7 +3407,7 @@ serve(async (req) => {
               </div>
               <div style="background: #FEF8E7; border-left: 3px solid #D4A84B; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
                 <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Arrival</p>
-                <p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please arrive 10 minutes early to settle in. Cancellations within 24 hours may incur a fee.</p>
+                <p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${spaArrivalNote(data.intakeKind)} Cancellations within 24 hours may incur a fee.</p>
               </div>
               ${data.setupUrlPath ? `
               <div style="background: #FEF8E7; border-left: 3px solid #B8A068; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
@@ -3452,6 +3453,7 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">Reminder: ${data.service}</h2>
               <p>This is a friendly reminder that your appointment is <strong>${when}</strong>.</p>
+              ${data.intakeKind === 'body_wrap' ? `<div style="background: #FEF8E7; border-left: 3px solid #D4A84B; border-radius: 6px; padding: 14px 16px; margin: 20px 0;"><p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Arrival</p><p style="margin: 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${spaArrivalNote(data.intakeKind)}</p></div>` : ''}
               <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <table style="width: 100%; border-collapse: collapse;">
                   <tr><td style="padding: 8px 0; color: #6b7280;">Service</td><td style="padding: 8px 0; font-weight: 600;">${data.service}</td></tr>
