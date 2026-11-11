@@ -5,35 +5,43 @@ Stripe never turned her down, and she wasn't charged. She got to the card screen
 
 ## New email (replaces the old wording for every finish-booking email, not just Amta's)
 
-Subject: **Your Mud Therapy Wrap is waiting**
+Look: our own photo of the wrap room at the top, cream background, serif heading, lots of white space, one quiet button.
 
+Subject: **Friday at Spa Aella, Amta**
+
+> **Your time is held for you**
+>
 > Amta,
 >
-> Your Mud Therapy Wrap for Friday, November 13 at 1:45 PM is almost set. There's just one step left to hold your time.
+> Friday, November 13, 1:45 PM. A Mud Therapy Wrap at Spa Aella.
 >
-> [ Complete My Booking ]
+> Warm, mineral-rich mud, a slow rinse, and an hour that's entirely yours. Arrive 20 to 30 minutes early to start with red light and the vibration plate, so your body is ready before the wrap.
 >
-> If you'd like a different day or time, you can choose one there.
+> Confirm your visit whenever you're ready.
 >
-> We look forward to welcoming you to Spa Aella.
+> [ Confirm My Visit ]
 >
-> The Storm Wellness Club Team
+> We look forward to having you with us.
+>
+> Spa Aella at Storm Wellness Club
+> Livonia, Michigan
 
-What changed from the old email:
+What changed:
 - Payment isn't mentioned anywhere.
-- "Reply to this email" is gone.
-- It's shorter and calmer, with no "we noticed" or "wasn't completed."
+- "Reply to this email," "we noticed" and "wasn't completed" are gone.
+- It describes the visit itself, uses our own photo (no stock images) and avoids the banned words.
+- The description matches the treatment booked (mud wrap, massage, and so on), using the spa menu's own wording.
 
 ## New text to (313) 455-9023 (she agreed to texts)
 
-> Storm Wellness Club: Amta, your Mud Therapy Wrap on Fri Nov 13 at 1:45 PM is one step from booked. Complete it here: https://stormwellnessclub.com/spa
+> Spa Aella at Storm Wellness Club: Amta, your Mud Therapy Wrap is held for Fri Nov 13 at 1:45 PM. Confirm your visit here: https://stormwellnessclub.com/spa
 
-The "Send finish-booking link" button will use this same text from now on.
+The "Send finish-booking link" button will use this same wording from now on.
 
 ## Sending
-- Sent once at 7:00 AM Michigan time by a one-time timer that deletes itself afterward. If 7:00 has already passed when this is approved, it goes out right away.
-- The text goes through the normal consent check, and a fixed send key makes sure she only gets it once.
-- Only Amta gets a message. No cards are charged and no other records are changed.
+- One message, sent at 7:00 AM Michigan time by a timer that runs once and then removes itself. If you approve after 7:00, it goes out right away.
+- The text goes through the usual consent check, and she can only receive it once.
+- Only Amta gets a message. No card is charged and no other records change.
 
 ## Open item
-Her note asks for a female therapist and to add the Moroccan scrub. The message doesn't mention either. Before Friday, staff should check that the 1:45 PM time is still open.
+Her note asks for a female therapist and to add the Moroccan scrub. Neither message mentions this. Staff should also check that 1:45 PM on Friday is still open.
