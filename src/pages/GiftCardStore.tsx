@@ -17,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { trackMetaEvent } from "@/lib/metaPixel";
 import { CalendarIcon, CheckCircle2, Copy, Gift, Loader2, Mail } from "lucide-react";
 import { SpaServiceGrid, TherapistTipPicker } from "@/components/gift-cards/SpaGiftPicker";
 
@@ -564,6 +565,11 @@ function GiftCardPayment({
       if (confirmErr) throw confirmErr;
       if (!data?.success) throw new Error(data?.error || "Could not finalize the gift card");
       toast.success("Gift card purchased");
+      trackMetaEvent(
+        "Purchase",
+        { value: totalCents / 100, currency: "USD", content_name: "Gift card" },
+        paymentIntent.id || paymentIntentId,
+      );
       onComplete(data.card, !!data.scheduled, !!data.emailSent);
     } catch (e: any) {
       toast.error(e.message || "Payment failed");

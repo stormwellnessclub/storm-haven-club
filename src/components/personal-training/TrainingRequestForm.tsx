@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { z } from "zod";
+import { trackMetaEvent } from "@/lib/metaPixel";
 
 export const TRAINING_SERVICES = [
   { value: "one_on_one", label: "1:1 Personal Training" },
@@ -93,6 +94,7 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact, me
       return;
     }
     setSubmitted(true);
+    trackMetaEvent("Lead", { content_name: "Personal training request" });
     toast.success("Request sent — we'll be in touch shortly.");
   }
 

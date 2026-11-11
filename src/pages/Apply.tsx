@@ -28,6 +28,7 @@ import {
   flushSubmitLogQueue,
   isDuplicateApplicationError,
 } from "@/lib/applicationSubmitLog";
+import { trackMetaEvent } from "@/lib/metaPixel";
 
 
 import gymArea2 from "@/assets/gym-area-2.jpg";
@@ -865,6 +866,8 @@ export default function Apply() {
         clientKey: submitKey,
         status: "succeeded",
       });
+      // No event id here: the submit key contains the applicant's email.
+      trackMetaEvent("Lead", { content_name: "Membership application" });
 
 
 
