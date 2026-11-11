@@ -32,17 +32,17 @@ interface PageMeta {
 
 const PAGE_META: Record<string, PageMeta> = {
   '/': {
-    title: `${SITE_NAME} | Premium Fitness & Wellness in Livonia, MI`,
-    description: 'Storm Wellness Club — luxury fitness and wellness destination in Livonia, Michigan. Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care. Serving Livonia, Detroit, Dearborn, Farmington Hills, and surrounding areas. Apply for membership today.',
+    title: `${SITE_NAME} | Fitness & Wellness in Livonia, MI`,
+    description: 'Storm Wellness Club — a complete fitness and wellness club in Livonia, Michigan. Reformer Pilates, Indoor Cycling, Recovery Spa, Massage, Café, and Kids Care. Serving Livonia, Detroit, Dearborn, Farmington Hills, and surrounding areas. Apply for membership today.',
     h1: 'Storm Wellness Club',
     bodyContent: `
-      <h2>Premium Wellness Destination in Livonia, Michigan</h2>
-      <p>Storm Wellness Club is a luxury fitness and wellness club located at 18340 Middlebelt Rd, Livonia, MI 48152. We offer a comprehensive wellness experience including Reformer Pilates (heated and non-heated), Indoor Cycling, Yoga, HIIT, Barre, Mat Pilates, and more. Serving Livonia, Detroit, Dearborn, Farmington Hills, Redford, Garden City, Westland, Plymouth, Canton, Northville, Novi, and Southfield.</p>
+      <h2>Fitness and Wellness Club in Livonia, Michigan</h2>
+      <p>Storm Wellness Club is a fitness and wellness club located at 18340 Middlebelt Rd, Livonia, MI 48152. We offer a comprehensive wellness experience including Reformer Pilates (heated and non-heated), Indoor Cycling, HIIT, Barre, Mat Pilates, and more. Serving Livonia, Detroit, Dearborn, Farmington Hills, Redford, Garden City, Westland, Plymouth, Canton, Northville, Novi, and Southfield.</p>
       <h2>Our Studios</h2>
       <ul>
         <li><strong>Reformer Pilates Studio</strong> — A mixture of reformer classes, both heated and non-heated options</li>
         <li><strong>Cycling Studio</strong> — High-energy rides with immersive lighting and cinematic sound</li>
-        <li><strong>Aerobics Room</strong> — Bootcamp, Sculpt, Yoga, HIIT and more in our versatile studio</li>
+        <li><strong>Aerobics Room</strong> — Bootcamp, Sculpt, HIIT and more in our versatile studio</li>
       </ul>
       <h2>Recovery & Wellness</h2>
       <p>Our Recovery Spa features sauna, steam room, cold plunge, infrared therapy, therapeutic massage, and body treatments.</p>
@@ -54,15 +54,14 @@ const PAGE_META: Record<string, PageMeta> = {
     `
   },
   '/classes': {
-    title: `Reformer Pilates, Cycling & Yoga Classes in Livonia, MI | ${SITE_NAME}`,
-    description: 'Reformer Pilates (heated & non-heated), Indoor Cycling, Yoga, Barre, HIIT and Sculpt classes at Storm Wellness Club in Livonia, MI. Book online — class passes available.',
+    title: `Reformer Pilates & Cycling Classes in Livonia, MI | ${SITE_NAME}`,
+    description: 'Reformer Pilates (heated & non-heated), Indoor Cycling, Barre, HIIT and Sculpt classes at Storm Wellness Club in Livonia, MI. Book online — class passes available.',
     h1: 'Classes at Storm Wellness Club',
     bodyContent: `
       <h2>Class Categories</h2>
       <ul>
         <li><strong>Reformer Pilates</strong> — Heated and non-heated reformer Pilates classes for all levels</li>
         <li><strong>Indoor Cycling</strong> — High-energy rides with immersive lighting and sound</li>
-        <li><strong>Yoga</strong> — Flow, restorative, and power yoga sessions</li>
         <li><strong>Mat Pilates</strong> — Core-focused mat work for strength and flexibility</li>
         <li><strong>HIIT</strong> — High-intensity interval training for maximum results</li>
         <li><strong>Barre</strong> — Ballet-inspired workout combining strength, balance, and flexibility</li>
@@ -74,9 +73,9 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/schedule': {
     title: `Reformer Pilates & Cycling Class Schedule in Livonia, MI | ${SITE_NAME}`,
-    description: "See this week's Reformer Pilates, Indoor Cycling, Yoga and aerobics classes in Livonia, MI. Small groups, book online — class passes available, no membership required.",
+    description: "See this week's Reformer Pilates, Indoor Cycling and aerobics classes in Livonia, MI. Small groups, book online — class passes available, no membership required.",
     h1: 'Class Schedule',
-    bodyContent: `<p>View our weekly class schedule and book your spot. Real-time availability and waitlist support for all classes including Reformer Pilates, Cycling, Yoga, HIIT, Barre, and more.</p>`
+    bodyContent: `<p>View our weekly class schedule and book your spot. Real-time availability and waitlist support for all classes including Reformer Pilates, Cycling, HIIT, Barre, and more.</p>`
   },
   '/memberships': {
     title: `Gym & Wellness Memberships in Livonia, MI | ${SITE_NAME}`,
@@ -143,11 +142,11 @@ const PAGE_META: Record<string, PageMeta> = {
   },
   '/class-passes': {
     title: `Class Passes | ${SITE_NAME}`,
-    description: 'Purchase class passes for non-members at Storm Wellness Club. Single class, 5-pack, and 10-pack options for Pilates, Cycling, Yoga, and more.',
+    description: 'Purchase class passes for non-members at Storm Wellness Club. Single class, 5-pack, and 10-pack options for Pilates, Cycling, and more.',
     h1: 'Class Passes',
     bodyContent: `
       <p>Don't have a membership? Purchase class passes to attend individual classes at Storm Wellness Club. Available in single class, 5-pack, and 10-pack options.</p>
-      <p>Class categories: Reformer Pilates, Indoor Cycling, Yoga, Mat Pilates, HIIT, Barre, and more.</p>
+      <p>Class categories: Reformer Pilates, Indoor Cycling, Mat Pilates, HIIT, Barre, and more.</p>
     `
   },
   '/guest-pass': {
@@ -252,7 +251,7 @@ const JSON_LD_LOCAL_BUSINESS = {
   "@context": "https://schema.org",
   "@type": "HealthClub",
   "name": "Storm Wellness Club",
-  "description": "Premium fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Yoga, Recovery Spa, Café, and Kids Care.",
+  "description": "Fitness and wellness club in Livonia, Michigan offering Reformer Pilates, Indoor Cycling, Recovery Spa, Massage, Café, and Kids Care.",
   "url": SITE_URL,
   "logo": OG_IMAGE,
   "image": OG_IMAGE,
