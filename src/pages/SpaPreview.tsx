@@ -23,6 +23,9 @@ import aellaRoom from "@/assets/spa-preview/aella-treatment-room.jpg.asset.json"
 import seaweedCocoon from "@/assets/spa-preview/seaweed-cocoon.jpg.asset.json";
 import bananaLeaf from "@/assets/spa-preview/banana-leaf.jpg.asset.json";
 import goldSkin from "@/assets/spa-preview/gold-skin.jpg.asset.json";
+import klytiaAmpoules from "@/assets/spa-preview/klytia-ampoules.jpg.asset.json";
+import klytiaHeritage from "@/assets/spa-preview/klytia-heritage.jpg.asset.json";
+import microneedling from "@/assets/spa-preview/microneedling.jpg.asset.json";
 import spaHallway from "@/assets/spa-hallway.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import saltRoom from "@/assets/salt-room.jpg";
@@ -183,7 +186,26 @@ export default function SpaPreview() {
                 </div>
               </section>
             )}
-            <section id={c.id} className="scroll-mt-20 border-t border-foreground/10">
+            {c.id === "facials" && (
+              <section id="facials" className="scroll-mt-20 bg-cream text-background">
+                <div className="grid md:grid-cols-12">
+                  <figure className="md:col-span-7">
+                    <img src={klytiaHeritage.url} alt="Klytia Paris serums and ampoules laid over archive photographs of Paris" loading="lazy" className="aspect-[4/3] w-full object-cover md:h-full" />
+                  </figure>
+                  <div className="flex flex-col justify-center px-6 py-20 md:col-span-5 md:px-14 md:py-28">
+                    <p className="text-[11px] tracking-[0.35em] uppercase text-background/60">Klytia Paris · Since 1895</p>
+                    <h2 className="mt-5 font-serif text-5xl leading-[1.05] md:text-6xl">Skin keeps its own time.</h2>
+                    <p className="mt-8 leading-relaxed text-background/75">
+                      Klytia began in Paris in 1895 as an institut de beauté on Place Vendôme. Their professional facials follow chronobiology: skin changes through the day and with the seasons, so each treatment is shaped to where your skin is now.
+                    </p>
+                    <p className="mt-6 leading-relaxed text-background/75">
+                      Aella is the only place in the United States offering Klytia's professional facials, performed by estheticians trained by Klytia.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            )}
+            <section id={c.id === "facials" ? "facials-menu" : c.id} className="scroll-mt-20 border-t border-foreground/10">
               <div className="grid md:grid-cols-12">
                 <div className={`md:col-span-5 ${i % 2 ? "md:order-2" : ""}`}>
                   <img src={c.chapterImg ?? c.img} alt="" loading="lazy" className={`h-[60svh] w-full object-cover saturate-[0.7] brightness-[0.85] md:sticky md:top-0 md:h-[100svh] ${c.chapterPos ?? ""}`} />
@@ -202,6 +224,27 @@ export default function SpaPreview() {
             </section>
             {c.id === "facials" && (
               <>
+                <section id="mesoeffect" aria-label="Klytia MesoEffect" className="scroll-mt-20 border-t border-foreground/10">
+                  <div className="grid md:grid-cols-12">
+                    <figure className="md:col-span-5">
+                      <img src={microneedling.url} alt="A nano-needling pen moving across the skin's surface" loading="lazy" className="h-[70svh] w-full object-cover object-[50%_60%] md:h-full" />
+                    </figure>
+                    <div className="px-6 py-20 md:col-span-7 md:px-16 md:py-28">
+                      <Eyebrow>New at Aella · Coming soon</Eyebrow>
+                      <h2 className="mt-5 font-serif text-5xl leading-[1.05] md:text-6xl">Klytia MesoEffect</h2>
+                      <p className="mt-6 max-w-xl text-lg leading-relaxed text-foreground/85">
+                        A nano-needling facial that works three concentrated Klytia serums into the skin.
+                      </p>
+                      <ul className="mt-10 max-w-xl">
+                        <li className="border-t border-foreground/15 py-5 text-muted-foreground">Three serums layered in one visit: anti-aging, hydration and perfection.</li>
+                        <li className="border-t border-foreground/15 py-5 text-muted-foreground">Gentle nano-needling works them into the surface of the skin.</li>
+                        <li className="border-y border-foreground/15 py-5 text-muted-foreground">A calming sheet mask for face and neck, then a repair cream to finish.</li>
+                      </ul>
+                      <p className="mt-8 max-w-xl text-sm leading-relaxed text-muted-foreground">Chosen for smoother texture, softer-looking fine lines and deep hydration.</p>
+                      <img src={klytiaAmpoules.url} alt="Klytia serum ampoules" loading="lazy" className="mt-14 aspect-[16/9] w-full object-cover" />
+                    </div>
+                  </div>
+                </section>
                 <section aria-hidden="true" className="px-2 py-2 md:px-3 md:py-3">
                   <div className="grid grid-cols-3 gap-2 md:gap-3">
                     <img src={foamBrush.url} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover saturate-[0.8] brightness-[0.9]" />
