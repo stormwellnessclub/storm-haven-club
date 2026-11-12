@@ -1,4 +1,5 @@
 import { MothersDayArrivalNote } from "@/components/admin/spa/MothersDayArrivalNote";
+import { spaServiceLabel } from "@/lib/spaZones";
 import { useState, useEffect } from "react";
 import {
   Dialog,
@@ -502,7 +503,7 @@ export function SpaCompletionDialog({
           {/* Appointment summary */}
           <div className="p-3 rounded-lg bg-secondary/50 space-y-1">
             <p className="font-medium">{memberName}</p>
-            <p className="text-sm text-muted-foreground">{appointment.service_name}</p>
+            <p className="text-sm text-muted-foreground">{spaServiceLabel(appointment)}</p>
             <div className="flex items-center justify-between gap-2">
               {editingPrice ? (
                 <div className="flex items-center gap-2">
@@ -786,7 +787,7 @@ export function SpaCompletionDialog({
           {paymentMethod !== "no_charge" && (
             <div className="p-3 rounded-lg bg-primary/5 border space-y-1 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{appointment.service_name}</span>
+                <span className="text-muted-foreground">{spaServiceLabel(appointment)}</span>
                 <span>${servicePrice.toFixed(2)}</span>
               </div>
               {chargedAddons.map((a) => (

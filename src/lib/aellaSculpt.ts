@@ -56,16 +56,7 @@ export const AELLA_SCULPT = {
   focusTitle: "One Treatment. One Focus.",
   focusBody:
     "Each 90-minute appointment focuses on one intentional treatment zone, so there is time for every technology and manual technique being used.",
-  // Starting list from the owner's spec; becomes admin-configurable when the service is built.
-  zones: [
-    "Abdomen + Waist",
-    "Flanks",
-    "Lower Back",
-    "Upper Back / Bra Line",
-    "Arms",
-    "Thighs",
-    "Glutes / Posterior Thigh",
-  ],
+  // Treatment zones are staff-managed rows (spa_treatment_zones), read through src/lib/spaZones.ts.
   series: [
     {
       count: "4 Treatments",

@@ -3,6 +3,8 @@ import { Helmet } from "react-helmet-async";
 import { Link, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AELLA_SCULPT, BODY_LAB } from "@/lib/aellaSculpt";
+import { useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
+import { activeZones } from "@/lib/spaZones";
 import { SculptSeries } from "@/components/spa-preview/SculptSeries";
 import { SculptBookingPreview } from "@/components/spa-preview/SculptBookingPreview";
 import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
@@ -31,6 +33,8 @@ export default function AellaSculptPreview() {
   }, [hash]);
 
   const s = AELLA_SCULPT;
+  const { data: zoneRows = [] } = useSpaTreatmentZones();
+  const zones = activeZones(zoneRows, "aella-sculpt");
   return (
     <Layout>
       <Helmet>
@@ -128,8 +132,11 @@ export default function AellaSculptPreview() {
               <p className="mt-8 leading-relaxed text-background/75">{s.focusBody}</p>
             </div>
             <ul className="md:col-span-6 md:col-start-7">
-              {s.zones.map((z) => (
-                <li key={z} className="border-t border-background/20 py-4 font-serif text-2xl md:text-3xl last:border-b">{z}</li>
+              {zones.map((z) => (
+                <li key={z.id} className="border-t border-background/20 py-4 last:border-b">
+                  <p className="font-serif text-2xl md:text-3xl">{z.name}</p>
+                  {z.description && <p className="mt-1 text-sm text-background/65">{z.description}</p>}
+                </li>
               ))}
             </ul>
           </div>

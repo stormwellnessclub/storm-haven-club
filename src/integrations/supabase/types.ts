@@ -13802,6 +13802,8 @@ export type Database = {
           status: string
           tip_amount: number | null
           tip_payment_method: string | null
+          treatment_zone_id: string | null
+          treatment_zone_name: string | null
           updated_at: string
           user_id: string | null
         }
@@ -13845,6 +13847,8 @@ export type Database = {
           status?: string
           tip_amount?: number | null
           tip_payment_method?: string | null
+          treatment_zone_id?: string | null
+          treatment_zone_name?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -13888,6 +13892,8 @@ export type Database = {
           status?: string
           tip_amount?: number | null
           tip_payment_method?: string | null
+          treatment_zone_id?: string | null
+          treatment_zone_name?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -13932,6 +13938,13 @@ export type Database = {
             columns: ["staff_id"]
             isOneToOne: false
             referencedRelation: "spa_therapists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spa_appointments_treatment_zone_id_fkey"
+            columns: ["treatment_zone_id"]
+            isOneToOne: false
+            referencedRelation: "spa_treatment_zones"
             referencedColumns: ["id"]
           },
         ]
@@ -14831,6 +14844,39 @@ export type Database = {
           price_cents?: number
           service_key?: string
           session_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      spa_treatment_zones: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          service_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          service_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          service_key?: string
           updated_at?: string
         }
         Relationships: []

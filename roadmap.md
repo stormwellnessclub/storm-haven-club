@@ -72,4 +72,5 @@
 ## Spa Aella — Aella Body Lab (Aella Sculpt)
 - [x] Spa preview: Aella Body Lab tab + chapter, Aella Sculpt Learn More page, booking steps preview, darkened owner photos (phone + laptop checked)
 - [x] Aella Sculpt prices stored as staff-editable packages (Spa Management → Packages) and shown on the preview without sale styling; 8 price tests pass. Staff screen not opened: preview account lacks staff access
+- [x] Aella Sculpt treatment zones: one required zone per appointment (7 owner zones), staff add/rename/turn off/reorder in Spa Management → Packages & Zones, zone saved on the appointment and shown on staff schedules; 7 zone tests pass. Staff screen not opened: preview account lacks staff access
 - [ ] Real booking/checkout: treatment area, first/returning visit, single or series purchase, sessions purchased/used/remaining/expiration, client account view, provider/admin view, progress tracking with photo consent — needs provider(s), room, member pricing and series expiration from owner

@@ -1,4 +1,5 @@
 import { MothersDayArrivalNote } from "@/components/admin/spa/MothersDayArrivalNote";
+import { spaServiceLabel } from "@/lib/spaZones";
 import { SpaPaymentBadge } from "@/components/admin/spa/SpaPaymentBadge";
 import { useState, useMemo } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -249,7 +250,7 @@ export default function Appointments() {
         </p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Badge className={getServiceColor(appointment.service_category)}>
-            {appointment.service_name}
+            {spaServiceLabel(appointment)}
           </Badge>
           <span className="text-sm text-muted-foreground">
             {appointment.duration_minutes} min
@@ -401,7 +402,7 @@ export default function Appointments() {
           </span>
           <span className="text-sm truncate">
             <span className="font-medium">{customerName}</span>
-            <span className="text-muted-foreground"> · {appointment.service_name}</span>
+            <span className="text-muted-foreground"> · {spaServiceLabel(appointment)}</span>
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">

@@ -7,6 +7,8 @@ import type { BookedSlot } from "@/lib/spaAvailability";
 import { spaBookingAmountPaid } from "@/lib/spaPaymentState";
 
 export interface SpaAppointment {
+  treatment_zone_id?: string | null;
+  treatment_zone_name?: string | null;
   id: string;
   member_id: string | null;
   user_id: string | null;

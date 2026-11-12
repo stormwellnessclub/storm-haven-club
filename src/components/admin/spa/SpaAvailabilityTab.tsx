@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { spaServiceLabel } from "@/lib/spaZones";
 import {
   useSpaServices, useSpaTherapists, useSpaRooms,
   useSpaServiceAvailability, useCreateSpaAvailability, useUpdateSpaAvailability, useDeleteSpaAvailability,
@@ -392,7 +393,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                                 {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                                 {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                               </span>
-                              <span className="text-xs">{apt.service_name}</span>
+                              <span className="text-xs">{spaServiceLabel(apt)}</span>
                               {intakeStatuses?.[apt.id] && (
                                 <Badge
                                   variant="secondary"
@@ -458,7 +459,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                               {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
-                            <span className="text-xs">{apt.service_name}</span>
+                            <span className="text-xs">{spaServiceLabel(apt)}</span>
                             {intakeStatuses?.[apt.id] && (
                               <Badge
                                 variant="secondary"
@@ -524,7 +525,7 @@ export function SpaAvailabilityTab({ initialView, initialDate }: SpaAvailability
                               {apt.customer ? (`${apt.customer.first_name} ${apt.customer.last_name}`.trim() || apt.customer.email || "Name unavailable") : (apt.member ? `${apt.member.first_name} ${apt.member.last_name}` : "Name unavailable")}
                               {apt.customer?.type === "non_member" && <span className="ml-1 text-muted-foreground">(Non-Member)</span>}
                             </span>
-                            <span className="text-xs">{apt.service_name}</span>
+                            <span className="text-xs">{spaServiceLabel(apt)}</span>
                             {intakeStatuses?.[apt.id] && (
                               <Badge
                                 variant="secondary"

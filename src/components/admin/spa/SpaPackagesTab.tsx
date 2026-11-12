@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useCreateSpaTreatmentPackage, useSpaTreatmentPackages, useUpdateSpaTreatmentPackage } from "@/hooks/useSpaTreatmentPackages";
+import { SpaZonesEditor } from "@/components/admin/spa/SpaZonesEditor";
 import { formatDollars, packageLabel, perTreatmentCents, type SpaTreatmentPackage } from "@/lib/spaPackages";
 
 const SERVICES: { key: string; label: string }[] = [{ key: "aella-sculpt", label: "Aella Sculpt" }];
@@ -140,6 +141,7 @@ export function SpaPackagesTab() {
             <p className="mt-2 text-xs text-muted-foreground">
               Shown to clients as: {rows.filter((r) => r.is_active).map((r) => `${packageLabel(r)} ${formatDollars(r.price_cents)}`).join(" · ") || "nothing yet"}
             </p>
+            <SpaZonesEditor serviceKey={s.key} />
           </section>
         );
       })}
