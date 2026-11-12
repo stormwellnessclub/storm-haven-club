@@ -12,7 +12,6 @@ import facialHands from "@/assets/spa-preview/facial-hands.jpg.asset.json";
 import handCheek from "@/assets/spa-preview/hand-cheek.jpg.asset.json";
 import maskFacial from "@/assets/spa-preview/mask-facial.jpg.asset.json";
 import hammam from "@/assets/spa-preview/hammam-scrub.jpg.asset.json";
-import microneedling from "@/assets/spa-preview/microneedling.jpg.asset.json";
 import pauseStones from "@/assets/spa-preview/pause-stones.jpg";
 import glowProfile from "@/assets/spa-preview/glow-profile.jpg.asset.json";
 import serumDropper from "@/assets/spa-preview/serum-dropper.jpg.asset.json";
@@ -20,7 +19,10 @@ import foamBrush from "@/assets/spa-preview/foam-brush.jpg.asset.json";
 import greenMaskEye from "@/assets/spa-preview/green-mask-eye.jpg.asset.json";
 import presenceBlur from "@/assets/spa-preview/presence-blur.jpg.asset.json";
 import quietLeaf from "@/assets/spa-preview/quiet-leaf.jpg.asset.json";
-import treatmentRoom from "@/assets/treatment-room.jpg";
+import aellaRoom from "@/assets/spa-preview/aella-treatment-room.jpg.asset.json";
+import seaweedCocoon from "@/assets/spa-preview/seaweed-cocoon.jpg.asset.json";
+import bananaLeaf from "@/assets/spa-preview/banana-leaf.jpg.asset.json";
+import goldSkin from "@/assets/spa-preview/gold-skin.jpg.asset.json";
 import spaHallway from "@/assets/spa-hallway.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import saltRoom from "@/assets/salt-room.jpg";
@@ -31,7 +33,7 @@ type Chapter = { id: string; category: string; title: string; line: string; img:
 const CHAPTERS: Chapter[] = [
   { id: "massage", category: "Massage", title: "Massage & Bodywork", line: "Unhurried hands, and pressure that listens.", img: handCheek.url },
   { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: glowProfile.url, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
-  { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url },
+  { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterImg: bananaLeaf.url, chapterPos: "object-[50%_30%]" },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Light, cold and stillness, on your schedule.", img: zerobody },
 ];
 
@@ -141,7 +143,11 @@ export default function SpaPreview() {
               {signature.map((s, i) => (
                 <article key={s.id} className={`grid items-center gap-10 md:grid-cols-12 ${i % 2 ? "md:[&>figure]:order-2" : ""}`}>
                   <figure className="md:col-span-7">
-                    <img src={i === 0 ? pauseStones : hammam.url} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover md:aspect-[4/3]" />
+                    {isSeaweedRitual(s) ? (
+                      <img src={seaweedCocoon.url} alt="A guest resting in a warm body wrap cocoon" loading="lazy" className="aspect-[3/2] w-full object-cover object-[60%_50%]" />
+                    ) : (
+                      <img src={pauseStones} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover md:aspect-[4/3]" />
+                    )}
                   </figure>
                   <div className="md:col-span-5">
                     <h3 className="font-serif text-4xl md:text-5xl">{s.name}</h3>
@@ -162,6 +168,11 @@ export default function SpaPreview() {
           const rows = menuFor(c.category);
           return (
             <Fragment key={c.id}>
+            {c.id === "recovery" && (
+              <section aria-hidden="true" className="bg-spa-stone">
+                <img src={quietLeaf.url} alt="" loading="lazy" className="w-full md:ml-auto md:w-[45%] md:[mask-image:linear-gradient(to_right,transparent,black_35%)]" />
+              </section>
+            )}
             {c.id === "facials" && (
               <section aria-label="Facials" className="relative h-[90svh] min-h-[520px] overflow-hidden">
                 <img src={presenceBlur.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-[50%_45%]" />
@@ -198,9 +209,6 @@ export default function SpaPreview() {
                     <img src={maskFacial.url} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover saturate-[0.8] brightness-[0.9]" />
                   </div>
                 </section>
-                <section aria-hidden="true" className="mt-0 bg-spa-stone md:mt-16">
-                  <img src={quietLeaf.url} alt="" loading="lazy" className="w-full md:ml-auto md:w-[45%] md:[mask-image:linear-gradient(to_right,transparent,black_35%)]" />
-                </section>
               </>
             )}
             </Fragment>
@@ -208,13 +216,22 @@ export default function SpaPreview() {
         })}
 
         {/* 7. The space */}
-        <section className="px-6 py-28 md:px-16 md:py-40">
-          <Eyebrow>The space</Eyebrow>
-          <div className="mt-10 grid grid-cols-6 gap-2 md:gap-3">
-            <img src={treatmentRoom} alt="Spa Aella treatment room" loading="lazy" className="col-span-6 aspect-[16/9] w-full object-cover md:col-span-4" />
-            <img src={spaHallway} alt="Spa Aella hallway" loading="lazy" className="col-span-3 aspect-[3/4] w-full object-cover md:col-span-2 md:aspect-auto md:h-full" />
-            <img src={spaShower} alt="Spa showers" loading="lazy" className="col-span-3 aspect-[3/4] w-full object-cover md:col-span-2" />
-            <img src={saltRoom} alt="Salt room" loading="lazy" className="col-span-6 aspect-[16/9] w-full object-cover md:col-span-4 md:aspect-auto md:h-full" />
+        <section className="px-2 py-28 md:px-3 md:py-40">
+          <div className="grid gap-2 md:grid-cols-12 md:gap-3">
+            <figure className="md:col-span-7">
+              <img src={aellaRoom.url} alt="A Spa Aella treatment room in warm candlelight" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+            </figure>
+            <div className="flex flex-col gap-2 md:col-span-5 md:gap-3">
+              <div className="px-4 py-10 md:px-8 md:py-16">
+                <Eyebrow>The space</Eyebrow>
+                <p className="mt-5 font-serif text-3xl leading-snug md:text-4xl">Warm light, a quiet door, and an hour that belongs to you.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:gap-3">
+                <img src={spaHallway} alt="Spa Aella hallway" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                <img src={spaShower} alt="Spa showers" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+              </div>
+              <img src={saltRoom} alt="Salt room" loading="lazy" className="aspect-[16/10] w-full object-cover md:flex-1" />
+            </div>
           </div>
         </section>
 
@@ -228,7 +245,7 @@ export default function SpaPreview() {
 
         {/* 9. Find your time */}
         <section className="relative overflow-hidden">
-          <img src={microneedling.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-40" />
+          <img src={goldSkin.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-[50%_55%] opacity-50" />
           <div className="relative px-6 py-32 text-center md:py-48">
             <h2 className="font-serif text-5xl md:text-7xl">Let's find your time.</h2>
             <div className="mt-10"><QuietLink href="#massage">View Availability</QuietLink></div>
