@@ -24,6 +24,7 @@ export function useGiftableSpaServices() {
         .from("spa_services")
         .select("id, name, description, category, duration_minutes, price")
         .eq("is_active", true)
+        .eq("public_menu", true)
         .gt("price", 0)
         .order("display_order", { ascending: true });
       if (error) throw error;

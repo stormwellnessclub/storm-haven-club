@@ -21,6 +21,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
 import { formatTime12h } from "@/lib/timeFormat";
+import { useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
+import { activeZones, zoneTakesRequests } from "@/lib/spaZones";
 import { parseTimeInput } from "@/lib/parseTimeInput";
 import {
   findCoveringSlot,
@@ -79,6 +81,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
   const [walkInEmail, setWalkInEmail] = useState("");
   const [walkInPhone, setWalkInPhone] = useState("");
   const [serviceId, setServiceId] = useState("");
+  const [zoneId, setZoneId] = useState("");
+  const [visitType, setVisitType] = useState<"first" | "returning">("first");
   const [appointmentDate, setAppointmentDate] = useState(
     defaultDate ? format(defaultDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd")
   );
@@ -305,6 +309,11 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     () => services?.find((s) => s.id === serviceId),
     [services, serviceId]
   );
+  // Zone-based services (Aella Sculpt) need exactly one treatment area per appointment.
+  const { data: zoneRows = [] } = useSpaTreatmentZones();
+  const serviceKey = (selectedService as { service_key?: string | null } | undefined)?.service_key ?? null;
+  const serviceZones = serviceKey ? activeZones(zoneRows, serviceKey) : [];
+  useEffect(() => { setZoneId(""); setVisitType("first"); }, [serviceId]);
 
   // Body Wraps have no posted hours: staff book any time in the dedicated wrap room.
   useEffect(() => {
@@ -482,6 +491,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
   const bookMutation = useMutation({
     mutationFn: async () => {
       if (!selectedService || !appointmentTime) throw new Error("Missing required fields");
+      if (serviceZones.length > 0 && !zoneId) throw new Error("Choose a treatment area for this appointment.");
       if (conflict) throw new Error(conflict);
 
       // Auto-apply walk-in guest if the subform is open with a name typed but
@@ -611,6 +621,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
         guest_name: isWalkIn ? effectiveCustomer?.name || null : null,
         guest_email: isWalkIn ? effectiveCustomer?.email?.toLowerCase().trim() || null : null,
         guest_phone: isWalkIn ? effectiveCustomer?.phone || null : null,
+        ...(serviceZones.length > 0 ? { treatment_zone_id: zoneId, visit_type: visitType } : {}),
       }).select("id").single();
       if (error) throw error;
 
@@ -623,7 +634,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
             appointment: {
               id: inserted.id,
               user_id: userIdToInsert,
-              service_name: selectedService.name,
+              service_name: [selectedService.name, serviceZones.find((z) => z.id === zoneId)?.name].filter(Boolean).join(" · "),
               service_category: selectedService.category,
               appointment_date: appointmentDate,
               appointment_time: appointmentTime + ":00",
@@ -671,6 +682,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     setWalkInEmail("");
     setWalkInPhone("");
     setServiceId("");
+    setZoneId("");
     setAppointmentTime("");
     setTimeInputDisplay("");
     setTimeError(null);
@@ -894,6 +906,32 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
               </SelectContent>
             </Select>
           </div>
+
+          {serviceZones.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <Label>Treatment area *</Label>
+                <Select value={zoneId} onValueChange={setZoneId}>
+                  <SelectTrigger><SelectValue placeholder="Choose one area" /></SelectTrigger>
+                  <SelectContent>
+                    {serviceZones.map((z) => (
+                      <SelectItem key={z.id} value={z.id}>{z.name}{zoneTakesRequests(z) ? " (request only online)" : ""}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Visit</Label>
+                <Select value={visitType} onValueChange={(v) => setVisitType(v as "first" | "returning")}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="first">First treatment</SelectItem>
+                    <SelectItem value="returning">Returning treatment</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {/* Date */}
           <div>

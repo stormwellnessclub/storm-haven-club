@@ -6,7 +6,7 @@ import { AELLA_SCULPT, BODY_LAB } from "@/lib/aellaSculpt";
 import { useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
 import { activeZones } from "@/lib/spaZones";
 import { SculptSeries } from "@/components/spa-preview/SculptSeries";
-import { SculptBookingPreview } from "@/components/spa-preview/SculptBookingPreview";
+import { SculptBooking } from "@/components/spa-preview/SculptBooking";
 import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
 import bodyLabBack from "@/assets/spa-preview/body-lab-back.jpg.asset.json";
 import bodyLabCavitation from "@/assets/spa-preview/body-lab-cavitation.jpg.asset.json";
@@ -185,7 +185,7 @@ export default function AellaSculptPreview() {
           </div>
         </section>
 
-        <SculptBookingPreview />
+        <SculptBooking />
 
         <div className="px-6 pb-20 text-center md:px-16">
           <Link to="/spa/preview#body-lab" className="text-xs tracking-[0.25em] uppercase text-muted-foreground hover:text-foreground">

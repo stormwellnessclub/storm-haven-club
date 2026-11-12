@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useReorderSpaTreatmentZones, useSaveSpaTreatmentZone, useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
 import { reorderZones, type SpaTreatmentZone } from "@/lib/spaZones";
 
@@ -21,6 +22,15 @@ function ZoneRow({ z, all, first, last }: { z: SpaTreatmentZone; all: SpaTreatme
       </td>
       <td className="py-2 pr-2 w-64"><Input value={name} onChange={(e) => setName(e.target.value)} aria-label="Zone name" /></td>
       <td className="py-2 pr-2"><Input value={desc} onChange={(e) => setDesc(e.target.value)} aria-label="Zone description" /></td>
+      <td className="py-2 pr-2 w-44">
+        <Select value={z.booking_mode ?? "book"} onValueChange={(v) => save.mutate({ id: z.id, booking_mode: v as "book" | "request" })}>
+          <SelectTrigger aria-label="How clients book"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="book">Book online</SelectItem>
+            <SelectItem value="request">Request only</SelectItem>
+          </SelectContent>
+        </Select>
+      </td>
       <td className="py-2 pr-2 text-center"><Switch checked={z.is_active} onCheckedChange={(v) => save.mutate({ id: z.id, is_active: v })} aria-label="Active" /></td>
       <td className="py-2 text-right">
         <Button size="sm" disabled={!dirty || !name.trim() || save.isPending} onClick={() => save.mutate({ id: z.id, name: name.trim(), description: desc.trim() || null })}>Save</Button>
@@ -39,13 +49,13 @@ export function SpaZonesEditor({ serviceKey }: { serviceKey: string }) {
   return (
     <div className="mt-8">
       <h4 className="font-semibold">Treatment zones</h4>
-      <p className="mb-2 text-xs text-muted-foreground">Clients choose exactly one zone per appointment. All zones use the prices above. Turning a zone off hides it from booking; past appointments keep the zone they booked.</p>
+      <p className="mb-2 text-xs text-muted-foreground">Clients choose exactly one zone per appointment. All zones use the prices above. Turning a zone off hides it from booking; past appointments keep the zone they booked. "Request only" zones collect an appointment request (shown with your other spa requests) instead of online booking; staff can still book them.</p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[920px] text-sm">
           <thead>
             <tr className="text-left text-xs text-muted-foreground">
               <th className="pb-2 font-medium">Order</th><th className="pb-2 font-medium">Zone</th><th className="pb-2 font-medium">Description</th>
-              <th className="pb-2 font-medium text-center">Active</th><th />
+              <th className="pb-2 font-medium">How clients book</th><th className="pb-2 font-medium text-center">Active</th><th />
             </tr>
           </thead>
           <tbody>
@@ -54,7 +64,7 @@ export function SpaZonesEditor({ serviceKey }: { serviceKey: string }) {
               <td />
               <td className="py-2 pr-2"><Input placeholder="New zone name" value={name} onChange={(e) => setName(e.target.value)} /></td>
               <td className="py-2 pr-2"><Input placeholder="Description" value={desc} onChange={(e) => setDesc(e.target.value)} /></td>
-              <td />
+              <td /><td />
               <td className="py-2 text-right">
                 <Button size="sm" variant="outline" disabled={!name.trim() || save.isPending}
                   onClick={() => save.mutate({ service_key: serviceKey, name: name.trim(), description: desc.trim() || null, is_active: true, display_order: zones.length }, { onSuccess: () => { setName(""); setDesc(""); } })}>

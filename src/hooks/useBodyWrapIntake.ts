@@ -15,6 +15,8 @@ export type IntakeKind = "massage" | "body_wrap";
 export function intakeKindFor(category?: string | null, name?: string | null): IntakeKind | null {
   if (isBodyWrapService(category, name)) return "body_wrap";
   const c = (category || "").toLowerCase();
+  // Aella Body Lab has its own intake and consent (not built yet), never the massage form.
+  if (c === "aella body lab") return null;
   const n = (name || "").toLowerCase();
   if (c.includes("massage") || c.includes("body") || n.includes("massage")) return "massage";
   return null;

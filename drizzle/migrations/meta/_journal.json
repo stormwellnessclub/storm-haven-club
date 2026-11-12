@@ -1121,6 +1121,13 @@
       "when": 1794478089862,
       "tag": "0159_spa_treatment_zones",
       "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1794480033026,
+      "tag": "0160_aella_sculpt_real_booking",
+      "breakpoints": true
     }
   ]
 }

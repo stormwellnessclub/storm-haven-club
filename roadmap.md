@@ -73,4 +73,9 @@
 - [x] Spa preview: Aella Body Lab tab + chapter, Aella Sculpt Learn More page, booking steps preview, darkened owner photos (phone + laptop checked)
 - [x] Aella Sculpt prices stored as staff-editable packages (Spa Management → Packages) and shown on the preview without sale styling; 8 price tests pass. Staff screen not opened: preview account lacks staff access
 - [x] Aella Sculpt treatment zones: one required zone per appointment (7 owner zones), staff add/rename/turn off/reorder in Spa Management → Packages & Zones, zone saved on the appointment and shown on staff schedules; 7 zone tests pass. Staff screen not opened: preview account lacks staff access
-- [ ] Real booking/checkout: treatment area, first/returning visit, single or series purchase, sessions purchased/used/remaining/expiration, client account view, provider/admin view, progress tracking with photo consent — needs provider(s), room, member pricing and series expiration from owner
+- [x] Real booking on the preview (Teresa, Room 4, her current hours): Abdomen + Waist books online, other areas send requests; single or series bought with saved card; series sessions used/left/expiration on the booking page and client bookings page; staff purchase list, zone booking setting, staff booking with area. Checked up to payment without charging; payment step itself not run
+- [ ] Aella Sculpt intake + consent forms for first visits (health history/contraindications) — needs owner's form content
+- [ ] Progress tracking (measurements, photos with consent, modalities, provider notes) for providers
+- [ ] Member price / member discount for Aella Sculpt — owner hasn't set one (members pay the regular price for now)
+- [ ] Late-cancel rule for series sessions (today a cancelled session goes back to the series) — needs owner decision
+- [ ] Launch: turn on public menu listing when the new spa page goes live

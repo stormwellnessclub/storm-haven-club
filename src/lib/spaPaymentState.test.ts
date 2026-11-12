@@ -113,3 +113,11 @@ describe("gift card bookings", () => {
     expect(s.label).toBe("Covered · Gift card");
   });
 });
+
+describe("prepaid treatment series", () => {
+  it("a session booked from a paid series is covered, so checkout never charges the treatment again", () => {
+    const s = getSpaPaymentState({ payment_method: "spa_package", amount_paid: 0, payment_intent_id: "pi_series", service_price: 350, status: "confirmed" });
+    expect(s.kind).toBe("covered");
+    expect(s.paid).toBe(0);
+  });
+});

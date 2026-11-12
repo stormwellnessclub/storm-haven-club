@@ -16,10 +16,10 @@ export function getSpaPaymentState(appt: any): SpaPaymentState {
   const method = String(appt?.payment_method || "");
   if (method === "no_charge") return { kind: "no_charge", paid: 0, label: "No charge" };
   // Vouchers, gift cards and wellness credits cover the booked service; no further money is due for it.
-  if (method === "mothers_day_voucher" || method === "credit" || method === "gift_card") {
+  if (method === "mothers_day_voucher" || method === "credit" || method === "gift_card" || method === "spa_package") {
     // Legacy credit amount_paid is service value, not collected extras.
     const extrasPaid = Math.max(0, Number(appt?.covered_checkout?.amount_paid) || 0);
-    const label = method === "credit" ? "Covered · Credit" : method === "gift_card" ? "Covered · Gift card" : "Covered · Mother's Day voucher";
+    const label = method === "credit" ? "Covered · Credit" : method === "gift_card" ? "Covered · Gift card" : method === "spa_package" ? "Covered · Prepaid series" : "Covered · Mother's Day voucher";
     return { kind: "covered", paid: extrasPaid, label };
   }
   if (paid <= 0) return { kind: "unpaid", paid: 0, label: "Not paid" };

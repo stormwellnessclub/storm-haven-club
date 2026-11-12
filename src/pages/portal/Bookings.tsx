@@ -20,6 +20,7 @@ import { ReviewDialog } from "@/components/reviews/ReviewDialog";
 import { StarRating } from "@/components/reviews/StarRating";
 import { LeaveReviewBanner } from "@/components/reviews/LeaveReviewBanner";
 import { LeaveSpaReviewBanner } from "@/components/spa/LeaveSpaReviewBanner";
+import { MySpaSeriesCard } from "@/components/spa/MySpaSeriesCard";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -224,6 +225,7 @@ export default function PortalBookings() {
           dismissible
         />
         <LeaveSpaReviewBanner />
+        <MySpaSeriesCard />
         <Tabs defaultValue="upcoming">
           <TabsList>
             <TabsTrigger value="upcoming">Upcoming ({upcoming.length + upcomingSpa.length + upcomingPT.length})</TabsTrigger>

@@ -8,6 +8,8 @@ export interface SpaTreatmentZone {
   description: string | null;
   is_active: boolean;
   display_order: number;
+  /** 'book' = clients book online; 'request' = clients send an appointment request. */
+  booking_mode?: "book" | "request";
 }
 
 export const ZONE_PROMPT = "What area would you like to focus on?";
@@ -23,12 +25,15 @@ export const activeZones = (all: SpaTreatmentZone[], serviceKey: string) =>
 /** Choosing a zone replaces any earlier choice: an appointment never holds two zones. */
 export const chooseZone = (_current: string | null, next: string) => next;
 
+/** Areas the provider isn't booking yet take a request instead, so the lead is kept. */
+export const zoneTakesRequests = (z: Pick<SpaTreatmentZone, "booking_mode"> | null | undefined) => z?.booking_mode === "request";
+
 /** Provider/date/time steps open only once a zone is chosen. */
 export const canPickTimes = (zoneId: string | null) => !!zoneId;
 
 /** Service name as staff see it on schedules, with the booked zone when there is one. */
-export const spaServiceLabel = (apt: { service_name?: string | null; treatment_zone_name?: string | null }) =>
-  apt.treatment_zone_name ? `${apt.service_name ?? ""} · ${apt.treatment_zone_name}` : apt.service_name ?? "";
+export const spaServiceLabel = (apt: { service_name?: string | null; treatment_zone_name?: string | null; visit_type?: string | null }) =>
+  [apt.service_name ?? "", apt.treatment_zone_name, apt.visit_type === "first" ? "First visit" : null].filter(Boolean).join(" · ");
 
 /** Move a zone up or down; returns the new order as [id, display_order] pairs. */
 export function reorderZones(zones: SpaTreatmentZone[], id: string, dir: -1 | 1): [string, number][] {

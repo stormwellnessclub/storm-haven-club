@@ -13772,6 +13772,7 @@ export type Database = {
           cancelled_at: string | null
           checked_in_at: string | null
           cleanup_minutes: number
+          client_package_id: string | null
           completed_at: string | null
           covered_checkout: Json | null
           created_at: string
@@ -13806,6 +13807,7 @@ export type Database = {
           treatment_zone_name: string | null
           updated_at: string
           user_id: string | null
+          visit_type: string | null
         }
         Insert: {
           addons?: Json
@@ -13817,6 +13819,7 @@ export type Database = {
           cancelled_at?: string | null
           checked_in_at?: string | null
           cleanup_minutes?: number
+          client_package_id?: string | null
           completed_at?: string | null
           covered_checkout?: Json | null
           created_at?: string
@@ -13851,6 +13854,7 @@ export type Database = {
           treatment_zone_name?: string | null
           updated_at?: string
           user_id?: string | null
+          visit_type?: string | null
         }
         Update: {
           addons?: Json
@@ -13862,6 +13866,7 @@ export type Database = {
           cancelled_at?: string | null
           checked_in_at?: string | null
           cleanup_minutes?: number
+          client_package_id?: string | null
           completed_at?: string | null
           covered_checkout?: Json | null
           created_at?: string
@@ -13896,8 +13901,16 @@ export type Database = {
           treatment_zone_name?: string | null
           updated_at?: string
           user_id?: string | null
+          visit_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "spa_appointments_client_package_id_fkey"
+            columns: ["client_package_id"]
+            isOneToOne: false
+            referencedRelation: "spa_client_packages"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "spa_appointments_credit_id_fkey"
             columns: ["credit_id"]
@@ -14052,6 +14065,77 @@ export type Database = {
             columns: ["appointment_id"]
             isOneToOne: true
             referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_client_packages: {
+        Row: {
+          created_at: string
+          created_by_user_id: string | null
+          expires_on: string | null
+          id: string
+          member_id: string | null
+          notes: string | null
+          package_id: string | null
+          package_name: string
+          payment_intent_id: string | null
+          price_paid_cents: number
+          processing_fee_cents: number
+          purchased_at: string
+          service_key: string
+          sessions_total: number
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by_user_id?: string | null
+          expires_on?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          package_id?: string | null
+          package_name: string
+          payment_intent_id?: string | null
+          price_paid_cents?: number
+          processing_fee_cents?: number
+          purchased_at?: string
+          service_key: string
+          sessions_total: number
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by_user_id?: string | null
+          expires_on?: string | null
+          id?: string
+          member_id?: string | null
+          notes?: string | null
+          package_id?: string | null
+          package_name?: string
+          payment_intent_id?: string | null
+          price_paid_cents?: number
+          processing_fee_cents?: number
+          purchased_at?: string
+          service_key?: string
+          sessions_total?: number
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_client_packages_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "spa_treatment_packages"
             referencedColumns: ["id"]
           },
         ]
@@ -14593,6 +14677,8 @@ export type Database = {
           service_category: string
           service_name: string
           status: string
+          treatment_zone_id: string | null
+          treatment_zone_name: string | null
         }
         Insert: {
           alt_date?: string | null
@@ -14613,6 +14699,8 @@ export type Database = {
           service_category: string
           service_name: string
           status?: string
+          treatment_zone_id?: string | null
+          treatment_zone_name?: string | null
         }
         Update: {
           alt_date?: string | null
@@ -14633,8 +14721,18 @@ export type Database = {
           service_category?: string
           service_name?: string
           status?: string
+          treatment_zone_id?: string | null
+          treatment_zone_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "spa_service_requests_treatment_zone_id_fkey"
+            columns: ["treatment_zone_id"]
+            isOneToOne: false
+            referencedRelation: "spa_treatment_zones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       spa_services: {
         Row: {
@@ -14650,7 +14748,9 @@ export type Database = {
           name: string
           popular: boolean | null
           price: number
+          public_menu: boolean
           requires_intake_form: boolean | null
+          service_key: string | null
           updated_at: string
         }
         Insert: {
@@ -14666,7 +14766,9 @@ export type Database = {
           name: string
           popular?: boolean | null
           price: number
+          public_menu?: boolean
           requires_intake_form?: boolean | null
+          service_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -14682,7 +14784,9 @@ export type Database = {
           name?: string
           popular?: boolean | null
           price?: number
+          public_menu?: boolean
           requires_intake_form?: boolean | null
+          service_key?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -14805,6 +14909,7 @@ export type Database = {
           created_at: string
           display_order: number
           expires_after_days: number | null
+          expires_after_months: number | null
           id: string
           is_active: boolean
           is_recommended: boolean
@@ -14820,6 +14925,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           expires_after_days?: number | null
+          expires_after_months?: number | null
           id?: string
           is_active?: boolean
           is_recommended?: boolean
@@ -14835,6 +14941,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           expires_after_days?: number | null
+          expires_after_months?: number | null
           id?: string
           is_active?: boolean
           is_recommended?: boolean
@@ -14850,6 +14957,7 @@ export type Database = {
       }
       spa_treatment_zones: {
         Row: {
+          booking_mode: string
           created_at: string
           description: string | null
           display_order: number
@@ -14860,6 +14968,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          booking_mode?: string
           created_at?: string
           description?: string | null
           display_order?: number
@@ -14870,6 +14979,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          booking_mode?: string
           created_at?: string
           description?: string | null
           display_order?: number
@@ -16999,6 +17109,24 @@ export type Database = {
         Args: { _pin: string; _staff_user_id: string }
         Returns: undefined
       }
+      admin_spa_client_packages: {
+        Args: { p_service_key?: string }
+        Returns: {
+          client_email: string
+          client_name: string
+          expires_on: string
+          id: string
+          next_appointment: string
+          package_name: string
+          price_paid_cents: number
+          purchased_at: string
+          service_key: string
+          sessions_total: number
+          sessions_used: number
+          status: string
+          user_id: string
+        }[]
+      }
       admin_unmark_pay_period_paid: {
         Args: { _period_id: string }
         Returns: {
@@ -17178,6 +17306,20 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      book_spa_package_session: {
+        Args: {
+          p_check_only?: boolean
+          p_client_package_id?: string
+          p_date: string
+          p_notes?: string
+          p_service_key: string
+          p_time: string
+          p_user_id: string
+          p_visit_type: string
+          p_zone_id: string
+        }
+        Returns: Json
       }
       book_wellness_appointment: {
         Args: {
@@ -19486,6 +19628,44 @@ export type Database = {
           _reason: string
         }
         Returns: string
+      }
+      record_spa_client_package: {
+        Args: {
+          p_created_by?: string
+          p_member_id: string
+          p_package_id: string
+          p_payment_intent_id: string
+          p_price_paid_cents: number
+          p_processing_fee_cents: number
+          p_source?: string
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string
+          created_by_user_id: string | null
+          expires_on: string | null
+          id: string
+          member_id: string | null
+          notes: string | null
+          package_id: string | null
+          package_name: string
+          payment_intent_id: string | null
+          price_paid_cents: number
+          processing_fee_cents: number
+          purchased_at: string
+          service_key: string
+          sessions_total: number
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "spa_client_packages"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       redeem_cafe_credit: {
         Args: {

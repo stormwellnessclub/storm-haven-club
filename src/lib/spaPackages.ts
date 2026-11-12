@@ -9,7 +9,10 @@ export interface SpaTreatmentPackage {
   price_cents: number;
   member_price_cents: number | null;
   is_recommended: boolean;
-  expires_after_days: number | null;
+  /** DEPRECATED: replaced by expires_after_months. */
+  expires_after_days?: number | null;
+  /** Calendar months a purchase stays usable; null = no expiration. */
+  expires_after_months: number | null;
   payment_plan_available: boolean;
   is_active: boolean;
   display_order: number;
@@ -33,3 +36,7 @@ export function splitPackages(all: SpaTreatmentPackage[], serviceKey: string) {
     .sort((a, b) => a.display_order - b.display_order || a.session_count - b.session_count);
   return { single: list.find((p) => p.session_count === 1) ?? null, series: list.filter((p) => p.session_count > 1) };
 }
+
+/** "Use within 8 months" wording for a package's expiration. */
+export const expiryLabel = (p: Pick<SpaTreatmentPackage, "expires_after_months">) =>
+  p.expires_after_months == null ? null : `Use within ${p.expires_after_months} month${p.expires_after_months === 1 ? "" : "s"}`;

@@ -9,6 +9,8 @@ import { spaBookingAmountPaid } from "@/lib/spaPaymentState";
 export interface SpaAppointment {
   treatment_zone_id?: string | null;
   treatment_zone_name?: string | null;
+  visit_type?: string | null;
+  client_package_id?: string | null;
   id: string;
   member_id: string | null;
   user_id: string | null;
@@ -69,6 +71,8 @@ interface CheckAvailabilityParams {
 export function spaServiceNeedsIntake(category?: string | null, name?: string | null): boolean {
   const cat = (category || "").toLowerCase();
   const n = (name || "").toLowerCase();
+  // Aella Body Lab has its own intake and consent (not built yet), never the massage form.
+  if (cat === "aella body lab") return false;
   return cat.includes("massage") || cat.includes("body") || cat.includes("wrap") || n.includes("massage") || n.includes("wrap");
 }
 

@@ -66,7 +66,8 @@ const memberDiscounts = [
 export default function Spa() {
   const [guestReturn, setGuestReturn] = useState(readGuestCheckoutAccess);
   const { data: dbServices, isLoading: servicesLoading } = useSpaServices();
-  const spaServices = (dbServices || []).filter(s => s.is_active);
+  // Preview-only treatments (public_menu = false) stay off the live menu until launch.
+  const spaServices = (dbServices || []).filter(s => s.is_active && (s as { public_menu?: boolean }).public_menu !== false);
 
   const { user } = useAuth();
   const navigate = useNavigate();

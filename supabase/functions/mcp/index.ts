@@ -261,7 +261,7 @@ var list_spa_services_default = defineTool6({
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
     const supabase = supabaseForUser(ctx);
-    const { data, error } = await supabase.from("spa_services").select("id, name, category, description, duration_minutes, price, member_price, popular").eq("is_active", true).order("display_order", { ascending: true }).limit(200);
+    const { data, error } = await supabase.from("spa_services").select("id, name, category, description, duration_minutes, price, member_price, popular").eq("is_active", true).eq("public_menu", true).order("display_order", { ascending: true }).limit(200);
     if (error) return { content: [{ type: "text", text: error.message }], isError: true };
     let services = data ?? [];
     if (category) {

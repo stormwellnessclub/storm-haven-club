@@ -5,7 +5,7 @@ import { formatDollars, packageLabel, perTreatmentCents, splitPackages, type Spa
 // Owner's Aella Sculpt prices (Nov 12, 2026).
 const pkg = (session_count: number, price_cents: number, name: string, is_recommended = false, display_order = session_count): SpaTreatmentPackage => ({
   id: String(session_count), service_key: "aella-sculpt", name, session_count, price_cents, member_price_cents: null,
-  is_recommended, expires_after_days: null, payment_plan_available: false, is_active: true, display_order,
+  is_recommended, expires_after_months: null, payment_plan_available: false, is_active: true, display_order,
 });
 const owner = [
   pkg(1, 35000, "Single 90-Minute Treatment"),

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useCreateSpaTreatmentPackage, useSpaTreatmentPackages, useUpdateSpaTreatmentPackage } from "@/hooks/useSpaTreatmentPackages";
 import { SpaZonesEditor } from "@/components/admin/spa/SpaZonesEditor";
+import { SpaClientSeriesList } from "@/components/admin/spa/SpaClientSeriesList";
 import { formatDollars, packageLabel, perTreatmentCents, type SpaTreatmentPackage } from "@/lib/spaPackages";
 
 const SERVICES: { key: string; label: string }[] = [{ key: "aella-sculpt", label: "Aella Sculpt" }];
@@ -14,7 +15,7 @@ type Draft = {
   session_count: string;
   price: string;
   member_price: string;
-  expires_after_days: string;
+  expires_after_months: string;
   is_recommended: boolean;
   payment_plan_available: boolean;
   is_active: boolean;
@@ -25,7 +26,7 @@ const toDraft = (p: SpaTreatmentPackage): Draft => ({
   session_count: String(p.session_count),
   price: (p.price_cents / 100).toString(),
   member_price: p.member_price_cents == null ? "" : (p.member_price_cents / 100).toString(),
-  expires_after_days: p.expires_after_days == null ? "" : String(p.expires_after_days),
+  expires_after_months: p.expires_after_months == null ? "" : String(p.expires_after_months),
   is_recommended: p.is_recommended,
   payment_plan_available: p.payment_plan_available,
   is_active: p.is_active,
@@ -43,7 +44,7 @@ function fromDraft(d: Draft) {
     session_count: count,
     price_cents: price,
     member_price_cents: cents(d.member_price),
-    expires_after_days: intOrNull(d.expires_after_days),
+    expires_after_months: intOrNull(d.expires_after_months),
     is_recommended: d.is_recommended,
     payment_plan_available: d.payment_plan_available,
     is_active: d.is_active,
@@ -62,7 +63,7 @@ function PackageRow({ p }: { p: SpaTreatmentPackage }) {
       <td className="py-2 pr-2 w-20"><Input inputMode="numeric" value={d.session_count} onChange={(e) => setD({ ...d, session_count: e.target.value })} aria-label="Treatments" /></td>
       <td className="py-2 pr-2 w-28"><Input inputMode="decimal" value={d.price} onChange={(e) => setD({ ...d, price: e.target.value })} aria-label="Price" /></td>
       <td className="py-2 pr-2 w-28"><Input inputMode="decimal" placeholder="Same" value={d.member_price} onChange={(e) => setD({ ...d, member_price: e.target.value })} aria-label="Member price" /></td>
-      <td className="py-2 pr-2 w-28"><Input inputMode="numeric" placeholder="None" value={d.expires_after_days} onChange={(e) => setD({ ...d, expires_after_days: e.target.value })} aria-label="Expires after days" /></td>
+      <td className="py-2 pr-2 w-28"><Input inputMode="numeric" placeholder="None" value={d.expires_after_months} onChange={(e) => setD({ ...d, expires_after_months: e.target.value })} aria-label="Expires after months" /></td>
       <td className="py-2 pr-2 text-center"><Switch checked={d.is_recommended} onCheckedChange={(v) => setD({ ...d, is_recommended: v })} aria-label="Recommended" /></td>
       <td className="py-2 pr-2 text-center"><Switch checked={d.payment_plan_available} onCheckedChange={(v) => setD({ ...d, payment_plan_available: v })} aria-label="Payment plan" /></td>
       <td className="py-2 pr-2 text-center"><Switch checked={d.is_active} onCheckedChange={(v) => setD({ ...d, is_active: v })} aria-label="Active" /></td>
@@ -80,7 +81,7 @@ function PackageRow({ p }: { p: SpaTreatmentPackage }) {
 
 function NewPackageRow({ serviceKey, nextOrder }: { serviceKey: string; nextOrder: number }) {
   const create = useCreateSpaTreatmentPackage();
-  const blank: Draft = { name: "", session_count: "", price: "", member_price: "", expires_after_days: "", is_recommended: false, payment_plan_available: false, is_active: true };
+  const blank: Draft = { name: "", session_count: "", price: "", member_price: "", expires_after_months: "", is_recommended: false, payment_plan_available: false, is_active: true };
   const [d, setD] = useState<Draft>(blank);
   const parsed = fromDraft(d);
   return (
@@ -89,7 +90,7 @@ function NewPackageRow({ serviceKey, nextOrder }: { serviceKey: string; nextOrde
       <td className="py-2 pr-2"><Input inputMode="numeric" placeholder="#" value={d.session_count} onChange={(e) => setD({ ...d, session_count: e.target.value })} /></td>
       <td className="py-2 pr-2"><Input inputMode="decimal" placeholder="$" value={d.price} onChange={(e) => setD({ ...d, price: e.target.value })} /></td>
       <td className="py-2 pr-2"><Input inputMode="decimal" placeholder="Same" value={d.member_price} onChange={(e) => setD({ ...d, member_price: e.target.value })} /></td>
-      <td className="py-2 pr-2"><Input inputMode="numeric" placeholder="None" value={d.expires_after_days} onChange={(e) => setD({ ...d, expires_after_days: e.target.value })} /></td>
+      <td className="py-2 pr-2"><Input inputMode="numeric" placeholder="None" value={d.expires_after_months} onChange={(e) => setD({ ...d, expires_after_months: e.target.value })} /></td>
       <td colSpan={4} />
       <td className="py-2 text-right">
         <Button size="sm" variant="outline" disabled={!parsed || create.isPending}
@@ -124,7 +125,7 @@ export function SpaPackagesTab() {
                     <th className="pb-2 font-medium">Treatments</th>
                     <th className="pb-2 font-medium">Price ($)</th>
                     <th className="pb-2 font-medium">Member ($)</th>
-                    <th className="pb-2 font-medium">Expires after (days)</th>
+                    <th className="pb-2 font-medium">Expires after (months)</th>
                     <th className="pb-2 font-medium text-center">Recommended</th>
                     <th className="pb-2 font-medium text-center">Payment plan</th>
                     <th className="pb-2 font-medium text-center">Active</th>
@@ -142,6 +143,7 @@ export function SpaPackagesTab() {
               Shown to clients as: {rows.filter((r) => r.is_active).map((r) => `${packageLabel(r)} ${formatDollars(r.price_cents)}`).join(" · ") || "nothing yet"}
             </p>
             <SpaZonesEditor serviceKey={s.key} />
+            <SpaClientSeriesList serviceKey={s.key} />
           </section>
         );
       })}

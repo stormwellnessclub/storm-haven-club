@@ -39,3 +39,18 @@ describe("Aella Sculpt treatment zones", () => {
     expect(reorderZones(owner, "a", -1)).toEqual([]);
   });
 });
+
+import { zoneTakesRequests } from "./spaZones";
+describe("Aella Sculpt online booking areas", () => {
+  it("abdomen books online while other areas take requests", () => {
+    expect(zoneTakesRequests({ booking_mode: "book" })).toBe(false);
+    expect(zoneTakesRequests({ booking_mode: "request" })).toBe(true);
+  });
+});
+
+describe("staff schedule label", () => {
+  it("shows the area and flags a first Aella Sculpt visit", () => {
+    expect(spaServiceLabel({ service_name: "Aella Sculpt", treatment_zone_name: "Abdomen + Waist", visit_type: "first" })).toBe("Aella Sculpt · Abdomen + Waist · First visit");
+    expect(spaServiceLabel({ service_name: "Aella Sculpt", treatment_zone_name: "Abdomen + Waist", visit_type: "returning" })).toBe("Aella Sculpt · Abdomen + Waist");
+  });
+});

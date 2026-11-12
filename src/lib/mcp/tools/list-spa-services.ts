@@ -20,6 +20,7 @@ export default defineTool({
       .from("spa_services")
       .select("id, name, category, description, duration_minutes, price, member_price, popular")
       .eq("is_active", true)
+      .eq("public_menu", true)
       .order("display_order", { ascending: true })
       .limit(200);
 
