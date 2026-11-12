@@ -26,9 +26,9 @@ import goldSkin from "@/assets/spa-preview/gold-skin.jpg.asset.json";
 import klytiaAmpoules from "@/assets/spa-preview/klytia-ampoules.jpg.asset.json";
 import klytiaHeritage from "@/assets/spa-preview/klytia-heritage.jpg.asset.json";
 import microneedling from "@/assets/spa-preview/microneedling.jpg.asset.json";
-import spaHallway from "@/assets/spa-hallway.jpg";
-import spaShower from "@/assets/spa-shower.jpg";
-import saltRoom from "@/assets/salt-room.jpg";
+import aellaDoor from "@/assets/spa-preview/aella-door-candlelit.jpg.asset.json";
+import mudWrap from "@/assets/spa-preview/mud-wrap.jpg";
+import vitaminCWrap from "@/assets/spa-preview/vitamin-c-wrap.jpg";
 import zerobody from "@/assets/zerobody-room.jpg";
 
 type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string };
@@ -39,6 +39,13 @@ const CHAPTERS: Chapter[] = [
   { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterImg: bananaLeaf.url, chapterPos: "object-[50%_30%]" },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Light, cold and stillness, on your schedule.", img: zerobody },
 ];
+
+// Only some treatments carry their own photo; the rest stay text-only on purpose.
+const ROW_IMAGES: { match: RegExp; src: string; alt: string; pos?: string }[] = [
+  { match: /mud/i, src: mudWrap, alt: "Mineral mud brushed across a guest's back in candlelight", pos: "object-[50%_45%]" },
+  { match: /vitamin c/i, src: vitaminCWrap, alt: "A bowl of warm citrus body gel beside a halved blood orange" },
+];
+const rowImageFor = (s: SpaService) => (s.category === "Body Wraps" ? ROW_IMAGES.find((r) => r.match.test(s.name)) : undefined);
 
 const Eyebrow = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground">{children}</p>
@@ -52,8 +59,14 @@ const QuietLink = ({ href, children }: { href: string; children: React.ReactNode
 
 function Row({ s, onBook }: { s: SpaService; onBook: (s: SpaService) => void }) {
   const mode = spaMenuMode(s);
+  const photo = rowImageFor(s);
   return (
     <li className="grid grid-cols-[1fr_auto] gap-x-6 gap-y-2 py-6 border-t border-foreground/15">
+      {photo && (
+        <figure className="col-span-2 mb-4">
+          <img src={photo.src} alt={photo.alt} loading="lazy" width={1536} height={1024} className={`aspect-[3/2] w-full object-cover saturate-[0.85] ${photo.pos ?? ""}`} />
+        </figure>
+      )}
       <div>
         <h4 className="font-serif text-2xl text-foreground">{s.name}</h4>
         {s.description && <p className="mt-1 text-sm text-muted-foreground line-clamp-2 max-w-xl">{s.description}</p>}
@@ -269,11 +282,7 @@ export default function SpaPreview() {
                 <Eyebrow>The space</Eyebrow>
                 <p className="mt-5 font-serif text-3xl leading-snug md:text-4xl">Warm light, a quiet door, and an hour that belongs to you.</p>
               </div>
-              <div className="grid grid-cols-2 gap-2 md:gap-3">
-                <img src={spaHallway} alt="Spa Aella hallway" loading="lazy" className="aspect-[3/4] w-full object-cover" />
-                <img src={spaShower} alt="Spa showers" loading="lazy" className="aspect-[3/4] w-full object-cover" />
-              </div>
-              <img src={saltRoom} alt="Salt room" loading="lazy" className="aspect-[16/10] w-full object-cover md:flex-1" />
+              <img src={aellaDoor.url} alt="The arched oak door into a Spa Aella treatment room" loading="lazy" className="aspect-[3/4] w-full object-cover object-[50%_55%] md:aspect-auto md:h-0 md:min-h-0 md:flex-1" />
             </div>
           </div>
         </section>
