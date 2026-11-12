@@ -28,7 +28,6 @@ import klytiaHeritage from "@/assets/spa-preview/klytia-heritage.jpg.asset.json"
 import microneedling from "@/assets/spa-preview/microneedling.jpg.asset.json";
 import aellaDoor from "@/assets/spa-preview/aella-door-candlelit.jpg.asset.json";
 import mudWrap from "@/assets/spa-preview/mud-wrap.jpg";
-import vitaminCWrap from "@/assets/spa-preview/vitamin-c-wrap.jpg";
 import zerobody from "@/assets/zerobody-room.jpg";
 import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
 import { BodyLabChapter } from "@/components/spa-preview/BodyLabChapter";
@@ -46,7 +45,6 @@ const CHAPTERS: Chapter[] = [
 // Only some treatments carry their own photo; the rest stay text-only on purpose.
 const ROW_IMAGES: { match: RegExp; src: string; alt: string; pos?: string }[] = [
   { match: /mud/i, src: mudWrap, alt: "Mineral mud brushed across a guest's back in candlelight", pos: "object-[50%_45%]" },
-  { match: /vitamin c/i, src: vitaminCWrap, alt: "A bowl of warm citrus body gel beside a halved blood orange" },
 ];
 const rowImageFor = (s: SpaService) => (s.category === "Body Wraps" ? ROW_IMAGES.find((r) => r.match.test(s.name)) : undefined);
 
