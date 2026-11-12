@@ -7,6 +7,7 @@ import { useCreateSpaTreatmentPackage, useSpaTreatmentPackages, useUpdateSpaTrea
 import { SpaZonesEditor } from "@/components/admin/spa/SpaZonesEditor";
 import { SpaClientSeriesList } from "@/components/admin/spa/SpaClientSeriesList";
 import { SpaPolicyChargesList } from "@/components/admin/spa/SpaPolicyChargesList";
+import { SpaScreeningEditor } from "@/components/admin/spa/SpaScreeningEditor";
 import { formatDollars, packageLabel, perTreatmentCents, type SpaTreatmentPackage } from "@/lib/spaPackages";
 
 const SERVICES: { key: string; label: string }[] = [{ key: "aella-sculpt", label: "Aella Sculpt" }];
@@ -144,6 +145,7 @@ export function SpaPackagesTab() {
               Shown to clients as: {rows.filter((r) => r.is_active).map((r) => `${packageLabel(r)} ${formatDollars(r.price_cents)}`).join(" · ") || "nothing yet"}
             </p>
             <SpaZonesEditor serviceKey={s.key} />
+            <SpaScreeningEditor serviceKey={s.key} />
             <SpaClientSeriesList serviceKey={s.key} />
           </section>
         );

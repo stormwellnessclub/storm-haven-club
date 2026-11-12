@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
 import { printIntake } from "./printIntake";
 import { formatTime12h } from "@/lib/timeFormat";
+import { SculptFormsSummary, useSculptFormsForAppointment } from "./AellaSculptStaffPanel";
 
 interface Props {
   open: boolean;
@@ -39,12 +40,14 @@ export function IntakeFormViewDialog({
 }: Props) {
   const content = useRef<HTMLDivElement>(null);
   const [printing, setPrinting] = useState(false);
-  const massage = useIntakeForm(open ? appointmentId : null);
-  const bodyWrap = useBodyWrapIntake(open ? appointmentId : null);
+  const sculpt = intakeKindFor(serviceCategory, serviceName) === "sculpt";
+  const massage = useIntakeForm(open && !sculpt ? appointmentId : null);
+  const bodyWrap = useBodyWrapIntake(open && !sculpt ? appointmentId : null);
+  const sculptForms = useSculptFormsForAppointment(appointmentId, open && sculpt);
   const wrap = !!bodyWrap.data || intakeKindFor(serviceCategory, serviceName) === "body_wrap";
-  const isLoading = massage.isLoading || bodyWrap.isLoading;
-  const error = wrap ? bodyWrap.error : massage.error;
-  const hasIntake = wrap ? !!bodyWrap.data : !!massage.data;
+  const isLoading = sculpt ? sculptForms.loading : massage.isLoading || bodyWrap.isLoading;
+  const error = sculpt ? null : wrap ? bodyWrap.error : massage.error;
+  const hasIntake = sculpt ? sculptForms.canSee && !!(sculptForms.intake || sculptForms.consent) : wrap ? !!bodyWrap.data : !!massage.data;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -71,7 +74,10 @@ export function IntakeFormViewDialog({
               {serviceName && <p>{serviceName}</p>}
               {appointmentDate && <p>Appointment: {appointmentDate}{appointmentTime ? ` · ${formatTime12h(appointmentTime)}` : ""}</p>}
             </header>
-            {wrap ? <BodyWrapIntakeSummary intake={bodyWrap.data} /> : <IntakeFormSummary intake={massage.data} />}
+            {sculpt ? (sculptForms.canSee
+              ? <SculptFormsSummary intake={sculptForms.intake} consent={sculptForms.consent} photo={sculptForms.photo} reviews={sculptForms.reviews} />
+              : <p className="text-sm text-muted-foreground">Health answers are visible to spa providers and managers only.</p>)
+              : wrap ? <BodyWrapIntakeSummary intake={bodyWrap.data} /> : <IntakeFormSummary intake={massage.data} />}
           </div>
         )}
       </DialogContent>

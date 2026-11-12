@@ -74,8 +74,9 @@
 - [x] Aella Sculpt prices stored as staff-editable packages (Spa Management → Packages) and shown on the preview without sale styling; 8 price tests pass. Staff screen not opened: preview account lacks staff access
 - [x] Aella Sculpt treatment zones: one required zone per appointment (7 owner zones), staff add/rename/turn off/reorder in Spa Management → Packages & Zones, zone saved on the appointment and shown on staff schedules; 7 zone tests pass. Staff screen not opened: preview account lacks staff access
 - [x] Real booking on the preview (Teresa, Room 5, her current hours): Abdomen + Waist books online, other areas send requests; single or series bought with saved card; series sessions used/left/expiration on the booking page and client bookings page; staff purchase list, zone booking setting, staff booking with area. Checked up to payment without charging; payment step itself not run
-- [ ] Aella Sculpt intake + consent forms for first visits (health history/contraindications) — owner is sending content
-- [ ] Aella Sculpt preparation instructions for confirmation — owner is sending
+- [ ] Aella Sculpt forms: editable screening questions (staff editor), Health & Treatment Intake, Treatment Consent with signature + provider acknowledgement, optional photo consent
+- [ ] Aella Sculpt provider review: Clear / Required / Completed (cleared or not cleared, reason, who, when); status visible on appointment; health answers only for spa providers + managers
+- [ ] Aella Sculpt preparation: short list + full page link on confirmation; full text in confirmation email, reminder email, client appointment details
 - [ ] Progress tracking (measurements, photos with consent, modalities, provider notes) for providers
 - [x] Member tier discount on Aella Sculpt single and series (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%)
 - [x] Aella Sculpt late cancel (within 24h) = $80 charged to card on file, treatment returns to series; no-show = full price, or series treatment used; staff charge/waive list in Packages & Zones

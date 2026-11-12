@@ -31,7 +31,7 @@ export function MyFormsCard() {
               <div key={`${f.kind}-${f.appointment_id}`} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-secondary/50 flex-wrap">
                 <div className="min-w-0">
                   <p className="text-sm font-medium flex items-center gap-2">
-                    {f.kind === "body_wrap" ? "Body Wrap Intake & Consent" : "Massage Intake"}
+                    {f.kind === "body_wrap" ? "Body Wrap Intake & Consent" : f.kind === "sculpt" ? "Aella Sculpt Intake & Consent" : "Massage Intake"}
                     <Badge variant="outline" className="text-xs">Signed</Badge>
                   </p>
                   <p className="text-xs text-muted-foreground">

@@ -27,6 +27,9 @@ import { PhoneRequiredGate } from "@/components/booking/PhoneRequiredGate";
 import { formatTime12h } from "@/lib/timeFormat";
 import { readFunctionError } from "@/lib/functionError";
 import { spaServiceLabel } from "@/lib/spaZones";
+import { AellaSculptForms } from "@/components/spa/AellaSculptForms";
+import { preparationPath, useSculptFormStatus } from "@/hooks/useAellaSculptForms";
+import type { SpaPreparation } from "@/lib/aellaSculptForms";
 
 const SERVICE_KEY = "aella-sculpt";
 const SAVED = "aella-sculpt-booking";
@@ -75,6 +78,7 @@ export function SculptBooking() {
   const { data: services = [] } = useSpaServices();
   const sculpt = services.find((s) => (s as { service_key?: string | null }).service_key === SERVICE_KEY && s.is_active) ?? null;
   const lateFeeCents = (sculpt as { late_cancel_fee_cents?: number | null } | null)?.late_cancel_fee_cents ?? null;
+  const preparation = (sculpt as { preparation?: SpaPreparation | null } | null)?.preparation ?? null;
   const { data: availability } = useSpaServiceAvailability();
   const { data: zoneRows = [] } = useSpaTreatmentZones();
   const zones = activeZones(zoneRows, SERVICE_KEY);
@@ -214,7 +218,7 @@ export function SculptBooking() {
     }
   };
 
-  if (done) return <Confirmation done={done} lateFeeCents={lateFeeCents} providerNames={therapists} onAnother={() => { setDone(null); setTime(null); setOption(null); }} />;
+  if (done) return <Confirmation done={done} lateFeeCents={lateFeeCents} preparation={preparation} providerNames={therapists} onAnother={() => { setDone(null); setTime(null); setOption(null); }} />;
 
   return (
     <section id="book" className="scroll-mt-20 px-6 py-28 md:px-16 md:py-40">
@@ -492,9 +496,14 @@ function RequestStep({ zone }: { zone: { id: string; name: string } }) {
   );
 }
 
-function Confirmation({ done, lateFeeCents, providerNames, onAnother }: { done: Done; lateFeeCents: number | null; providerNames: { id: string; full_name: string }[]; onAnother: () => void }) {
+function Confirmation({ done, lateFeeCents, preparation, providerNames, onAnother }: { done: Done; lateFeeCents: number | null; preparation: SpaPreparation | null; providerNames: { id: string; full_name: string }[]; onAnother: () => void }) {
   const a = done.appointment;
   const provider = providerNames.find((t) => t.id === a.staff_id)?.full_name ?? "Spa Aella";
+  const { data: statuses } = useSculptFormStatus([a.id]);
+  const st = statuses?.get(a.id);
+  const formsDone = !!(st?.intake_done && st?.consent_done);
+  const [showForms, setShowForms] = useState(false);
+  const prepPath = preparationPath(SERVICE_KEY);
   return (
     <section id="book" className="scroll-mt-20 px-6 py-28 md:px-16 md:py-40">
       <div className="mx-auto max-w-3xl">
@@ -518,8 +527,36 @@ function Confirmation({ done, lateFeeCents, providerNames, onAnother }: { done: 
         </dl>
         <p className="mt-10 max-w-xl text-xs leading-relaxed text-muted-foreground">{cancelPolicy(lateFeeCents)}</p>
         <p className="mt-3 max-w-xl text-xs leading-relaxed text-muted-foreground">A confirmation is on its way by email{a.user_id ? " and text, if you've agreed to texts" : ""}.</p>
+        {preparation && (
+          <div className="mt-16 border-t border-foreground/15 pt-10">
+            <h3 className="font-serif text-3xl">{preparation.title}</h3>
+            <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed">
+              {preparation.short.map((line) => <li key={line} className="border-l border-foreground/25 pl-4">{line}</li>)}
+            </ul>
+            {prepPath && <Link to={prepPath} className={`${quiet} mt-8 inline-block`}>{preparation.link_label}</Link>}
+          </div>
+        )}
+        <div id="sculpt-forms" className="mt-16 border-t border-foreground/15 pt-10">
+          <p className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground">Before your treatment</p>
+          <h3 className="mt-3 font-serif text-3xl">{formsDone ? "Your forms are on file." : "Complete your first-visit forms."}</h3>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground">
+            {formsDone
+              ? "Your provider reviews your intake before your first treatment. If anything about your health has changed, you can update it here."
+              : "Your health & treatment intake and treatment consent are needed before your first Aella Sculpt treatment. Progress photography consent is optional. It takes about ten minutes."}
+          </p>
+          {st && (
+            <p className="mt-4 text-xs tracking-[0.2em] uppercase text-muted-foreground">
+              Intake {st.intake_done ? "complete" : "pending"} · Consent {st.consent_done ? "complete" : "pending"}
+            </p>
+          )}
+          {formsDone && !showForms ? (
+            <button type="button" className={`${quiet} mt-8`} onClick={() => setShowForms(true)}>Review my forms</button>
+          ) : (
+            <div className="mt-10"><AellaSculptForms appointmentId={a.id} zoneName={a.treatment_zone_name} onAllDone={() => setShowForms(false)} /></div>
+          )}
+        </div>
         {done.remaining != null && done.remaining > 0 && (
-          <button type="button" onClick={onAnother} className={`${quiet} mt-10`}>Schedule another treatment</button>
+          <button type="button" onClick={onAnother} className={`${quiet} mt-16`}>Schedule another treatment</button>
         )}
       </div>
     </section>

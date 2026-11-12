@@ -25,7 +25,7 @@ async function processWindow(admin: any, window: Window) {
   const { data: appts, error } = await admin
     .from("spa_appointments")
     .select(
-      "id, user_id, service_name, service_category, appointment_date, appointment_time, duration_minutes, staff_id, status, " +
+      "id, user_id, service_id, service_name, service_category, appointment_date, appointment_time, duration_minutes, staff_id, status, " +
         sentCol,
     )
 
@@ -94,10 +94,23 @@ async function processWindow(admin: any, window: Window) {
 
       const cat = (a.service_category || "").toLowerCase();
       const svcName = (a.service_name || "").toLowerCase();
+      // Services with their own forms/preparation (Aella Sculpt) read them from the service record.
+      const { data: svc } = await admin.from("spa_services").select("service_key, preparation").eq("id", a.service_id).maybeSingle();
+      const isSculpt = svc?.service_key === "aella-sculpt";
       const intakeService =
-        cat.includes("massage") || cat.includes("body") || svcName.includes("massage");
-      const intakeKind = cat.includes("wrap") || svcName.includes("wrap") ? "body_wrap" : "massage";
+        !isSculpt && (cat.includes("massage") || cat.includes("body") || svcName.includes("massage"));
+      const intakeKind = isSculpt ? "sculpt" : cat.includes("wrap") || svcName.includes("wrap") ? "body_wrap" : "massage";
       let needsIntake = false;
+      if (isSculpt) {
+        // The client's latest intake and consent cover later visits.
+        const [{ data: si }, { data: sc }] = await Promise.all([
+          admin.from("spa_sculpt_intakes").select("id").eq("user_id", a.user_id).eq("service_key", "aella-sculpt").limit(1),
+          admin.from("spa_sculpt_consents").select("id").eq("user_id", a.user_id).eq("service_key", "aella-sculpt").limit(1),
+        ]);
+        needsIntake = !(si?.length && sc?.length);
+      }
+      const prep = svc?.preparation as { full_title?: string; full?: { heading: string; body: string }[]; link_label?: string } | null;
+      const preparation = prep?.full?.length ? { title: prep.full_title ?? "Before your appointment", items: prep.full, linkLabel: prep.link_label ?? null } : null;
       if (intakeService) {
         const { data: intake } = await admin
           .from(intakeKind === "body_wrap" ? "spa_body_wrap_intakes" : "spa_intake_forms")
@@ -134,6 +147,8 @@ async function processWindow(admin: any, window: Window) {
                   needsIntake,
                   intakeKind,
                   intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
+                  preparation,
+                  preparationUrlPath: preparation && isSculpt ? "/spa/preview/aella-sculpt/preparation" : null,
                 },
               }),
             })

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { spaArrivalNote } from "../_shared/spaArrival.ts";
+import { intakeCopy, preparationHtml } from "../_shared/spaPreparationEmail.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
@@ -3411,7 +3412,7 @@ serve(async (req) => {
                 <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">1. Create your Storm Wellness Club account using this email address.</p>
                 <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">2. Sign the liability waiver in your account.</p>
                 <p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;"><strong>3. Add a card on file — a card is needed to reserve your appointment.</strong> Go to Payment Methods in your account.</p>
-                ${data.needsIntake ? `<p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">4. Complete your ${data.intakeKind === 'body_wrap' ? 'Body Wrap intake & consent form' : 'intake form'} — you'll find it with your appointment.</p>` : ''}
+                ${data.needsIntake ? `<p style="margin: 0 0 4px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">4. Complete your ${intakeCopy(data.intakeKind).step} — you'll find it with your appointment.</p>` : ''}
                 <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Your appointment will appear in your account automatically.</p>
                 <a href="${BASE_URL}${data.setupUrlPath}" style="${emailStyles.button}">Create Account &amp; Sign Waiver</a>
               </div>` : ''}
@@ -3423,11 +3424,12 @@ serve(async (req) => {
               </div>` : ''}
               ${data.needsIntake && !data.setupUrlPath ? `
               <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
-                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">${data.intakeKind === 'body_wrap' ? 'Before your body wrap — intake & consent form' : 'Before your session — intake form'}</p>
-                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${data.intakeKind === 'body_wrap' ? 'Spa Aella needs your Body Wrap intake and signed consent before your appointment. It only takes a few minutes.' : 'Please complete your intake form so your therapist can tailor the session (focus areas, pressure, health notes). It only takes a couple of minutes.'}</p>
-                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">${data.intakeKind === 'body_wrap' ? 'Complete Body Wrap Intake' : 'Complete Intake Form'}</a>
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">${intakeCopy(data.intakeKind).title}</p>
+                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${intakeCopy(data.intakeKind).body}</p>
+                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">${intakeCopy(data.intakeKind).button}</a>
                 <p style="margin: 12px 0 0 0; color: #4B4537; font-size: 12px; line-height: 1.5;">If the button doesn't work, sign in to your account dashboard and open <strong>My Bookings</strong> — your appointment there has a "Complete Intake Form" button on it.</p>
               </div>` : ''}
+              ${preparationHtml(data.preparation, data.preparationUrlPath ? `${BASE_URL}${data.preparationUrlPath}` : null)}
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${BASE_URL}${data.bookingsPath || '/member/bookings'}" style="${emailStyles.button}">View My Appointments</a>
               </div>
@@ -3460,11 +3462,12 @@ serve(async (req) => {
               </div>
               ${data.needsIntake ? `
               <div style="background: #F3F7F4; border-left: 3px solid #6C8C74; border-radius: 6px; padding: 14px 16px; margin: 20px 0;">
-                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">Your intake form isn't done yet</p>
-                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">Please complete it before you arrive so your therapist can prepare.</p>
-                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">${data.intakeKind === 'body_wrap' ? 'Complete Body Wrap Intake' : 'Complete Intake Form'}</a>
+                <p style="margin: 0 0 4px 0; font-weight: 600; color: #1C170F; font-size: 14px;">${intakeCopy(data.intakeKind).reminderTitle}</p>
+                <p style="margin: 0 0 12px 0; color: #4B4537; font-size: 13px; line-height: 1.5;">${intakeCopy(data.intakeKind).reminderBody}</p>
+                <a href="${BASE_URL}${data.intakeUrlPath || (data.bookingsPath || '/portal/bookings')}" style="${emailStyles.button}">${intakeCopy(data.intakeKind).button}</a>
                 <p style="margin: 12px 0 0 0; color: #4B4537; font-size: 12px; line-height: 1.5;">If the button doesn't work, sign in to your account dashboard and open <strong>My Bookings</strong> — your appointment there has a "Complete Intake Form" button on it.</p>
               </div>` : ''}
+              ${preparationHtml(data.preparation, data.preparationUrlPath ? `${BASE_URL}${data.preparationUrlPath}` : null)}
               <p style="${emailStyles.muted}">Need to reschedule? <a href="${BASE_URL}${data.bookingsPath || '/member/bookings'}" style="${emailStyles.link}">Manage your appointment</a>.</p>
 
               <p style="margin: 30px 0 5px 0; color: #1C170F;">— The Storm Wellness Club Team</p>

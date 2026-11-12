@@ -10,13 +10,13 @@ export function isBodyWrapService(category?: string | null, name?: string | null
   return c.includes("wrap") || n.includes("wrap");
 }
 
-export type IntakeKind = "massage" | "body_wrap";
+export type IntakeKind = "massage" | "body_wrap" | "sculpt";
 
 export function intakeKindFor(category?: string | null, name?: string | null): IntakeKind | null {
   if (isBodyWrapService(category, name)) return "body_wrap";
   const c = (category || "").toLowerCase();
-  // Aella Body Lab has its own intake and consent (not built yet), never the massage form.
-  if (c === "aella body lab") return null;
+  // Aella Body Lab has its own intake, consent and photo consent (AellaSculptForms), never the massage form.
+  if (c === "aella body lab") return "sculpt";
   const n = (name || "").toLowerCase();
   if (c.includes("massage") || c.includes("body") || n.includes("massage")) return "massage";
   return null;
@@ -189,15 +189,17 @@ export function useMyIntakeForms() {
     queryKey: ["my-intake-forms", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const [m, b] = await Promise.all([
+      const [m, b, sc] = await Promise.all([
         (supabase.from as any)("spa_intake_forms").select("appointment_id, updated_at").eq("user_id", user!.id),
         (supabase.from as any)("spa_body_wrap_intakes").select("appointment_id, updated_at").eq("user_id", user!.id),
+        (supabase.from as any)("spa_sculpt_intakes").select("appointment_id, updated_at").eq("user_id", user!.id),
       ]);
       if (m.error) throw m.error;
       if (b.error) throw b.error;
       const rows: { kind: IntakeKind; appointment_id: string; updated_at: string }[] = [
         ...(m.data || []).map((r: any) => ({ kind: "massage" as const, ...r })),
         ...(b.data || []).map((r: any) => ({ kind: "body_wrap" as const, ...r })),
+        ...(sc.data || []).map((r: any) => ({ kind: "sculpt" as const, ...r })),
       ];
       const ids = [...new Set(rows.map((r) => r.appointment_id))];
       const appts: Record<string, any> = {};

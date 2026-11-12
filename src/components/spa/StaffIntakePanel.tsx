@@ -8,6 +8,7 @@ import { ClipboardCheck } from "lucide-react";
 import { IntakeFormViewDialog } from "./IntakeFormViewDialog";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { AellaSculptStaffPanel } from "./AellaSculptStaffPanel";
 
 /** Staff view: shows the Body Wrap intake for wrap services, otherwise the massage intake. */
 export function StaffIntakePanel({
@@ -37,8 +38,20 @@ export function StaffIntakePanel({
       return data?.[0] ?? null;
     },
   });
-  const { data: bw, isLoading, error } = useBodyWrapIntake(appointmentId);
+  const sculpt = intakeKindFor(serviceCategory, serviceName) === "sculpt";
+  const { data: bw, isLoading, error } = useBodyWrapIntake(sculpt ? null : appointmentId);
   const wrap = !!bw || intakeKindFor(serviceCategory, serviceName) === "body_wrap";
+  if (sculpt) {
+    return (
+      <div className="space-y-3">
+        <Button type="button" variant="outline" size="sm" onClick={() => setViewOpen(true)} disabled={!appointmentId}>
+          <ClipboardCheck className="h-4 w-4 mr-2" />View full forms / Print
+        </Button>
+        <AellaSculptStaffPanel appointmentId={appointmentId} />
+        <IntakeFormViewDialog open={viewOpen} onOpenChange={setViewOpen} appointmentId={appointmentId ?? null} clientName={clientName} serviceName={serviceName ?? undefined} serviceCategory={serviceCategory} appointmentDate={appointmentDate} appointmentTime={appointmentTime} />
+      </div>
+    );
+  }
   return (
     <div className="space-y-3">
       {guestWaiver && <p className="text-sm">Booking waiver: {guestWaiver.waiver_signed_at ? `Signed by ${guestWaiver.waiver_name}` : 'Not yet signed'}</p>}

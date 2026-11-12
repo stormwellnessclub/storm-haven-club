@@ -1086,3 +1086,12 @@
   background: hsl(var(--society-bg));
   color: hsl(var(--society-cream));
 }
+
+/* Signatures are always drawn dark-on-light so they stay readable on printed and light-theme staff screens. */
+.signature-light {
+  --background: 48 16% 84%;
+  --foreground: 38 30% 8%;
+  --muted-foreground: 38 27% 33%;
+  --border: 38 20% 68%;
+  color: hsl(var(--foreground));
+}

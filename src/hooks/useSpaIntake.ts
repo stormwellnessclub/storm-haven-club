@@ -70,9 +70,11 @@ export function useIntakeFormStatuses(appointmentIds: string[]) {
     enabled: appointmentIds.length > 0,
     queryFn: async () => {
       if (appointmentIds.length === 0) return {} as Record<string, boolean>;
-      const [massage, wraps] = await Promise.all([
+      const [massage, wraps, sculpt] = await Promise.all([
         (supabase.from as any)("spa_intake_forms").select("appointment_id, consent_signed").in("appointment_id", appointmentIds),
         (supabase.from as any)("spa_body_wrap_intakes").select("appointment_id, signed_at").in("appointment_id", appointmentIds),
+        // Aella Sculpt: complete when the client's intake and treatment consent are both on file.
+        (supabase.rpc as any)("spa_sculpt_form_status", { p_appointment_ids: appointmentIds }),
       ]);
       if (massage.error) throw massage.error;
       if (wraps.error) throw wraps.error;
@@ -82,6 +84,9 @@ export function useIntakeFormStatuses(appointmentIds: string[]) {
       });
       (wraps.data || []).forEach((row: any) => {
         map[row.appointment_id] = !!row.signed_at;
+      });
+      (sculpt.data || []).forEach((row: any) => {
+        map[row.appointment_id] = !!(row.intake_done && row.consent_done);
       });
       return map;
     },

@@ -14408,6 +14408,41 @@ export type Database = {
           },
         ]
       }
+      spa_photo_consents: {
+        Row: {
+          appointment_id: string | null
+          consent: boolean
+          decided_at: string
+          id: string
+          service_key: string
+          user_id: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          consent: boolean
+          decided_at?: string
+          id?: string
+          service_key: string
+          user_id: string
+        }
+        Update: {
+          appointment_id?: string | null
+          consent?: boolean
+          decided_at?: string
+          id?: string
+          service_key?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_photo_consents_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_policy_charges: {
         Row: {
           amount_cents: number
@@ -14622,6 +14657,236 @@ export type Database = {
         }
         Relationships: []
       }
+      spa_screening_questions: {
+        Row: {
+          answer_type: string
+          created_at: string
+          detail_on: string[]
+          detail_prompt: string | null
+          exclusive_option: string | null
+          hold_on: string[]
+          id: string
+          is_active: boolean
+          is_required: boolean
+          options: string[] | null
+          parent_id: string | null
+          prompt: string
+          review_on: string[]
+          section: string
+          service_key: string
+          show_when: string[] | null
+          sort_order: number
+          title: string | null
+          updated_at: string
+          zone_ids: string[] | null
+        }
+        Insert: {
+          answer_type: string
+          created_at?: string
+          detail_on?: string[]
+          detail_prompt?: string | null
+          exclusive_option?: string | null
+          hold_on?: string[]
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: string[] | null
+          parent_id?: string | null
+          prompt: string
+          review_on?: string[]
+          section?: string
+          service_key: string
+          show_when?: string[] | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          zone_ids?: string[] | null
+        }
+        Update: {
+          answer_type?: string
+          created_at?: string
+          detail_on?: string[]
+          detail_prompt?: string | null
+          exclusive_option?: string | null
+          hold_on?: string[]
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          options?: string[] | null
+          parent_id?: string | null
+          prompt?: string
+          review_on?: string[]
+          section?: string
+          service_key?: string
+          show_when?: string[] | null
+          sort_order?: number
+          title?: string | null
+          updated_at?: string
+          zone_ids?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_screening_questions_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "spa_screening_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_screening_reviews: {
+        Row: {
+          decision: string
+          id: string
+          intake_id: string
+          note: string
+          reviewed_at: string
+          reviewed_by: string
+          reviewer_name: string | null
+        }
+        Insert: {
+          decision: string
+          id?: string
+          intake_id: string
+          note: string
+          reviewed_at?: string
+          reviewed_by?: string
+          reviewer_name?: string | null
+        }
+        Update: {
+          decision?: string
+          id?: string
+          intake_id?: string
+          note?: string
+          reviewed_at?: string
+          reviewed_by?: string
+          reviewer_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_screening_reviews_intake_id_fkey"
+            columns: ["intake_id"]
+            isOneToOne: false
+            referencedRelation: "spa_sculpt_intakes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_sculpt_consents: {
+        Row: {
+          acknowledgements: Json
+          appointment_id: string
+          consent_agreed: boolean
+          consent_version: string
+          id: string
+          member_id: string | null
+          printed_name: string
+          provider_ack_at: string | null
+          provider_ack_by: string | null
+          provider_ack_name: string | null
+          service_key: string
+          signature_image: string
+          signed_at: string
+          signed_on: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledgements?: Json
+          appointment_id: string
+          consent_agreed?: boolean
+          consent_version: string
+          id?: string
+          member_id?: string | null
+          printed_name: string
+          provider_ack_at?: string | null
+          provider_ack_by?: string | null
+          provider_ack_name?: string | null
+          service_key?: string
+          signature_image: string
+          signed_at?: string
+          signed_on: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledgements?: Json
+          appointment_id?: string
+          consent_agreed?: boolean
+          consent_version?: string
+          id?: string
+          member_id?: string | null
+          printed_name?: string
+          provider_ack_at?: string | null
+          provider_ack_by?: string | null
+          provider_ack_name?: string | null
+          service_key?: string
+          signature_image?: string
+          signed_at?: string
+          signed_on?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_sculpt_consents_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_sculpt_intakes: {
+        Row: {
+          answers: Json
+          answers_snapshot: Json
+          appointment_id: string
+          id: string
+          member_id: string | null
+          screening_level: string
+          service_key: string
+          submitted_at: string
+          updated_at: string
+          user_id: string
+          zone_name: string | null
+        }
+        Insert: {
+          answers?: Json
+          answers_snapshot?: Json
+          appointment_id: string
+          id?: string
+          member_id?: string | null
+          screening_level?: string
+          service_key?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id: string
+          zone_name?: string | null
+        }
+        Update: {
+          answers?: Json
+          answers_snapshot?: Json
+          appointment_id?: string
+          id?: string
+          member_id?: string | null
+          screening_level?: string
+          service_key?: string
+          submitted_at?: string
+          updated_at?: string
+          user_id?: string
+          zone_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_sculpt_intakes_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_service_addons: {
         Row: {
           applicable_categories: string[] | null
@@ -14810,6 +15075,7 @@ export type Database = {
           member_price: number | null
           name: string
           popular: boolean | null
+          preparation: Json | null
           price: number
           public_menu: boolean
           requires_intake_form: boolean | null
@@ -14829,6 +15095,7 @@ export type Database = {
           member_price?: number | null
           name: string
           popular?: boolean | null
+          preparation?: Json | null
           price: number
           public_menu?: boolean
           requires_intake_form?: boolean | null
@@ -14848,6 +15115,7 @@ export type Database = {
           member_price?: number | null
           name?: string
           popular?: boolean | null
+          preparation?: Json | null
           price?: number
           public_menu?: boolean
           requires_intake_form?: boolean | null
@@ -19873,6 +20141,22 @@ export type Database = {
           p_note?: string
         }
         Returns: Json
+      }
+      spa_sculpt_form_status: {
+        Args: { p_appointment_ids: string[] }
+        Returns: {
+          appointment_id: string
+          consent_done: boolean
+          intake_appointment_id: string
+          intake_done: boolean
+          photo_consent: boolean
+          provider_ack: boolean
+          review_decision: string
+          review_state: string
+          reviewed_at: string
+          reviewed_by_name: string
+          screening_level: string
+        }[]
       }
       staff_book_wellness_appointment: {
         Args: {

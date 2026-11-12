@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { SpaIntakeForm } from "@/components/spa/SpaIntakeForm";
 import { BodyWrapIntakeForm } from "@/components/spa/BodyWrapIntakeForm";
+import { AellaSculptForms } from "@/components/spa/AellaSculptForms";
 import { useIntakeForm, useSubmitIntakeForm } from "@/hooks/useSpaIntake";
 import {
   type IntakeKind,
@@ -36,12 +37,25 @@ export function IntakeFormDialog({
   onSubmitted,
 }: Props) {
   const isWrap = kind === "body_wrap";
-  const { data: existing } = useIntakeForm(isWrap ? null : appointmentId);
+  const { data: existing } = useIntakeForm(isWrap || kind === "sculpt" ? null : appointmentId);
   const { data: existingWrap } = useBodyWrapIntake(isWrap ? appointmentId : null);
   const submit = useSubmitIntakeForm();
   const submitWrap = useSubmitBodyWrapIntake();
 
   if (!appointmentId) return null;
+  if (kind === "sculpt") {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Aella Sculpt forms</DialogTitle>
+            <DialogDescription>Spa Aella · Your provider reviews these before your first treatment.</DialogDescription>
+          </DialogHeader>
+          <AellaSculptForms appointmentId={appointmentId} onAllDone={() => { onSubmitted?.(); onOpenChange(false); }} />
+        </DialogContent>
+      </Dialog>
+    );
+  }
   const has = isWrap ? !!existingWrap : !!existing;
 
   return (

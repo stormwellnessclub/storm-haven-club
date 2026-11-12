@@ -103,7 +103,7 @@ export const AELLA_SCULPT = {
     "Post-treatment guidance",
   ],
   visitTypes: [
-    { id: "first", label: "First Aella Sculpt Treatment", note: "Your intake and consent forms are sent to you automatically." },
+    { id: "first", label: "First Aella Sculpt Treatment", note: "Your intake and consent forms open as soon as you book. Your provider reviews them before your first treatment." },
     { id: "returning", label: "Returning Aella Sculpt Treatment", note: "Continue your series." },
   ],
 };

@@ -171,9 +171,21 @@ export async function sendSpaNotifications(args: {
   }
   const cardUrlPath = isMember ? "/member/payment-methods" : "/portal/payment-methods";
   const bookingsPath = isMember ? "/member/bookings" : "/portal/bookings";
-  const needsIntake =
+  // Services with their own forms/preparation (e.g. Aella Sculpt) read them from the service record.
+  const { data: svcInfo } = await (supabase.from as any)("spa_services").select("service_key, preparation").eq("id", a.service_id).maybeSingle();
+  const isSculpt = svcInfo?.service_key === "aella-sculpt";
+  let needsIntake =
     args.kind === "confirmation" &&
     spaServiceNeedsIntake(a.service_category, a.service_name);
+  if (isSculpt && args.kind === "confirmation" && a.user_id) {
+    const { data: st } = await (supabase.rpc as any)("spa_sculpt_form_status", { p_appointment_ids: [a.id] });
+    const row = (st ?? [])[0];
+    needsIntake = !(row?.intake_done && row?.consent_done);
+  }
+  const prep = svcInfo?.preparation as { full_title?: string; full?: { heading: string; body: string }[]; link_label?: string } | null | undefined;
+  const preparation = args.kind === "confirmation" && prep?.full?.length
+    ? { title: prep.full_title ?? "Before your appointment", items: prep.full, linkLabel: prep.link_label ?? null }
+    : null;
   // No account yet: one button → create account (email prefilled) → portal (waiver, then intake).
   const setupUrlPath =
     isGuest && args.kind === "confirmation"
@@ -213,7 +225,9 @@ export async function sendSpaNotifications(args: {
               duration: a.duration_minutes,
               bookingsPath,
               needsIntake,
-              intakeKind: /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
+              intakeKind: isSculpt ? "sculpt" : /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
+              preparation,
+              preparationUrlPath: preparation && isSculpt ? "/spa/preview/aella-sculpt/preparation" : null,
               intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
               setupUrlPath,
               needsCard: args.kind === "confirmation" && needsCard,

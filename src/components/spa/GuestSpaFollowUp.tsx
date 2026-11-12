@@ -39,7 +39,9 @@ export function GuestSpaFollowUp({access,onDone}: {access:GuestCheckoutAccess;on
     try {await call(action,values);if(action==='intake')setIntakeDone(true);else setWaiverDone(true);}
     catch(e){setError(e instanceof Error?e.message:'Unable to save.');}finally{setBusy(false);}
   }
-  const kind=booking?intakeKindFor(booking.service_category,booking.service_name):null;
+  // Aella Sculpt needs an account for its forms, so guest follow-up only handles massage and wrap intakes.
+  const rawKind=booking?intakeKindFor(booking.service_category,booking.service_name):null;
+  const kind=rawKind==='sculpt'?null:rawKind;
   return <div className="space-y-5 py-3">
     {booking && <div className="space-y-2 border-b border-border pb-4"><h2 className="text-xl font-semibold flex items-center gap-2"><Check className="h-5 w-5 text-accent" />Booking confirmed</h2><p className="font-medium">{booking.service_name} · {booking.duration_minutes} min</p><p className="text-sm text-muted-foreground">{booking.appointment_date} · {formatTime12h(booking.appointment_time.slice(0,5))} Michigan time</p><p className="text-sm text-muted-foreground">A confirmation is on its way to {contact.email}.</p><ol className="text-sm list-decimal pl-5 pt-1 space-y-0.5"><li className={intakeDone&&waiverDone?"text-muted-foreground line-through":""}>Complete your intake and booking waiver below</li><li>Set up your account to manage this visit</li></ol></div>}
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}

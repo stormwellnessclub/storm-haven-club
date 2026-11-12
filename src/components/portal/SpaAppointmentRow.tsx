@@ -9,6 +9,8 @@ import { useCancelSpaAppointment, useSpaLateCancelFees } from "@/hooks/useSpaBoo
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 import { intakeKindFor, useBodyWrapIntake } from "@/hooks/useBodyWrapIntake";
+import { preparationPath, useSculptFormStatus, useSpaPreparations } from "@/hooks/useAellaSculptForms";
+import { Link } from "react-router-dom";
 
 export function SpaAppointmentRow({
   appt,
@@ -37,7 +39,12 @@ export function SpaAppointmentRow({
   const { data: wrapIntake } = useBodyWrapIntake(
     showIntake && kind === "body_wrap" ? appt.id : null
   );
-  const intakeMissing = kind === "body_wrap" ? !wrapIntake : !massageIntake;
+  const { data: sculptStatus } = useSculptFormStatus(showIntake && kind === "sculpt" ? [appt.id] : []);
+  const sculpt = sculptStatus?.get(appt.id);
+  const intakeMissing = kind === "sculpt" ? !(sculpt?.intake_done && sculpt?.consent_done) : kind === "body_wrap" ? !wrapIntake : !massageIntake;
+  const { data: preparations } = useSpaPreparations();
+  const prep = preparations?.get(String(appt.service_id));
+  const prepPath = prep ? preparationPath(prep.service_key) : null;
 
   useEffect(() => {
     if (autoOpenIntake && needsIntake && !autoOpenedRef.current) {
@@ -83,8 +90,16 @@ export function SpaAppointmentRow({
           {showIntake && needsIntake && intakeMissing && (
             <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
               <ClipboardCheck className="h-3 w-3" />
-              Intake form needed before your session
+              {kind === "sculpt" ? "Aella Sculpt forms needed before your treatment" : "Intake form needed before your session"}
             </p>
+          )}
+          {showIntake && kind === "sculpt" && sculpt && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Intake {sculpt.intake_done ? "complete" : "pending"} · Consent {sculpt.consent_done ? "complete" : "pending"}
+            </p>
+          )}
+          {showIntake && prep && prepPath && (
+            <Link to={prepPath} className="text-xs underline underline-offset-2 mt-1 inline-block">{prep.preparation.title}</Link>
           )}
         </div>
       </div>
@@ -107,7 +122,7 @@ export function SpaAppointmentRow({
             onClick={() => setIntakeOpen(true)}
           >
             <ClipboardCheck className="h-3.5 w-3.5 mr-1" />
-            {intakeMissing ? "Intake Form" : "Edit Intake"}
+            {kind === "sculpt" ? (intakeMissing ? "Complete Forms" : "View Forms") : intakeMissing ? "Intake Form" : "Edit Intake"}
           </Button>
         )}
         {showCancel && (
