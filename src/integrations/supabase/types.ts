@@ -14408,6 +14408,68 @@ export type Database = {
           },
         ]
       }
+      spa_policy_charges: {
+        Row: {
+          amount_cents: number
+          appointment_id: string
+          charged_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          member_id: string | null
+          payment_intent_id: string | null
+          processing_fee_cents: number | null
+          resolved_by: string | null
+          resolved_note: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          appointment_id: string
+          charged_at?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          member_id?: string | null
+          payment_intent_id?: string | null
+          processing_fee_cents?: number | null
+          resolved_by?: string | null
+          resolved_note?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          appointment_id?: string
+          charged_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          member_id?: string | null
+          payment_intent_id?: string | null
+          processing_fee_cents?: number | null
+          resolved_by?: string | null
+          resolved_note?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_policy_charges_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_review_tokens: {
         Row: {
           appointment_date: string
@@ -14744,6 +14806,7 @@ export type Database = {
           duration_minutes: number
           id: string
           is_active: boolean
+          late_cancel_fee_cents: number | null
           member_price: number | null
           name: string
           popular: boolean | null
@@ -14762,6 +14825,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean
+          late_cancel_fee_cents?: number | null
           member_price?: number | null
           name: string
           popular?: boolean | null
@@ -14780,6 +14844,7 @@ export type Database = {
           duration_minutes?: number
           id?: string
           is_active?: boolean
+          late_cancel_fee_cents?: number | null
           member_price?: number | null
           name?: string
           popular?: boolean | null

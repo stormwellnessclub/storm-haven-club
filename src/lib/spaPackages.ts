@@ -40,3 +40,26 @@ export function splitPackages(all: SpaTreatmentPackage[], serviceKey: string) {
 /** "Use within 8 months" wording for a package's expiration. */
 export const expiryLabel = (p: Pick<SpaTreatmentPackage, "expires_after_months">) =>
   p.expires_after_months == null ? null : `Use within ${p.expires_after_months} month${p.expires_after_months === 1 ? "" : "s"}`;
+
+/** Club member discount by tier, same as every other spa service. Mirrors aella-sculpt-checkout/pricing.ts. */
+export function memberTierRate(membershipType: string | null | undefined): number {
+  const t = (membershipType ?? "").toLowerCase();
+  if (t.includes("diamond")) return 0.12;
+  if (t.includes("platinum")) return 0.1;
+  if (t.includes("gold")) return 0.08;
+  if (t.includes("silver")) return 0.05;
+  return 0;
+}
+
+/**
+ * What a client pays for a package: non-members (null) pay the public price; members pay the
+ * staff-set member price when there is one, otherwise the public price less their tier discount.
+ */
+export function packagePriceFor(
+  pkg: Pick<SpaTreatmentPackage, "price_cents" | "member_price_cents">,
+  membershipType: string | null,
+): number {
+  if (membershipType == null) return pkg.price_cents;
+  if (pkg.member_price_cents != null) return pkg.member_price_cents;
+  return Math.round(pkg.price_cents * (1 - memberTierRate(membershipType)));
+}

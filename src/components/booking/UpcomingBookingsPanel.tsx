@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { formatTime12h } from "@/lib/timeFormat";
 import { CANCELLATION_POLICY_TEXT } from "@/components/booking/CancellationPolicyText";
 import { useUpcomingBookings, useCancelBooking } from "@/hooks/useBooking";
-import { useMySpaAppointments, useCancelSpaAppointment } from "@/hooks/useSpaBooking";
+import { useMySpaAppointments, useCancelSpaAppointment, useSpaLateCancelFees } from "@/hooks/useSpaBooking";
 import { useMyKidsCareBookings, useCancelKidsCareBooking } from "@/hooks/useKidsCareBooking";
 
 type Kind = "class" | "spa" | "kids";
@@ -55,6 +55,7 @@ export function UpcomingBookingsPanel({ scope = "member" }: UpcomingBookingsPane
 
   const cancelClass = useCancelBooking();
   const cancelSpa = useCancelSpaAppointment();
+  const { data: lateFees } = useSpaLateCancelFees();
   const cancelKids = useCancelKidsCareBooking();
 
   const [pending, setPending] = useState<Row | null>(null);
@@ -262,6 +263,13 @@ export function UpcomingBookingsPanel({ scope = "member" }: UpcomingBookingsPane
                     We'll cancel this booking and take you to pick a new time.
                     Your credit or pass will be refunded
                     {pending && isLateCancel(pending) ? " only if outside the 24-hour window" : ""}.
+                  </div>
+                ) : pending && isLateCancel(pending) && pending.kind === "spa" && lateFees?.get(String(pending.raw?.service_id)) ? (
+                  <div>
+                    This starts in less than 24 hours. A{" "}
+                    <strong>${(lateFees.get(String(pending.raw?.service_id))! / 100).toFixed(2)} late cancellation charge</strong>{" "}
+                    (plus card fee) will be charged to your card on file.
+                    {pending.raw?.client_package_id ? " The treatment goes back to your series." : ""}
                   </div>
                 ) : pending && isLateCancel(pending) ? (
                   <div>

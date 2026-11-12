@@ -6,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { useCreateSpaTreatmentPackage, useSpaTreatmentPackages, useUpdateSpaTreatmentPackage } from "@/hooks/useSpaTreatmentPackages";
 import { SpaZonesEditor } from "@/components/admin/spa/SpaZonesEditor";
 import { SpaClientSeriesList } from "@/components/admin/spa/SpaClientSeriesList";
+import { SpaPolicyChargesList } from "@/components/admin/spa/SpaPolicyChargesList";
 import { formatDollars, packageLabel, perTreatmentCents, type SpaTreatmentPackage } from "@/lib/spaPackages";
 
 const SERVICES: { key: string; label: string }[] = [{ key: "aella-sculpt", label: "Aella Sculpt" }];
@@ -147,6 +148,7 @@ export function SpaPackagesTab() {
           </section>
         );
       })}
+      <SpaPolicyChargesList />
     </div>
   );
 }

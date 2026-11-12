@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AELLA_SCULPT } from "@/lib/aellaSculpt";
 import { useSpaTreatmentPackages } from "@/hooks/useSpaTreatmentPackages";
-import { expiryLabel, formatDollars, packageLabel, perTreatmentCents, splitPackages } from "@/lib/spaPackages";
+import { expiryLabel, formatDollars, packageLabel, packagePriceFor, splitPackages } from "@/lib/spaPackages";
 import { useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
 import { activeZones, canPickTimes, chooseZone, zoneTakesRequests, ZONE_PROMPT, ZONE_PROMPT_NOTE } from "@/lib/spaZones";
 import { useSpaServices, useSpaServiceAvailability } from "@/hooks/useSpaManagement";
@@ -32,7 +32,11 @@ const SERVICE_KEY = "aella-sculpt";
 const SAVED = "aella-sculpt-booking";
 const RETURN_PATH = "/spa/preview/aella-sculpt#book";
 const LOCATION = "Spa Aella at Storm Wellness Club, 18340 Middlebelt Rd, Livonia, MI 48152";
-const CANCEL_POLICY = "Please give at least 24 hours' notice to cancel or reschedule. Later cancellations and missed appointments are charged in full.";
+/** The late-cancel amount comes from the service record; null falls back to the general spa wording. */
+const cancelPolicy = (lateFeeCents: number | null | undefined) =>
+  lateFeeCents
+    ? `Please give at least 24 hours' notice to cancel or reschedule. Cancelling within 24 hours carries a ${formatDollars(lateFeeCents)} late cancellation charge. A missed appointment is charged in full; with a series, the treatment is used.`
+    : "Please give at least 24 hours' notice to cancel or reschedule. Later cancellations and missed appointments are charged in full.";
 
 const Step = ({ n, title, children, locked = false }: { n: number; title: string; children: React.ReactNode; locked?: boolean }) => (
   <div className={`border-t border-foreground/15 py-10 transition-opacity ${locked ? "pointer-events-none opacity-35" : ""}`} aria-disabled={locked || undefined}>
@@ -70,6 +74,7 @@ export function SculptBooking() {
   const qc = useQueryClient();
   const { data: services = [] } = useSpaServices();
   const sculpt = services.find((s) => (s as { service_key?: string | null }).service_key === SERVICE_KEY && s.is_active) ?? null;
+  const lateFeeCents = (sculpt as { late_cancel_fee_cents?: number | null } | null)?.late_cancel_fee_cents ?? null;
   const { data: availability } = useSpaServiceAvailability();
   const { data: zoneRows = [] } = useSpaTreatmentZones();
   const zones = activeZones(zoneRows, SERVICE_KEY);
@@ -114,7 +119,9 @@ export function SculptBooking() {
   const chosenBuy = option?.kind === "buy" ? buyOptions.find((o) => o.id === option.id) ?? null : null;
   const chosenSeries = option?.kind === "series" ? usable.find((s) => s.pkg.id === option.id) ?? null : null;
   const visitType = AELLA_SCULPT.visitTypes.find((v) => v.id === visit);
-  const baseCents = chosenBuy ? (membership && chosenBuy.member_price_cents != null ? chosenBuy.member_price_cents : chosenBuy.price_cents) : 0;
+  const tier = membership ? (membership.membership_type ?? "") : null;
+  const priceOf = (o: { price_cents: number; member_price_cents: number | null }) => packagePriceFor(o, tier);
+  const baseCents = chosenBuy ? priceOf(chosenBuy) : 0;
   const feeCents = calculateProcessingFee(baseCents);
 
   const { data: therapists = [] } = useQuery({
@@ -207,7 +214,7 @@ export function SculptBooking() {
     }
   };
 
-  if (done) return <Confirmation done={done} providerNames={therapists} onAnother={() => { setDone(null); setTime(null); setOption(null); }} />;
+  if (done) return <Confirmation done={done} lateFeeCents={lateFeeCents} providerNames={therapists} onAnother={() => { setDone(null); setTime(null); setOption(null); }} />;
 
   return (
     <section id="book" className="scroll-mt-20 px-6 py-28 md:px-16 md:py-40">
@@ -269,9 +276,12 @@ export function SculptBooking() {
                         <span>
                           {packageLabel(o)}
                           {o.is_recommended && <span className={`ml-3 text-[10px] tracking-[0.3em] uppercase ${on ? "text-background/70" : "text-muted-foreground"}`}>Recommended</span>}
-                          <span className={sub(on)}>{o.session_count > 1 ? `${formatDollars(perTreatmentCents(o))} per treatment` : `${AELLA_SCULPT.minutes} minutes`}{exp ? ` · ${exp}` : ""}</span>
+                          <span className={sub(on)}>{o.session_count > 1 ? `${formatDollars(Math.round(priceOf(o) / o.session_count))} per treatment` : `${AELLA_SCULPT.minutes} minutes`}{exp ? ` · ${exp}` : ""}</span>
                         </span>
-                        <span className="font-serif text-lg">{formatDollars(o.price_cents)}</span>
+                        <span className="text-right">
+                          <span className="block font-serif text-lg">{formatDollars(priceOf(o))}</span>
+                          {tier != null && <span className={`block text-[10px] tracking-[0.3em] uppercase ${on ? "text-background/70" : "text-muted-foreground"}`}>Member price</span>}
+                        </span>
                       </button>
                     );
                   })}
@@ -323,7 +333,7 @@ export function SculptBooking() {
                   <dt className="text-muted-foreground">Option</dt>
                   <dd>{chosenSeries ? `${chosenSeries.pkg.package_name} · uses 1 of ${chosenSeries.remaining} left` : chosenBuy ? packageLabel(chosenBuy) : "—"}</dd>
                   {chosenBuy && (<>
-                    <dt className="text-muted-foreground">Price</dt><dd>{formatDollars(baseCents)}</dd>
+                    <dt className="text-muted-foreground">{tier != null ? "Member price" : "Price"}</dt><dd>{formatDollars(baseCents)}</dd>
                     <dt className="text-muted-foreground">Card fee</dt><dd>{formatDollars(feeCents)}</dd>
                     <dt className="text-muted-foreground">Total today</dt><dd className="font-serif text-lg">{formatDollars(baseCents + feeCents)}</dd>
                   </>)}
@@ -372,7 +382,7 @@ export function SculptBooking() {
                           </div>
                         )
                       )}
-                      <p className="text-xs leading-relaxed text-muted-foreground">{CANCEL_POLICY}</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground">{cancelPolicy(lateFeeCents)}</p>
                       <button type="button" disabled={!canConfirm} onClick={confirm} className={primary}>
                         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                         {busy ? "Booking…" : chosenBuy ? `Pay ${formatDollars(baseCents + feeCents)} & book` : "Book treatment"}
@@ -482,7 +492,7 @@ function RequestStep({ zone }: { zone: { id: string; name: string } }) {
   );
 }
 
-function Confirmation({ done, providerNames, onAnother }: { done: Done; providerNames: { id: string; full_name: string }[]; onAnother: () => void }) {
+function Confirmation({ done, lateFeeCents, providerNames, onAnother }: { done: Done; lateFeeCents: number | null; providerNames: { id: string; full_name: string }[]; onAnother: () => void }) {
   const a = done.appointment;
   const provider = providerNames.find((t) => t.id === a.staff_id)?.full_name ?? "Spa Aella";
   return (
@@ -506,7 +516,7 @@ function Confirmation({ done, providerNames, onAnother }: { done: Done; provider
             <dd>{done.remaining} treatment{done.remaining === 1 ? "" : "s"} left{done.purchase?.expiresOn ? ` · use by ${format(toDate(done.purchase.expiresOn), "MMM d, yyyy")}` : ""}</dd>
           </>)}
         </dl>
-        <p className="mt-10 max-w-xl text-xs leading-relaxed text-muted-foreground">{CANCEL_POLICY}</p>
+        <p className="mt-10 max-w-xl text-xs leading-relaxed text-muted-foreground">{cancelPolicy(lateFeeCents)}</p>
         <p className="mt-3 max-w-xl text-xs leading-relaxed text-muted-foreground">A confirmation is on its way by email{a.user_id ? " and text, if you've agreed to texts" : ""}.</p>
         {done.remaining != null && done.remaining > 0 && (
           <button type="button" onClick={onAnother} className={`${quiet} mt-10`}>Schedule another treatment</button>

@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     const [{ data: prof }, { data: nm }, { data: member }] = await Promise.all([
       admin.from("profiles").select("waiver_signed, phone").eq("user_id", user.id).maybeSingle(),
       admin.from("non_member_profiles").select("waiver_signed, phone, stripe_customer_id").eq("user_id", user.id).maybeSingle(),
-      admin.from("members").select("id, stripe_customer_id, first_name, last_name").eq("user_id", user.id).neq("status", "cancelled").maybeSingle(),
+      admin.from("members").select("id, stripe_customer_id, first_name, last_name, membership_type").eq("user_id", user.id).neq("status", "cancelled").maybeSingle(),
     ]);
     if (!(prof?.waiver_signed || nm?.waiver_signed)) return reply({ success: false, code: "waiver", error: "Please sign the liability waiver before booking." });
     if (!(prof?.phone || nm?.phone)) return reply({ success: false, code: "phone", error: "Please add a phone number before booking." });
@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       catch (e) { return reply({ success: false, code: "card", error: e instanceof Error ? e.message : "Card not found." }); }
       if (!pm) return reply({ success: false, code: "card", error: "Please add a card to your account before booking." });
 
-      const base = packagePriceCents(pkg, !!member);
+      const base = packagePriceCents(pkg, member ? (member.membership_type ?? "") : null);
       const fee = processingFeeCents(base);
       const packageName = pkg.session_count === 1 ? pkg.name : `${pkg.session_count}-Treatment ${pkg.name}`;
       const description = chargeDescription(service?.name ?? "Aella Sculpt", packageName, pkg.session_count);

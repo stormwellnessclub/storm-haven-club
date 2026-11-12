@@ -594,6 +594,24 @@ export function useCancelSpaAppointment() {
       queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
       queryClient.invalidateQueries({ queryKey: ["spa-booked-slots"] });
       toast.success("Appointment cancelled successfully");
+      // Late cancellations on services with their own policy (e.g. Aella Sculpt) are recorded by the
+      // database; charge that fee to the saved card now. Nothing is charged when nothing is owed.
+      try {
+        const startsIn = new Date(`${appt.appointment_date}T${appt.appointment_time}`).getTime() - Date.now();
+        if (startsIn < 24 * 3600 * 1000) {
+          const { data: fee } = await supabase.functions.invoke("spa-policy-charge", {
+            body: { appointmentId: appt.id, idempotencyKey: crypto.randomUUID() },
+          });
+          if (fee?.charged) {
+            toast.message(`Late cancellation charge of $${(fee.amountCents / 100).toFixed(2)} charged to ${fee.brand}${fee.last4 ? ` •••• ${fee.last4}` : ""}.`);
+          } else if (fee && fee.success === false) {
+            toast.message("We couldn't charge the late cancellation fee to your card. The club will contact you.");
+          }
+          queryClient.invalidateQueries({ queryKey: ["spa-policy-charges"] });
+        }
+      } catch (e) {
+        console.warn("spa late-cancel charge failed (non-fatal):", e);
+      }
       try {
         await sendSpaNotifications({ appointment: appt, kind: "cancellation" });
       } catch (e) {
@@ -646,5 +664,18 @@ export function useSpaBookedSlots(date: Date | undefined | null) {
     },
     enabled: !!date,
     staleTime: 30_000,
+  });
+}
+
+
+/** Services with their own late-cancellation fee (cents), keyed by service id. */
+export function useSpaLateCancelFees() {
+  return useQuery({
+    queryKey: ["spa-late-cancel-fees"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data } = await (supabase.from as any)("spa_services").select("id, late_cancel_fee_cents").not("late_cancel_fee_cents", "is", null);
+      return new Map<string, number>((data ?? []).map((r: { id: string; late_cancel_fee_cents: number }) => [String(r.id), r.late_cancel_fee_cents]));
+    },
   });
 }

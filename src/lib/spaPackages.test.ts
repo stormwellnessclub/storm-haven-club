@@ -1,6 +1,6 @@
 // @ts-nocheck -- Bun test runner types are not part of browser compilation.
 import { describe, expect, it } from "bun:test";
-import { formatDollars, packageLabel, perTreatmentCents, splitPackages, type SpaTreatmentPackage } from "./spaPackages";
+import { formatDollars, packageLabel, packagePriceFor, perTreatmentCents, splitPackages, type SpaTreatmentPackage } from "./spaPackages";
 
 // Owner's Aella Sculpt prices (Nov 12, 2026).
 const pkg = (session_count: number, price_cents: number, name: string, is_recommended = false, display_order = session_count): SpaTreatmentPackage => ({
@@ -44,4 +44,14 @@ describe("Aella Sculpt package pricing", () => {
     const off = owner.map((p) => (p.session_count === 12 ? { ...p, is_active: false } : p));
     expect(splitPackages(off, "aella-sculpt").series.map((p) => p.session_count)).toEqual([4, 6, 8]);
   });
+});
+
+describe("member pricing (owner: members get their spa tier discount)", () => {
+  const six = owner[2];
+  it("non-members pay the public price", () => expect(packagePriceFor(six, null)).toBe(189000));
+  it("Silver 5%", () => expect(packagePriceFor(six, "Silver")).toBe(179550));
+  it("Gold 8%", () => expect(packagePriceFor(six, "Gold")).toBe(173880));
+  it("Platinum 10%", () => expect(packagePriceFor(six, "Platinum")).toBe(170100));
+  it("Diamond 12% on a single", () => expect(packagePriceFor(owner[0], "Diamond")).toBe(30800));
+  it("a staff-set member price wins", () => expect(packagePriceFor({ ...six, member_price_cents: 180000 }, "Diamond")).toBe(180000));
 });

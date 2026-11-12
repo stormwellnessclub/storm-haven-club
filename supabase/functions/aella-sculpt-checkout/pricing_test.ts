@@ -7,10 +7,16 @@ Deno.test("processing fee follows the club gross-up formula", () => {
   assertEquals(processingFeeCents(0), 0);
 });
 
-Deno.test("members pay public price unless a member price is set", () => {
-  assertEquals(packagePriceCents({ price_cents: 189000, member_price_cents: null }, true), 189000);
-  assertEquals(packagePriceCents({ price_cents: 189000, member_price_cents: 180000 }, true), 180000);
-  assertEquals(packagePriceCents({ price_cents: 189000, member_price_cents: 180000 }, false), 189000);
+Deno.test("members get their tier discount unless staff set a member price", () => {
+  const six = { price_cents: 189000, member_price_cents: null };
+  assertEquals(packagePriceCents(six, null), 189000); // non-member
+  assertEquals(packagePriceCents(six, "Silver"), 179550); // 5%
+  assertEquals(packagePriceCents(six, "Gold"), 173880); // 8%
+  assertEquals(packagePriceCents(six, "Platinum"), 170100); // 10%
+  assertEquals(packagePriceCents(six, "Diamond"), 166320); // 12%
+  assertEquals(packagePriceCents({ price_cents: 35000, member_price_cents: null }, "Diamond"), 30800);
+  assertEquals(packagePriceCents({ price_cents: 189000, member_price_cents: 180000 }, "Diamond"), 180000);
+  assertEquals(packagePriceCents({ price_cents: 189000, member_price_cents: 180000 }, null), 189000);
 });
 
 Deno.test("charge names the treatment and series", () => {

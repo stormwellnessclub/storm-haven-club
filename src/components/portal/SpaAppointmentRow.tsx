@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatTime12h } from "@/lib/timeFormat";
 import type { SpaApptWithStaff } from "@/hooks/useAllAppointmentHistory";
-import { useCancelSpaAppointment } from "@/hooks/useSpaBooking";
+import { useCancelSpaAppointment, useSpaLateCancelFees } from "@/hooks/useSpaBooking";
 import { useIntakeForm } from "@/hooks/useSpaIntake";
 import { IntakeFormDialog } from "@/components/spa/IntakeFormDialog";
 import { intakeKindFor, useBodyWrapIntake } from "@/hooks/useBodyWrapIntake";
@@ -24,6 +24,8 @@ export function SpaAppointmentRow({
   autoOpenIntake?: boolean;
 }) {
   const cancel = useCancelSpaAppointment();
+  const { data: lateFees } = useSpaLateCancelFees();
+  const lateFeeCents = lateFees?.get(String(appt.service_id)) ?? null;
   const [intakeOpen, setIntakeOpen] = useState(false);
   const autoOpenedRef = useRef(false);
 
@@ -54,7 +56,9 @@ export function SpaAppointmentRow({
   async function handleCancel() {
     const warn =
       hoursOut < 24
-        ? "This is less than 24 hours away. Cancelling may forfeit your credit. Continue?"
+        ? lateFeeCents
+          ? `This is less than 24 hours away. A $${(lateFeeCents / 100).toFixed(2)} late cancellation charge (plus card fee) will be charged to your card on file.${appt.client_package_id ? " The treatment goes back to your series." : ""} Continue?`
+          : "This is less than 24 hours away. Cancelling may forfeit your credit. Continue?"
         : "Cancel this spa appointment?";
     if (!window.confirm(warn)) return;
     await cancel.mutateAsync({ appointmentId: appt.id });
