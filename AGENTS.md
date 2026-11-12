@@ -51,3 +51,4 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
+- Spa Aella preview menus list each treatment once with every length via `groupTreatments` (`src/lib/spaVariants.ts`); Book opens the chosen length's own record. Section links use `useHashScroll`. Why: menus hid 90-minute and extended options, and Book links landed partway up the page.

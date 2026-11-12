@@ -1,6 +1,6 @@
-import { useEffect } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useHashScroll } from "@/hooks/useHashScroll";
 import { Layout } from "@/components/Layout";
 import { AELLA_SCULPT, BODY_LAB } from "@/lib/aellaSculpt";
 import { useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
@@ -23,14 +23,7 @@ const QuietLink = ({ href, children }: { href: string; children: React.ReactNode
 
 /** Private design preview of the Aella Sculpt treatment page (noindex, not linked from the menu). */
 export default function AellaSculptPreview() {
-  const { hash } = useLocation();
-  useEffect(() => {
-    if (hash) {
-      const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth" }), 150);
-      return () => clearTimeout(t);
-    }
-    window.scrollTo(0, 0);
-  }, [hash]);
+  useHashScroll();
 
   const s = AELLA_SCULPT;
   const { data: zoneRows = [] } = useSpaTreatmentZones();

@@ -83,3 +83,12 @@
 - [x] Aella Sculpt late cancel (within 24h) = $80 charged to card on file, treatment returns to series; no-show = full price, or series treatment used; staff charge/waive list in Packages & Zones
 - [x] Aella Sculpt $80 late fee applies only when the client cancels; staff cancellations never add it (owner confirmed)
 - [ ] Launch: turn on public menu listing when the new spa page goes live
+
+## Spa preview — owner review round (Nov 12)
+- [x] New main hero photo + small Spa Aella logo (main spa page only)
+- [x] "What do you need": massage card = owner's hands photo; recovery = sauna photo
+- [x] Remove the made-up stones photo everywhere; fold Signature into its chapters so nothing appears out of nowhere
+- [x] Show every length (60/90, 70/90, 75/90, 10/20) for massages, facials, wraps, recovery
+- [x] Even out the dark-to-light skincare photo; darken Klytia marble photo
+- [x] Move the three facial photos onto facial Learn More pages
+- [x] Bottom "find your time" / Book a treatment buttons open booking instead of jumping to the top
