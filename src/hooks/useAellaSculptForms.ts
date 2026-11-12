@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Answers, ReviewState, ScreeningQuestion, SpaPreparation } from "@/lib/aellaSculptForms";
 
-const db = supabase.from as any;
+// Keep `from` bound to the client; an unbound `supabase.from` throws before any request is sent.
+const db = (table: string) => (supabase as any).from(table);
 export const SCULPT_KEY = "aella-sculpt";
 
 export function useScreeningQuestions(serviceKey = SCULPT_KEY, includeInactive = false) {

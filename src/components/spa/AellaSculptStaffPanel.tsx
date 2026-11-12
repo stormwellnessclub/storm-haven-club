@@ -7,6 +7,7 @@ import { useUserRoles } from "@/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { AellaSculptProgressPanel } from "./AellaSculptProgressPanel";
 import { CONSENT_SECTIONS, PHOTO_NOTE, reviewLabel } from "@/lib/aellaSculptForms";
 import {
   useAcknowledgeSculptConsent, usePhotoConsent, useRecordScreeningReview, useScreeningReviews, useSculptConsent, useSculptFormStatus, useSculptIntake,
@@ -42,7 +43,7 @@ export function useSculptFormsForAppointment(appointmentId: string | null, enabl
   const photo = usePhotoConsent(enabled && canSee ? userId : null);
   const reviews = useScreeningReviews(enabled && canSee ? intake.data?.own?.id : null);
   return {
-    canSee, status: st, statusLoading: status.isLoading, intake: intake.data?.own ?? null, consent: consent.data?.latest ?? null,
+    canSee, userId: userId ?? null, status: st, statusLoading: status.isLoading, intake: intake.data?.own ?? null, consent: consent.data?.latest ?? null,
     photo: photo.data ?? null, reviews: reviews.data ?? [], loading: intake.isLoading || consent.isLoading,
   };
 }
@@ -170,6 +171,7 @@ export function AellaSculptStaffPanel({ appointmentId }: { appointmentId: string
             </div>
           )}
           <SculptFormsSummary intake={f.intake} consent={f.consent} photo={f.photo} reviews={f.reviews} />
+          <AellaSculptProgressPanel appointmentId={appointmentId} userId={f.userId} photoConsent={f.photo?.consent ?? null} />
         </>
       )}
     </div>

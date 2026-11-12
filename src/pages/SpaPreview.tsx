@@ -20,7 +20,6 @@ import greenMaskEye from "@/assets/spa-preview/green-mask-eye.jpg.asset.json";
 import presenceBlur from "@/assets/spa-preview/presence-blur.jpg.asset.json";
 import quietLeaf from "@/assets/spa-preview/quiet-leaf.jpg.asset.json";
 import aellaRoom from "@/assets/spa-preview/aella-treatment-room.jpg.asset.json";
-import seaweedCocoon from "@/assets/spa-preview/seaweed-cocoon.jpg.asset.json";
 import bananaLeaf from "@/assets/spa-preview/banana-leaf.jpg.asset.json";
 import goldSkin from "@/assets/spa-preview/gold-skin.jpg.asset.json";
 import klytiaAmpoules from "@/assets/spa-preview/klytia-ampoules.jpg.asset.json";
@@ -32,12 +31,12 @@ import zerobody from "@/assets/zerobody-room.jpg";
 import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
 import { BodyLabChapter } from "@/components/spa-preview/BodyLabChapter";
 
-type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string; cardPos?: string };
+type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string; chapterTone?: string; cardPos?: string };
 
 const CHAPTERS: Chapter[] = [
   { id: "massage", category: "Massage", title: "Massage & Bodywork", line: "Unhurried hands, and pressure that listens.", img: handCheek.url },
   { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: glowProfile.url, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
-  { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterImg: bananaLeaf.url, chapterPos: "object-[50%_30%]" },
+  { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterPos: "object-[50%_50%]", chapterTone: "saturate-[0.75] brightness-[0.62] sepia-[0.15]" },
   { id: "body-lab", category: "Aella Body Lab", title: "Aella Body Lab", line: "Body sculpting & contouring.", img: bodyLabForm.url, cardPos: "object-[50%_30%]" },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Light, cold and stillness, on your schedule.", img: zerobody },
 ];
@@ -170,7 +169,7 @@ export default function SpaPreview() {
                 <article key={s.id} className={`grid items-center gap-10 md:grid-cols-12 ${i % 2 ? "md:[&>figure]:order-2" : ""}`}>
                   <figure className="md:col-span-7">
                     {isSeaweedRitual(s) ? (
-                      <img src={seaweedCocoon.url} alt="A guest resting in a warm body wrap cocoon" loading="lazy" className="aspect-[3/2] w-full object-cover object-[60%_50%]" />
+                      <img src={bananaLeaf.url} alt="Hands resting on a broad green leaf held close to the body" loading="lazy" className="aspect-[4/5] w-full object-cover object-[50%_40%] md:aspect-[4/3]" />
                     ) : (
                       <img src={pauseStones} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover md:aspect-[4/3]" />
                     )}
@@ -232,7 +231,7 @@ export default function SpaPreview() {
             <section id={c.id === "facials" ? "facials-menu" : c.id} className="scroll-mt-20 border-t border-foreground/10">
               <div className="grid md:grid-cols-12">
                 <div className={`md:col-span-5 ${i % 2 ? "md:order-2" : ""}`}>
-                  <img src={c.chapterImg ?? c.img} alt="" loading="lazy" className={`h-[60svh] w-full object-cover saturate-[0.7] brightness-[0.85] md:sticky md:top-0 md:h-[100svh] ${c.chapterPos ?? ""}`} />
+                  <img src={c.chapterImg ?? c.img} alt="" loading="lazy" className={`h-[60svh] w-full object-cover ${c.chapterTone ?? "saturate-[0.7] brightness-[0.85]"} md:sticky md:top-0 md:h-[100svh] ${c.chapterPos ?? ""}`} />
                 </div>
                 <div className="px-6 py-16 md:col-span-7 md:px-16 md:py-28">
                   <Eyebrow>{String(i + 1).padStart(2, "0")}</Eyebrow>

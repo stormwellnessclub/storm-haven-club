@@ -14887,6 +14887,109 @@ export type Database = {
           },
         ]
       }
+      spa_sculpt_progress: {
+        Row: {
+          appointment_id: string
+          client_package_id: string | null
+          client_response: string | null
+          created_at: string
+          id: string
+          measurements: Json
+          modalities: string[]
+          provider_notes: string | null
+          recorded_by: string | null
+          recorded_by_name: string | null
+          recorded_on: string
+          service_key: string
+          treatment_number: number | null
+          updated_at: string
+          user_id: string | null
+          zone_name: string | null
+        }
+        Insert: {
+          appointment_id: string
+          client_package_id?: string | null
+          client_response?: string | null
+          created_at?: string
+          id?: string
+          measurements?: Json
+          modalities?: string[]
+          provider_notes?: string | null
+          recorded_by?: string | null
+          recorded_by_name?: string | null
+          recorded_on: string
+          service_key?: string
+          treatment_number?: number | null
+          updated_at?: string
+          user_id?: string | null
+          zone_name?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          client_package_id?: string | null
+          client_response?: string | null
+          created_at?: string
+          id?: string
+          measurements?: Json
+          modalities?: string[]
+          provider_notes?: string | null
+          recorded_by?: string | null
+          recorded_by_name?: string | null
+          recorded_on?: string
+          service_key?: string
+          treatment_number?: number | null
+          updated_at?: string
+          user_id?: string | null
+          zone_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_sculpt_progress_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "spa_appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spa_sculpt_progress_photos: {
+        Row: {
+          created_at: string
+          id: string
+          progress_id: string
+          storage_path: string
+          uploaded_by: string | null
+          user_id: string
+          view_label: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          progress_id: string
+          storage_path: string
+          uploaded_by?: string | null
+          user_id: string
+          view_label?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          progress_id?: string
+          storage_path?: string
+          uploaded_by?: string | null
+          user_id?: string
+          view_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spa_sculpt_progress_photos_progress_id_fkey"
+            columns: ["progress_id"]
+            isOneToOne: false
+            referencedRelation: "spa_sculpt_progress"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spa_service_addons: {
         Row: {
           applicable_categories: string[] | null
@@ -18512,6 +18615,7 @@ export type Database = {
       is_member_past_due: { Args: { p_member_id: string }; Returns: boolean }
       is_privileged_row_writer: { Args: never; Returns: boolean }
       is_society_roster_member: { Args: { _uid: string }; Returns: boolean }
+      is_spa_provider: { Args: { _user_id: string }; Returns: boolean }
       issue_guest_feedback_token: {
         Args: { p_guest_pass_id: string }
         Returns: string
@@ -20128,6 +20232,11 @@ export type Database = {
           person_name: string
         }[]
       }
+      sculpt_photo_consent_given: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      sculpt_photo_path_allowed: { Args: { _name: string }; Returns: boolean }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       set_phone_sms_consent: {
         Args: { _opt_in: boolean; _phone: string }

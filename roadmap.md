@@ -77,7 +77,8 @@
 - [x] Aella Sculpt forms: editable screening questions (staff editor in Packages & Zones), Health & Treatment Intake, Treatment Consent with signature + provider acknowledgement, optional photo consent; review rules checked in an undone practice run. Staff screens not opened: preview account lacks staff access
 - [x] Aella Sculpt provider review: Clear / Required / Completed (cleared or not cleared, reason, who, when); status on staff schedule and client appointment; health answers only for spa providers + managers
 - [x] Aella Sculpt preparation: short list + full page link on booking confirmation; full text in confirmation and reminder emails; preparation link on client appointment details. Emails not test-sent (no real appointment)
-- [ ] Progress tracking (measurements, photos with consent, modalities, provider notes) for providers
+- [x] Progress tracking for providers on each Aella Sculpt appointment: date, area, treatment number, measurements (no weight) with change since first record, modalities, client response, provider notes, photos only with the client's yes; earlier visits listed. Providers/managers only; clients never see it
+- [x] Replace the online seaweed wrap photo on the spa preview with the owner's own leaf photo
 - [x] Member tier discount on Aella Sculpt single and series (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%)
 - [x] Aella Sculpt late cancel (within 24h) = $80 charged to card on file, treatment returns to series; no-show = full price, or series treatment used; staff charge/waive list in Packages & Zones
 - [x] Aella Sculpt $80 late fee applies only when the client cancels; staff cancellations never add it (owner confirmed)

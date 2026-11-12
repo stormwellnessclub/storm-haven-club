@@ -25,7 +25,7 @@ function useSaveQuestion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (q: Partial<ScreeningQuestion> & { id?: string }) => {
-      const t = supabase.from as any;
+      const t = (table: string) => (supabase as any).from(table);
       const row = { ...q, updated_at: new Date().toISOString() };
       const { error } = q.id ? await t("spa_screening_questions").update(row).eq("id", q.id) : await t("spa_screening_questions").insert(row);
       if (error) throw error;
