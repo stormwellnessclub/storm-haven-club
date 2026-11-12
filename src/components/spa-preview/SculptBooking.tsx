@@ -35,7 +35,7 @@ const LOCATION = "Spa Aella at Storm Wellness Club, 18340 Middlebelt Rd, Livonia
 /** The late-cancel amount comes from the service record; null falls back to the general spa wording. */
 const cancelPolicy = (lateFeeCents: number | null | undefined) =>
   lateFeeCents
-    ? `Please give at least 24 hours' notice to cancel or reschedule. Cancelling within 24 hours carries a ${formatDollars(lateFeeCents)} late cancellation charge. A missed appointment is charged in full; with a series, the treatment is used.`
+    ? `Please give at least 24 hours' notice to cancel or reschedule. Cancelling within 24 hours carries a late cancellation charge of ${formatDollars(lateFeeCents)}. A missed appointment is charged in full; with a series, the treatment is used.`
     : "Please give at least 24 hours' notice to cancel or reschedule. Later cancellations and missed appointments are charged in full.";
 
 const Step = ({ n, title, children, locked = false }: { n: number; title: string; children: React.ReactNode; locked?: boolean }) => (

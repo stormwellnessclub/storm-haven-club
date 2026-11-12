@@ -57,7 +57,7 @@ export function SpaAppointmentRow({
     const warn =
       hoursOut < 24
         ? lateFeeCents
-          ? `This is less than 24 hours away. A $${(lateFeeCents / 100).toFixed(2)} late cancellation charge (plus card fee) will be charged to your card on file.${appt.client_package_id ? " The treatment goes back to your series." : ""} Continue?`
+          ? `This is less than 24 hours away. A late cancellation charge of $${(lateFeeCents / 100).toFixed(2)} (plus card fee) will be charged to your card on file.${appt.client_package_id ? " The treatment goes back to your series." : ""} Continue?`
           : "This is less than 24 hours away. Cancelling may forfeit your credit. Continue?"
         : "Cancel this spa appointment?";
     if (!window.confirm(warn)) return;

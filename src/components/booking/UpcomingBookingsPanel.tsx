@@ -267,7 +267,7 @@ export function UpcomingBookingsPanel({ scope = "member" }: UpcomingBookingsPane
                 ) : pending && isLateCancel(pending) && pending.kind === "spa" && lateFees?.get(String(pending.raw?.service_id)) ? (
                   <div>
                     This starts in less than 24 hours. A{" "}
-                    <strong>${(lateFees.get(String(pending.raw?.service_id))! / 100).toFixed(2)} late cancellation charge</strong>{" "}
+                    <strong>late cancellation charge of ${(lateFees.get(String(pending.raw?.service_id))! / 100).toFixed(2)}</strong>{" "}
                     (plus card fee) will be charged to your card on file.
                     {pending.raw?.client_package_id ? " The treatment goes back to your series." : ""}
                   </div>

@@ -74,8 +74,10 @@
 - [x] Aella Sculpt prices stored as staff-editable packages (Spa Management → Packages) and shown on the preview without sale styling; 8 price tests pass. Staff screen not opened: preview account lacks staff access
 - [x] Aella Sculpt treatment zones: one required zone per appointment (7 owner zones), staff add/rename/turn off/reorder in Spa Management → Packages & Zones, zone saved on the appointment and shown on staff schedules; 7 zone tests pass. Staff screen not opened: preview account lacks staff access
 - [x] Real booking on the preview (Teresa, Room 5, her current hours): Abdomen + Waist books online, other areas send requests; single or series bought with saved card; series sessions used/left/expiration on the booking page and client bookings page; staff purchase list, zone booking setting, staff booking with area. Checked up to payment without charging; payment step itself not run
-- [ ] Aella Sculpt intake + consent forms for first visits (health history/contraindications) — needs owner's form content
+- [ ] Aella Sculpt intake + consent forms for first visits (health history/contraindications) — owner is sending content
+- [ ] Aella Sculpt preparation instructions for confirmation — owner is sending
 - [ ] Progress tracking (measurements, photos with consent, modalities, provider notes) for providers
-- [ ] Member price / member discount for Aella Sculpt — owner hasn't set one (members pay the regular price for now)
-- [ ] Late-cancel rule for series sessions (today a cancelled session goes back to the series) — needs owner decision
+- [x] Member tier discount on Aella Sculpt single and series (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%)
+- [x] Aella Sculpt late cancel (within 24h) = $80 charged to card on file, treatment returns to series; no-show = full price, or series treatment used; staff charge/waive list in Packages & Zones
+- [ ] Staff-made late cancellations of Aella Sculpt don't add the $80 automatically — confirm with owner whether they should
 - [ ] Launch: turn on public menu listing when the new spa page goes live
