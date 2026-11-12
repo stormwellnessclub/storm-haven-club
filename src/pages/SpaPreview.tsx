@@ -94,10 +94,8 @@ export default function SpaPreview() {
             <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r md:from-background md:via-transparent" />
           </figure>
           <div className="relative z-10 -mt-24 flex flex-col justify-end px-6 pb-16 md:col-span-5 md:mt-0 md:min-h-[100svh] md:px-16 md:pb-24">
-            <img src={aellaLogo} alt="Spa Aella" width={600} height={247} className="h-9 w-auto self-start md:h-12" />
-            <h1 className="mt-7 font-serif text-5xl leading-[1.02] md:text-6xl lg:text-7xl">
-              The part of wellness you shouldn't have to earn.
-            </h1>
+            <h1 className="sr-only">Spa Aella</h1>
+            <img src={aellaLogo} alt="Spa Aella" width={600} height={247} className="h-12 w-auto self-start md:h-16" />
             <div className="mt-10 flex gap-10">
               <QuietLink href="#need">Explore Treatments</QuietLink>
               <QuietLink href="#book">View Availability</QuietLink>
