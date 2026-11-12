@@ -80,5 +80,5 @@
 - [ ] Progress tracking (measurements, photos with consent, modalities, provider notes) for providers
 - [x] Member tier discount on Aella Sculpt single and series (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%)
 - [x] Aella Sculpt late cancel (within 24h) = $80 charged to card on file, treatment returns to series; no-show = full price, or series treatment used; staff charge/waive list in Packages & Zones
-- [ ] Staff-made late cancellations of Aella Sculpt don't add the $80 automatically — confirm with owner whether they should
+- [x] Aella Sculpt $80 late fee applies only when the client cancels; staff cancellations never add it (owner confirmed)
 - [ ] Launch: turn on public menu listing when the new spa page goes live
