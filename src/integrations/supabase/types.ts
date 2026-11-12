@@ -14787,6 +14787,54 @@ export type Database = {
         }
         Relationships: []
       }
+      spa_treatment_packages: {
+        Row: {
+          created_at: string
+          display_order: number
+          expires_after_days: number | null
+          id: string
+          is_active: boolean
+          is_recommended: boolean
+          member_price_cents: number | null
+          name: string
+          payment_plan_available: boolean
+          price_cents: number
+          service_key: string
+          session_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          expires_after_days?: number | null
+          id?: string
+          is_active?: boolean
+          is_recommended?: boolean
+          member_price_cents?: number | null
+          name: string
+          payment_plan_available?: boolean
+          price_cents: number
+          service_key: string
+          session_count: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          expires_after_days?: number | null
+          id?: string
+          is_active?: boolean
+          is_recommended?: boolean
+          member_price_cents?: number | null
+          name?: string
+          payment_plan_available?: boolean
+          price_cents?: number
+          service_key?: string
+          session_count?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_channels: {
         Row: {
           channel_type: Database["public"]["Enums"]["channel_type"]

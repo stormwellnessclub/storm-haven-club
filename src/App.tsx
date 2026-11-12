@@ -1,4 +1,5 @@
 import SpaPreview from "@/pages/SpaPreview";
+import AellaSculptPreview from "@/pages/AellaSculptPreview";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -325,6 +326,7 @@ const App = () => (
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />
               <Route path="/spa/preview" element={<SpaPreview />} />
+              <Route path="/spa/preview/aella-sculpt" element={<AellaSculptPreview />} />
               {/* Recovery standalone modality pages */}
               <Route path="/spa/red-light-therapy" element={<SpaRedLightTherapy />} />
               <Route path="/spa/cryotherapy" element={<SpaCryotherapy />} />

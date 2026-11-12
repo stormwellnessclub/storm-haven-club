@@ -6,6 +6,7 @@ import { SpaTherapistsTab } from "@/components/admin/spa/SpaTherapistsTab";
 import { SpaRoomsTab } from "@/components/admin/spa/SpaRoomsTab";
 import { SpaAvailabilityTab } from "@/components/admin/spa/SpaAvailabilityTab";
 import { SpaAddonsTab } from "@/components/admin/spa/SpaAddonsTab";
+import { SpaPackagesTab } from "@/components/admin/spa/SpaPackagesTab";
 import { SpaPayrollTab } from "@/components/admin/spa/SpaPayrollTab";
 import { MothersDayTab } from "@/components/admin/spa/MothersDayTab";
 import { SpaReviewsAdminTab } from "@/components/admin/spa/SpaReviewsAdminTab";
@@ -39,6 +40,7 @@ export default function SpaManagement() {
           <TabsTrigger value="rooms">Rooms</TabsTrigger>
           <TabsTrigger value="availability">Availability</TabsTrigger>
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
+          <TabsTrigger value="packages">Packages</TabsTrigger>
           <TabsTrigger value="payroll">Payroll</TabsTrigger>
           <TabsTrigger value="reviews">Reviews</TabsTrigger>
           <TabsTrigger value="requests">
@@ -59,6 +61,7 @@ export default function SpaManagement() {
           <SpaAvailabilityTab initialView={initialView} initialDate={initialDate} />
         </TabsContent>
         <TabsContent value="addons"><SpaAddonsTab /></TabsContent>
+        <TabsContent value="packages"><SpaPackagesTab /></TabsContent>
         <TabsContent value="payroll"><SpaPayrollTab /></TabsContent>
         <TabsContent value="reviews"><SpaReviewsAdminTab /></TabsContent>
         <TabsContent value="requests"><SpaRequestsTab /></TabsContent>

@@ -1,6 +1,6 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SpaBookingModal } from "@/components/booking/SpaBookingModal";
 import { useSpaServices, type SpaService } from "@/hooks/useSpaManagement";
@@ -30,13 +30,16 @@ import aellaDoor from "@/assets/spa-preview/aella-door-candlelit.jpg.asset.json"
 import mudWrap from "@/assets/spa-preview/mud-wrap.jpg";
 import vitaminCWrap from "@/assets/spa-preview/vitamin-c-wrap.jpg";
 import zerobody from "@/assets/zerobody-room.jpg";
+import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
+import { BodyLabChapter } from "@/components/spa-preview/BodyLabChapter";
 
-type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string };
+type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string; cardPos?: string };
 
 const CHAPTERS: Chapter[] = [
   { id: "massage", category: "Massage", title: "Massage & Bodywork", line: "Unhurried hands, and pressure that listens.", img: handCheek.url },
   { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: glowProfile.url, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
   { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterImg: bananaLeaf.url, chapterPos: "object-[50%_30%]" },
+  { id: "body-lab", category: "Aella Body Lab", title: "Aella Body Lab", line: "Body sculpting & contouring.", img: bodyLabForm.url, cardPos: "object-[50%_30%]" },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Light, cold and stillness, on your schedule.", img: zerobody },
 ];
 
@@ -94,6 +97,12 @@ function Row({ s, onBook }: { s: SpaService; onBook: (s: SpaService) => void }) 
 export default function SpaPreview() {
   const { data: services = [] } = useSpaServices();
   const [selected, setSelected] = useState<SpaService | null>(null);
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView(), 300);
+    return () => clearTimeout(t);
+  }, [hash]);
   const active = useMemo(() => services.filter((s) => s.is_active), [services]);
   const menuFor = (cat: string) => compactMassageMenu(compactBodyWrapMenu(compactSeaweedMenu(orderedSpaMenu(active, cat))));
   const signature = useMemo(() => {
@@ -135,14 +144,17 @@ export default function SpaPreview() {
         {/* 3. What do you need today */}
         <section id="need" className="px-6 pb-28 md:px-16 scroll-mt-20">
           <Eyebrow>What do you need today?</Eyebrow>
-          <div className="mt-8 grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-            {CHAPTERS.map((c, i) => (
-              <a key={c.id} href={`#${c.id}`} className={`group relative overflow-hidden ${i % 2 ? "md:mt-16" : ""}`}>
-                <img src={c.img} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover saturate-[0.7] brightness-[0.85] transition-transform duration-[1200ms] group-hover:scale-[1.03]" />
+          <div className="mt-8 grid grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
+            {CHAPTERS.map((c, i) => {
+              const wide = i === CHAPTERS.length - 1 && CHAPTERS.length % 2 === 1; // odd last card spans the row on phones
+              return (
+              <a key={c.id} href={`#${c.id}`} className={`group relative overflow-hidden ${i % 2 ? "md:mt-16" : ""} ${wide ? "col-span-2 md:col-span-1" : ""}`}>
+                <img src={c.img} alt="" loading="lazy" className={`${wide ? "aspect-[16/10] md:aspect-[3/4]" : "aspect-[3/4]"} w-full object-cover saturate-[0.7] brightness-[0.85] transition-transform duration-[1200ms] group-hover:scale-[1.03] ${c.cardPos ?? ""}`} />
                 <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-transparent" />
                 <span className="absolute bottom-4 left-4 right-4 font-serif text-xl md:text-2xl">{c.title}</span>
               </a>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -218,6 +230,7 @@ export default function SpaPreview() {
                 </div>
               </section>
             )}
+            {c.id === "body-lab" ? <BodyLabChapter index={i} flip={i % 2 === 1} /> : (
             <section id={c.id === "facials" ? "facials-menu" : c.id} className="scroll-mt-20 border-t border-foreground/10">
               <div className="grid md:grid-cols-12">
                 <div className={`md:col-span-5 ${i % 2 ? "md:order-2" : ""}`}>
@@ -235,6 +248,7 @@ export default function SpaPreview() {
                 </div>
               </div>
             </section>
+            )}
             {c.id === "facials" && (
               <>
                 <section id="mesoeffect" aria-label="Klytia MesoEffect" className="scroll-mt-20 border-t border-foreground/10">

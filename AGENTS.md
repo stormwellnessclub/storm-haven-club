@@ -51,3 +51,4 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
+- Spa single-treatment and series prices live in `spa_treatment_packages` (manager-editable in Spa Management → Packages) and are read through `src/lib/spaPackages.ts`; treatment copy stays in its own lib file without prices. Why: owner requires package prices editable by staff, never hard-coded.
