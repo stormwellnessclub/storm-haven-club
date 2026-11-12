@@ -105,6 +105,7 @@ export default {
   			cream: 'hsl(var(--cream))',
   			'cream-dark': 'hsl(var(--cream-dark))',
   			'warm-gray': 'hsl(var(--warm-gray))',
+  			'spa-stone': 'hsl(var(--spa-stone))',
   			'cafe-cream': 'hsl(var(--cafe-cream))',
   			'cafe-stone': 'hsl(var(--cafe-stone))',
   			'cafe-stone-soft': 'hsl(var(--cafe-stone-soft))',

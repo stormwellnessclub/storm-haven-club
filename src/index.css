@@ -57,6 +57,7 @@
     --cream: 48 16% 84%; /* Limestone Haze */
     --cream-dark: 38 20% 68%; /* Still Sand */
     --warm-gray: 0 1% 78%; /* Silver Drift */
+    --spa-stone: 0 0% 65%; /* Spa leaf-photo grey */
 
     /* Gradients using brand colors */
     --gradient-gold: linear-gradient(135deg, hsl(38 45% 58%), hsl(38 50% 70%));

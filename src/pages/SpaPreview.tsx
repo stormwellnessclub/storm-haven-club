@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
@@ -14,15 +14,23 @@ import maskFacial from "@/assets/spa-preview/mask-facial.jpg.asset.json";
 import hammam from "@/assets/spa-preview/hammam-scrub.jpg.asset.json";
 import microneedling from "@/assets/spa-preview/microneedling.jpg.asset.json";
 import pauseStones from "@/assets/spa-preview/pause-stones.jpg";
+import glowProfile from "@/assets/spa-preview/glow-profile.jpg.asset.json";
+import serumDropper from "@/assets/spa-preview/serum-dropper.jpg.asset.json";
+import foamBrush from "@/assets/spa-preview/foam-brush.jpg.asset.json";
+import greenMaskEye from "@/assets/spa-preview/green-mask-eye.jpg.asset.json";
+import presenceBlur from "@/assets/spa-preview/presence-blur.jpg.asset.json";
+import quietLeaf from "@/assets/spa-preview/quiet-leaf.jpg.asset.json";
 import treatmentRoom from "@/assets/treatment-room.jpg";
 import spaHallway from "@/assets/spa-hallway.jpg";
 import spaShower from "@/assets/spa-shower.jpg";
 import saltRoom from "@/assets/salt-room.jpg";
 import zerobody from "@/assets/zerobody-room.jpg";
 
-const CHAPTERS = [
+type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string };
+
+const CHAPTERS: Chapter[] = [
   { id: "massage", category: "Massage", title: "Massage & Bodywork", line: "Unhurried hands, and pressure that listens.", img: handCheek.url },
-  { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: maskFacial.url },
+  { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: glowProfile.url, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
   { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Light, cold and stillness, on your schedule.", img: zerobody },
 ];
@@ -153,10 +161,21 @@ export default function SpaPreview() {
         {CHAPTERS.map((c, i) => {
           const rows = menuFor(c.category);
           return (
-            <section key={c.id} id={c.id} className="scroll-mt-20 border-t border-foreground/10">
+            <Fragment key={c.id}>
+            {c.id === "facials" && (
+              <section aria-label="Facials" className="relative h-[90svh] min-h-[520px] overflow-hidden">
+                <img src={presenceBlur.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-[50%_45%]" />
+                <div className="absolute inset-0 bg-background/25" />
+                <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
+                  <p className="text-[11px] tracking-[0.4em] uppercase text-foreground/85">The power of</p>
+                  <p className="mt-3 font-serif text-6xl leading-none text-foreground md:text-8xl lg:text-9xl">presence</p>
+                </div>
+              </section>
+            )}
+            <section id={c.id} className="scroll-mt-20 border-t border-foreground/10">
               <div className="grid md:grid-cols-12">
                 <div className={`md:col-span-5 ${i % 2 ? "md:order-2" : ""}`}>
-                  <img src={c.img} alt="" loading="lazy" className="h-[60svh] w-full object-cover saturate-[0.7] brightness-[0.85] md:sticky md:top-0 md:h-[100svh]" />
+                  <img src={c.chapterImg ?? c.img} alt="" loading="lazy" className={`h-[60svh] w-full object-cover saturate-[0.7] brightness-[0.85] md:sticky md:top-0 md:h-[100svh] ${c.chapterPos ?? ""}`} />
                 </div>
                 <div className="px-6 py-16 md:col-span-7 md:px-16 md:py-28">
                   <Eyebrow>{String(i + 1).padStart(2, "0")}</Eyebrow>
@@ -170,6 +189,21 @@ export default function SpaPreview() {
                 </div>
               </div>
             </section>
+            {c.id === "facials" && (
+              <>
+                <section aria-hidden="true" className="px-2 py-2 md:px-3 md:py-3">
+                  <div className="grid grid-cols-3 gap-2 md:gap-3">
+                    <img src={foamBrush.url} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover saturate-[0.8] brightness-[0.9]" />
+                    <img src={greenMaskEye.url} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover saturate-[0.8] brightness-[0.9] md:translate-y-12" />
+                    <img src={maskFacial.url} alt="" loading="lazy" className="aspect-[4/5] w-full object-cover saturate-[0.8] brightness-[0.9]" />
+                  </div>
+                </section>
+                <section aria-hidden="true" className="mt-0 bg-spa-stone md:mt-16">
+                  <img src={quietLeaf.url} alt="" loading="lazy" className="w-full md:ml-auto md:w-[45%] md:[mask-image:linear-gradient(to_right,transparent,black_35%)]" />
+                </section>
+              </>
+            )}
+            </Fragment>
           );
         })}
 
