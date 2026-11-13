@@ -51,4 +51,3 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
-- Waiver signatures stay in step between profiles and non_member_profiles through database triggers (each update copies signed status, and creating or linking a non-member record carries over an existing signature). Why: staff screens read the non-member record and showed signed clients as pending.
