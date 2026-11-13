@@ -1,3 +1,4 @@
+import { sessionMinutesText } from "@/lib/spaDuration";
 import { Helmet } from "react-helmet-async";
 import { Link } from "react-router-dom";
 import { ChevronRight, Sparkles } from "lucide-react";
@@ -42,7 +43,7 @@ export default function SpaCategoryHub({ category }: Props) {
     to: `/spa/${cat.slug}/${s.slug}`,
     name: s.name,
     tagline: s.tagline,
-    durations: variants.length ? variants.map(v => `${v.duration_minutes} min · $${v.price}`).join(" / ") : s.durations.join(" / "),
+    durations: variants.length ? variants.map(v => `${sessionMinutesText(v)} min · $${v.price}`).join(" / ") : s.durations.join(" / "),
   }); });
 
   // Recovery hub also lists the 7 standalone recovery pages

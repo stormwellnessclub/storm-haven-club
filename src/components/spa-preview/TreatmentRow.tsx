@@ -4,9 +4,10 @@ import type { SpaService } from "@/hooks/useSpaManagement";
 import { spaMenuMode } from "@/lib/spaMenu";
 import type { TreatmentGroup } from "@/lib/spaVariants";
 import { SPA_PATHS } from "@/lib/spaRoutes";
+import { sessionMinutesText } from "@/lib/spaDuration";
 
 export const money = (n: number) => `$${Number(n).toFixed(0)}`;
-export const lengthLabel = (s: Pick<SpaService, "duration_minutes" | "price">) => `${s.duration_minutes} min · ${money(s.price)}`;
+export const lengthLabel = (s: Pick<SpaService, "duration_minutes" | "price"> & { name?: string }) => `${sessionMinutesText(s)} min · ${money(s.price)}`;
 const btn = "text-xs tracking-[0.25em] uppercase border border-foreground/50 px-6 py-3 text-foreground hover:bg-foreground hover:text-background transition-colors";
 const quiet = "border-b border-foreground/40 pb-1 text-xs tracking-[0.25em] uppercase text-foreground hover:border-foreground transition-colors";
 export const lengthChoice = (on: boolean) =>

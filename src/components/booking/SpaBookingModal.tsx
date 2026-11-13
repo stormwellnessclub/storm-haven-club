@@ -1,3 +1,4 @@
+import { sessionMinutesText } from "@/lib/spaDuration";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
 import { useAuth } from "@/contexts/AuthContext";
@@ -816,7 +817,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
           <DialogDescription>
             {isHourly
               ? `Choose how many hours you'd like, then pick your date and time. $${service.price.toFixed(0)} per hour.`
-              : `Select your preferred date and time for this ${service.duration_minutes} min service.`}
+              : `Select your preferred date and time for this ${sessionMinutesText(service)} min service.`}
           </DialogDescription>
         </DialogHeader>
 

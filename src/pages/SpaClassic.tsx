@@ -1,3 +1,4 @@
+import { sessionMinutesText } from "@/lib/spaDuration";
 import { Helmet } from "react-helmet-async";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
@@ -627,7 +628,7 @@ export default function SpaClassic() {
                     <div className="flex items-center gap-4 text-sm">
                       <span className="flex items-center gap-1 text-muted-foreground">
                         <Clock className="w-4 h-4" />
-                        {service.duration_minutes} min
+                        {sessionMinutesText(service)} min
                       </span>
                       <div className="flex flex-col">
                         <span className="text-gold font-semibold text-lg">

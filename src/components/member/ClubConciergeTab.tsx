@@ -35,10 +35,10 @@ const conciergeServices: ConciergeService[] = [
   },
   {
     id: "ice-bed",
-    title: "Ice Bed (ZeroBody Cryo)",
-    description: "Available for Platinum and Diamond members via credits. If you don't have credits, you can purchase an ice bed pass.",
+    title: "Starpool ZeroBody Cryo",
+    description: "Available for Platinum and Diamond members via credits. If you don't have credits, you can purchase a ZeroBody Cryo pass.",
     icon: <Snowflake className="h-6 w-6" />,
-    subject: "Concierge: Ice Bed Request",
+    subject: "Concierge: Starpool ZeroBody Cryo Request",
     creditType: "dry_cryo",
   },
   {

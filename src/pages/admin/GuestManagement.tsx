@@ -86,7 +86,7 @@ interface GuestProfile {
 }
 
 const SERVICE_OPTIONS = [
-  { value: "ice_bed", label: "Ice Bed / Zero Body Cryo", price: 45 },
+  { value: "ice_bed", label: "Starpool ZeroBody Cryo", price: 45 },
   { value: "red_light", label: "Red Light Therapy", price: 35 },
   { value: "salt_room", label: "Salt Room", price: 30 },
   { value: "cold_plunge", label: "Cold Plunge", price: 25 },
