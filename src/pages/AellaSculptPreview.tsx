@@ -140,20 +140,12 @@ export default function AellaSculptPreview() {
         {/* Series + prices */}
         <SculptSeries />
 
-        {/* Is / isn't */}
+        {/* What it is ("It is not" list removed at the owner's request; copy kept in the content file) */}
         <section className="border-t border-foreground/10 px-6 py-28 md:px-16 md:py-40">
-          <div className="grid gap-12 md:grid-cols-12">
-            <div className="md:col-span-5">
-              <Eyebrow>What Aella Sculpt is — and isn't</Eyebrow>
-              <p className="mt-6 font-serif text-3xl leading-snug md:text-4xl">{s.is}</p>
-            </div>
-            <div className="md:col-span-6 md:col-start-7">
-              <p className="text-muted-foreground">It is not:</p>
-              <ul className="mt-4">
-                {s.isnt.map((x) => <li key={x} className="border-t border-foreground/15 py-4 text-lg last:border-b">{x}</li>)}
-              </ul>
-              <p className="mt-6 text-sm text-muted-foreground">{s.isntNote}</p>
-            </div>
+          <div className="max-w-3xl">
+            <Eyebrow>What Aella Sculpt is</Eyebrow>
+            <p className="mt-6 font-serif text-3xl leading-snug md:text-4xl">{s.is}</p>
+            <p className="mt-8 text-sm text-muted-foreground">{s.isntNote}</p>
           </div>
         </section>
 
