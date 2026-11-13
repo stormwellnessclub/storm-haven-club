@@ -16,6 +16,7 @@ import glowProfile from "@/assets/spa-preview/glow-profile.jpg.asset.json";
 import massageHands from "@/assets/spa-preview/massage-hands-rest.jpg.asset.json";
 import handCheekMoody from "@/assets/spa-preview/hand-cheek-moody.jpg";
 import hammam from "@/assets/spa-preview/hammam-scrub.jpg.asset.json";
+import bodyWrapRitual from "@/assets/spa-preview/body-wrap-ritual.jpg.asset.json";
 import serumDropper from "@/assets/spa-preview/serum-dropper.jpg.asset.json";
 import presenceEven from "@/assets/spa-preview/presence-even.jpg.asset.json";
 import aellaRoom from "@/assets/spa-preview/aella-treatment-room.jpg.asset.json";
@@ -34,7 +35,7 @@ type Chapter = { id: string; category: string; title: string; line: string; img:
 const CHAPTERS: Chapter[] = [
   { id: "massage", category: "Massage", title: "Massage & Bodywork", line: "Unhurried hands, and pressure that listens.", img: massageHands.url, cardPos: "object-[50%_35%]", chapterPos: "object-[50%_35%]" },
   { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: handCheekMoody, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
-  { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterPos: "object-[50%_50%]", chapterTone: "saturate-[0.75] brightness-[0.62] sepia-[0.15]" },
+  { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: bodyWrapRitual.url, cardPos: "object-[50%_55%]", chapterImg: hammam.url, chapterPos: "object-[50%_50%]", chapterTone: "saturate-[0.75] brightness-[0.62] sepia-[0.15]" },
   { id: "body-lab", category: "Aella Body Lab", title: "Aella Body Lab", line: "Body sculpting & contouring.", img: bodyLabForm.url, cardPos: "object-[50%_30%]" },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Heat, cold, light and stillness, on your schedule.", img: saunaSilhouette.url, cardPos: "object-[60%_50%]", chapterPos: "object-[60%_50%]" },
 ];
