@@ -103,4 +103,4 @@
 ## Spa launch (Nov 13)
 - [x] Make the new spa design the live Spa page (keeps booking, requests, reviews, gift cards/vouchers, member pricing, body roller; old design at /spa/classic; old preview links forward)
 - [x] Launch Aella Sculpt publicly: abdomen bookable online, other zones by request, staff can book any zone
-- [ ] Fresh safety check, then publish
+- [x] Fresh safety check, then publish (requested Nov 13)
