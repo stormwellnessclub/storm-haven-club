@@ -92,3 +92,10 @@
 - [x] Even out the dark-to-light skincare photo; darken Klytia marble photo
 - [x] Move the three facial photos onto facial Learn More pages
 - [x] Bottom "find your time" / Book a treatment buttons open booking instead of jumping to the top
+
+## Julie & Cheryl — Sat Nov 14 massages
+- [x] Move Julie's massage to 11:00 AM
+- [x] Record Cheryl's phone agreement to texts
+- [x] Connect both appointments to their accounts (fix Julie's email, attach Cheryl's saved card)
+- [x] Send Cheryl confirmation + Julie time update (text + email), with intake form note, no card-on-file wording
+- [x] Answer: why accounts show waiver unsigned (66 accounts have the second waiver record out of sync; fix awaits owner OK)

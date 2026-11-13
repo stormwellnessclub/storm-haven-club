@@ -3384,13 +3384,14 @@ serve(async (req) => {
       }
 
       case 'spa_appointment_confirmation': {
-        subject = `Spa appointment confirmed — ${data.service}`;
+        // previousTime set = staff moved the appointment; same email, worded as a time update.
+        subject = data.previousTime ? `Updated time — ${data.service} on ${data.date}` : `Spa appointment confirmed — ${data.service}`;
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}
             <div style="${emailStyles.content}">
-              <h2 style="${emailStyles.heading}">Appointment Confirmed ✓</h2>
-              <p>Looking forward to seeing you. Here are the details:</p>
+              <h2 style="${emailStyles.heading}">${data.previousTime ? 'Your Appointment Time Has Changed' : 'Appointment Confirmed ✓'}</h2>
+              ${data.previousTime ? `<p>Your appointment has moved from <strong>${data.previousTime}</strong> to <strong>${data.time}</strong>. Here are your updated details:</p>` : `<p>Looking forward to seeing you. Here are the details:</p>`}
               ${data.guestCheckout ? `<p>Your booking is confirmed. Before your visit, please complete your intake and booking waiver.</p>` : ''}
               ${data.guestCheckout && data.accountSetupUrl ? `<div style="border:1px solid #e5e0d6; border-radius:8px; padding:16px; margin:16px 0;"><p style="margin:0 0 6px 0; font-weight:600;">Next step: set up your account</p><p style="margin:0 0 12px 0; font-size:14px; color:#4B4537;">You booked without an account. Use the email you booked with and choose a password to view, change, or cancel your appointment.</p><a href="${data.accountSetupUrl}" style="display:inline-block; background:#1C170F; color:#F5EFE6; padding:10px 18px; border-radius:6px; text-decoration:none; font-weight:600;">Set up your account</a></div>` : ''}
               <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
