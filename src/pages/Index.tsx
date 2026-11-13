@@ -18,7 +18,7 @@ import reformer from "@/assets/reformer-pilates-hero.jpg";
 import cycling from "@/assets/cycling-studio-hero.jpg";
 import gymFloor from "@/assets/gym-area-1.jpg";
 import aerobics from "@/assets/aerobics-studio-hero.jpg";
-import saltRoom from "@/assets/salt-room.jpg";
+import saltRoom from "@/assets/salt-room-clean.jpg";
 import steamRoom from "@/assets/wellness/steam-room-clean.jpg";
 import sauna from "@/assets/wellness/sauna-interior-wide.jpg";
 import plunge from "@/assets/wellness/cold-plunge-premium.jpg";
