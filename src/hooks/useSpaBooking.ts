@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -227,7 +228,7 @@ export async function sendSpaNotifications(args: {
               needsIntake,
               intakeKind: isSculpt ? "sculpt" : /wrap/i.test(`${a.service_category || ""} ${a.service_name || ""}`) ? "body_wrap" : "massage",
               preparation,
-              preparationUrlPath: preparation && isSculpt ? "/spa/preview/aella-sculpt/preparation" : null,
+              preparationUrlPath: preparation && isSculpt ? SPA_PATHS.sculptPreparation : null,
               intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
               setupUrlPath,
               needsCard: args.kind === "confirmation" && needsCard,

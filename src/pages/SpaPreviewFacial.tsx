@@ -32,7 +32,7 @@ const Eyebrow = ({ children }: { children: React.ReactNode }) => (
 );
 const primary = "inline-flex items-center justify-center border border-foreground bg-foreground px-8 py-4 text-xs tracking-[0.25em] uppercase text-background transition-opacity hover:opacity-90";
 
-/** Private preview of a facial's "View Treatment" page (noindex). */
+/** A facial's "View Treatment" page in the Spa Aella design (canonical: the /spa/facials/:slug service page). */
 export default function SpaPreviewFacial() {
   const { slug = "" } = useParams<{ slug: string }>();
   const content = getService("facials", slug);
@@ -41,16 +41,16 @@ export default function SpaPreviewFacial() {
     () => groupTreatments(services.filter((s) => s.category === "Facials")).find((g) => g.name === content?.name),
     [services, content?.name],
   );
-  if (!content) return <Navigate to="/spa/preview#facials-menu" replace />;
+  if (!content) return <Navigate to="/spa#facials-menu" replace />;
   const photo = FACIAL_PHOTOS[slug] ?? FACIAL_PHOTOS.customized;
   const lengths = group?.variants ?? [];
-  const request = requestHref({ category: "Facials" });
+  const request = requestHref({ name: group?.variants[0]?.name ?? content.name });
 
   return (
     <Layout>
       <Helmet>
-        <title>{content.name} · Spa Aella preview</title>
-        <meta name="robots" content="noindex,nofollow" />
+        <title>{`${content.name} | Spa Aella`}</title>
+        <link rel="canonical" href={`https://stormwellnessclub.com/spa/facials/${slug}`} />
       </Helmet>
       <div className="dark bg-background text-foreground">
         <section className="relative min-h-[100svh] md:grid md:grid-cols-12">
@@ -59,7 +59,7 @@ export default function SpaPreviewFacial() {
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent md:hidden" />
           </figure>
           <div className="relative z-10 flex min-h-[100svh] flex-col justify-end px-6 pb-16 md:col-span-5 md:px-16 md:pb-24">
-            <Link to="/spa/preview#facials-menu" className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground hover:text-foreground">
+            <Link to="/spa#facials-menu" className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground hover:text-foreground">
               Spa Aella · Facials
             </Link>
             <h1 className="mt-6 font-serif text-5xl leading-[1.02] md:text-6xl lg:text-7xl">{content.name}</h1>
@@ -108,7 +108,7 @@ export default function SpaPreviewFacial() {
           <p className="mx-auto mt-5 max-w-md text-muted-foreground">Send us the days and times that suit you, and we'll confirm your appointment.</p>
           <div className="mt-10"><Link to={request} className={primary}>Request Appointment</Link></div>
           <div className="mt-12">
-            <Link to="/spa/preview#facials-menu" className="text-xs tracking-[0.25em] uppercase text-muted-foreground hover:text-foreground">Back to facials</Link>
+            <Link to="/spa#facials-menu" className="text-xs tracking-[0.25em] uppercase text-muted-foreground hover:text-foreground">Back to facials</Link>
           </div>
         </section>
       </div>

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 import { format, parse } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { useMySpaPackages } from "@/hooks/useSpaClientPackages";
@@ -24,7 +25,7 @@ export function MySpaSeriesCard() {
             </p>
             {s.next && <p>Next appointment: {d(s.next.appointment_date)} · {formatTime12h(s.next.appointment_time.slice(0, 5))}{s.next.treatment_zone_name ? ` · ${s.next.treatment_zone_name}` : ""}</p>}
             {s.previous.length > 0 && <p className="text-muted-foreground">Previous: {s.previous.slice(0, 4).map((p) => d(p.appointment_date)).join(", ")}</p>}
-            {s.usable && <Link to="/spa/preview/aella-sculpt#book" className="inline-block pt-1 text-sm underline underline-offset-4">Schedule next treatment</Link>}
+            {s.usable && <Link to={SPA_PATHS.sculptBook} className="inline-block pt-1 text-sm underline underline-offset-4">Schedule next treatment</Link>}
           </div>
         ))}
       </CardContent>

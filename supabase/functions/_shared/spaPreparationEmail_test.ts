@@ -5,11 +5,11 @@ Deno.test("preparation block lists every instruction and escapes text", () => {
   const html = preparationHtml({ title: "Before Your Aella Sculpt Appointment", items: [
     { heading: "Arrive normally hydrated.", body: "Maintain your usual fluid intake." },
     { heading: "Eat <normally>.", body: "You do not need to fast." },
-  ] }, "https://stormwellnessclub.com/spa/preview/aella-sculpt/preparation");
+  ] }, "https://stormwellnessclub.com/spa/aella-sculpt/preparation");
   assert(html.includes("Before Your Aella Sculpt Appointment"));
   assert(html.includes("Arrive normally hydrated."));
   assert(html.includes("Eat &lt;normally&gt;."));
-  assert(html.includes("/spa/preview/aella-sculpt/preparation"));
+  assert(html.includes("/spa/aella-sculpt/preparation"));
 });
 
 Deno.test("no preparation, no block", () => {

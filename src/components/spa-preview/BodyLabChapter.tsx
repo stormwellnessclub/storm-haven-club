@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 import { AELLA_SCULPT, BODY_LAB } from "@/lib/aellaSculpt";
 import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
 
 const btn =
   "text-xs tracking-[0.25em] uppercase border border-foreground/50 px-5 py-3 text-foreground hover:bg-foreground hover:text-background transition-colors text-center";
 
-/** Spa preview chapter for Aella Body Lab. Built as a list so more Body Lab treatments can join later. */
+/** Spa page chapter for Aella Body Lab. Built as a list so more Body Lab treatments can join later. */
 export function BodyLabChapter({ index, flip }: { index: number; flip: boolean }) {
   const treatments = [AELLA_SCULPT];
   return (
@@ -33,8 +34,8 @@ export function BodyLabChapter({ index, flip }: { index: number; flip: boolean }
                 <p className="mt-5 max-w-xl leading-relaxed text-muted-foreground">{t.card}</p>
                 <p className="mt-5 text-xs tracking-[0.2em] uppercase text-muted-foreground">{t.minutes} minutes</p>
                 <div className="mt-8 flex flex-wrap gap-3">
-                  <Link to="/spa/preview/aella-sculpt#book" className={btn}>Book Treatment</Link>
-                  <Link to="/spa/preview/aella-sculpt" className={`${btn} border-transparent hover:border-foreground/50 hover:bg-transparent hover:text-foreground`}>Learn More</Link>
+                  <Link to={SPA_PATHS.sculptBook} className={btn}>Book Treatment</Link>
+                  <Link to={SPA_PATHS.sculpt} className={`${btn} border-transparent hover:border-foreground/50 hover:bg-transparent hover:text-foreground`}>Learn More</Link>
                 </div>
               </li>
             ))}

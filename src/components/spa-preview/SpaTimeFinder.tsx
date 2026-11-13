@@ -4,7 +4,8 @@ import type { SpaService } from "@/hooks/useSpaManagement";
 import { orderedSpaMenu, spaMenuMode } from "@/lib/spaMenu";
 import { groupTreatments } from "@/lib/spaVariants";
 import { AELLA_SCULPT } from "@/lib/aellaSculpt";
-import { lengthChoice, lengthLabel, requestHref } from "./TreatmentRow";
+import { lengthChoice, lengthLabel } from "./TreatmentRow";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 
 const choice = (on: boolean) =>
   `border px-5 py-3 text-left text-sm transition-colors ${on ? "border-foreground bg-foreground text-background" : "border-foreground/30 text-foreground hover:border-foreground/70"}`;
@@ -24,10 +25,11 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
  * "Let's find your time": pick the kind of care, the treatment and its length, then open booking
  * for exactly that choice. Facials go to the appointment request; Aella Sculpt goes to its own booking.
  */
-export function SpaTimeFinder({ services, chapters, onBook }: {
+export function SpaTimeFinder({ services, chapters, onBook, onRequest }: {
   services: SpaService[];
   chapters: { category: string; title: string }[];
   onBook: (s: SpaService) => void;
+  onRequest: (s: SpaService) => void;
 }) {
   const [cat, setCat] = useState<string | null>(null);
   const [groupKey, setGroupKey] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function SpaTimeFinder({ services, chapters, onBook }: {
           <p className="mb-8 max-w-xl text-sm leading-relaxed text-muted-foreground">
             {AELLA_SCULPT.minutes} minutes. Choose your treatment area and a single treatment or series on the next page.
           </p>
-          <Link to="/spa/preview/aella-sculpt#book" className={primary}>Find Your Time</Link>
+          <Link to={SPA_PATHS.sculptBook} className={primary}>Find Your Time</Link>
         </Step>
       )}
 
@@ -106,7 +108,7 @@ export function SpaTimeFinder({ services, chapters, onBook }: {
             {mode === "request" && (
               <>
                 <p className="mb-6 max-w-xl text-sm text-muted-foreground">Send us the days and times that suit you, and we'll confirm your appointment.</p>
-                <Link to={requestHref(variant)} className={primary}>Request Appointment</Link>
+                <button type="button" className={primary} onClick={() => onRequest(variant)}>Request Appointment</button>
               </>
             )}
           </div>

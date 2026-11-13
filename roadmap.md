@@ -82,7 +82,7 @@
 - [x] Member tier discount on Aella Sculpt single and series (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%)
 - [x] Aella Sculpt late cancel (within 24h) = $80 charged to card on file, treatment returns to series; no-show = full price, or series treatment used; staff charge/waive list in Packages & Zones
 - [x] Aella Sculpt $80 late fee applies only when the client cancels; staff cancellations never add it (owner confirmed)
-- [ ] Launch: turn on public menu listing when the new spa page goes live
+- [x] Launch: turn on public menu listing when the new spa page goes live
 
 ## Spa preview — owner review round (Nov 12)
 - [x] New main hero photo + small Spa Aella logo (main spa page only)
@@ -99,3 +99,8 @@
 - [x] Connect both appointments to their accounts (fix Julie's email, attach Cheryl's saved card)
 - [x] Send Cheryl confirmation + Julie time update (text + email), with intake form note, no card-on-file wording
 - [x] Answer: why accounts show waiver unsigned (66 accounts have the second waiver record out of sync; fix awaits owner OK)
+
+## Spa launch (Nov 13)
+- [x] Make the new spa design the live Spa page (keeps booking, requests, reviews, gift cards/vouchers, member pricing, body roller; old design at /spa/classic; old preview links forward)
+- [x] Launch Aella Sculpt publicly: abdomen bookable online, other zones by request, staff can book any zone
+- [ ] Fresh safety check, then publish

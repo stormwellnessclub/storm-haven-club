@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 import { Link } from "react-router-dom";
 import { addDays, format, parse } from "date-fns";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ import type { SpaPreparation } from "@/lib/aellaSculptForms";
 
 const SERVICE_KEY = "aella-sculpt";
 const SAVED = "aella-sculpt-booking";
-const RETURN_PATH = "/spa/preview/aella-sculpt#book";
+const RETURN_PATH = SPA_PATHS.sculptBook;
 const LOCATION = "Spa Aella at Storm Wellness Club, 18340 Middlebelt Rd, Livonia, MI 48152";
 /** The late-cancel amount comes from the service record; null falls back to the general spa wording. */
 const cancelPolicy = (lateFeeCents: number | null | undefined) =>

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -200,4 +201,4 @@ export function useSpaPreparations() {
 
 /** Where the full preparation page lives for a service. */
 export const preparationPath = (serviceKey: string | null | undefined) =>
-  serviceKey === SCULPT_KEY ? "/spa/preview/aella-sculpt/preparation" : null;
+  serviceKey === SCULPT_KEY ? SPA_PATHS.sculptPreparation : null;

@@ -1,4 +1,5 @@
-import { Helmet } from "react-helmet-async";
+import { SEOHead } from "@/components/SEOHead";
+import { SPA_PATHS } from "@/lib/spaRoutes";
 import { Link } from "react-router-dom";
 import { useHashScroll } from "@/hooks/useHashScroll";
 import { Layout } from "@/components/Layout";
@@ -21,7 +22,7 @@ const QuietLink = ({ href, children }: { href: string; children: React.ReactNode
   </a>
 );
 
-/** Private design preview of the Aella Sculpt treatment page (noindex, not linked from the menu). */
+/** The Aella Sculpt treatment page (/spa/aella-sculpt), linked from the Aella Body Lab chapter of the Spa page. */
 export default function AellaSculptPreview() {
   useHashScroll();
 
@@ -30,10 +31,11 @@ export default function AellaSculptPreview() {
   const zones = activeZones(zoneRows, "aella-sculpt");
   return (
     <Layout>
-      <Helmet>
-        <title>Aella Sculpt preview</title>
-        <meta name="robots" content="noindex,nofollow" />
-      </Helmet>
+      <SEOHead
+        title="Aella Sculpt Body Contouring | Spa Aella, Livonia MI"
+        description="Aella Sculpt at Spa Aella in Livonia, MI: a 90-minute non-invasive body contouring treatment. Book a single treatment or a series online."
+        path={SPA_PATHS.sculpt}
+      />
       <div className="dark bg-background text-foreground">
         {/* Hero */}
         <section className="relative min-h-[100svh] md:grid md:grid-cols-12">
@@ -43,7 +45,7 @@ export default function AellaSculptPreview() {
             <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent md:hidden" />
           </figure>
           <div className="relative z-10 flex min-h-[100svh] flex-col justify-end px-6 pb-16 md:col-span-5 md:px-16 md:pb-24">
-            <Link to="/spa/preview#body-lab" className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground hover:text-foreground">
+            <Link to="/spa#body-lab" className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground hover:text-foreground">
               Spa Aella · {BODY_LAB.name}
             </Link>
             <h1 className="mt-6 font-serif text-6xl leading-none md:text-7xl lg:text-8xl">{s.name}</h1>
@@ -181,7 +183,7 @@ export default function AellaSculptPreview() {
         <SculptBooking />
 
         <div className="px-6 pb-20 text-center md:px-16">
-          <Link to="/spa/preview#body-lab" className="text-xs tracking-[0.25em] uppercase text-muted-foreground hover:text-foreground">
+          <Link to="/spa#body-lab" className="text-xs tracking-[0.25em] uppercase text-muted-foreground hover:text-foreground">
             Back to Spa Aella
           </Link>
         </div>

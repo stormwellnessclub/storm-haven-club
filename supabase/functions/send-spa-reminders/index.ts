@@ -148,7 +148,7 @@ async function processWindow(admin: any, window: Window) {
                   intakeKind,
                   intakeUrlPath: `${bookingsPath}?intake=${a.id}`,
                   preparation,
-                  preparationUrlPath: preparation && isSculpt ? "/spa/preview/aella-sculpt/preparation" : null,
+                  preparationUrlPath: preparation && isSculpt ? "/spa/aella-sculpt/preparation" : null,
                 },
               }),
             })

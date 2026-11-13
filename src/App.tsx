@@ -46,6 +46,7 @@ import Classes from "./pages/Classes";
 import Schedule from "./pages/Schedule";
 import PublicClassTypeDetail from "./pages/ClassTypeDetail";
 import Spa from "./pages/Spa";
+import SpaClassic from "./pages/SpaClassic";
 import SpaRedLightTherapy from "./pages/spa/RedLightTherapy";
 import SpaCryotherapy from "./pages/spa/Cryotherapy";
 import SpaInfraredSauna from "./pages/spa/InfraredSauna";
@@ -327,10 +328,15 @@ const App = () => (
 
               <Route path="/book" element={<Schedule />} />
               <Route path="/spa" element={<Spa />} />
-              <Route path="/spa/preview" element={<SpaPreview />} />
-              <Route path="/spa/preview/aella-sculpt" element={<AellaSculptPreview />} />
-              <Route path="/spa/preview/facials/:slug" element={<SpaPreviewFacial />} />
-              <Route path="/spa/preview/aella-sculpt/preparation" element={<AellaSculptPreparation />} />
+              <Route path="/spa/classic" element={<SpaClassic />} />
+              <Route path="/spa/aella-sculpt" element={<AellaSculptPreview />} />
+              <Route path="/spa/aella-sculpt/preparation" element={<AellaSculptPreparation />} />
+              <Route path="/spa/treatments/facials/:slug" element={<SpaPreviewFacial />} />
+              {/* Old private-preview addresses forward to the live pages */}
+              <Route path="/spa/preview" element={<SpaPreview to="spa" />} />
+              <Route path="/spa/preview/aella-sculpt" element={<SpaPreview to="sculpt" />} />
+              <Route path="/spa/preview/aella-sculpt/preparation" element={<SpaPreview to="preparation" />} />
+              <Route path="/spa/preview/facials/:slug" element={<SpaPreview to="facial" />} />
               {/* Recovery standalone modality pages */}
               <Route path="/spa/red-light-therapy" element={<SpaRedLightTherapy />} />
               <Route path="/spa/cryotherapy" element={<SpaCryotherapy />} />
