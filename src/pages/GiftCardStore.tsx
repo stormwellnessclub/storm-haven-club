@@ -298,7 +298,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
               {!clientSecret ? (
                 <>
                   <div>
-                    <div className="mb-3 flex gap-2">
+                    <div className="mb-3 grid grid-cols-1 gap-2 sm:flex [&>button]:whitespace-normal">
                       <Button
                         variant={mode === "amount" ? "default" : "outline"}
                         size="sm"
