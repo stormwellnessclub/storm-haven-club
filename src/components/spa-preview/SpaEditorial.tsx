@@ -24,7 +24,6 @@ import klytiaHeritageDark from "@/assets/spa-preview/klytia-heritage-dark.jpg.as
 import microneedling from "@/assets/spa-preview/microneedling.jpg.asset.json";
 import aellaDoor from "@/assets/spa-preview/aella-door-candlelit.jpg.asset.json";
 import saunaSilhouette from "@/assets/spa-preview/sauna-silhouette.jpg.asset.json";
-import mudWrap from "@/assets/spa-preview/mud-wrap.jpg";
 import bodyLabForm from "@/assets/spa-preview/body-lab-form.jpg.asset.json";
 
 type Chapter = { id: string; category: string; title: string; line: string; img: string; chapterImg?: string; chapterPos?: string; chapterTone?: string; cardPos?: string };
@@ -50,9 +49,6 @@ function rowExtras(g: TreatmentGroup<SpaService>) {
       notes: SEAWEED_RITUAL_BENEFITS.map((b) => b.title),
       aside: SEAWEED_RITUAL_PREPARATION,
     };
-  }
-  if (first.category === "Body Wraps" && /mud/i.test(g.name)) {
-    return { photo: { src: mudWrap, alt: "Mineral mud brushed across a guest's back in candlelight", pos: "object-[50%_45%]" } };
   }
   if (first.category === "Facials") {
     const slug = FACIAL_SLUGS.get(g.name);
