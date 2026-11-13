@@ -14,7 +14,7 @@ import { BodyLabChapter } from "@/components/spa-preview/BodyLabChapter";
 import aellaLogo from "@/assets/aella-logo-mark.png";
 import glowProfile from "@/assets/spa-preview/glow-profile.jpg.asset.json";
 import massageHands from "@/assets/spa-preview/massage-hands-rest.jpg.asset.json";
-import handCheek from "@/assets/spa-preview/hand-cheek.jpg.asset.json";
+import handCheekMoody from "@/assets/spa-preview/hand-cheek-moody.jpg";
 import hammam from "@/assets/spa-preview/hammam-scrub.jpg.asset.json";
 import serumDropper from "@/assets/spa-preview/serum-dropper.jpg.asset.json";
 import presenceEven from "@/assets/spa-preview/presence-even.jpg.asset.json";
@@ -33,7 +33,7 @@ type Chapter = { id: string; category: string; title: string; line: string; img:
 
 const CHAPTERS: Chapter[] = [
   { id: "massage", category: "Massage", title: "Massage & Bodywork", line: "Unhurried hands, and pressure that listens.", img: massageHands.url, cardPos: "object-[50%_35%]", chapterPos: "object-[50%_35%]" },
-  { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: handCheek.url, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
+  { id: "facials", category: "Facials", title: "Facials", line: "Skin, read closely and treated with care.", img: handCheekMoody, chapterImg: serumDropper.url, chapterPos: "object-[50%_40%]" },
   { id: "body", category: "Body Wraps", title: "Body Treatments", line: "Warmth, minerals and a slow rinse.", img: hammam.url, chapterPos: "object-[50%_50%]", chapterTone: "saturate-[0.75] brightness-[0.62] sepia-[0.15]" },
   { id: "body-lab", category: "Aella Body Lab", title: "Aella Body Lab", line: "Body sculpting & contouring.", img: bodyLabForm.url, cardPos: "object-[50%_30%]" },
   { id: "recovery", category: "Recovery", title: "Recovery", line: "Heat, cold, light and stillness, on your schedule.", img: saunaSilhouette.url, cardPos: "object-[60%_50%]", chapterPos: "object-[60%_50%]" },
@@ -103,15 +103,8 @@ export default function SpaPreview() {
           </div>
         </section>
 
-        {/* 2. Why Aella */}
-        <section className="px-6 py-28 md:py-44 md:px-16">
-          <p className="mx-auto max-w-3xl text-center font-serif text-3xl leading-snug md:text-5xl text-foreground/90">
-            You should not have to be exhausted before you decide your body deserves care.
-          </p>
-        </section>
-
-        {/* 3. What do you need today */}
-        <section id="need" className="px-6 pb-28 md:px-16 scroll-mt-20">
+        {/* 2. What do you need today */}
+        <section id="need" className="px-6 pt-20 pb-28 md:px-16 md:pt-28 scroll-mt-20">
           <Eyebrow>What do you need today?</Eyebrow>
           <div className="mt-8 grid grid-cols-2 gap-2 md:grid-cols-5 md:gap-3">
             {CHAPTERS.map((c, i) => {
