@@ -17783,6 +17783,10 @@ export type Database = {
         Args: { _user_id: string }
         Returns: boolean
       }
+      can_read_spa_screening: {
+        Args: { _service_key: string }
+        Returns: boolean
+      }
       can_self_join_society_next_round: { Args: never; Returns: boolean }
       cancel_class_booking: { Args: { _booking_id: string }; Returns: Json }
       cancel_event_reservation: { Args: { _slug: string }; Returns: Json }
