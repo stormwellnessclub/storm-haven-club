@@ -1,67 +1,22 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useMyPTPortal, upcomingPT, type MyPTPortalData } from "@/hooks/useMyPTPortal";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dumbbell, Calendar, X } from "lucide-react";
 import { format as fmtDate, parseISO, differenceInDays, differenceInHours } from "date-fns";
-import { PT_FORMAT_LABEL, PtPass, memberCancelOutcomeMessage } from "@/lib/ptFormat";
+import { PT_FORMAT_LABEL, memberCancelOutcomeMessage } from "@/lib/ptFormat";
 import { toast } from "sonner";
 
-interface Appt {
-  id: string; format: string; starts_at: string; duration_minutes: number;
-  instructor_id: string | null; status: string;
-}
+type Appt = MyPTPortalData["appointments"][number];
 
 export function MyPTPassesSection() {
-  const { user } = useAuth();
   const qc = useQueryClient();
 
-  const { data: passes = [] } = useQuery({
-    queryKey: ["my-pt-passes", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("pt_passes")
-        .select("*")
-        .eq("user_id", user!.id)
-        .in("status", ["active", "exhausted", "expired"])
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as PtPass[];
-    },
-  });
-
-  const { data: appts = [] } = useQuery({
-    queryKey: ["my-pt-appointments", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("pt_appointments")
-        .select("id, format, starts_at, duration_minutes, instructor_id, status")
-        .eq("user_id", user!.id)
-        .eq("status", "scheduled")
-        .gte("starts_at", new Date().toISOString())
-        .order("starts_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as Appt[];
-    },
-  });
-
-  const instructorIds = Array.from(new Set(appts.map((a) => a.instructor_id).filter(Boolean) as string[]));
-  const { data: instructors = {} } = useQuery({
-    queryKey: ["my-pt-instructors", instructorIds],
-    enabled: instructorIds.length > 0,
-    queryFn: async (): Promise<Record<string, string>> => {
-      const { data } = await (supabase.rpc as any)("get_public_instructors");
-      const m: Record<string, string> = {};
-      (data ?? [])
-        .filter((i: any) => instructorIds.includes(i.id))
-        .forEach((i: any) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
-      return m;
-    },
-  });
+  const { data: portal } = useMyPTPortal();
+  const passes = (portal?.passes ?? []).filter((p) => ["active", "exhausted", "expired"].includes(p.status));
+  const appts = upcomingPT(portal);
 
   async function cancel(a: Appt) {
     const hoursOut = differenceInHours(parseISO(a.starts_at), new Date());
@@ -75,8 +30,7 @@ export function MyPTPassesSection() {
     if (error) return toast.error(error.message);
     const row = Array.isArray(data) ? data[0] : data;
     toast.success(memberCancelOutcomeMessage(row?.cancel_credit_outcome));
-    qc.invalidateQueries({ queryKey: ["my-pt-appointments"] });
-    qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
+    qc.invalidateQueries({ queryKey: ["pt-my-portal"] });
   }
 
 
@@ -100,7 +54,7 @@ export function MyPTPassesSection() {
                         {fmtDate(parseISO(a.starts_at), "EEE, MMM d · h:mm a")} · {a.duration_minutes} min
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {a.instructor_id ? (instructors[a.instructor_id] ?? "Trainer") : "Any trainer"}
+                        {a.trainer || "Any trainer"}
                       </div>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => cancel(a)}>
@@ -124,7 +78,7 @@ export function MyPTPassesSection() {
           </h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {passes.map((p) => {
-              const exp = parseISO(p.expires_at);
+              const exp = parseISO(p.expires_at ?? new Date().toISOString());
               const days = differenceInDays(exp, new Date());
               const expSoon = p.status === "active" && days <= 14;
               return (
@@ -132,7 +86,7 @@ export function MyPTPassesSection() {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-1">
                       <div>
-                        <div className="font-medium">{PT_FORMAT_LABEL[p.format]}</div>
+                        <div className="font-medium">{PT_FORMAT_LABEL[p.format as keyof typeof PT_FORMAT_LABEL] ?? p.format}</div>
                         <div className="text-xs text-muted-foreground">{p.pack_name}</div>
                       </div>
                       <Badge variant={p.status === "active" ? "default" : "secondary"} className="capitalize">

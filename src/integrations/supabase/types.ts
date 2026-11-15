@@ -19346,6 +19346,7 @@ export type Database = {
       pt_my_financial_history: { Args: never; Returns: Json }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       pt_my_portal: { Args: never; Returns: Json }
+      pt_my_requests: { Args: never; Returns: Json }
       pt_open_sale_intent: {
         Args: {
           p_activated_at: string
@@ -19821,7 +19822,10 @@ export type Database = {
       pt_request_create: {
         Args: {
           p_client_note?: string
+          p_earliest_time?: string
+          p_flexibility?: string
           p_flexibility_note?: string
+          p_latest_time?: string
           p_preferred_date: string
           p_preferred_time: string
           p_session_type_id: string

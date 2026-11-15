@@ -1184,6 +1184,13 @@
       "when": 1794781601714,
       "tag": "0168_pt_my_portal_read",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1794785028131,
+      "tag": "0169_pt_client_request_safe_reads",
+      "breakpoints": true
     }
   ]
 }

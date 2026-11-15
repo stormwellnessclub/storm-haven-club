@@ -71,15 +71,8 @@ export function PTSessionRequestCard() {
     queryKey: ["pt-my-requests", user?.id],
     enabled: canRequest,
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("training_requests")
-        .select("id, service, preferred_date, preferred_time, request_status, alt_date, alt_time")
-        .eq("client_user_id", user!.id)
-        .eq("request_kind", "appointment_request")
-        .in("request_status", OPEN)
-        .order("created_at", { ascending: false })
-        .limit(5);
-      return (data ?? []) as any[];
+      const { data } = await (supabase.rpc as any)("pt_my_requests");
+      return ((data ?? []) as any[]).slice(0, 5);
     },
   });
 

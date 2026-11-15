@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { parseSlotError, slotProblems } from "@/lib/ptAvailability";
+import { toast } from "sonner";
+import { notifyPTBooking } from "@/lib/ptBookingConfirmation";
 
 export const REQUEST_STATUS_LABEL: Record<string, string> = {
   requested: "Requested",
@@ -78,6 +80,11 @@ export function usePTRequestActions() {
         p_client_user_id: args.clientUserId ?? null, p_session_type_id: args.sessionTypeId ?? null,
       });
       if (error) throw new Error(errMsg(error));
+      // Tell the client about an offered time; a failed message never undoes the offer.
+      if (args.action === "offer_alternate") {
+        const { data, error: e } = await supabase.functions.invoke("send-pt-request-update", { body: { request_id: args.id } });
+        if (e || !data?.success || data?.sms_warning) toast.warning("New time saved, but the client message didn't fully send. Please contact them.");
+      }
     },
     onSuccess: done,
   });
@@ -87,6 +94,10 @@ export function usePTRequestActions() {
         p_request_id: args.id, p_use_alternate: args.useAlternate, p_confirm_time: args.confirmTime ?? null,
       });
       if (error) throw new Error(errMsg(error));
+      if (data?.appointment_id && !data.already_confirmed) {
+        const warn = await notifyPTBooking(data.appointment_id, (n, o) => supabase.functions.invoke(n, o));
+        if (warn) toast.warning(warn);
+      }
       return data as { appointment_id: string; already_confirmed: boolean; package_used?: boolean };
     },
     onSuccess: done,

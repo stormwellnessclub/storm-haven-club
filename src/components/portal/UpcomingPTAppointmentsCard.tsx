@@ -1,7 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useMyPTPortal, upcomingPT, type MyPTPortalData } from "@/hooks/useMyPTPortal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dumbbell, X } from "lucide-react";
@@ -9,47 +9,15 @@ import { format as fmtDate, parseISO, differenceInHours } from "date-fns";
 import { PT_FORMAT_LABEL, memberCancelOutcomeMessage } from "@/lib/ptFormat";
 import { toast } from "sonner";
 
-interface Appt {
-  id: string; format: string; starts_at: string; duration_minutes: number;
-  instructor_id: string | null; status: string;
-}
+type Appt = MyPTPortalData["appointments"][number];
 
 /** Shared "Upcoming PT Sessions" card for member & non-member portal dashboards. */
 export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: boolean }) {
   const { pathname } = useLocation();
-  const { user } = useAuth();
   const qc = useQueryClient();
 
-  const { data: appts = [] } = useQuery({
-    queryKey: ["upcoming-pt-appointments", user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("pt_appointments")
-        .select("id, format, starts_at, duration_minutes, instructor_id, status")
-        .eq("user_id", user!.id)
-        .eq("status", "scheduled")
-        .gte("starts_at", new Date().toISOString())
-        .order("starts_at", { ascending: true })
-        .limit(5);
-      if (error) throw error;
-      return (data ?? []) as Appt[];
-    },
-  });
-
-  const instructorIds = Array.from(new Set(appts.map((a) => a.instructor_id).filter(Boolean) as string[]));
-  const { data: instructors = {} } = useQuery({
-    queryKey: ["upcoming-pt-instructors", instructorIds],
-    enabled: instructorIds.length > 0,
-    queryFn: async (): Promise<Record<string, string>> => {
-      const { data } = await (supabase.rpc as any)("get_public_instructors");
-      const m: Record<string, string> = {};
-      (data ?? [])
-        .filter((i: any) => instructorIds.includes(i.id))
-        .forEach((i: any) => { m[i.id] = `${i.first_name} ${i.last_name}`; });
-      return m;
-    },
-  });
+  const { data: portal } = useMyPTPortal();
+  const appts = upcomingPT(portal).slice(0, 5);
 
   if (appts.length === 0) return null;
 
@@ -65,8 +33,8 @@ export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: bool
     if (error) return toast.error(error.message);
     const row = Array.isArray(data) ? data[0] : data;
     toast.success(memberCancelOutcomeMessage(row?.cancel_credit_outcome));
-    qc.invalidateQueries({ queryKey: ["upcoming-pt-appointments"] });
-    qc.invalidateQueries({ queryKey: ["my-pt-passes"] });
+    qc.invalidateQueries({ queryKey: ["pt-my-portal"] });
+    qc.invalidateQueries({ queryKey: ["pt-my-portal"] });
   }
 
 
@@ -87,7 +55,7 @@ export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: bool
               </p>
               <p className="text-xs text-muted-foreground">
                 {fmtDate(parseISO(a.starts_at), "EEE, MMM d · h:mm a")} · {a.duration_minutes} min
-                {a.instructor_id && instructors[a.instructor_id] ? ` · ${instructors[a.instructor_id]}` : " · Any trainer"}
+                {a.trainer ? ` · ${a.trainer}` : " · Any trainer"}
               </p>
             </div>
             {!compact && (
