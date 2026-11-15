@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { slotProblems, slotWarning, capacityLine, withinClientWindow, type SlotCheck } from "@/lib/ptAvailability";
 
 const OPEN = ["requested", "under_review", "alternate_offered"];
-const FILTERS = ["open", "requested", "under_review", "alternate_offered", "confirmed", "declined", "cancelled", "all"] as const;
+const FILTERS = ["open", "requested", "under_review", "alternate_offered", "confirmed", "declined", "cancelled", "waitlisted", "all"] as const;
 
 const FLEX_LABEL: Record<string, string> = {
   exact: "Exact time", window: "Within window", any_time_that_day: "Any time that day", any_day: "Any day",
@@ -249,6 +249,9 @@ function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
             <button disabled={busy} className={ptButtonClass("outline")} onClick={() => setMode("alt")}>Offer alternate</button>
             <button disabled={busy} className={ptButtonClass("danger")} onClick={() => setMode("decline")}>Decline</button>
             <button disabled={busy} className={ptButtonClass("ghost")} onClick={() => setMode("cancel")}>Cancel request</button>
+            <button disabled={busy || !r.client_user_id} className={ptButtonClass("outline")}
+              title={r.client_user_id ? "Move this request onto the PT waitlist" : "Link a client account first"}
+              onClick={() => run(update.mutateAsync({ id: r.id, action: "waitlist" }), "Added to waitlist")}>Add to waitlist</button>
           </div>
           {mode === "alt" && (
             <div className="space-y-2 rounded-md border border-border p-3">

@@ -12082,6 +12082,7 @@ export type Database = {
       pt_session_types: {
         Row: {
           capacity: number
+          client_requestable: boolean
           code: string | null
           color: string | null
           created_at: string
@@ -12101,6 +12102,7 @@ export type Database = {
         }
         Insert: {
           capacity?: number
+          client_requestable?: boolean
           code?: string | null
           color?: string | null
           created_at?: string
@@ -12120,6 +12122,7 @@ export type Database = {
         }
         Update: {
           capacity?: number
+          client_requestable?: boolean
           code?: string | null
           color?: string | null
           created_at?: string
@@ -16205,6 +16208,7 @@ export type Database = {
           pt_session_type_id: string | null
           request_kind: string
           request_status: string
+          requested_slot_at: string | null
           requested_trainer_id: string | null
           resolved_at: string | null
           resolved_by: string | null
@@ -16251,6 +16255,7 @@ export type Database = {
           pt_session_type_id?: string | null
           request_kind?: string
           request_status?: string
+          requested_slot_at?: string | null
           requested_trainer_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -16297,6 +16302,7 @@ export type Database = {
           pt_session_type_id?: string | null
           request_kind?: string
           request_status?: string
+          requested_slot_at?: string | null
           requested_trainer_id?: string | null
           resolved_at?: string | null
           resolved_by?: string | null
@@ -19051,6 +19057,17 @@ export type Database = {
             }
             Returns: Json
           }
+      pt_check_appointment_conflict_core: {
+        Args: {
+          p_ends_at: string
+          p_exclude_id?: string
+          p_format?: Database["public"]["Enums"]["pt_format"]
+          p_instructor_id?: string
+          p_location_id?: string
+          p_starts_at: string
+        }
+        Returns: Json
+      }
       pt_check_in_appointment: {
         Args: { p_appointment_id: string; p_start?: boolean }
         Returns: Json
@@ -19068,7 +19085,39 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_check_slot_core: {
+        Args: {
+          p_ends_at: string
+          p_exclude_id?: string
+          p_format?: Database["public"]["Enums"]["pt_format"]
+          p_instructor_id?: string
+          p_location_id?: string
+          p_session_type_id?: string
+          p_starts_at: string
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       pt_client_booking_admin_state: { Args: never; Returns: Json }
+      pt_client_request_options: { Args: never; Returns: Json }
+      pt_client_request_times: {
+        Args: {
+          p_days?: number
+          p_from?: string
+          p_session_type_id: string
+          p_trainer_id: string
+        }
+        Returns: Json
+      }
+      pt_client_slot_is_open: {
+        Args: {
+          p_session_type_id: string
+          p_start: string
+          p_trainer_id: string
+          p_uid: string
+        }
+        Returns: boolean
+      }
       pt_complete_session: {
         Args: { p_appointment_id: string; p_deduct?: boolean; p_note?: Json }
         Returns: Json
@@ -19802,6 +19851,7 @@ export type Database = {
           pt_session_type_id: string | null
           request_kind: string
           request_status: string
+          requested_slot_at: string | null
           requested_trainer_id: string | null
           resolved_at: string | null
           resolved_by: string | null
@@ -19826,9 +19876,10 @@ export type Database = {
           p_flexibility?: string
           p_flexibility_note?: string
           p_latest_time?: string
-          p_preferred_date: string
-          p_preferred_time: string
+          p_preferred_date?: string
+          p_preferred_time?: string
           p_session_type_id: string
+          p_slot_starts_at?: string
           p_trainer_id: string
         }
         Returns: string
@@ -19882,6 +19933,7 @@ export type Database = {
           pt_session_type_id: string | null
           request_kind: string
           request_status: string
+          requested_slot_at: string | null
           requested_trainer_id: string | null
           resolved_at: string | null
           resolved_by: string | null

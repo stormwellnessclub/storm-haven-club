@@ -1,21 +1,22 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CalendarDays, ChevronRight, CreditCard, Info, Layers, Package } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
-import { ptRequestProblem, PT_REQUEST_NOTE_MAX } from "@/lib/ptRequestForm";
+import { PTRequestSessionForm } from "@/components/portal/PTRequestSessionForm";
+import { useSearchParams } from "react-router-dom";
 import { useMyPTPortal, useMyPTRequests, upcomingPT, type MyPTPortalData, type MyPTRequest } from "@/hooks/useMyPTPortal";
 
-/** Client requests stay off until the owner activates them; the server also refuses client submissions. */
-const REQUESTS_ACTIVE = false;
+const PENDING = ["requested", "under_review", "alternate_offered"];
+const CLIENT_STATUS: Record<string, string> = {
+  requested: "Requested — Awaiting Confirmation", under_review: "Requested — Awaiting Confirmation",
+  alternate_offered: "New Time Offered — Awaiting Your Reply", confirmed: "Confirmed", declined: "Declined",
+  cancelled: "Cancelled", waitlisted: "On Waitlist",
+};
 
 const money = (c: number | null | undefined) => c == null ? "—" : `$${(c / 100).toFixed(2)}`;
 const day = (d: string | null | undefined) => (d ? format(parseISO(d), "MMM d, yyyy") : "—");
@@ -28,7 +29,6 @@ const clock = (t: string | null | undefined) => {
 type Appt = MyPTPortalData["appointments"][number];
 const sessionName = (a: Appt) => a.session_type ?? PT_FORMAT_LABEL[a.format as keyof typeof PT_FORMAT_LABEL] ?? label(a.format);
 const apptTime = (a: Appt) => `${format(parseISO(a.starts_at), "h:mm a")} – ${format(new Date(parseISO(a.starts_at).getTime() + a.duration_minutes * 60000), "h:mm a")}`;
-const detroitToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Detroit" }).format(new Date());
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return <div className="flex justify-between gap-3 text-sm py-1.5 border-t border-border first:border-t-0"><span className="text-muted-foreground">{k}</span><span className="text-right font-medium">{v}</span></div>;
@@ -49,55 +49,11 @@ function Notice({ children }: { children: React.ReactNode }) {
   return <div className="flex gap-2 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground"><Info className="h-4 w-4 shrink-0" /><p>{children}</p></div>;
 }
 
-function RequestForm({ trainers }: { trainers: string[] }) {
-  const [trainer, setTrainer] = useState("any");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("10:00");
-  const [earliest, setEarliest] = useState("10:00");
-  const [latest, setLatest] = useState("13:00");
-  const [flexibility, setFlexibility] = useState<"window" | "exact">("window");
-  const [note, setNote] = useState("");
-  const problem = ptRequestProblem({ date, time, flexibility, earliest, latest }, detroitToday());
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold">Request a PT Session</h2>
-        <p className="text-sm text-muted-foreground">Tell us your preferred details and we'll confirm your session as soon as possible.</p>
-      </div>
-      <Notice><strong className="text-foreground">This is a session request, not a confirmed booking.</strong> We'll review your request and send a confirmation once it's scheduled.</Notice>
-      {!REQUESTS_ACTIVE && <Badge variant="secondary">Online requests coming soon</Badge>}
-      <fieldset disabled={!REQUESTS_ACTIVE} className="space-y-4 disabled:opacity-60">
-        <div className="space-y-1.5"><Label>Trainer preference</Label>
-          <Select value={trainer} onValueChange={setTrainer}><SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="any">Any trainer</SelectItem>{trainers.map((t) => <SelectItem key={t} value={t}>{t} (Preferred)</SelectItem>)}</SelectContent></Select></div>
-        <div className="space-y-1.5"><Label htmlFor="pt-date">Preferred date</Label><Input id="pt-date" type="date" min={detroitToday()} value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <div className="space-y-1.5"><Label htmlFor="pt-time">Preferred time</Label><Input id="pt-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></div>
-        <div className="space-y-1.5"><Label>Availability window</Label>
-          <div className="flex items-center gap-2">
-            <Input aria-label="Window starts" type="time" value={earliest} onChange={(e) => setEarliest(e.target.value)} disabled={!REQUESTS_ACTIVE || flexibility === "exact"} />
-            <span className="text-muted-foreground">–</span>
-            <Input aria-label="Window ends" type="time" value={latest} onChange={(e) => setLatest(e.target.value)} disabled={!REQUESTS_ACTIVE || flexibility === "exact"} />
-          </div>
-          <p className="text-xs text-muted-foreground">We can confirm a time at any point within this window if your exact requested time isn't available.</p></div>
-        <div className="space-y-1.5"><Label>Flexibility</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Button type="button" className="h-auto whitespace-normal py-2 normal-case tracking-normal text-xs" variant={flexibility === "window" ? "default" : "outline"} onClick={() => setFlexibility("window")}>Flexible within my window</Button>
-            <Button type="button" className="h-auto whitespace-normal py-2 normal-case tracking-normal text-xs" variant={flexibility === "exact" ? "default" : "outline"} onClick={() => setFlexibility("exact")}>Only at my preferred time</Button>
-          </div></div>
-        <div className="space-y-1.5"><Label htmlFor="pt-note">Notes (optional)</Label>
-          <Textarea id="pt-note" maxLength={PT_REQUEST_NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Any additional details (e.g., focus areas, preferences, or scheduling context)" />
-          <p className="text-right text-xs text-muted-foreground">{note.length} / {PT_REQUEST_NOTE_MAX}</p></div>
-        {REQUESTS_ACTIVE && date && problem && <p className="text-sm text-destructive">{problem}</p>}
-        <Button className="w-full" size="lg" disabled aria-disabled="true">{REQUESTS_ACTIVE ? "Request Session" : "Coming Soon"}</Button>
-      </fieldset>
-    </div>
-  );
-}
-
 function RequestCard({ r }: { r: MyPTRequest }) {
   const offered = r.request_status === "alternate_offered" && r.alt_date;
   return (
-    <InfoCard icon={CalendarDays} title={offered ? "New Time Offered — Awaiting Your Reply" : "Requested — Awaiting Confirmation"}>
+    <InfoCard icon={CalendarDays} title={CLIENT_STATUS[r.request_status] ?? label(r.request_status)}>
+      {r.service && <p className="text-xs text-muted-foreground">{r.service}</p>}
       <p className="text-sm">{r.preferred_date ? day(r.preferred_date) : "Date to be set"}</p>
       <p className="text-xs text-muted-foreground">
         {clock(r.preferred_time)}{r.flexibility === "window" && r.earliest_time ? ` (Window: ${clock(r.earliest_time)} – ${clock(r.latest_time)})` : r.flexibility === "exact" ? " (Exact time only)" : ""}
@@ -111,9 +67,9 @@ function RequestCard({ r }: { r: MyPTRequest }) {
 export function MyPersonalTraining() {
   const { data, isLoading } = useMyPTPortal();
   const { data: requests = [] } = useMyPTRequests();
-  const [tab, setTab] = useState("overview");
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(() => (["overview", "request", "requests"].includes(params.get("tab") ?? "") ? params.get("tab")! : "overview"));
   const [showPackages, setShowPackages] = useState(false);
-  const trainers = useMemo(() => Array.from(new Set((data?.appointments ?? []).map((a) => a.trainer).filter(Boolean))), [data]);
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
@@ -125,6 +81,8 @@ export function MyPersonalTraining() {
     .filter((i) => !["paid", "void", "cancelled", "refunded"].includes(i.status))
     .sort((a, b) => a.due_date.localeCompare(b.due_date))[0];
   const next = upcoming[0];
+  const pendingRequests = requests.filter((r) => PENDING.includes(r.request_status));
+  const closedRequests = requests.filter((r) => !PENDING.includes(r.request_status));
 
   const apptList = (list: Appt[], empty: string) => list.length === 0
     ? <p className="text-sm text-muted-foreground">{empty}</p>
@@ -227,7 +185,7 @@ export function MyPersonalTraining() {
         </Collapsible>
       </TabsContent>
 
-      <TabsContent value="request"><RequestForm trainers={trainers} /></TabsContent>
+      <TabsContent value="request"><PTRequestSessionForm onSubmitted={() => { setTab("requests"); window.scrollTo({ top: 0 }); }} /></TabsContent>
 
       <TabsContent value="requests" className="space-y-4">
         <div>
@@ -235,10 +193,14 @@ export function MyPersonalTraining() {
           <p className="text-sm text-muted-foreground">Track your PT session requests and confirmed sessions.</p>
         </div>
         <section className="space-y-2"><h3 className="text-base font-semibold">Requested</h3>
-          {requests.length === 0 ? <p className="text-sm text-muted-foreground">No pending requests.</p> : requests.map((r) => <RequestCard key={r.id} r={r} />)}
+          {pendingRequests.length === 0 ? <p className="text-sm text-muted-foreground">No pending requests.</p> : pendingRequests.map((r) => <RequestCard key={r.id} r={r} />)}
         </section>
         <section className="space-y-2"><h3 className="text-base font-semibold">Confirmed</h3>{apptList(upcoming, "No upcoming sessions.")}</section>
         <Notice>If the exact requested time is unavailable, Storm may confirm a different time within the submitted time window and notify you by portal, email, and text.</Notice>
+        {closedRequests.length > 0 && (
+          <section className="space-y-2"><h3 className="text-base font-semibold">Request history</h3>
+            {closedRequests.map((r) => <RequestCard key={r.id} r={r} />)}</section>
+        )}
         <section className="space-y-2"><h3 className="text-base font-semibold">Past sessions</h3>{apptList(past, "No past sessions yet.")}</section>
       </TabsContent>
     </Tabs>

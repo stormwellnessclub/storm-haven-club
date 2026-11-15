@@ -11,6 +11,7 @@ export const REQUEST_STATUS_LABEL: Record<string, string> = {
   confirmed: "Confirmed",
   declined: "Declined",
   cancelled: "Cancelled",
+  waitlisted: "On Waitlist",
 };
 
 export function usePTRequests(kind: "appointment_request" | "inquiry" = "appointment_request") {
