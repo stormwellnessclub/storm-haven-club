@@ -1,11 +1,12 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, CalendarPlus, Ticket, Menu } from "lucide-react";
+import { Home, CalendarPlus, Ticket, Menu, Dumbbell } from "lucide-react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Home", icon: Home, path: "/portal", exact: true },
   { label: "Book", icon: CalendarPlus, path: "/portal/book" },
+  { label: "PT", icon: Dumbbell, path: "/portal/personal-training" },
   { label: "Passes", icon: Ticket, path: "/portal/passes" },
 ];
 

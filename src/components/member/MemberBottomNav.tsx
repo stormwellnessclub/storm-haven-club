@@ -1,10 +1,11 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { CalendarPlus, Activity, MessageCircle, User } from "lucide-react";
+import { CalendarPlus, Activity, MessageCircle, User, Dumbbell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUpcomingBookings } from "@/hooks/useBooking";
 
 const tabs = [
   { label: "Book", icon: CalendarPlus, path: "/member/book" },
+  { label: "PT", icon: Dumbbell, path: "/member/personal-training" },
   { label: "Activity", icon: Activity, path: "/member/check-in-history", badgeFromUpcoming: true },
   { label: "Support", icon: MessageCircle, path: "/member/support" },
   { label: "Account", icon: User, path: "/member/profile" },
