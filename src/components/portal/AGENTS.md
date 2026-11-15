@@ -1,0 +1,1 @@
+- Client PT portal pages (/member and /portal personal-training) read only through `pt_my_portal()`, which returns client-safe fields; never select raw PT rows there. Why: client-owned PT rows carry staff-only notes columns.
