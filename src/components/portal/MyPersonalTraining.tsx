@@ -104,7 +104,6 @@ export function MyPersonalTraining() {
 
         <TabsContent value="overview" className="pt-3">
           <Card><CardContent className="py-4">
-            <Row k="Trainer" v={data.trainer?.name || upcoming[0]?.trainer || "Not assigned yet"} />
             <Row k="Active package" v={active.map((p) => p.pack_name).join(", ") || "None"} />
             <Row k="Sessions remaining" v={remaining} />
             <Row k="Next session" v={upcoming[0] ? `${when(upcoming[0].starts_at)}` : "None scheduled"} />
