@@ -1,3 +1,4 @@
+import { Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +16,7 @@ interface Appt {
 
 /** Shared "Upcoming PT Sessions" card for member & non-member portal dashboards. */
 export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: boolean }) {
+  const { pathname } = useLocation();
   const { user } = useAuth();
   const qc = useQueryClient();
 
@@ -74,6 +76,7 @@ export function UpcomingPTAppointmentsCard({ compact = false }: { compact?: bool
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Dumbbell className="h-4 w-4" /> Upcoming Personal Training
         </CardTitle>
+        <Link to={pathname.startsWith("/member") ? "/member/personal-training" : "/portal/personal-training"} className="text-xs text-primary hover:underline">View all</Link>
       </CardHeader>
       <CardContent className="space-y-2">
         {appts.map((a) => (

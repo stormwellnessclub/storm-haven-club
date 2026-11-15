@@ -16,6 +16,7 @@ import {
   Coffee,
   Sparkles,
   Gift,
+  Dumbbell,
 } from "lucide-react";
 import {
   Sidebar,
@@ -43,6 +44,7 @@ const portalMenuItems: MenuItem[] = [
   { title: "Dashboard", url: "/portal", icon: LayoutDashboard },
   { title: "My Bookings", url: "/portal/bookings", icon: Calendar },
   { title: "My Passes", url: "/portal/passes", icon: Ticket },
+  { title: "Personal Training", url: "/portal/personal-training", icon: Dumbbell },
   { title: "Events", url: "/events", icon: Sparkles },
   { title: "Member Rituals", url: "/rituals", icon: Sparkles },
   { title: "My Tickets", url: "/portal/my-tickets", icon: Ticket },

@@ -19345,6 +19345,7 @@ export type Database = {
       pt_my_client_booking: { Args: never; Returns: Json }
       pt_my_financial_history: { Args: never; Returns: Json }
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
+      pt_my_portal: { Args: never; Returns: Json }
       pt_open_sale_intent: {
         Args: {
           p_activated_at: string

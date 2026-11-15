@@ -51,3 +51,4 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
+- Client PT portal pages (/member and /portal personal-training) read only through `pt_my_portal()`, which returns client-safe fields; never select raw PT rows there. Why: client-owned PT rows carry staff-only notes columns.

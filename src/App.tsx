@@ -237,6 +237,8 @@ import PortalBook from "@/pages/portal/Book";
 import PortalBookClass from "@/pages/portal/BookClass";
 import PortalBookings from "@/pages/portal/Bookings";
 import PortalPasses from "@/pages/portal/Passes";
+import PortalPersonalTraining from "@/pages/portal/PersonalTraining";
+import MemberPersonalTraining from "@/pages/member/PersonalTraining";
 import PortalPaymentMethods from "@/pages/portal/PaymentMethods";
 import PortalPaymentHistory from "@/pages/portal/PaymentHistory";
 import PortalProfile from "@/pages/portal/Profile";
@@ -452,6 +454,7 @@ const App = () => (
               <Route path="/member/payment-methods" element={<ProtectedMemberRoute><MemberPaymentMethods /></ProtectedMemberRoute>} />
               <Route path="/member/payment-history" element={<ProtectedMemberRoute><PaymentHistory /></ProtectedMemberRoute>} />
               <Route path="/member/entry" element={<ProtectedMemberRoute><MemberEntry /></ProtectedMemberRoute>} />
+              <Route path="/member/personal-training" element={<ProtectedMemberRoute><MemberPersonalTraining /></ProtectedMemberRoute>} />
               <Route path="/member/bookings" element={<ProtectedMemberRoute><MemberBookings /></ProtectedMemberRoute>} />
               <Route path="/member/waivers" element={<ProtectedMemberRoute><MemberWaivers /></ProtectedMemberRoute>} />
               <Route path="/member/kids-care" element={<ProtectedMemberRoute><MemberKidsCare /></ProtectedMemberRoute>} />
@@ -478,6 +481,7 @@ const App = () => (
               <Route path="/portal/book" element={<ProtectedPortalRoute><PortalBook /></ProtectedPortalRoute>} />
               <Route path="/portal/book/class" element={<ProtectedPortalRoute><PortalBookClass /></ProtectedPortalRoute>} />
               <Route path="/portal/bookings" element={<ProtectedPortalRoute><PortalBookings /></ProtectedPortalRoute>} />
+              <Route path="/portal/personal-training" element={<ProtectedPortalRoute><PortalPersonalTraining /></ProtectedPortalRoute>} />
               <Route path="/portal/passes" element={<ProtectedPortalRoute><PortalPasses /></ProtectedPortalRoute>} />
               <Route path="/portal/payment-methods" element={<ProtectedPortalRoute><PortalPaymentMethods /></ProtectedPortalRoute>} />
               <Route path="/portal/payment-history" element={<ProtectedPortalRoute><PortalPaymentHistory /></ProtectedPortalRoute>} />

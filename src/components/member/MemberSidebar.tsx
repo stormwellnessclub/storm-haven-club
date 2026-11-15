@@ -79,6 +79,7 @@ const sidebarGroups: SidebarGroupDef[] = [
     label: "BOOKINGS & VISITS",
     items: [
       { title: "My Bookings", url: "/member/bookings", icon: Calendar },
+      { title: "Personal Training", url: "/member/personal-training", icon: Dumbbell },
       { title: "Visit History", url: "/member/check-in-history", icon: Activity },
       { title: "Kids Care", url: "/member/kids-care", icon: Baby },
       { title: "Wellness Booking", url: "/member/wellness", icon: Zap },
