@@ -10,6 +10,12 @@ Short answer: not ready yet. These pieces need to be built first. The "Request a
 5. **Hide staff notes:** clients can no longer read staff notes on their requests or in the older dashboard training cards.
 6. **Confirmation messages:** check that a text and an email go to the client when staff confirm a request or offer a new time. Add them if they're missing. Texts go through the normal consent-checked sender.
 
+## Matching your walkthrough card
+- **Overview:** Next Confirmed Session card, Sessions Remaining (for example "6 of 10"), Quick Actions (Request Session, View Package), Package Summary (sessions used, sessions left, expiration), and a Next PT Payment card.
+- **Request form:** the notice box at the top, a 10:00 AM – 1:00 PM style window, "Flexible within my window" or "Only at my preferred time", notes up to 300 characters, and a dark Request Session button that stays greyed out for now.
+- **Requests + Upcoming:** "Requested — Awaiting Confirmation" cards above "Confirmed" cards, plus a note that Storm may confirm another time within the window and will let the client know through the portal, by email and by text.
+- Same warm cream and brown look, with the PT button in the bottom bar.
+
 ## Staying the same
 - Clients never see trainer schedules, hours, time off or the waitlist.
 - Nothing changes on the staff confirm or offer-a-new-time side.
