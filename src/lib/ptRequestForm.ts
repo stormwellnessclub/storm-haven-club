@@ -62,3 +62,41 @@ export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes =
   }
   return out;
 }
+
+/** Most pending requests a client may have at once (matches pt_request_create on the server). */
+export const PT_MAX_PENDING_REQUESTS = 5;
+
+export interface PTDayPick { day: string; iso: string; trainerId: string; trainer: string; time: string; note: string }
+
+/**
+ * Picking a time on the request form.
+ * Single day: the new time replaces whatever was picked.
+ * Multiple days: one time per day — a new time on the same day replaces that day's time,
+ * picking the selected time again removes it, and no more than `max` days can be picked.
+ * Each day keeps its own note.
+ */
+export function togglePTDayPick(picks: PTDayPick[], pick: Omit<PTDayPick, "note">, mode: "single" | "multi", max = PT_MAX_PENDING_REQUESTS):
+  { picks: PTDayPick[]; problem: string | null } {
+  const same = (p: PTDayPick) => p.iso === pick.iso && p.trainerId === pick.trainerId;
+  if (mode === "single") {
+    const keep = picks.find(same);
+    return { picks: [{ ...pick, note: keep?.note ?? picks[0]?.note ?? "" }], problem: null };
+  }
+  if (picks.some(same)) return { picks: picks.filter((p) => !same(p)), problem: null };
+  const sameDay = picks.find((p) => p.day === pick.day);
+  if (sameDay) return { picks: picks.map((p) => (p.day === pick.day ? { ...pick, note: p.note } : p)), problem: null };
+  if (picks.length >= max) return { picks, problem: `You can request up to ${max} days at a time.` };
+  const next = [...picks, { ...pick, note: "" }];
+  next.sort((a, b) => new Date(a.iso).getTime() - new Date(b.iso).getTime());
+  return { picks: next, problem: null };
+}
+
+/** Trainer colour shades (browns and beiges): Storm darkest, Felicia middle, Klaudia lightest; others plain. */
+export type PTTrainerShade = "deep" | "tan" | "sand" | null;
+export function ptTrainerShade(trainerName: string): PTTrainerShade {
+  const first = trainerName.trim().split(/\s+/)[0]?.toLowerCase() ?? "";
+  if (first === "storm") return "deep";
+  if (first === "felicia") return "tan";
+  if (first === "klaudia") return "sand";
+  return null;
+}

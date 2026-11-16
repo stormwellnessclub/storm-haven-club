@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PT_REQUEST_NOTE_MAX } from "@/lib/ptRequestForm";
+import { PT_REQUEST_NOTE_MAX, PT_MAX_PENDING_REQUESTS, togglePTDayPick, type PTDayPick } from "@/lib/ptRequestForm";
 import { PTOpenTimes, ptErrText as errText } from "@/components/portal/PTOpenTimes";
 
 interface Options { open: boolean; reason?: "not_allowed" | "closed" | null; is_pt_client?: boolean; services: { id: string; name: string; duration_minutes: number; trainers: { id: string; name: string }[] }[] }
@@ -30,9 +30,8 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
   const { user } = useAuth();
   const qc = useQueryClient();
   const [serviceId, setServiceId] = useState("");
-  const [trainerId, setTrainerId] = useState("");
-  const [slot, setSlot] = useState<string | null>(null);
-  const [note, setNote] = useState("");
+  const [mode, setMode] = useState<"single" | "multi">("single");
+  const [picks, setPicks] = useState<PTDayPick[]>([]);
   const [wantsPackage, setWantsPackage] = useState(false);
 
   const options = useQuery({
@@ -48,29 +47,40 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
   const newClient = options.data?.open === true && options.data?.is_pt_client === false;
   const service = services.find((s) => s.id === serviceId);
 
-  const slotKey = slot && trainerId ? `${slot}|${trainerId}` : null;
+  const selectedKeys = picks.map((p) => `${p.iso}|${p.trainerId}`);
 
-  const pickService = (id: string) => {
-    setServiceId(id); setSlot(null);
-    const t = services.find((s) => s.id === id)?.trainers ?? [];
-    setTrainerId(t.length === 1 ? t[0].id : "");
+  const pickService = (id: string) => { setServiceId(id); setPicks([]); };
+  const changeMode = (m: "single" | "multi") => { setMode(m); if (m === "single") setPicks((p) => p.slice(0, 1)); };
+  const onPick = (p: Omit<PTDayPick, "note">) => {
+    const r = togglePTDayPick(picks, p, mode);
+    if (r.problem) toast.error(r.problem);
+    setPicks(r.picks);
   };
+  const setNoteFor = (iso: string, trainerId: string, note: string) =>
+    setPicks((all) => all.map((p) => (p.iso === iso && p.trainerId === trainerId ? { ...p, note } : p)));
 
-  const ready = !!serviceId && !!trainerId && !!slot;
+  const ready = !!serviceId && picks.length > 0;
 
+  // One request per picked day, each with its own note. Days that fail stay picked so the client can retry.
   const submit = useMutation({
     mutationFn: async () => {
-      const parts = [newClient && wantsPackage ? PACKAGE_INTEREST_NOTE : "", note.trim()].filter(Boolean);
-      const args = { p_session_type_id: serviceId, p_trainer_id: trainerId, p_client_note: parts.join(" ").slice(0, PT_REQUEST_NOTE_MAX) || null, p_slot_starts_at: slot };
-      const { error } = await (supabase.rpc as any)("pt_request_create", args);
-      if (error) throw error;
+      const failed: { pick: PTDayPick; message: string }[] = [];
+      let sent = 0;
+      for (const p of picks) {
+        const parts = [newClient && wantsPackage ? PACKAGE_INTEREST_NOTE : "", p.note.trim()].filter(Boolean);
+        const args = { p_session_type_id: serviceId, p_trainer_id: p.trainerId, p_client_note: parts.join(" ").slice(0, PT_REQUEST_NOTE_MAX) || null, p_slot_starts_at: p.iso };
+        const { error } = await (supabase.rpc as any)("pt_request_create", args);
+        if (error) failed.push({ pick: p, message: errText(error) }); else sent++;
+      }
+      return { sent, failed };
     },
-    onSuccess: () => {
-      toast.success("Request sent — awaiting confirmation");
-      setSlot(null); setNote(""); setWantsPackage(false);
+    onSuccess: ({ sent, failed }) => {
       qc.invalidateQueries({ queryKey: ["pt-my-requests"] });
       qc.invalidateQueries({ queryKey: ["pt-client-request-times"] });
-      onSubmitted?.();
+      if (sent > 0) toast.success(sent === 1 ? "Request sent — awaiting confirmation" : `${sent} requests sent — awaiting confirmation`);
+      for (const f of failed) toast.error(`${f.pick.day}, ${f.pick.time}: ${f.message}`);
+      setPicks(failed.map((f) => f.pick));
+      if (failed.length === 0) { setWantsPackage(false); onSubmitted?.(); }
     },
     onError: (e) => { toast.error(errText(e)); qc.invalidateQueries({ queryKey: ["pt-client-request-times"] }); },
   });
@@ -106,18 +116,48 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
               <SelectContent>{services.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</SelectItem>)}</SelectContent></Select></div>
 
           {serviceId && (
-            <PTOpenTimes sessionTypeId={serviceId} durationMinutes={service?.duration_minutes ?? 60} selectedKey={slotKey}
-              onPick={(p) => { setSlot(p.iso); setTrainerId(p.trainerId); }} />
+            <div className="space-y-1.5">
+              <Label>How many days?</Label>
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="How many days">
+                {([["single", "One day"], ["multi", "Multiple days"]] as const).map(([m, label]) => (
+                  <Button key={m} type="button" size="sm" role="radio" aria-checked={mode === m}
+                    variant={mode === m ? "default" : "outline"} className="normal-case tracking-normal" onClick={() => changeMode(m)}>{label}</Button>
+                ))}
+              </div>
+              {mode === "multi" && <p className="text-xs text-muted-foreground">Pick one time on each day you'd like, up to {PT_MAX_PENDING_REQUESTS} days. Each day is its own request.</p>}
+            </div>
           )}
 
-          {serviceId && slot && (
-            <div className="space-y-1.5"><Label htmlFor="pt-note">Notes (optional)</Label>
-              <Textarea id="pt-note" maxLength={PT_REQUEST_NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Any additional details (e.g., focus areas or preferences)" />
-              <p className="text-right text-xs text-muted-foreground">{note.length} / {PT_REQUEST_NOTE_MAX}</p></div>
+          {serviceId && (
+            <PTOpenTimes sessionTypeId={serviceId} durationMinutes={service?.duration_minutes ?? 60} selectedKeys={selectedKeys} onPick={onPick} />
+          )}
+
+          {serviceId && picks.length > 0 && (
+            <div className="space-y-3" data-testid="pt-request-picks">
+              <Label>{picks.length === 1 ? "Your request" : `Your requests (${picks.length} days)`}</Label>
+              {picks.map((p, i) => {
+                const id = `pt-note-${i}`;
+                return (
+                  <div key={`${p.iso}|${p.trainerId}`} className="space-y-1.5 rounded-lg border border-border p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm"><strong>{p.day}</strong> · {p.time} · {p.trainer}</p>
+                      {mode === "multi" && (
+                        <Button type="button" size="sm" variant="ghost" className="h-auto px-2 py-1 normal-case tracking-normal text-xs"
+                          onClick={() => onPick(p)}>Remove</Button>
+                      )}
+                    </div>
+                    <Label htmlFor={id} className="text-xs">Notes for {p.day} (optional)</Label>
+                    <Textarea id={id} maxLength={PT_REQUEST_NOTE_MAX} value={p.note} onChange={(e) => setNoteFor(p.iso, p.trainerId, e.target.value)}
+                      placeholder="Any additional details (e.g., focus areas or preferences)" />
+                    <p className="text-right text-xs text-muted-foreground">{p.note.length} / {PT_REQUEST_NOTE_MAX}</p>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           <Button className="w-full" size="lg" disabled={!ready || submit.isPending} onClick={() => submit.mutate()}>
-            {submit.isPending ? "Sending…" : "Request Session"}
+            {submit.isPending ? "Sending…" : picks.length > 1 ? `Request ${picks.length} Sessions` : "Request Session"}
           </Button>
         </div>
       )}

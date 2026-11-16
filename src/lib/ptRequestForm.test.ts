@@ -1,6 +1,6 @@
 // @ts-nocheck -- Bun test runner types are not part of browser compilation.
 import { describe, expect, it } from "bun:test";
-import { ptRequestProblem, groupSlotsByDay } from "./ptRequestForm";
+import { ptRequestProblem, groupSlotsByDay, togglePTDayPick, ptTrainerShade } from "./ptRequestForm";
 
 const base = { date: "2026-11-20", time: "10:00", flexibility: "window" as const, earliest: "10:00", latest: "13:00" };
 
@@ -46,5 +46,43 @@ describe("groupTrainerSlotsByDay", () => {
     expect(days[0].slots.map((s) => `${s.time} ${s.trainer}`)).toEqual([
       "4:30 – 5:30 PM Klaudia Selim", "4:30 – 5:30 PM Storm S", "5:30 – 6:30 PM Klaudia Selim",
     ]);
+  });
+});
+
+describe("togglePTDayPick", () => {
+  const mon9 = { day: "Monday, Nov 16", iso: "2026-11-16T14:00:00Z", trainerId: "s", trainer: "Storm S", time: "9 – 10 AM" };
+  const mon11 = { ...mon9, iso: "2026-11-16T16:00:00Z", time: "11 AM – 12 PM" };
+  const tue9 = { ...mon9, day: "Tuesday, Nov 17", iso: "2026-11-17T14:00:00Z" };
+  it("single day: a new time replaces the old one", () => {
+    const a = togglePTDayPick([], mon9, "single").picks;
+    const b = togglePTDayPick(a, tue9, "single").picks;
+    expect(b.map((p) => p.iso)).toEqual([tue9.iso]);
+  });
+  it("multiple days: keeps one time per day, each with its own note", () => {
+    let p = togglePTDayPick([], mon9, "multi").picks;
+    p = p.map((x) => ({ ...x, note: "knee" }));
+    p = togglePTDayPick(p, tue9, "multi").picks;
+    p = togglePTDayPick(p, mon11, "multi").picks;
+    expect(p.map((x) => [x.iso, x.note])).toEqual([[mon11.iso, "knee"], [tue9.iso, ""]]);
+  });
+  it("multiple days: tapping a picked time again removes it", () => {
+    const p = togglePTDayPick(togglePTDayPick([], mon9, "multi").picks, mon9, "multi").picks;
+    expect(p).toEqual([]);
+  });
+  it("multiple days: no more than 5 days", () => {
+    let p: ReturnType<typeof togglePTDayPick>["picks"] = [];
+    for (let d = 16; d <= 20; d++) p = togglePTDayPick(p, { ...mon9, day: `Nov ${d}`, iso: `2026-11-${d}T14:00:00Z` }, "multi").picks;
+    const r = togglePTDayPick(p, { ...mon9, day: "Nov 21", iso: "2026-11-21T14:00:00Z" }, "multi");
+    expect(r.picks.length).toBe(5);
+    expect(r.problem).toBe("You can request up to 5 days at a time.");
+  });
+});
+
+describe("ptTrainerShade", () => {
+  it("Storm darkest, Felicia middle, Klaudia lightest", () => {
+    expect(ptTrainerShade("Storm S")).toBe("deep");
+    expect(ptTrainerShade("Felicia Sparks")).toBe("tan");
+    expect(ptTrainerShade("Klaudia Selim")).toBe("sand");
+    expect(ptTrainerShade("Bea M")).toBeNull();
   });
 });

@@ -37,6 +37,13 @@
     --muted: 25 13% 48%; /* Clay Veil */
     --muted-foreground: 38 27% 33%; /* Earth Smoke */
 
+    /* PT trainer shades (browns/beiges): Storm deep, Felicia tan, Klaudia sand */
+    --trainer-deep: 30 32% 22%;
+    --trainer-deep-foreground: 40 30% 92%;
+    --trainer-tan: 33 30% 56%;
+    --trainer-tan-foreground: 30 35% 10%;
+    --trainer-sand: 40 38% 85%;
+    --trainer-sand-foreground: 30 30% 14%;
     --accent: 38 35% 45%; /* Dark brown - readable text accent */
     --accent-foreground: 48 16% 90%; /* Light foreground for accent backgrounds */
 
@@ -112,6 +119,12 @@
     --muted: 25 13% 30%; /* Clay Veil - darker */
     --muted-foreground: 0 1% 65%; /* Silver Drift - darker */
 
+    --trainer-deep: 30 30% 30%;
+    --trainer-deep-foreground: 40 30% 92%;
+    --trainer-tan: 33 30% 52%;
+    --trainer-tan-foreground: 30 35% 10%;
+    --trainer-sand: 40 32% 78%;
+    --trainer-sand-foreground: 30 30% 14%;
     --accent: 38 40% 55%; /* Dark brown for dark mode */
     --accent-foreground: 38 30% 8%;
 

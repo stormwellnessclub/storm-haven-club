@@ -56,6 +56,14 @@ export default {
   		},
   		colors: {
   			border: 'hsl(var(--border))',
+  			trainer: {
+  				deep: 'hsl(var(--trainer-deep))',
+  				'deep-foreground': 'hsl(var(--trainer-deep-foreground))',
+  				tan: 'hsl(var(--trainer-tan))',
+  				'tan-foreground': 'hsl(var(--trainer-tan-foreground))',
+  				sand: 'hsl(var(--trainer-sand))',
+  				'sand-foreground': 'hsl(var(--trainer-sand-foreground))'
+  			},
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
   			background: 'hsl(var(--background))',
