@@ -63,8 +63,8 @@ export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes =
   return out;
 }
 
-/** Most pending requests a client may have at once (matches pt_request_create on the server). */
-export const PT_MAX_PENDING_REQUESTS = 5;
+/** Safety limit on waiting requests per client (matches pt_request_create on the server); well above the 14 days of times shown. */
+export const PT_MAX_PENDING_REQUESTS = 30;
 
 export interface PTDayPick {
   day: string; iso: string; trainerId: string; trainer: string; time: string; note: string;
@@ -77,7 +77,7 @@ type PTPickInput = Omit<PTDayPick, "note" | "earliest" | "latest" | "flexibility
  * Picking a time on the request form.
  * Single day: the new time replaces whatever was picked.
  * Multiple days: one time per day — a new time on the same day replaces that day's time,
- * picking the selected time again removes it, and no more than `max` days can be picked.
+ * picking the selected time again removes it. Clients may pick as many days as they like (up to the safety limit).
  * Each day keeps its own note.
  */
 export function togglePTDayPick(picks: PTDayPick[], pick: PTPickInput, mode: "single" | "multi", max = PT_MAX_PENDING_REQUESTS):

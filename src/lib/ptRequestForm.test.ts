@@ -69,12 +69,10 @@ describe("togglePTDayPick", () => {
     const p = togglePTDayPick(togglePTDayPick([], mon9, "multi").picks, mon9, "multi").picks;
     expect(p).toEqual([]);
   });
-  it("multiple days: no more than 5 days", () => {
+  it("multiple days: can pick every day shown (14 days), not capped at 5", () => {
     let p: ReturnType<typeof togglePTDayPick>["picks"] = [];
-    for (let d = 16; d <= 20; d++) p = togglePTDayPick(p, { ...mon9, day: `Nov ${d}`, iso: `2026-11-${d}T14:00:00Z` }, "multi").picks;
-    const r = togglePTDayPick(p, { ...mon9, day: "Nov 21", iso: "2026-11-21T14:00:00Z" }, "multi");
-    expect(r.picks.length).toBe(5);
-    expect(r.problem).toBe("You can request up to 5 days at a time.");
+    for (let d = 16; d <= 29; d++) p = togglePTDayPick(p, { ...mon9, day: `Nov ${d}`, iso: `2026-11-${d}T14:00:00Z` }, "multi").picks;
+    expect(p.length).toBe(14);
   });
 });
 

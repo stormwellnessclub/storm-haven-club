@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PT_REQUEST_NOTE_MAX, PT_MAX_PENDING_REQUESTS, PT_WINDOW_TIMES, togglePTDayPick, ptWindowProblem, ptClockLabel, type PTDayPick } from "@/lib/ptRequestForm";
+import { PT_REQUEST_NOTE_MAX, PT_WINDOW_TIMES, togglePTDayPick, ptWindowProblem, ptClockLabel, type PTDayPick } from "@/lib/ptRequestForm";
 import { PTOpenTimes, ptErrText as errText } from "@/components/portal/PTOpenTimes";
 
 interface Options { open: boolean; reason?: "not_allowed" | "closed" | null; is_pt_client?: boolean; services: { id: string; name: string; duration_minutes: number; trainers: { id: string; name: string }[] }[] }
@@ -126,7 +126,7 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
                     variant={mode === m ? "default" : "outline"} className="normal-case tracking-normal" onClick={() => changeMode(m)}>{label}</Button>
                 ))}
               </div>
-              {mode === "multi" && <p className="text-xs text-muted-foreground">Pick one time on each day you'd like, up to {PT_MAX_PENDING_REQUESTS} days. Each day is its own request.</p>}
+              {mode === "multi" && <p className="text-xs text-muted-foreground">Pick one time on each day you'd like — as many days as you want. Each day is its own request.</p>}
             </div>
           )}
 
