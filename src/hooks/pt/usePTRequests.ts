@@ -82,9 +82,9 @@ export function usePTRequestActions() {
       });
       if (error) throw new Error(errMsg(error));
       // Tell the client about an offered time; a failed message never undoes the offer.
-      if (args.action === "offer_alternate") {
+      if (args.action === "offer_alternate" || args.action === "decline") {
         const { data, error: e } = await supabase.functions.invoke("send-pt-request-update", { body: { request_id: args.id } });
-        if (e || !data?.success || data?.sms_warning) toast.warning("New time saved, but the client message didn't fully send. Please contact them.");
+        if (e || !data?.success || data?.sms_warning) toast.warning(args.action === "decline" ? "Request declined, but the client message didn't fully send. Please contact them." : "New time saved, but the client message didn't fully send. Please contact them.");
       }
     },
     onSuccess: done,

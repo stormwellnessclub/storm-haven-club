@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { CalendarDays, CalendarPlus, ChevronRight, CreditCard, Info, Layers, Package, X } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronRight, CreditCard, Info, Layers, Package, RefreshCw, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
 import { PTRequestSessionForm } from "@/components/portal/PTRequestSessionForm";
@@ -135,6 +135,22 @@ export function MyPersonalTraining() {
   const [params] = useSearchParams();
   const [tab, setTab] = useState(() => (["overview", "request", "requests"].includes(params.get("tab") ?? "") ? params.get("tab")! : "overview"));
   const [showPackages, setShowPackages] = useState(false);
+  const qc = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ["pt-my-portal"] }), qc.refetchQueries({ queryKey: ["pt-my-requests"] }),
+      qc.refetchQueries({ queryKey: ["pt-client-request-times"] }),
+    ]).finally(() => setRefreshing(false));
+  };
+  // Pull down from the top of the page to refresh (phones).
+  const pullStart = useRef<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => { pullStart.current = window.scrollY <= 0 ? e.touches[0].clientY : null; };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (pullStart.current != null && e.changedTouches[0].clientY - pullStart.current > 90 && !refreshing) refresh();
+    pullStart.current = null;
+  };
 
   if (isLoading || !data) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
@@ -164,6 +180,12 @@ export function MyPersonalTraining() {
         </div>))}</div>;
 
   return (
+    <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <div className="mb-2 flex justify-end">
+      <Button size="sm" variant="ghost" className="h-8 normal-case tracking-normal text-xs" onClick={refresh} disabled={refreshing} aria-label="Refresh">
+        <RefreshCw className={`mr-1 h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />{refreshing ? "Refreshing…" : "Refresh"}
+      </Button>
+    </div>
     <Tabs value={tab} onValueChange={setTab} className="space-y-4">
       <TabsList className="grid w-full grid-cols-3 h-auto rounded-full p-1">
         <TabsTrigger value="overview" className="rounded-full text-xs sm:text-sm">Overview</TabsTrigger>
@@ -273,5 +295,6 @@ export function MyPersonalTraining() {
         <section className="space-y-2"><h3 className="text-base font-semibold">Past sessions</h3>{apptList(past, "No past sessions yet.")}</section>
       </TabsContent>
     </Tabs>
+    </div>
   );
 }

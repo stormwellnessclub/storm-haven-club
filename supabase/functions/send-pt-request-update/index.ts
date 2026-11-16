@@ -1,4 +1,4 @@
-// Tells a client (email + consent-checked text) that staff offered a different PT time.
+// Tells a client (email + consent-checked text) that staff offered a different PT time, or declined the request.
 // Staff-only; one message per offer via idempotency on the offer timestamp.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
@@ -25,8 +25,9 @@ serve(async (req) => {
     const { request_id } = await req.json();
     if (typeof request_id !== "string" || !UUID_RE.test(request_id)) return json({ error: "request_id required" }, 400);
     const { data: r } = await admin.from("training_requests")
-      .select("id, client_user_id, email, full_name, service, request_status, alt_date, alt_time, alt_trainer_id, offered_at")
+      .select("id, client_user_id, email, full_name, service, request_status, alt_date, alt_time, alt_trainer_id, offered_at, preferred_date, preferred_time")
       .eq("id", request_id).maybeSingle();
+    if (r && r.request_status === "declined") return await sendDecline(admin, r);
     if (!r || r.request_status !== "alternate_offered" || !r.alt_date || !r.alt_time) {
       return json({ success: false, error: "No alternate time is waiting on this request" });
     }
@@ -65,3 +66,32 @@ serve(async (req) => {
     return json({ success: false, error: err?.message ?? String(err) });
   }
 });
+
+const fmtDay = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+const fmtClock = (t: string) => { const [h, m] = String(t).split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`; };
+
+// One decline message per request (idempotency key is the request id).
+async function sendDecline(admin: any, r: any) {
+  const when = r.preferred_date ? `${fmtDay(r.preferred_date)}${r.preferred_time ? `, ${fmtClock(r.preferred_time)}` : ""}` : "your requested time";
+  const first = String(r.full_name ?? "").split(" ")[0] || "there";
+  const key = `pt-request-declined-${r.id}`;
+  let smsWarning = false;
+  if (r.client_user_id) {
+    const { error } = await admin.functions.invoke("send-sms", { body: {
+      to: { userId: r.client_user_id }, templateKey: "admin-custom",
+      variables: { customBody: `Storm Wellness Club: Your PT request for ${when} couldn't be scheduled. Reply or open the app to request another time. Reply STOP to opt out.` },
+      idempotencyKey: key, metadata: { source: "send-pt-request-update", request_id: r.id, kind: "declined" },
+    } });
+    if (error) smsWarning = true;
+  }
+  if (!r.email) return json({ success: !smsWarning, sms_warning: smsWarning, email_warning: true });
+  const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+  const { error: e } = await resend.emails.send({ from: FROM, to: [r.email], subject: "About your Personal Training request",
+    headers: { "Idempotency-Key": key },
+    html: `<div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;"><div style="max-width:520px;margin:0 auto;background:#f7f1e7;padding:32px;">
+<p>Hi ${first},</p><p>We weren't able to schedule your Personal Training request for <strong>${when}</strong>.</p>
+<p>Please open the app to request another time, or reply to this email and we'll help.</p>
+<p><a href="${SITE}/member/personal-training" style="color:#5a3e2b;">Request another time</a></p>
+<p>The Storm Wellness Club Team</p></div></div>` });
+  return json({ success: !e, sms_warning: smsWarning, email_warning: !!e });
+}

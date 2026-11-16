@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -24,6 +24,21 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
   sessionTypeId: string; durationMinutes?: number; selectedKey?: string | null; selectedKeys?: string[];
   onPick: (slot: { iso: string; trainerId: string; day: string; time: string; trainer: string }) => void;
 }) {
+  // A time only counts as tapped when the finger didn't move to scroll (and the page isn't mid-scroll).
+  const down = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
+  const lastScroll = useRef(0);
+  useEffect(() => {
+    const on = () => { lastScroll.current = Date.now(); };
+    window.addEventListener("scroll", on, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", on, { capture: true } as any);
+  }, []);
+  const tapHandlers = {
+    onPointerDown: (e: React.PointerEvent) => { down.current = { x: e.clientX, y: e.clientY }; moved.current = Date.now() - lastScroll.current < 250; },
+    onPointerMove: (e: React.PointerEvent) => {
+      if (down.current && Math.hypot(e.clientX - down.current.x, e.clientY - down.current.y) > 10) moved.current = true;
+    },
+  };
   const isSelected = (k: string) => (selectedKeys ? selectedKeys.includes(k) : selectedKey === k);
   const times = useQuery({
     queryKey: ["pt-client-request-times", sessionTypeId],
@@ -62,7 +77,8 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
                   className={cn("h-auto justify-between gap-2 py-2 normal-case tracking-normal hover:opacity-90",
                     sh ? SHADE_CLASS[sh] : "",
                     on && "ring-2 ring-ring ring-offset-2 ring-offset-background")}
-                  onClick={() => onPick({ iso: s.iso, trainerId: s.trainerId, day: d.label, time: s.time, trainer: s.trainer })}>
+                  {...tapHandlers}
+                  onClick={() => { const skip = moved.current; moved.current = false; down.current = null; if (!skip) onPick({ iso: s.iso, trainerId: s.trainerId, day: d.label, time: s.time, trainer: s.trainer }); }}>
                   <span className="inline-flex items-center gap-1.5">{on && <Check className="h-4 w-4" aria-hidden />}{s.time}</span>
                   <span className="text-xs opacity-80">{s.trainer}</span></Button>);
               })}</div>

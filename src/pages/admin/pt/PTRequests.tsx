@@ -121,7 +121,7 @@ export default function PTRequests() {
   );
 }
 
-function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
+export function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
   const { update, confirm } = usePTRequestActions();
   const ctx = usePTRequestContext(r.client_user_id);
   const open = OPEN.includes(r.request_status);
@@ -289,4 +289,17 @@ function RequestDetail({ r, trainers, types, trainerName, typeName }: any) {
       </div>
     </PTCard>
   );
+}
+
+/** The same request review/actions, opened from a "Requested" hold on the PT schedule calendar. */
+export function PTRequestPanel({ requestId }: { requestId: string }) {
+  const { data: requests = [], isLoading } = usePTRequests();
+  const { data: trainers = [] } = usePTTrainers();
+  const { data: types = [] } = usePTSessionTypes();
+  const r = requests.find((x: any) => x.id === requestId);
+  const trainerName = (id?: string | null) => trainers.find((t: any) => t.id === id)?.name ?? (id ? "Trainer" : "Any trainer");
+  const typeName = (x: any) => types.find((t) => t.id === x.pt_session_type_id)?.name ?? x.service;
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!r) return <p className="text-sm text-muted-foreground">This request is no longer open.</p>;
+  return <RequestDetail key={r.id} r={r} trainers={trainers} types={types} trainerName={trainerName} typeName={typeName} />;
 }

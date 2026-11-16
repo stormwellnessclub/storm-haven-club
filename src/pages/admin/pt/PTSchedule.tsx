@@ -11,6 +11,8 @@ import {
   usePTLookupMaps, usePTScheduleAppointments, usePTRequestHolds, type PTRequestHold,
 } from "@/hooks/pt/usePTSchedule";
 import { PTAppointmentDrawer } from "@/components/admin/pt/PTAppointmentDrawer";
+import { PTRequestPanel } from "@/pages/admin/pt/PTRequests";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { PTNeedsCheckout } from "@/components/admin/pt/PTNeedsCheckout";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -36,6 +38,7 @@ export default function PTSchedule() {
   const [bookOpen, setBookOpen] = useState(false);
   const [presetDate, setPresetDate] = useState<string | undefined>();
   const [selected, setSelected] = useState<PTScheduleAppointment | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   const anchor = parseISO(date);
   const weekMode = view === "week";
@@ -337,8 +340,8 @@ export default function PTSchedule() {
                       return (
                         <button
                           key={`req-${h.id}`}
-                          onClick={() => navigate("/admin/pt/requests")}
-                          title="Client request — not booked yet. Open Requests to confirm."
+                          onClick={() => setSelectedRequestId(h.id)}
+                          title="Client request — not booked yet. Tap to review and confirm."
                           className={`absolute rounded-lg pl-2.5 pr-2 py-1.5 text-left overflow-hidden border shadow-sm transition hover:shadow-md hover:z-10 ${style.card}`}
                           style={{
                             top: offsetFor(h.starts_at),
@@ -383,6 +386,12 @@ export default function PTSchedule() {
         presetDate={presetDate}
         onBooked={() => qc.invalidateQueries({ queryKey: ["pt-appointments"] })}
       />
+      <Sheet open={!!selectedRequestId} onOpenChange={(o) => !o && setSelectedRequestId(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader><SheetTitle>Client request</SheetTitle></SheetHeader>
+          <div className="mt-4">{selectedRequestId && <PTRequestPanel requestId={selectedRequestId} />}</div>
+        </SheetContent>
+      </Sheet>
     </PTShell>
   );
 }
