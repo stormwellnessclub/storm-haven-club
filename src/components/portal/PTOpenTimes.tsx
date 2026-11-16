@@ -20,8 +20,10 @@ const SHADE_CLASS: Record<Exclude<PTTrainerShade, null>, string> = {
 };
 const DOT_CLASS: Record<Exclude<PTTrainerShade, null>, string> = { deep: "bg-trainer-deep", tan: "bg-trainer-tan", sand: "bg-trainer-sand" };
 
-export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey = null, selectedKeys, onPick }: {
+export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey = null, selectedKeys, onPick, onWaitlist }: {
   sessionTypeId: string; durationMinutes?: number; selectedKey?: string | null; selectedKeys?: string[];
+  /** When set, full hours show as "Waitlist" and tapping one calls this instead of onPick. */
+  onWaitlist?: (slot: { iso: string; trainerId: string; day: string; time: string; trainer: string; waitlisted: boolean }) => void;
   onPick: (slot: { iso: string; trainerId: string; day: string; time: string; trainer: string }) => void;
 }) {
   // A time only counts as tapped when the finger didn't move to scroll (and the page isn't mid-scroll).
@@ -49,7 +51,7 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
       return (data ?? []) as PTTrainerSlot[];
     },
   });
-  const days = useMemo(() => groupTrainerSlotsByDay(times.data ?? [], durationMinutes), [times.data, durationMinutes]);
+  const days = useMemo(() => groupTrainerSlotsByDay(times.data ?? [], durationMinutes, !!onWaitlist), [times.data, durationMinutes, onWaitlist]);
   const trainers = useMemo(() => [...new Set((times.data ?? []).map((t) => t.trainer_name))].sort(), [times.data]);
 
   return (
@@ -72,6 +74,18 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
               <p className="text-sm font-medium">{d.label}</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{d.slots.map((s) => {
                 const on = isSelected(s.key); const sh = ptTrainerShade(s.trainer);
+                if (s.status !== "open") {
+                  const mine = s.status === "waitlisted";
+                  return (
+                  <Button key={s.key} type="button" size="sm" variant="outline" data-testid="pt-slot-waitlist"
+                    className="h-auto justify-between gap-2 border-dashed py-2 normal-case tracking-normal text-muted-foreground opacity-70"
+                    {...tapHandlers}
+                    onClick={() => { const skip = moved.current; moved.current = false; down.current = null; if (!skip) onWaitlist?.({ iso: s.iso, trainerId: s.trainerId, day: d.label, time: s.time, trainer: s.trainer, waitlisted: mine }); }}>
+                    <span className="inline-flex items-center gap-1.5">
+                      {sh && <span className={cn("h-2.5 w-2.5 rounded-full", DOT_CLASS[sh])} aria-hidden />}
+                      <span className="line-through decoration-1">{s.time}</span></span>
+                    <span className="text-xs font-medium">{mine ? "On waitlist" : "Waitlist"} · {s.trainer}</span></Button>);
+                }
                 return (
                 <Button key={s.key} type="button" size="sm" variant="outline" aria-pressed={on}
                   className={cn("h-auto justify-between gap-2 py-2 normal-case tracking-normal hover:opacity-90",

@@ -37,17 +37,19 @@ export function groupSlotsByDay(isos: string[]) {
 
 export const PT_REQUEST_NOTE_MAX = 300;
 
-export interface PTTrainerSlot { starts_at: string; ends_at?: string; trainer_id: string; trainer_name: string }
+/** open = requestable; full = taken by another client (can join waitlist); waitlisted = this client already waits for it. */
+export type PTSlotStatus = "open" | "full" | "waitlisted";
+export interface PTTrainerSlot { starts_at: string; ends_at?: string; trainer_id: string; trainer_name: string; status?: PTSlotStatus }
 
 /**
  * Groups every trainer's open one-hour blocks by Detroit day, in time order, labelled
  * "4:30 – 5:30 PM" with the trainer's name. Clients see all trainers together (no trainer filter).
  */
-export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes = 60) {
+export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes = 60, includeFull = false) {
   const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", weekday: "long", month: "short", day: "numeric" });
   const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", hour: "numeric", minute: "2-digit" });
-  const out: { label: string; slots: { key: string; iso: string; trainerId: string; trainer: string; time: string }[] }[] = [];
-  const sorted = [...slots].sort((a, b) =>
+  const out: { label: string; slots: { key: string; iso: string; trainerId: string; trainer: string; time: string; status: PTSlotStatus }[] }[] = [];
+  const sorted = [...slots].filter((s) => includeFull || (s.status ?? "open") === "open").sort((a, b) =>
     new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime() || a.trainer_name.localeCompare(b.trainer_name));
   for (const s of sorted) {
     const start = new Date(s.starts_at);
@@ -58,7 +60,7 @@ export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes =
     const a = timeFmt.format(start), b = timeFmt.format(end);
     const sameHalf = a.slice(-2) === b.slice(-2);
     g.slots.push({ key: `${s.starts_at}|${s.trainer_id}`, iso: s.starts_at, trainerId: s.trainer_id, trainer: s.trainer_name,
-      time: `${sameHalf ? a.slice(0, -3) : a} – ${b}` });
+      time: `${sameHalf ? a.slice(0, -3) : a} – ${b}`, status: s.status ?? "open" });
   }
   return out;
 }

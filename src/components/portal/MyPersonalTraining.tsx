@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PTOpenTimes, ptErrText } from "@/components/portal/PTOpenTimes";
@@ -129,6 +129,49 @@ function UpcomingActions({ a }: { a: Appt }) {
   );
 }
 
+interface MyWaitlistEntry { id: string; preferred_date: string | null; preferred_time: string | null; trainer_name: string | null; session_name: string | null; status: string; notes: string | null }
+
+/** The client's own waitlist spots for full hours (read via pt_my_waitlist; never shows who holds the time). */
+function WaitlistSection() {
+  const qc = useQueryClient();
+  const { data = [] } = useQuery({
+    queryKey: ["pt-my-waitlist"],
+    refetchOnMount: "always", refetchOnWindowFocus: true, refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("pt_my_waitlist");
+      if (error) throw error;
+      return (data ?? []) as MyWaitlistEntry[];
+    },
+  });
+  const [busy, setBusy] = useState<string | null>(null);
+  const leave = async (id: string) => {
+    setBusy(id);
+    const { error } = await (supabase.rpc as any)("pt_waitlist_leave", { p_id: id });
+    setBusy(null);
+    if (error) return toast.error(ptErrText(error));
+    toast.success("Removed from the waitlist");
+    qc.invalidateQueries({ queryKey: ["pt-my-waitlist"] });
+    qc.invalidateQueries({ queryKey: ["pt-client-request-times"] });
+  };
+  if (data.length === 0) return null;
+  return (
+    <section className="space-y-2" data-testid="pt-my-waitlist"><h3 className="text-base font-semibold">Waitlisted</h3>
+      {data.map((w) => (
+        <div key={w.id} className="rounded-lg border border-dashed border-border p-3 text-sm flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p><strong>{w.preferred_date ? format(parseISO(w.preferred_date), "EEE, MMM d") : "Any day"}</strong>{w.preferred_time ? ` · ${clock(w.preferred_time)}` : ""}</p>
+            <p className="text-muted-foreground">{[w.session_name, w.trainer_name].filter(Boolean).join(" · ")}</p>
+            <p className="pt-1 text-xs font-medium">{w.status === "contacted" ? "On Waitlist — the club has reached out" : "On Waitlist — we'll contact you if it opens"}</p>
+          </div>
+          {w.status === "waiting" && (
+            <Button size="sm" variant="ghost" className="h-auto shrink-0 px-2 py-1 normal-case tracking-normal text-xs" disabled={busy === w.id} onClick={() => leave(w.id)}>Leave waitlist</Button>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export function MyPersonalTraining() {
   const { data, isLoading } = useMyPTPortal();
   const { data: requests = [] } = useMyPTRequests();
@@ -141,7 +184,7 @@ export function MyPersonalTraining() {
     setRefreshing(true);
     await Promise.all([
       qc.refetchQueries({ queryKey: ["pt-my-portal"] }), qc.refetchQueries({ queryKey: ["pt-my-requests"] }),
-      qc.refetchQueries({ queryKey: ["pt-client-request-times"] }),
+      qc.refetchQueries({ queryKey: ["pt-client-request-times"] }), qc.refetchQueries({ queryKey: ["pt-my-waitlist"] }),
     ]).finally(() => setRefreshing(false));
   };
   // Pull down from the top of the page to refresh (phones).
@@ -285,6 +328,7 @@ export function MyPersonalTraining() {
         <section className="space-y-2"><h3 className="text-base font-semibold">Requested</h3>
           {pendingRequests.length === 0 ? <p className="text-sm text-muted-foreground">No pending requests.</p> : pendingRequests.map((r) => <RequestCard key={r.id} r={r} />)}
         </section>
+        <WaitlistSection />
         <section className="space-y-2"><h3 className="text-base font-semibold">Confirmed</h3>
           <p className="text-xs text-muted-foreground">Free cancellation up to 24 hours before your session. Later cancellations use the session from your package.</p>{apptList(upcoming, "No upcoming sessions.", true)}</section>
         <Notice>If the exact requested time is unavailable, Storm may confirm a different time within the submitted time window and notify you by portal, email, and text.</Notice>

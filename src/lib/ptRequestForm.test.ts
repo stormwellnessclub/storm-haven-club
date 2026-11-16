@@ -1,6 +1,6 @@
 // @ts-nocheck -- Bun test runner types are not part of browser compilation.
 import { describe, expect, it } from "bun:test";
-import { ptRequestProblem, groupSlotsByDay, togglePTDayPick, ptTrainerShade, ptDefaultWindow, ptWindowProblem, ptClockLabel } from "./ptRequestForm";
+import { ptRequestProblem, groupSlotsByDay, groupTrainerSlotsByDay, togglePTDayPick, ptTrainerShade, ptDefaultWindow, ptWindowProblem, ptClockLabel } from "./ptRequestForm";
 
 const base = { date: "2026-11-20", time: "10:00", flexibility: "window" as const, earliest: "10:00", latest: "13:00" };
 
@@ -102,4 +102,17 @@ describe("availability window on a picked time", () => {
     expect(p.map((x) => [x.earliest, x.latest])).toEqual([["10:00", "12:00"], ["16:30", "19:30"]]);
   });
   it("labels times like the form", () => expect(ptClockLabel("13:00")).toBe("1:00 PM"));
+});
+
+describe("waitlist slots", () => {
+  const slots = [
+    { starts_at: "2026-11-20T14:00:00Z", trainer_id: "a", trainer_name: "Storm", status: "open" as const },
+    { starts_at: "2026-11-20T15:00:00Z", trainer_id: "a", trainer_name: "Storm", status: "full" as const },
+  ];
+  it("hides full hours where waitlisting isn't offered (Change time)", () => {
+    expect(groupTrainerSlotsByDay(slots).flatMap((d) => d.slots).length).toBe(1);
+  });
+  it("shows full hours marked full when waitlisting is offered", () => {
+    expect(groupTrainerSlotsByDay(slots, 60, true).flatMap((d) => d.slots).map((s) => s.status)).toEqual(["open", "full"]);
+  });
 });

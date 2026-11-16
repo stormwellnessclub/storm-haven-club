@@ -19113,6 +19113,15 @@ export type Database = {
         Args: { p_days?: number; p_from?: string; p_session_type_id: string }
         Returns: Json
       }
+      pt_client_slot_is_full: {
+        Args: {
+          p_session_type_id: string
+          p_start: string
+          p_trainer_id: string
+          p_uid: string
+        }
+        Returns: boolean
+      }
       pt_client_slot_is_open: {
         Args: {
           p_session_type_id: string
@@ -19400,6 +19409,7 @@ export type Database = {
       pt_my_instructor_id: { Args: { _uid: string }; Returns: string }
       pt_my_portal: { Args: never; Returns: Json }
       pt_my_requests: { Args: never; Returns: Json }
+      pt_my_waitlist: { Args: never; Returns: Json }
       pt_open_sale_intent: {
         Args: {
           p_activated_at: string
@@ -20043,6 +20053,15 @@ export type Database = {
           trainer_id: string
         }[]
       }
+      pt_schedule_waitlist: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          preferred_date: string
+          preferred_time: string
+          trainer_id: string
+          waiting: number
+        }[]
+      }
       pt_send_invoice: {
         Args: { p_invoice_id: string; p_recipient?: string }
         Returns: Json
@@ -20112,6 +20131,16 @@ export type Database = {
         Args: { p_invoice_id: string; p_reason: string }
         Returns: Json
       }
+      pt_waitlist_join: {
+        Args: {
+          p_notes?: string
+          p_session_type_id: string
+          p_starts_at: string
+          p_trainer_id: string
+        }
+        Returns: string
+      }
+      pt_waitlist_leave: { Args: { p_id: string }; Returns: undefined }
       pt_waitlist_matches: {
         Args: {
           p_ends_at: string

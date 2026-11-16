@@ -39,6 +39,21 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
   // The time being reviewed in the confirm pop-up (new or an already-picked day being edited).
   const [draft, setDraft] = useState<PTDayPick | null>(null);
   const [sent, setSent] = useState<PTDayPick[] | null>(null);
+  // A full hour the client tapped to join its waitlist.
+  const [wl, setWl] = useState<{ iso: string; trainerId: string; day: string; time: string; trainer: string; waitlisted: boolean; note: string } | null>(null);
+  const joinWaitlist = useMutation({
+    mutationFn: async (w: NonNullable<typeof wl>) => {
+      const { error } = await (supabase.rpc as any)("pt_waitlist_join", { p_session_type_id: serviceId, p_trainer_id: w.trainerId, p_starts_at: w.iso, p_notes: w.note.trim() || null });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("You're on the waitlist. We'll contact you if this time opens up.");
+      setWl(null);
+      qc.invalidateQueries({ queryKey: ["pt-client-request-times"] });
+      qc.invalidateQueries({ queryKey: ["pt-my-waitlist"] });
+    },
+    onError: (e) => { toast.error(errText(e)); qc.invalidateQueries({ queryKey: ["pt-client-request-times"] }); },
+  });
 
   const options = useQuery({
     queryKey: ["pt-client-request-options", user?.id],
@@ -192,7 +207,8 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
           )}
 
           {serviceId && (
-            <PTOpenTimes sessionTypeId={serviceId} durationMinutes={service?.duration_minutes ?? 60} selectedKeys={selectedKeys} onPick={onPick} />
+            <PTOpenTimes sessionTypeId={serviceId} durationMinutes={service?.duration_minutes ?? 60} selectedKeys={selectedKeys} onPick={onPick}
+              onWaitlist={(w) => w.waitlisted ? toast("You're already on the waitlist for this time.") : setWl({ ...w, note: "" })} />
           )}
         </div>
       )}
@@ -212,6 +228,28 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
                 <Button disabled={!!ptWindowProblem(draft) || submit.isPending} onClick={confirmDraft}>
                   {submit.isPending ? "Sending…" : mode === "single" ? "Confirm request" : picks.some((x) => keyOf(x) === keyOf(draft)) ? "Save day" : "Add this day"}
                 </Button>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!wl} onOpenChange={(o) => !o && !joinWaitlist.isPending && setWl(null)}>
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-2xl px-5 pb-8" data-testid="pt-waitlist-confirm">
+          {wl && (
+            <div className="space-y-4">
+              <SheetHeader className="text-left">
+                <SheetTitle>Join the waitlist</SheetTitle>
+                <SheetDescription>{wl.day} · {wl.time}<br />{service?.name} · {wl.trainer}</SheetDescription>
+              </SheetHeader>
+              <Notice><strong className="text-foreground">This time is full.</strong> You'll be contacted if it opens up. Joining the waitlist doesn't book or charge anything.</Notice>
+              <div className="space-y-1.5">
+                <Label htmlFor="pt-wl-note">Notes (optional)</Label>
+                <Textarea id="pt-wl-note" maxLength={500} value={wl.note} onChange={(e) => setWl({ ...wl, note: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" disabled={joinWaitlist.isPending} onClick={() => setWl(null)}>Back</Button>
+                <Button disabled={joinWaitlist.isPending} onClick={() => joinWaitlist.mutate(wl)}>{joinWaitlist.isPending ? "Joining…" : "Join waitlist"}</Button>
               </div>
             </div>
           )}

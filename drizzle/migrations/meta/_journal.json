@@ -1261,6 +1261,13 @@
       "when": 1794790186267,
       "tag": "0179_pt_request_raise_pending_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 180,
+      "version": "7",
+      "when": 1794792366711,
+      "tag": "0180_pt_waitlist_full_slots",
+      "breakpoints": true
     }
   ]
 }

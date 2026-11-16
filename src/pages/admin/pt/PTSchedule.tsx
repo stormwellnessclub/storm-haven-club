@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { format as fmtDate, addDays, parseISO, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, MapPin, Plus, Search } from "lucide-react";
 import { PT_FORMAT_LABEL, formatCents } from "@/lib/ptFormat";
@@ -55,6 +56,19 @@ export default function PTSchedule() {
   const holds = useMemo(() => holdRows.filter((h) =>
     (trainer === "all" || h.trainer_id === trainer) && (sessionTypeFilter === "all" || h.session_type_id === sessionTypeFilter)
     && (statusFilter === "all") && (locationFilter === "all")), [holdRows, trainer, sessionTypeFilter, statusFilter, locationFilter]);
+  // Waitlisted clients per trainer hour (staff-only counts); tags sit on the trainer's column at that hour.
+  const { data: wlRows = [] } = useQuery({
+    queryKey: ["pt-waitlist", "schedule", fromIso, toIso],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("pt_schedule_waitlist", { p_from: fromIso.slice(0, 10), p_to: toIso.slice(0, 10) });
+      if (error) throw error;
+      return ((data ?? []) as { trainer_id: string; preferred_date: string; preferred_time: string; waiting: number }[])
+        .map((w) => ({ ...w, id: `${w.trainer_id}|${w.preferred_date}|${w.preferred_time}`,
+          starts_at: new Date(`${w.preferred_date}T${w.preferred_time.slice(0, 8)}`).toISOString() }));
+    },
+  });
+  const [wlOpen, setWlOpen] = useState<{ trainer_id: string; preferred_date: string; preferred_time: string } | null>(null);
   const { data: people = {} } = usePTPeople(rows.map((a) => a.user_id));
   const { data: trainers = [] } = usePTTrainers();
   const trainerMap = usePTTrainerMap();
@@ -333,6 +347,20 @@ export default function PTSchedule() {
                       );
                     })}
 
+                    {wlRows.filter((w) => (trainer === "all" || w.trainer_id === trainer) && col.matchReq(w as unknown as PTRequestHold)).map((w) => {
+                      const t = new Date(w.starts_at);
+                      const top = ((t.getHours() - START_HOUR) * 60 + t.getMinutes()) * PX_PER_MIN;
+                      const stillTaken = colAppts.some((a) => a.status === "scheduled" && a.instructor_id === w.trainer_id
+                        && new Date(a.starts_at) <= t && new Date(a.starts_at).getTime() + a.duration_minutes * 60000 > t.getTime());
+                      return (
+                        <button key={`wl-${w.id}`} onClick={() => setWlOpen(w)} data-testid="pt-schedule-waitlist-tag"
+                          title="Clients waiting for this hour — tap to see who"
+                          className={`absolute right-1 z-20 rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm ${stillTaken ? "bg-pt-beige text-pt-ink border-pt-line" : "bg-pt-gold text-pt-ink border-pt-gold"}`}
+                          style={{ top: top + 2 }}>
+                          {stillTaken ? `Waitlist (${w.waiting})` : `Opened — ${w.waiting} waiting`}
+                        </button>
+                      );
+                    })}
                     {colHolds.map((h) => {
                       const slot = laneMap[`req-${h.id}`] ?? { lane: 0, lanes: 1 };
                       const widthPct = 100 / Math.max(slot.lanes, 1);
@@ -386,6 +414,13 @@ export default function PTSchedule() {
         presetDate={presetDate}
         onBooked={() => qc.invalidateQueries({ queryKey: ["pt-appointments"] })}
       />
+      <Sheet open={!!wlOpen} onOpenChange={(o) => !o && setWlOpen(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader><SheetTitle>Waitlist</SheetTitle></SheetHeader>
+          {wlOpen && <WaitlistWho w={wlOpen} trainerName={trainerMap[wlOpen.trainer_id]} />}
+        </SheetContent>
+      </Sheet>
+
       <Sheet open={!!selectedRequestId} onOpenChange={(o) => !o && setSelectedRequestId(null)}>
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader><SheetTitle>Client request</SheetTitle></SheetHeader>
@@ -393,5 +428,46 @@ export default function PTSchedule() {
         </SheetContent>
       </Sheet>
     </PTShell>
+  );
+}
+
+/** Who is waiting for one trainer hour (oldest first). Staff read pt_waitlist directly; nothing is sent from here. */
+function WaitlistWho({ w, trainerName }: { w: { trainer_id: string; preferred_date: string; preferred_time: string }; trainerName?: string }) {
+  const qc = useQueryClient();
+  const { data: list = [] } = useQuery({
+    queryKey: ["pt-waitlist", "who", w.trainer_id, w.preferred_date, w.preferred_time],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("pt_waitlist").select("id, client_user_id, notes, status, created_at")
+        .eq("preferred_trainer_id", w.trainer_id).eq("preferred_date", w.preferred_date).eq("preferred_time", w.preferred_time)
+        .in("status", ["waiting", "contacted"]).order("created_at");
+      if (error) throw error;
+      return data as { id: string; client_user_id: string; notes: string | null; status: string; created_at: string }[];
+    },
+  });
+  const { data: people = {} } = usePTPeople(list.map((r) => r.client_user_id));
+  const setStatus = async (id: string, status: string) => {
+    await (supabase as any).from("pt_waitlist").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    qc.invalidateQueries({ queryKey: ["pt-waitlist"] });
+  };
+  return (
+    <div className="mt-4 space-y-3 text-sm">
+      <p className="text-pt-muted">{trainerName ?? "Trainer"} · {fmtDate(parseISO(w.preferred_date), "EEE, MMM d")} · {fmtDate(new Date(`${w.preferred_date}T${w.preferred_time.slice(0, 8)}`), "h:mm a")}</p>
+      {list.length === 0 ? <p className="text-pt-muted">No one is waiting.</p> : list.map((r, i) => {
+        const p = (people as any)[r.client_user_id];
+        return (
+          <div key={r.id} className="rounded-lg border border-pt-line p-3 space-y-1">
+            <p><strong>{i + 1}. {p?.name ?? "Client"}</strong>{p?.phone ? ` · ${p.phone}` : ""}</p>
+            {p?.email && <p className="text-xs text-pt-muted">{p.email}</p>}
+            {r.notes && <p className="text-xs">Notes: {r.notes}</p>}
+            <p className="text-xs text-pt-muted">Joined {fmtDate(new Date(r.created_at), "MMM d, h:mm a")} · {r.status === "contacted" ? "Contacted" : "Waiting"}</p>
+            <div className="flex gap-2 pt-1">
+              {r.status === "waiting" && <button className={ptButtonClass("ghost")} onClick={() => setStatus(r.id, "contacted")}>Mark contacted</button>}
+              <button className={ptButtonClass("ghost")} onClick={() => setStatus(r.id, "booked")}>Booked</button>
+              <button className={ptButtonClass("ghost")} onClick={() => setStatus(r.id, "closed")}>Close</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
