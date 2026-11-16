@@ -7,12 +7,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PT_REQUEST_NOTE_MAX } from "@/lib/ptRequestForm";
 import { PTOpenTimes, ptErrText as errText } from "@/components/portal/PTOpenTimes";
 
-interface Options { open: boolean; reason?: "not_client" | "closed" | null; services: { id: string; name: string; duration_minutes: number; trainers: { id: string; name: string }[] }[] }
+interface Options { open: boolean; reason?: "not_allowed" | "closed" | null; is_pt_client?: boolean; services: { id: string; name: string; duration_minutes: number; trainers: { id: string; name: string }[] }[] }
+
+const PACKAGE_INTEREST_NOTE = "New client: would like to buy a training package.";
 
 function Notice({ children }: { children: React.ReactNode }) {
   return <div className="flex gap-2 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground"><Info className="h-4 w-4 shrink-0" /><p>{children}</p></div>;
@@ -29,6 +33,7 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
   const [trainerId, setTrainerId] = useState("");
   const [slot, setSlot] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [wantsPackage, setWantsPackage] = useState(false);
 
   const options = useQuery({
     queryKey: ["pt-client-request-options", user?.id],
@@ -40,6 +45,7 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
     },
   });
   const services = options.data?.services ?? [];
+  const newClient = options.data?.open === true && options.data?.is_pt_client === false;
   const service = services.find((s) => s.id === serviceId);
 
   const slotKey = slot && trainerId ? `${slot}|${trainerId}` : null;
@@ -54,13 +60,14 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
 
   const submit = useMutation({
     mutationFn: async () => {
-      const args = { p_session_type_id: serviceId, p_trainer_id: trainerId, p_client_note: note.trim() || null, p_slot_starts_at: slot };
+      const parts = [newClient && wantsPackage ? PACKAGE_INTEREST_NOTE : "", note.trim()].filter(Boolean);
+      const args = { p_session_type_id: serviceId, p_trainer_id: trainerId, p_client_note: parts.join(" ").slice(0, PT_REQUEST_NOTE_MAX) || null, p_slot_starts_at: slot };
       const { error } = await (supabase.rpc as any)("pt_request_create", args);
       if (error) throw error;
     },
     onSuccess: () => {
       toast.success("Request sent — awaiting confirmation");
-      setSlot(null); setNote("");
+      setSlot(null); setNote(""); setWantsPackage(false);
       qc.invalidateQueries({ queryKey: ["pt-my-requests"] });
       qc.invalidateQueries({ queryKey: ["pt-client-request-times"] });
       onSubmitted?.();
@@ -79,11 +86,21 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
       <Notice><strong className="text-foreground">This is a session request, not a confirmed booking.</strong> We'll review your request and send a confirmation once it's scheduled.</Notice>
 
       {!options.data?.open || services.length === 0 ? (
-        <Badge variant="secondary">{options.data?.reason === "not_client"
-          ? "Session requests are for personal training clients. Please contact the club to get started."
+        <Badge variant="secondary">{options.data?.reason === "not_allowed"
+          ? "Please contact the club to request a session."
           : "Online requests aren't open right now. Please contact the club."}</Badge>
       ) : (
         <div className="space-y-4">
+          {newClient && (
+            <div className="space-y-2 rounded-lg border border-border p-3 text-sm" data-testid="pt-new-client-notice">
+              <p><strong>You're not currently a personal training client.</strong> You can still send a request. The club will review it and reach out about pricing and packages before anything is booked.</p>
+              <label className="flex items-start gap-2 text-sm">
+                <Checkbox checked={wantsPackage} onCheckedChange={(v) => setWantsPackage(v === true)} aria-label="I'd like to buy a training package" className="mt-0.5" />
+                <span>I'd like to buy a training package</span>
+              </label>
+              <Link to="/personal-training" className="text-xs underline text-muted-foreground">See training options</Link>
+            </div>
+          )}
           <div className="space-y-1.5"><Label>Session</Label>
             <Select value={serviceId} onValueChange={pickService}><SelectTrigger aria-label="Session"><SelectValue placeholder="Choose a session" /></SelectTrigger>
               <SelectContent>{services.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</SelectItem>)}</SelectContent></Select></div>
