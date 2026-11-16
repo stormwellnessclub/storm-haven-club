@@ -1,7 +1,7 @@
 const labels: Record<string, string> = {
   one_on_one: "1:1 Personal Training",
   reformer_one_on_one: "Reformer Pilates 1:1",
-  semi_private: "Semi-Private (max 4)",
+  semi_private: "Semi-Private",
 };
 
 export function isSmsDeliveryFailure(data: { success?: boolean; error?: string } | null, error: unknown) {

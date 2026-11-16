@@ -31,6 +31,11 @@ export function useMyPTPortal() {
       if (error) throw error;
       return data as MyPTPortalData;
     },
+    // Clients must see staff confirmations without closing the app: refresh when the app
+    // comes back to the screen, when the page opens, and every 30 seconds while it's open.
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchInterval: 30_000,
   });
 }
 
@@ -44,6 +49,11 @@ export function useMyPTRequests() {
       if (error) throw error;
       return (data ?? []) as MyPTRequest[];
     },
+    // Clients must see staff confirmations without closing the app: refresh when the app
+    // comes back to the screen, when the page opens, and every 30 seconds while it's open.
+    refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchInterval: 30_000,
   });
 }
 

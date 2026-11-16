@@ -24,4 +24,7 @@ describe("PT booking confirmation texts", () => {
     expect(confirmationSms(appt, "Klaudia").idempotencyKey).toBe("pt-confirmation-appt-1");
     expect(confirmationSms({ ...appt, id: "appt-2" }, "Klaudia").idempotencyKey).toBe("pt-confirmation-appt-2");
   });
+  it("names semi-private sessions just \"Semi-Private\" (no group size)", () => {
+    expect(confirmationSms({ ...appt, format: "semi_private" }, "Storm").variables.service).toBe("Semi-Private (60 min)");
+  });
 });

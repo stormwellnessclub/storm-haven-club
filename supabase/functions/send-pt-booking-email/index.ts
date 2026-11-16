@@ -13,7 +13,7 @@ const TZ = "America/Detroit";
 const FORMAT_LABEL: Record<string, string> = {
   one_on_one: "1:1 Personal Training",
   reformer_one_on_one: "Reformer Pilates 1:1",
-  semi_private: "Semi-Private (max 4)",
+  semi_private: "Semi-Private",
 };
 
 const fmtDateTime = (iso: string) =>
