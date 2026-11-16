@@ -20106,6 +20106,14 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_single_session_price_cents: {
+        Args: {
+          p_session_type_id: string
+          p_trainer_id: string
+          p_user: string
+        }
+        Returns: number
+      }
       pt_slot_hard_conflict: { Args: { p: Json }; Returns: boolean }
       pt_trainer_day_windows: {
         Args: { p_date: string; p_instructor_id: string }

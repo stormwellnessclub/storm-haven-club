@@ -1275,6 +1275,13 @@
       "when": 1794826938007,
       "tag": "0181_pt_waitlist_staff_entries_and_promote",
       "breakpoints": true
+    },
+    {
+      "idx": 182,
+      "version": "7",
+      "when": 1794827828558,
+      "tag": "0182_pt_request_unpaid_session_price",
+      "breakpoints": true
     }
   ]
 }
