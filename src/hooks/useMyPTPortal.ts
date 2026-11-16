@@ -14,7 +14,7 @@ export interface MyPTPortalData {
 }
 
 export interface MyPTRequest {
-  id: string; service: string | null; created_at: string;
+  id: string; service: string | null; created_at: string; session_type_id: string | null; appointment_id: string | null;
   preferred_date: string | null; preferred_time: string | null;
   earliest_time: string | null; latest_time: string | null; flexibility: string | null;
   request_status: string; trainer: string | null;

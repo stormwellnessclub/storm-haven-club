@@ -171,6 +171,24 @@ export function usePTScheduleAppointments(opts: {
   });
 }
 
+/** Pending client requests shown on staff schedules as holds under the trainer (staff-only function). */
+export interface PTRequestHold {
+  id: string; starts_at: string; duration_minutes: number; trainer_id: string | null; session_type_id: string | null;
+  session_name: string | null; client_name: string | null; request_status: string;
+}
+
+export function usePTRequestHolds(fromIso: string, toIso: string) {
+  return useQuery({
+    queryKey: ["pt-requests", "holds", fromIso, toIso],
+    refetchInterval: 60_000,
+    queryFn: async (): Promise<PTRequestHold[]> => {
+      const { data, error } = await (supabase as any).rpc("pt_schedule_pending_requests", { p_from: fromIso, p_to: toIso });
+      if (error) throw error;
+      return (data ?? []) as PTRequestHold[];
+    },
+  });
+}
+
 /* ------------------------------------------------------------ appt actions */
 
 export function usePTAppointmentActions() {

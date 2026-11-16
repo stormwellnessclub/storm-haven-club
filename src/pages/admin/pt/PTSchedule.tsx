@@ -8,7 +8,7 @@ import { PTShell, PTPageHeader, PTCard, PTEmpty, PTBadge, ptButtonClass } from "
 import { usePTPeople, usePTTrainerMap, usePTTrainers } from "@/hooks/pt/usePTPortal";
 import {
   PTScheduleAppointment, PT_LIFECYCLE_LABEL, PT_LIFECYCLE_STYLE, ptLifecycle,
-  usePTLookupMaps, usePTScheduleAppointments,
+  usePTLookupMaps, usePTScheduleAppointments, usePTRequestHolds, type PTRequestHold,
 } from "@/hooks/pt/usePTSchedule";
 import { PTAppointmentDrawer } from "@/components/admin/pt/PTAppointmentDrawer";
 import { PTNeedsCheckout } from "@/components/admin/pt/PTNeedsCheckout";
@@ -25,6 +25,7 @@ type View = "day" | "week" | "trainer" | "location";
 
 export default function PTSchedule() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [view, setView] = useState<View>("day");
   const [date, setDate] = useState(fmtDate(new Date(), "yyyy-MM-dd"));
   const [trainer, setTrainer] = useState("all");
@@ -47,6 +48,10 @@ export default function PTSchedule() {
     fromIso, toIso, trainerId: trainer, locationId: locationFilter,
     sessionTypeId: sessionTypeFilter, status: statusFilter,
   });
+  const { data: holdRows = [] } = usePTRequestHolds(fromIso, toIso);
+  const holds = useMemo(() => holdRows.filter((h) =>
+    (trainer === "all" || h.trainer_id === trainer) && (sessionTypeFilter === "all" || h.session_type_id === sessionTypeFilter)
+    && (statusFilter === "all") && (locationFilter === "all")), [holdRows, trainer, sessionTypeFilter, statusFilter, locationFilter]);
   const { data: people = {} } = usePTPeople(rows.map((a) => a.user_id));
   const { data: trainers = [] } = usePTTrainers();
   const trainerMap = usePTTrainerMap();
@@ -72,10 +77,12 @@ export default function PTSchedule() {
         title: trainerMap[id] ?? "Trainer",
         subtitle: "",
         match: (a: PTScheduleAppointment) => a.instructor_id === id,
+        matchReq: (r: PTRequestHold) => r.trainer_id === id,
       }));
       cols.push({
         key: "unassigned", title: "Unassigned", subtitle: "",
         match: (a: PTScheduleAppointment) => !a.instructor_id,
+        matchReq: (r: PTRequestHold) => !r.trainer_id,
       });
       return cols;
     }
@@ -86,10 +93,12 @@ export default function PTSchedule() {
         title: l.name,
         subtitle: l.code ?? "",
         match: (a: PTScheduleAppointment) => a.location_id === l.id,
+        matchReq: (_r: PTRequestHold): boolean => false,
       }));
       cols.push({
         key: "nolocation", title: "No location", subtitle: "",
         match: (a: PTScheduleAppointment) => !a.location_id,
+        matchReq: (_r: PTRequestHold): boolean => true,
       });
       return cols;
     }
@@ -100,6 +109,7 @@ export default function PTSchedule() {
         title: fmtDate(d, "EEE"),
         subtitle: fmtDate(d, "MMM d"),
         match: (a: PTScheduleAppointment) => a.starts_at.slice(0, 10) === key,
+        matchReq: (r: PTRequestHold) => fmtDate(parseISO(r.starts_at), "yyyy-MM-dd") === key,
       };
     });
   }, [view, days, trainers, trainerMap, trainer, locations, locationFilter]);
@@ -243,7 +253,12 @@ export default function PTSchedule() {
 
             {columns.map((col) => {
               const colAppts = appts.filter(col.match);
-              const laneMap = layoutColumn(colAppts);
+              const colHolds = holds.filter(col.matchReq);
+              const holdAsAppt = colHolds.map((h) => ({
+                id: `req-${h.id}`, starts_at: h.starts_at, duration_minutes: h.duration_minutes,
+                ends_at: new Date(new Date(h.starts_at).getTime() + h.duration_minutes * 60000).toISOString(),
+              })) as unknown as PTScheduleAppointment[];
+              const laneMap = layoutColumn([...colAppts, ...holdAsAppt]);
 
               const bookDate = view === "week" ? col.key : date;
               return (
@@ -311,6 +326,36 @@ export default function PTSchedule() {
                               )}
                             </div>
                           )}
+                        </button>
+                      );
+                    })}
+
+                    {colHolds.map((h) => {
+                      const slot = laneMap[`req-${h.id}`] ?? { lane: 0, lanes: 1 };
+                      const widthPct = 100 / Math.max(slot.lanes, 1);
+                      const style = PT_LIFECYCLE_STYLE.tentative;
+                      return (
+                        <button
+                          key={`req-${h.id}`}
+                          onClick={() => navigate("/admin/pt/requests")}
+                          title="Client request — not booked yet. Open Requests to confirm."
+                          className={`absolute rounded-lg pl-2.5 pr-2 py-1.5 text-left overflow-hidden border shadow-sm transition hover:shadow-md hover:z-10 ${style.card}`}
+                          style={{
+                            top: offsetFor(h.starts_at),
+                            height: Math.max(h.duration_minutes * PX_PER_MIN - 4, 36),
+                            left: `calc(${slot.lane * widthPct}% + 4px)`,
+                            width: `calc(${widthPct}% - 8px)`,
+                          }}
+                        >
+                          <span className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${style.bar}`} />
+                          <div className="flex items-start justify-between gap-1">
+                            <span className="text-[12px] font-medium truncate">{h.client_name ?? "Client"}</span>
+                            <span className="text-[10px] text-pt-muted shrink-0">{fmtDate(parseISO(h.starts_at), "h:mm")}</span>
+                          </div>
+                          <div className="text-[10px] text-pt-muted truncate">
+                            {h.session_name ?? "Session"}{h.trainer_id ? ` · ${trainerMap[h.trainer_id] ?? ""}` : " · Any trainer"}
+                          </div>
+                          <div className="mt-1"><PTBadge tone={style.badge}>{h.request_status === "alternate_offered" ? "Time offered" : "Requested"}</PTBadge></div>
                         </button>
                       );
                     })}

@@ -106,3 +106,9 @@
 - [x] Make the new spa design the live Spa page (keeps booking, requests, reviews, gift cards/vouchers, member pricing, body roller; old design at /spa/classic; old preview links forward)
 - [x] Launch Aella Sculpt publicly: abdomen bookable online, other zones by request, staff can book any zone
 - [x] Fresh safety check, then publish (requested Nov 13)
+
+## Client PT requests (Nov 15)
+- [x] Clients can cancel or change a pending request
+- [x] Clients can cancel a confirmed session (24-hour rule) from the PT page
+- [x] Add to calendar for confirmed sessions
+- [x] Pending requests show on the staff PT schedule under the trainer's name

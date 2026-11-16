@@ -1,10 +1,16 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { PTOpenTimes, ptErrText } from "@/components/portal/PTOpenTimes";
+import { useCancelMyPTSession } from "@/hooks/useCancelMyPTSession";
+import { ptGoogleCalendarUrl, ptIcsHref } from "@/lib/ptCalendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { CalendarDays, ChevronRight, CreditCard, Info, Layers, Package } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronRight, CreditCard, Info, Layers, Package, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
 import { PTRequestSessionForm } from "@/components/portal/PTRequestSessionForm";
@@ -50,7 +56,35 @@ function Notice({ children }: { children: React.ReactNode }) {
 }
 
 function RequestCard({ r }: { r: MyPTRequest }) {
+  const qc = useQueryClient();
   const offered = r.request_status === "alternate_offered" && r.alt_date;
+  const pending = PENDING.includes(r.request_status);
+  const [changing, setChanging] = useState(false);
+  const [pick, setPick] = useState<{ iso: string; trainerId: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["pt-my-requests"] });
+    qc.invalidateQueries({ queryKey: ["pt-client-request-times"] });
+  };
+  async function cancelRequest() {
+    if (!window.confirm("Cancel this request?")) return;
+    setBusy(true);
+    const { error } = await (supabase.rpc as any)("pt_request_client_cancel", { p_request_id: r.id });
+    setBusy(false);
+    if (error) return toast.error(ptErrText(error));
+    toast.success("Request cancelled");
+    refresh();
+  }
+  async function saveChange() {
+    if (!pick) return;
+    setBusy(true);
+    const { error } = await (supabase.rpc as any)("pt_request_client_change", { p_request_id: r.id, p_trainer_id: pick.trainerId, p_slot_starts_at: pick.iso });
+    setBusy(false);
+    if (error) { toast.error(ptErrText(error)); refresh(); return; }
+    toast.success("Request updated — awaiting confirmation");
+    setChanging(false); setPick(null);
+    refresh();
+  }
   return (
     <InfoCard icon={CalendarDays} title={CLIENT_STATUS[r.request_status] ?? label(r.request_status)}>
       {r.service && <p className="text-xs text-muted-foreground">{r.service}</p>}
@@ -60,7 +94,38 @@ function RequestCard({ r }: { r: MyPTRequest }) {
       </p>
       <p className="text-xs text-muted-foreground">Trainer: {r.trainer ? `${r.trainer} (Preferred)` : "Any trainer"}</p>
       {offered && <p className="text-xs pt-1">Offered: <strong>{day(r.alt_date)} at {clock(r.alt_time)}</strong>{r.alt_trainer ? ` with ${r.alt_trainer}` : ""}. Contact us to accept.</p>}
+      {pending && !changing && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {r.session_type_id && <Button size="sm" variant="outline" className="normal-case tracking-normal" disabled={busy} onClick={() => setChanging(true)}>Change time</Button>}
+          <Button size="sm" variant="ghost" className="normal-case tracking-normal" disabled={busy} onClick={cancelRequest}><X className="h-3.5 w-3.5 mr-1" />Cancel request</Button>
+        </div>
+      )}
+      {pending && changing && r.session_type_id && (
+        <div className="space-y-3 pt-3">
+          <PTOpenTimes sessionTypeId={r.session_type_id} selectedKey={pick ? `${pick.iso}|${pick.trainerId}` : null} onPick={setPick} />
+          <div className="flex gap-2">
+            <Button size="sm" className="normal-case tracking-normal" disabled={!pick || busy} onClick={saveChange}>{busy ? "Saving…" : "Save new time"}</Button>
+            <Button size="sm" variant="ghost" className="normal-case tracking-normal" disabled={busy} onClick={() => { setChanging(false); setPick(null); }}>Keep current time</Button>
+          </div>
+        </div>
+      )}
     </InfoCard>
+  );
+}
+
+function UpcomingActions({ a }: { a: Appt }) {
+  const cancel = useCancelMyPTSession();
+  const cal = { id: a.id, starts_at: a.starts_at, duration_minutes: a.duration_minutes, title: sessionName(a), trainer: a.trainer };
+  return (
+    <div className="flex flex-wrap items-center gap-2 pt-2">
+      <Button size="sm" variant="outline" className="normal-case tracking-normal" asChild>
+        <a href={ptIcsHref(cal)} download={`storm-pt-${a.id.slice(0, 8)}.ics`}><CalendarPlus className="h-3.5 w-3.5 mr-1" />Add to calendar</a>
+      </Button>
+      <Button size="sm" variant="ghost" className="normal-case tracking-normal" asChild>
+        <a href={ptGoogleCalendarUrl(cal)} target="_blank" rel="noreferrer">Google Calendar</a>
+      </Button>
+      <Button size="sm" variant="ghost" className="normal-case tracking-normal" onClick={() => cancel(a)}><X className="h-3.5 w-3.5 mr-1" />Cancel session</Button>
+    </div>
   );
 }
 
@@ -84,15 +149,18 @@ export function MyPersonalTraining() {
   const pendingRequests = requests.filter((r) => PENDING.includes(r.request_status));
   const closedRequests = requests.filter((r) => !PENDING.includes(r.request_status));
 
-  const apptList = (list: Appt[], empty: string) => list.length === 0
+  const apptList = (list: Appt[], empty: string, actions = false) => list.length === 0
     ? <p className="text-sm text-muted-foreground">{empty}</p>
     : <div className="space-y-2">{list.map((a) => (
-        <div key={a.id} className="flex items-center justify-between gap-2 p-3 rounded-lg bg-secondary/50">
-          <div className="min-w-0">
-            <p className="font-medium text-sm truncate">{sessionName(a)}</p>
-            <p className="text-xs text-muted-foreground">{format(parseISO(a.starts_at), "EEE, MMM d, yyyy")} · {apptTime(a)}{a.trainer ? ` · with ${a.trainer}` : ""}</p>
+        <div key={a.id} className="p-3 rounded-lg bg-secondary/50">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="font-medium text-sm truncate">{sessionName(a)}</p>
+              <p className="text-xs text-muted-foreground">{format(parseISO(a.starts_at), "EEE, MMM d, yyyy")} · {apptTime(a)}{a.trainer ? ` · with ${a.trainer}` : ""}</p>
+            </div>
+            <Badge variant="outline">{actions ? "Confirmed" : label(a.status)}</Badge>
           </div>
-          <Badge variant="outline">{label(a.status)}</Badge>
+          {actions && <UpcomingActions a={a} />}
         </div>))}</div>;
 
   return (
@@ -195,7 +263,8 @@ export function MyPersonalTraining() {
         <section className="space-y-2"><h3 className="text-base font-semibold">Requested</h3>
           {pendingRequests.length === 0 ? <p className="text-sm text-muted-foreground">No pending requests.</p> : pendingRequests.map((r) => <RequestCard key={r.id} r={r} />)}
         </section>
-        <section className="space-y-2"><h3 className="text-base font-semibold">Confirmed</h3>{apptList(upcoming, "No upcoming sessions.")}</section>
+        <section className="space-y-2"><h3 className="text-base font-semibold">Confirmed</h3>
+          <p className="text-xs text-muted-foreground">Free cancellation up to 24 hours before your session. Later cancellations use the session from your package.</p>{apptList(upcoming, "No upcoming sessions.", true)}</section>
         <Notice>If the exact requested time is unavailable, Storm may confirm a different time within the submitted time window and notify you by portal, email, and text.</Notice>
         {closedRequests.length > 0 && (
           <section className="space-y-2"><h3 className="text-base font-semibold">Request history</h3>

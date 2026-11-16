@@ -19809,6 +19809,18 @@ export type Database = {
         Args: { _r: Database["public"]["Tables"]["training_requests"]["Row"] }
         Returns: boolean
       }
+      pt_request_client_cancel: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      pt_request_client_change: {
+        Args: {
+          p_request_id: string
+          p_slot_starts_at: string
+          p_trainer_id: string
+        }
+        Returns: undefined
+      }
       pt_request_confirm: {
         Args: {
           p_confirm_time?: string
@@ -20017,6 +20029,19 @@ export type Database = {
       pt_sale_payment_record: {
         Args: { p_idempotency_key: string }
         Returns: string
+      }
+      pt_schedule_pending_requests: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          client_name: string
+          duration_minutes: number
+          id: string
+          request_status: string
+          session_name: string
+          session_type_id: string
+          starts_at: string
+          trainer_id: string
+        }[]
       }
       pt_send_invoice: {
         Args: { p_invoice_id: string; p_recipient?: string }
