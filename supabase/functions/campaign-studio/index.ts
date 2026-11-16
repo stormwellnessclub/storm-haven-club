@@ -29,6 +29,7 @@ export const AUDIENCES: Record<string, string> = {
   hss_no_rsvp: "Higher Self Society: no RSVP yet (Dec 3)",
   hss_rsvp_yes: "Higher Self Society: RSVP'd yes (Dec 3)",
   active_members: "Active and frozen members",
+  active_only: "Active members only (no frozen)",
   non_members: "Non-members with an account",
   email_list: "Everyone on the email list",
 };
@@ -68,6 +69,8 @@ async function loadAudience(sb: any, key: string): Promise<Person[]> {
     }
   } else if (key === "active_members") {
     for (const m of members) add({ email: m.email, first_name: m.first_name, last_name: m.last_name, phone: m.phone, user_id: m.user_id, member_id: m.id });
+  } else if (key === "active_only") {
+    for (const m of members) if (m.status === "active") add({ email: m.email, first_name: m.first_name, last_name: m.last_name, phone: m.phone, user_id: m.user_id, member_id: m.id });
   } else if (key === "non_members") {
     const rows = await pageAll(sb, "non_member_profiles", "user_id, first_name, last_name, email, phone", (q) => q.is("merged_into_user_id", null));
     for (const r of rows) if (!memberByEmail.has(norm(r.email))) add({ ...r, member_id: null });
@@ -130,12 +133,17 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
       }
     }
     if (c.send_sms && c.sms_body) {
+      // Skip numbers this campaign already texted (safe resume), and pace sends to stay under the texting rate limit.
+      const already = new Set((await pageAll(sb, "sms_messages", "idempotency_key", (q) => q.like("idempotency_key", `mkt-${c.id}:%`).eq("status", "sent")))
+        .map((r: any) => String(r.idempotency_key).split(":")[1]));
       const seen = new Set<string>();
       const text = smsWithStop(`Storm Wellness Club: ${c.sms_body.replace(/^storm wellness club:\s*/i, "")}`);
       for (const p of people) {
         const ph = digits(p.phone);
         if (ph.length !== 10 || seen.has(ph)) { stats.sms.skipped++; continue; }
         seen.add(ph);
+        if (already.has(ph)) { stats.sms.sent++; continue; }
+        await new Promise((r) => setTimeout(r, 2200));
         const r = await sendSms(url, key, ph, p.user_id, `mkt-${c.id}:${ph}`, text, c.sms_image_url);
         if (r.ok) stats.sms.sent++; else if (r.blocked) stats.sms.skipped++; else stats.sms.failed++;
       }
