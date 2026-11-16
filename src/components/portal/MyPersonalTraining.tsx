@@ -331,7 +331,7 @@ export function MyPersonalTraining() {
         <WaitlistSection />
         <section className="space-y-2"><h3 className="text-base font-semibold">Confirmed</h3>
           <p className="text-xs text-muted-foreground">Free cancellation up to 24 hours before your session. Later cancellations use the session from your package.</p>{apptList(upcoming, "No upcoming sessions.", true)}</section>
-        <Notice>If the exact requested time is unavailable, Storm may confirm a different time within the submitted time window and notify you by portal, email, and text.</Notice>
+        <Notice>If the exact requested time is unavailable, we may confirm a different time within the submitted time window and notify you by portal, email, and text.</Notice>
         {closedRequests.length > 0 && (
           <section className="space-y-2"><h3 className="text-base font-semibold">Request history</h3>
             {closedRequests.map((r) => <RequestCard key={r.id} r={r} />)}</section>
