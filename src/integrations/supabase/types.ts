@@ -20062,6 +20062,25 @@ export type Database = {
           waiting: number
         }[]
       }
+      pt_schedule_waitlist_entries: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          client_name: string
+          client_user_id: string
+          created_at: string
+          email: string
+          id: string
+          line_position: number
+          notes: string
+          phone: string
+          preferred_date: string
+          preferred_time: string
+          session_name: string
+          session_type_id: string
+          status: string
+          trainer_id: string
+        }[]
+      }
       pt_send_invoice: {
         Args: { p_invoice_id: string; p_recipient?: string }
         Returns: Json
@@ -20150,6 +20169,7 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_waitlist_promote: { Args: { p_id: string }; Returns: string }
       pt_waive_sessions: {
         Args: { p_appointment_ids: string[]; p_reason: string }
         Returns: Json

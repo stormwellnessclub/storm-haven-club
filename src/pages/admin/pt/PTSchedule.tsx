@@ -18,6 +18,8 @@ import { PTNeedsCheckout } from "@/components/admin/pt/PTNeedsCheckout";
 import { BookPTSessionDialog } from "@/components/admin/BookPTSessionDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { PTSlotCard, usePTWaitlistEntries } from "@/components/admin/pt/PTSlotCard";
+import { buildWaitlistSlots } from "@/lib/ptSlots";
 
 const START_HOUR = 6;
 const END_HOUR = 21;
@@ -56,23 +58,19 @@ export default function PTSchedule() {
   const holds = useMemo(() => holdRows.filter((h) =>
     (trainer === "all" || h.trainer_id === trainer) && (sessionTypeFilter === "all" || h.session_type_id === sessionTypeFilter)
     && (statusFilter === "all") && (locationFilter === "all")), [holdRows, trainer, sessionTypeFilter, statusFilter, locationFilter]);
-  // Waitlisted clients per trainer hour (staff-only counts); tags sit on the trainer's column at that hour.
-  const { data: wlRows = [] } = useQuery({
-    queryKey: ["pt-waitlist", "schedule", fromIso, toIso],
-    refetchInterval: 60_000,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("pt_schedule_waitlist", { p_from: fromIso.slice(0, 10), p_to: toIso.slice(0, 10) });
-      if (error) throw error;
-      return ((data ?? []) as { trainer_id: string; preferred_date: string; preferred_time: string; waiting: number }[])
-        .map((w) => ({ ...w, id: `${w.trainer_id}|${w.preferred_date}|${w.preferred_time}`,
-          starts_at: new Date(`${w.preferred_date}T${w.preferred_time.slice(0, 8)}`).toISOString() }));
-    },
-  });
-  const [wlOpen, setWlOpen] = useState<{ trainer_id: string; preferred_date: string; preferred_time: string } | null>(null);
+  // People waiting per trainer hour: one plain label per hour + one slot card (first request holds the hour).
+  const { data: waiters = [] } = usePTWaitlistEntries(fromIso.slice(0, 10), toIso.slice(0, 10));
+  const [wlOpen, setWlOpen] = useState<string | null>(null);
   const { data: people = {} } = usePTPeople(rows.map((a) => a.user_id));
   const { data: trainers = [] } = usePTTrainers();
   const trainerMap = usePTTrainerMap();
   const { locations, sessionTypes, locationMap, sessionTypeMap } = usePTLookupMaps();
+  const wlSlots = useMemo(() => buildWaitlistSlots(
+    holdRows,
+    rows.map((a) => ({ ...a, client_name: people[a.user_id]?.name ?? null })),
+    waiters.filter((w) => trainer === "all" || w.trainer_id === trainer),
+  ), [holdRows, rows, people, waiters, trainer]);
+  const openSlot = wlSlots.find((s) => s.key === wlOpen) ?? null;
 
   const appts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -180,11 +178,12 @@ export default function PTSchedule() {
         eyebrow="Personal Training"
         title="Schedule"
         subtitle="Day, week, trainer and location views. Click any slot to book, any card to manage."
-        actions={
+        actions={<>
+          <button className={`${ptButtonClass("outline")} md:hidden`} onClick={() => navigate("/admin/pt/m/requests")}>Phone view</button>
           <button className={ptButtonClass()} onClick={() => { setPresetDate(date); setBookOpen(true); }}>
             <Plus className="h-4 w-4" /> Book session
           </button>
-        }
+        </>}
       />
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -347,17 +346,15 @@ export default function PTSchedule() {
                       );
                     })}
 
-                    {wlRows.filter((w) => (trainer === "all" || w.trainer_id === trainer) && col.matchReq(w as unknown as PTRequestHold)).map((w) => {
+                    {wlSlots.filter((w) => col.matchReq({ trainer_id: w.trainer_id, starts_at: w.starts_at } as unknown as PTRequestHold)).map((w) => {
                       const t = new Date(w.starts_at);
                       const top = ((t.getHours() - START_HOUR) * 60 + t.getMinutes()) * PX_PER_MIN;
-                      const stillTaken = colAppts.some((a) => a.status === "scheduled" && a.instructor_id === w.trainer_id
-                        && new Date(a.starts_at) <= t && new Date(a.starts_at).getTime() + a.duration_minutes * 60000 > t.getTime());
                       return (
-                        <button key={`wl-${w.id}`} onClick={() => setWlOpen(w)} data-testid="pt-schedule-waitlist-tag"
-                          title="Clients waiting for this hour — tap to see who"
-                          className={`absolute right-1 z-20 rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm ${stillTaken ? "bg-pt-beige text-pt-ink border-pt-line" : "bg-pt-gold text-pt-ink border-pt-gold"}`}
-                          style={{ top: top + 2 }}>
-                          {stillTaken ? `Waitlist (${w.waiting})` : `Opened — ${w.waiting} waiting`}
+                        <button key={`wl-${w.key}`} onClick={() => setWlOpen(w.key)} data-testid="pt-schedule-waitlist-tag"
+                          title="Tap to see who holds this hour and who is waiting"
+                          className={`absolute left-1 right-1 z-20 rounded-md border px-2 py-0.5 text-left text-[10px] font-semibold shadow-sm ${w.state === "opened" ? "bg-pt-gold text-pt-ink border-pt-gold" : "bg-white/95 text-pt-ink border-pt-line"}`}
+                          style={{ top: top + 60 * PX_PER_MIN - 20 }}>
+                          {w.label}
                         </button>
                       );
                     })}
@@ -414,10 +411,11 @@ export default function PTSchedule() {
         presetDate={presetDate}
         onBooked={() => qc.invalidateQueries({ queryKey: ["pt-appointments"] })}
       />
-      <Sheet open={!!wlOpen} onOpenChange={(o) => !o && setWlOpen(null)}>
+      <Sheet open={!!openSlot} onOpenChange={(o) => !o && setWlOpen(null)}>
         <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader><SheetTitle>Waitlist</SheetTitle></SheetHeader>
-          {wlOpen && <WaitlistWho w={wlOpen} trainerName={trainerMap[wlOpen.trainer_id]} />}
+          <SheetHeader><SheetTitle>This hour</SheetTitle></SheetHeader>
+          <div className="mt-4">{openSlot && <PTSlotCard slot={openSlot} trainerName={trainerMap[openSlot.trainer_id]}
+            onOpenRequest={(id) => { setWlOpen(null); setSelectedRequestId(id); }} />}</div>
         </SheetContent>
       </Sheet>
 
@@ -428,46 +426,5 @@ export default function PTSchedule() {
         </SheetContent>
       </Sheet>
     </PTShell>
-  );
-}
-
-/** Who is waiting for one trainer hour (oldest first). Staff read pt_waitlist directly; nothing is sent from here. */
-function WaitlistWho({ w, trainerName }: { w: { trainer_id: string; preferred_date: string; preferred_time: string }; trainerName?: string }) {
-  const qc = useQueryClient();
-  const { data: list = [] } = useQuery({
-    queryKey: ["pt-waitlist", "who", w.trainer_id, w.preferred_date, w.preferred_time],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from("pt_waitlist").select("id, client_user_id, notes, status, created_at")
-        .eq("preferred_trainer_id", w.trainer_id).eq("preferred_date", w.preferred_date).eq("preferred_time", w.preferred_time)
-        .in("status", ["waiting", "contacted"]).order("created_at");
-      if (error) throw error;
-      return data as { id: string; client_user_id: string; notes: string | null; status: string; created_at: string }[];
-    },
-  });
-  const { data: people = {} } = usePTPeople(list.map((r) => r.client_user_id));
-  const setStatus = async (id: string, status: string) => {
-    await (supabase as any).from("pt_waitlist").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
-    qc.invalidateQueries({ queryKey: ["pt-waitlist"] });
-  };
-  return (
-    <div className="mt-4 space-y-3 text-sm">
-      <p className="text-pt-muted">{trainerName ?? "Trainer"} · {fmtDate(parseISO(w.preferred_date), "EEE, MMM d")} · {fmtDate(new Date(`${w.preferred_date}T${w.preferred_time.slice(0, 8)}`), "h:mm a")}</p>
-      {list.length === 0 ? <p className="text-pt-muted">No one is waiting.</p> : list.map((r, i) => {
-        const p = (people as any)[r.client_user_id];
-        return (
-          <div key={r.id} className="rounded-lg border border-pt-line p-3 space-y-1">
-            <p><strong>{i + 1}. {p?.name ?? "Client"}</strong>{p?.phone ? ` · ${p.phone}` : ""}</p>
-            {p?.email && <p className="text-xs text-pt-muted">{p.email}</p>}
-            {r.notes && <p className="text-xs">Notes: {r.notes}</p>}
-            <p className="text-xs text-pt-muted">Joined {fmtDate(new Date(r.created_at), "MMM d, h:mm a")} · {r.status === "contacted" ? "Contacted" : "Waiting"}</p>
-            <div className="flex gap-2 pt-1">
-              {r.status === "waiting" && <button className={ptButtonClass("ghost")} onClick={() => setStatus(r.id, "contacted")}>Mark contacted</button>}
-              <button className={ptButtonClass("ghost")} onClick={() => setStatus(r.id, "booked")}>Booked</button>
-              <button className={ptButtonClass("ghost")} onClick={() => setStatus(r.id, "closed")}>Close</button>
-            </div>
-          </div>
-        );
-      })}
-    </div>
   );
 }

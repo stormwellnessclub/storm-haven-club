@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Users, LineChart, Menu, Plus } from "lucide-react";
+import { Home, Users, LineChart, Menu, Plus, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PTQuickAddSheet } from "./PTQuickAddSheet";
 
 const ITEMS = [
   { to: "/admin/pt/m", label: "Today", icon: Home, end: true },
+  { to: "/admin/pt/m/requests", label: "Requests", icon: Inbox, end: false },
   { to: "/admin/pt/m/clients", label: "Clients", icon: Users, end: false },
   { to: "/admin/pt/m/progress", label: "Progress", icon: LineChart, end: false },
   { to: "/admin/pt/m/more", label: "More", icon: Menu, end: false },
@@ -42,7 +43,8 @@ export function PTMobileNav() {
         <div className="mx-auto flex max-w-md items-center px-2">
           {item(ITEMS[0])}
           {item(ITEMS[1])}
-          <div className="flex w-16 justify-center">
+          {item(ITEMS[2])}
+          <div className="flex w-14 justify-center">
             <button
               type="button"
               aria-label="Quick add"
@@ -52,8 +54,8 @@ export function PTMobileNav() {
               <Plus className="h-7 w-7" />
             </button>
           </div>
-          {item(ITEMS[2])}
           {item(ITEMS[3])}
+          {item(ITEMS[4])}
         </div>
       </nav>
       <PTQuickAddSheet open={quickAdd} onOpenChange={setQuickAdd} />

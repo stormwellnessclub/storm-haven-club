@@ -268,6 +268,7 @@ import PTPortalRequests from "@/pages/admin/pt/PTRequests";
 import PTPortalLeads from "@/pages/admin/pt/PTLeads";
 import PTPortalSettings from "@/pages/admin/pt/PTSettings";
 import PTMToday from "@/pages/admin/pt/mobile/PTMToday";
+import PTMRequests from "@/pages/admin/pt/mobile/PTMRequests";
 import PTMClients from "@/pages/admin/pt/mobile/PTMClients";
 import PTMClientProfile from "@/pages/admin/pt/mobile/PTMClientProfile";
 import PTMProgress from "@/pages/admin/pt/mobile/PTMProgress";
@@ -606,6 +607,7 @@ const App = () => (
               <Route path="/admin/pt/m" element={<ProtectedAdminRoute><PTMToday /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/today" element={<ProtectedAdminRoute><PTMToday /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/list/:listKey" element={<ProtectedAdminRoute><PTMActionList /></ProtectedAdminRoute>} />
+              <Route path="/admin/pt/m/requests" element={<ProtectedAdminRoute><PTMRequests /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/clients" element={<ProtectedAdminRoute><PTMClients /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/clients/:userId" element={<ProtectedAdminRoute><PTMClientProfile /></ProtectedAdminRoute>} />
               <Route path="/admin/pt/m/progress" element={<ProtectedAdminRoute><PTMProgress /></ProtectedAdminRoute>} />

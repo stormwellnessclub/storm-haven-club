@@ -14,6 +14,8 @@ import { usePTMToday, type PTMTodayAppointment } from "@/hooks/pt/usePTMToday";
 import { usePTMobileAccess } from "@/hooks/pt/usePTMobileAccess";
 import { PT_LIFECYCLE_LABEL, PT_LIFECYCLE_STYLE } from "@/hooks/pt/usePTSchedule";
 import { cn } from "@/lib/utils";
+import { usePTRequestHolds } from "@/hooks/pt/usePTSchedule";
+import { usePTWaitlistEntries } from "@/components/admin/pt/PTSlotCard";
 
 const timeOf = (iso: string) => format(new Date(iso), "h:mm a");
 
@@ -125,6 +127,7 @@ export default function PTMToday() {
             </p>
             <p className="shrink-0 text-[12px] text-pt-cream/60">{format(new Date(), "EEE, MMM d")}</p>
           </div>
+          <TodayRequestsShortcut onOpen={() => navigate("/admin/pt/m/requests")} />
         </div>
       }
     >
@@ -274,5 +277,20 @@ export default function PTMToday() {
         )}
       </div>
     </PTMobileShell>
+  );
+}
+
+/** "3 requests · 1 waitlist" shortcut into the Requests tab. */
+function TodayRequestsShortcut({ onOpen }: { onOpen: () => void }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const to = new Date(today.getTime() + 60 * 86400000);
+  const { data: holds = [] } = usePTRequestHolds(today.toISOString(), to.toISOString());
+  const { data: waiters = [] } = usePTWaitlistEntries(format(today, "yyyy-MM-dd"), format(to, "yyyy-MM-dd"));
+  if (!holds.length && !waiters.length) return null;
+  return (
+    <button onClick={onOpen} className="mt-3 flex w-full items-center justify-between rounded-xl bg-white/10 px-3 py-2.5 text-left text-[13px] font-medium active:bg-white/20">
+      <span>{holds.length} {holds.length === 1 ? "request" : "requests"} · {waiters.length} waitlist</span>
+      <ChevronRight className="h-4 w-4" />
+    </button>
   );
 }
