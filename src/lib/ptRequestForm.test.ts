@@ -26,3 +26,25 @@ describe("groupSlotsByDay", () => {
     expect(g[0].slots.map((s) => s.time)).toEqual(["9:00 AM", "11:00 AM", "10:30 PM"]);
   });
 });
+
+import { groupTrainerSlotsByDay } from "./ptRequestForm";
+
+describe("groupTrainerSlotsByDay", () => {
+  // 4:30 PM Detroit = 21:30 UTC in November (EST).
+  const slots = [
+    { starts_at: "2026-11-17T22:30:00Z", trainer_id: "k", trainer_name: "Klaudia Selim" },
+    { starts_at: "2026-11-17T21:30:00Z", trainer_id: "s", trainer_name: "Storm S" },
+    { starts_at: "2026-11-17T21:30:00Z", trainer_id: "k", trainer_name: "Klaudia Selim" },
+  ];
+  it("shows one-hour blocks from the start time, e.g. 4:30 – 5:30 PM", () => {
+    const [day] = groupTrainerSlotsByDay(slots);
+    expect(day.slots[0].time).toBe("4:30 – 5:30 PM");
+  });
+  it("lists every trainer's times together on the same day, in time order", () => {
+    const days = groupTrainerSlotsByDay(slots);
+    expect(days).toHaveLength(1);
+    expect(days[0].slots.map((s) => `${s.time} ${s.trainer}`)).toEqual([
+      "4:30 – 5:30 PM Klaudia Selim", "4:30 – 5:30 PM Storm S", "5:30 – 6:30 PM Klaudia Selim",
+    ]);
+  });
+});

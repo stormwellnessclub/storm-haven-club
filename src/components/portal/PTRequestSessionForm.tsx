@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ptRequestProblem, PT_REQUEST_NOTE_MAX, groupSlotsByDay, detroitToday } from "@/lib/ptRequestForm";
+import { ptRequestProblem, PT_REQUEST_NOTE_MAX, groupTrainerSlotsByDay, detroitToday, type PTTrainerSlot } from "@/lib/ptRequestForm";
 
 interface Options { open: boolean; services: { id: string; name: string; duration_minutes: number; trainers: { id: string; name: string }[] }[] }
 
@@ -50,19 +50,21 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
   const service = services.find((s) => s.id === serviceId);
   const trainers = service?.trainers ?? [];
 
+  // Every eligible trainer's open one-hour blocks for this session, together (no trainer filter).
   const times = useQuery({
-    queryKey: ["pt-client-request-times", serviceId, trainerId],
-    enabled: !!serviceId && !!trainerId,
+    queryKey: ["pt-client-request-times", serviceId],
+    enabled: !!serviceId,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("pt_client_request_times", { p_session_type_id: serviceId, p_trainer_id: trainerId, p_days: 14 });
+      const { data, error } = await (supabase.rpc as any)("pt_client_request_times_all", { p_session_type_id: serviceId, p_days: 14 });
       if (error) throw error;
-      return ((data ?? []) as { starts_at: string }[]).map((s) => s.starts_at);
+      return (data ?? []) as PTTrainerSlot[];
     },
   });
-  const days = useMemo(() => groupSlotsByDay(times.data ?? []), [times.data]);
+  const days = useMemo(() => groupTrainerSlotsByDay(times.data ?? [], service?.duration_minutes ?? 60), [times.data, service?.duration_minutes]);
+  const slotKey = slot && trainerId ? `${slot}|${trainerId}` : null;
 
   const pickService = (id: string) => {
-    setServiceId(id); setSlot(null);
+    setServiceId(id); setSlot(null); setFallback(false);
     const t = services.find((s) => s.id === id)?.trainers ?? [];
     setTrainerId(t.length === 1 ? t[0].id : "");
   };
@@ -95,7 +97,7 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
     <div className="space-y-4 pb-28 md:pb-0">
       <div>
         <h2 className="text-lg font-semibold">Request a PT Session</h2>
-        <p className="text-sm text-muted-foreground">Choose a session and trainer, then pick one of their open times.</p>
+        <p className="text-sm text-muted-foreground">Choose a session, then pick an open one-hour time with any of our trainers.</p>
       </div>
       <Notice><strong className="text-foreground">This is a session request, not a confirmed booking.</strong> We'll review your request and send a confirmation once it's scheduled.</Notice>
 
@@ -107,13 +109,7 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
             <Select value={serviceId} onValueChange={pickService}><SelectTrigger aria-label="Session"><SelectValue placeholder="Choose a session" /></SelectTrigger>
               <SelectContent>{services.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.duration_minutes} min)</SelectItem>)}</SelectContent></Select></div>
 
-          {service && (
-            <div className="space-y-1.5"><Label>Trainer</Label>
-              <Select value={trainerId} onValueChange={(v) => { setTrainerId(v); setSlot(null); }}><SelectTrigger aria-label="Trainer"><SelectValue placeholder="Choose a trainer" /></SelectTrigger>
-                <SelectContent>{trainers.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
-          )}
-
-          {serviceId && trainerId && !fallback && (
+          {serviceId && !fallback && (
             <div className="space-y-2">
               <Label>Available times</Label>
               {times.isLoading ? <p className="text-sm text-muted-foreground">Finding open times…</p>
@@ -122,23 +118,28 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
                 : <div className="space-y-3" data-testid="pt-request-times">{days.map((d) => (
                     <div key={d.label} className="space-y-1.5">
                       <p className="text-sm font-medium">{d.label}</p>
-                      <div className="flex flex-wrap gap-2">{d.slots.map((s) => (
-                        <Button key={s.iso} type="button" size="sm" variant={slot === s.iso ? "default" : "outline"}
-                          className="normal-case tracking-normal" aria-pressed={slot === s.iso} onClick={() => setSlot(s.iso)}>{s.time}</Button>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{d.slots.map((s) => (
+                        <Button key={s.key} type="button" size="sm" variant={slotKey === s.key ? "default" : "outline"}
+                          className="h-auto justify-between gap-2 py-2 normal-case tracking-normal" aria-pressed={slotKey === s.key}
+                          onClick={() => { setSlot(s.iso); setTrainerId(s.trainerId); }}>
+                          <span>{s.time}</span><span className="text-xs opacity-80">{s.trainer}</span></Button>
                       ))}</div>
                     </div>))}</div>}
-              <button type="button" className="text-sm underline text-muted-foreground" onClick={() => { setFallback(true); setSlot(null); }}>
+              <button type="button" className="text-sm underline text-muted-foreground" onClick={() => { setFallback(true); setSlot(null); if (trainers.length !== 1) setTrainerId(""); }}>
                 None of these times work? Request another time
               </button>
             </div>
           )}
 
-          {serviceId && trainerId && fallback && (
+          {serviceId && fallback && (
             <div className="space-y-4 rounded-lg border border-border p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-medium">Request another time</p>
                 <button type="button" className="text-xs underline text-muted-foreground" onClick={() => setFallback(false)}>Back to open times</button>
               </div>
+              <div className="space-y-1.5"><Label>Trainer preference</Label>
+                <Select value={trainerId} onValueChange={setTrainerId}><SelectTrigger aria-label="Trainer"><SelectValue placeholder="Choose a trainer" /></SelectTrigger>
+                  <SelectContent>{trainers.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent></Select></div>
               <div className="space-y-1.5"><Label htmlFor="pt-date">Preferred date</Label><Input id="pt-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
               <div className="space-y-1.5"><Label htmlFor="pt-time">Preferred time</Label><Input id="pt-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} /></div>
               <div className="space-y-1.5"><Label>Availability window</Label>
@@ -156,7 +157,7 @@ export function PTRequestSessionForm({ onSubmitted }: { onSubmitted?: () => void
             </div>
           )}
 
-          {serviceId && trainerId && (
+          {serviceId && (slot || fallback) && (
             <div className="space-y-1.5"><Label htmlFor="pt-note">Notes (optional)</Label>
               <Textarea id="pt-note" maxLength={PT_REQUEST_NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Any additional details (e.g., focus areas or preferences)" />
               <p className="text-right text-xs text-muted-foreground">{note.length} / {PT_REQUEST_NOTE_MAX}</p></div>

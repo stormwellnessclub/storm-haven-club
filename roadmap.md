@@ -49,6 +49,8 @@
 - [x] Classes: buy a single class pass inside the booking window
 - [x] Real /classes page (studios, what to expect, beginner FAQs)
 - [x] Local search tags and business info for spa, massage and classes pages
+- [x] Client PT requests: one-hour blocks from each trainer's start time, all trainers' open times shown together by day (no trainer filter); verified as Nadeen on phone, nothing sent
+- [ ] Owner accounts see "requests aren't open" because they have no training on file — waiting on owner: allow owner/staff to try it, open to all members, or just reword
 - [x] Restore automatic staff-booked PT confirmation email and consent-checked text; safe mocked tests only (no client messages or real bookings)
 
 ## Campaign Studio

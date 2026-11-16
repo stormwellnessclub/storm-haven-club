@@ -36,3 +36,29 @@ export function groupSlotsByDay(isos: string[]) {
 }
 
 export const PT_REQUEST_NOTE_MAX = 300;
+
+export interface PTTrainerSlot { starts_at: string; ends_at?: string; trainer_id: string; trainer_name: string }
+
+/**
+ * Groups every trainer's open one-hour blocks by Detroit day, in time order, labelled
+ * "4:30 – 5:30 PM" with the trainer's name. Clients see all trainers together (no trainer filter).
+ */
+export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes = 60) {
+  const dayFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", weekday: "long", month: "short", day: "numeric" });
+  const timeFmt = new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", hour: "numeric", minute: "2-digit" });
+  const out: { label: string; slots: { key: string; iso: string; trainerId: string; trainer: string; time: string }[] }[] = [];
+  const sorted = [...slots].sort((a, b) =>
+    new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime() || a.trainer_name.localeCompare(b.trainer_name));
+  for (const s of sorted) {
+    const start = new Date(s.starts_at);
+    const end = s.ends_at ? new Date(s.ends_at) : new Date(start.getTime() + durationMinutes * 60000);
+    const label = dayFmt.format(start);
+    let g = out[out.length - 1];
+    if (!g || g.label !== label) { g = { label, slots: [] }; out.push(g); }
+    const a = timeFmt.format(start), b = timeFmt.format(end);
+    const sameHalf = a.slice(-2) === b.slice(-2);
+    g.slots.push({ key: `${s.starts_at}|${s.trainer_id}`, iso: s.starts_at, trainerId: s.trainer_id, trainer: s.trainer_name,
+      time: `${sameHalf ? a.slice(0, -3) : a} – ${b}` });
+  }
+  return out;
+}

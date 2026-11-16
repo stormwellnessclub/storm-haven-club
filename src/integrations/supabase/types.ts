@@ -19109,6 +19109,10 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_client_request_times_all: {
+        Args: { p_days?: number; p_from?: string; p_session_type_id: string }
+        Returns: Json
+      }
       pt_client_slot_is_open: {
         Args: {
           p_session_type_id: string
