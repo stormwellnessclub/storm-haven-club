@@ -1219,6 +1219,13 @@
       "when": 1794787527440,
       "tag": "0173_pt_client_request_hour_blocks_all_trainers",
       "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1794787776975,
+      "tag": "0174_pt_client_request_options_reason",
+      "breakpoints": true
     }
   ]
 }
