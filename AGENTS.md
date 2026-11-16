@@ -51,4 +51,3 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
-- PT waitlist staff views (desktop calendar and phone Requests tab) share `buildWaitlistSlots` (src/lib/ptSlots.ts) and `PTSlotCard`; the first pending request holds a trainer hour, and `pt_waitlist_promote` only works once nothing holds it. Why: one clear per-hour state, staff-decided order.
