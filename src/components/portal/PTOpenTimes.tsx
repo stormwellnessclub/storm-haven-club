@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Check } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +52,11 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
     },
   });
   const days = useMemo(() => groupTrainerSlotsByDay(times.data ?? [], durationMinutes, !!onWaitlist), [times.data, durationMinutes, onWaitlist]);
+  // Week = every day listed (default); Day = one day at a time with a day strip.
+  const [view, setView] = useState<"week" | "day">("week");
+  const [dayIdx, setDayIdx] = useState(0);
+  const safeIdx = Math.min(dayIdx, Math.max(days.length - 1, 0));
+  const shownDays = view === "week" ? days : days.slice(safeIdx, safeIdx + 1);
   const trainers = useMemo(() => [...new Set((times.data ?? []).map((t) => t.trainer_name))].sort(), [times.data]);
 
   return (
@@ -69,7 +74,24 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
                 </span>); })}
             </div>
           )}
-          {days.map((d) => (
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="View">
+            {([["week", "Week"], ["day", "Day"]] as const).map(([v, l]) => (
+              <Button key={v} type="button" size="sm" role="radio" aria-checked={view === v} variant={view === v ? "default" : "outline"}
+                className="normal-case tracking-normal" onClick={() => setView(v)}>{l}</Button>))}
+          </div>
+          {view === "day" && (
+            <div className="flex items-center gap-1" data-testid="pt-day-strip">
+              <Button type="button" size="icon" variant="ghost" className="shrink-0" aria-label="Previous day" disabled={safeIdx === 0} onClick={() => setDayIdx(safeIdx - 1)}><ChevronLeft className="h-4 w-4" /></Button>
+              <div className="flex flex-1 gap-1.5 overflow-x-auto pb-1">
+                {days.map((d, i) => { const [wd, rest] = d.label.split(", "); return (
+                  <Button key={d.label} type="button" size="sm" variant={i === safeIdx ? "default" : "outline"} aria-pressed={i === safeIdx}
+                    className="h-auto shrink-0 flex-col px-3 py-1.5 normal-case tracking-normal leading-tight" onClick={() => setDayIdx(i)}>
+                    <span className="text-[11px]">{wd?.slice(0, 3)}</span><span className="text-xs font-semibold">{rest}</span></Button>); })}
+              </div>
+              <Button type="button" size="icon" variant="ghost" className="shrink-0" aria-label="Next day" disabled={safeIdx >= days.length - 1} onClick={() => setDayIdx(safeIdx + 1)}><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+          )}
+          {shownDays.map((d) => (
             <div key={d.label} className="space-y-1.5">
               <p className="text-sm font-medium">{d.label}</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{d.slots.map((s) => {
