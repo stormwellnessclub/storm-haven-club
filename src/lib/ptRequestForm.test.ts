@@ -1,6 +1,6 @@
 // @ts-nocheck -- Bun test runner types are not part of browser compilation.
 import { describe, expect, it } from "bun:test";
-import { ptRequestProblem, groupSlotsByDay, togglePTDayPick, ptTrainerShade } from "./ptRequestForm";
+import { ptRequestProblem, groupSlotsByDay, togglePTDayPick, ptTrainerShade, ptDefaultWindow, ptWindowProblem, ptClockLabel } from "./ptRequestForm";
 
 const base = { date: "2026-11-20", time: "10:00", flexibility: "window" as const, earliest: "10:00", latest: "13:00" };
 
@@ -85,4 +85,23 @@ describe("ptTrainerShade", () => {
     expect(ptTrainerShade("Klaudia Selim")).toBe("sand");
     expect(ptTrainerShade("Bea M")).toBeNull();
   });
+});
+
+describe("availability window on a picked time", () => {
+  const iso = "2026-11-17T15:00:00Z"; // 10:00 AM Detroit
+  it("defaults to flexible from the picked time to three hours later, like 10:00 AM – 1:00 PM", () =>
+    expect(ptDefaultWindow(iso)).toEqual({ earliest: "10:00", latest: "13:00", flexibility: "window" }));
+  it("window must end after it starts", () =>
+    expect(ptWindowProblem({ iso, earliest: "12:00", latest: "11:00", flexibility: "window" })).toBe("Your window must end after it starts."));
+  it("picked time must be inside the window", () =>
+    expect(ptWindowProblem({ iso, earliest: "11:00", latest: "14:00", flexibility: "window" })).toBe("Your picked time must fall inside your window."));
+  it("only my preferred time needs no window", () =>
+    expect(ptWindowProblem({ iso, earliest: "", latest: "", flexibility: "exact" })).toBeNull());
+  it("each picked day keeps its own window", () => {
+    let p = togglePTDayPick([], { day: "Tue", iso, trainerId: "s", trainer: "Storm S", time: "10 – 11 AM" }, "multi").picks;
+    p = p.map((x) => ({ ...x, latest: "12:00" }));
+    p = togglePTDayPick(p, { day: "Wed", iso: "2026-11-18T21:30:00Z", trainerId: "s", trainer: "Storm S", time: "4:30 – 5:30 PM" }, "multi").picks;
+    expect(p.map((x) => [x.earliest, x.latest])).toEqual([["10:00", "12:00"], ["16:30", "19:30"]]);
+  });
+  it("labels times like the form", () => expect(ptClockLabel("13:00")).toBe("1:00 PM"));
 });

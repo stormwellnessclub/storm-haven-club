@@ -66,7 +66,12 @@ export function groupTrainerSlotsByDay(slots: PTTrainerSlot[], durationMinutes =
 /** Most pending requests a client may have at once (matches pt_request_create on the server). */
 export const PT_MAX_PENDING_REQUESTS = 5;
 
-export interface PTDayPick { day: string; iso: string; trainerId: string; trainer: string; time: string; note: string }
+export interface PTDayPick {
+  day: string; iso: string; trainerId: string; trainer: string; time: string; note: string;
+  /** Availability window (Detroit "HH:MM") and whether staff may confirm any time inside it. */
+  earliest: string; latest: string; flexibility: "window" | "exact";
+}
+type PTPickInput = Omit<PTDayPick, "note" | "earliest" | "latest" | "flexibility">;
 
 /**
  * Picking a time on the request form.
@@ -75,18 +80,19 @@ export interface PTDayPick { day: string; iso: string; trainerId: string; traine
  * picking the selected time again removes it, and no more than `max` days can be picked.
  * Each day keeps its own note.
  */
-export function togglePTDayPick(picks: PTDayPick[], pick: Omit<PTDayPick, "note">, mode: "single" | "multi", max = PT_MAX_PENDING_REQUESTS):
+export function togglePTDayPick(picks: PTDayPick[], pick: PTPickInput, mode: "single" | "multi", max = PT_MAX_PENDING_REQUESTS):
   { picks: PTDayPick[]; problem: string | null } {
   const same = (p: PTDayPick) => p.iso === pick.iso && p.trainerId === pick.trainerId;
   if (mode === "single") {
     const keep = picks.find(same);
-    return { picks: [{ ...pick, note: keep?.note ?? picks[0]?.note ?? "" }], problem: null };
+    if (keep) return { picks: [keep], problem: null };
+    return { picks: [{ ...ptDefaultWindow(pick.iso), ...pick, note: picks[0]?.note ?? "" }], problem: null };
   }
   if (picks.some(same)) return { picks: picks.filter((p) => !same(p)), problem: null };
   const sameDay = picks.find((p) => p.day === pick.day);
-  if (sameDay) return { picks: picks.map((p) => (p.day === pick.day ? { ...pick, note: p.note } : p)), problem: null };
+  if (sameDay) return { picks: picks.map((p) => (p.day === pick.day ? { ...ptDefaultWindow(pick.iso), ...pick, note: p.note } : p)), problem: null };
   if (picks.length >= max) return { picks, problem: `You can request up to ${max} days at a time.` };
-  const next = [...picks, { ...pick, note: "" }];
+  const next = [...picks, { ...ptDefaultWindow(pick.iso), ...pick, note: "" }];
   next.sort((a, b) => new Date(a.iso).getTime() - new Date(b.iso).getTime());
   return { picks: next, problem: null };
 }
@@ -99,4 +105,39 @@ export function ptTrainerShade(trainerName: string): PTTrainerShade {
   if (first === "felicia") return "tan";
   if (first === "klaudia") return "sand";
   return null;
+}
+
+/** Detroit wall-clock "HH:MM" for an instant. */
+export function detroitHHMM(iso: string) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Detroit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(iso));
+  const h = parts.find((x) => x.type === "hour")?.value ?? "00", m = parts.find((x) => x.type === "minute")?.value ?? "00";
+  return `${h}:${m}`;
+}
+
+const toMin = (t: string) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
+const fromMin = (n: number) => `${String(Math.floor(n / 60)).padStart(2, "0")}:${String(n % 60).padStart(2, "0")}`;
+
+/** Window choices: every 30 minutes, 6:00 AM to 9:00 PM. */
+export const PT_WINDOW_TIMES: string[] = Array.from({ length: (21 - 6) * 2 + 1 }, (_, i) => fromMin(6 * 60 + i * 30));
+
+/** Default window for a picked time: from the picked start to three hours later (latest 9 PM); flexible within it. */
+export function ptDefaultWindow(iso: string): Pick<PTDayPick, "earliest" | "latest" | "flexibility"> {
+  const start = detroitHHMM(iso);
+  return { earliest: start, latest: fromMin(Math.min(toMin(start) + 180, 21 * 60)), flexibility: "window" };
+}
+
+/** Problem with a picked time's window, or null. Only checked when the client is flexible within a window. */
+export function ptWindowProblem(p: Pick<PTDayPick, "iso" | "earliest" | "latest" | "flexibility">): string | null {
+  if (p.flexibility !== "window") return null;
+  if (!p.earliest || !p.latest) return "Choose your availability window.";
+  if (toMin(p.latest) <= toMin(p.earliest)) return "Your window must end after it starts.";
+  const t = toMin(detroitHHMM(p.iso));
+  if (t < toMin(p.earliest) || t >= toMin(p.latest)) return "Your picked time must fall inside your window.";
+  return null;
+}
+
+/** "10:00 AM" for "10:00". */
+export function ptClockLabel(t: string) {
+  const n = toMin(t); const h = Math.floor(n / 60), m = n % 60;
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
