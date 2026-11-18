@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+// @ts-nocheck
+import { describe, it, expect } from "bun:test";
 import { saleHasEnded, formatUsd } from "./blackFriday";
 
 const end = "2026-12-01T04:59:59.000Z"; // Nov 30, 11:59:59 PM Detroit
