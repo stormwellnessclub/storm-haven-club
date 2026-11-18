@@ -1,3 +1,5 @@
+import { formatTime12h } from "@/lib/timeFormat";
+import { TimeSelect12h } from "@/components/admin/TimeSelect12h";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format as fmt } from "date-fns";
@@ -66,7 +68,7 @@ export function PTWaitlistPanel({ trainers, types, clientName }: { trainers: { i
   const tName = (id?: string | null) => trainers.find((t) => t.id === id)?.name ?? "Any trainer";
   const sName = (id?: string | null) => types.find((t) => t.id === id)?.name ?? "Any session";
   const line = (w: any) => [w.preferred_date ? fmt(new Date(`${w.preferred_date}T00:00:00`), "MMM d") : "Any date",
-    w.preferred_time?.slice(0, 5), w.earliest_time && w.latest_time ? `window ${w.earliest_time.slice(0, 5)}–${w.latest_time.slice(0, 5)}` : null,
+    w.preferred_time ? formatTime12h(w.preferred_time) : null, w.earliest_time && w.latest_time ? `window ${formatTime12h(w.earliest_time)}–${formatTime12h(w.latest_time)}` : null,
     FLEX[w.flexibility]].filter(Boolean).join(" · ");
 
   const TrainerSel = ({ v, on }: { v: string; on: (v: string) => void }) => (
@@ -94,9 +96,9 @@ export function PTWaitlistPanel({ trainers, types, clientName }: { trainers: { i
         <TrainerSel v={f.trainer} on={set("trainer")} />
         <TypeSel v={f.type} on={set("type")} />
         <Input type="date" value={f.date} onChange={(e) => set("date")(e.target.value)} />
-        <Input type="time" value={f.time} onChange={(e) => set("time")(e.target.value)} aria-label="Preferred time" />
-        <Input type="time" value={f.earliest} onChange={(e) => set("earliest")(e.target.value)} aria-label="Earliest" />
-        <Input type="time" value={f.latest} onChange={(e) => set("latest")(e.target.value)} aria-label="Latest" />
+        <TimeSelect12h value={f.time} onChange={set("time")} className="h-10" ariaLabel="Preferred time" placeholder="Preferred time" />
+        <TimeSelect12h value={f.earliest} onChange={set("earliest")} className="h-10" ariaLabel="Earliest" placeholder="Earliest" />
+        <TimeSelect12h value={f.latest} onChange={set("latest")} className="h-10" ariaLabel="Latest" placeholder="Latest" />
         <Select value={f.flex} onValueChange={set("flex")}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>{Object.entries(FLEX).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
@@ -111,7 +113,7 @@ export function PTWaitlistPanel({ trainers, types, clientName }: { trainers: { i
           <TrainerSel v={open.trainer} on={(v) => setOpen((p) => ({ ...p, trainer: v }))} />
           <TypeSel v={open.type} on={(v) => setOpen((p) => ({ ...p, type: v }))} />
           <Input type="date" value={open.date} onChange={(e) => setOpen((p) => ({ ...p, date: e.target.value }))} />
-          <Input type="time" value={open.time} onChange={(e) => setOpen((p) => ({ ...p, time: e.target.value }))} />
+          <TimeSelect12h value={open.time} onChange={(v) => setOpen((p) => ({ ...p, time: v }))} className="h-10" ariaLabel="Opening time" />
         </div>
         {matches.data && (
           <div className="text-sm">{matches.data.length === 0 ? "No waitlisted clients match this opening." :

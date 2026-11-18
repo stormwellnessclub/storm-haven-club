@@ -1,3 +1,5 @@
+import { formatTime12h } from "@/lib/timeFormat";
+import { TimeSelect12h } from "@/components/admin/TimeSelect12h";
 import { PTSchedulingReadiness } from "@/components/admin/pt/PTSchedulingReadiness";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -473,8 +475,8 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
               </SelectContent>
             </Select>
           </div>
-          <div><Label className="text-xs">Start</Label><Input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></div>
-          <div><Label className="text-xs">End</Label><Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+          <div><Label className="text-xs">Start</Label><TimeSelect12h value={start} onChange={setStart} ariaLabel="Start time" /></div>
+          <div><Label className="text-xs">End</Label><TimeSelect12h value={end} onChange={setEnd} ariaLabel="End time" /></div>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -515,7 +517,7 @@ function AvailabilityEditor({ trainer }: { trainer: Instructor }) {
                   <div key={a.id} className={`flex items-center gap-2 text-sm py-1 ${st === "ended" ? "opacity-50" : ""}`}>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="tabular-nums">{a.start_time.slice(0, 5)} – {a.end_time.slice(0, 5)}</span>
+                        <span className="tabular-nums">{formatTime12h(a.start_time)} – {formatTime12h(a.end_time)}</span>
                         {a.is_public ? (
                           <Badge variant="secondary" className="text-[10px] gap-1"><Eye className="h-3 w-3" />Public</Badge>
                         ) : (
@@ -648,8 +650,8 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
         </div>
         {(kind === "extra" || !allDay) && (
           <div className="grid grid-cols-2 gap-2">
-            <div><Label className="text-xs">Start</Label><Input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></div>
-            <div><Label className="text-xs">End</Label><Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+            <div><Label className="text-xs">Start</Label><TimeSelect12h value={start} onChange={setStart} ariaLabel="Start time" /></div>
+            <div><Label className="text-xs">End</Label><TimeSelect12h value={end} onChange={setEnd} ariaLabel="End time" /></div>
           </div>
         )}
         <div>
@@ -698,7 +700,7 @@ function OverridesEditor({ trainer }: { trainer: Instructor }) {
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {o.start_time && o.end_time
-                    ? `${o.start_time.slice(0, 5)} – ${o.end_time.slice(0, 5)}`
+                    ? `${formatTime12h(o.start_time)} – ${formatTime12h(o.end_time)}`
                     : o.kind === "block" ? "All day" : o.kind === "replace" ? "Unavailable all day" : ""}
                   {o.note && ` · ${o.note}`}
                   {o.kind === "block" && o.note && (o.is_public_reason ? " (shown publicly)" : " (internal)")}

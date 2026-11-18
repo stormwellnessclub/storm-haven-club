@@ -1,3 +1,4 @@
+import { TimeSelect12h } from "@/components/admin/TimeSelect12h";
 import { slotProblems, parseSlotError, isHardConflict } from "@/lib/ptAvailability";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { relationshipMap, singleSessionRateCents, type PTRelationship } from "@/lib/ptIdentity";
@@ -579,7 +580,7 @@ export function BookPTSessionDialog({
             </div>
             <div className="space-y-2">
               <Label>Start time</Label>
-              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+              <TimeSelect12h value={time} onChange={setTime} className="h-10" ariaLabel="Start time" />
             </div>
             <div className="space-y-2">
               <Label>Duration (min)</Label>

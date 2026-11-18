@@ -1,3 +1,4 @@
+import { TimeSelect12h } from "@/components/admin/TimeSelect12h";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { format as fmt } from "date-fns";
@@ -220,7 +221,7 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
               <SelectContent>{trainers.map((t: any) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            <TimeSelect12h value={time} onChange={setTime} className="h-10" ariaLabel="Time" />
           </div>
           {dirty && (
             <button disabled={busy} className={ptButtonClass("outline")} onClick={() => run(update.mutateAsync({
@@ -234,7 +235,7 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
             <button disabled={busy || dirty} className={ptButtonClass("gold")} onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: false }), "Confirmed — appointment created")}>Confirm requested time</button>
             {canPickInWindow && (
               <span className="flex items-center gap-1">
-                <Input type="time" className="w-28" value={windowTime} onChange={(e) => setWindowTime(e.target.value)} />
+                <TimeSelect12h value={windowTime} onChange={setWindowTime} className="h-10 w-32" ariaLabel="Time inside window" />
                 <button disabled={busy || dirty || !windowTime || !withinClientWindow(r, windowTime, typeRow.duration_minutes)}
                   title="Only times inside the client's availability window"
                   className={ptButtonClass("outline")}
@@ -257,7 +258,7 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
             <div className="space-y-2 rounded-md border border-border p-3">
               <div className="grid grid-cols-2 gap-2">
                 <Input type="date" value={altDate} onChange={(e) => setAltDate(e.target.value)} />
-                <Input type="time" value={altTime} onChange={(e) => setAltTime(e.target.value)} />
+                <TimeSelect12h value={altTime} onChange={setAltTime} className="h-10" ariaLabel="Alternate time" />
               </div>
               <Select value={altTrainer} onValueChange={setAltTrainer}>
                 <SelectTrigger><SelectValue placeholder="Trainer" /></SelectTrigger>

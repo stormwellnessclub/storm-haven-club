@@ -1,3 +1,4 @@
+import { formatTime12h } from "@/lib/timeFormat";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format as fmtDate } from "date-fns";
@@ -172,7 +173,7 @@ function TrainerSheet({ trainer, onClose }: { trainer: PTTrainerProfile | null; 
                   ? (availability.data ?? []).map((a: any) => (
                       <div key={a.id} className="flex justify-between rounded-md border border-pt-line bg-white px-3 py-1.5">
                         <span>{WEEKDAYS[a.weekday] ?? `Day ${a.weekday}`}</span>
-                        <span className="text-pt-muted">{a.start_time?.slice(0, 5)} – {a.end_time?.slice(0, 5)}</span>
+                        <span className="text-pt-muted">{formatTime12h(a.start_time)} – {formatTime12h(a.end_time)}</span>
                       </div>
                     ))
                   : <span className="text-pt-muted">No availability set</span>}
