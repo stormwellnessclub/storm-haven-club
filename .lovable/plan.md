@@ -15,8 +15,8 @@
 | 60 sessions | $2,820 | $3,150 |
 | 80 sessions | $3,360 | $3,800 |
 
-## Still waiting on your answers
-- **PT start date.** Until you answer, the plan uses Mon Nov 23 as the start.
+## Start date
+- The PT deals go on sale as soon as the page is published. Tell me if you'd rather pick a different start date.
 
 ## What gets built
 1. **Black Friday PT packages.** These are sale-only packages with the prices above. Members see the member price. Everyone else, including cancelled members, sees the non-member price. They show up only between the start date and Nov 30, 11:59 PM, then hide automatically. Regular packages and existing balances stay as they are.
