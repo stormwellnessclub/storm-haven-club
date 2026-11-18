@@ -102,7 +102,8 @@ export default function BlackFriday() {
         <div className="absolute inset-0 bg-foreground/45" />
         <div className="absolute inset-x-0 bottom-0 container pb-12 text-primary-foreground">
           <Chapter n="01" label="Black Friday" light />
-          <h1 className="font-serif text-4xl md:text-6xl mt-4 max-w-3xl">Train with us, at our best price of the year.</h1>
+          <h1 className="font-serif text-4xl md:text-6xl mt-4 max-w-3xl">Personal Training</h1>
+          <p className="mt-4 max-w-2xl text-lg text-primary-foreground/90">A commitment to yourself, with an opportunity to go further.</p>
           {endsAt && <p className="mt-4 text-primary-foreground/80">{saleEndLabel(endsAt)}</p>}
         </div>
       </section>
@@ -112,9 +113,10 @@ export default function BlackFriday() {
           <Chapter n="02" label="Semi-Private Personal Training" />
           <h2 className="font-serif text-3xl md:text-4xl mt-4">Semi-private training packages</h2>
           <p className="mt-4 text-muted-foreground max-w-2xl">
-            Small-group sessions with one of our trainers, up to four people. Sessions are added to your account
-            as soon as you buy, and you request times from the Personal Training page in your portal.
+            For a limited time, enjoy exclusive Black Friday pricing on personal training packages designed around
+            your goals, your progress, and your long-term results.
           </p>
+          <p className="mt-3 font-medium">Limited packages available.</p>
         </Reveal>
 
         {isLoading ? (
