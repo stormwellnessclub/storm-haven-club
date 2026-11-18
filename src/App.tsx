@@ -62,6 +62,7 @@ import LymphaticBodyRoller from "./pages/journal/LymphaticBodyRoller";
 import GutResetSuccess from "./pages/GutResetSuccess";
 import GutResetAdmin from "./pages/admin/GutResetAdmin";
 import MothersDay from "./pages/MothersDay";
+import BlackFriday from "./pages/BlackFriday";
 import MothersDayRedeem from "./pages/MothersDayRedeem";
 import MothersDayPackRedeem from "./pages/MothersDayPackRedeem";
 import Cafe from "./pages/Cafe";
@@ -360,6 +361,7 @@ const App = () => (
               <Route path="/spa/body-wraps/:slug" element={<SpaServicePage category="body-wraps" />} />
               <Route path="/spa/body-rituals/:slug" element={<SpaServicePage category="body-rituals" />} />
               <Route path="/spa/recovery/:slug" element={<SpaServicePage category="recovery" />} />
+              <Route path="/black-friday" element={<BlackFriday />} />
               <Route path="/mothers-day" element={<MothersDay />} />
               <Route path="/mothers-day/success" element={<MothersDay />} />
               <Route path="/mothers-day/redeem" element={<MothersDayRedeem />} />

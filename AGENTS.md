@@ -51,3 +51,4 @@
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
+- Time-limited PT sale packages are `pt_packs` rows with `promo_key`, `promo_audience` (member/non_member) and sale start/end; `pt-promo-checkout` charges the saved card and creates the package through the staff sale-intent path, rejecting the wrong audience or an ended window server-side. Why: sale prices must stop on time and members/non-members can't buy each other's price.

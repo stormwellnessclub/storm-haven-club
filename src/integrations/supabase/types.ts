@@ -10380,6 +10380,10 @@ export type Database = {
           payment_plan_months: number | null
           payment_plan_stripe_price_id: string | null
           price_cents: number
+          promo_audience: string | null
+          promo_key: string | null
+          sale_ends_at: string | null
+          sale_starts_at: string | null
           sessions: number
           updated_at: string
         }
@@ -10399,6 +10403,10 @@ export type Database = {
           payment_plan_months?: number | null
           payment_plan_stripe_price_id?: string | null
           price_cents: number
+          promo_audience?: string | null
+          promo_key?: string | null
+          sale_ends_at?: string | null
+          sale_starts_at?: string | null
           sessions: number
           updated_at?: string
         }
@@ -10418,6 +10426,10 @@ export type Database = {
           payment_plan_months?: number | null
           payment_plan_stripe_price_id?: string | null
           price_cents?: number
+          promo_audience?: string | null
+          promo_key?: string | null
+          sale_ends_at?: string | null
+          sale_starts_at?: string | null
           sessions?: number
           updated_at?: string
         }
@@ -19660,6 +19672,20 @@ export type Database = {
           p_payment_method_id: string
         }
         Returns: Json
+      }
+      pt_promo_is_member: { Args: { p_user: string }; Returns: boolean }
+      pt_promo_my_audience: { Args: never; Returns: string }
+      pt_promo_packs: {
+        Args: { p_promo: string }
+        Returns: {
+          expiration_days: number
+          id: string
+          name: string
+          price_cents: number
+          promo_audience: string
+          sale_ends_at: string
+          sessions: number
+        }[]
       }
       pt_recalc_invoice: { Args: { p_invoice_id: string }; Returns: undefined }
       pt_reconcile_installment: {
