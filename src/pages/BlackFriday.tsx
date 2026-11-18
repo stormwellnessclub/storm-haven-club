@@ -162,7 +162,7 @@ export default function BlackFriday() {
               {picked && `Semi-Private Personal Training · ${picked.sessions} sessions`}
             </SheetDescription>
           </SheetHeader>
-          <div className="mt-6 space-y-4">
+          <div className="mt-6 space-y-4 px-6 pb-6">
             {done ? (
               <>
                 <p className="flex items-center gap-2"><Check className="h-5 w-5 text-accent" />{done.sessions} sessions were added to your account.</p>
