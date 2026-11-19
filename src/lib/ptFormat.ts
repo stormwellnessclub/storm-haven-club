@@ -93,3 +93,34 @@ export function memberCancelOutcomeMessage(outcome?: string | null): string {
       return "Cancelled";
   }
 }
+
+export interface PtPriceRow {
+  sessions: number;
+  member?: PtPack;
+  nonMember?: PtPack;
+}
+
+/** True for packs sold at non-member pricing (named "Non-Member …"). */
+export function isNonMemberPack(pack: Pick<PtPack, "name">): boolean {
+  return /^non[- ]?member/i.test(pack.name.trim());
+}
+
+/**
+ * Lines up member and non-member packs by session count for one compact
+ * side-by-side price table. Returns null when there are no non-member packs
+ * (that format has one price list for everyone) or when two member packs share
+ * a session count at different prices, so callers show the plain list instead.
+ */
+export function buildMemberPriceRows(packs: PtPack[]): PtPriceRow[] | null {
+  if (!packs.some(isNonMemberPack)) return null;
+  const rows = new Map<number, PtPriceRow>();
+  for (const p of packs) {
+    const row = rows.get(p.sessions) ?? { sessions: p.sessions };
+    const key = isNonMemberPack(p) ? "nonMember" : "member";
+    const existing = row[key];
+    if (existing && existing.price_cents !== p.price_cents) return null;
+    if (!existing) row[key] = p;
+    rows.set(p.sessions, row);
+  }
+  return [...rows.values()].sort((a, b) => a.sessions - b.sessions);
+}

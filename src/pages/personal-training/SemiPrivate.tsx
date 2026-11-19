@@ -9,15 +9,14 @@ export default function SemiPrivate() {
       serviceName="Semi-Private Training"
       defaultService="semi_private"
       pricingFormat="semi_private"
-      membersOnly
       h1="Semi-Private Training — Groups of 3–4"
       subhead="Small groups of 3 to 4. Each workout is customized for the individual based on their goal and level."
       body={[
-        "Semi-private pairs you with two or three other members under one coach. Everyone trains at the same time, but the plan, the load, and the cues are programmed individually — for your goal, your level, and what your body needs that day.",
-        "It's the accountability of personal training at a friendlier per-session price. Bring your own group, or let us match you with members who train at a similar level.",
+        "Semi-private pairs you with two or three other people under one coach. Everyone trains at the same time, but the plan, the load, and the cues are programmed individually — for your goal, your level, and what your body needs that day.",
+        "It's the accountability of personal training at a friendlier per-session price. Bring your own group, or let us match you with people who train at a similar level.",
       ]}
       whoFor={[
-        "Members who want personal programming with a small-group price",
+        "Anyone who wants personal programming with a small-group price",
         "Couples, friends, or family training together",
         "Mixed-level groups — beginners and experienced train side by side",
         "Anyone who trains more consistently with company",
@@ -25,15 +24,15 @@ export default function SemiPrivate() {
       faqs={[
         {
           q: "Do I need to be a member?",
-          a: "Yes — Semi-Private Training is reserved for active Storm Wellness Club members. Every participant in the group must be a member.",
+          a: "No. Semi-Private Training is open to members and non-members. Members pay member pricing and non-members pay non-member pricing — both are listed in the pricing table above.",
         },
         {
           q: "How big is the group?",
-          a: "Three to four members per session, plus the coach. The cap keeps every person individually coached.",
+          a: "Three to four people per session, plus the coach. The cap keeps every person individually coached.",
         },
         {
           q: "Is everyone doing the same workout?",
-          a: "No. Each person gets their own plan based on their goal and level. The coach runs the group together but progresses each member individually.",
+          a: "No. Each person gets their own plan based on their goal and level. The coach runs the group together but progresses each person individually.",
         },
         {
           q: "Does everyone pay separately?",

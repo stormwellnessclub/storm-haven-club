@@ -14,7 +14,6 @@ const services = [
     title: "1:1 Personal Training",
     blurb:
       "Private coaching built around your goal and your level. Programmed for you, progressed week to week.",
-    membersOnly: true,
   },
   {
     to: "/personal-training/private-pilates",
@@ -23,7 +22,6 @@ const services = [
     title: "Private Pilates",
     blurb:
       "One reformer, one instructor, one body. Every spring and cue dialed to where you are today.",
-    membersOnly: false,
   },
   {
     to: "/personal-training/semi-private",
@@ -32,7 +30,6 @@ const services = [
     title: "Semi-Private (3–4 people)",
     blurb:
       "Small groups of 3 to 4. Each workout is customized for the individual based on goal and level.",
-    membersOnly: true,
   },
 ];
 
@@ -50,7 +47,7 @@ export default function PersonalTrainingOverview() {
           ]),
           buildServiceLd({
             name: "1:1 Personal Training",
-            description: "Private coaching built around your goal and level. Programmed for you, progressed week to week. Members only.",
+            description: "Private coaching built around your goal and level. Programmed for you, progressed week to week. Open to members and non-members.",
             path: "/personal-training/one-on-one",
             serviceType: "Personal Training",
           }),
@@ -62,14 +59,14 @@ export default function PersonalTrainingOverview() {
           }),
           buildServiceLd({
             name: "Semi-Private Personal Training (3–4 people)",
-            description: "Small groups of 3 to 4. Each workout is customized for the individual based on goal and level. Members only.",
+            description: "Small groups of 3 to 4. Each workout is customized for the individual based on goal and level. Open to members and non-members.",
             path: "/personal-training/semi-private",
             serviceType: "Personal Training",
           }),
           buildFAQLd([
-            { q: "Do I have to be a member to train?", a: "Private Pilates on the Reformer is open to everyone. 1:1 and Semi-Private training are reserved for active Storm Wellness Club members." },
+            { q: "Do I have to be a member to train?", a: "No. 1:1, Private Pilates and Semi-Private training are open to members and non-members. Members get member pricing." },
             { q: "How do I get matched with a coach?", a: "Submit a request with your goals and availability. Our team matches you with the right trainer, who reaches out to schedule your first session." },
-            { q: "What's the difference between Private Pilates and 1:1?", a: "Private Pilates is reformer-only and open to non-members. 1:1 Personal Training is strength, conditioning, and full-program coaching for members." },
+            { q: "What's the difference between Private Pilates and 1:1?", a: "Private Pilates is reformer-only. 1:1 Personal Training is strength, conditioning, and full-program coaching." },
           ]),
         ]}
       />
@@ -161,11 +158,6 @@ export default function PersonalTrainingOverview() {
                   <div className="col-span-7 md:col-span-6">
                     <div className="font-serif text-2xl md:text-3xl flex items-center gap-3 flex-wrap">
                       {s.title}
-                      {s.membersOnly && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent text-[10px] tracking-[0.2em] uppercase">
-                          Members only
-                        </span>
-                      )}
                     </div>
                   </div>
                   <div className="col-span-10 md:col-span-3 text-sm text-muted-foreground md:text-left col-start-3 md:col-start-auto">

@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 import { z } from "zod";
@@ -39,10 +38,9 @@ const schema = z.object({
 interface Props {
   defaultService?: TrainingServiceValue;
   compact?: boolean;
-  membersOnly?: boolean;
 }
 
-export function TrainingRequestForm({ defaultService = "one_on_one", compact, membersOnly }: Props) {
+export function TrainingRequestForm({ defaultService = "one_on_one", compact }: Props) {
   const [service, setService] = useState<string>(defaultService);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -50,12 +48,16 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact, me
   const [preferredTimes, setPreferredTimes] = useState("");
   const [experienceLevel, setExperienceLevel] = useState("");
   const [goals, setGoals] = useState("");
-  const [isMember, setIsMember] = useState(false);
+  const [memberChoice, setMemberChoice] = useState<"member" | "non_member" | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!memberChoice) {
+      toast.error("Please tell us if you're a member or a non-member");
+      return;
+    }
     const parsed = schema.safeParse({
       service,
       full_name: fullName,
@@ -64,14 +66,10 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact, me
       preferred_times: preferredTimes,
       experience_level: experienceLevel,
       goals,
-      is_member: isMember,
+      is_member: memberChoice === "member",
     });
     if (!parsed.success) {
       toast.error(parsed.error.issues[0]?.message ?? "Please complete required fields");
-      return;
-    }
-    if (membersOnly && !parsed.data.is_member) {
-      toast.error("This format is for Storm Wellness Club members only. Please apply for membership first.");
       return;
     }
     setSubmitting(true);
@@ -209,16 +207,30 @@ export function TrainingRequestForm({ defaultService = "one_on_one", compact, me
             placeholder="Strength, weight loss, rehab, post-natal, sport-specific, etc."
           />
         </div>
-        <div className="sm:col-span-2 flex items-center gap-2">
-          <Checkbox
-            id="is_member"
-            checked={isMember}
-            onCheckedChange={(v) => setIsMember(v === true)}
-          />
-          <Label htmlFor="is_member" className="cursor-pointer font-normal">
-            I'm a current Storm Wellness Club member
-          </Label>
-        </div>
+        <fieldset className="sm:col-span-2">
+          <legend className="text-sm font-medium">Are you a Storm Wellness Club member? *</legend>
+          <div role="radiogroup" className="mt-1.5 grid grid-cols-2 gap-2">
+            {([
+              { v: "member", label: "Member" },
+              { v: "non_member", label: "Non-member" },
+            ] as const).map((o) => (
+              <button
+                key={o.v}
+                type="button"
+                role="radio"
+                aria-checked={memberChoice === o.v}
+                onClick={() => setMemberChoice(o.v)}
+                className={`rounded-md border px-3 py-2.5 text-sm transition-colors ${
+                  memberChoice === o.v
+                    ? "border-accent bg-accent/10 text-foreground font-medium"
+                    : "border-border bg-background text-muted-foreground hover:border-accent/50"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </fieldset>
       </div>
 
       <Button type="submit" size="lg" className="w-full" disabled={submitting}>

@@ -4,13 +4,20 @@ import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Sparkles } from "lucide-react";
+import { ArrowDown, ChevronRight, Sparkles } from "lucide-react";
 import {
   TrainingRequestForm,
   TrainingServiceValue,
 } from "@/components/personal-training/TrainingRequestForm";
 import { supabase } from "@/integrations/supabase/client";
-import { PtFormat, PtPack, formatCents, formatExpiration, perSessionPrice } from "@/lib/ptFormat";
+import {
+  PtFormat,
+  PtPack,
+  buildMemberPriceRows,
+  formatCents,
+  formatExpiration,
+  perSessionPrice,
+} from "@/lib/ptFormat";
 
 interface FAQ {
   q: string;
@@ -31,8 +38,6 @@ export interface PersonalTrainingPageProps {
   pricingFormat?: PtFormat;
   pricing?: { label: string; price: string; note?: string }[];
   faqs?: FAQ[];
-  /** If true, this format is only available to active Storm Wellness Club members. */
-  membersOnly?: boolean;
 }
 
 const BASE_URL = "https://stormwellnessclub.com";
@@ -50,7 +55,6 @@ export default function PersonalTrainingPage({
   pricing,
   pricingFormat,
   faqs,
-  membersOnly,
 }: PersonalTrainingPageProps) {
   const fullUrl = `${BASE_URL}${path}`;
 
@@ -80,6 +84,8 @@ export default function PersonalTrainingPage({
   }));
 
   const effectivePricing = pricingFormat ? livePricing : pricing ?? [];
+  const priceRows = pricingFormat ? buildMemberPriceRows(dbPacks ?? []) : null;
+  const hasPricing = effectivePricing.length > 0;
 
   const serviceLd = {
     "@context": "https://schema.org",
@@ -137,41 +143,114 @@ export default function PersonalTrainingPage({
           </nav>
           <p className="text-accent text-sm uppercase tracking-widest mb-4 flex items-center gap-2 flex-wrap">
             <Sparkles className="h-4 w-4" /> Personal Training
-            {membersOnly && (
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent text-[10px] tracking-[0.2em] normal-case sm:uppercase">
-                Members only
-              </span>
-            )}
+            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full border border-accent/40 bg-accent/10 text-accent text-[10px] tracking-[0.2em] normal-case sm:uppercase">
+              Members &amp; non-members
+            </span>
           </p>
           <h1 className="heading-display mb-4">{h1}</h1>
           <p className="text-muted-foreground text-lg leading-relaxed max-w-2xl">{subhead}</p>
-          {membersOnly && (
-            <div className="mt-6 rounded-lg border border-accent/30 bg-accent/5 p-4 max-w-2xl">
-              <p className="text-sm text-foreground/90">
-                <span className="font-medium text-accent">Members only.</span>{" "}
-                {serviceName} is reserved for active Storm Wellness Club members. Not a
-                member yet?{" "}
-                <Link to="/memberships" className="underline underline-offset-4 hover:text-accent">
-                  Apply for membership
-                </Link>{" "}
-                — or explore our{" "}
-                <Link to="/personal-training/private-pilates" className="underline underline-offset-4 hover:text-accent">
-                  Private Pilates on the Reformer
-                </Link>
-                , which is open to everyone.
-              </p>
-            </div>
-          )}
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild size="lg">
               <a href="#request">Request a session</a>
             </Button>
-            <Button asChild size="lg" variant="outline">
+            {hasPricing && (
+              <Button asChild size="lg" variant="outline">
+                <a href="#pricing">See pricing</a>
+              </Button>
+            )}
+            <Button asChild size="lg" variant="ghost">
               <Link to="/personal-training">All training options</Link>
             </Button>
           </div>
         </div>
       </section>
+
+      {/* Pricing — right under the hero so it's seen without scrolling far */}
+      {hasPricing && (
+        <section id="pricing" className="py-12 bg-background border-t border-border scroll-mt-24">
+          <div className="container mx-auto px-6 max-w-3xl">
+            <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
+              <h2 className="font-serif text-3xl">Pricing</h2>
+              <a
+                href="#request"
+                className="inline-flex items-center gap-1 text-sm text-accent underline underline-offset-4 hover:text-foreground"
+              >
+                Go to the request form <ArrowDown className="h-4 w-4" />
+              </a>
+            </div>
+
+            {priceRows ? (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-secondary/40">
+                    <tr className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                      <th className="px-3 sm:px-4 py-3 font-medium">Sessions</th>
+                      <th className="px-3 sm:px-4 py-3 font-medium">Member</th>
+                      <th className="px-3 sm:px-4 py-3 font-medium">Non-member</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {priceRows.map((r) => {
+                      const exp = r.member?.expiration_days ?? r.nonMember?.expiration_days;
+                      return (
+                        <tr key={r.sessions} className="align-top">
+                          <td className="px-3 sm:px-4 py-3">
+                            <div className="font-serif text-lg leading-tight">
+                              {r.sessions} {r.sessions === 1 ? "session" : "sessions"}
+                            </div>
+                            {exp ? (
+                              <div className="text-xs text-muted-foreground">
+                                Use within {formatExpiration(exp)}
+                              </div>
+                            ) : null}
+                          </td>
+                          {[r.member, r.nonMember].map((p, i) => (
+                            <td key={i} className="px-3 sm:px-4 py-3">
+                              {p ? (
+                                <>
+                                  <div className="font-serif text-lg leading-tight">
+                                    {formatCents(p.price_cents)}
+                                  </div>
+                                  {perSessionPrice(p) && (
+                                    <div className="text-xs text-muted-foreground">{perSessionPrice(p)}</div>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border divide-y divide-border">
+                {effectivePricing.map((p) => (
+                  <div key={p.label} className="flex items-baseline justify-between gap-4 px-4 py-3">
+                    <div>
+                      <div className="font-serif text-lg leading-tight">{p.label}</div>
+                      {p.note && <p className="text-xs text-muted-foreground">{p.note}</p>}
+                    </div>
+                    <div className="font-serif text-xl shrink-0">{p.price}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-muted-foreground mt-4">
+              Final pricing confirmed when your coach reaches out.
+            </p>
+            <div className="mt-6">
+              <Button asChild size="lg" className="w-full sm:w-auto">
+                <a href="#request">Request a session</a>
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Body */}
       <section className="py-16 bg-background">
@@ -195,29 +274,6 @@ export default function PersonalTrainingPage({
           </div>
         </div>
       </section>
-
-      {/* Pricing */}
-      {effectivePricing.length > 0 && (
-        <section className="py-16 bg-secondary/30 border-t border-border">
-          <div className="container mx-auto px-6 max-w-4xl">
-            <h2 className="font-serif text-3xl mb-8 text-center">Pricing</h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {effectivePricing.map((p) => (
-                <div key={p.label} className="rounded-lg border border-border bg-background p-6">
-                  <div className="text-sm uppercase tracking-widest text-muted-foreground mb-2">
-                    {p.label}
-                  </div>
-                  <div className="font-serif text-3xl mb-1">{p.price}</div>
-                  {p.note && <p className="text-sm text-muted-foreground">{p.note}</p>}
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-6">
-              Final pricing confirmed when your coach reaches out. Member discounts may apply.
-            </p>
-          </div>
-        </section>
-      )}
 
       {/* How it works */}
       <section className="py-16 bg-background border-t border-border">
@@ -261,22 +317,7 @@ export default function PersonalTrainingPage({
       {/* Request */}
       <section id="request" className="py-16 bg-background border-t border-border scroll-mt-24">
         <div className="container mx-auto px-6 max-w-2xl">
-          {membersOnly && (
-            <div className="mb-6 rounded-lg border border-accent/30 bg-accent/5 p-4 text-sm">
-              <span className="font-medium text-accent">Members only.</span>{" "}
-              Please confirm you're an active Storm Wellness Club member below. If you're
-              not a member yet,{" "}
-              <Link to="/memberships" className="underline underline-offset-4 hover:text-accent">
-                apply for membership
-              </Link>{" "}
-              first — or book{" "}
-              <Link to="/personal-training/private-pilates" className="underline underline-offset-4 hover:text-accent">
-                Private Pilates (Reformer)
-              </Link>
-              , which is open to everyone.
-            </div>
-          )}
-          <TrainingRequestForm defaultService={defaultService} membersOnly={membersOnly} />
+          <TrainingRequestForm defaultService={defaultService} />
         </div>
       </section>
     </Layout>

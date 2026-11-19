@@ -9,7 +9,6 @@ export default function OneOnOne() {
       serviceName="1:1 Personal Training"
       defaultService="one_on_one"
       pricingFormat="one_on_one"
-      membersOnly
       h1="1:1 Personal Training"
       subhead="Private coaching programmed around your goal and your current level — strength, conditioning, fat loss, post-rehab, or sport-specific."
       body={[
@@ -29,7 +28,7 @@ export default function OneOnOne() {
         },
         {
           q: "Do I need to be a member?",
-          a: "Yes — 1:1 Personal Training is reserved for active Storm Wellness Club members. If you're not a member yet, you can apply for membership, or book Private Pilates on the Reformer, which is open to everyone.",
+          a: "No. 1:1 Personal Training is open to members and non-members. Just send a request below and let us know whether you're a member.",
         },
         {
           q: "What if I cancel?",
