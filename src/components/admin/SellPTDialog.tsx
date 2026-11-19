@@ -13,10 +13,21 @@ import { Loader2, CreditCard, AlertCircle, Plus, CheckCircle2 } from "lucide-rea
 import { relationshipMap, relationshipFromMemberRows } from "@/lib/ptIdentity";
 
 /** Non-member packs are named "Non-Member …" (member price + $5/session). */
-function isNonMemberPack(p: { name?: string | null }) {
+function isNonMemberPack(p: { name?: string | null; promo_audience?: string | null }) {
+  if (p.promo_audience) return p.promo_audience === "non_member";
   return /^non[-\s]?member/i.test((p.name ?? "").trim());
 }
+type PromoFields = { promo_key?: string | null; promo_audience?: string | null; sale_starts_at?: string | null; sale_ends_at?: string | null };
+/** A time-limited offer pack that is currently within its window. */
+function promoState(p: PromoFields): "none" | "live" | "off" {
+  if (!p.promo_key) return "none";
+  const now = new Date();
+  if (p.sale_starts_at && new Date(p.sale_starts_at) > now) return "off";
+  if (saleHasEnded(p.sale_ends_at ?? null, now)) return "off";
+  return "live";
+}
 import { toast } from "sonner";
+import { saleHasEnded } from "@/lib/blackFriday";
 import { addDays, addMonths, format as fmtDate } from "date-fns";
 import { PT_FORMAT_LABEL, PtFormat, PtPack, formatCents, perSessionPrice } from "@/lib/ptFormat";
 import { usePTPackPaymentPlans, FREQUENCY_LABEL } from "@/hooks/pt/usePTPackPaymentPlans";
@@ -167,17 +178,22 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     () => packs.filter((p) => p.format === format && p.price_cents > 0),
     [packs, format]
   );
-  const memberPacks = useMemo(() => formatPacks.filter((p) => !isNonMemberPack(p)), [formatPacks]);
-  const nonMemberPacks = useMemo(() => formatPacks.filter((p) => isNonMemberPack(p)), [formatPacks]);
+  const bySessions = (a: PtPackExt, b: PtPackExt) => a.sessions - b.sessions;
+  const regular = useMemo(() => formatPacks.filter((p) => promoState(p as PromoFields) === "none"), [formatPacks]);
+  const promo = useMemo(() => formatPacks.filter((p) => promoState(p as PromoFields) === "live"), [formatPacks]);
+  const memberPacks = useMemo(() => regular.filter((p) => !isNonMemberPack(p as any)), [regular]);
+  const nonMemberPacks = useMemo(() => regular.filter((p) => isNonMemberPack(p as any)), [regular]);
   const packGroups = useMemo(() => {
-    const m = { label: "Member packs", items: memberPacks };
-    const n = { label: "Non-member packs", items: nonMemberPacks };
-    return (clientKnown && !clientIsMember ? [n, m] : [m, n]).filter((g) => g.items.length > 0);
-  }, [memberPacks, nonMemberPacks, clientKnown, clientIsMember]);
-  const selectedPack = formatPacks.find((p) => p.id === packId);
+    const pm = { label: "Black Friday · Member", promo: true, items: promo.filter((p) => !isNonMemberPack(p as any)).sort(bySessions) };
+    const pn = { label: "Black Friday · Non-member", promo: true, items: promo.filter((p) => isNonMemberPack(p as any)).sort(bySessions) };
+    const m = { label: "Member packs", promo: false, items: [...memberPacks].sort(bySessions) };
+    const n = { label: "Non-member packs", promo: false, items: [...nonMemberPacks].sort(bySessions) };
+    return (clientKnown && !clientIsMember ? [pn, pm, n, m] : [pm, pn, m, n]).filter((g) => g.items.length > 0);
+  }, [promo, memberPacks, nonMemberPacks, clientKnown, clientIsMember]);
+  const selectedPack = formatPacks.find((p) => p.id === packId && promoState(p as PromoFields) !== "off");
   const packAudienceMismatch =
     clientKnown && selectedPack
-      ? isNonMemberPack(selectedPack)
+      ? isNonMemberPack(selectedPack as any)
         ? clientIsMember ? "This is a non-member pack, but this client is a current member." : null
         : !clientIsMember ? "This is a member pack, but this client is not a current member." : null
       : null;
@@ -700,9 +716,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                       <SelectLabel className="text-xs uppercase tracking-wide text-muted-foreground">{g.label}</SelectLabel>
                       {g.items.map((p) => (
                         <SelectItem key={p.id} value={p.id}>
-                          {p.name} — {formatCents(p.price_cents)}
+                          {g.promo ? `${p.sessions} sessions` : p.name} — {formatCents(p.price_cents)}
                           {p.sessions > 0 && ` (${formatCents(Math.round(p.price_cents / p.sessions))}/session)`}
-                          {!p.is_public && " (admin-only)"}
+                          {!p.is_public && !g.promo && " (admin-only)"}
                         </SelectItem>
                       ))}
                     </SelectGroup>
