@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useEventMemberState, useInvalidateEventState } from "@/hooks/useEventMemberState";
+import { useSocietyGatherings } from "@/hooks/useSocietyGatherings";
+import { SocietyRsvp } from "@/components/society/SocietyRsvp";
 
 interface Props {
   slug: string;
@@ -31,7 +33,22 @@ interface Props {
  * Reserve / waitlist / guest-request actions for a members-only event.
  * Never renders seat counts — availability is staff-only information.
  */
-export function MemberEventActions({
+export function MemberEventActions(props: Props) {
+  const { user } = useAuth();
+  const { data: gatherings } = useSocietyGatherings();
+  const society = gatherings?.find((g) => g.slug === props.slug);
+  // Higher Self Society replies live in society RSVPs, never the seat reservation flow.
+  if (user && society) {
+    return (
+      <div className={props.className}>
+        <SocietyRsvp eventId={society.id} />
+      </div>
+    );
+  }
+  return <SeatEventActions {...props} />;
+}
+
+function SeatEventActions({
   slug,
   allowGuestRequests,
   className,

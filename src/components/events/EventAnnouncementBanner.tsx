@@ -23,6 +23,8 @@ export function EventAnnouncementBanner() {
           "id, slug, title, subtitle, starts_at, venue, status, member_price_cents, non_member_price_cents, members_only, allow_guest_requests",
         )
         .eq("status", "on_sale")
+        // Higher Self Society gatherings live in Upcoming and Events, never on home screens.
+        .or("series_key.is.null,series_key.neq.higher-self-society")
         .gt("starts_at", new Date().toISOString())
         .order("starts_at", { ascending: true })
         .limit(1)
