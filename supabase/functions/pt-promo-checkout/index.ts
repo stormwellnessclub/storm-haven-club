@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
       if (piId.startsWith("pi_") && !(intent?.pass_ids?.length)) {
         const stripeR = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", { apiVersion: "2025-08-27.basil" });
         await stripeR.refunds.create({ payment_intent: piId }, { idempotencyKey: `pt-promo-plan-refund-${idem}` })
-          .catch((e) => console.error("[pt-promo-checkout] refund failed", piId, e?.message));
+          .catch((e: unknown) => console.error("[pt-promo-checkout] refund failed", piId, e instanceof Error ? e.message : e));
         await admin.rpc("pt_fail_sale_intent", { p_idempotency_key: saleRef, p_error: String(out?.error ?? "plan setup failed") });
         return reply({ success: false, error: "We could not set up your payment plan, so your first payment was refunded. Please try again or call the club." });
       }
