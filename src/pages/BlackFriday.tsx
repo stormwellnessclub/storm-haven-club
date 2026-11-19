@@ -14,7 +14,10 @@ import { BLACK_FRIDAY_PROMO, formatUsd, saleEndLabel, saleHasEnded } from "@/lib
 import trainingPhoto from "@/assets/gym-area-2.jpg";
 
 type Pack = { id: string; name: string; sessions: number; price_cents: number; promo_audience: string; sale_ends_at: string | null; expiration_days: number };
-type Quote = { totalCents: number; feeCents: number; brand: string; last4: string | null };
+type Plan = { id: string; pack_id: string; installment_count: number; amount_due_at_sale_cents: number; installment_cents: number; final_installment_cents: number; plan_total_cents: number; session_release: number[] };
+type PlanRow = { number: number; dueDate: string; amountCents: number; feeCents: number; sessions: number };
+type Quote = { totalCents: number; feeCents?: number; brand: string; last4: string | null; plan?: boolean; rows?: PlanRow[] };
+const shortDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 async function invokeCheckout(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke("pt-promo-checkout", { body });
@@ -35,6 +38,15 @@ export default function BlackFriday() {
       return (data ?? []) as Pack[];
     },
   });
+  const { data: plans = [] } = useQuery({
+    queryKey: ["pt-promo-plans", BLACK_FRIDAY_PROMO],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("pt_promo_plans", { p_promo: BLACK_FRIDAY_PROMO });
+      if (error) throw error;
+      return (data ?? []) as Plan[];
+    },
+  });
+  const planFor = (packId: string) => plans.find((pl) => pl.pack_id === packId);
   const { data: audience } = useQuery({
     queryKey: ["pt-promo-audience", user?.id],
     enabled: !!user,
@@ -58,17 +70,18 @@ export default function BlackFriday() {
   const ended = saleHasEnded(endsAt);
 
   const [picked, setPicked] = useState<Pack | null>(null);
+  const [pickedPlan, setPickedPlan] = useState<Plan | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<{ sessions: number; chargedCents: number } | null>(null);
+  const [done, setDone] = useState<{ sessions: number; chargedCents: number; plan?: boolean } | null>(null);
   const keyRef = useRef<string | null>(null);
 
-  async function choose(p: Pack) {
-    setPicked(p); setQuote(null); setErr(null); setDone(null);
+  async function choose(p: Pack, plan: Plan | null = null) {
+    setPicked(p); setPickedPlan(plan); setQuote(null); setErr(null); setDone(null);
     keyRef.current = crypto.randomUUID();
     setBusy(true);
-    const r = await invokeCheckout({ packId: p.id, idempotencyKey: keyRef.current, checkOnly: true });
+    const r = await invokeCheckout({ packId: p.id, planId: plan?.id ?? null, idempotencyKey: keyRef.current, checkOnly: true });
     setBusy(false);
     if (r?.success) setQuote(r); else setErr(r?.error ?? "Something went wrong.");
   }
@@ -76,19 +89,28 @@ export default function BlackFriday() {
   async function buy() {
     if (!picked || busy) return;
     setBusy(true); setErr(null);
-    const r = await invokeCheckout({ packId: picked.id, idempotencyKey: keyRef.current });
+    const r = await invokeCheckout({ packId: picked.id, planId: pickedPlan?.id ?? null, idempotencyKey: keyRef.current });
     setBusy(false);
-    if (r?.success) setDone(r); else setErr(r?.error ?? "Something went wrong.");
+    if (r?.success) setDone({ ...r, plan: !!pickedPlan }); else setErr(r?.error ?? "Something went wrong.");
   }
 
-  const priceCell = (p: Pack | undefined, mine: boolean) => (
-    <div className={mine ? "" : "text-muted-foreground"}>
-      <p className="font-serif text-2xl">{p ? formatUsd(p.price_cents) : "—"}</p>
-      {p && user && mine && !ended && (
-        <Button size="sm" className="mt-3" onClick={() => choose(p)}>Buy</Button>
-      )}
-    </div>
-  );
+  const priceCell = (p: Pack | undefined, mine: boolean) => {
+    const plan = p ? planFor(p.id) : undefined;
+    return (
+      <div className={mine ? "" : "text-muted-foreground"}>
+        <p className="font-serif text-2xl">{p ? formatUsd(p.price_cents) : "—"}</p>
+        {plan && (
+          <p className="text-xs mt-1">or {plan.installment_count} monthly payments of {formatUsd(plan.installment_cents)}</p>
+        )}
+        {p && user && mine && !ended && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => choose(p)}>{plan ? "Pay in full" : "Buy"}</Button>
+            {plan && <Button size="sm" variant="outline" onClick={() => choose(p, plan)}>Payment plan</Button>}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Layout>
@@ -149,7 +171,7 @@ export default function BlackFriday() {
                   to buy. We'll show the price for your account, and members get the member price.
                 </p>
               ) : (
-                <p>You're seeing the {audience === "member" ? "member" : "non-member"} price for your account. Your saved card is charged, plus a card processing fee.</p>
+                <p>You're seeing the {audience === "member" ? "member" : "non-member"} price for your account. Your saved card is charged, plus a card processing fee. Packages from 30 sessions up can also be paid monthly.</p>
               )}
             </div>
           </>
@@ -159,7 +181,7 @@ export default function BlackFriday() {
       <Sheet open={!!picked} onOpenChange={(o) => { if (!o && !busy) setPicked(null); }}>
         <SheetContent side="bottom" className="max-w-lg mx-auto">
           <SheetHeader>
-            <SheetTitle className="font-serif text-2xl">{done ? "You're all set" : "Confirm your package"}</SheetTitle>
+            <SheetTitle className="font-serif text-2xl">{done ? "You're all set" : pickedPlan ? "Confirm your payment plan" : "Confirm your package"}</SheetTitle>
             <SheetDescription>
               {picked && `Semi-Private Personal Training · ${picked.sessions} sessions`}
             </SheetDescription>
@@ -168,16 +190,44 @@ export default function BlackFriday() {
             {done ? (
               <>
                 <p className="flex items-center gap-2"><Check className="h-5 w-5 text-accent" />{done.sessions} sessions were added to your account.</p>
-                <p className="text-sm text-muted-foreground">Charged {formatUsd(done.chargedCents)}. Request your first session from Personal Training in your portal.</p>
+                <p className="text-sm text-muted-foreground">
+                  Charged {formatUsd(done.chargedCents)}.{done.plan ? " The rest of your sessions are added as each monthly payment goes through." : ""} Request your first session from Personal Training in your portal.
+                </p>
                 <Button asChild className="w-full"><Link to={`${portal}/personal-training`}>Go to Personal Training</Link></Button>
               </>
             ) : busy && !quote ? (
               <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            ) : quote?.plan && quote.rows && picked ? (
+              <>
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between"><span>Package total</span><span>{formatUsd(quote.totalCents)}</span></div>
+                  <div className="flex justify-between font-medium"><span>Due today</span><span>{formatUsd(quote.rows[0].amountCents + quote.rows[0].feeCents)}</span></div>
+                  <p className="text-xs text-muted-foreground">Includes a {formatUsd(quote.rows[0].feeCents)} card processing fee, the same as paying in full.</p>
+                </div>
+                <div className="text-sm border-t border-border pt-3">
+                  <p className="ed-caption text-muted-foreground mb-2">Payment schedule</p>
+                  {quote.rows.map((r) => (
+                    <div key={r.number} className="flex justify-between py-1">
+                      <span>{r.number === 1 ? "Today" : shortDate(r.dueDate)} · {r.sessions} sessions</span>
+                      <span>{formatUsd(r.amountCents)} <span className="text-muted-foreground">+ {formatUsd(r.feeCents)} fee</span></span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Remaining payments are charged automatically to your {quote.brand} ending in {quote.last4} each month until the plan is complete.
+                  Sessions are added as each payment goes through. No interest. The plan ends after the final payment.
+                  Your sessions must be used within {picked.expiration_days} days of today.
+                </p>
+                {err && <p className="text-sm text-destructive">{err}</p>}
+                <Button className="w-full" onClick={buy} disabled={busy}>
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Start plan · pay ${formatUsd(quote.rows[0].amountCents + quote.rows[0].feeCents)} today`}
+                </Button>
+              </>
             ) : quote && picked ? (
               <>
                 <div className="text-sm space-y-1">
                   <div className="flex justify-between"><span>Package</span><span>{formatUsd(picked.price_cents)}</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Card processing fee</span><span>{formatUsd(quote.feeCents)}</span></div>
+                  <div className="flex justify-between text-muted-foreground"><span>Card processing fee</span><span>{formatUsd(quote.feeCents ?? 0)}</span></div>
                   <div className="flex justify-between font-medium pt-2 border-t border-border"><span>Total</span><span>{formatUsd(quote.totalCents)}</span></div>
                 </div>
                 <p className="text-sm text-muted-foreground">Charged to your {quote.brand} ending in {quote.last4}.</p>

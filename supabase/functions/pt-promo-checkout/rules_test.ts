@@ -22,3 +22,17 @@ Deno.test("processing fee uses (amount + $0.30) / (1 - 0.029)", () => {
 Deno.test("Stripe label names the package", () => {
   assertEquals(chargeDescription(20, true), "Black Friday Semi-Private PT – 20 Sessions (Member)");
 });
+
+import { addMonthsIso, addDaysIso, detroitToday } from "./rules.ts";
+Deno.test("first plan payment is one month after purchase", () => {
+  assertEquals(addMonthsIso("2026-11-27", 1), "2026-12-27");
+});
+Deno.test("month-end purchase bills on the last day of a short month", () => {
+  assertEquals(addMonthsIso("2027-01-31", 1), "2027-02-28");
+});
+Deno.test("use-by date counts package days from purchase, not plan length", () => {
+  assertEquals(addDaysIso("2026-11-27", 279), "2027-09-02");
+});
+Deno.test("Detroit date late at night stays on Detroit's day", () => {
+  assertEquals(detroitToday(new Date("2026-11-28T04:30:00Z")), "2026-11-27");
+});

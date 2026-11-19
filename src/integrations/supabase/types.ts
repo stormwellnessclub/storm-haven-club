@@ -10306,6 +10306,7 @@ export type Database = {
           name: string
           pack_id: string
           plan_total_cents: number | null
+          session_release: number[] | null
           stripe_price_id: string | null
           updated_at: string
         }
@@ -10328,6 +10329,7 @@ export type Database = {
           name: string
           pack_id: string
           plan_total_cents?: number | null
+          session_release?: number[] | null
           stripe_price_id?: string | null
           updated_at?: string
         }
@@ -10350,6 +10352,7 @@ export type Database = {
           name?: string
           pack_id?: string
           plan_total_cents?: number | null
+          session_release?: number[] | null
           stripe_price_id?: string | null
           updated_at?: string
         }
@@ -10559,6 +10562,7 @@ export type Database = {
           renewal_reminder_count: number
           renewal_reminder_sent_at: string | null
           session_type_id: string | null
+          sessions_on_hold: number
           sessions_override: number | null
           sessions_remaining: number
           sessions_total: number
@@ -10618,6 +10622,7 @@ export type Database = {
           renewal_reminder_count?: number
           renewal_reminder_sent_at?: string | null
           session_type_id?: string | null
+          sessions_on_hold?: number
           sessions_override?: number | null
           sessions_remaining: number
           sessions_total: number
@@ -10677,6 +10682,7 @@ export type Database = {
           renewal_reminder_count?: number
           renewal_reminder_sent_at?: string | null
           session_type_id?: string | null
+          sessions_on_hold?: number
           sessions_override?: number | null
           sessions_remaining?: number
           sessions_total?: number
@@ -10939,6 +10945,8 @@ export type Database = {
           rescheduled_at: string | null
           rescheduled_by: string | null
           sale_intent_id: string | null
+          sessions_released: number | null
+          sessions_released_at: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
@@ -10967,6 +10975,8 @@ export type Database = {
           rescheduled_at?: string | null
           rescheduled_by?: string | null
           sale_intent_id?: string | null
+          sessions_released?: number | null
+          sessions_released_at?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -10995,6 +11005,8 @@ export type Database = {
           rescheduled_at?: string | null
           rescheduled_by?: string | null
           sale_intent_id?: string | null
+          sessions_released?: number | null
+          sessions_released_at?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
@@ -19613,6 +19625,10 @@ export type Database = {
         Args: { p_appt: Database["public"]["Tables"]["pt_appointments"]["Row"] }
         Returns: string
       }
+      pt_plan_apply_session_hold: {
+        Args: { p_idempotency_key: string }
+        Returns: Json
+      }
       pt_plan_reschedule: {
         Args: {
           p_apply?: boolean
@@ -19685,6 +19701,19 @@ export type Database = {
           promo_audience: string
           sale_ends_at: string
           sessions: number
+        }[]
+      }
+      pt_promo_plans: {
+        Args: { p_promo: string }
+        Returns: {
+          amount_due_at_sale_cents: number
+          final_installment_cents: number
+          id: string
+          installment_cents: number
+          installment_count: number
+          pack_id: string
+          plan_total_cents: number
+          session_release: number[]
         }[]
       }
       pt_recalc_invoice: { Args: { p_invoice_id: string }; Returns: undefined }

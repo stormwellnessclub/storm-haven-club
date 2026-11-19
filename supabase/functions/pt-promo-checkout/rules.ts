@@ -26,3 +26,22 @@ export function promoBlockReason(pack: PromoPack, isMember: boolean, now: Date):
 export function chargeDescription(sessions: number, isMember: boolean): string {
   return `Black Friday Semi-Private PT – ${sessions} Sessions (${isMember ? "Member" : "Non-Member"})`;
 }
+
+/** Today's date in Detroit as YYYY-MM-DD. */
+export function detroitToday(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Detroit", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/** Same day next month(s); short months use their last day (Jan 31 -> Feb 28). */
+export function addMonthsIso(iso: string, months: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}
+
+export function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}

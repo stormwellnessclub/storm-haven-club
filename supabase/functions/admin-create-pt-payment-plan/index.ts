@@ -91,8 +91,9 @@ Deno.serve(async (req) => {
     if (!plan) throw new Error("Payment plan not found");
     if (plan.pack_id !== pack.id) throw new Error("Payment plan does not belong to this package");
     if (!plan.is_active) throw new Error("Payment plan is archived");
-    if (!testMode && !plan.stripe_price_id) {
-      throw new Error("Payment plan has no Stripe price — save it again to sync");
+    // Sale packages (Black Friday etc.) can only be sold while their sale runs.
+    if ((pack as any).promo_key && (pack as any).sale_ends_at && new Date((pack as any).sale_ends_at) < new Date()) {
+      throw new Error("This sale has ended");
     }
 
     // In sandbox verification the catalogue's live price id is meaningless, so an
@@ -100,6 +101,19 @@ Deno.serve(async (req) => {
     const planInterval = plan.frequency_unit === "week" ? "week" : plan.frequency_unit === "day" ? "day" : "month";
     const planIntervalCount = (plan.frequency_interval ?? 1) as number;
     let basePriceId: string = plan.stripe_price_id as string;
+    if (!testMode && !basePriceId) {
+      // Plans added without a synced price get one now (same shape as sync-pt-pack-plan-price).
+      const created = await stripe.prices.create({
+        currency: "usd",
+        unit_amount: plan.installment_cents,
+        recurring: { interval: planInterval, interval_count: planIntervalCount },
+        product_data: { name: `Personal Training: ${pack.name}` },
+        nickname: `${pack.name} — ${plan.name}`,
+        metadata: { pt_pack_id: pack.id, pt_plan_id: plan.id, installment_total: String(plan.installment_count) },
+      }, { idempotencyKey: `pt_plan_base_price:${plan.id}:${plan.installment_cents}` });
+      basePriceId = created.id;
+      await supabase.from("pt_pack_payment_plans").update({ stripe_price_id: basePriceId }).eq("id", plan.id);
+    }
     if (testMode) {
       const testPrice = await stripe.prices.create({
         currency: "usd",
@@ -391,6 +405,10 @@ Deno.serve(async (req) => {
       p_subscription_id: stripeScheduleId,
     });
     if (matErr) console.error("Failed to materialize installments:", matErr.message);
+
+    // Plans with a session release list start with only the first payment's sessions.
+    const { error: holdErr } = await supabase.rpc("pt_plan_apply_session_hold", { p_idempotency_key: saleRef });
+    if (holdErr) console.error("Failed to hold plan sessions:", holdErr.message);
 
     // Note how the first payment was received (card, cash, check, external).
     await supabase.from("pt_payment_plan_installments")
