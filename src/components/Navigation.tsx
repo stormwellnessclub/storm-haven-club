@@ -69,7 +69,7 @@ export function Navigation() {
           to="/black-friday"
           className="flex h-9 items-center justify-center gap-2 bg-foreground px-4 text-center text-[11px] uppercase tracking-[0.2em] text-background transition-opacity hover:opacity-90"
         >
-          <span className="truncate">The Seasonal Offering<span className="hidden md:inline"> · An invitation to invest in what lasts</span></span>
+          <span className="truncate">The Seasonal Edit<span className="hidden md:inline"> · An invitation to invest in what lasts</span></span>
           <span className="shrink-0 border-b border-background/50">Discover</span>
         </Link>
       )}

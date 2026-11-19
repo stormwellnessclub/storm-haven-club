@@ -97,7 +97,8 @@ export default function PersonalTrainingOverview() {
       {/* Hero */}
       <section className="relative">
         <EdImage src={heroPhoto} alt="The training floor at Storm Wellness Club" className="h-[70vh] min-h-[420px]" eager />
-        <div className="absolute inset-0 bg-foreground/50" />
+        <div className="absolute inset-0 bg-foreground/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/40 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 container mx-auto px-6 pb-12 text-primary-foreground">
           <Chapter n="01" label="Personal Training · Livonia, MI" light />
           <h1 className="font-serif text-5xl md:text-7xl mt-4 max-w-3xl leading-[0.95]">Personal Training</h1>
@@ -115,12 +116,12 @@ export default function PersonalTrainingOverview() {
         </div>
       </section>
 
-      {/* Seasonal Offering (only while it runs) */}
+      {/* Seasonal Edit (only while it runs) */}
       {blackFriday.active && (
         <section className="border-b border-border bg-secondary/40">
           <div className="container mx-auto flex flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="ed-caption text-muted-foreground">The Seasonal Offering</p>
+              <p className="ed-caption text-muted-foreground">The Seasonal Edit</p>
               <p className="mt-2 font-serif text-2xl md:text-3xl">An invitation to invest in what lasts.</p>
               <p className="mt-2 max-w-xl text-sm text-muted-foreground">
                 For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.
@@ -130,7 +131,7 @@ export default function PersonalTrainingOverview() {
               </p>
             </div>
             <Link to="/black-friday" className="inline-flex shrink-0 items-center gap-3 self-start ed-caption pb-1 border-b border-foreground/40 hover:border-foreground transition-colors md:self-auto">
-              Discover the offering <span aria-hidden>→</span>
+              Discover the Seasonal Edit <span aria-hidden>→</span>
             </Link>
           </div>
         </section>

@@ -16,7 +16,7 @@ export function BlackFridayPortalCard() {
           <Dumbbell className="h-5 w-5 text-accent" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">The Seasonal Offering</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">The Seasonal Edit</p>
           <h3 className="mt-1 font-serif text-xl leading-tight text-foreground">An invitation to invest in what lasts.</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.

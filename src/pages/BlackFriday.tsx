@@ -121,9 +121,10 @@ export default function BlackFriday() {
       />
       <section className="relative">
         <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[55vh] min-h-[360px]" eager />
-        <div className="absolute inset-0 bg-foreground/45" />
+        <div className="absolute inset-0 bg-foreground/60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/40 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 container pb-12 text-primary-foreground">
-          <Chapter n="01" label="The Seasonal Offering" light />
+          <Chapter n="01" label="The Seasonal Edit" light />
           <h1 className="font-serif text-4xl md:text-6xl mt-4 max-w-3xl">An invitation to invest in what lasts.</h1>
           <p className="mt-4 max-w-2xl text-lg text-primary-foreground/90">
             For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.

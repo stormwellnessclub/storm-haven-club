@@ -123,3 +123,4 @@
 - [x] Remove the word "sale" from everything clients see for Black Friday (page, checkout, portal, drafts)
 - [x] Switch strip, PT page section and portal cards to owner's "Seasonal Offering" wording
 - [x] Switch top of Black Friday page to Seasonal Offering wording
+- [x] Rename to 'The Seasonal Edit'; darken PT photos behind writing
