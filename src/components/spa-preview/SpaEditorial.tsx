@@ -8,8 +8,8 @@ import { SPA_CATEGORIES } from "@/lib/spa-content";
 import { TreatmentRow } from "@/components/spa-preview/TreatmentRow";
 import { SpaTimeFinder } from "@/components/spa-preview/SpaTimeFinder";
 import { BodyLabChapter } from "@/components/spa-preview/BodyLabChapter";
-import aellaLogo from "@/assets/aella-logo-mark.png";
-import glowProfile from "@/assets/spa-preview/glow-profile.jpg.asset.json";
+import aellaLogoCream from "@/assets/aella-logo-cream.png";
+import brushstrokeHero from "@/assets/spa-preview/aella-brushstroke-hero.jpg";
 import massageHands from "@/assets/spa-preview/massage-hands-rest.jpg.asset.json";
 import handCheekMoody from "@/assets/spa-preview/hand-cheek-moody.jpg";
 import hammam from "@/assets/spa-preview/hammam-scrub.jpg.asset.json";
@@ -96,14 +96,12 @@ export function SpaEditorial({ services, onBook, onRequest, ratings = {}, onRevi
   return (
       <div className="dark bg-background text-foreground">
         {/* 1. Arrival */}
-        <section className="relative md:grid md:min-h-[100svh] md:grid-cols-12">
-          <figure className="relative md:order-2 md:col-span-7">
-            <img src={glowProfile.url} alt="A calm profile, eyes closed, skin catching warm light" className="aspect-[4/5] w-full object-cover object-[50%_30%] md:absolute md:inset-0 md:aspect-auto md:h-full" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r md:from-background md:via-transparent" />
-          </figure>
-          <div className="relative z-10 -mt-24 flex flex-col justify-end px-6 pb-16 md:col-span-5 md:mt-0 md:min-h-[100svh] md:px-16 md:pb-24">
-                        <img src={aellaLogo} alt="Spa Aella" width={600} height={247} className="h-12 w-auto self-start md:h-16" />
-            <div className="mt-10 flex gap-10">
+        <section className="relative flex min-h-[88svh] flex-col items-center justify-center overflow-hidden px-6 md:min-h-[100svh]">
+          <img src={brushstrokeHero} alt="" width={1536} height={1920} className="absolute inset-0 h-full w-full object-cover object-center" />
+          <div className="absolute inset-0 bg-gradient-to-b from-background/20 via-background/10 to-background" />
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <img src={aellaLogoCream} alt="Spa Aella" width={600} height={247} className="h-14 w-auto md:h-20" />
+            <div className="mt-12 flex flex-wrap justify-center gap-x-10 gap-y-4">
               <QuietLink href="#need">Explore Treatments</QuietLink>
               <QuietLink href="#book">View Availability</QuietLink>
             </div>
