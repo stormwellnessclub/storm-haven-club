@@ -119,19 +119,25 @@ export default function BlackFriday() {
         description="Black Friday semi-private personal training packages at Storm Wellness Club in Livonia, through Cyber Monday."
         path="/black-friday"
       />
-      <section className="relative">
-        <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[55vh] min-h-[360px]" eager />
-        <div className="absolute inset-0 bg-foreground/60" />
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/85 via-foreground/40 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 container pb-12 text-primary-foreground">
-          <Chapter n="01" label="The Seasonal Edit" light />
-          <h1 className="font-serif text-4xl md:text-6xl mt-4 max-w-3xl">An invitation to invest in what lasts.</h1>
-          <p className="mt-4 max-w-2xl text-lg text-primary-foreground/90">
-            For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.
-          </p>
-          <p className="mt-5 text-xs uppercase tracking-[0.25em] text-primary-foreground/85">Available in limited quantities</p>
-          {endsAt && <p className="mt-2 text-primary-foreground/80">{saleEndLabel(endsAt)}</p>}
-        </div>
+      {/* The Seasonal Edit: its own quiet opening, kept off the photo */}
+      <section className="container pt-32 pb-14 md:pt-44 md:pb-20">
+        <Reveal>
+          <Chapter n="01" label="The Seasonal Edit" />
+          <h1 className="font-serif text-4xl leading-[1.05] md:text-7xl mt-6 max-w-4xl">An invitation to invest in what lasts.</h1>
+          <div className="mt-8 grid gap-8 md:mt-12 md:grid-cols-12 md:items-end">
+            <p className="text-lg leading-relaxed text-muted-foreground md:col-span-7">
+              For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.
+            </p>
+            <div className="border-t border-foreground/20 pt-4 md:col-span-4 md:col-start-9">
+              <p className="ed-caption text-foreground">Available in limited quantities</p>
+              {endsAt && <p className="mt-2 text-sm text-muted-foreground">{saleEndLabel(endsAt)}</p>}
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      <section>
+        <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[45vh] min-h-[300px] md:h-[60vh]" eager />
       </section>
 
       <section className="container py-16 md:py-24 max-w-4xl">
