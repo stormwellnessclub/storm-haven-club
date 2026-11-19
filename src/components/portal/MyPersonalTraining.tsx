@@ -14,6 +14,7 @@ import { CalendarDays, CalendarPlus, ChevronRight, CreditCard, Info, Layers, Pac
 import { format, parseISO } from "date-fns";
 import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
 import { PTRequestSessionForm } from "@/components/portal/PTRequestSessionForm";
+import { BlackFridayPortalCard } from "@/components/portal/BlackFridayPortalCard";
 import { useSearchParams } from "react-router-dom";
 import { useMyPTPortal, useMyPTRequests, upcomingPT, type MyPTPortalData, type MyPTRequest } from "@/hooks/useMyPTPortal";
 
@@ -237,6 +238,7 @@ export function MyPersonalTraining() {
       </TabsList>
 
       <TabsContent value="overview" className="space-y-3">
+        <BlackFridayPortalCard />
         <InfoCard icon={CalendarDays} title="Next Confirmed Session" onClick={next ? () => setTab("requests") : undefined}>
           {next ? <>
             <p className="text-xl font-semibold">{format(parseISO(next.starts_at), "EEE, MMM d")}</p>

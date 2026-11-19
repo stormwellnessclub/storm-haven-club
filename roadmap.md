@@ -115,3 +115,9 @@
 
 ## Personal Training page wording (Nov 19)
 - [x] Owner's new value-first wording on the main Personal Training page (keep pricing chart and request form)
+
+## Black Friday PT links (Nov 19)
+- [x] Thin strip on top of every public page linking to Black Friday packages (hides when it ends)
+- [x] Black Friday section near top of Personal Training page
+- [x] Black Friday link in member portal and non-member portal
+- [x] Remove the word "sale" from everything clients see for Black Friday (page, checkout, portal, drafts)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BlackFridayPortalCard } from "@/components/portal/BlackFridayPortalCard";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -175,6 +176,7 @@ export default function MemberDashboard() {
       <div className="space-y-8">
         {/* Upcoming Event Announcement */}
         <EventAnnouncementBanner />
+        <BlackFridayPortalCard />
         <UpcomingRitualsSection basePath="/member" />
         <HigherSelfSocietyCard />
 

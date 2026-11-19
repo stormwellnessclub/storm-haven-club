@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, Menu, X, User, LogOut, LayoutDashboard, CalendarDays, CreditCard, Ticket, FileText, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBlackFridaySale } from "@/hooks/useBlackFridaySale";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const navLinks = [
@@ -28,6 +29,9 @@ export function Navigation() {
   const location = useLocation();
   const isHome = location.pathname === "/";
   const { user, signOut } = useAuth();
+  const { active: saleOn } = useBlackFridaySale();
+  // Thin sale strip above the menu while the Black Friday sale runs (hidden on the sale page itself).
+  const showSaleStrip = saleOn && location.pathname !== "/black-friday";
 
   // Track scroll position for header styling
   useEffect(() => {
@@ -58,7 +62,17 @@ export function Navigation() {
     : "text-foreground hover:text-accent";
 
   return (
+    <>
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 safe-area-inset ${navBackground}`}>
+      {showSaleStrip && (
+        <Link
+          to="/black-friday"
+          className="flex h-9 items-center justify-center gap-2 bg-foreground px-4 text-center text-[11px] uppercase tracking-[0.2em] text-background transition-opacity hover:opacity-90"
+        >
+          <span className="truncate">Black Friday · <span className="sm:hidden">PT</span><span className="hidden sm:inline">Personal Training</span> packages</span>
+          <span className="shrink-0 border-b border-background/50">See offers</span>
+        </Link>
+      )}
       <div className="container mx-auto container-padding">
         <div className="flex items-center justify-between h-20 sm:h-24">
           {/* Logo */}
@@ -204,7 +218,11 @@ export function Navigation() {
 
         {/* Mobile Navigation */}
         <div
-          className={`lg:hidden fixed top-16 sm:top-20 left-0 right-0 bg-background border-b border-border shadow-elevated transition-all duration-300 max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-5rem)] overflow-y-auto ${
+          className={`lg:hidden fixed left-0 right-0 bg-background border-b border-border shadow-elevated transition-all duration-300 overflow-y-auto ${
+            showSaleStrip
+              ? "top-[100px] sm:top-[116px] max-h-[calc(100vh-100px)] sm:max-h-[calc(100vh-116px)]"
+              : "top-16 sm:top-20 max-h-[calc(100vh-4rem)] sm:max-h-[calc(100vh-5rem)]"
+          } ${
             isOpen ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
           }`}
         >
@@ -279,5 +297,8 @@ export function Navigation() {
         </div>
       </div>
     </nav>
+    {/* Pushes the page down by the strip's height so it never covers page content. */}
+    {showSaleStrip && <div aria-hidden className="h-9 shrink-0" />}
+    </>
   );
 }

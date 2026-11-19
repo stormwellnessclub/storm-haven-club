@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BlackFridayPortalCard } from "@/components/portal/BlackFridayPortalCard";
 import { PortalLayout } from "@/components/portal/PortalLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNonMemberProfile } from "@/hooks/useNonMemberProfile";
@@ -153,6 +154,7 @@ export default function PortalDashboard() {
 
         {/* Upcoming Event Announcement */}
         <EventAnnouncementBanner />
+        <BlackFridayPortalCard />
         <UpcomingRitualsSection basePath="/portal" />
 
         {/* Live cafe order tracker */}

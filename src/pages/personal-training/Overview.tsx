@@ -6,6 +6,8 @@ import { buildBreadcrumbLd, buildServiceLd, buildFAQLd } from "@/lib/seo/schemas
 import { ChevronRight, Dumbbell, CircleDot, Users } from "lucide-react";
 import { TrainingRequestForm } from "@/components/personal-training/TrainingRequestForm";
 import { PTPriceTable } from "@/components/personal-training/PTPriceTable";
+import { useBlackFridaySale } from "@/hooks/useBlackFridaySale";
+import { saleEndLabel } from "@/lib/blackFriday";
 import { Chapter, EdImage, Reveal } from "@/components/editorial/Editorial";
 import type { PtFormat } from "@/lib/ptFormat";
 import heroPhoto from "@/assets/gym-area-2.jpg";
@@ -54,6 +56,7 @@ const services = [
 
 export default function PersonalTrainingOverview() {
   const [priceFormat, setPriceFormat] = useState<PtFormat>("semi_private");
+  const blackFriday = useBlackFridaySale();
   return (
     <Layout>
       <SEOHead
@@ -111,6 +114,22 @@ export default function PersonalTrainingOverview() {
           </div>
         </div>
       </section>
+
+      {/* Black Friday offer (only while it runs) */}
+      {blackFriday.active && (
+        <section className="border-b border-border bg-secondary/40">
+          <div className="container mx-auto flex flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="ed-caption text-muted-foreground">Black Friday · Limited packages</p>
+              <p className="mt-2 font-serif text-2xl md:text-3xl">Exclusive pricing on Semi-Private training packages.</p>
+              {blackFriday.endsAt && <p className="mt-1 text-sm text-muted-foreground">{saleEndLabel(blackFriday.endsAt)}</p>}
+            </div>
+            <Link to="/black-friday" className="inline-flex shrink-0 items-center gap-3 self-start ed-caption pb-1 border-b border-foreground/40 hover:border-foreground transition-colors md:self-auto">
+              See Black Friday packages <span aria-hidden>→</span>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Intro */}
       <section className="py-20 md:py-28 bg-background">
