@@ -725,6 +725,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   ))}
                 </SelectContent>
               </Select>
+              {selectedPack && promoState(selectedPack as PromoFields) === "live" && (
+                <p className="text-xs text-muted-foreground">{selectedPack.name}</p>
+              )}
               {nonMemberPacks.length === 0 && clientKnown && !clientIsMember && (
                 <p className="text-xs text-muted-foreground">Non-member packs are semi-private only.</p>
               )}
