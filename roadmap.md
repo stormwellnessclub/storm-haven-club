@@ -121,3 +121,5 @@
 - [x] Black Friday section near top of Personal Training page
 - [x] Black Friday link in member portal and non-member portal
 - [x] Remove the word "sale" from everything clients see for Black Friday (page, checkout, portal, drafts)
+- [x] Switch strip, PT page section and portal cards to owner's "Seasonal Offering" wording
+- [x] Switch top of Black Friday page to Seasonal Offering wording

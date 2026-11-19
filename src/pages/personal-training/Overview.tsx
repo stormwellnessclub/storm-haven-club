@@ -115,17 +115,22 @@ export default function PersonalTrainingOverview() {
         </div>
       </section>
 
-      {/* Black Friday offer (only while it runs) */}
+      {/* Seasonal Offering (only while it runs) */}
       {blackFriday.active && (
         <section className="border-b border-border bg-secondary/40">
           <div className="container mx-auto flex flex-col gap-4 px-6 py-8 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="ed-caption text-muted-foreground">Black Friday · Limited packages</p>
-              <p className="mt-2 font-serif text-2xl md:text-3xl">Exclusive pricing on Semi-Private training packages.</p>
-              {blackFriday.endsAt && <p className="mt-1 text-sm text-muted-foreground">{saleEndLabel(blackFriday.endsAt)}</p>}
+              <p className="ed-caption text-muted-foreground">The Seasonal Offering</p>
+              <p className="mt-2 font-serif text-2xl md:text-3xl">An invitation to invest in what lasts.</p>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+                For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.
+              </p>
+              <p className="mt-3 ed-caption text-muted-foreground">
+                Available in limited quantities{blackFriday.endsAt ? ` · ${saleEndLabel(blackFriday.endsAt)}` : ""}
+              </p>
             </div>
             <Link to="/black-friday" className="inline-flex shrink-0 items-center gap-3 self-start ed-caption pb-1 border-b border-foreground/40 hover:border-foreground transition-colors md:self-auto">
-              See Black Friday packages <span aria-hidden>→</span>
+              Discover the offering <span aria-hidden>→</span>
             </Link>
           </div>
         </section>

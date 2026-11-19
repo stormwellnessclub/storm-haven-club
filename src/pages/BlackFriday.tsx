@@ -123,10 +123,13 @@ export default function BlackFriday() {
         <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[55vh] min-h-[360px]" eager />
         <div className="absolute inset-0 bg-foreground/45" />
         <div className="absolute inset-x-0 bottom-0 container pb-12 text-primary-foreground">
-          <Chapter n="01" label="Black Friday" light />
-          <h1 className="font-serif text-4xl md:text-6xl mt-4 max-w-3xl">Personal Training</h1>
-          <p className="mt-4 max-w-2xl text-lg text-primary-foreground/90">A commitment to yourself, with an opportunity to go further.</p>
-          {endsAt && <p className="mt-4 text-primary-foreground/80">{saleEndLabel(endsAt)}</p>}
+          <Chapter n="01" label="The Seasonal Offering" light />
+          <h1 className="font-serif text-4xl md:text-6xl mt-4 max-w-3xl">An invitation to invest in what lasts.</h1>
+          <p className="mt-4 max-w-2xl text-lg text-primary-foreground/90">
+            For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.
+          </p>
+          <p className="mt-5 text-xs uppercase tracking-[0.25em] text-primary-foreground/85">Available in limited quantities</p>
+          {endsAt && <p className="mt-2 text-primary-foreground/80">{saleEndLabel(endsAt)}</p>}
         </div>
       </section>
 
