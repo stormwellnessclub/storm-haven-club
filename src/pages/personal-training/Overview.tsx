@@ -1,10 +1,29 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { buildBreadcrumbLd, buildServiceLd, buildFAQLd } from "@/lib/seo/schemas";
-import { Button } from "@/components/ui/button";
 import { ChevronRight, Dumbbell, CircleDot, Users } from "lucide-react";
 import { TrainingRequestForm } from "@/components/personal-training/TrainingRequestForm";
+import { PTPriceTable } from "@/components/personal-training/PTPriceTable";
+import { Chapter, EdImage, Reveal } from "@/components/editorial/Editorial";
+import type { PtFormat } from "@/lib/ptFormat";
+import heroPhoto from "@/assets/gym-area-2.jpg";
+import methodPhoto from "@/assets/gym-area-1.jpg";
+import beyondPhoto from "@/assets/zerobody-room.jpg";
+
+const PROCESS = [
+  { n: "01", title: "Understand the individual", body: "We begin with your goals, movement capabilities, training history, physical considerations, recovery patterns, and lifestyle. These insights establish the foundation for programming." },
+  { n: "02", title: "Program with precision", body: "Exercise selection, resistance, volume, intensity, tempo, and recovery are considered in relation to your individual needs. Your program is designed to create the right stimulus for adaptation—not simply to make every session harder." },
+  { n: "03", title: "Measure and adapt", body: "Strength, performance, technique, and training responses inform how your program evolves. Progress is evaluated over time, with adjustments made as your capacity, goals, and needs change." },
+  { n: "04", title: "Build the behavior behind the results", body: "Consistency is not simply a matter of discipline. Motivation, confidence, perceived barriers, and the relationship between coach and client all influence adherence. Our coaching approach acknowledges these factors so training becomes something you can sustain." },
+];
+
+const PRICE_FORMATS: { value: PtFormat; label: string }[] = [
+  { value: "semi_private", label: "Semi-Private" },
+  { value: "one_on_one", label: "1:1 Personal Training" },
+  { value: "reformer_one_on_one", label: "Private Pilates" },
+];
 
 const services = [
   {
@@ -34,6 +53,7 @@ const services = [
 ];
 
 export default function PersonalTrainingOverview() {
+  const [priceFormat, setPriceFormat] = useState<PtFormat>("semi_private");
   return (
     <Layout>
       <SEOHead
@@ -71,57 +91,124 @@ export default function PersonalTrainingOverview() {
         ]}
       />
 
-      {/* Hero — editorial, asymmetric */}
-      <section className="relative pt-32 pb-20 bg-background overflow-hidden">
-        <div className="container mx-auto px-6">
-          <div className="grid lg:grid-cols-12 gap-10 items-end">
-            <div className="lg:col-span-8">
-              <p className="text-accent text-[11px] uppercase tracking-[0.4em] mb-6">
-                Storm Wellness Club · Private Coaching
-              </p>
-              <h1 className="text-foreground/90 text-sm md:text-base uppercase tracking-[0.2em] mb-6">
-                Personal Training &amp; Private Pilates in Livonia, MI
-              </h1>
-
-              <h2 className="font-serif text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight mb-6">
-                Trained for
-                <br />
-                <span className="italic text-accent">your goal.</span>
-                <br />
-                Coached at your level.
-              </h2>
-              <p className="text-muted-foreground text-lg leading-relaxed max-w-xl">
-                Private coaching at Storm Wellness Club. Every session is programmed
-                around your goal, your level and where your body is today — with the technique
-                and progression that help you understand your own body better over time.
-              </p>
-              <div className="mt-10 flex flex-wrap gap-3">
-                <Button asChild size="lg">
-                  <a href="#request">Request a coach</a>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link to="/memberships">View memberships</Link>
-                </Button>
-              </div>
-            </div>
-
-            <aside className="lg:col-span-4 lg:pl-8 lg:border-l border-border">
-              <div className="space-y-6 text-sm">
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
-                    Where
-                  </div>
-                  <div className="font-serif text-xl">18340 Middlebelt Rd, Livonia</div>
-                </div>
-                <div>
-                  <div className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-1">
-                    Session length
-                  </div>
-                  <div className="text-foreground/90">60 minutes, by appointment.</div>
-                </div>
-              </div>
-            </aside>
+      {/* Hero */}
+      <section className="relative">
+        <EdImage src={heroPhoto} alt="The training floor at Storm Wellness Club" className="h-[70vh] min-h-[420px]" eager />
+        <div className="absolute inset-0 bg-foreground/50" />
+        <div className="absolute inset-x-0 bottom-0 container mx-auto px-6 pb-12 text-primary-foreground">
+          <Chapter n="01" label="Personal Training · Livonia, MI" light />
+          <h1 className="font-serif text-5xl md:text-7xl mt-4 max-w-3xl leading-[0.95]">Personal Training</h1>
+          <p className="mt-5 max-w-2xl text-lg md:text-2xl font-serif text-primary-foreground/90">
+            The science of movement. The psychology of lasting change.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-x-8 gap-y-4">
+            <a href="#request" className="inline-flex items-center gap-3 ed-caption pb-1 border-b border-primary-foreground/50 hover:border-primary-foreground transition-colors">
+              Request a coach <span aria-hidden>↓</span>
+            </a>
+            <a href="#packages" className="inline-flex items-center gap-3 ed-caption pb-1 border-b border-primary-foreground/30 hover:border-primary-foreground transition-colors">
+              Packages <span aria-hidden>↓</span>
+            </a>
           </div>
+        </div>
+      </section>
+
+      {/* Intro */}
+      <section className="py-20 md:py-28 bg-background">
+        <div className="container mx-auto px-6 max-w-3xl">
+          <Reveal>
+            <p className="font-serif text-3xl md:text-5xl leading-tight">
+              Your body is not a template. Your training shouldn't be either.
+            </p>
+            <p className="mt-8 text-lg text-muted-foreground leading-relaxed">
+              At Storm Wellness Club, personal training begins with understanding the individual. How you move. How you
+              respond to physical demands. What influences your recovery, motivation, and consistency.
+            </p>
+            <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
+              Through The Storm Method, we bring together exercise science, individualized programming, and behavioral
+              psychology to create a more thoughtful approach to training—one that evolves with you.
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* The Storm Method */}
+      <section className="border-t border-border bg-background">
+        <div className="container mx-auto px-6 py-20 md:py-28 grid gap-10 md:grid-cols-2 md:gap-16 items-center">
+          <EdImage src={methodPhoto} alt="The strength floor at Storm Wellness Club" className="aspect-[4/5]" />
+          <Reveal>
+            <Chapter n="02" label="The Storm Method" />
+            <h2 className="font-serif text-4xl md:text-5xl mt-4 leading-[1.05]">Where physical science meets human behavior.</h2>
+            <p className="mt-6 text-muted-foreground leading-relaxed">
+              Developed through years of coaching experience and founder Dr. Storm Durant's research into exercise adherence
+              and the trainer–trainee relationship, The Storm Method was built around a fundamental understanding: knowing how
+              to train someone is only part of helping them succeed.
+            </p>
+            <p className="mt-5 font-serif text-2xl leading-snug">Understanding the person behind the movement matters just as much.</p>
+            <p className="mt-5 text-muted-foreground leading-relaxed">
+              Our approach considers the physiological demands of training alongside the psychological and lifestyle factors
+              that influence progress. Rather than asking every client to fit the same system, we adapt the system to the
+              individual.
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* The Process */}
+      <section className="border-t border-border bg-secondary/30">
+        <div className="container mx-auto px-6 py-20 md:py-28 max-w-6xl">
+          <Reveal>
+            <Chapter n="03" label="The Process" />
+            <h2 className="font-serif text-4xl md:text-5xl mt-4 max-w-2xl leading-[1.05]">Nothing arbitrary. Every detail has a purpose.</h2>
+          </Reveal>
+          <div className="mt-14 grid gap-x-14 gap-y-12 md:grid-cols-2">
+            {PROCESS.map((step, i) => (
+              <Reveal key={step.n} delay={i * 80} className="border-t border-border pt-6">
+                <p className="font-serif text-3xl text-accent/80">{step.n}</p>
+                <h3 className="font-serif text-2xl mt-3">{step.title}</h3>
+                <p className="mt-3 text-muted-foreground leading-relaxed">{step.body}</p>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Beyond the Workout */}
+      <section className="border-t border-border bg-background">
+        <div className="container mx-auto px-6 py-20 md:py-28 grid gap-10 md:grid-cols-2 md:gap-16 items-center">
+          <Reveal className="md:order-1">
+            <Chapter n="04" label="Beyond the Workout" />
+            <h2 className="font-serif text-4xl md:text-5xl mt-4 leading-[1.05]">Training is one part of the equation.</h2>
+            <p className="mt-6 font-serif text-2xl leading-snug">Exercise creates the stimulus. How the body responds depends on much more.</p>
+            <p className="mt-5 text-muted-foreground leading-relaxed">
+              Recovery, sleep, nutrition, stress, and daily demands all influence training readiness and adaptation. We
+              consider these factors throughout the coaching process rather than treating each workout as an isolated event.
+            </p>
+            <p className="mt-5 text-muted-foreground leading-relaxed">
+              At Storm Wellness Club, the opportunity to bring movement, recovery, and wellness into one environment allows for
+              a more connected approach to how you train and care for your body.
+            </p>
+          </Reveal>
+          <EdImage src={beyondPhoto} alt="The recovery suite at Storm Wellness Club" className="aspect-[4/5] md:order-2" />
+        </div>
+      </section>
+
+      {/* Personal to You */}
+      <section className="border-t border-border bg-background">
+        <div className="container mx-auto px-6 py-20 md:py-28 max-w-3xl">
+          <Reveal>
+            <Chapter n="05" label="Personal to You" />
+            <h2 className="font-serif text-4xl md:text-5xl mt-4 leading-[1.05]">Different bodies. Different goals. Different starting points.</h2>
+            <p className="mt-8 text-lg text-foreground/90 leading-relaxed">
+              Building strength. Improving movement quality. Developing athletic performance. Returning to a consistent routine.
+              Navigating physical limitations. Rebuilding confidence in your body.
+            </p>
+            <p className="mt-6 text-muted-foreground leading-relaxed">
+              Whatever brings you here, the process begins with where you are—not where someone assumes you should be.
+            </p>
+            <p className="mt-6 text-muted-foreground leading-relaxed">
+              No two clients require the same approach, and no program should remain unchanged as the person progresses.
+            </p>
+          </Reveal>
         </div>
       </section>
 
@@ -173,101 +260,40 @@ export default function PersonalTrainingOverview() {
         </div>
       </section>
 
-      {/* Philosophy — quiet, confident, brand-aligned */}
-      <section className="py-24 bg-background">
-        <div className="container mx-auto px-6 max-w-4xl">
-          <p className="text-[11px] uppercase tracking-[0.4em] text-accent mb-6 text-center">
-            What you can expect
-          </p>
-          <p className="font-serif text-3xl md:text-4xl leading-snug text-center text-foreground/90">
-            Built on exercise science, recovery, nutrition, and behavioral
-            psychology — <span className="italic text-accent">not</span> on a generic template.
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-10 mt-16 pt-12 border-t border-border">
-            {[
-              {
-                t: "The Storm Method",
-                d: "A proprietary coaching framework refined over 15 years in the industry — assessment, programming, and progression built on movement science, not trend.",
-              },
-              {
-                t: "Programmed for your physiology",
-                d: "Every plan is written around your goal, your training age, and your body's current capacity. Strength, mobility, Pilates, post-rehab, sport-specific — calibrated, never recycled.",
-              },
-              {
-                t: "Progressed with intent",
-                d: "Load, tempo, and volume are tracked and progressed week to week so adaptation compounds. Measured work, measurable change.",
-              },
-            ].map((b) => (
-              <div key={b.t}>
-                <div className="font-serif text-xl mb-2">{b.t}</div>
-                <p className="text-muted-foreground text-sm leading-relaxed">{b.d}</p>
-              </div>
+      {/* Your Investment in the Process */}
+      <section id="packages" className="border-t border-border bg-background scroll-mt-24">
+        <div className="container mx-auto px-6 py-20 md:py-28 max-w-4xl">
+          <Reveal>
+            <Chapter n="06" label="Your Investment in the Process" />
+            <h2 className="font-serif text-4xl md:text-5xl mt-4 leading-[1.05]">Personal Training Packages</h2>
+            <p className="mt-5 text-muted-foreground max-w-2xl leading-relaxed">
+              Explore our personal training packages, with member and non-member pricing and available payment options.
+            </p>
+          </Reveal>
+          <div className="mt-10 flex flex-wrap gap-2" role="tablist" aria-label="Training format">
+            {PRICE_FORMATS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={priceFormat === f.value}
+                onClick={() => setPriceFormat(f.value)}
+                className={`ed-caption px-4 py-2 border transition-colors ${priceFormat === f.value ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/40"}`}
+              >
+                {f.label}
+              </button>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* The Storm Method — editorial long-form */}
-      <section className="py-24 bg-background border-t border-border">
-        <div className="container mx-auto px-6 max-w-5xl">
-          <div className="grid lg:grid-cols-12 gap-12 lg:gap-16">
-            <div className="lg:col-span-4">
-              <div className="lg:sticky lg:top-28">
-                <p className="text-[11px] uppercase tracking-[0.4em] text-accent mb-4">
-                  The Method
-                </p>
-                <h2 className="font-serif text-4xl md:text-5xl leading-[1.05] mb-6">
-                  The Storm <span className="italic">Method</span>
-                </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-                  Developed by founder Dr. Storm Durant from research on exercise adherence.
-                </p>
-              </div>
-            </div>
-
-            <div className="lg:col-span-7 lg:col-start-6 space-y-6">
-              <p className="text-foreground/90 text-lg leading-relaxed">
-                The Storm Method is a psychology-driven training system that combines
-                fitness, recovery, nutrition, and behavioral science to build a plan
-                around the individual — not a generic program.
-              </p>
-              <p className="text-foreground/80 leading-relaxed">
-                It begins with understanding how your body responds to training,
-                recovery, stress, and nutrition. That becomes your biological
-                blueprint, and every part of the program is personalized from it — to
-                improve results and increase long-term consistency.
-              </p>
-
-              <div className="pt-6">
-                <p className="text-[11px] uppercase tracking-[0.3em] text-muted-foreground mb-4">
-                  What it integrates
-                </p>
-                <ul className="grid sm:grid-cols-2 gap-x-8">
-                  {[
-                    "Movement & Exercise Programming",
-                    "Recovery Optimization",
-                    "Nutrition & Lifestyle Factors",
-                    "Accountability & Behavioral Coaching",
-                    "Performance & Wellness Metrics",
-                  ].map((item) => (
-                    <li
-                      key={item}
-                      className="border-l border-accent/40 pl-4 py-2 text-foreground/90 text-sm"
-                    >
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <p className="font-serif text-xl md:text-2xl italic leading-snug text-foreground/90 pt-6 border-t border-border mt-6">
-                The goal isn't to help someone exercise more — it's to build a system
-                they can actually sustain, so results become a lifestyle, not a
-                short-term outcome.
-              </p>
-            </div>
+          <div className="mt-6">
+            <PTPriceTable format={priceFormat} />
           </div>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+            <p>Payment plans are available on select larger packages. Final pricing is confirmed when your coach reaches out.</p>
+            <a href="#request" className="text-foreground underline underline-offset-4">Go to the request form ↓</a>
+          </div>
+          <p className="mt-16 font-serif text-2xl md:text-3xl max-w-2xl leading-snug">
+            Meaningful progress is built through understanding, intention, and consistency.
+          </p>
         </div>
       </section>
 

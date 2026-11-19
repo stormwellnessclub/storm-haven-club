@@ -112,3 +112,6 @@
 - [x] Clients can cancel a confirmed session (24-hour rule) from the PT page
 - [x] Add to calendar for confirmed sessions
 - [x] Pending requests show on the staff PT schedule under the trainer's name
+
+## Personal Training page wording (Nov 19)
+- [x] Owner's new value-first wording on the main Personal Training page (keep pricing chart and request form)
