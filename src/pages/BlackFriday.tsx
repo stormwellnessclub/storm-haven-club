@@ -97,15 +97,15 @@ export default function BlackFriday() {
   const priceCell = (p: Pack | undefined, mine: boolean) => {
     const plan = p ? planFor(p.id) : undefined;
     return (
-      <div className={mine ? "" : "text-muted-foreground"}>
+      <div className={`min-w-0 ${mine ? "" : "text-muted-foreground"}`}>
         <p className="font-serif text-2xl">{p ? formatUsd(p.price_cents) : "—"}</p>
         {plan && (
           <p className="text-xs mt-1">or {plan.installment_count} monthly payments of {formatUsd(plan.installment_cents)}</p>
         )}
         {p && user && mine && !ended && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => choose(p)}>{plan ? "Pay in full" : "Buy"}</Button>
-            {plan && <Button size="sm" variant="outline" onClick={() => choose(p, plan)}>Payment plan</Button>}
+          <div className="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-start">
+            <Button size="sm" className="px-2 sm:px-3" onClick={() => choose(p)}>{plan ? "Pay in full" : "Buy"}</Button>
+            {plan && <Button size="sm" variant="outline" className="px-2 sm:px-3 whitespace-normal h-auto min-h-9 py-2" onClick={() => choose(p, plan)}>Payment plan</Button>}
           </div>
         )}
       </div>
