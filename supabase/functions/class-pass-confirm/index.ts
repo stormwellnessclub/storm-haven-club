@@ -40,7 +40,7 @@ serve(async (req) => {
       );
     }
     const md = session.metadata || {};
-    if (md.type !== "class_pass") {
+    if (md.type !== "class_pass" && md.type !== "seasonal_class_pack") {
       return new Response(
         JSON.stringify({ success: false, error: "Not a class pass session" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -72,7 +72,13 @@ serve(async (req) => {
       : (session.payment_intent as any)?.id || null;
 
     let pass: any = null;
-    for (let i = 0; i < 5 && !pass; i++) {
+    if (md.type === "seasonal_class_pack" && sessionPiId) {
+      for (let i = 0; i < 6 && !pass; i++) {
+        const { data } = await supabase.from("class_passes").select("*").eq("stripe_payment_intent_id", sessionPiId).maybeSingle();
+        if (data) pass = data; else await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+    for (let i = 0; i < 5 && !pass && md.type === "class_pass"; i++) {
       const { data } = await supabase
         .from("class_passes")
         .select("*")
@@ -88,7 +94,7 @@ serve(async (req) => {
     }
 
     // Fallback: webhook didn't fulfill in time — invoke reconciler synchronously
-    if (!pass && sessionPiId) {
+    if (!pass && sessionPiId && md.type === "class_pass") {
       try {
         await supabase.functions.invoke("class-pass-reconcile", {
           body: { payment_intent_id: sessionPiId },

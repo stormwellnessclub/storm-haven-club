@@ -1324,6 +1324,20 @@
       "when": 1795084040413,
       "tag": "0188_pt_promo_plans_include_full_package_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1795088030461,
+      "tag": "0189_seasonal_class_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1795088050067,
+      "tag": "0190_seasonal_class_offer_fix_first_time",
+      "breakpoints": true
     }
   ]
 }

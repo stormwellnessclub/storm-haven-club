@@ -1448,6 +1448,61 @@ serve(async (req) => {
               return errorResponse(passError, "CLASS_PASS_CREATION");
             }
 
+          } else if (metadata.type === 'seasonal_class_pack') {
+            // The Seasonal Edit class package: credits + (Club Experience) one day pass.
+            // Idempotent on the payment intent; the day pass is only issued once per pass.
+            const userId = metadata.user_id;
+            const offerKey = metadata.offer_key;
+            const piId = typeof session.payment_intent === 'string' ? session.payment_intent : (session.payment_intent as any)?.id || null;
+            if (!userId || !offerKey || !piId) {
+              return errorResponse(new Error("Missing seasonal_class_pack metadata"), "SEASONAL_CLASS_PACK");
+            }
+            const { data: offer } = await supabase.from('seasonal_class_offers').select('*').eq('key', offerKey).maybeSingle();
+            if (!offer) return errorResponse(new Error(`Unknown seasonal offer ${offerKey}`), "SEASONAL_CLASS_PACK");
+            let { data: pass } = await supabase.from('class_passes').select('id, day_pass_id, expires_at').eq('stripe_payment_intent_id', piId).maybeSingle();
+            if (!pass) {
+              const expiresAt = new Date();
+              expiresAt.setUTCDate(expiresAt.getUTCDate() + offer.expiry_days);
+              const { data: created, error: insErr } = await supabase.from('class_passes').insert({
+                user_id: userId,
+                category: 'pilates_cycling',
+                pass_type: offer.name,
+                classes_total: offer.classes,
+                classes_remaining: offer.classes,
+                price_paid: offer.price_cents / 100,
+                is_member_price: false,
+                expires_at: expiresAt.toISOString(),
+                status: 'active',
+                stripe_payment_intent_id: piId,
+                seasonal_offer_key: offerKey,
+                promo_code: 'seasonal_edit',
+              }).select('id, day_pass_id, expires_at').single();
+              if (insErr && (insErr as any).code !== '23505') return errorResponse(insErr, "SEASONAL_CLASS_PACK");
+              pass = created ?? (await supabase.from('class_passes').select('id, day_pass_id, expires_at').eq('stripe_payment_intent_id', piId).maybeSingle()).data;
+            }
+            if (pass && offer.includes_day_pass && !pass.day_pass_id) {
+              const { data: prof } = await supabase.from('profiles').select('first_name, last_name, email, phone').eq('id', userId).maybeSingle();
+              const { data: gp, error: gpErr } = await supabase.from('guest_passes').insert({
+                user_id: userId,
+                guest_name: [prof?.first_name, prof?.last_name].filter(Boolean).join(' ') || prof?.email || 'Guest',
+                guest_email: prof?.email ?? null,
+                phone_number: (prof as any)?.phone ?? null,
+                price_paid: 0,
+                status: 'active',
+                expires_at: pass.expires_at,
+                payment_method: 'seasonal_edit',
+                admin_notes: 'Complimentary club day pass — The Club Experience (The Seasonal Edit). Standard guest day-pass access only; no spa or separately priced recovery services. One redemption, non-transferable.',
+              }).select('id').single();
+              if (gpErr) return errorResponse(gpErr, "SEASONAL_DAY_PASS");
+              // Only link if still empty, so a racing delivery can't attach a second pass.
+              const { data: linked } = await supabase.from('class_passes').update({ day_pass_id: gp.id }).eq('id', pass.id).is('day_pass_id', null).select('id');
+              if (!linked?.length) await supabase.from('guest_passes').delete().eq('id', gp.id);
+            }
+            try {
+              await supabase.from('pending_class_pass_checkouts')
+                .update({ status: 'completed', completed_at: new Date().toISOString() })
+                .eq('stripe_session_id', session.id);
+            } catch (_) { /* non-fatal */ }
           } else if (metadata.type === 'fundraiser_class_booking') {
             const userId = metadata.user_id;
             const classSessionId = metadata.class_session_id;
