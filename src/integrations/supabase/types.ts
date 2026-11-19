@@ -1956,6 +1956,7 @@ export type Database = {
           classes_remaining: number
           classes_total: number
           created_at: string
+          day_pass_id: string | null
           expires_at: string
           gift_buyer_email: string | null
           gift_buyer_name: string | null
@@ -1970,6 +1971,7 @@ export type Database = {
           price_paid: number
           promo_code: string | null
           purchased_at: string
+          seasonal_offer_key: string | null
           status: Database["public"]["Enums"]["pass_status"]
           stripe_payment_intent_id: string | null
           updated_at: string
@@ -1980,6 +1982,7 @@ export type Database = {
           classes_remaining: number
           classes_total: number
           created_at?: string
+          day_pass_id?: string | null
           expires_at: string
           gift_buyer_email?: string | null
           gift_buyer_name?: string | null
@@ -1994,6 +1997,7 @@ export type Database = {
           price_paid: number
           promo_code?: string | null
           purchased_at?: string
+          seasonal_offer_key?: string | null
           status?: Database["public"]["Enums"]["pass_status"]
           stripe_payment_intent_id?: string | null
           updated_at?: string
@@ -2004,6 +2008,7 @@ export type Database = {
           classes_remaining?: number
           classes_total?: number
           created_at?: string
+          day_pass_id?: string | null
           expires_at?: string
           gift_buyer_email?: string | null
           gift_buyer_name?: string | null
@@ -2018,6 +2023,7 @@ export type Database = {
           price_paid?: number
           promo_code?: string | null
           purchased_at?: string
+          seasonal_offer_key?: string | null
           status?: Database["public"]["Enums"]["pass_status"]
           stripe_payment_intent_id?: string | null
           updated_at?: string
@@ -13335,6 +13341,57 @@ export type Database = {
         }
         Relationships: []
       }
+      seasonal_class_offers: {
+        Row: {
+          audience: string
+          classes: number
+          created_at: string
+          display_order: number
+          ends_at: string | null
+          expiry_days: number
+          first_time_only: boolean
+          includes_day_pass: boolean
+          is_active: boolean
+          key: string
+          name: string
+          price_cents: number
+          starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          classes: number
+          created_at?: string
+          display_order?: number
+          ends_at?: string | null
+          expiry_days: number
+          first_time_only?: boolean
+          includes_day_pass?: boolean
+          is_active?: boolean
+          key: string
+          name: string
+          price_cents: number
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          classes?: number
+          created_at?: string
+          display_order?: number
+          ends_at?: string | null
+          expiry_days?: number
+          first_time_only?: boolean
+          includes_day_pass?: boolean
+          is_active?: boolean
+          key?: string
+          name?: string
+          price_cents?: number
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sms_campaign_recipients: {
         Row: {
           campaign_id: string
@@ -17486,6 +17543,24 @@ export type Database = {
           visit_day: string
         }[]
       }
+      admin_seasonal_class_purchases: {
+        Args: never
+        Returns: {
+          buyer_email: string
+          buyer_name: string
+          classes_booked: number
+          classes_remaining: number
+          classes_total: number
+          day_pass_id: string
+          day_pass_used_at: string
+          expires_at: string
+          offer_key: string
+          pass_id: string
+          price_paid: number
+          purchased_at: string
+          user_id: string
+        }[]
+      }
       admin_set_class_session_hidden: {
         Args: { _is_hidden: boolean; _session_id: string }
         Returns: Json
@@ -18880,6 +18955,13 @@ export type Database = {
       move_class_booking: {
         Args: { p_booking_id: string; p_target_session_id: string }
         Returns: Json
+      }
+      my_seasonal_class_offer_eligibility: {
+        Args: never
+        Returns: {
+          key: string
+          reason: string
+        }[]
       }
       offer_event_waitlist_seat: {
         Args: { _waitlist_id: string }
@@ -20448,6 +20530,10 @@ export type Database = {
         Returns: boolean
       }
       sculpt_photo_path_allowed: { Args: { _name: string }; Returns: boolean }
+      seasonal_class_offer_block_reason: {
+        Args: { _email: string; _key: string; _user_id: string }
+        Returns: string
+      }
       set_kiosk_pin: { Args: { p_pin: string }; Returns: boolean }
       set_phone_sms_consent: {
         Args: { _opt_in: boolean; _phone: string }

@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { Loader2, Tag, RefreshCcw, Plus, MoreVertical, EyeOff, Eye, Trash2 } from "lucide-react";
 import type { ClassPricingRow } from "@/hooks/useClassPassPricing";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SeasonalClassOffersTab } from "@/components/admin/seasonal/SeasonalClassOffersTab";
 import { SalesPromosTab } from "@/components/admin/promotions/SalesPromosTab";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -404,6 +405,7 @@ export default function ClassPassPricing() {
           <TabsList>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
             <TabsTrigger value="sales">Sales &amp; Promos</TabsTrigger>
+            <TabsTrigger value="seasonal">The Seasonal Edit</TabsTrigger>
           </TabsList>
 
           <TabsContent value="pricing" className="mt-4 space-y-4">
@@ -456,6 +458,10 @@ export default function ClassPassPricing() {
 
           <TabsContent value="sales" className="mt-4">
             <SalesPromosTab tiers={(data ?? []).filter((r) => r.is_active)} />
+          </TabsContent>
+
+          <TabsContent value="seasonal" className="mt-4">
+            <SeasonalClassOffersTab />
           </TabsContent>
         </Tabs>
 
