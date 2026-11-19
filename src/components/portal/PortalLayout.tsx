@@ -56,7 +56,7 @@ export function PortalLayout({ children, title }: PortalLayoutProps) {
                 </Button>
               </div>
             </header>
-            <main className="p-4 sm:p-6 pb-20 md:pb-6 safe-area-bottom">
+            <main className="p-4 sm:p-6 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-6">
               {children}
             </main>
           </SidebarInset>

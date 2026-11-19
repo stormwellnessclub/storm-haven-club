@@ -261,9 +261,8 @@ export function MyPersonalTraining() {
           <CardContent>
             <p className="text-sm font-medium">{main.pack_name}</p>
             <p className="text-xs text-muted-foreground pb-2">{PT_FORMAT_LABEL[main.format as keyof typeof PT_FORMAT_LABEL] ?? label(main.format)}</p>
-            <Row k="Sessions used" v={main.sessions_total - main.sessions_remaining - (main.sessions_on_hold ?? 0)} />
+            <Row k="Sessions used" v={main.sessions_total - main.sessions_remaining } />
             <Row k="Sessions remaining" v={main.sessions_remaining} />
-            {(main.sessions_on_hold ?? 0) > 0 && <Row k="Added with future payments" v={main.sessions_on_hold} />}
             <Row k="Package expires" v={day(main.expires_at)} />
           </CardContent></Card>}
 
@@ -287,7 +286,6 @@ export function MyPersonalTraining() {
                   <CardContent>
                     <Row k="Sessions purchased" v={p.sessions_total} />
                     <Row k="Sessions remaining" v={p.sessions_remaining} />
-                    {(p.sessions_on_hold ?? 0) > 0 && <Row k="Added with future payments" v={p.sessions_on_hold} />}
                     <Row k="Purchased" v={day(p.purchased_at)} />
                     <Row k="Expires" v={day(p.expires_at)} />
                     <Row k="Package price" v={money(p.price_cents)} />

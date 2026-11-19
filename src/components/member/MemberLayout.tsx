@@ -191,7 +191,7 @@ export function MemberLayout({ children, title }: MemberLayoutProps) {
             </header>
             <PWAInstallPrompt />
             <SmsOptInGate />
-            <main className="p-4 sm:p-6 pb-32 md:pb-6 safe-area-bottom">
+            <main className="p-4 sm:p-6 pb-[calc(8rem+env(safe-area-inset-bottom))] md:pb-6">
               {children}
             </main>
           </SidebarInset>
