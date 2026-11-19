@@ -6,8 +6,8 @@ import { useAuth } from "@/contexts/AuthContext";
 export interface MyPTPortalData {
   trainer: { name: string } | null;
   appointments: { id: string; starts_at: string; duration_minutes: number; status: string; format: string; session_type: string | null; trainer: string }[];
-  passes: { id: string; pack_name: string; format: string; status: string; sessions_total: number; sessions_remaining: number; activated_at: string | null; expires_at: string | null; purchased_at: string | null; price_cents: number | null; amount_paid_cents: number | null; amount_outstanding_cents: number | null; plan_name: string | null; plan_status: string | null; next_payment_date: string | null }[];
-  installments: { id: string; pass_id: string; installment_number: number; due_date: string; amount_cents: number; status: string; paid_at: string | null; card_brand: string | null; card_last4: string | null }[];
+  passes: { id: string; pack_name: string; format: string; status: string; sessions_total: number; sessions_remaining: number; sessions_on_hold?: number; activated_at: string | null; expires_at: string | null; purchased_at: string | null; price_cents: number | null; amount_paid_cents: number | null; amount_outstanding_cents: number | null; plan_name: string | null; plan_status: string | null; next_payment_date: string | null }[];
+  installments: { id: string; pass_id: string; installment_number: number; due_date: string; amount_cents: number; status: string; paid_at: string | null; card_brand: string | null; card_last4: string | null; sessions?: number | null }[];
   payments: { id: string; amount_cents: number; refunded_cents: number | null; method: string | null; status: string; paid_at: string }[];
   refunds: { id: string; amount_cents: number; refunded_at: string }[];
   programs: { id: string; name: string; status: string | null; start_date: string | null; length_weeks: number | null }[];

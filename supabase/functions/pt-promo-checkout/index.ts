@@ -6,7 +6,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { selectChargePaymentMethod } from "../_shared/paymentMethods.ts";
 import { recordManualCharge } from "../_shared/manualChargeLedger.ts";
-import { chargeDescription, processingFeeCents, promoBlockReason } from "./rules.ts";
+import { addDaysIso, addMonthsIso, chargeDescription, detroitToday, processingFeeCents, promoBlockReason } from "./rules.ts";
 
 const reply = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -26,6 +26,8 @@ Deno.serve(async (req) => {
     const packId = String(b.packId ?? "");
     const idem = String(b.idempotencyKey ?? "").slice(0, 100);
     const checkOnly = b.checkOnly === true;
+    const planId = b.planId == null ? null : String(b.planId);
+    if (planId !== null && !uuid.test(planId)) return reply({ success: false, error: "Please choose a payment plan." }, 400);
     if (!uuid.test(packId) || idem.length < 8) return reply({ success: false, error: "Please choose a package." }, 400);
 
     const email = (user.email ?? "").toLowerCase();
@@ -33,7 +35,7 @@ Deno.serve(async (req) => {
     if (blocked?.length) return reply({ success: false, error: "Unable to buy online. Please contact the club." });
 
     const { data: pack } = await admin.from("pt_packs")
-      .select("id, name, sessions, price_cents, promo_key, promo_audience, sale_starts_at, sale_ends_at, is_active")
+      .select("id, name, sessions, price_cents, promo_key, promo_audience, sale_starts_at, sale_ends_at, is_active, expiration_days")
       .eq("id", packId).not("promo_key", "is", null).maybeSingle();
     if (!pack) return reply({ success: false, error: "This offer is no longer available." });
 
@@ -53,6 +55,61 @@ Deno.serve(async (req) => {
     try { pm = await selectChargePaymentMethod(stripe, customerId, typeof b.paymentMethodId === "string" ? b.paymentMethodId : null); }
     catch (e) { return reply({ success: false, code: "card", error: e instanceof Error ? e.message : "Card not found." }); }
     if (!pm) return reply({ success: false, code: "card", error: "Please add a card to your account first." });
+
+    if (planId) {
+      const { data: plan } = await admin.from("pt_pack_payment_plans")
+        .select("id, pack_id, is_active, session_release").eq("id", planId).maybeSingle();
+      if (!plan || plan.pack_id !== pack.id || !plan.is_active || !plan.session_release) {
+        return reply({ success: false, error: "This payment plan is not available." });
+      }
+      const today = detroitToday(new Date());
+      const firstAutopay = addMonthsIso(today, 1);
+      const brandLabel = pm.card?.brand ? pm.card.brand[0].toUpperCase() + pm.card.brand.slice(1) : "Card";
+      if (checkOnly) {
+        const { data: sched, error: schedErr } = await admin.rpc("pt_build_plan_schedule", {
+          p_pack_id: pack.id, p_plan_id: plan.id, p_quantity: 1, p_first_autopay: firstAutopay, p_sale_date: today,
+        });
+        if (schedErr || !sched) return reply({ success: false, error: "We could not build the payment schedule. Please call the club." });
+        // deno-lint-ignore no-explicit-any
+        const rows = ((sched as any).installments ?? []).map((r: any, i: number) => ({
+          number: i + 1, dueDate: r.due_date, amountCents: r.amount_cents, feeCents: processingFeeCents(r.amount_cents),
+          sessions: plan.session_release[i] ?? 0,
+        }));
+        return reply({ success: true, check: true, plan: true, totalCents: pack.price_cents, rows, brand: brandLabel, last4: pm.card?.last4 ?? null });
+      }
+      const saleRef = `pt-promo-plan-${idem}`;
+      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/admin-create-pt-payment-plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+        body: JSON.stringify({
+          userId: user.id, packId: pack.id, planId: plan.id, paymentMethodId: pm.id,
+          activatedAt: today, expiresAt: addDaysIso(today, pack.expiration_days ?? 365),
+          firstAutopayDate: firstAutopay, saleRef, adminNotes: "Bought online — Black Friday sale (payment plan)",
+        }),
+      });
+      // deno-lint-ignore no-explicit-any
+      const out: any = await res.json().catch(() => ({}));
+      if (out?.success) {
+        return reply({ success: true, plan: true, sessions: plan.session_release[0], chargedCents: out.charged_today_cents, brand: brandLabel, last4: pm.card?.last4 ?? null });
+      }
+      // If the first payment went through but the package was not saved, give the money back.
+      const { data: intent } = await admin.from("pt_sale_intents")
+        .select("stripe_payment_intent_id, pass_ids").eq("idempotency_key", saleRef).maybeSingle();
+      const piId = intent?.stripe_payment_intent_id ?? "";
+      if (piId.startsWith("pi_") && !(intent?.pass_ids?.length)) {
+        const stripeR = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", { apiVersion: "2025-08-27.basil" });
+        await stripeR.refunds.create({ payment_intent: piId }, { idempotencyKey: `pt-promo-plan-refund-${idem}` })
+          .catch((e: unknown) => console.error("[pt-promo-checkout] refund failed", piId, e instanceof Error ? e.message : e));
+        await admin.rpc("pt_fail_sale_intent", { p_idempotency_key: saleRef, p_error: String(out?.error ?? "plan setup failed") });
+        return reply({ success: false, error: "We could not set up your payment plan, so your first payment was refunded. Please try again or call the club." });
+      }
+      const msg = String(out?.error ?? "");
+      if (/declin|card|insufficient|status/i.test(msg)) {
+        return reply({ success: false, code: "declined", error: `${brandLabel} •••• ${pm.card?.last4 ?? ""} was declined. Please try another card.` });
+      }
+      console.error("[pt-promo-checkout] plan failed", msg);
+      return reply({ success: false, error: "We could not set up your payment plan. Please try again or call the club." });
+    }
 
     const base = pack.price_cents;
     const fee = processingFeeCents(base);

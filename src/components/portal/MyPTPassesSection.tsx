@@ -96,6 +96,11 @@ export function MyPTPassesSection() {
                     <div className="text-2xl font-semibold mt-2">
                       {p.sessions_remaining}<span className="text-base text-muted-foreground">/{p.sessions_total} sessions</span>
                     </div>
+                    {((p as { sessions_on_hold?: number }).sessions_on_hold ?? 0) > 0 && (
+                      <div className="text-xs text-muted-foreground">
+                        +{(p as { sessions_on_hold?: number }).sessions_on_hold} added with future payments
+                      </div>
+                    )}
                     <div className={`text-xs mt-1 ${expSoon ? "text-destructive" : "text-muted-foreground"}`}>
                       Expires {fmtDate(exp, "MMM d, yyyy")}
                     </div>
