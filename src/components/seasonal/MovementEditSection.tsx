@@ -148,7 +148,7 @@ export function MovementEditSection() {
           {picked && (() => {
             const c = MOVEMENT_COPY[picked.key]; const fee = processingFeeCents(picked.price_cents);
             return (
-              <>
+              <div className="px-6 pb-6">
                 <SheetHeader><SheetTitle className="font-serif text-2xl">{c.title}</SheetTitle><SheetDescription>Please review before continuing to payment.</SheetDescription></SheetHeader>
                 <ul className="mt-4 text-sm border-t border-border">{c.details.map((d) => <li key={d} className="py-2 border-b border-border">{d}</li>)}</ul>
                 <div className="mt-4 space-y-1 text-sm">
@@ -159,7 +159,7 @@ export function MovementEditSection() {
                 <p className="mt-3 text-xs text-muted-foreground">Your classes appear in your account right after payment and book through the regular class schedule.</p>
                 {err && <p className="mt-3 text-sm text-destructive">{err}</p>}
                 <Button className="mt-5 w-full" onClick={checkout} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue to payment"}</Button>
-              </>
+              </div>
             );
           })()}
         </SheetContent>
@@ -168,9 +168,9 @@ export function MovementEditSection() {
       <Sheet open={checking || !!done} onOpenChange={(v) => { if (!v) setDone(null); }}>
         <SheetContent side="bottom" className="px-6">
           {checking ? (
-            <p className="py-8 flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Confirming your payment…</p>
+            <p className="px-6 py-8 flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Confirming your payment…</p>
           ) : done && (
-            <div className="py-4 space-y-4">
+            <div className="px-6 py-6 space-y-4">
               <p className="flex items-start gap-2 font-serif text-2xl"><CheckCircle2 className="h-6 w-6 shrink-0 text-primary mt-1" /> Payment received</p>
               <p className="text-muted-foreground">{done.classes ? `${done.classes} classes are in your account, to use by ${done.expires}.` : "Your classes will appear in your account in a moment."}</p>
               <Button asChild className="w-full"><Link to="/schedule">Book a class</Link></Button>
