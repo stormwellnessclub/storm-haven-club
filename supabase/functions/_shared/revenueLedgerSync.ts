@@ -191,6 +191,13 @@ function invoiceLineArea(line: Row, invoice: Row): RevenueArea {
   return invoice.subscription ? "dues" : "other";
 }
 
+/** True when `fee` is the card processing fee charged on `amount` ((amount + $0.30) / (1 - 2.9%), within 2 cents). */
+export function isPlanProcessingFee(amountCents: number, feeCents: number): boolean {
+  if (amountCents <= 0 || feeCents <= 0) return false;
+  const expected = Math.ceil((amountCents + 30) / 0.971) - amountCents;
+  return Math.abs(expected - feeCents) <= 2;
+}
+
 async function classifyCharge(opts: {
   stripe: Stripe;
   charge: Row;
@@ -239,12 +246,24 @@ async function classifyCharge(opts: {
         const area = invoiceLineArea(line, invoice);
         saleLines.push({ area, amount_cents: amt, taxable: false, label: line.description ?? undefined });
       }
+      // Older PT plan invoices put the processing fee on the same product as the
+      // training, so its line reads like training. Recognise it by the gross-up formula.
+      const subMd = invoice.parent?.subscription_details?.metadata ?? invoice.subscription_details?.metadata ?? {};
+      if (!invFee && subMd.type === "pt_payment_plan" && saleLines.length === 2) {
+        const [big, small] = [...saleLines].sort((x, y) => y.amount_cents - x.amount_cents);
+        if (isPlanProcessingFee(big.amount_cents, small.amount_cents)) {
+          invFee = small.amount_cents;
+          saleLines.splice(saleLines.indexOf(small), 1);
+        }
+      }
       if (saleLines.length > 0) {
         lines = saleLines;
         feeCents = feeCents || invFee;
         taxCents = taxCents || invTax;
       }
-      if (!description) description = saleLines[0]?.label ?? "Invoice payment";
+      if (!description || /^(subscription (creation|update|cycle)|payment for invoice)/i.test(description)) {
+        description = saleLines[0]?.label ?? description ?? "Invoice payment";
+      }
     } catch (e) {
       console.warn(`[sync-revenue-ledger] invoice ${invoiceId} unavailable: ${(e as Error).message}`);
     }

@@ -260,9 +260,14 @@ Deno.serve(async (req) => {
         payment_method: paymentMethodId,
         confirm: true,
         off_session: true,
-        description: `Personal Training: ${quantity} × ${pack.name} — ${plan.name} (due at sale)`,
+        // The fee is named in the description and metadata so Stripe and the revenue
+        // report show it as a payment processing fee, not training income.
+        description: `Personal Training: ${quantity} × ${pack.name} — ${plan.name} · payment 1 of ${futureCount + 1}` +
+          (feeFor(downCents) > 0 ? ` (includes $${(feeFor(downCents) / 100).toFixed(2)} processing fee)` : ""),
         metadata: {
           type: "pt_payment_plan_down_payment",
+          base_amount: String(downCents),
+          processing_fee: String(feeFor(downCents)),
           pt_pack_id: pack.id,
           pt_plan_id: plan.id,
           user_id: userId,
@@ -322,16 +327,27 @@ Deno.serve(async (req) => {
       finalPriceId = await recurringPrice(unitFinal, scheduleCustom ? "custom_final" : "final_installment");
     }
 
-    // Recurring "Card processing fee" item on the same product, one per amount.
+    // Recurring fee item on its own "Payment processing fee" product, so every
+    // installment invoice names the fee line plainly (Stripe and revenue reports).
+    const FEE_PRODUCT_ID = "pt_payment_processing_fee";
+    const feeProductId = await stripe.products.retrieve(FEE_PRODUCT_ID)
+      .then((p: any) => p.id)
+      .catch(async () => {
+        const p = await stripe.products.create({
+          id: FEE_PRODUCT_ID, name: "Payment processing fee",
+          metadata: { role: "processing_fee", type: "processing_fee" },
+        }).catch(() => stripe.products.retrieve(FEE_PRODUCT_ID));
+        return p.id;
+      });
     const feePriceFor = async (feeCents: number) => {
       const p = await stripe.prices.create({
-        product: productId,
+        product: feeProductId,
         currency: "usd",
         unit_amount: feeCents,
         recurring: { interval, interval_count: intervalCount },
-        nickname: "Card processing fee",
-        metadata: { pt_plan_id: plan.id, role: "processing_fee" },
-      }, { idempotencyKey: `pt_plan_fee_price:${testMode ? "test:" : ""}${productId}:${interval}:${intervalCount}:${feeCents}` });
+        nickname: "Payment processing fee",
+        metadata: { pt_plan_id: plan.id, role: "processing_fee", type: "processing_fee" },
+      }, { idempotencyKey: `pt_plan_fee_price:${testMode ? "test:" : ""}${feeProductId}:${interval}:${intervalCount}:${feeCents}` });
       return p.id;
     };
     const itemsFor = async (priceId: string, phaseCents: number) => {

@@ -44,7 +44,7 @@ export const PT_INSTALLMENT_LABEL: Record<string, string> = {
   paid: "Paid",
   failed: "Failed",
   past_due: "Past due",
-  voided: "Voided",
+  voided: "Cancelled",
   refunded: "Refunded",
 };
 
@@ -243,7 +243,28 @@ export function usePTPlanManagement(userId?: string) {
     onError: (e: any) => toast.error(e?.message ?? "Could not move the payment"),
   });
 
-  return { setFutureCard, previewReschedule, applyReschedule };
+  const cancelFuture = useMutation({
+    mutationFn: async (i: { passId: string; installmentNumbers: number[]; reason: string }) => {
+      const { data, error } = await supabase.functions.invoke("pt-manage-plan", {
+        body: { op: "cancel_future", passId: i.passId, installmentNumbers: i.installmentNumbers, reason: i.reason },
+      });
+      if (error) {
+        const ctx: any = (error as any).context;
+        const body = ctx?.json ? await ctx.json().catch(() => null) : null;
+        throw new Error(body?.error || error.message);
+      }
+      if (!data?.success) throw new Error(data?.error || "Could not cancel the payments");
+      return data;
+    },
+    onSuccess: (d: any) => {
+      invalidateBilling(qc, userId);
+      if (d?.stripe_synced) toast.success(`${d?.cancelled ?? ""} payment(s) cancelled — they will not be charged`);
+      else toast.error(`Cancelled here, but Stripe was not updated: ${d?.stripe_note ?? "unknown error"}. Please call support before the next due date.`);
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not cancel the payments"),
+  });
+
+  return { setFutureCard, previewReschedule, applyReschedule, cancelFuture };
 }
 
 /* ------------------------------------------------------------ derived */

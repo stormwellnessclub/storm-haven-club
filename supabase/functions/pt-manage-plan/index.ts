@@ -1,4 +1,5 @@
 // Phase 2C.5B3 — authorized changes to a sold PT payment plan.
+// cancel_future → stop chosen upcoming payments (admins only, enforced in the database).
 //
 // Two operations, both keeping Storm and Stripe in step:
 //   set_payment_method → the card used for FUTURE unpaid installments only
@@ -195,6 +196,65 @@ Deno.serve(async (req) => {
       }
 
       return json({ success: true, stripe_synced: stripeSynced, stripe_note: stripeNote, ...(applied as any) });
+    }
+
+    /* ------------------------------- cancel future payments (admins only) */
+    if (op === "cancel_future") {
+      const numbers: number[] = Array.isArray(body?.installmentNumbers)
+        ? body.installmentNumbers.map((n: unknown) => Number(n)).filter((n: number) => Number.isInteger(n) && n > 0)
+        : [];
+      const { data: res, error: cErr } = await supabase.rpc("pt_plan_cancel_future_installments", {
+        p_pass_id: passId, p_installment_numbers: numbers, p_reason: body?.reason ?? null, p_actor: auth.userId,
+      });
+      if (cErr) throw cErr;
+
+      // Stripe must stop charging the cancelled payments.
+      let stripeSynced = !scheduleId;
+      let stripeNote: string | null = null;
+      if (scheduleId) {
+        try {
+          const sched = await stripe.subscriptionSchedules.retrieve(scheduleId);
+          const { data: rows } = await supabase
+            .from("pt_payment_plan_installments")
+            .select("installment_number, due_date, status")
+            .eq("pass_id", passId).gt("installment_number", 0).order("installment_number");
+          const upcoming = (rows ?? []).filter((r: any) => r.status === "scheduled");
+          if (upcoming.length === 0) {
+            if (sched.status === "not_started" || sched.status === "active") {
+              await stripe.subscriptionSchedules.cancel(scheduleId);
+            }
+          } else {
+            const nowSec = Math.floor(Date.now() / 1000);
+            const items = (p: any) => p.items.map((it: any) => ({
+              price: typeof it.price === "string" ? it.price : it.price.id, quantity: it.quantity ?? 1,
+            }));
+            const kept = (sched.phases ?? []).filter((p: any) => p.end_date && p.end_date <= nowSec).map((p: any) => ({
+              items: items(p), start_date: p.start_date, end_date: p.end_date,
+              proration_behavior: "none" as const, metadata: p.metadata ?? undefined,
+            }));
+            // Each remaining payment keeps its own amount: pick the phase whose start matches its date.
+            const phaseFor = (due: string) =>
+              (sched.phases ?? []).find((p: any) => p.start_date <= detroitNoonEpoch(due) && detroitNoonEpoch(due) < p.end_date)
+              ?? sched.phases?.[sched.phases.length - 1];
+            const unit = pass.frequency_unit || "month";
+            const count = pass.frequency_interval || 1;
+            const next = upcoming.map((r: any, i: number) => {
+              const tpl: any = phaseFor(r.due_date);
+              const end = upcoming[i + 1] ? upcoming[i + 1].due_date : addInterval(r.due_date, unit, count);
+              return {
+                items: items(tpl), start_date: detroitNoonEpoch(r.due_date), end_date: detroitNoonEpoch(end),
+                proration_behavior: "none" as const, metadata: tpl.metadata ?? undefined,
+              };
+            });
+            await stripe.subscriptionSchedules.update(scheduleId, { end_behavior: "cancel", phases: [...kept, ...next] });
+          }
+          stripeSynced = true;
+        } catch (e) {
+          stripeNote = e instanceof Error ? e.message : String(e);
+          console.error("pt-manage-plan cancel_future Stripe sync failed", scheduleId, stripeNote);
+        }
+      }
+      return json({ success: true, stripe_synced: stripeSynced, stripe_note: stripeNote, ...(res as any) });
     }
 
     throw new Error(`Unsupported op: ${op}`);

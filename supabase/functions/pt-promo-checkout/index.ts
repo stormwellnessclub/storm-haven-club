@@ -58,8 +58,8 @@ Deno.serve(async (req) => {
 
     if (planId) {
       const { data: plan } = await admin.from("pt_pack_payment_plans")
-        .select("id, pack_id, is_active, session_release").eq("id", planId).maybeSingle();
-      if (!plan || plan.pack_id !== pack.id || !plan.is_active || !plan.session_release) {
+        .select("id, pack_id, is_active").eq("id", planId).maybeSingle();
+      if (!plan || plan.pack_id !== pack.id || !plan.is_active) {
         return reply({ success: false, error: "This payment plan is not available." });
       }
       const today = detroitToday(new Date());
@@ -73,7 +73,6 @@ Deno.serve(async (req) => {
         // deno-lint-ignore no-explicit-any
         const rows = ((sched as any).installments ?? []).map((r: any, i: number) => ({
           number: i + 1, dueDate: r.due_date, amountCents: r.amount_cents, feeCents: processingFeeCents(r.amount_cents),
-          sessions: plan.session_release[i] ?? 0,
         }));
         return reply({ success: true, check: true, plan: true, totalCents: pack.price_cents, rows, brand: brandLabel, last4: pm.card?.last4 ?? null });
       }
@@ -90,7 +89,7 @@ Deno.serve(async (req) => {
       // deno-lint-ignore no-explicit-any
       const out: any = await res.json().catch(() => ({}));
       if (out?.success) {
-        return reply({ success: true, plan: true, sessions: plan.session_release[0], chargedCents: out.charged_today_cents, brand: brandLabel, last4: pm.card?.last4 ?? null });
+        return reply({ success: true, plan: true, sessions: pack.sessions, chargedCents: out.charged_today_cents, brand: brandLabel, last4: pm.card?.last4 ?? null });
       }
       // If the first payment went through but the package was not saved, give the money back.
       const { data: intent } = await admin.from("pt_sale_intents")

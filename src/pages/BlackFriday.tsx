@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { SEOHead } from "@/components/SEOHead";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,8 @@ import { BLACK_FRIDAY_PROMO, formatUsd, saleEndLabel, saleHasEnded } from "@/lib
 import trainingPhoto from "@/assets/gym-area-2.jpg";
 
 type Pack = { id: string; name: string; sessions: number; price_cents: number; promo_audience: string; sale_ends_at: string | null; expiration_days: number };
-type Plan = { id: string; pack_id: string; installment_count: number; amount_due_at_sale_cents: number; installment_cents: number; final_installment_cents: number; plan_total_cents: number; session_release: number[] };
-type PlanRow = { number: number; dueDate: string; amountCents: number; feeCents: number; sessions: number };
+type Plan = { id: string; pack_id: string; installment_count: number; amount_due_at_sale_cents: number; installment_cents: number; final_installment_cents: number; plan_total_cents: number };
+type PlanRow = { number: number; dueDate: string; amountCents: number; feeCents: number };
 type Quote = { totalCents: number; feeCents?: number; brand: string; last4: string | null; plan?: boolean; rows?: PlanRow[] };
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
@@ -74,11 +74,14 @@ export default function BlackFriday() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [done, setDone] = useState<{ sessions: number; chargedCents: number; plan?: boolean } | null>(null);
+  const [done, setDone] = useState<{ sessions: number; chargedCents: number; plan?: boolean; brand?: string; last4?: string | null } | null>(null);
+  // Review → "Are you sure?" → charge → success or failure screen.
+  const [step, setStep] = useState<"review" | "confirm">("review");
+  const [failed, setFailed] = useState<string | null>(null);
   const keyRef = useRef<string | null>(null);
 
   async function choose(p: Pack, plan: Plan | null = null) {
-    setPicked(p); setPickedPlan(plan); setQuote(null); setErr(null); setDone(null);
+    setPicked(p); setPickedPlan(plan); setQuote(null); setErr(null); setDone(null); setFailed(null); setStep("review");
     keyRef.current = crypto.randomUUID();
     setBusy(true);
     const r = await invokeCheckout({ packId: p.id, planId: plan?.id ?? null, idempotencyKey: keyRef.current, checkOnly: true });
@@ -91,7 +94,11 @@ export default function BlackFriday() {
     setBusy(true); setErr(null);
     const r = await invokeCheckout({ packId: picked.id, planId: pickedPlan?.id ?? null, idempotencyKey: keyRef.current });
     setBusy(false);
-    if (r?.success) setDone({ ...r, plan: !!pickedPlan }); else setErr(r?.error ?? "Something went wrong.");
+    if (r?.success) setDone({ ...r, plan: !!pickedPlan });
+    else {
+      setFailed(r?.error ?? "Your payment did not go through. Your card was not charged.");
+      keyRef.current = crypto.randomUUID(); // a retry is a new attempt
+    }
   }
 
   const priceCell = (p: Pack | undefined, mine: boolean) => {
@@ -182,7 +189,7 @@ export default function BlackFriday() {
                   to buy.
                 </p>
               ) : (
-                <p>You're seeing the {audience === "member" ? "member" : "non-member"} price for your account. Your saved card is charged, plus a card processing fee. Packages from 30 sessions up can also be paid monthly.</p>
+                <p>You're seeing the {audience === "member" ? "member" : "non-member"} price for your account. Your saved card is charged, plus a payment processing fee. Packages from 30 sessions up can also be paid monthly.</p>
               )}
             </div>
           </>
@@ -192,60 +199,94 @@ export default function BlackFriday() {
       <Sheet open={!!picked} onOpenChange={(o) => { if (!o && !busy) setPicked(null); }}>
         <SheetContent side="bottom" className="max-w-lg mx-auto">
           <SheetHeader>
-            <SheetTitle className="font-serif text-2xl">{done ? "You're all set" : pickedPlan ? "Confirm your payment plan" : "Confirm your package"}</SheetTitle>
+            <SheetTitle className="font-serif text-2xl">
+              {done ? "Payment successful" : failed ? "Payment didn't go through" : step === "confirm" ? "Please confirm" : pickedPlan ? "Your payment plan" : "Your package"}
+            </SheetTitle>
             <SheetDescription>
               {picked && `Semi-Private Personal Training · ${picked.sessions} sessions`}
             </SheetDescription>
           </SheetHeader>
           <div className="mt-6 space-y-4 px-6 pb-6">
-            {done ? (
+            {done && picked ? (
               <>
-                <p className="flex items-center gap-2"><Check className="h-5 w-5 text-accent" />{done.sessions} sessions were added to your account.</p>
-                <p className="text-sm text-muted-foreground">
-                  Charged {formatUsd(done.chargedCents)}.{done.plan ? " The rest of your sessions are added as each monthly payment goes through." : ""} Request your first session from Personal Training in your portal.
-                </p>
+                <p className="flex items-start gap-2"><CheckCircle2 className="h-5 w-5 shrink-0 text-accent" /><span>Your payment went through and your {picked.sessions}-session package is on your account.</span></p>
+                <div className="text-sm space-y-1 border-t border-border pt-3">
+                  <div className="flex justify-between"><span>Paid today</span><span>{formatUsd(done.chargedCents)}</span></div>
+                  {done.last4 && <div className="flex justify-between text-muted-foreground"><span>Card</span><span>{done.brand} ending in {done.last4}</span></div>}
+                </div>
+                {done.plan && quote?.rows && quote.rows.length > 1 && (
+                  <div className="text-sm border-t border-border pt-3">
+                    <p className="ed-caption text-muted-foreground mb-2">Upcoming payments</p>
+                    {quote.rows.slice(1).map((r) => (
+                      <div key={r.number} className="flex justify-between py-1"><span>{shortDate(r.dueDate)}</span><span>{formatUsd(r.amountCents + r.feeCents)}</span></div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-sm text-muted-foreground">Request your first session from Personal Training in your portal.</p>
                 <Button asChild className="w-full"><Link to={`${portal}/personal-training`}>Go to Personal Training</Link></Button>
               </>
+            ) : failed ? (
+              <>
+                <p className="flex items-start gap-2"><XCircle className="h-5 w-5 shrink-0 text-destructive" /><span>{failed}</span></p>
+                <div className="flex flex-col gap-2">
+                  <Button className="w-full" onClick={() => { setFailed(null); setStep("review"); }}>Try again</Button>
+                  <Button asChild variant="outline" className="w-full"><Link to={`${portal}/payment-methods`}>Use a different card</Link></Button>
+                </div>
+              </>
+            ) : busy && quote ? (
+              <div className="py-8 flex flex-col items-center gap-3 text-sm text-muted-foreground">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                Processing your payment. Please don't close this page.
+              </div>
             ) : busy && !quote ? (
               <div className="py-6 flex justify-center"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            ) : quote && picked && step === "confirm" ? (
+              <>
+                <p className="text-sm">
+                  Your {quote.brand} ending in {quote.last4} will be charged{" "}
+                  <span className="font-medium">{formatUsd(quote.plan && quote.rows ? quote.rows[0].amountCents + quote.rows[0].feeCents : quote.totalCents)}</span> today
+                  {quote.plan && quote.rows && quote.rows.length > 1
+                    ? `, then ${quote.rows.length - 1} more monthly payments on the dates shown.`
+                    : "."}
+                </p>
+                <div className="flex flex-col gap-2">
+                  <Button className="w-full" onClick={buy}>Confirm and pay</Button>
+                  <Button variant="outline" className="w-full" onClick={() => setStep("review")}>Go back</Button>
+                </div>
+              </>
             ) : quote?.plan && quote.rows && picked ? (
               <>
                 <div className="text-sm space-y-1">
-                  <div className="flex justify-between"><span>Package total</span><span>{formatUsd(quote.totalCents)}</span></div>
-                  <div className="flex justify-between font-medium"><span>Due today</span><span>{formatUsd(quote.rows[0].amountCents + quote.rows[0].feeCents)}</span></div>
-                  <p className="text-xs text-muted-foreground">Includes a {formatUsd(quote.rows[0].feeCents)} card processing fee, the same as paying in full.</p>
+                  <div className="flex justify-between"><span>Package</span><span>{formatUsd(quote.totalCents)}</span></div>
+                  <div className="flex justify-between"><span>Payment processing fee</span><span>{formatUsd(quote.rows.reduce((t, r) => t + r.feeCents, 0))}</span></div>
+                  <div className="flex justify-between font-medium pt-2 border-t border-border"><span>Total</span><span>{formatUsd(quote.rows.reduce((t, r) => t + r.amountCents + r.feeCents, 0))}</span></div>
                 </div>
                 <div className="text-sm border-t border-border pt-3">
                   <p className="ed-caption text-muted-foreground mb-2">Payment schedule</p>
                   {quote.rows.map((r) => (
                     <div key={r.number} className="flex justify-between py-1">
-                      <span>{r.number === 1 ? "Today" : shortDate(r.dueDate)} · {r.sessions} sessions</span>
-                      <span>{formatUsd(r.amountCents)} <span className="text-muted-foreground">+ {formatUsd(r.feeCents)} fee</span></span>
+                      <span>Payment {r.number} · {r.number === 1 ? "Due today" : `Due ${shortDate(r.dueDate)}`}</span>
+                      <span>{formatUsd(r.amountCents + r.feeCents)}</span>
                     </div>
                   ))}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Remaining payments are charged automatically to your {quote.brand} ending in {quote.last4} each month until the plan is complete.
-                  Sessions are added as each payment goes through. No interest. The plan ends after the final payment.
-                  Your sessions must be used within {picked.expiration_days} days of today.
+                  Remaining payments are charged automatically to your {quote.brand} ending in {quote.last4} on each due date until the plan is complete.
+                  No interest. The plan ends after the final payment. Your sessions must be used within {picked.expiration_days} days of today.
                 </p>
                 {err && <p className="text-sm text-destructive">{err}</p>}
-                <Button className="w-full" onClick={buy} disabled={busy}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Start plan · pay ${formatUsd(quote.rows[0].amountCents + quote.rows[0].feeCents)} today`}
-                </Button>
+                <Button className="w-full" onClick={() => setStep("confirm")}>Continue</Button>
               </>
             ) : quote && picked ? (
               <>
                 <div className="text-sm space-y-1">
                   <div className="flex justify-between"><span>Package</span><span>{formatUsd(picked.price_cents)}</span></div>
-                  <div className="flex justify-between text-muted-foreground"><span>Card processing fee</span><span>{formatUsd(quote.feeCents ?? 0)}</span></div>
+                  <div className="flex justify-between"><span>Payment processing fee</span><span>{formatUsd(quote.feeCents ?? 0)}</span></div>
                   <div className="flex justify-between font-medium pt-2 border-t border-border"><span>Total</span><span>{formatUsd(quote.totalCents)}</span></div>
                 </div>
-                <p className="text-sm text-muted-foreground">Charged to your {quote.brand} ending in {quote.last4}.</p>
+                <p className="text-sm text-muted-foreground">Charged to your {quote.brand} ending in {quote.last4}. Your sessions must be used within {picked.expiration_days} days of today.</p>
                 {err && <p className="text-sm text-destructive">{err}</p>}
-                <Button className="w-full" onClick={buy} disabled={busy}>
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Pay ${formatUsd(quote.totalCents)}`}
-                </Button>
+                <Button className="w-full" onClick={() => setStep("confirm")}>Continue</Button>
               </>
             ) : (
               <>

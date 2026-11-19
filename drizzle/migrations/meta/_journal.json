@@ -1303,6 +1303,20 @@
       "when": 1795049354722,
       "tag": "0185_pt_plan_release_ledger_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 186,
+      "version": "7",
+      "when": 1795080535726,
+      "tag": "0186_pt_plan_cancel_future_installments",
+      "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1795080658530,
+      "tag": "0187_pt_black_friday_plans_full_package_up_front",
+      "breakpoints": true
     }
   ]
 }

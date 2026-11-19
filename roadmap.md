@@ -126,3 +126,6 @@
 - [x] Rename to 'The Seasonal Edit'; darken PT photos behind writing
 - [x] Black Friday page: move Seasonal Edit writing off the photo into its own section
 - [x] Black Friday page: 'Sign in or make an account to buy.'
+- [x] PT payment plan: fee shown plainly as 'Payment processing fee'; confirm step before charge; success/failure result; remove per-month session breakdown display; show payments + due dates; answer expiration/tracking/Stripe-label questions
+- [x] Admin-only: cancel future PT payment plan payments (e.g. cancel next 2)
+- [x] Plan buyers get the full package at purchase (no per-payment session release); admin sees sessions used vs paid-for; failed PT payments tracked

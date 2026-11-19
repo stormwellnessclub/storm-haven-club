@@ -19629,6 +19629,15 @@ export type Database = {
         Args: { p_idempotency_key: string }
         Returns: Json
       }
+      pt_plan_cancel_future_installments: {
+        Args: {
+          p_actor: string
+          p_installment_numbers: number[]
+          p_pass_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       pt_plan_reschedule: {
         Args: {
           p_apply?: boolean

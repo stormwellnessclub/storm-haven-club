@@ -71,6 +71,7 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
 
   const { hasAnyRole } = useUserRoles();
   const canManageMoney = hasAnyRole(["super_admin", "admin", "manager"]);
+  const isAdmin = hasAnyRole(["super_admin", "admin"]);
 
   const { data: packages = [] } = usePTClientPackages(userId);
   const activePass = useMemo(() => {
@@ -100,6 +101,7 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
   const [checkoutSessions, setCheckoutSessions] = useState<any[]>([]);
   const [cardDialog, setCardDialog] = useState(false);
   const [dateDialog, setDateDialog] = useState<PTPlanInstallmentRow | null>(null);
+  const [cancelDialog, setCancelDialog] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("All");
 
   const planFailures = installments.filter((i) => i.status === "failed" || i.status === "past_due");
@@ -335,10 +337,33 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
       {sub === "AutoPay schedule" && (
         <PTCard padded={false}>
           <div className="p-4 pb-0">
-            <PTSectionTitle>AutoPay schedule</PTSectionTitle>
+            <PTSectionTitle
+              action={isAdmin && activePass && installments.some((i) => i.status === "scheduled" && i.installment_number > 0)
+                ? <button className={ptButtonClass("outline")} onClick={() => setCancelDialog(true)}>Cancel future payments</button>
+                : undefined}
+            >
+              AutoPay schedule
+            </PTSectionTitle>
             <p className="text-[11px] text-pt-muted -mt-2 mb-2">
               Every line is a stored obligation — dates are never recalculated for display.
             </p>
+            {activePass && installments.length > 0 && (() => {
+              // Plan buyers get the whole package up front; staff watch usage against what has been paid.
+              const live = installments.filter((i) => i.status !== "voided" && i.status !== "refunded");
+              const totalCents = live.reduce((t, i) => t + i.amount_cents, 0);
+              const paidCents = live.filter((i) => i.status === "paid").reduce((t, i) => t + i.amount_cents, 0);
+              const total = activePass.sessions_total ?? 0;
+              const paidFor = totalCents > 0 ? Math.floor((total * paidCents) / totalCents) : total;
+              const used = Math.max(total - (activePass.sessions_remaining ?? 0) - ((activePass as any).sessions_on_hold ?? 0), 0);
+              const over = used - paidFor;
+              return (
+                <div className={`mb-3 rounded-lg border px-3 py-2 text-[13px] ${over > 0 ? "border-pt-red/40 bg-pt-red/5" : "border-pt-line"}`}>
+                  <span className="text-pt-ink">Sessions used: {used} of {total}</span>
+                  <span className="text-pt-muted"> · paid for so far: {paidFor} ({formatCents(paidCents)} of {formatCents(totalCents)})</span>
+                  {over > 0 && <span className="block text-pt-red">Used {over} more than paid for so far.</span>}
+                </div>
+              );
+            })()}
           </div>
           <PTTable
             rows={installments}
@@ -640,6 +665,14 @@ export function PTClientBillingWorkspace({ userId, clientName }: { userId: strin
           onClose={() => setCardDialog(false)}
         />
       )}
+      {cancelDialog && activePass && (
+        <CancelFuturePaymentsDialog
+          userId={userId}
+          passId={activePass.id}
+          installments={installments.filter((i) => i.status === "scheduled" && i.installment_number > 0)}
+          onClose={() => setCancelDialog(false)}
+        />
+      )}
       {dateDialog && activePass && (
         <MoveDateDialog
           userId={userId}
@@ -831,6 +864,72 @@ function MoveDateDialog({
         )}
         <p className="text-[11px] text-pt-muted">
           Paid and processing payments cannot be moved. The card schedule is updated to match Storm.
+        </p>
+      </div>
+    </PTModal>
+  );
+}
+
+/* ------------------------------------- cancel future payments (admins only) */
+
+function CancelFuturePaymentsDialog({
+  userId, passId, installments, onClose,
+}: {
+  userId: string; passId: string; installments: PTPlanInstallmentRow[]; onClose: () => void;
+}) {
+  const { cancelFuture } = usePTPlanManagement(userId);
+  const [chosen, setChosen] = useState<number[]>([]);
+  const [reason, setReason] = useState("");
+  const [sure, setSure] = useState(false);
+  const toggle = (n: number) => { setSure(false); setChosen((c) => (c.includes(n) ? c.filter((x) => x !== n) : [...c, n])); };
+  const totalCents = installments.filter((i) => chosen.includes(i.installment_number)).reduce((t, i) => t + i.amount_cents, 0);
+
+  return (
+    <PTModal
+      open
+      onOpenChange={onClose}
+      title="Cancel future payments"
+      footer={<>
+        <button className={ptButtonClass("ghost")} onClick={onClose}>Keep payments</button>
+        {!sure ? (
+          <button className={ptButtonClass("outline")} disabled={chosen.length === 0 || !reason.trim()} onClick={() => setSure(true)}>
+            Continue
+          </button>
+        ) : (
+          <button
+            className={ptButtonClass("primary")}
+            disabled={cancelFuture.isPending}
+            onClick={() => cancelFuture.mutate({ passId, installmentNumbers: chosen, reason: reason.trim() }, { onSuccess: onClose })}
+          >
+            {cancelFuture.isPending ? "Cancelling…" : `Yes, cancel ${chosen.length} payment${chosen.length === 1 ? "" : "s"}`}
+          </button>
+        )}
+      </>}
+    >
+      <div className="space-y-3">
+        <p className="text-[13px] text-pt-muted">Choose the upcoming payments that should not be charged.</p>
+        <div className="space-y-1.5">
+          {installments.map((i) => (
+            <label key={i.id} className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-[13px] cursor-pointer ${chosen.includes(i.installment_number) ? "border-pt-gold bg-pt-beige/40" : "border-pt-line"}`}>
+              <span className="flex items-center gap-2">
+                <input type="checkbox" checked={chosen.includes(i.installment_number)} onChange={() => toggle(i.installment_number)} />
+                Payment #{i.installment_number + 1} · {day(i.due_date)}
+              </span>
+              <span>{formatCents(i.amount_cents)}</span>
+            </label>
+          ))}
+        </div>
+        <div>
+          <Label className="pt-eyebrow">Reason (kept in the audit trail)</Label>
+          <Textarea value={reason} onChange={(e) => { setReason(e.target.value); setSure(false); }} className="bg-white border-pt-line" />
+        </div>
+        {sure && (
+          <PTAlert tone="danger">
+            {chosen.length} payment{chosen.length === 1 ? "" : "s"} totaling {formatCents(totalCents)} (plus processing fees) will not be charged. This can't be undone here.
+          </PTAlert>
+        )}
+        <p className="text-[11px] text-pt-muted">
+          Paid payments are never changed. Sessions tied to cancelled payments are not added. Only admins can do this.
         </p>
       </div>
     </PTModal>
