@@ -144,7 +144,7 @@ export function MovementEditSection() {
       })}
 
       <Sheet open={!!picked} onOpenChange={(v) => { if (!v && !busy) setPicked(null); }}>
-        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto">
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto px-6 pb-8">
           {picked && (() => {
             const c = MOVEMENT_COPY[picked.key]; const fee = processingFeeCents(picked.price_cents);
             return (
@@ -166,7 +166,7 @@ export function MovementEditSection() {
       </Sheet>
 
       <Sheet open={checking || !!done} onOpenChange={(v) => { if (!v) setDone(null); }}>
-        <SheetContent side="bottom">
+        <SheetContent side="bottom" className="px-6">
           {checking ? (
             <p className="py-8 flex items-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Confirming your payment…</p>
           ) : done && (
