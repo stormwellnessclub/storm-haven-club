@@ -935,6 +935,8 @@ export type Database = {
           cafe_order_id: string | null
           created_at: string
           created_by: string | null
+          expires_at: string | null
+          expires_grant_id: string | null
           id: string
           item_quantity: number
           kind: string
@@ -949,6 +951,8 @@ export type Database = {
           cafe_order_id?: string | null
           created_at?: string
           created_by?: string | null
+          expires_at?: string | null
+          expires_grant_id?: string | null
           id?: string
           item_quantity?: number
           kind: string
@@ -963,6 +967,8 @@ export type Database = {
           cafe_order_id?: string | null
           created_at?: string
           created_by?: string | null
+          expires_at?: string | null
+          expires_grant_id?: string | null
           id?: string
           item_quantity?: number
           kind?: string
@@ -1786,6 +1792,7 @@ export type Database = {
           checked_in_at: string | null
           created_at: string
           credits_used: number | null
+          guest_credit_id: string | null
           id: string
           is_admin_hold: boolean
           member_credit_id: string | null
@@ -1809,6 +1816,7 @@ export type Database = {
           checked_in_at?: string | null
           created_at?: string
           credits_used?: number | null
+          guest_credit_id?: string | null
           id?: string
           is_admin_hold?: boolean
           member_credit_id?: string | null
@@ -1832,6 +1840,7 @@ export type Database = {
           checked_in_at?: string | null
           created_at?: string
           credits_used?: number | null
+          guest_credit_id?: string | null
           id?: string
           is_admin_hold?: boolean
           member_credit_id?: string | null
@@ -13344,12 +13353,14 @@ export type Database = {
       seasonal_class_offers: {
         Row: {
           audience: string
+          cafe_credit_cents: number
           classes: number
           created_at: string
           display_order: number
           ends_at: string | null
           expiry_days: number
           first_time_only: boolean
+          guest_class_credits: number
           includes_day_pass: boolean
           is_active: boolean
           key: string
@@ -13360,12 +13371,14 @@ export type Database = {
         }
         Insert: {
           audience?: string
+          cafe_credit_cents?: number
           classes: number
           created_at?: string
           display_order?: number
           ends_at?: string | null
           expiry_days: number
           first_time_only?: boolean
+          guest_class_credits?: number
           includes_day_pass?: boolean
           is_active?: boolean
           key: string
@@ -13376,12 +13389,14 @@ export type Database = {
         }
         Update: {
           audience?: string
+          cafe_credit_cents?: number
           classes?: number
           created_at?: string
           display_order?: number
           ends_at?: string | null
           expiry_days?: number
           first_time_only?: boolean
+          guest_class_credits?: number
           includes_day_pass?: boolean
           is_active?: boolean
           key?: string
@@ -13391,6 +13406,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      seasonal_guest_class_credits: {
+        Row: {
+          booking_id: string | null
+          created_at: string
+          expires_at: string
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
+          id: string
+          pass_id: string
+          redeemed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          booking_id?: string | null
+          created_at?: string
+          expires_at: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          pass_id: string
+          redeemed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string | null
+          created_at?: string
+          expires_at?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          id?: string
+          pass_id?: string
+          redeemed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasonal_guest_class_credits_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "class_passes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sms_campaign_recipients: {
         Row: {
@@ -17561,6 +17626,19 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_seasonal_purchase_extras: {
+        Args: never
+        Returns: {
+          cafe_expires_at: string
+          cafe_granted_cents: number
+          cafe_member_balance_cents: number
+          guest_class: string
+          guest_class_date: string
+          guest_name: string
+          guest_status: string
+          pass_id: string
+        }[]
+      }
       admin_set_class_session_hidden: {
         Args: { _is_hidden: boolean; _session_id: string }
         Returns: Json
@@ -17877,6 +17955,10 @@ export type Database = {
         }
         Returns: Json
       }
+      cafe_pending_expiry_cents: {
+        Args: { _member_id: string }
+        Returns: number
+      }
       calculate_churn_risk: { Args: { p_member_id: string }; Returns: number }
       calculate_engagement_score: {
         Args: { p_days?: number; p_member_id: string }
@@ -17976,6 +18058,10 @@ export type Database = {
       }
       cancel_scheduled_gift_card: {
         Args: { p_gift_card_id: string }
+        Returns: Json
+      }
+      cancel_seasonal_guest_booking: {
+        Args: { _credit_id: string }
         Returns: Json
       }
       changed_columns: { Args: { p_new: Json; p_old: Json }; Returns: string[] }
@@ -18081,6 +18167,7 @@ export type Database = {
         Args: { p_member_id: string }
         Returns: Json
       }
+      expire_cafe_credits: { Args: { _member_id: string }; Returns: undefined }
       find_or_create_temp_class_session: {
         Args: {
           _class_name: string
@@ -18961,6 +19048,20 @@ export type Database = {
         Returns: {
           key: string
           reason: string
+        }[]
+      }
+      my_seasonal_guest_credits: {
+        Args: never
+        Returns: {
+          booking_id: string
+          booking_status: string
+          class_name: string
+          expires_at: string
+          guest_name: string
+          id: string
+          session_date: string
+          start_time: string
+          status: string
         }[]
       }
       offer_event_waitlist_seat: {
@@ -20432,6 +20533,16 @@ export type Database = {
       }
       redeem_referral_points: {
         Args: { _member_id: string; _points_cost: number; _reward_type: string }
+        Returns: Json
+      }
+      redeem_seasonal_guest_class_credit: {
+        Args: {
+          _credit_id: string
+          _guest_email: string
+          _guest_name: string
+          _guest_phone: string
+          _session_id: string
+        }
         Returns: Json
       }
       reevaluate_member_past_due: {

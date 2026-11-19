@@ -1338,6 +1338,20 @@
       "when": 1795088050067,
       "tag": "0190_seasonal_class_offer_fix_first_time",
       "breakpoints": true
+    },
+    {
+      "idx": 191,
+      "version": "7",
+      "when": 1795089436896,
+      "tag": "0191_member_movement_edit",
+      "breakpoints": true
+    },
+    {
+      "idx": 192,
+      "version": "7",
+      "when": 1795089582124,
+      "tag": "0192_cafe_ledger_seasonal_kinds",
+      "breakpoints": true
     }
   ]
 }

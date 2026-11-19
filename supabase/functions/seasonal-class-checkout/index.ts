@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     const found = await stripe.customers.list({ email: user.email, limit: 1 });
     const customer = found.data[0]?.id ?? (await stripe.customers.create({ email: user.email, metadata: { user_id: user.id } })).id;
 
-    const label = `${offer.name} — ${offer.classes} group fitness classes${offer.includes_day_pass ? " + 1 club day pass" : ""} (The Seasonal Edit)`;
+    const label = `${offer.name} — ${offer.classes} group fitness classes${offer.includes_day_pass ? " + 1 club day pass" : ""}${offer.guest_class_credits ? ` + ${offer.guest_class_credits} guest class` : ""}${offer.cafe_credit_cents ? ` + $${(offer.cafe_credit_cents / 100).toFixed(0)} café credit` : ""} (The Seasonal Edit)`;
     const fee = processingFeeCents(offer.price_cents);
     const origin = trustedOrigin(req);
     const session = await stripe.checkout.sessions.create({

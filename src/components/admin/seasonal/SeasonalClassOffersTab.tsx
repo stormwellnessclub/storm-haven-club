@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatUsd } from "@/lib/blackFriday";
 
-type Offer = { key: string; name: string; price_cents: number; classes: number; expiry_days: number; is_active: boolean; starts_at: string | null; ends_at: string | null; includes_day_pass: boolean; first_time_only: boolean };
+type Offer = { key: string; name: string; price_cents: number; classes: number; expiry_days: number; is_active: boolean; starts_at: string | null; ends_at: string | null; includes_day_pass: boolean; first_time_only: boolean; audience: string; guest_class_credits: number; cafe_credit_cents: number };
 type Purchase = { pass_id: string; offer_key: string; buyer_name: string | null; buyer_email: string | null; purchased_at: string; expires_at: string; classes_total: number; classes_remaining: number; price_paid: number; day_pass_id: string | null; day_pass_used_at: string | null; classes_booked: number };
 
 const toLocal = (iso: string | null) => (iso ? new Date(iso).toLocaleString("sv-SE", { timeZone: "America/Detroit" }).slice(0, 16).replace(" ", "T") : "");
@@ -40,6 +40,12 @@ export function SeasonalClassOffersTab() {
     },
   });
 
+  const { data: extras = [] } = useQuery({
+    queryKey: ["admin-seasonal-purchase-extras"],
+    queryFn: async () => ((await (supabase as any).rpc("admin_seasonal_purchase_extras")).data ?? []) as { pass_id: string; guest_status: string | null; guest_name: string | null; guest_class: string | null; guest_class_date: string | null; cafe_granted_cents: number | null; cafe_expires_at: string | null; cafe_member_balance_cents: number | null }[],
+  });
+  const extra = (id: string) => extras.find((e) => e.pass_id === id);
+
   async function save(key: string, patch: Partial<Offer>) {
     const { error } = await (supabase as any).from("seasonal_class_offers").update({ ...patch, updated_at: new Date().toISOString() }).eq("key", key);
     if (error) toast.error(error.message); else { toast.success("Saved"); qc.invalidateQueries({ queryKey: ["admin-seasonal-class-offers"] }); qc.invalidateQueries({ queryKey: ["seasonal-class-offers"] }); }
@@ -60,7 +66,7 @@ export function SeasonalClassOffersTab() {
               <div key={o.key} className="grid gap-3 border-t pt-4 md:grid-cols-[1.4fr_1fr_1fr_auto] md:items-end">
                 <div>
                   <p className="font-medium">{o.name}</p>
-                  <p className="text-xs text-muted-foreground">{formatUsd(o.price_cents)} · {o.classes} classes · use within {o.expiry_days} days{o.includes_day_pass ? " · + 1 day pass" : ""}{o.first_time_only ? " · first-time guests, once" : " · non-members"}</p>
+                  <p className="text-xs text-muted-foreground">{formatUsd(o.price_cents)} · {o.classes} classes · use within {o.expiry_days} days{o.includes_day_pass ? " · + 1 day pass" : ""}{o.guest_class_credits ? ` · + ${o.guest_class_credits} guest class` : ""}{o.cafe_credit_cents ? ` · + ${formatUsd(o.cafe_credit_cents)} café credit` : ""}{o.first_time_only ? " · first-time guests, once" : o.audience === "member" ? " · active members only" : " · non-members"}</p>
                   <p className="text-xs mt-1">{sold.length} sold · {formatUsd(Math.round(sold.reduce((s, p) => s + Number(p.price_paid), 0) * 100))} package revenue</p>
                 </div>
                 <div><Label className="text-xs">Starts (Detroit)</Label><Input type="datetime-local" defaultValue={toLocal(o.starts_at)} onBlur={(e) => e.target.value !== toLocal(o.starts_at) && save(o.key, { starts_at: fromLocal(e.target.value) })} /></div>
@@ -86,7 +92,7 @@ export function SeasonalClassOffersTab() {
         <CardContent className="overflow-x-auto">
           {rows.length === 0 ? <p className="text-sm text-muted-foreground">No purchases yet.</p> : (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground"><tr><th className="py-2 pr-3">Client</th><th className="pr-3">Package</th><th className="pr-3">Bought</th><th className="pr-3">Classes left</th><th className="pr-3">Booked</th><th className="pr-3">Expires</th><th>Day pass</th></tr></thead>
+              <thead className="text-left text-xs text-muted-foreground"><tr><th className="py-2 pr-3">Client</th><th className="pr-3">Package</th><th className="pr-3">Bought</th><th className="pr-3">Classes left</th><th className="pr-3">Booked</th><th className="pr-3">Expires</th><th className="pr-3">Day pass</th><th className="pr-3">Guest class</th><th>Café credit</th></tr></thead>
               <tbody>
                 {rows.map((p) => {
                   const expired = new Date(p.expires_at) < new Date();
@@ -99,6 +105,10 @@ export function SeasonalClassOffersTab() {
                       <td className="pr-3">{p.classes_booked}</td>
                       <td className="pr-3">{day(p.expires_at)} {expired && <Badge variant="secondary">Expired</Badge>}</td>
                       <td>{!p.day_pass_id ? "—" : p.day_pass_used_at ? <Badge variant="secondary">Used {day(p.day_pass_used_at)}</Badge> : <Badge>Not used</Badge>}</td>
+                      {(() => { const x = extra(p.pass_id); return (<>
+                        <td className="pl-3 pr-3">{!x?.guest_status ? "—" : x.guest_status === "available" ? <Badge>Not used</Badge> : <div><div>{x.guest_name}</div><div className="text-xs text-muted-foreground">{x.guest_class}{x.guest_class_date ? ` · ${day(x.guest_class_date)}` : ""}</div></div>}</td>
+                        <td>{x?.cafe_granted_cents == null ? "—" : <div><div>{formatUsd(x.cafe_granted_cents)} given</div><div className="text-xs text-muted-foreground">Balance {formatUsd(Number(x.cafe_member_balance_cents ?? 0))} · expires {day(x.cafe_expires_at!)}</div></div>}</td>
+                      </>); })()}
                     </tr>
                   );
                 })}

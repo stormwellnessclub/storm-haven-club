@@ -1,5 +1,5 @@
 // Display copy for The Movement Edit (owner-approved wording). Prices and rules live in the database.
-export type MovementOfferKey = "discovery_pass" | "movement_edit" | "club_experience";
+export type MovementOfferKey = "discovery_pass" | "movement_edit" | "club_experience" | "member_movement_edit";
 export const processingFeeCents = (amountCents: number) => Math.round((amountCents + 30) / (1 - 0.029)) - amountCents;
 
 export const MOVEMENT_COPY: Record<MovementOfferKey, {
@@ -35,5 +35,14 @@ export const MOVEMENT_COPY: Record<MovementOfferKey, {
     ],
     details: ["$285 total", "Includes 10 group fitness classes", "Includes 1 complimentary club day pass", "Non-members only", "Classes valid for 2 months from purchase", "Day pass is non-transferable and valid for one redemption", "Standard day pass value: $60", "Spa treatments and separately priced recovery services are not included unless already covered by the existing standard guest day pass"],
     button: "Experience the Club",
+  },
+  member_movement_edit: {
+    n: "04", title: "The Member Movement Edit", headline: "$160 | 10 Classes + Guest Class + Café Credit",
+    tagline: "Your movement routine, with a little more to share.",
+    body: [
+      "A seasonal offering created for our members. Enjoy more time to explore your favorite classes, a little something from the café, and an invitation to introduce a friend to the Storm Wellness Club experience.",
+    ],
+    details: ["$160 total", "10 class credits for the purchasing member", "1 complimentary guest class credit to bring a friend", "$10 Storm Wellness Café credit", "Extended package validity of 3 months", "Exclusively for active Storm Wellness Club members"],
+    button: "Select Package",
   },
 };

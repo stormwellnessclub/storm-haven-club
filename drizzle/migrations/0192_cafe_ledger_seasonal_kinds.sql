@@ -1,0 +1,2 @@
+ALTER TABLE public.cafe_credit_ledger DROP CONSTRAINT cafe_credit_ledger_kind_check;
+ALTER TABLE public.cafe_credit_ledger ADD CONSTRAINT cafe_credit_ledger_kind_check CHECK (kind = ANY (ARRAY['cash_grant','cash_purchase','item_grant','redemption_cash','redemption_item','adjustment','seasonal_grant','expiry']));

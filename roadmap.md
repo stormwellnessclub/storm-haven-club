@@ -133,4 +133,5 @@
 ## The Movement Edit (class offers)
 - [x] Section on Seasonal Edit page with owner copy + photos
 - [x] Checkout, eligibility, credits, day pass, staff tab
+- [x] Member Movement Edit ($160) with guest class + café credit
 - [ ] Owner switches offers on (Admin → Class Pass Pricing → The Seasonal Edit) and publishes

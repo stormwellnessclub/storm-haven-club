@@ -1498,6 +1498,24 @@ serve(async (req) => {
               const { data: linked } = await supabase.from('class_passes').update({ day_pass_id: gp.id }).eq('id', pass.id).is('day_pass_id', null).select('id');
               if (!linked?.length) await supabase.from('guest_passes').delete().eq('id', gp.id);
             }
+            // Member Movement Edit: one guest-only class credit (unique per pass) and an expiring café credit (unique per payment).
+            if (pass && (offer.guest_class_credits ?? 0) > 0) {
+              const { error: gErr } = await supabase.from('seasonal_guest_class_credits').insert({ pass_id: pass.id, user_id: userId, expires_at: pass.expires_at });
+              if (gErr && (gErr as any).code !== '23505') return errorResponse(gErr, "SEASONAL_GUEST_CREDIT");
+            }
+            if (pass && (offer.cafe_credit_cents ?? 0) > 0) {
+              const { data: mem } = await supabase.from('members').select('id').eq('user_id', userId).neq('status', 'cancelled').order('created_at', { ascending: false }).limit(1).maybeSingle();
+              if (!mem) {
+                logError(new Error(`No member record for café credit, user ${userId}`), "SEASONAL_CAFE_CREDIT");
+              } else {
+                const { error: cErr } = await supabase.from('cafe_credit_ledger').insert({
+                  member_id: mem.id, kind: 'seasonal_grant', amount_cents: offer.cafe_credit_cents,
+                  stripe_payment_intent_id: piId, expires_at: pass.expires_at,
+                  reason: `${offer.name} (The Seasonal Edit) — café credit, expires with package`,
+                });
+                if (cErr && (cErr as any).code !== '23505') return errorResponse(cErr, "SEASONAL_CAFE_CREDIT");
+              }
+            }
             try {
               await supabase.from('pending_class_pass_checkouts')
                 .update({ status: 'completed', completed_at: new Date().toISOString() })

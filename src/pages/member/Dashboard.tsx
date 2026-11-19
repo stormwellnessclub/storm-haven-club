@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { BlackFridayPortalCard } from "@/components/portal/BlackFridayPortalCard";
+import { BringAFriendCard } from "@/components/portal/BringAFriendCard";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,6 +177,7 @@ export default function MemberDashboard() {
         {/* Upcoming Event Announcement */}
         <EventAnnouncementBanner />
         <BlackFridayPortalCard />
+        <BringAFriendCard />
         <UpcomingRitualsSection basePath="/member" />
 
         {/* Live cafe order tracker */}

@@ -17,12 +17,13 @@ import weights from "@/assets/movement/strength-weights.jpg.asset.json";
 import lockers from "@/assets/movement/locker-room.jpg.asset.json";
 import gymFloor from "@/assets/movement/gym-floor.jpg.asset.json";
 
-type Offer = { key: MovementOfferKey; name: string; price_cents: number; classes: number; is_active: boolean; starts_at: string | null; ends_at: string | null; display_order: number };
+type Offer = { key: MovementOfferKey; name: string; price_cents: number; classes: number; is_active: boolean; starts_at: string | null; ends_at: string | null; display_order: number; audience?: string };
 
 const PHOTOS: Record<MovementOfferKey, { src: string; alt: string }[]> = {
   discovery_pass: [{ src: reformer.url, alt: "A Reformer Pilates class at Storm Wellness Club" }],
   movement_edit: [{ src: cycling.url, alt: "The cycling studio" }, { src: weights.url, alt: "Storm dumbbells on the rack" }],
   club_experience: [{ src: gymFloor.url, alt: "The main gym floor" }, { src: lockers.url, alt: "The locker room" }],
+  member_movement_edit: [{ src: reformer.url, alt: "A Reformer Pilates class at Storm Wellness Club" }, { src: cycling.url, alt: "The cycling studio" }],
 };
 
 const isLive = (o: Offer) => o.is_active && (!o.starts_at || new Date(o.starts_at) <= new Date()) && (!o.ends_at || new Date(o.ends_at) > new Date());
@@ -97,7 +98,7 @@ export function MovementEditSection() {
             <div className="md:col-span-7 space-y-5">
               <p>From Reformer Pilates and cycling to strength, yoga, and everything in between, discover a different approach to group fitness.</p>
               <p>Thoughtfully designed classes, experienced instructors, and intimate group settings that allow for a more personal experience.</p>
-              <p className="text-foreground">For The Seasonal Edit, we've curated three ways to begin or continue your movement journey at Storm Wellness Club.</p>
+              <p className="text-foreground">For The Seasonal Edit, we've curated four ways to begin or continue your movement journey at Storm Wellness Club.</p>
             </div>
           </div>
         </Reveal>
@@ -111,11 +112,11 @@ export function MovementEditSection() {
         const photos = PHOTOS[o.key];
         return (
           <section key={o.key} className="container py-16 md:py-24 border-b border-border last:border-b-0">
-            <div className={`grid gap-10 md:grid-cols-12 md:items-start ${i % 2 ? "md:[&>*:first-child]:order-2" : ""}`}>
-              <div className="md:col-span-5 grid gap-3">
+            <div className={`grid gap-10 md:grid-cols-12 md:items-start`}>
+              <div className={`md:col-span-5 grid gap-3 ${i % 2 ? "md:col-start-8 md:row-start-1" : ""}`}>
                 {photos.map((p) => <EdImage key={p.src} src={p.src} alt={p.alt} className={photos.length > 1 ? "aspect-[4/3]" : "aspect-[4/5]"} />)}
               </div>
-              <Reveal className="md:col-span-6 md:col-start-7">
+              <Reveal className={`md:col-span-6 md:row-start-1 ${i % 2 ? "md:col-start-1" : "md:col-start-7"}`}>
                 <p className="ed-caption text-muted-foreground">Offer {c.n}</p>
                 <h3 className="font-serif text-3xl md:text-5xl mt-3">{c.title}</h3>
                 <p className="mt-3 text-sm tracking-wide">{c.headline}</p>
@@ -128,6 +129,7 @@ export function MovementEditSection() {
                 <div className="mt-8">
                   {!user ? (
                     <p className="text-sm text-muted-foreground">
+                      {o.audience === "member" && <span className="block mb-1 text-foreground">Reserved for members.</span>}
                       <Link to="/auth?redirect=/black-friday%23movement-edit" className="underline underline-offset-4 text-foreground">Sign in</Link> or{" "}
                       <Link to="/auth?mode=signup&redirect=/black-friday%23movement-edit" className="underline underline-offset-4 text-foreground">make an account</Link> to buy.
                     </p>
