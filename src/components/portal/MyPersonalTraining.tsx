@@ -296,8 +296,8 @@ export function MyPersonalTraining() {
                         <p className="text-xs font-medium pb-1">{p.plan_name || "Payment plan"}</p>
                         {plan.map((i) => (
                           <div key={i.id} className="flex justify-between text-xs py-1 border-t border-border">
-                            <span>#{i.installment_number + 1} · {day(i.due_date)}{i.sessions ? ` · ${i.sessions} sessions` : ""}</span>
-                            <span>{money(i.amount_cents)} · {label(i.status)}{i.card_last4 ? ` · ${i.card_brand ?? "Card"} ${i.card_last4}` : ""}</span>
+                            <span>#{i.installment_number + 1} · {day(i.due_date)}</span>
+                            <span>{money(i.amount_cents)} · {i.status === "scheduled" ? "Upcoming" : label(i.status)}{i.card_last4 ? ` · ${i.card_brand ?? "Card"} ${i.card_last4}` : ""}</span>
                           </div>))}
                       </div>)}
                   </CardContent>
