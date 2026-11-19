@@ -310,7 +310,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const packPlans = useMemo(
     () =>
       allowPlans
-        ? allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id && p.stripe_price_id)
+        ? allPlans.filter((p) => p.is_active && p.pack_id === selectedPack?.id)
         : [],
     [allPlans, selectedPack?.id, allowPlans],
   );
