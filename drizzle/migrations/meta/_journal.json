@@ -1317,6 +1317,13 @@
       "when": 1795080658530,
       "tag": "0187_pt_black_friday_plans_full_package_up_front",
       "breakpoints": true
+    },
+    {
+      "idx": 188,
+      "version": "7",
+      "when": 1795084040413,
+      "tag": "0188_pt_promo_plans_include_full_package_plans",
+      "breakpoints": true
     }
   ]
 }

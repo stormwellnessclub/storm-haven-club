@@ -28,6 +28,12 @@ async function invokeCheckout(body: Record<string, unknown>) {
   return data;
 }
 
+/** Use-by shown in months (days / 30, rounded); package dates themselves are unchanged. */
+function monthsLabel(days: number) {
+  const m = Math.max(1, Math.round(days / 30));
+  return `${m} ${m === 1 ? "month" : "months"}`;
+}
+
 export default function BlackFriday() {
   const { user } = useAuth();
   const { data: packs = [], isLoading } = useQuery({
@@ -174,7 +180,7 @@ export default function BlackFriday() {
                 <div key={sessions} className="grid grid-cols-3 gap-4 py-6 border-b border-border items-start">
                   <div>
                     <p className="font-serif text-2xl">{sessions} sessions</p>
-                    {r.member && <p className="text-xs text-muted-foreground mt-1">Use within {r.member.expiration_days} days</p>}
+                    {r.member && <p className="text-xs text-muted-foreground mt-1">Use within {monthsLabel(r.member.expiration_days)}</p>}
                   </div>
                   {priceCell(r.member, !user || audience === "member")}
                   {priceCell(r.non_member, !user || audience === "non_member")}
@@ -188,9 +194,7 @@ export default function BlackFriday() {
                   <Link to="/auth?mode=signup&redirect=/black-friday" className="underline underline-offset-4 text-foreground">make an account</Link>{" "}
                   to buy.
                 </p>
-              ) : (
-                <p>You're seeing the {audience === "member" ? "member" : "non-member"} price for your account. Your saved card is charged, plus a payment processing fee. Packages from 30 sessions up can also be paid monthly.</p>
-              )}
+              ) : null}
             </div>
           </>
         )}
@@ -272,7 +276,7 @@ export default function BlackFriday() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Remaining payments are charged automatically to your {quote.brand} ending in {quote.last4} on each due date until the plan is complete.
-                  No interest. The plan ends after the final payment. Your sessions must be used within {picked.expiration_days} days of today.
+                  No interest. The plan ends after the final payment. Your sessions must be used within {monthsLabel(picked.expiration_days)} of today.
                 </p>
                 {err && <p className="text-sm text-destructive">{err}</p>}
                 <Button className="w-full" onClick={() => setStep("confirm")}>Continue</Button>
@@ -284,7 +288,7 @@ export default function BlackFriday() {
                   <div className="flex justify-between"><span>Payment processing fee</span><span>{formatUsd(quote.feeCents ?? 0)}</span></div>
                   <div className="flex justify-between font-medium pt-2 border-t border-border"><span>Total</span><span>{formatUsd(quote.totalCents)}</span></div>
                 </div>
-                <p className="text-sm text-muted-foreground">Charged to your {quote.brand} ending in {quote.last4}. Your sessions must be used within {picked.expiration_days} days of today.</p>
+                <p className="text-sm text-muted-foreground">Charged to your {quote.brand} ending in {quote.last4}. Your sessions must be used within {monthsLabel(picked.expiration_days)} of today.</p>
                 {err && <p className="text-sm text-destructive">{err}</p>}
                 <Button className="w-full" onClick={() => setStep("confirm")}>Continue</Button>
               </>
