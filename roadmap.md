@@ -125,3 +125,4 @@
 - [x] Switch top of Black Friday page to Seasonal Offering wording
 - [x] Rename to 'The Seasonal Edit'; darken PT photos behind writing
 - [x] Black Friday page: move Seasonal Edit writing off the photo into its own section
+- [x] Black Friday page: 'Sign in or make an account to buy.'

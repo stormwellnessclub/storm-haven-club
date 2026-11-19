@@ -177,8 +177,9 @@ export default function BlackFriday() {
             <div className="mt-8 text-sm text-muted-foreground space-y-2">
               {!user ? (
                 <p>
-                  <Link to="/auth?redirect=/black-friday" className="underline underline-offset-4 text-foreground">Sign in</Link>{" "}
-                  to buy. We'll show the price for your account, and members get the member price.
+                  <Link to="/auth?redirect=/black-friday" className="underline underline-offset-4 text-foreground">Sign in</Link> or{" "}
+                  <Link to="/auth?mode=signup&redirect=/black-friday" className="underline underline-offset-4 text-foreground">make an account</Link>{" "}
+                  to buy.
                 </p>
               ) : (
                 <p>You're seeing the {audience === "member" ? "member" : "non-member"} price for your account. Your saved card is charged, plus a card processing fee. Packages from 30 sessions up can also be paid monthly.</p>
