@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
@@ -35,8 +35,12 @@ function monthsLabel(days: number) {
   return `${m} ${m === 1 ? "month" : "months"}`;
 }
 
+type View = "member" | "non_member";
+const VIEW_LABEL: Record<View, string> = { member: "Members", non_member: "Non-members" };
+
 export default function BlackFriday() {
   const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
   const { data: packs = [], isLoading } = useQuery({
     queryKey: ["pt-promo-packs", BLACK_FRIDAY_PROMO],
     queryFn: async () => {
@@ -73,6 +77,18 @@ export default function BlackFriday() {
     return [...by.entries()].sort((a, b) => a[0] - b[0]);
   }, [packs]);
   const portal = audience === "member" ? "/member" : "/portal";
+  // Which pricing the visitor is looking at: their pick (?for=), else their own account type.
+  const forParam = params.get("for");
+  const view: View | null = forParam === "member" || forParam === "non_member" ? forParam : audience ?? null;
+  const contentRef = useRef<HTMLDivElement>(null);
+  const pickView = (v: View) => {
+    const next = new URLSearchParams(params); next.set("for", v); setParams(next, { replace: true });
+    requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+  const authLink = (mode: "signin" | "signup", hash = "") => {
+    const back = `/black-friday${view ? `?for=${view}` : ""}${hash}`;
+    return `/auth?${mode === "signup" ? "mode=signup&" : ""}redirect=${encodeURIComponent(back)}`;
+  };
   const endsAt = packs[0]?.sale_ends_at ?? null;
   const ended = saleHasEnded(endsAt);
 
@@ -134,11 +150,11 @@ export default function BlackFriday() {
         path="/black-friday"
       />
       {/* The Seasonal Edit: its own quiet opening, kept off the photo */}
-      <section className="container pt-32 pb-14 md:pt-44 md:pb-20">
+      <section className="container pt-28 pb-10 md:pt-44 md:pb-16">
         <Reveal>
           <Chapter n="01" label="The Seasonal Edit" />
           <h1 className="font-serif text-4xl leading-[1.05] md:text-7xl mt-6 max-w-4xl">An invitation to invest in what lasts.</h1>
-          <div className="mt-8 grid gap-8 md:mt-12 md:grid-cols-12 md:items-end">
+          <div className="mt-6 grid gap-6 md:mt-12 md:grid-cols-12 md:items-end">
             <p className="text-lg leading-relaxed text-muted-foreground md:col-span-7">
               For a limited time, a considered selection of personal training and wellness experiences at preferred pricing.
             </p>
@@ -148,60 +164,84 @@ export default function BlackFriday() {
             </div>
           </div>
         </Reveal>
+
+        {/* Members and non-members each see only their own offers */}
+        <div className="mt-10 md:mt-14 border border-border p-5 md:p-8">
+          <p className="ed-caption text-muted-foreground">See your offers</p>
+          <div className="mt-4 grid grid-cols-2 gap-3" role="tablist" aria-label="Choose member or non-member offers">
+            {(["member", "non_member"] as View[]).map((v) => (
+              <Button key={v} role="tab" aria-selected={view === v} variant={view === v ? "default" : "outline"}
+                className="h-12 text-base" onClick={() => pickView(v)}>
+                {VIEW_LABEL[v]}
+              </Button>
+            ))}
+          </div>
+          {view && (
+            <nav className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm" aria-label="Jump to an offer">
+              <a href="#pt-edit" className="underline underline-offset-4">Personal Training</a>
+              <a href="#movement-edit" className="underline underline-offset-4">Classes</a>
+            </nav>
+          )}
+        </div>
       </section>
 
-      <section>
-        <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[45vh] min-h-[300px] md:h-[60vh]" eager />
-      </section>
+      <div ref={contentRef} className="scroll-mt-20" />
+      {view && (
+        <>
+          <section>
+            <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[28vh] min-h-[200px] md:h-[55vh]" eager />
+          </section>
 
-      <section className="container py-16 md:py-24 max-w-4xl">
-        <Reveal>
-          <Chapter n="02" label="Semi-Private Personal Training" />
-          <h2 className="font-serif text-3xl md:text-4xl mt-4">Semi-private training packages</h2>
-          <p className="mt-4 text-muted-foreground max-w-2xl">
-            For a limited time, enjoy exclusive Black Friday pricing on personal training packages designed around
-            your goals, your progress, and your long-term results.
-          </p>
-          <p className="mt-3 font-medium">Limited packages available.</p>
-        </Reveal>
+          <section id="pt-edit" className="container py-14 md:py-24 max-w-4xl scroll-mt-20">
+            <Reveal>
+              <Chapter n="02" label="Semi-Private Personal Training" />
+              <h2 className="font-serif text-3xl md:text-4xl mt-4">Semi-private training packages</h2>
+              <p className="mt-4 text-muted-foreground max-w-2xl">
+                For a limited time, enjoy exclusive Black Friday pricing on personal training packages designed around
+                your goals, your progress, and your long-term results.
+              </p>
+              <p className="mt-3 font-medium">Limited packages available.</p>
+              <p className="mt-6 ed-caption text-muted-foreground">{VIEW_LABEL[view]} pricing</p>
+            </Reveal>
 
-        {isLoading ? (
-          <div className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-        ) : rows.length === 0 || ended ? (
-          <p className="mt-12 font-serif text-2xl">This offer has ended.</p>
-        ) : (
-          <>
-            <div className="mt-12 border-t border-border">
-              <div className="grid grid-cols-3 gap-4 py-4 ed-caption text-muted-foreground border-b border-border">
-                <span>Package</span>
-                <span>Member</span>
-                <span>Non-member</span>
-              </div>
-              {rows.map(([sessions, r]) => (
-                <div key={sessions} className="grid grid-cols-3 gap-4 py-6 border-b border-border items-start">
-                  <div>
-                    <p className="font-serif text-2xl">{sessions} sessions</p>
-                    {r.member && <p className="text-xs text-muted-foreground mt-1">Use within {monthsLabel(r.member.expiration_days)}</p>}
-                  </div>
-                  {priceCell(r.member, !user || audience === "member")}
-                  {priceCell(r.non_member, !user || audience === "non_member")}
+            {isLoading ? (
+              <div className="py-16 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            ) : rows.length === 0 || ended ? (
+              <p className="mt-12 font-serif text-2xl">This offer has ended.</p>
+            ) : (
+              <>
+                <div className="mt-4 border-t border-border">
+                  {rows.filter(([, r]) => r[view]).map(([sessions, r]) => (
+                    <div key={sessions} className="grid grid-cols-2 gap-4 py-6 border-b border-border items-start">
+                      <div>
+                        <p className="font-serif text-2xl">{sessions} sessions</p>
+                        <p className="text-xs text-muted-foreground mt-1">Use within {monthsLabel(r[view]!.expiration_days)}</p>
+                      </div>
+                      {priceCell(r[view], !user || audience === view)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-8 text-sm text-muted-foreground space-y-2">
-              {!user ? (
-                <p>
-                  <Link to="/auth?redirect=/black-friday" className="underline underline-offset-4 text-foreground">Sign in</Link> or{" "}
-                  <Link to="/auth?mode=signup&redirect=/black-friday" className="underline underline-offset-4 text-foreground">make an account</Link>{" "}
-                  to buy.
-                </p>
-              ) : null}
-            </div>
-          </>
-        )}
-      </section>
+                <div className="mt-8 text-sm text-muted-foreground space-y-2">
+                  {!user ? (
+                    <p>
+                      <Link to={authLink("signin", "#pt-edit")} className="underline underline-offset-4 text-foreground">Sign in</Link> or{" "}
+                      <Link to={authLink("signup", "#pt-edit")} className="underline underline-offset-4 text-foreground">make an account</Link>{" "}
+                      to buy.
+                    </p>
+                  ) : audience && audience !== view ? (
+                    <p>
+                      Your account is set up for {VIEW_LABEL[audience].toLowerCase()} offers.{" "}
+                      <button type="button" className="underline underline-offset-4 text-foreground" onClick={() => pickView(audience)}>See {VIEW_LABEL[audience].toLowerCase()} offers</button>
+                    </p>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </section>
+        </>
+      )}
 
-      <MovementEditSection />
+      <MovementEditSection audience={view} authLink={authLink} />
 
       <Sheet open={!!picked} onOpenChange={(o) => { if (!o && !busy) setPicked(null); }}>
         <SheetContent side="bottom" className="max-w-lg mx-auto">

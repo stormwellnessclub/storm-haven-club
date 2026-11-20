@@ -28,7 +28,11 @@ const PHOTOS: Record<MovementOfferKey, { src: string; alt: string }[]> = {
 
 const isLive = (o: Offer) => o.is_active && (!o.starts_at || new Date(o.starts_at) <= new Date()) && (!o.ends_at || new Date(o.ends_at) > new Date());
 
-export function MovementEditSection() {
+/** Classes part of The Seasonal Edit, showing only the chosen audience's offers (null = none chosen yet). */
+export function MovementEditSection({ audience, authLink }: {
+  audience: "member" | "non_member" | null;
+  authLink: (mode: "signin" | "signup", hash?: string) => string;
+}) {
   const { user } = useAuth();
   const { roles } = useUserRoles();
   const isStaff = roles.some((r) => ["super_admin", "admin", "manager"].includes(r));
@@ -72,9 +76,10 @@ export function MovementEditSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visible = offers.filter((o) => MOVEMENT_COPY[o.key] && (isLive(o) || isStaff));
+  const forView = (o: Offer) => (audience === "member" ? o.audience === "member" : o.audience !== "member");
+  const visible = audience ? offers.filter((o) => MOVEMENT_COPY[o.key] && forView(o) && (isLive(o) || isStaff)) : [];
   if (visible.length === 0 && !done && !checking) return null;
-  const anyLive = offers.some(isLive);
+  const anyLive = visible.some(isLive);
 
   async function checkout() {
     if (!picked || busy) return;
@@ -87,6 +92,7 @@ export function MovementEditSection() {
 
   return (
     <div id="movement-edit" className="scroll-mt-24">
+      {visible.length > 0 && <>
       <section className="container pt-8 pb-14 md:pt-16 md:pb-20">
         <Reveal>
           <Chapter n="03" label="The Movement Edit" />
@@ -98,13 +104,17 @@ export function MovementEditSection() {
             <div className="md:col-span-7 space-y-5">
               <p>From Reformer Pilates and cycling to strength, yoga, and everything in between, discover a different approach to group fitness.</p>
               <p>Thoughtfully designed classes, experienced instructors, and intimate group settings that allow for a more personal experience.</p>
-              <p className="text-foreground">For The Seasonal Edit, we've curated four ways to begin or continue your movement journey at Storm Wellness Club.</p>
+              <p className="text-foreground">
+                {audience === "member"
+                  ? "For The Seasonal Edit, we've curated a package for members to continue your movement journey at Storm Wellness Club."
+                  : `For The Seasonal Edit, we've curated ${visible.length === 3 ? "three" : visible.length === 2 ? "two" : "these"} ways to begin your movement journey at Storm Wellness Club.`}
+              </p>
             </div>
           </div>
         </Reveal>
       </section>
 
-      <section><EdImage src={aerobics.url} alt="The movement studio at Storm Wellness Club" className="h-[40vh] min-h-[260px] md:h-[60vh]" /></section>
+      <section><EdImage src={aerobics.url} alt="The movement studio at Storm Wellness Club" className="h-[28vh] min-h-[200px] md:h-[60vh]" /></section>
 
       {visible.map((o, i) => {
         const c = MOVEMENT_COPY[o.key];
@@ -114,10 +124,15 @@ export function MovementEditSection() {
           <section key={o.key} className="container py-16 md:py-24 border-b border-border last:border-b-0">
             <div className={`grid gap-10 md:grid-cols-12 md:items-start`}>
               <div className={`md:col-span-5 grid gap-3 ${i % 2 ? "md:col-start-8 md:row-start-1" : ""}`}>
-                {photos.map((p) => <EdImage key={p.src} src={p.src} alt={p.alt} className={photos.length > 1 ? "aspect-[4/3]" : "aspect-[4/5]"} />)}
+                {photos.map((p, pi) => (
+                  // Phones show one photo per offer to keep the page short.
+                  <div key={p.src} className={pi > 0 ? "hidden md:block" : undefined}>
+                    <EdImage src={p.src} alt={p.alt} className={photos.length > 1 ? "aspect-[4/3]" : "aspect-[4/5]"} />
+                  </div>
+                ))}
               </div>
               <Reveal className={`md:col-span-6 md:row-start-1 ${i % 2 ? "md:col-start-1" : "md:col-start-7"}`}>
-                <p className="ed-caption text-muted-foreground">Offer {c.n}</p>
+                <p className="ed-caption text-muted-foreground">Offer {String(i + 1).padStart(2, "0")}</p>
                 <h3 className="font-serif text-3xl md:text-5xl mt-3">{c.title}</h3>
                 <p className="mt-3 text-sm tracking-wide">{c.headline}</p>
                 <p className="mt-6 font-serif text-xl italic">{c.tagline}</p>
@@ -130,8 +145,8 @@ export function MovementEditSection() {
                   {!user ? (
                     <p className="text-sm text-muted-foreground">
                       {o.audience === "member" && <span className="block mb-1 text-foreground">Reserved for members.</span>}
-                      <Link to="/auth?redirect=/black-friday%23movement-edit" className="underline underline-offset-4 text-foreground">Sign in</Link> or{" "}
-                      <Link to="/auth?mode=signup&redirect=/black-friday%23movement-edit" className="underline underline-offset-4 text-foreground">make an account</Link> to buy.
+                      <Link to={authLink("signin", "#movement-edit")} className="underline underline-offset-4 text-foreground">Sign in</Link> or{" "}
+                      <Link to={authLink("signup", "#movement-edit")} className="underline underline-offset-4 text-foreground">make an account</Link> to buy.
                     </p>
                   ) : reason && isLive(o) ? (
                     <p className="text-sm text-muted-foreground">{reason}</p>
@@ -144,6 +159,7 @@ export function MovementEditSection() {
           </section>
         );
       })}
+      </>}
 
       <Sheet open={!!picked} onOpenChange={(v) => { if (!v && !busy) setPicked(null); }}>
         <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto px-6 pb-8">
