@@ -8,3 +8,6 @@
 - Spa Aella menus (live Spa page) list each treatment once with every length via `groupTreatments` (`spaVariants.ts`); Book opens the chosen length's own record, and section links use `useHashScroll`. Why: menus hid 90-minute/extended options and Book links landed partway up the page.
 - Client-facing spa session lengths render through `sessionMinutesText` (`spaDuration.ts`); range treatments book their longest length in `duration_minutes`. Why: some sessions (ZeroBody Cryo 3–8 min) vary but bookings need one hold time.
 - PT waitlist staff views (desktop calendar and phone Requests tab) share `buildWaitlistSlots` (src/lib/ptSlots.ts) and `PTSlotCard`; the first pending request holds a trainer hour, and `pt_waitlist_promote` only works once nothing holds it. Why: one clear per-hour state, staff-decided order.
+- Massage menu groups 60/90 variants by base name via src/lib/massages.ts; booking receives the selected original record and copy lives in that file. Why: one listing per treatment without changing pricing, intake or history.
+- Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
+- Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
