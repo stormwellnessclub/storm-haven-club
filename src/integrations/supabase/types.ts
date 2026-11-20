@@ -20081,6 +20081,8 @@ export type Database = {
       pt_request_confirm: {
         Args: {
           p_confirm_time?: string
+          p_force?: boolean
+          p_override_reason?: string
           p_request_id: string
           p_use_alternate?: boolean
         }

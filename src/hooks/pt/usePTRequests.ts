@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { parseSlotError, slotProblems } from "@/lib/ptAvailability";
+import { parseSlotError, slotProblems, isHardConflict } from "@/lib/ptAvailability";
 import { toast } from "sonner";
 import { notifyPTBooking } from "@/lib/ptBookingConfirmation";
 
@@ -64,7 +64,12 @@ function errMsg(e: any) {
   const m = String(e?.message ?? e ?? "Something went wrong");
   const slot = parseSlotError(m);
   if (slot) return slotProblems(slot).join(" ") || "That time isn't available.";
-  return m.replace(/^(TRAINER_CONFLICT|CLIENT_CONFLICT|CONFLICT|NO_SESSIONS|ALREADY_BOOKED|OUTSIDE_WINDOW):\s*/, "");
+  return m.replace(/^(TRAINER_CONFLICT|CLIENT_CONFLICT|CONFLICT|NO_SESSIONS|ALREADY_BOOKED|OUTSIDE_WINDOW|OVERRIDE_NOT_ALLOWED|OVERRIDE_REASON_REQUIRED):\s*/, "");
+}
+
+/** Confirm error that an admin/manager may override (trainer hours or time off only). */
+export class PTOverridableError extends Error {
+  overridable = true;
 }
 
 export function usePTRequestActions() {
@@ -90,11 +95,17 @@ export function usePTRequestActions() {
     onSuccess: done,
   });
   const confirm = useMutation({
-    mutationFn: async (args: { id: string; useAlternate: boolean; confirmTime?: string | null }) => {
+    mutationFn: async (args: { id: string; useAlternate: boolean; confirmTime?: string | null; overrideReason?: string | null }) => {
+      const reason = args.overrideReason?.trim() || null;
       const { data, error } = await (supabase as any).rpc("pt_request_confirm", {
         p_request_id: args.id, p_use_alternate: args.useAlternate, p_confirm_time: args.confirmTime ?? null,
+        p_force: !!reason, p_override_reason: reason,
       });
-      if (error) throw new Error(errMsg(error));
+      if (error) {
+        const slot = parseSlotError(String(error.message ?? ""));
+        if (slot && !isHardConflict(slot)) throw new PTOverridableError(errMsg(error));
+        throw new Error(errMsg(error));
+      }
       if (data?.appointment_id && !data.already_confirmed) {
         const warn = await notifyPTBooking(data.appointment_id, (n, o) => supabase.functions.invoke(n, o));
         if (warn) toast.warning(warn);

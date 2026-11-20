@@ -63,3 +63,15 @@ describe("PT gym floor: rooms never block", () => {
     expect(isHardConflict({ trainer_conflicts: [{ id: "t" }], room_conflicts: [{ id: "r" }] } as any)).toBe(true);
   });
 });
+
+describe("confirming a client request outside trainer hours", () => {
+  it("an outside-hours refusal from request confirm can be overridden", () => {
+    const parsed = parseSlotError('UNAVAILABLE: {"has_conflict": true, "availability": "outside_hours", "trainer_conflicts": [], "client_conflicts": []}');
+    expect(parsed?.availability).toBe("outside_hours");
+    expect(isHardConflict(parsed)).toBe(false);
+  });
+  it("a refusal because the trainer is already booked cannot", () => {
+    const parsed = parseSlotError('UNAVAILABLE: {"has_conflict": true, "availability": "outside_hours", "trainer_conflicts": [{"id": "a"}]}');
+    expect(isHardConflict(parsed)).toBe(true);
+  });
+});

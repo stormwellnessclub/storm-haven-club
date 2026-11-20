@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PTShell, PTPageHeader, PTCard, PTBadge, PTEmptyState, ptButtonClass, PTAlert } from "@/components/admin/pt/PTUI";
 import { usePTTrainers, usePTPeople } from "@/hooks/pt/usePTPortal";
 import { usePTRequests, usePTSessionTypes, usePTRequestContext, usePTRequestActions, REQUEST_STATUS_LABEL } from "@/hooks/pt/usePTRequests";
+import { useUserRoles } from "@/hooks/useUserRoles";
 import { PTClientPicker } from "@/components/admin/pt/PTClientPicker";
 import { PTWaitlistPanel } from "@/components/admin/pt/PTWaitlistPanel";
 import { PTHistoricalReconciliation } from "@/components/admin/pt/PTHistoricalReconciliation";
@@ -135,6 +136,11 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [windowTime, setWindowTime] = useState("");
+  const { hasRole, isAdmin } = useUserRoles();
+  const canOverride = isAdmin() || hasRole("manager" as any);
+  // Last confirm that failed only on trainer hours/time off, so an admin/manager can retry it with a reason.
+  const [pendingOverride, setPendingOverride] = useState<null | { args: { id: string; useAlternate: boolean; confirmTime?: string | null }; ok: string }>(null);
+  const [overrideReason, setOverrideReason] = useState("");
   const typeRow = types.find((t: any) => t.id === r.pt_session_type_id);
   const slot = useQuery({
     queryKey: ["pt-slot-check", r.id, r.preferred_date, r.preferred_time, r.requested_trainer_id, r.pt_session_type_id],
@@ -156,6 +162,17 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
     setError(null);
     try { const res = await p; toast.success(res?.already_confirmed ? "Already confirmed — no new appointment created" : ok); setMode(null); setNote(""); }
     catch (e: any) { setError(e.message); }
+  };
+  const runConfirm = async (args: { id: string; useAlternate: boolean; confirmTime?: string | null }, ok: string, reason?: string) => {
+    setError(null);
+    try {
+      const res = await confirm.mutateAsync({ ...args, overrideReason: reason ?? null });
+      toast.success(res?.already_confirmed ? "Already confirmed — no new appointment created" : reason ? `${ok} (outside trainer hours)` : ok);
+      setPendingOverride(null); setOverrideReason(""); setMode(null); setNote("");
+    } catch (e: any) {
+      setError(e.message);
+      setPendingOverride(e?.overridable ? { args, ok } : null);
+    }
   };
   const busy = update.isPending || confirm.isPending;
   const dirty = trainerId !== (r.requested_trainer_id ?? "") || typeId !== (r.pt_session_type_id ?? "") ||
@@ -208,6 +225,21 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
       )}
 
       {error && <PTAlert tone="danger">{error}</PTAlert>}
+      {pendingOverride && canOverride && (
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <p className="text-sm">You can still confirm this time as an override. Add a short reason (saved on the session).</p>
+          <Textarea rows={2} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+            placeholder="Override reason (required)" aria-label="Override reason" />
+          <div className="flex flex-wrap gap-2">
+            <button disabled={busy || !overrideReason.trim()} className={ptButtonClass("gold")}
+              onClick={() => runConfirm(pendingOverride.args, pendingOverride.ok, overrideReason.trim())}>Confirm anyway</button>
+            <button disabled={busy} className={ptButtonClass("ghost")} onClick={() => { setPendingOverride(null); setOverrideReason(""); }}>Never mind</button>
+          </div>
+        </div>
+      )}
+      {pendingOverride && !canOverride && (
+        <p className="text-xs text-muted-foreground">Only an admin or manager can confirm outside the trainer's hours.</p>
+      )}
 
       {open && (
         <>
@@ -232,20 +264,20 @@ export function RequestDetail({ r, trainers, types, trainerName, typeName }: any
             {r.request_status === "requested" && (
               <button disabled={busy} className={ptButtonClass("ghost")} onClick={() => run(update.mutateAsync({ id: r.id, action: "review" }), "Marked under review")}>Mark under review</button>
             )}
-            <button disabled={busy || dirty} className={ptButtonClass("gold")} onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: false }), "Confirmed — appointment created")}>Confirm requested time</button>
+            <button disabled={busy || dirty} className={ptButtonClass("gold")} onClick={() => runConfirm({ id: r.id, useAlternate: false }, "Confirmed — appointment created")}>Confirm requested time</button>
             {canPickInWindow && (
               <span className="flex items-center gap-1">
                 <TimeSelect12h value={windowTime} onChange={setWindowTime} className="h-10 w-32" ariaLabel="Time inside window" />
                 <button disabled={busy || dirty || !windowTime || !withinClientWindow(r, windowTime, typeRow.duration_minutes)}
                   title="Only times inside the client's availability window"
                   className={ptButtonClass("outline")}
-                  onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: false, confirmTime: windowTime }), "Confirmed within the client's window")}>
+                  onClick={() => runConfirm({ id: r.id, useAlternate: false, confirmTime: windowTime }, "Confirmed within the client's window")}>
                   Confirm this time
                 </button>
               </span>
             )}
             {r.request_status === "alternate_offered" && (
-              <button disabled={busy} className={ptButtonClass("gold")} onClick={() => run(confirm.mutateAsync({ id: r.id, useAlternate: true }), "Client accepted — appointment created")}>Client accepted alternate</button>
+              <button disabled={busy} className={ptButtonClass("gold")} onClick={() => runConfirm({ id: r.id, useAlternate: true }, "Client accepted — appointment created")}>Client accepted alternate</button>
             )}
             <button disabled={busy} className={ptButtonClass("outline")} onClick={() => setMode("alt")}>Offer alternate</button>
             <button disabled={busy} className={ptButtonClass("danger")} onClick={() => setMode("decline")}>Decline</button>

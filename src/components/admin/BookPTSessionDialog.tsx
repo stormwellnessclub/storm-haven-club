@@ -2,7 +2,7 @@ import { TimeSelect12h } from "@/components/admin/TimeSelect12h";
 import { slotProblems, parseSlotError, isHardConflict } from "@/lib/ptAvailability";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import { relationshipMap, singleSessionRateCents, type PTRelationship } from "@/lib/ptIdentity";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -91,6 +91,11 @@ export function BookPTSessionDialog({
   const { hasRole, isAdmin } = useUserRoles();
   const canOverride = isAdmin() || hasRole("manager" as any);
   const [overrideReason, setOverrideReason] = useState("");
+  const conflictRef = useRef<HTMLDivElement>(null);
+  // On phones the override box can sit below the fold; bring it into view when it appears.
+  useEffect(() => {
+    if (conflict) conflictRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [conflict]);
   const [extras, setExtras] = useState<UserOption[]>([]);
   const [extraSearch, setExtraSearch] = useState("");
 
@@ -324,7 +329,7 @@ export function BookPTSessionDialog({
             setConflict(hard
               ? `${reasons.join(" ") || "That time isn't available."} This can't be overridden. Pick another time.`
               : `${reasons.join(" ") || "Trainer is not normally available at this time."}`);
-            failures.push(`${a.label}: not available`);
+            failures.push(hard || !canOverride ? `${a.label}: not available` : `${a.label}: outside the trainer's hours — add a reason below and tap Book anyway`);
           } else failures.push(`${a.label}: ${msg}`);
         }
       }
@@ -604,7 +609,7 @@ export function BookPTSessionDialog({
           )}
 
           {conflict && (
-            <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            <div ref={conflictRef} className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
               <div className="space-y-2">
                 <div>{conflict}</div>
