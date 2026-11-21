@@ -20551,6 +20551,7 @@ export type Database = {
         Args: { p_member_id: string; p_reason?: string }
         Returns: boolean
       }
+      referral_email_taken: { Args: { _email: string }; Returns: boolean }
       refresh_instructor_pay_period: {
         Args: { _period_id: string }
         Returns: {

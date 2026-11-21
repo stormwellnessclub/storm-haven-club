@@ -1408,6 +1408,13 @@
       "when": 1795254385106,
       "tag": "0200_guard_role_escalation_and_referrals",
       "breakpoints": true
+    },
+    {
+      "idx": 201,
+      "version": "7",
+      "when": 1795255079853,
+      "tag": "0201_fix_guard_triggers_caller_check",
+      "breakpoints": true
     }
   ]
 }
