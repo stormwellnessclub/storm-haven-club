@@ -26,7 +26,7 @@ export function BlackFridayPortalCard() {
           </p>
         </div>
         <Button asChild className="w-full shrink-0 sm:w-auto">
-          <Link to="/black-friday">
+          <Link to="/seasonal-edit">
             Discover <ArrowRight className="ml-1 h-4 w-4" />
           </Link>
         </Button>

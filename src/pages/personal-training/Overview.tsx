@@ -130,7 +130,7 @@ export default function PersonalTrainingOverview() {
                 Available in limited quantities{blackFriday.endsAt ? ` · ${saleEndLabel(blackFriday.endsAt)}` : ""}
               </p>
             </div>
-            <Link to="/black-friday" className="inline-flex shrink-0 items-center gap-3 self-start ed-caption pb-1 border-b border-foreground/40 hover:border-foreground transition-colors md:self-auto">
+            <Link to="/seasonal-edit" className="inline-flex shrink-0 items-center gap-3 self-start ed-caption pb-1 border-b border-foreground/40 hover:border-foreground transition-colors md:self-auto">
               Discover the Seasonal Edit <span aria-hidden>→</span>
             </Link>
           </div>

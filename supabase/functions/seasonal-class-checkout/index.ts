@@ -42,8 +42,8 @@ Deno.serve(async (req) => {
         { price_data: { currency: "usd", unit_amount: fee, product_data: { name: "Payment processing fee" } }, quantity: 1 },
       ],
       payment_intent_data: { description: label, metadata: { type: "seasonal_class_pack", offer_key: key, user_id: user.id } },
-      success_url: `${origin}/black-friday?movement=done&session_id={CHECKOUT_SESSION_ID}#movement-edit`,
-      cancel_url: `${origin}/black-friday#movement-edit`,
+      success_url: `${origin}/seasonal-edit?movement=done&session_id={CHECKOUT_SESSION_ID}#movement-edit`,
+      cancel_url: `${origin}/seasonal-edit#movement-edit`,
       metadata: { type: "seasonal_class_pack", offer_key: key, user_id: user.id },
     });
     try {

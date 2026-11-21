@@ -86,7 +86,7 @@ export default function BlackFriday() {
     requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
   const authLink = (mode: "signin" | "signup", hash = "") => {
-    const back = `/black-friday${view ? `?for=${view}` : ""}${hash}`;
+    const back = `/seasonal-edit${view ? `?for=${view}` : ""}${hash}`;
     return `/auth?${mode === "signup" ? "mode=signup&" : ""}redirect=${encodeURIComponent(back)}`;
   };
   const endsAt = packs[0]?.sale_ends_at ?? null;
@@ -147,7 +147,7 @@ export default function BlackFriday() {
       <SEOHead
         title="Black Friday at Storm Wellness Club"
         description="Black Friday semi-private personal training packages at Storm Wellness Club in Livonia, through Cyber Monday."
-        path="/black-friday"
+        path="/seasonal-edit"
       />
       {/* The Seasonal Edit: its own quiet opening, kept off the photo */}
       <section className="container pt-28 pb-10 md:pt-44 md:pb-16">

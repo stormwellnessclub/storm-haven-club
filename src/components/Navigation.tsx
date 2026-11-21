@@ -31,7 +31,7 @@ export function Navigation() {
   const { user, signOut } = useAuth();
   const { active: saleOn } = useBlackFridaySale();
   // Thin sale strip above the menu while the Black Friday sale runs (hidden on the sale page itself).
-  const showSaleStrip = saleOn && location.pathname !== "/black-friday";
+  const showSaleStrip = saleOn && location.pathname !== "/seasonal-edit";
 
   // Track scroll position for header styling
   useEffect(() => {
@@ -66,7 +66,7 @@ export function Navigation() {
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 safe-area-inset ${navBackground}`}>
       {showSaleStrip && (
         <Link
-          to="/black-friday"
+          to="/seasonal-edit"
           className="flex h-9 items-center justify-center gap-2 bg-foreground px-4 text-center text-[11px] uppercase tracking-[0.2em] text-background transition-opacity hover:opacity-90"
         >
           <span className="truncate">The Seasonal Edit<span className="hidden md:inline"> · An invitation to invest in what lasts</span></span>
