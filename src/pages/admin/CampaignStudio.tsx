@@ -163,12 +163,13 @@ export default function CampaignStudio() {
                   {list.map((c) => (
                     <li key={c.id}>
                       <button onClick={() => select(c.id)} className={`w-full p-3 text-left hover:bg-muted/50 ${c.id === selectedId ? "bg-muted" : ""}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-sm font-medium">{c.name}</span>
+                        <div className="flex items-start justify-between gap-2">
+                          {/* Full name, wrapped: many drafts share a long opening (e.g. "The Seasonal Edit — …") */}
+                          <span className="min-w-0 break-words text-sm font-medium">{c.name}</span>
                           <Badge variant={statusTone[c.status] as any} className="capitalize">{c.status}</Badge>
                         </div>
                         <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                          {c.send_email && <Mail className="h-3 w-3" />}{c.send_sms && <MessageSquare className="h-3 w-3" />}
+                          {c.send_email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />Email</span>}{c.send_sms && <span className="inline-flex items-center gap-1"><MessageSquare className="h-3 w-3" />Text</span>}
                           <span>{EVENT_TAGS[c.event_tag] ?? c.event_tag}</span>
                           <span>· {c.sent_at ? `Sent ${format(new Date(c.sent_at), "MMM d")}` : `Edited ${format(new Date(c.updated_at), "MMM d")}`}</span>
                         </div>
