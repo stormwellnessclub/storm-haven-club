@@ -32,6 +32,7 @@ export const AUDIENCES: Record<string, string> = {
   active_only: "Active members only (no frozen)",
   non_members: "Non-members with an account",
   email_list: "Everyone on the email list",
+  email_list_non_members: "Email list only: non-members without an account",
 };
 
 async function pageAll(sb: any, table: string, cols: string, apply: (q: any) => any = (q) => q) {
@@ -74,6 +75,17 @@ async function loadAudience(sb: any, key: string): Promise<Person[]> {
   } else if (key === "non_members") {
     const rows = await pageAll(sb, "non_member_profiles", "user_id, first_name, last_name, email, phone", (q) => q.is("merged_into_user_id", null));
     for (const r of rows) if (!memberByEmail.has(norm(r.email))) add({ ...r, member_id: null });
+  } else if (key === "email_list_non_members") {
+    // The imported/added email list, minus active or frozen members and minus anyone who has a
+    // non-member account (those people are already covered by the "non_members" audience).
+    const accounts = await pageAll(sb, "non_member_profiles", "email", (q) => q.is("merged_into_user_id", null));
+    const accountEmails = new Set(accounts.map((r: any) => norm(r.email)));
+    const rows = await pageAll(sb, "marketing_contacts", "email, first_name, last_name, phone", (q) => q.eq("opted_in_email", true).is("unsubscribed_at", null));
+    for (const r of rows) {
+      const e = norm(r.email);
+      if (!e || memberByEmail.has(e) || accountEmails.has(e)) continue;
+      add({ ...r, user_id: null, member_id: null });
+    }
   } else if (key === "email_list") {
     const rows = await pageAll(sb, "marketing_contacts", "email, first_name, last_name, phone", (q) => q.eq("opted_in_email", true).is("unsubscribed_at", null));
     for (const r of rows) add({ ...r, user_id: null, member_id: null });
