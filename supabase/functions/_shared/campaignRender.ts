@@ -5,7 +5,7 @@ export type Block =
   | { type: "eyebrow"; text: string }
   | { type: "heading"; text: string }
   | { type: "text"; text: string }
-  | { type: "image"; url: string; alt?: string }
+  | { type: "image"; url: string; alt?: string; link?: string }
   | { type: "cover"; url: string; title?: string; author?: string }
   // Event photo: large for invitations, thumbnail for confirmations, none = logo-only.
   | { type: "event_photo"; eventId?: string; url?: string | null; alt?: string; size?: "large" | "thumbnail" | "none"; position?: "top" | "center" | "bottom" }
@@ -33,7 +33,9 @@ function block(b: Block, firstName: string | null): string {
         .map((p) => `<p style="margin:0 0 16px;">${esc(p.trim().replace(/\{first_name\}/g, firstName || "there"))}</p>`).join("");
     case "image": {
       const u = safeUrl(b.url); if (!u) return "";
-      return `<img src="${u}" alt="${esc(b.alt)}" width="532" style="display:block;width:100%;height:auto;border:0;margin:0 0 22px;border-radius:3px;" />`;
+      const img = `<img src="${u}" alt="${esc(b.alt)}" width="532" style="display:block;width:100%;height:auto;border:0;margin:0 0 22px;border-radius:3px;" />`;
+      const href = safeUrl(b.link);
+      return href ? `<a href="${href}" style="display:block;text-decoration:none;">${img}</a>` : img;
     }
     case "event_photo": {
       const u = safeUrl(b.url); if (!u || b.size === "none") return "";

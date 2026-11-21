@@ -371,9 +371,10 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
                     {b.type === "text" && <><Textarea rows={6} value={b.text} onChange={(e) => setBlock(i, { text: e.target.value })} /><p className="text-xs text-muted-foreground">Leave a blank line between paragraphs. {"{first_name}"} becomes each person's first name.</p></>}
                     {(b.type === "image" || b.type === "cover") && (
                       <>
-                        <Input type="file" accept="image/jpeg,image/png" onChange={(e) => e.target.files?.[0] && uploadImage(i, e.target.files[0])} />
+                        <Input type="file" accept="image/jpeg,image/png,image/gif" onChange={(e) => e.target.files?.[0] && uploadImage(i, e.target.files[0])} />
                         <Input placeholder="or paste an image link (https://…)" value={b.url} onChange={(e) => setBlock(i, { url: e.target.value })} />
                         {b.type === "image" && <Input placeholder="Describe the photo (for screen readers)" value={b.alt ?? ""} onChange={(e) => setBlock(i, { alt: e.target.value })} />}
+                        {b.type === "image" && <Input placeholder="Optional: page that opens when the photo is tapped (https://…)" value={b.link ?? ""} onChange={(e) => setBlock(i, { link: e.target.value })} />}
                         {b.type === "cover" && <div className="grid grid-cols-2 gap-2"><Input placeholder="Title" value={b.title ?? ""} onChange={(e) => setBlock(i, { title: e.target.value })} /><Input placeholder="Author" value={b.author ?? ""} onChange={(e) => setBlock(i, { author: e.target.value })} /></div>}
                       </>
                     )}

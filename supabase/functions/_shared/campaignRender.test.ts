@@ -16,3 +16,13 @@ Deno.test("renderer escapes text and drops non-https links", () => {
   assert(html.includes("Hi Ana &lt;script&gt;"));
   assert(!html.includes("javascript:"));
 });
+
+Deno.test("image with an https link becomes tappable; unsafe links are dropped", () => {
+  const html = renderCampaignHtml([
+    { type: "image", url: "https://x.test/card.gif", alt: "Card", link: "https://stormwellnessclub.com/black-friday" },
+    { type: "image", url: "https://x.test/b.jpg", link: "javascript:alert(1)" },
+  ]);
+  assert(html.includes('<a href="https://stormwellnessclub.com/black-friday"'));
+  assertEquals(html.match(/<a href=/g)?.length, 2); // linked image + footer mailto only
+  assert(!html.includes("javascript:"));
+});
