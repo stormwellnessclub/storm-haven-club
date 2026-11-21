@@ -49,5 +49,5 @@
 - HSS gatherings are `events` rows; replies via `eventRsvp.ts`. Why: calendars.
 - PT client booking: one gate, `pt_effective_client_booking_mode`; instant waits on `pt_instant_booking_ready()`.
 - HSS: Upcoming/Events only; society RSVPs only.
-- Never grant identity, membership pricing, roles, gifts or charges from an email match alone (sign-ups are auto-confirmed): use the account-linked user_id or an explicit admin action. Why: anyone can register someone else's email.
-- Staff sign-ins cannot pick outside recipients: send-email only mails people on record (except staff/referral invites), send-sms honours bypassConsent only for the service-role key, test texts go only to the caller's own phone. Why: club senders must not reach arbitrary addresses.
+- Never grant pricing, roles, gifts or charges from an email match alone; use linked user_id or an admin action. Why: sign-ups are auto-confirmed.
+- Staff can't pick outside recipients: send-email mails only people on record (except invites); bypassConsent is service-role only; test texts go to the caller's own phone. Why: no arbitrary sends.
