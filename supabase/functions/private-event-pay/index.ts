@@ -72,6 +72,12 @@ serve(async (req) => {
     }
 
     if (action === "checkout") {
+      if (["void", "cancelled", "canceled", "refunded"].includes(String(invoice.status))) {
+        return new Response(JSON.stringify({ error: "This invoice is no longer open for payment." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
       if (invoice.status === "paid") {
         return new Response(JSON.stringify({ error: "This invoice is already paid." }), {
           status: 400,

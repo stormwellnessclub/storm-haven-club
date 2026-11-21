@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { neutralizeCsvFormula } from "@/lib/csvSafe";
 import { format } from "date-fns";
 import { Loader2, Download, Save, Send, Clock, Users } from "lucide-react";
 import { usePersonActivity } from "@/hooks/usePersonActivity";
@@ -33,7 +34,7 @@ const ACTIVITY_LABELS: Record<string, string> = {
 
 function csv(rows: PersonActivity[]) {
   const head = "Name,Email,Phone,Type,Texts allowed,Classes,Last class,Massages,Recovery,Café orders,Café spend,PT";
-  const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const esc = (v: unknown) => `"${neutralizeCsvFormula(v).replace(/"/g, '""')}"`;
   const lines = rows.map((p) => [`${p.first_name ?? ""} ${p.last_name ?? ""}`.trim(), p.email, p.phone, p.audience,
     isReachable(p) ? "yes" : "no", p.class_count, p.last_class_date, p.massage_count, p.recovery_count, p.cafe_count,
     Number(p.cafe_spend).toFixed(2), p.pt_count].map(esc).join(","));

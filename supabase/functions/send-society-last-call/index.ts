@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
 import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
-import { escapeHtml, isAllowedTestRecipient } from "../_shared/security.ts";
+import { escapeHtml, isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
 
 const corsHeaders = {
@@ -249,6 +249,7 @@ Deno.serve(async (req) => {
   if (body.testSms) {
     const phone = digits(body.testSms);
     if (phone.length !== 10) return json({ error: "Enter a 10-digit phone number" }, 400);
+    if (!(await isAllowedTestPhone(req, phone))) return json({ error: "Test texts can only go to the phone number saved on your own account" }, 400);
     const r = await sendSms(phone, null, `${SMS_KEY}-test-${Date.now()}`);
     return r.ok ? json({ ok: true, status: r.status }) : json({ ok: false, error: r.blocked ? "That number hasn't agreed to texts from the club" : (r.error || "Text not sent") });
   }

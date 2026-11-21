@@ -440,7 +440,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
               </div>
               <div className="space-y-2 rounded-lg border bg-card p-3">
                 <Label>Send yourself a test text</Label>
-                <Input type="tel" placeholder="10-digit phone" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} />
+                <Input type="tel" placeholder="Your own phone (saved on your account)" value={testPhone} onChange={(e) => setTestPhone(e.target.value)} />
                 <Button size="sm" variant="outline" disabled={!testPhone || !c.sms_body || busy === "ts"} onClick={() => run("ts", async () => { await call("test_sms", { phone: testPhone, sms: c.sms_body, image: c.sms_image_url }); toast.success("Test text sent"); })}>
                   {busy === "ts" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send test text"}
                 </Button>

@@ -80,3 +80,27 @@ export async function isAllowedTestRecipient(req: Request, email: string): Promi
   const user = await getSignedInUser(req);
   return !!user && user.email === e;
 }
+
+/**
+ * Phone numbers allowed for staff "send test" texts: only the caller's own phone
+ * saved on their account. Stops test sends being used to text arbitrary people.
+ */
+export async function isAllowedTestPhone(req: Request, phone: string): Promise<boolean> {
+  const want = String(phone || "").replace(/\D/g, "").slice(-10);
+  if (want.length !== 10) return false;
+  const user = await getSignedInUser(req);
+  if (!user) return false;
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } },
+  );
+  const [{ data: prof }, { data: nmp }] = await Promise.all([
+    admin.from("profiles").select("phone").eq("user_id", user.id).maybeSingle(),
+    admin.from("non_member_profiles").select("phone").eq("user_id", user.id).maybeSingle(),
+  ]);
+  const own = [prof?.phone, nmp?.phone]
+    .map((p) => String(p ?? "").replace(/\D/g, "").slice(-10))
+    .filter((p) => p.length === 10);
+  return own.includes(want);
+}

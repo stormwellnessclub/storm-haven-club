@@ -19,7 +19,29 @@ const PUBLIC_EMAIL_TYPES = new Set<string>([
 
 
 
-async function authorizeRequest(req: Request, type: string, to?: string): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+// Staff may only email people the club already has on record. These types are the
+// exception because they invite someone new (a new team member or a referred friend).
+const STAFF_NEW_RECIPIENT_TYPES = new Set<string>(['staff_invite', 'referral_invite']);
+
+/** True when the address belongs to a member, client, applicant, guest, gift recipient or event client on record. */
+async function isKnownClubContact(admin: ReturnType<typeof createClient>, email: string): Promise<boolean> {
+  const e = email.trim().toLowerCase();
+  if (!e || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(e)) return false;
+  if (e.endsWith('@stormwellnessclub.com')) return true;
+  const pattern = e.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const checks: Array<[string, string]> = [
+    ['profiles', 'email'], ['members', 'email'], ['non_member_profiles', 'email'],
+    ['membership_applications', 'email'], ['marketing_contacts', 'email'], ['guest_passes', 'guest_email'],
+    ['gift_cards', 'recipient_email'], ['gift_cards', 'purchaser_email'], ['member_referrals', 'referred_email'],
+    ['private_event_requests', 'email'], ['event_financials', 'client_email'],
+    ['spa_appointments', 'guest_email'], ['spa_guest_checkouts', 'guest_email'],
+  ];
+  const results = await Promise.all(checks.map(([table, col]) =>
+    admin.from(table).select(col).ilike(col, pattern).limit(1).then((r: any) => !r.error && (r.data?.length ?? 0) > 0, () => false)));
+  return results.some(Boolean);
+}
+
+async function authorizeRequest(req: Request, type: string, to?: string, preview = false): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const authHeader = req.headers.get('Authorization') ?? '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
 
@@ -83,6 +105,16 @@ async function authorizeRequest(req: Request, type: string, to?: string): Promis
     if (!isStaff) {
       console.warn('send-email auth: no staff role for user', data.user.id);
       return { ok: false, status: 403, error: 'Staff role required' };
+    }
+    // Staff sends must go to someone the club already has on record, so a staff
+    // sign-in cannot be used to mail arbitrary outside addresses from club senders.
+    // Previews render only and never send, so they need no recipient check.
+    if (!preview && (typeof to !== 'string' || !to.trim())) {
+      return { ok: false, status: 400, error: 'Recipient required' };
+    }
+    if (!preview && !STAFF_NEW_RECIPIENT_TYPES.has(type) && !(await isKnownClubContact(admin, String(to ?? '')))) {
+      console.warn('send-email auth: recipient not on record for type', type);
+      return { ok: false, status: 403, error: 'This address is not on record as a member, client, applicant or guest.' };
     }
     return { ok: true };
   } catch (e) {
@@ -174,7 +206,7 @@ serve(async (req) => {
     const { type, to, data, preview }: EmailRequest & { preview?: boolean } = await req.json();
 
     // Authorize: require service-role key or valid JWT, except for whitelisted public types
-    const authz = await authorizeRequest(req, type, to);
+    const authz = await authorizeRequest(req, type, to, preview === true);
     if (!authz.ok) {
       console.warn(`Unauthorized send-email request for type: ${type}`);
       return new Response(

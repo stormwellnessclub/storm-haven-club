@@ -427,6 +427,12 @@ serve(async (req) => {
       if (!invoice) {
         return new Response(JSON.stringify({ error: "Invoice not found." }), { status: 404, headers: corsHeaders });
       }
+      if (["void", "cancelled", "canceled", "refunded"].includes(String(invoice.status))) {
+        return new Response(JSON.stringify({ error: "This invoice is no longer open for payment." }), {
+          status: 400,
+          headers: corsHeaders,
+        });
+      }
       const remaining = (invoice.amount_cents ?? 0) - (invoice.amount_paid_cents ?? 0);
       if (remaining <= 0) {
         return new Response(JSON.stringify({ error: "This invoice is already paid in full." }), {

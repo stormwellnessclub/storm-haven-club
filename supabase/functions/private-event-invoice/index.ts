@@ -100,6 +100,7 @@ serve(async (req) => {
       .maybeSingle();
     if (!invoice) return fail("Invoice not found.", 404);
     if (invoice.status === "paid") return fail("This invoice is already paid.");
+    if (["void", "cancelled", "canceled", "refunded"].includes(String(invoice.status))) return fail("This invoice is no longer open for payment.");
 
     const { data: event } = await supabase
       .from("private_events")

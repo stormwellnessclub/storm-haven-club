@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
         .select("role")
         .eq("user_id", callerUserId);
       callerIsAdmin = !!(roleRows ?? []).some((r: any) =>
-        ["admin", "super_admin", "front_desk", "manager", "staff"].includes(r.role),
+        ["admin", "super_admin", "front_desk", "manager"].includes(r.role),
       );
     }
 
@@ -360,7 +360,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    const allowSend = optedIn || (callerIsAdmin && !isInternalJob && body.bypassConsent === true);
+    // Consent is required for every staff and job send. Only another server holding the
+    // service-role key may skip it (system confirmations it already verified). A staff
+    // sign-in can never text a number that has not agreed to texts from the club.
+    const allowSend = optedIn || (isServerCaller && body.bypassConsent === true);
 
     if (!allowSend) {
       await admin.from("sms_messages").insert({

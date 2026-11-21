@@ -28,10 +28,12 @@ serve(async (req) => {
     const { data: settings } = await supabase.from("body_roller_presale_settings").select("ends_at").eq("id", 1).maybeSingle();
     if (settings && new Date(settings.ends_at).getTime() < Date.now()) return json({ error: "The presale has ended." }, 400);
 
-    // Server-side member verification — client flags are ignored.
+    // Server-side member verification — client flags are ignored. Only a member
+    // record already linked to this account counts; a typed or self-registered
+    // email address never proves membership.
     const { data: members } = await supabase
       .from("members").select("id, first_name, last_name, email, status, user_id")
-      .or(`user_id.eq.${user.id},email.ilike.${user.email}`);
+      .eq("user_id", user.id);
     const member: any = (members ?? []).find((m: any) => m.status === "active") ?? null;
     if (opt.audience === "member" && !member) return json({ error: "Member presale pricing is for active members. Non-members can reserve at the regular price." }, 403);
     if (opt.audience === "non_member" && member) return json({ error: "As an active member, please use member presale pricing." }, 400);

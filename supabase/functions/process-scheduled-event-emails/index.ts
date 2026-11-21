@@ -71,6 +71,22 @@ serve(async (req) => {
         continue;
       }
 
+      // Scheduled rows are written by staff, so the recipient is checked at send time:
+      // only the event's own client email (or a club address) may receive it.
+      const toLower = String(comm.to_email).trim().toLowerCase();
+      const clientLower = String(financial.client_email ?? "").trim().toLowerCase();
+      if (!(toLower && (toLower === clientLower || toLower.endsWith("@stormwellnessclub.com")))) {
+        await supabase
+          .from("event_financial_communications")
+          .update({ status: "failed", error_message: "Recipient must be this event's client email. Update the event's client email, then send again." })
+          .eq("id", comm.id);
+        results.skipped++;
+        continue;
+      }
+      const safeReplyTo = comm.reply_to && String(comm.reply_to).trim().toLowerCase().endsWith("@stormwellnessclub.com")
+        ? String(comm.reply_to).trim()
+        : undefined;
+
       let invoice: any = null;
       if (comm.invoice_id) {
         const { data } = await supabase.from("event_invoices").select("*").eq("id", comm.invoice_id).maybeSingle();
@@ -125,7 +141,7 @@ serve(async (req) => {
         to: comm.to_email,
         subject: comm.subject,
         html,
-        replyTo: comm.reply_to ?? undefined,
+        replyTo: safeReplyTo,
       });
       const nowIso = new Date().toISOString();
 

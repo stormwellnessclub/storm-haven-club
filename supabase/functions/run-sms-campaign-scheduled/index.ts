@@ -1,8 +1,13 @@
 // Woken by a one-time timer. Sends targeted text campaigns staff already scheduled, once their time arrives.
-// Safe to call publicly: it only runs rows already scheduled by staff and claims each one once.
+// Only the timer (vault-held internal task token), another server (service-role key) or an
+// admin/manager may trigger it; public keys are rejected.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { requireTrustedCaller } from "../_shared/requireTrustedCaller.ts";
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok");
+  const gate = await requireTrustedCaller(req);
+  if (!gate.ok) return gate.response;
   const url = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const { data: due } = await sb.from("sms_campaigns").select("id")

@@ -34,13 +34,14 @@ serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
     if (userErr || !userData.user) throw new Error("Authentication failed");
     const user = userData.user;
-    const emailLower = (user.email || "").toLowerCase();
-    if (!emailLower) throw new Error("No email on user");
-
+    // Only the member record linked to this account may be charged. Never match
+    // by email: an account's email alone does not prove it owns a member record.
     const { data: member, error: mErr } = await supabase
       .from("members")
       .select("id, stripe_customer_id, email")
-      .ilike("email", emailLower)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (mErr) throw mErr;
     if (!member) throw new Error("Member record not found");

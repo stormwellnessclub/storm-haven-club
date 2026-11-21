@@ -146,7 +146,7 @@ export default function Instructors() {
         redirectTo: `${window.location.origin}/reset-password`,
       });
       if (resetErr) toast.error(`No account yet — invite failed: ${resetErr.message}`);
-      else toast.success(`Invite email sent to ${inst.email}. They'll set a password, then get portal access automatically.`);
+      else toast.success(`No account yet for ${inst.email}. Once they create their account with this email, tap Grant portal access again to turn it on.`);
     } else {
       toast.error(data?.reason || "Failed to grant portal access");
     }

@@ -317,12 +317,22 @@ Generate 5-8 exercises for a ${targetDuration} minute ${targetWorkoutType} worko
         }
 
         const programPrefs = preferences || {};
-        const programType = programPrefs.programType || 'strength';
+        // Only fixed menu choices may reach the program prompt: anything else the
+        // caller sends is replaced by a default or dropped, so free text can never
+        // become model instructions.
+        const PROGRAM_TYPES = new Set(['strength', 'hypertrophy', 'fat_loss', 'endurance']);
+        const SPLIT_TYPES = new Set(['push_pull_legs', 'upper_lower', 'full_body', 'bro_split', 'custom']);
+        const BODY_PARTS = new Set(['glutes', 'quads', 'hamstrings', 'calves', 'back', 'chest', 'shoulders', 'arms', 'core', 'legs', 'biceps', 'triceps', 'abs', 'full_body']);
+        const onlyParts = (list: unknown) =>
+          (Array.isArray(list) ? list : []).map((x) => String(x).toLowerCase()).filter((x) => BODY_PARTS.has(x));
+        const programType = PROGRAM_TYPES.has(programPrefs.programType) ? programPrefs.programType : 'strength';
         const daysPerWeek = programPrefs.daysPerWeek || 4;
         const programDuration = programPrefs.durationWeeks || 4;
-        const splitType = programPrefs.splitType || 'push_pull_legs';
-        const targetParts = programPrefs.targetBodyParts || [];
-        const customSplit = programPrefs.customSplit || [];
+        const splitType = SPLIT_TYPES.has(programPrefs.splitType) ? programPrefs.splitType : 'push_pull_legs';
+        const targetParts = onlyParts(programPrefs.targetBodyParts);
+        const customSplit = (Array.isArray(programPrefs.customSplit) ? programPrefs.customSplit : [])
+          .map((d: any) => ({ day: d.day, muscles: onlyParts(d.muscles) }))
+          .filter((d: any) => d.muscles.length > 0);
 
         // Fetch ALL active equipment
         const { data: programEquipment } = await supabase

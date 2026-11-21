@@ -110,6 +110,8 @@ const STAFF_ROLES = [
   "class_instructor",
 ];
 
+const DESK_ROLES = new Set(["super_admin", "admin", "manager", "front_desk"]);
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -126,14 +128,14 @@ const jsonResponse = (body: unknown, status: number) =>
 async function resolveCaller(
   req: Request,
   supabase: ReturnType<typeof createClient>,
-): Promise<{ userId: string | null; isStaff: boolean } | null> {
+): Promise<{ userId: string | null; isStaff: boolean; isDeskStaff: boolean } | null> {
   const auth = req.headers.get("Authorization");
   if (!auth?.startsWith("Bearer ")) return null;
   const token = auth.slice(7);
 
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   if (serviceKey && token === serviceKey) {
-    return { userId: null, isStaff: true };
+    return { userId: null, isStaff: true, isDeskStaff: true };
   }
 
   const { data: userData, error: userErr } = await supabase.auth.getUser(token);
@@ -145,9 +147,12 @@ async function resolveCaller(
     .eq("user_id", userData.user.id)
     .in("role", STAFF_ROLES);
 
+  const roles = (roleRows ?? []).map((r: any) => String(r.role));
   return {
     userId: userData.user.id,
-    isStaff: Boolean(roleRows && roleRows.length > 0),
+    isStaff: roles.length > 0,
+    // Desk staff may email any client; class instructors only their own PT clients.
+    isDeskStaff: roles.some((r) => DESK_ROLES.has(r)),
   };
 }
 
@@ -186,6 +191,15 @@ serve(async (req) => {
       if (kind === "session_recap" || appt.user_id !== caller.userId) {
         return jsonResponse({ error: "Forbidden" }, 403);
       }
+    } else if (!caller.isDeskStaff) {
+      // Instructors may only email clients of appointments they are assigned to.
+      let ownsAppointment = false;
+      if (appt.instructor_id && caller.userId) {
+        const { data: inst } = await supabase
+          .from("instructors").select("user_id").eq("id", appt.instructor_id).maybeSingle();
+        ownsAppointment = inst?.user_id === caller.userId;
+      }
+      if (!ownsAppointment) return jsonResponse({ error: "Forbidden" }, 403);
     }
 
 

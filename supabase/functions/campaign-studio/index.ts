@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
 import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
-import { isAllowedTestRecipient } from "../_shared/security.ts";
+import { isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
 import { blocksText, brandIssues, renderCampaignHtml, type Block } from "../_shared/campaignRender.ts";
 import { runGoogleReviewTick, readGoogleReviews } from "../_shared/googleReviewFlow.ts";
@@ -266,6 +266,7 @@ Deno.serve(async (req) => {
       case "test_sms": {
         const ph = digits(body.phone);
         if (ph.length !== 10) return json({ ok: false, error: "Enter a 10-digit phone number" });
+        if (!(await isAllowedTestPhone(req, ph))) return json({ ok: false, error: "Test texts can only go to the phone number saved on your own account" });
         const text = smsWithStop(`Storm Wellness Club: ${String(body.sms ?? "").replace(/^storm wellness club:\s*/i, "")}`);
         const r = await sendSms(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, ph, null, `mkt-test-${Date.now()}:${ph}`, text, body.image ?? null);
         return json(r.ok ? { ok: true } : { ok: false, error: r.blocked ? "That number hasn't agreed to texts from the club" : (r.error || "Text not sent") });

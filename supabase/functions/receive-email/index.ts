@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { maskEmail } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -109,7 +110,7 @@ serve(async (req) => {
       );
     }
 
-    console.log("Received email webhook:", payload.type, "from:", payload.data?.from);
+    console.log("Received email webhook:", payload.type, "from:", maskEmail(payload.data?.from));
 
     // Only process email.received events
     if (payload.type !== 'email.received') {
@@ -150,7 +151,7 @@ serve(async (req) => {
     
     // Validate email format
     if (!isValidEmail(cleanEmail)) {
-      console.error("Invalid sender email format:", cleanEmail);
+      console.error("Invalid sender email format:", maskEmail(cleanEmail));
       return new Response(
         JSON.stringify({ error: 'Invalid sender email format' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
@@ -161,7 +162,7 @@ serve(async (req) => {
       senderName = sanitizeText(nameMatch[1], MAX_NAME_LENGTH);
     }
 
-    console.log(`Processing validated email from: ${cleanEmail}, subject: ${subject.slice(0, 50)}...`);
+    console.log(`Processing validated email from: ${maskEmail(cleanEmail)}`);
 
     // Look up user by email in profiles table
     const { data: profile, error: profileError } = await supabase
@@ -263,7 +264,7 @@ serve(async (req) => {
 
     // 4. Unknown sender AND no plus-addressed match — log and drop
     if (!conversationId) {
-      console.log(`Email from unknown sender with no conversation match: ${cleanEmail}`);
+      console.log(`Email from unknown sender with no conversation match: ${maskEmail(cleanEmail)}`);
       return new Response(
         JSON.stringify({
           success: true,

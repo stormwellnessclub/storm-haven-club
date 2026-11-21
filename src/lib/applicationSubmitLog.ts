@@ -39,13 +39,24 @@ async function send(body: LogBody, allowQueue = true) {
   }
 }
 
+function randomUuidFallback(): string {
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
 /** Stable per-submit key so start/result pair up and retries stay idempotent. */
 export function newSubmitKey(email: string): string {
+  // The random part is what proves a later "result" call came from the same
+  // browser that started the attempt, so it must always be a full random UUID.
   const rand =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
-      : String(Math.random()).slice(2);
-  return `${email.trim().toLowerCase()}:${Date.now()}:${rand}`.slice(0, 120);
+      : randomUuidFallback();
+  return `${email.trim().toLowerCase().slice(0, 60)}:${Date.now()}:${rand}`;
 }
 
 export async function logSubmitStart(args: {
