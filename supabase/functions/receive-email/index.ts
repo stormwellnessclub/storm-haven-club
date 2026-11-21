@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { maskEmail } from "../_shared/security.ts";
+import { isUnsubscribeReply } from "../_shared/unsubscribeReply.ts";
+import { recordEmailPreference } from "../_shared/emailUnsubscribe.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -163,6 +165,16 @@ serve(async (req) => {
     }
 
     console.log(`Processing validated email from: ${maskEmail(cleanEmail)}`);
+
+    // "Unsubscribe" / "remove me" replies are recorded by the system, not put in the admin inbox.
+    if (isUnsubscribeReply(subject, messageBody)) {
+      await recordEmailPreference(supabase, cleanEmail, false);
+      console.log(`Recorded unsubscribe reply from: ${maskEmail(cleanEmail)}`);
+      return new Response(
+        JSON.stringify({ success: true, message: 'Unsubscribe recorded' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
 
     // Look up user by email in profiles table
     const { data: profile, error: profileError } = await supabase

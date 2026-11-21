@@ -5,7 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireStaff } from "../_shared/requireStaff.ts";
-import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
+import { currentInternalToken, isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 import { isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
 import { blocksText, brandIssues, renderCampaignHtml, type Block } from "../_shared/campaignRender.ts";
@@ -104,49 +104,101 @@ async function sendSms(url: string, key: string, phone: string, userId: string |
 
 const smsWithStop = (t: string) => /reply stop/i.test(t) ? t : `${t.trim()} Reply STOP to opt out.`;
 
+// Big lists are sent in time-limited rounds: each round stops before the function's time
+// limit and hands the rest to a fresh round. Everyone already handled is skipped, so a
+// round never emails or texts the same person twice.
+const ROUND_MS = 110_000;
+const MAX_ROUNDS = 60;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const isRateLimited = (err: any) => !!err && (err.statusCode === 429 || err.name === "rate_limit_exceeded" || /rate limit|too many requests/i.test(String(err.message ?? "")));
+
+async function startNextRound(id: string) {
+  const token = await currentInternalToken();
+  if (!token) throw new Error("Internal token unavailable");
+  const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/campaign-studio`, {
+    method: "POST", headers: { "Content-Type": "application/json", "x-internal-token": token },
+    body: JSON.stringify({ action: "continue_campaign", id }),
+  });
+  if (!r.ok) throw new Error(`Next round did not start (${r.status})`);
+}
+
+/** Marks a campaign as sending only if it is still in `from` status; false if someone else got it first. */
+async function claimCampaign(sb: any, id: string, from: string[]) {
+  const { data } = await sb.from("marketing_campaigns").update({ status: "sending", last_error: null }).eq("id", id).in("status", from).select("id");
+  return (data?.length ?? 0) > 0;
+}
+
 async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
   const url = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  await sb.from("marketing_campaigns").update({ status: "sending", last_error: null }).eq("id", c.id);
+  const deadline = Date.now() + ROUND_MS;
+  const round = (Number(c.stats?.round) || 0) + 1;
+  let more = false;
   const people = await loadAudience(sb, c.audience_key);
   const emailType = `campaign_${c.id}`;
-  const stats: any = { audience: people.length, email: { sent: 0, skipped: 0, failed: 0 }, sms: { sent: 0, skipped: 0, failed: 0 } };
+  const stats: any = { audience: people.length, round, email: { sent: 0, skipped: 0, failed: 0 }, sms: { sent: 0, skipped: 0, failed: 0 } };
   try {
     if (c.send_email) {
       const resendKey = Deno.env.get("RESEND_API_KEY");
       if (!resendKey) throw new Error("Email service is not configured");
       const resend = new Resend(resendKey);
       const suppressed = await loadSuppressedEmails(sb);
-      const done = new Set((await pageAll(sb, "email_audit_log", "recipient_email", (q) => q.eq("email_type", emailType).eq("status", "sent"))).map((r: any) => norm(r.recipient_email)));
+      const prior = await pageAll(sb, "email_audit_log", "recipient_email, status", (q) => q.eq("email_type", emailType));
+      const done = new Set(prior.filter((r: any) => r.status === "sent").map((r: any) => norm(r.recipient_email)));
+      const failedBefore = new Set(prior.filter((r: any) => r.status === "failed").map((r: any) => norm(r.recipient_email)));
       for (const p of people) {
-        if (suppressed.has(p.email) || done.has(p.email)) { stats.email.skipped++; continue; }
+        if (done.has(p.email)) { stats.email.sent++; continue; }
+        if (suppressed.has(p.email)) { stats.email.skipped++; continue; }
+        if (failedBefore.has(p.email)) { stats.email.failed++; continue; }
+        if (Date.now() > deadline) { more = true; break; }
+        let err: any = null;
         try {
-          const resp = await resend.emails.send({ from: FROM, to: [p.email], subject: c.subject,
-            html: await withMarketingFooter(renderCampaignHtml(c.blocks, { firstName: p.first_name, preheader: c.preheader }), p.email),
-            reply_to: "admin@stormwellnessclub.com", headers: await marketingHeaders(p.email) } as any);
-          const err = (resp as any)?.error?.message ?? null;
-          await sb.from("email_audit_log").insert({ recipient_email: p.email, recipient_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
-            email_type: emailType, trigger_source: "campaign_studio", triggered_by: triggeredBy, member_id: p.member_id,
-            subject: c.subject, status: err ? "failed" : "sent", error_message: err });
-          if (err) stats.email.failed++; else stats.email.sent++;
-        } catch { stats.email.failed++; }
-        await new Promise((r) => setTimeout(r, 550));
+          for (let attempt = 0; attempt < 4; attempt++) {
+            const resp = await resend.emails.send({ from: FROM, to: [p.email], subject: c.subject,
+              html: await withMarketingFooter(renderCampaignHtml(c.blocks, { firstName: p.first_name, preheader: c.preheader }), p.email),
+              reply_to: "admin@stormwellnessclub.com", headers: await marketingHeaders(p.email) } as any);
+            err = (resp as any)?.error ?? null;
+            if (!isRateLimited(err)) break;
+            await sleep(1500 * (attempt + 1));
+          }
+        } catch (e) { err = { message: String((e as Error)?.message ?? e) }; }
+        const msg = err ? String(err.message ?? "Send failed") : null;
+        await sb.from("email_audit_log").insert({ recipient_email: p.email, recipient_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
+          email_type: emailType, trigger_source: "campaign_studio", triggered_by: triggeredBy, member_id: p.member_id,
+          subject: c.subject, status: msg ? "failed" : "sent", error_message: msg });
+        if (msg) stats.email.failed++; else stats.email.sent++;
+        await sleep(550);
       }
     }
-    if (c.send_sms && c.sms_body) {
-      // Skip numbers this campaign already texted (safe resume), and pace sends to stay under the texting rate limit.
-      const already = new Set((await pageAll(sb, "sms_messages", "idempotency_key", (q) => q.like("idempotency_key", `mkt-${c.id}:%`).eq("status", "sent")))
-        .map((r: any) => String(r.idempotency_key).split(":")[1]));
+    if (c.send_sms && c.sms_body && !more) {
+      // Numbers this campaign already handled (sent, failed, or blocked for no consent) are not tried again.
+      const handled = new Map<string, string>();
+      for (const r of await pageAll(sb, "sms_messages", "idempotency_key, status", (q) => q.like("idempotency_key", `mkt-${c.id}:%`)))
+        handled.set(String(r.idempotency_key).split(":")[1], String(r.status));
       const seen = new Set<string>();
       const text = smsWithStop(`Storm Wellness Club: ${c.sms_body.replace(/^storm wellness club:\s*/i, "")}`);
       for (const p of people) {
         const ph = digits(p.phone);
         if (ph.length !== 10 || seen.has(ph)) { stats.sms.skipped++; continue; }
         seen.add(ph);
-        if (already.has(ph)) { stats.sms.sent++; continue; }
-        await new Promise((r) => setTimeout(r, 2200));
+        const prev = handled.get(ph);
+        if (prev) {
+          if (prev === "failed" || prev === "undelivered") stats.sms.failed++;
+          else if (prev === "blocked_no_consent") stats.sms.skipped++;
+          else stats.sms.sent++;
+          continue;
+        }
+        if (Date.now() > deadline) { more = true; break; }
+        await sleep(2200);
         const r = await sendSms(url, key, ph, p.user_id, `mkt-${c.id}:${ph}`, text, c.sms_image_url);
         if (r.ok) stats.sms.sent++; else if (r.blocked) stats.sms.skipped++; else stats.sms.failed++;
       }
+    }
+    if (more) {
+      if (round >= MAX_ROUNDS) throw new Error("Stopped after too many rounds. Press Send to finish the rest; nobody gets it twice.");
+      await sb.from("marketing_campaigns").update({ stats: { ...stats, in_progress: true } }).eq("id", c.id);
+      try { await startNextRound(c.id); }
+      catch (e) { throw new Error(`Paused partway (${(e as Error).message}). Press Send to finish the rest; nobody gets it twice.`); }
+      return { ...stats, in_progress: true };
     }
     await sb.from("marketing_campaigns").update({ status: "sent", sent_at: new Date().toISOString(), stats }).eq("id", c.id);
     return stats;
@@ -218,11 +270,19 @@ Deno.serve(async (req) => {
   try {
     const presented = presentedInternalToken(req);
     if (presented) {
-      if (!(await isValidInternalToken(presented)) || !["run_scheduled", "review_tick"].includes(body.action)) return json({ error: "Forbidden" }, 403);
+      if (!(await isValidInternalToken(presented)) || !["run_scheduled", "continue_campaign", "review_tick"].includes(body.action)) return json({ error: "Forbidden" }, 403);
       if (body.action === "review_tick") return json(await runGoogleReviewTick(sb));
       const { data: c } = await sb.from("marketing_campaigns").select("*").eq("id", body.id).maybeSingle();
-      if (!c || c.status !== "scheduled") return json({ ok: false, skipped: "not scheduled" });
-      return json({ ok: true, stats: await runCampaign(sb, c, null) });
+      if (!c) return json({ ok: false, skipped: "not found" });
+      if (body.action === "run_scheduled") {
+        if (c.status !== "scheduled" || !(await claimCampaign(sb, c.id, ["scheduled"]))) return json({ ok: false, skipped: "not scheduled" });
+        c.stats = null; // a fresh send starts at round 1
+      } else if (c.status !== "sending") return json({ ok: false, skipped: "not sending" });
+      // Answer right away; the round keeps running in the background.
+      const work = runCampaign(sb, c, null).catch((e) => console.error("campaign-studio round", e));
+      // @ts-ignore EdgeRuntime is provided by the runtime
+      if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work); else await work;
+      return json({ ok: true, started: true }, 202);
     }
 
     const gate = await requireStaff(req, ["super_admin", "admin", "manager"]);
@@ -276,6 +336,9 @@ Deno.serve(async (req) => {
         if (!c) return json({ ok: false, error: "Campaign not found" });
         if (c.status === "sent" || c.status === "sending") return json({ ok: false, error: "This campaign was already sent" });
         if (!c.subject && c.send_email) return json({ ok: false, error: "Add a subject first" });
+        if (c.status === "scheduled") return json({ ok: false, error: "This campaign is scheduled. Stop the schedule first to send it now." });
+        if (!(await claimCampaign(sb, c.id, ["draft", "failed"]))) return json({ ok: false, error: "This campaign is already sending" });
+        c.stats = null;
         return json({ ok: true, stats: await runCampaign(sb, c, uid) });
       }
       case "ai_draft": {

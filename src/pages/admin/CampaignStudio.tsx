@@ -285,9 +285,10 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
     if (!confirm(`Send now to ${aud?.label ?? "this audience"} (${aud?.count ?? "?"} people)? Unsubscribed people and people who haven't agreed to texts are skipped automatically.`)) return;
     if (!(await save(true))) return;
     const s = (await call("send", { id: c.id })).stats;
-    toast.success(`Sent: ${s.email.sent} emails, ${s.sms.sent} texts`);
+    if (s.in_progress) toast.success(`Sending to a big list: ${s.email.sent} emails and ${s.sms.sent} texts so far. The rest keeps going in the background.`);
+    else toast.success(`Sent: ${s.email.sent} emails, ${s.sms.sent} texts`);
     qc.invalidateQueries({ queryKey: ["marketing-campaigns"] });
-    setC((p) => ({ ...p, status: "sent", stats: s }));
+    setC((p) => ({ ...p, status: s.in_progress ? "sending" : "sent", stats: s }));
   });
   const remove = async () => {
     if (!confirm("Delete this campaign?")) return;

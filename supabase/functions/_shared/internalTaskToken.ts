@@ -60,3 +60,8 @@ export async function isValidInternalToken(presented: string): Promise<boolean> 
   const legacy = (Deno.env.get("INTERNAL_TASK_TOKEN") ?? "").trim();
   return !!legacy && timingSafeEqual(presented, legacy);
 }
+
+/** The token this function should present when it calls another internal function. */
+export async function currentInternalToken(): Promise<string | null> {
+  return (await vaultToken()) ?? ((Deno.env.get("INTERNAL_TASK_TOKEN") ?? "").trim() || null);
+}
