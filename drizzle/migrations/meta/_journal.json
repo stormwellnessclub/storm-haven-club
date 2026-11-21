@@ -1394,6 +1394,13 @@
       "when": 1795251673831,
       "tag": "0198_lock_payment_rpcs_and_cafe_credit",
       "breakpoints": true
+    },
+    {
+      "idx": 199,
+      "version": "7",
+      "when": 1795253661230,
+      "tag": "0199_guard_self_unblock_and_guest_card_link",
+      "breakpoints": true
     }
   ]
 }
