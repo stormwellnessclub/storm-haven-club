@@ -1401,6 +1401,13 @@
       "when": 1795253661230,
       "tag": "0199_guard_self_unblock_and_guest_card_link",
       "breakpoints": true
+    },
+    {
+      "idx": 200,
+      "version": "7",
+      "when": 1795254385106,
+      "tag": "0200_guard_role_escalation_and_referrals",
+      "breakpoints": true
     }
   ]
 }
