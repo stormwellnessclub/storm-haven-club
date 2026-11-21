@@ -1366,6 +1366,13 @@
       "when": 1795223829889,
       "tag": "0194_private_event_conflicts_staff_only",
       "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1795228954454,
+      "tag": "0195_class_booking_owner_check",
+      "breakpoints": true
     }
   ]
 }
