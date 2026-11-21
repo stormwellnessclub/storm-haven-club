@@ -1387,6 +1387,13 @@
       "when": 1795251049913,
       "tag": "0197_security_guards_selected_findings",
       "breakpoints": true
+    },
+    {
+      "idx": 198,
+      "version": "7",
+      "when": 1795251673831,
+      "tag": "0198_lock_payment_rpcs_and_cafe_credit",
+      "breakpoints": true
     }
   ]
 }

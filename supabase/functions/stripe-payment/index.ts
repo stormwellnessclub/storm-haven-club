@@ -805,26 +805,11 @@ serve(async (req) => {
     // Command 0A verification: ownership follows the IMMUTABLE relationship
     //   auth.uid() -> members.user_id / non_member_profiles.user_id -> stripe_customer_id
     // Email equality alone is NEVER proof of ownership (shared / duplicate /
-    // changed emails exist on this platform). The only email use is a narrow
-    // legacy-recovery path for member rows that have never been linked to any
-    // auth user (user_id IS NULL) — and those rows are linked to the caller
-    // first, so access is granted through the immutable relationship.
+    // changed emails exist on this platform, and sign-ups are not
+    // email-verified), so unlinked member rows are never adopted here.
     const callerStripeCustomerIds = async (): Promise<string[]> => {
       if (!user?.id) return [];
       const ids = new Set<string>();
-
-      // Legacy recovery: adopt unlinked member rows matching the caller email.
-      if (user.email) {
-        const { data: orphanRows } = await supabase
-          .from('members')
-          .select('id')
-          .is('user_id', null)
-          .ilike('email', user.email);
-        for (const r of orphanRows ?? []) {
-          await supabase.from('members').update({ user_id: user.id }).eq('id', r.id).is('user_id', null);
-          logStep("Linked legacy unlinked member row to caller", { memberId: r.id });
-        }
-      }
 
       const { data: memberRows } = await supabase
         .from('members')
@@ -2230,7 +2215,11 @@ serve(async (req) => {
           const owned = await callerStripeCustomerIds();
           ownsDirectCustomer = owned.includes(directCustomerId);
         }
-        if (!ownsDirectCustomer) {
+        if (!kioskMode && typeof directCustomerId === 'string' && directCustomerId && !ownsDirectCustomer) {
+          // The stripeCustomerId is what gets charged (it wins over memberId
+          // below), so owning memberId proves nothing here: staff only.
+          await assertStaff(['super_admin', 'admin', 'manager', 'front_desk']);
+        } else if (!ownsDirectCustomer) {
           await assertOwnerOrStaff(memberId, ['super_admin', 'admin', 'manager', 'front_desk']);
         }
 
