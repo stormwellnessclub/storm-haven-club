@@ -1,0 +1,1 @@
+- Member Kids Care booking/cancel use member_book_kids_care / member_cancel_kids_care_booking (booking and pass balance change together); never write class_passes balances directly from member code. Why: tamper guards block those writes, so visits silently weren't deducted or refunded.

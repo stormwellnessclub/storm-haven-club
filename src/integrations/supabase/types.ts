@@ -19077,6 +19077,24 @@ export type Database = {
         Returns: number
       }
       mark_overdue_event_invoices: { Args: never; Returns: number }
+      member_book_kids_care: {
+        Args: {
+          p_booking_date: string
+          p_child_age: number
+          p_child_dob: string
+          p_child_name: string
+          p_end_time: string
+          p_parent_notes?: string
+          p_pass_id: string
+          p_special_instructions?: string
+          p_start_time: string
+        }
+        Returns: Json
+      }
+      member_cancel_kids_care_booking: {
+        Args: { p_booking_id: string; p_reason?: string }
+        Returns: Json
+      }
       member_meets_event_eligibility: {
         Args: {
           _eligibility: string

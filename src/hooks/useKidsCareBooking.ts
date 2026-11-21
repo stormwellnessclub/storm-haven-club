@@ -197,53 +197,25 @@ export function useBookKidsCare() {
         }
       }
 
-      // Determine age group
-      const ageGroup = getAgeGroup(params.childAge);
+      // Age group and room are worked out on the server with the same
+      // buckets as getAgeGroup(). Staff manage capacity at check-in.
 
-      // Check age group capacity (basic check - could be enhanced with real-time capacity)
-      // For now, we'll allow booking and let staff manage capacity at check-in
-
-      // Determine room from age group
-      const room = ["Infants", "Toddlers"].includes(ageGroup) ? "Little Stars" : "Big Stars";
-
-      // Create booking
-      const { data, error } = await (supabase
-        .from("kids_care_bookings" as any)
-        .insert({
-          member_id: memberData.id,
-          user_id: user.id,
-          child_name: params.childName,
-          child_age: Math.round(params.childAge),
-          child_dob: params.childDob ? format(params.childDob, "yyyy-MM-dd") : null,
-          booking_date: format(params.bookingDate, "yyyy-MM-dd"),
-          start_time: format(parse(params.startTime, "HH:mm", new Date()), "HH:mm:ss"),
-          end_time: format(parse(params.endTime, "HH:mm", new Date()), "HH:mm:ss"),
-          status: "confirmed",
-          pass_id: params.passId,
-          age_group: ageGroup,
-          room: room,
-          special_instructions: params.specialInstructions || null,
-          parent_notes: params.parentNotes || null,
-        } as any)
-        .select()
-        .single() as any);
+      // Create the booking and take one visit off the pass together on the
+      // server. Members can't change pass balances directly, so a direct
+      // update here would silently fail and leave the visit unused.
+      const { data, error } = await (supabase.rpc as any)("member_book_kids_care", {
+        p_pass_id: params.passId,
+        p_child_name: params.childName,
+        p_child_age: params.childAge,
+        p_child_dob: params.childDob ? format(params.childDob, "yyyy-MM-dd") : null,
+        p_booking_date: format(params.bookingDate, "yyyy-MM-dd"),
+        p_start_time: format(parse(params.startTime, "HH:mm", new Date()), "HH:mm:ss"),
+        p_end_time: format(parse(params.endTime, "HH:mm", new Date()), "HH:mm:ss"),
+        p_special_instructions: params.specialInstructions || null,
+        p_parent_notes: params.parentNotes || null,
+      });
 
       if (error) throw error;
-
-      // Deduct one visit from the pass
-      const newRemaining = passes.classes_remaining - 1;
-      const { error: deductError } = await supabase
-        .from("class_passes")
-        .update({
-          classes_remaining: newRemaining,
-          status: newRemaining <= 0 ? "exhausted" as any : "active" as any,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", params.passId);
-
-      if (deductError) {
-        console.error("Failed to deduct pass visit:", deductError);
-      }
 
       return data as KidsCareBooking;
     },
@@ -320,47 +292,13 @@ export function useCancelKidsCareBooking() {
           throw new Error("Cancellations must be made at least 2 hours before the booking start time");
         }
 
-        const { data, error } = await (supabase.from as any)("kids_care_bookings")
-          .update({
-            status: "cancelled",
-            cancelled_at: new Date().toISOString(),
-            cancellation_reason: reason || "Cancelled by parent",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", bookingId)
-          .select()
-          .single();
+        // Cancel and give the visit back to the pass together on the server.
+        const { data, error } = await (supabase.rpc as any)("member_cancel_kids_care_booking", {
+          p_booking_id: bookingId,
+          p_reason: reason || "Cancelled by parent",
+        });
 
-        if (error) {
-          if (error.code === "42P01" || error.message?.includes("does not exist")) {
-            throw new Error("Kids care booking is not yet available. Please check back later.");
-          }
-          throw error;
-        }
-
-        // Restore the visit back to the pass
-        if (booking.pass_id) {
-          try {
-            const { data: pass } = await supabase
-              .from("class_passes")
-              .select("classes_remaining")
-              .eq("id", booking.pass_id)
-              .single();
-
-            if (pass) {
-              await supabase
-                .from("class_passes")
-                .update({
-                  classes_remaining: pass.classes_remaining + 1,
-                  status: "active" as any,
-                  updated_at: new Date().toISOString(),
-                })
-                .eq("id", booking.pass_id);
-            }
-          } catch (restoreErr) {
-            console.error("Failed to restore pass visit:", restoreErr);
-          }
-        }
+        if (error) throw error;
 
         return data as KidsCareBooking;
       } catch (error: any) {
@@ -372,6 +310,7 @@ export function useCancelKidsCareBooking() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["kids-care-bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-passes"] });
       toast.success("Booking cancelled successfully");
     },
     onError: (error: Error) => {
