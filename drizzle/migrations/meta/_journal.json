@@ -1415,6 +1415,20 @@
       "when": 1795255079853,
       "tag": "0201_fix_guard_triggers_caller_check",
       "breakpoints": true
+    },
+    {
+      "idx": 202,
+      "version": "7",
+      "when": 1795255399128,
+      "tag": "0202_close_free_passes_cafe_prices_gift_claims",
+      "breakpoints": true
+    },
+    {
+      "idx": 203,
+      "version": "7",
+      "when": 1795255458265,
+      "tag": "0203_revoke_gift_claim_tokens_client_access",
+      "breakpoints": true
     }
   ]
 }

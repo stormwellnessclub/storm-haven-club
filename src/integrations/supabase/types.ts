@@ -4222,6 +4222,32 @@ export type Database = {
           },
         ]
       }
+      gift_pass_claim_tokens: {
+        Row: {
+          created_at: string
+          pass_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          pass_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          pass_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gift_pass_claim_tokens_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: true
+            referencedRelation: "class_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       goal_milestones: {
         Row: {
           achieved_at: string | null
@@ -18100,7 +18126,7 @@ export type Database = {
       }
       claim_google_review_message: { Args: never; Returns: Json }
       claim_mothers_day_pack: {
-        Args: { _email: string }
+        Args: { _code: string; _email: string }
         Returns: {
           claimed_count: number
           pass_ids: string[]

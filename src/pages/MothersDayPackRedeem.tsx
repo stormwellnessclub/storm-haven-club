@@ -30,6 +30,8 @@ export default function MothersDayPackRedeem() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const emailParam = (params.get("email") || "").trim().toLowerCase();
+  const codeParam = (params.get("code") || "").trim();
+  const returnPath = `/mothers-day-pack-redeem?email=${encodeURIComponent(emailParam)}${codeParam ? `&code=${encodeURIComponent(codeParam)}` : ""}`;
 
   const [lookup, setLookup] = useState<LookupResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,16 +62,20 @@ export default function MothersDayPackRedeem() {
 
   const handleClaim = async () => {
     if (!user) {
-      navigate(`/auth?redirect=${encodeURIComponent(`/mothers-day-pack-redeem?email=${emailParam}`)}&prefill_email=${encodeURIComponent(emailParam)}`);
+      navigate(`/auth?redirect=${encodeURIComponent(returnPath)}&prefill_email=${encodeURIComponent(emailParam)}`);
       return;
     }
     if (!emailMatches) {
       toast.error("Please sign in with the email address the gift was sent to.");
       return;
     }
+    if (!codeParam) {
+      toast.error("Please open the Claim Your Gift button in your gift email.");
+      return;
+    }
     setClaiming(true);
     try {
-      const { data, error } = await supabase.rpc("claim_mothers_day_pack", { _email: emailParam });
+      const { data, error } = await supabase.rpc("claim_mothers_day_pack", { _email: emailParam, _code: codeParam });
       if (error) throw error;
       const count = Array.isArray(data) ? data[0]?.claimed_count : (data as any)?.claimed_count;
       if (count && count > 0) {
@@ -174,7 +180,7 @@ export default function MothersDayPackRedeem() {
                       Create account & claim
                     </Button>
                     <p className="text-xs mt-3" style={{ color: TEXT }}>
-                      Use <strong>{emailParam}</strong> when you sign up — your pass will link automatically.
+                      Use <strong>{emailParam}</strong> when you sign up, then come back to this page to claim.
                     </p>
                   </>
                 ) : !emailMatches ? (
@@ -186,7 +192,7 @@ export default function MothersDayPackRedeem() {
                     <Button
                       onClick={async () => {
                         await supabase.auth.signOut({ scope: "local" });
-                        navigate(`/auth?redirect=${encodeURIComponent(`/mothers-day-pack-redeem?email=${emailParam}`)}&prefill_email=${encodeURIComponent(emailParam)}`);
+                        navigate(`/auth?redirect=${encodeURIComponent(returnPath)}&prefill_email=${encodeURIComponent(emailParam)}`);
                       }}
                       style={{ background: GOLD }}
                     >

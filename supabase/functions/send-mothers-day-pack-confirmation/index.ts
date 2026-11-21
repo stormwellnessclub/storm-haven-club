@@ -63,9 +63,12 @@ function recipientGiftHtml(opts: {
   recipientName: string;
   recipientEmail: string;
   expiresAt: string;
+  claimCode: string;
 }) {
   opts = { ...opts, buyerName: escapeHtml(opts.buyerName), recipientName: escapeHtml(opts.recipientName) };
-  const redeemUrl = `${SITE}/mothers-day-pack-redeem?email=${encodeURIComponent(opts.recipientEmail)}`;
+  // The private claim code proves the claimer received this email; an account
+  // with a matching email alone is not proof (sign-ups are not email-verified).
+  const redeemUrl = `${SITE}/mothers-day-pack-redeem?email=${encodeURIComponent(opts.recipientEmail)}&code=${encodeURIComponent(opts.claimCode)}`;
   return `
   <div style="font-family:Georgia,serif;background:#ece2d2;padding:40px 20px;color:#3a2e1a;">
     <div style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #c9a86a;padding:36px;border-radius:6px;">
@@ -80,7 +83,7 @@ function recipientGiftHtml(opts: {
         <a href="${redeemUrl}" style="background:#a17e3a;color:#fff;padding:14px 32px;text-decoration:none;border-radius:4px;display:inline-block;font-family:Helvetica,Arial,sans-serif;">Claim Your Gift</a>
       </p>
       <p style="font-size:13px;color:#6b5a3b;text-align:center;margin:0 0 4px;">
-        New to Storm Wellness Club? Create a free account using <strong>this email address</strong> — your pass will be linked automatically.
+        New to Storm Wellness Club? Create an account using <strong>this email address</strong>, then use the button above to add the pass to your account.
       </p>
       <p style="font-size:12px;color:#8a7a5a;margin:24px 0 0;text-align:center;">
         Storm Wellness Club &middot; Livonia, MI
@@ -139,7 +142,23 @@ serve(async (req) => {
       );
     }
 
-    if (isGift && pass.gift_recipient_email) {
+    if (isGift && pass.gift_recipient_email && !pass.user_id) {
+      // One private claim code per gift; resending reuses the same code.
+      const bytes = crypto.getRandomValues(new Uint8Array(24));
+      const fresh = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      const { data: existingToken } = await supabase
+        .from("gift_pass_claim_tokens")
+        .select("token")
+        .eq("pass_id", pass.id)
+        .maybeSingle();
+      let claimCode = existingToken?.token as string | undefined;
+      if (!claimCode) {
+        const { error: tokErr } = await supabase
+          .from("gift_pass_claim_tokens")
+          .insert({ pass_id: pass.id, token: fresh });
+        if (tokErr) throw tokErr;
+        claimCode = fresh;
+      }
       await send(
         pass.gift_recipient_email,
         `${buyerName || "A friend"} sent you a Mother's Day gift`,
@@ -148,6 +167,7 @@ serve(async (req) => {
           recipientName: recipName || "there",
           recipientEmail: pass.gift_recipient_email,
           expiresAt: pass.expires_at,
+          claimCode,
         })
       );
     }
