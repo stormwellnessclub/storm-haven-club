@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { csvCell } from "@/lib/csvSafe";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -117,7 +118,7 @@ export default function EventsPortalFinance() {
       i.last_reminder_at ?? "",
     ]);
     const csv = [header, ...body]
-      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .map((r) => r.map(csvCell).join(","))
       .join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");

@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
+import { csvCell } from "@/lib/csvSafe";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,11 +87,11 @@ function exportCsv(rows: BillingEmailLogRow[]) {
       r.sent_at,
       r.email_type,
       r.recipient_email,
-      `"${(r.recipient_name ?? "").replace(/"/g, '""')}"`,
+      r.recipient_name ?? "",
       r.status,
-      `"${(r.error_message ?? "").replace(/"/g, '""')}"`,
-      `"${(r.subject ?? "").replace(/"/g, '""')}"`,
-    ].join(",")),
+      r.error_message ?? "",
+      r.subject ?? "",
+    ].map(csvCell).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

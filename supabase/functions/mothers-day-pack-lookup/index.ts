@@ -13,8 +13,9 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { email } = await req.json();
+    const { email, code } = await req.json();
     const e = String(email || "").trim().toLowerCase();
+    const claimCode = String(code || "").trim();
     if (!e || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error("Valid email required");
 
     // Only the signed-in owner of this email may look up the gift.
@@ -31,14 +32,40 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { data } = await supabase
-      .from("class_passes")
-      .select("id, classes_remaining, classes_total, expires_at, gift_buyer_name, user_id, status")
-      .eq("promo_code", "mothers_day_2026")
-      .ilike("gift_recipient_email", e)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // A matching account email is not proof of mailbox ownership (sign-ups are
+    // not email-verified). Show a gift only with its private claim code from
+    // the gift email, or when it is already on this account.
+    const cols = "id, classes_remaining, classes_total, expires_at, gift_buyer_name, user_id, status";
+    let data: any = null;
+    if (claimCode.length >= 32) {
+      const { data: tok } = await supabase
+        .from("gift_pass_claim_tokens")
+        .select("pass_id")
+        .eq("token", claimCode)
+        .maybeSingle();
+      if (tok?.pass_id) {
+        const { data: p } = await supabase
+          .from("class_passes")
+          .select(cols)
+          .eq("id", tok.pass_id)
+          .eq("promo_code", "mothers_day_2026")
+          .ilike("gift_recipient_email", e)
+          .maybeSingle();
+        data = p;
+      }
+    }
+    if (!data) {
+      const { data: owned } = await supabase
+        .from("class_passes")
+        .select(cols)
+        .eq("promo_code", "mothers_day_2026")
+        .eq("user_id", user.id)
+        .ilike("gift_recipient_email", e)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      data = owned;
+    }
 
     if (!data) {
       return new Response(JSON.stringify({ found: false }), {

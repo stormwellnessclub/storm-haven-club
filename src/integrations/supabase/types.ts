@@ -17392,6 +17392,26 @@ export type Database = {
       }
     }
     Functions: {
+      _assert_member_insight_access: {
+        Args: { _member_id: string }
+        Returns: undefined
+      }
+      _calculate_churn_risk_impl: {
+        Args: { p_member_id: string }
+        Returns: number
+      }
+      _calculate_engagement_score_impl: {
+        Args: { p_days?: number; p_member_id: string }
+        Returns: number
+      }
+      _calculate_health_score_impl: {
+        Args: { _member_id: string }
+        Returns: number
+      }
+      _calculate_member_ltv_impl: {
+        Args: { p_member_id: string }
+        Returns: number
+      }
       _clock_department: { Args: { _uid: string }; Returns: string }
       _staff_pin_hash: { Args: { _pin: string }; Returns: string }
       adjust_cafe_credit: {

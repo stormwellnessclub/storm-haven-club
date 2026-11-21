@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { csvCell } from "@/lib/csvSafe";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -311,7 +312,7 @@ function exportCsv(rows: ArrearsRow[]) {
   const csv = [
     headers.join(","),
     ...rows.map(r => [
-      `"${`${r.first_name} ${r.last_name}`.replace(/"/g,'""')}"`,
+      `${r.first_name} ${r.last_name}`,
       r.email || "",
       r.phone || "",
       r.membership_type || "",
@@ -326,14 +327,14 @@ function exportCsv(rows: ArrearsRow[]) {
       r.last_outreach_at || "",
       outcomeLabel(r.last_outreach_outcome),
       r.open_follow_up_at || "",
-      `"${(r.latest_failure_message || "").replace(/"/g,'""')}"`,
+      r.latest_failure_message || "",
       r.dunning_status || "",
       r.charge_attempts,
       r.dunning_emails_sent_count ?? 0,
       r.dunning_next_email_day ?? "",
       r.dunning_next_email_due_at || "",
       r.dunning_first_failed_at || "",
-    ].join(",")),
+    ].map(csvCell).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

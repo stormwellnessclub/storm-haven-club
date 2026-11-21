@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { csvCell } from "@/lib/csvSafe";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -106,20 +107,20 @@ function exportCsv(rows: FailedHistoryRow[]) {
     headers.join(","),
     ...rows.map((r) => [
       r.created_at,
-      `"${r.member_name.replace(/"/g, '""')}"`,
+      r.member_name,
       r.member_email,
       r.membership_type ?? "",
       r.billing_type,
       r.amount.toFixed(2),
       r.status,
       r.decline_code ?? "",
-      `"${(r.decline_reason || r.failure_message || "").replace(/"/g, '""')}"`,
+      r.decline_reason || r.failure_message || "",
       r.attempt_number ?? "",
       r.next_retry_at ?? "",
       r.recovered ? "Yes" : "No",
       r.stripe_charge_id ?? "",
       r.stripe_invoice_id ?? "",
-    ].join(",")),
+    ].map(csvCell).join(",")),
   ].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);

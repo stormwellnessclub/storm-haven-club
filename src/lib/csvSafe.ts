@@ -4,3 +4,8 @@ export function neutralizeCsvFormula(value: unknown): string {
   if (/^[=+\-@\t\r]/.test(s) && !/^[-+]?\d+(\.\d+)?$/.test(s)) return `'${s}`;
   return s;
 }
+
+/** One quoted, formula-safe CSV cell. */
+export function csvCell(value: unknown): string {
+  return `"${neutralizeCsvFormula(value).replace(/"/g, '""')}"`;
+}

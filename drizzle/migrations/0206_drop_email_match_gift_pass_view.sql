@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Recipients can view unclaimed gift passes" ON public.class_passes;

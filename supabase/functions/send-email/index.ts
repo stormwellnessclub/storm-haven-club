@@ -125,7 +125,7 @@ async function authorizeRequest(req: Request, type: string, to?: string, preview
 
 
 interface EmailRequest {
-  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'pos_charge_receipt' | 'spa_receipt' | 'pos_charge_failed' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'activation_payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'guest_pass_invite' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring';
+  type: 'application_submitted' | 'approval_with_deadline' | 'approval_letter' | 'approval_letter_personalized' | 'application_rejected' | 'booking_confirmation' | 'booking_cancellation' | 'class_cancelled_by_admin' | 'waiver_reminder' | 'class_reminder' | 'waitlist_notification' | 'waitlist_claim_confirmation' | 'waitlist_joined' | 'spa_appointment_confirmation' | 'spa_appointment_reminder' | 'spa_appointment_cancellation' | 'activation_reminder_day3' | 'activation_reminder_day5' | 'membership_activated' | 'payment_update_request' | 'charge_confirmation' | 'pos_charge_receipt' | 'spa_receipt' | 'pos_charge_failed' | 'application_approved_locked_date' | 'add_card_for_dues' | 'staff_reply' | 'payment_failed' | 'activation_payment_failed' | 'application_card_declined' | 'freeze_completed' | 'freeze_request_rejected' | 'freeze_payment_request' | 'annual_fee_payment_request' | 'annual_fee_final_notice' | 'setup_instructions' | 'member_activation_setup' | 'pwa_reinstall_instructions' | 'phase_one_setup' | 'waiver_reminder_email' | 'admin_payment_failed_alert' | 'membership_scheduled' | 'membership_cancelled' | 'application_cancelled' | 'incomplete_membership_cancelled' | 'guest_pass_promo' | 'guest_pass_credit_granted' | 'guest_visit_feedback' | 'guest_pass_purchase_confirmation' | 'guest_pass_invite' | 'soft_launch_hours' | 'staff_invite' | 'account_activation_invite' | 'payment_link_welcome' | 'referral_invite' | 'referral_notification' | 'spa_review_request' | 'dunning_day_0' | 'dunning_day_1' | 'dunning_day_3' | 'dunning_day_5' | 'dunning_day_7' | 'dunning_recovered' | 'upcoming_payment_reminder' | 'renewal_monthly_dues_3day' | 'renewal_annual_dues_14day' | 'renewal_annual_fee_14day' | 'renewal_annual_fee_3day' | 'past_due_formal_notice' | 'card_expiring' | 'class_booking_moved';
   to: string;
   data: Record<string, any>;
 }
@@ -1750,12 +1750,11 @@ serve(async (req) => {
       case 'freeze_completed':
         // SAFETY CHECK: Only send if this is actually from a freeze completion
         // This prevents the email from being sent incorrectly during member activation
-        console.log('[SEND-EMAIL] freeze_completed called', { to, data, source: data.source || 'unknown' });
+        console.log('[SEND-EMAIL] freeze_completed called', { source: data.source || 'unknown', hasFreezeId: !!data.freezeId });
         
         if (!data.freezeEndDate && !data.freezeId) {
           console.error('[SEND-EMAIL] freeze_completed called WITHOUT valid freeze data - BLOCKING email', { 
-            to, 
-            data,
+            source: data.source || 'unknown',
             reason: 'Missing freezeEndDate and freezeId - likely called incorrectly during activation'
           });
           // Return success but don't send the email
@@ -3668,9 +3667,23 @@ serve(async (req) => {
 
 
 
-      case 'custom_message': {
-        subject = String(data?.subject || 'A message from Storm Wellness Club');
-        const bodyHtml = String(data?.bodyHtml || '');
+      case 'class_booking_moved': {
+        // Built here from plain fields (escaped) so staff can't send free-form
+        // HTML from club senders.
+        const esc = (v: unknown) => String(v ?? '').slice(0, 200)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        subject = 'Your class was moved — Storm Wellness Club';
+        const bodyHtml = `
+            <h2 style="margin:0 0 16px 0;color:#1C170F;">Your class was moved</h2>
+            <p style="color:#1C170F;">Hi ${esc(data?.firstName) || 'there'},</p>
+            <p style="color:#1C170F;">Your booking has been moved to a new time. Your class credit stays on your account for this class.</p>
+            <div style="background:#F6F0E7;padding:16px;border-radius:8px;margin:16px 0;">
+              <p style="margin:0;color:#1C170F;"><strong>Was:</strong> ${esc(data?.wasClass)} — ${esc(data?.wasDate)} at ${esc(data?.wasTime)}</p>
+              <p style="margin:8px 0 0 0;color:#1C170F;"><strong>Now:</strong> ${esc(data?.nowClass)} — ${esc(data?.nowDate)} at ${esc(data?.nowTime)}</p>
+            </div>
+            <p style="color:#1C170F;">If this time doesn't work, just reply to this email and we'll credit the class back to your account.</p>
+            <p style="margin:24px 0 0 0;color:#1C170F;">— The Storm Wellness Club Team</p>`;
         html = `
           <div style="${emailStyles.container}">
             ${getEmailHeader()}

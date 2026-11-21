@@ -45,7 +45,7 @@ export default function MothersDayPackRedeem() {
       if (authLoading) return;
       try {
         const { data } = await supabase.functions.invoke("mothers-day-pack-lookup", {
-          body: { email: emailParam },
+          body: { email: emailParam, code: codeParam },
         });
         if (mounted) setLookup(data || { found: false });
       } catch {

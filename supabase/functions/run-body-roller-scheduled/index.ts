@@ -1,8 +1,12 @@
 // Woken by a one-time timer at a scheduled send time. Sends every due Body Roller email that an admin scheduled.
-// Safe to call publicly: it only sends rows admins already scheduled, and only once their time has come.
+// Only the scheduler may call it: the timer presents the vault-held internal task token.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  if (!(await isValidInternalToken(presentedInternalToken(req)))) {
+    return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
   const url = Deno.env.get("SUPABASE_URL")!, key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const { data: due } = await sb.from("body_roller_scheduled_sends").select("id, kind, extra_emails")

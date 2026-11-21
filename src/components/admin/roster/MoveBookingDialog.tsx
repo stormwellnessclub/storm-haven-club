@@ -98,24 +98,18 @@ export function MoveBookingDialog({
         try {
           const newDateLabel = format(new Date(target.session_date + "T00:00:00"), "EEEE, MMMM d");
           const newTimeLabel = format(new Date(`2000-01-01T${target.start_time}`), "h:mm a");
-          const bodyHtml = `
-            <h2 style="margin:0 0 16px 0;color:#1C170F;">Your class was moved</h2>
-            <p style="color:#1C170F;">Hi ${attendeeName.split(" ")[0] || "there"},</p>
-            <p style="color:#1C170F;">Your booking has been moved to a new time. Your class credit stays on your account for this class.</p>
-            <div style="background:#F6F0E7;padding:16px;border-radius:8px;margin:16px 0;">
-              <p style="margin:0;color:#1C170F;"><strong>Was:</strong> ${currentClassName} — ${currentDateLabel} at ${currentTimeLabel}</p>
-              <p style="margin:8px 0 0 0;color:#1C170F;"><strong>Now:</strong> ${target.class_type_name} — ${newDateLabel} at ${newTimeLabel}</p>
-            </div>
-            <p style="color:#1C170F;">If this time doesn't work, just reply to this email and we'll credit the class back to your account.</p>
-            <p style="margin:24px 0 0 0;color:#1C170F;">— The Storm Wellness Club Team</p>
-          `;
           await supabase.functions.invoke("send-email", {
             body: {
-              type: "custom_message",
+              type: "class_booking_moved",
               to: attendeeEmail,
               data: {
-                subject: "Your class was moved — Storm Wellness Club",
-                bodyHtml,
+                firstName: attendeeName.split(" ")[0] || "",
+                wasClass: currentClassName,
+                wasDate: currentDateLabel,
+                wasTime: currentTimeLabel,
+                nowClass: target.class_type_name,
+                nowDate: newDateLabel,
+                nowTime: newTimeLabel,
                 replyTo: "admin@stormwellnessclub.com",
               },
             },
