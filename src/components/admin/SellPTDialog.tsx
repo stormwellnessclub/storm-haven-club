@@ -912,7 +912,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                           onChange={(e) => applyDiscount(discountMode, e.target.value.replace(/[^0-9.]/g, ""))}
                         />
                         <Select value={discountMode} onValueChange={(v) => applyDiscount(v as DiscountMode, discountValue)}>
-                          <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="w-24 shrink-0"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="amount">$ off</SelectItem>
                             <SelectItem value="percent">% off</SelectItem>
