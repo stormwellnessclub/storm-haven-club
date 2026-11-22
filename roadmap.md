@@ -135,3 +135,10 @@
 - [x] Checkout, eligibility, credits, day pass, staff tab
 - [x] Member Movement Edit ($160) with guest class + café credit
 - [ ] Owner switches offers on (Admin → Class Pass Pricing → The Seasonal Edit) and publishes
+
+## Kids Care one-time passes (Nov 22)
+- [x] New Kids Care purchases are one-time, named in Stripe, no auto-renew; ended-pass text/email/banner; child info kept
+- [x] Stop auto-renew for Jessica Seagull and Nada Shatila (end of paid month)
+- [x] Add missing November Kids Care passes for Jessica Seagull (2) and Nada Shatila (1)
+- [ ] Turn on Stripe's "monthly payment went through" notice so renewals (Kids Care, PT plans) are added automatically — waiting on owner's answer
+- [ ] Public Kids Care page says "4 sessions" but passes give 16 — waiting on owner to say which is right
