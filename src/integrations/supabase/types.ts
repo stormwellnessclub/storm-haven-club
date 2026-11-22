@@ -20839,6 +20839,10 @@ export type Database = {
           screening_level: string
         }[]
       }
+      staff_apply_spa_gift_card: {
+        Args: { p_apply?: boolean; p_appointment_id: string; p_code: string }
+        Returns: Json
+      }
       staff_book_wellness_appointment: {
         Args: {
           p_appointment_date: string

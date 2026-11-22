@@ -112,6 +112,21 @@ describe("gift card bookings", () => {
     expect(s.kind).toBe("covered");
     expect(s.label).toBe("Covered · Gift card");
   });
+  it("a $120 massage gift applied at the desk to a $155 massage leaves $0 due", () => {
+    const appt = { payment_method: "gift_card", service_price: 155, amount_paid: 0, covered_checkout: { service_amount: 155, amount_paid: 0, gift_card_code: "STORM-TEST", massage_gift: true } };
+    expect(spaBalanceDue(155 - spaCoveredServiceAmount(appt), getSpaPaymentState(appt).paid)).toBe(0);
+  });
+  it("a $50 dollar gift card on a $155 massage leaves $105 due", () => {
+    const appt = { payment_method: "gift_card", service_price: 155, amount_paid: 0, covered_checkout: { service_amount: 50, amount_paid: 0 } };
+    expect(spaBalanceDue(155 - spaCoveredServiceAmount(appt), getSpaPaymentState(appt).paid)).toBe(105);
+  });
+  it("completing a gift card appointment keeps the gift code on record", () => {
+    const appt = { payment_method: "gift_card", service_price: 155, covered_checkout: { service_amount: 155, amount_paid: 0, gift_card_code: "STORM-TEST" } };
+    const saved = spaCheckoutSettlement(appt, 185, "cash", 30);
+    expect(saved.covered_checkout.gift_card_code).toBe("STORM-TEST");
+    expect(saved.covered_checkout.service_amount).toBe(155);
+    expect(saved.amount_paid).toBe(30);
+  });
 });
 
 describe("prepaid treatment series", () => {

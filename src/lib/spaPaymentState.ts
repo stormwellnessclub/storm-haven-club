@@ -72,6 +72,8 @@ export function spaCheckoutSettlement(appt: any, total: number, method: string, 
       amount_paid: collected,
       payment_method: appt.payment_method,
       covered_checkout: {
+        // Keep gift/voucher details (code, value used) recorded when coverage was applied.
+        ...(appt?.covered_checkout && typeof appt.covered_checkout === "object" ? appt.covered_checkout : {}),
         service_amount: spaCoveredServiceAmount(appt),
         amount_paid: collected,
         payment_method: balance > 0 && method !== "no_charge" ? method : appt?.covered_checkout?.payment_method ?? null,

@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CreditCard, DollarSign, AlertCircle } from "lucide-react";
+import { Loader2, CreditCard, DollarSign, AlertCircle, Gift } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -77,6 +77,12 @@ export function SpaCompletionDialog({
   const [editingPrice, setEditingPrice] = useState(false);
   /** True once staff type their own number, so auto-recalc stops overwriting it */
   const [priceManuallyEdited, setPriceManuallyEdited] = useState(false);
+  /** Gift card applied in this dialog (the parent's appointment copy doesn't refresh). */
+  const [giftApplied, setGiftApplied] = useState<Record<string, any> | null>(null);
+  const [giftCode, setGiftCode] = useState("");
+  const [giftPreview, setGiftPreview] = useState<any>(null);
+  const [giftError, setGiftError] = useState<string | null>(null);
+  const [giftBusy, setGiftBusy] = useState(false);
 
 
 
@@ -99,6 +105,10 @@ export function SpaCompletionDialog({
     setPriceOverride("");
     setEditingPrice(false);
     setPriceManuallyEdited(false);
+    setGiftApplied(null);
+    setGiftCode("");
+    setGiftPreview(null);
+    setGiftError(null);
 
 
     const existingAddons = (appointment as any).addons;
@@ -223,10 +233,11 @@ export function SpaCompletionDialog({
       ? parseFloat(customTip) || 0
       : 0;
   const totalAmount = Math.round((subtotal + tipAmount) * 100) / 100;
-  const payState = getSpaPaymentState(appointment);
+  const appt: any = giftApplied ? { ...appointment, ...giftApplied } : appointment;
+  const payState = getSpaPaymentState(appt);
   const alreadyPaid = payState.paid;
   const isCovered = payState.kind === "covered";
-  const coveredAmount = Math.min(servicePrice, spaCoveredServiceAmount(appointment));
+  const coveredAmount = Math.min(servicePrice, spaCoveredServiceAmount(appt));
   const uncoveredTotal = Math.round((totalAmount - coveredAmount) * 100) / 100;
   const balanceDue = paymentMethod === "no_charge" ? 0 : spaBalanceDue(uncoveredTotal, alreadyPaid);
   const overpaid = Math.max(0, Math.round((alreadyPaid - uncoveredTotal) * 100) / 100);
@@ -343,7 +354,7 @@ export function SpaCompletionDialog({
       // Update the appointment record
       const prepaidKind = payState.kind === "prepaid_online" || payState.kind === "paid_card";
       const updateData: Record<string, any> = {
-        ...spaCheckoutSettlement(appointment, totalAmount, paymentMethod, balanceDue),
+        ...spaCheckoutSettlement(appt, totalAmount, paymentMethod, balanceDue),
         tip_amount: tipAmount,
         tip_payment_method: tipAmount > 0 ? tipMethod : null,
         addons: chargedAddons,
@@ -380,6 +391,10 @@ export function SpaCompletionDialog({
 
       if (staffNotes && !updateData.staff_notes) {
         updateData.staff_notes = staffNotes;
+      }
+      // The gift card step already wrote its note; don't drop it when saving.
+      if (giftApplied?.staff_notes && !String(updateData.staff_notes || "").includes(giftApplied.staff_notes)) {
+        updateData.staff_notes = [updateData.staff_notes, giftApplied.staff_notes].filter(Boolean).join("\n");
       }
 
       if (!retroactive) {
@@ -450,6 +465,50 @@ export function SpaCompletionDialog({
       toast.error(err.message || "Failed to process");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const runGiftCard = async (apply: boolean) => {
+    if (giftBusy) return;
+    setGiftBusy(true);
+    setGiftError(null);
+    try {
+      const { data, error } = await (supabase.rpc as any)("staff_apply_spa_gift_card", {
+        p_appointment_id: appointment.id,
+        p_code: giftCode.trim(),
+        p_apply: apply,
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        setGiftPreview(null);
+        setGiftError(data?.error || "That code can't be used.");
+        return;
+      }
+      if (!apply) {
+        setGiftPreview(data);
+        return;
+      }
+      const note = `[Paid with gift card ${data.code}]`;
+      setGiftApplied({
+        payment_method: "gift_card",
+        amount_paid: 0,
+        staff_notes: note,
+        covered_checkout: {
+          service_amount: Number(data.covered),
+          amount_paid: 0,
+          payment_method: null,
+          gift_card_code: data.code,
+          massage_gift: !!data.massage_gift,
+        },
+      });
+      setGiftPreview(null);
+      setGiftCode("");
+      queryClient.invalidateQueries({ queryKey: ["admin-spa-appointments"] });
+      toast.success(data.massage_gift ? "Massage gift applied — the massage is fully paid" : `Gift card applied — $${Number(data.covered).toFixed(2)} covered`);
+    } catch (e: any) {
+      setGiftError(e?.message || "Couldn't check that code.");
+    } finally {
+      setGiftBusy(false);
     }
   };
 
@@ -689,6 +748,45 @@ export function SpaCompletionDialog({
             />
           </div>
 
+
+          {/* Gift card code */}
+          {payState.kind === "unpaid" && (
+            <div className="space-y-2">
+              <Label className="font-medium flex items-center gap-1"><Gift className="h-4 w-4" /> Gift card</Label>
+              <div className="rounded-lg border p-3 space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={giftCode}
+                    onChange={(e) => { setGiftCode(e.target.value.toUpperCase()); setGiftPreview(null); setGiftError(null); }}
+                    placeholder="STORM-XXXX-XXXX"
+                    className="uppercase tracking-wider"
+                    disabled={giftBusy}
+                  />
+                  <Button type="button" variant="outline" onClick={() => runGiftCard(false)} disabled={giftBusy || !giftCode.trim()}>
+                    {giftBusy && !giftPreview ? <Loader2 className="h-4 w-4 animate-spin" /> : "Check"}
+                  </Button>
+                </div>
+                {giftError && <p className="text-sm text-destructive">{giftError}</p>}
+                {giftPreview && (
+                  <div className="space-y-2 text-sm">
+                    {giftPreview.massage_gift ? (
+                      <p>Massage gift{giftPreview.recipient_name ? ` for ${giftPreview.recipient_name}` : ""} — pays for the whole massage (${Number(giftPreview.service_price).toFixed(2)}). Nothing is owed for the massage.</p>
+                    ) : (
+                      <p>
+                        Gift card covers ${Number(giftPreview.covered).toFixed(2)} of ${Number(giftPreview.service_price).toFixed(2)}
+                        {Number(giftPreview.still_due) > 0 ? ` — $${Number(giftPreview.still_due).toFixed(2)} still due` : " — nothing owed for the treatment"}
+                        {Number(giftPreview.balance_after) > 0 ? `. $${Number(giftPreview.balance_after).toFixed(2)} stays on the card.` : "."}
+                      </p>
+                    )}
+                    <Button type="button" size="sm" onClick={() => runGiftCard(true)} disabled={giftBusy}>
+                      {giftBusy && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Use this gift card
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Payment method */}
           <div className="space-y-2">
