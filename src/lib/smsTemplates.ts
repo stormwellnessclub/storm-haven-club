@@ -188,6 +188,15 @@ export const SMS_TEMPLATES: SmsTemplate[] = [
     audience: "both",
   },
   {
+    key: "kids-care-pass-ended",
+    label: "Kids Care pass ended",
+    category: "Kids Care",
+    body: "Storm Kids Care: {{reason}} Your children's details are saved. Buy a new pass anytime to keep booking: stormwellnessclub.com/member/kids-care",
+    triggers: "Daily: sent once when a family's Kids Care pass runs out or is used up and they haven't bought a new one. Passes don't renew automatically.",
+    sampleVariables: { reason: "Your Kids Care pass ended on Dec 22." },
+    audience: "both",
+  },
+  {
     key: "payment-failed",
     label: "Payment failed",
     category: "Billing",

@@ -57,6 +57,7 @@ export function KidsCarePassGate(_props: KidsCarePassGateProps = {}) {
   useEffect(() => {
     if (sessionId) {
       queryClient.invalidateQueries({ queryKey: ["kids-care-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-pass-ended"] });
     }
   }, [sessionId, queryClient]);
 
@@ -106,8 +107,8 @@ export function KidsCarePassGate(_props: KidsCarePassGateProps = {}) {
               </p>
               <p className="text-xs text-muted-foreground">
                 {agreementSigned
-                  ? "$75/month — 16 sessions per month, 2 hours max per session. Auto-renews monthly — cancel anytime."
-                  : "Review and sign the Kids Care agreement, then purchase your monthly pass."}
+                  ? "$75 — 16 sessions, 2 hours max per session, to use within 30 days. One-time purchase — it does not renew automatically."
+                  : "Review and sign the Kids Care agreement, then purchase your pass."}
               </p>
             </div>
           </div>
@@ -119,7 +120,7 @@ export function KidsCarePassGate(_props: KidsCarePassGateProps = {}) {
               className="gap-2 shrink-0"
             >
               <Baby className="h-4 w-4" />
-              Buy Kids Care Pass — $75/mo
+              Buy Kids Care Pass — $75
             </Button>
           ) : (
             <Button

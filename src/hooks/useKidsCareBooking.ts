@@ -90,6 +90,45 @@ export function useKidsCarePasses() {
   });
 }
 
+export type KidsCarePassEnded = { endedAt: string; reason: "expired" | "used_up" };
+
+/**
+ * The family's most recent Kids Care pass has ended (date passed in the last 30 days,
+ * or all sessions used) and they have no usable pass. Passes never auto-renew, so this
+ * drives the "buy a new pass" banner. Child profiles are kept, so rebuying needs no re-entry.
+ */
+export function useKidsCarePassEnded() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ["kids-care-pass-ended", user?.id],
+    queryFn: async (): Promise<KidsCarePassEnded | null> => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("class_passes")
+        .select("id, classes_remaining, expires_at, status")
+        .eq("user_id", user.id)
+        .ilike("pass_type", "kids_care%")
+        .order("expires_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      const now = new Date();
+      const rows = data || [];
+      const usable = rows.some(
+        (p) => (p.status ?? "active") === "active" && new Date(p.expires_at) > now && (p.classes_remaining ?? 0) > 0,
+      );
+      if (usable || rows.length === 0) return null;
+      const latest = rows[0];
+      const expires = new Date(latest.expires_at);
+      if (expires <= now) {
+        const daysAgo = (now.getTime() - expires.getTime()) / 86_400_000;
+        return daysAgo <= 30 ? { endedAt: latest.expires_at, reason: "expired" } : null;
+      }
+      return { endedAt: latest.expires_at, reason: "used_up" };
+    },
+    enabled: !!user,
+  });
+}
+
 export function useBookKidsCare() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

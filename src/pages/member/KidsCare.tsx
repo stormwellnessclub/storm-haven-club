@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { SimpleAgreementCard } from "@/components/SimpleAgreementCard";
 import { ResumeBookingBanner } from "@/components/booking/ResumeBookingBanner";
-import { useKidsCarePasses } from "@/hooks/useKidsCareBooking";
+import { useKidsCarePasses, useKidsCarePassEnded } from "@/hooks/useKidsCareBooking";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
@@ -41,6 +41,7 @@ export default function MemberKidsCare() {
 
   // Fetch active kids care passes
   const { data: availablePasses, isLoading: passLoading } = useKidsCarePasses();
+  const { data: endedPass } = useKidsCarePassEnded();
 
   // Check for successful return from embedded checkout
   const sessionId = searchParams.get("session_id");
@@ -50,6 +51,7 @@ export default function MemberKidsCare() {
     if (sessionId) {
       setShowSuccess(true);
       queryClient.invalidateQueries({ queryKey: ["kids-care-passes"] });
+      queryClient.invalidateQueries({ queryKey: ["kids-care-pass-ended"] });
       window.history.replaceState({}, "", "/member/kids-care");
     }
   }, [sessionId]);
@@ -207,7 +209,7 @@ export default function MemberKidsCare() {
                   <CardDescription>
                     {hasActivePass
                       ? "Your pass is active. Book sessions for your children below."
-                      : "$75/month — 16 sessions per month, 2 hours max per session. Auto-renews monthly — cancel anytime."}
+                      : "$75 — 16 sessions, 2 hours max per session, to use within 30 days. One-time purchase — it does not renew automatically."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -230,7 +232,7 @@ export default function MemberKidsCare() {
                           </div>
                         </div>
                       ))}
-                      <p className="text-xs text-muted-foreground">Auto-renews monthly — cancel anytime. Contact us to manage your subscription.</p>
+                      <p className="text-xs text-muted-foreground">Passes don't renew automatically. We'll text and email you when a pass ends so you can buy another. Your children's details stay saved.</p>
                       <Button
                         onClick={handlePurchase}
                         loading={isPurchasing}
@@ -239,20 +241,34 @@ export default function MemberKidsCare() {
                         className="w-full"
                       >
                         <Baby className="h-4 w-4 mr-2" />
-                        Buy Additional Pass — $75/mo
+                        Buy Additional Pass — $75
                       </Button>
                     </div>
                   ) : (
-                    <Button
-                      onClick={handlePurchase}
-                      loading={isPurchasing}
-                      loadingText="Starting checkout..."
-                      size="lg"
-                      className="w-full"
-                    >
-                      <Baby className="h-4 w-4 mr-2" />
-                      Purchase Kids Care Pass — $75/mo
-                    </Button>
+                    <div className="space-y-3">
+                      {endedPass && (
+                        <div className="p-3 rounded-lg border bg-muted/30 text-sm">
+                          <p className="font-medium">
+                            {endedPass.reason === "used_up"
+                              ? "You've used all the sessions on your last pass."
+                              : `Your last pass ended on ${new Date(endedPass.endedAt).toLocaleDateString("en-US", { timeZone: "America/Detroit", month: "long", day: "numeric" })}.`}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Your children's details are saved. Buy a new pass to keep booking.
+                          </p>
+                        </div>
+                      )}
+                      <Button
+                        onClick={handlePurchase}
+                        loading={isPurchasing}
+                        loadingText="Starting checkout..."
+                        size="lg"
+                        className="w-full"
+                      >
+                        <Baby className="h-4 w-4 mr-2" />
+                        {endedPass ? "Buy a New Kids Care Pass — $75" : "Purchase Kids Care Pass — $75"}
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>

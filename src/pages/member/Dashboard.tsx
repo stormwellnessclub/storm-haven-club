@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BlackFridayPortalCard } from "@/components/portal/BlackFridayPortalCard";
 import { BringAFriendCard } from "@/components/portal/BringAFriendCard";
+import { KidsCarePassEndedBanner } from "@/components/kids-care/KidsCarePassEndedBanner";
 import { Link } from "react-router-dom";
 import { MemberLayout } from "@/components/member/MemberLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,6 +177,7 @@ export default function MemberDashboard() {
       <div className="space-y-8">
         {/* Upcoming Event Announcement */}
         <EventAnnouncementBanner />
+        <KidsCarePassEndedBanner />
         <BlackFridayPortalCard />
         <BringAFriendCard />
         <UpcomingRitualsSection basePath="/member" />

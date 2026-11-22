@@ -5616,6 +5616,33 @@ export type Database = {
         }
         Relationships: []
       }
+      kids_care_pass_end_notices: {
+        Row: {
+          email_status: string | null
+          ended_reason: string
+          pass_id: string
+          sent_at: string
+          sms_status: string | null
+          user_id: string
+        }
+        Insert: {
+          email_status?: string | null
+          ended_reason: string
+          pass_id: string
+          sent_at?: string
+          sms_status?: string | null
+          user_id: string
+        }
+        Update: {
+          email_status?: string | null
+          ended_reason?: string
+          pass_id?: string
+          sent_at?: string
+          sms_status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       kiosk_settings: {
         Row: {
           id: string

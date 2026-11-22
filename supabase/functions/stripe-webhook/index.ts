@@ -1558,7 +1558,7 @@ serve(async (req) => {
             }
 
           } else if (metadata.type === 'kids_care_pass') {
-            // Handle Kids Care Pass subscription purchase
+            // Handle Kids Care Pass purchase (one-time; older passes were subscriptions)
             const userId = metadata.user_id;
             const memberId = metadata.member_id;
 
@@ -1567,7 +1567,14 @@ serve(async (req) => {
               return errorResponse(new Error("Missing user_id"), "KIDS_CARE_PASS");
             }
 
-            try {
+            // One-time Kids Care purchases paid by bank transfer finish later; the
+            // class-pass-reconcile job issues the pass once the payment succeeds.
+            const kcAwaitingPayment = session.mode === 'payment' && session.payment_status !== 'paid';
+            if (kcAwaitingPayment) {
+              logStep("Kids Care pass waiting for payment to settle", { sessionId: session.id, paymentStatus: session.payment_status });
+            }
+
+            if (!kcAwaitingPayment) try {
               // Calculate expiry: 30 days from now
               const expiresAt = new Date();
               expiresAt.setDate(expiresAt.getDate() + 30);

@@ -84,7 +84,7 @@ export const STRIPE_PRODUCTS = {
     cryo: 'price_1Sy3ytLyZrsSqLhsziHR3pw1',     // $45 - ZeroBody Cryo Session
   },
   kidsCare: {
-    member: 'price_1TCEyxLyZrsSqLhsHLRDNixO', // $75/mo - Kids Care Pass (Member), 4 sessions, 2hr max, auto-renew
+    member: 'price_1TCEyxLyZrsSqLhsHLRDNixO', // Legacy monthly price: only recognizes renewals of older subscriptions. New Kids Care passes are one-time $75 purchases (stripe-payment create_kids_care_checkout).
   },
 } as const;
 

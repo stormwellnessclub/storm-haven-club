@@ -3337,6 +3337,44 @@ serve(async (req) => {
 
 
 
+      case 'kids_care_pass_ended': {
+        const firstName = data.first_name || 'there';
+        const usedUp = data.reason === 'used_up';
+        const endedDate = data.ended_date || '';
+        const buyUrl = `${BASE_URL}/member/kids-care`;
+        subject = usedUp
+          ? 'You have used all the sessions on your Kids Care pass'
+          : 'Your Kids Care pass has ended';
+        const lead = usedUp
+          ? 'You have used all the sessions on your Kids Care pass. Thank you for trusting us with your little ones.'
+          : `Your Kids Care pass ended${endedDate ? ` on <strong>${endedDate}</strong>` : ''}. Thank you for trusting us with your little ones.`;
+        html = `
+          <div style="${emailStyles.container}">
+            ${getEmailHeader()}
+            <div style="${emailStyles.content}">
+              <h2 style="${emailStyles.heading}">Hi ${firstName},</h2>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                ${lead}
+              </p>
+              <p style="font-size: 16px; line-height: 1.8; color: #1C170F; margin-bottom: 20px;">
+                Kids Care passes don't renew on their own, so you're never charged without choosing to. Whenever you'd like to keep booking, you can buy a new pass in your portal. Your children's details are saved, so there's nothing to fill out again.
+              </p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${buyUrl}" style="${emailStyles.button}">Buy a New Kids Care Pass</a>
+              </div>
+              <p style="font-style: italic; ${emailStyles.muted} margin-top: 30px;">
+                Questions? Email <a href="mailto:admin@stormwellnessclub.com" style="${emailStyles.link}">admin@stormwellnessclub.com</a> or message us from your portal.
+              </p>
+              <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #C1B19C;">
+                <p style="font-weight: 600; color: #1C170F; margin: 0;">&mdash; The Storm Wellness Club Team</p>
+              </div>
+            </div>
+            ${getEmailFooter()}
+          </div>
+        `;
+        break;
+      }
+
       case 'card_expiring': {
         const firstName = data.first_name || 'Member';
         const cardBrand = data.card_brand || 'Card';

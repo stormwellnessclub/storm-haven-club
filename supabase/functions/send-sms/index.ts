@@ -110,6 +110,11 @@ const TEMPLATES: Record<string, (v: Record<string, unknown>) => string> = {
     ),
   "kids-care-reminder": (v) =>
     tmpl(`Storm Kids Care: Reminder — {{childName}} {{date}} at {{time}}.`, v),
+  "kids-care-pass-ended": (v) =>
+    tmpl(
+      `Storm Kids Care: {{reason}} Your children's details are saved. Buy a new pass anytime to keep booking: stormwellnessclub.com/member/kids-care`,
+      v,
+    ),
   "payment-failed": (v) =>
     tmpl(
       `Storm Wellness Club: Payment failed for {{description}}. Please update your card to keep your benefits active: stormwellnessclub.com/portal/billing`,

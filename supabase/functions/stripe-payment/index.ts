@@ -436,6 +436,10 @@ async function addRecurringProcessingFeeItems(
   return result;
 }
 
+// Kids Care Pass: one-time $75 purchase, 16 sessions, 30 days. Never a subscription.
+const KIDS_CARE_PASS_CENTS = 7500;
+const KIDS_CARE_PAYMENT_DESCRIPTION = 'Kids Care Pass (Member) - 16 Sessions + Processing Fee';
+
 // Credit allocations by tier (matching webhook)
 const TIER_CREDITS: Record<string, { class: number; red_light: number; dry_cryo: number }> = {
   silver: { class: 0, red_light: 0, dry_cryo: 0 },
@@ -1411,7 +1415,6 @@ serve(async (req) => {
 
         logStep("Membership verified for Kids Care", { userId: user.id, memberId: memberData.id });
 
-        const kidsCarePrice = STRIPE_PRODUCTS.kidsCare.member;
         const customerId = await getOrCreateCustomer();
 
         // Save stripe_customer_id to member record
@@ -1420,23 +1423,42 @@ serve(async (req) => {
           .update({ stripe_customer_id: customerId })
           .eq('user_id', user.id);
 
-        // Add recurring processing fee
-        const subscriptionItems = await addRecurringProcessingFeeItems(stripe, [{ price: kidsCarePrice, quantity: 1 }]);
+        // One-time purchase (never auto-renews). The family gets a text, email and
+        // dashboard banner when the pass ends and can buy again; child profiles stay saved.
+        const kidsCareLineItems: any[] = [{
+          price_data: {
+            currency: 'usd',
+            unit_amount: KIDS_CARE_PASS_CENTS,
+            product_data: {
+              name: 'Kids Care Pass (Member)',
+              description: '16 sessions, 2 hours max each, to use within 30 days. One-time purchase. Does not renew.',
+              metadata: { type: 'kids_care_pass' },
+            },
+          },
+          quantity: 1,
+        }];
+        const kidsCareFeeItem = await createProcessingFeeLineItem(stripe, KIDS_CARE_PASS_CENTS);
+        if (kidsCareFeeItem) kidsCareLineItems.push(kidsCareFeeItem);
 
         const kidsCareMetadata = {
           type: 'kids_care_pass',
           user_id: user?.id ?? null,
           member_id: memberData.id,
+          product: 'Kids Care Pass (Member)',
+        };
+        const kidsCarePaymentIntentData = {
+          description: KIDS_CARE_PAYMENT_DESCRIPTION,
+          metadata: kidsCareMetadata,
         };
 
         if (embedded) {
           // Embedded checkout mode — stays in-portal
           const embeddedSession = await stripe.checkout.sessions.create({
             customer: customerId,
-            line_items: subscriptionItems,
-            mode: 'subscription',
+            line_items: kidsCareLineItems,
+            mode: 'payment',
             ui_mode: 'embedded',
-            subscription_data: { metadata: kidsCareMetadata },
+            payment_intent_data: kidsCarePaymentIntentData,
             return_url: `${req.headers.get('origin') || ''}/member/kids-care?session_id={CHECKOUT_SESSION_ID}`,
             metadata: kidsCareMetadata,
           });
@@ -1451,9 +1473,9 @@ serve(async (req) => {
 
         const session = await stripe.checkout.sessions.create({
           customer: customerId,
-          line_items: subscriptionItems,
-          mode: 'subscription',
-          subscription_data: { metadata: kidsCareMetadata },
+          line_items: kidsCareLineItems,
+          mode: 'payment',
+          payment_intent_data: kidsCarePaymentIntentData,
           success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: cancelUrl,
           metadata: kidsCareMetadata,

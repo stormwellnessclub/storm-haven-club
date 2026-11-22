@@ -195,7 +195,7 @@ export default function KidsCare() {
           buildFAQLd([
             { q: "What ages do you care for?", a: "We care for children 4 months through 8 years. Little Stars is 4 months to 1 year; Big Stars is 5 to 8 years." },
             { q: "What hours is Kids Care open?", a: "Monday–Friday 8:00 AM – 8:00 PM, Saturday–Sunday 8:00 AM – 5:00 PM." },
-            { q: "How much does it cost?", a: "$75/month for 16 sessions, or $40 per single drop-in. Member-only benefit." },
+            { q: "How much does it cost?", a: "$75 for a 16-session pass to use within 30 days (one-time purchase, no auto-renew), or $40 per single drop-in. Member-only benefit." },
           ]),
         ]}
       />
@@ -248,7 +248,7 @@ export default function KidsCare() {
                 <div>
                   <p className="text-sm font-medium">Kids Care Pass Required</p>
                   <p className="text-xs text-muted-foreground">
-                    $75/month per child — 4 sessions, 2hr max each, auto-renews.
+                    $75 per child — 4 sessions, 2hr max each. One-time purchase, no auto-renew.
                   </p>
                 </div>
                 <Button variant="outline" size="sm" className="ml-auto" onClick={handlePurchasePass} disabled={purchaseLoading}>
@@ -359,7 +359,7 @@ export default function KidsCare() {
           <div className="max-w-lg mx-auto">
             <SectionHeading
               title="Kids Care Pass"
-              subtitle="Monthly subscription for members — one pass per child."
+              subtitle="One-time pass for members — one pass per child. Buy again whenever you need more."
             />
             <div className="card-luxury p-8 text-center relative overflow-hidden">
               <div className="absolute top-0 right-0 bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-bl-lg">
@@ -368,9 +368,9 @@ export default function KidsCare() {
               <Sparkles className="w-10 h-10 mx-auto mb-4 text-accent" />
               <div className="mb-2">
                 <span className="text-4xl font-serif font-bold text-foreground">$75</span>
-                <span className="text-muted-foreground">/month</span>
+                <span className="text-muted-foreground">/pass</span>
               </div>
-              <p className="text-sm text-muted-foreground mb-6">per child • auto-renews • cancel anytime</p>
+              <p className="text-sm text-muted-foreground mb-6">per child • one-time purchase • no auto-renew</p>
               <ul className="text-sm text-left space-y-3 mb-8">
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
@@ -378,11 +378,11 @@ export default function KidsCare() {
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                  <span>30-day validity — sessions reset each cycle</span>
+                  <span>30-day validity — we'll let you know when it ends</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                  <span>Cancel anytime — no proration, no penalties</span>
+                  <span>Never auto-renews — buy again anytime; your children's details stay saved</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
@@ -410,7 +410,7 @@ export default function KidsCare() {
                   {purchaseLoading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
                   ) : (
-                    <><CreditCard className="w-4 h-4 mr-2" /> Subscribe — $75/mo</>
+                    <><CreditCard className="w-4 h-4 mr-2" /> Buy Pass — $75</>
                   )}
                 </Button>
               )}
