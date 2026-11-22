@@ -13,7 +13,16 @@ Similar treatments from other spas:
 
 **What makes yours different:** each area of the body gets its own treatment, cold for the legs and heat for the abdomen. That comes inside one ritual that also has exfoliation, wood sculpting, lymphatic massage and a closing massage. That combination is your selling point.
 
-**Wording caution:** Competitors use claims like "burn fat," "detox" and "guaranteed inches." Your spa rules ban detox and slimming claims. Saying "turns white fat into brown fat" is a medical claim that the wrap can't back up. I'd describe how it feels and what it does instead: cooling and firming for the legs, warming for the abdomen, better circulation, smoother-looking skin, and a sensory contrast ritual.
+**Wording (updated per your direction):** You can use detox, slimming, firming and the white-to-beige/brown fat explanation for Fire & Ice, as long as nothing is guaranteed. I'll keep "results vary" language and won't promise inches or permanent fat loss. I'll also save this as a rule for Fire & Ice so it isn't questioned again.
+
+## Suggested price: $325 for 90 minutes
+Your current 90-minute body treatments:
+- Detox Seaweed & Charcoal Wrap (Extended): $290
+- Body Sculpting Wrap: $300
+- Anti-Aging Collagen Wrap (Extended): $310
+- Aella Sculpt: $350
+
+Fire & Ice packs more into one visit than any of your wraps: exfoliation, wood sculpting, lymphatic massage, two different gels and two different wraps, plus a closing massage. On its own, a 90-minute lymphatic wood therapy session elsewhere costs about $250. **$325** puts it above your other wraps and keeps Aella Sculpt as your top-priced treatment. If you'd rather make it the flagship, $345 would also work. Your usual member tier discount would apply.
 
 ## What I'd build once you approve (after you confirm price and name)
 
@@ -22,7 +31,7 @@ Similar treatments from other spas:
 3. Use the same booking, upgrade-pricing and card rules as your other wraps. Nothing changes for existing treatments.
 
 ## Still needed from you
-- Price (member and non-member, if different)
+- Approve $325, or tell me your price
 - Final name ("Fire & Ice" or something more unique to Aella)
 - Who performs it, and the start date for booking
 
