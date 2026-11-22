@@ -1,7 +1,7 @@
 // Content bank for every Aella Spa service page.
 // Each entry powers a dedicated SEO-indexed URL.
 import { SEAWEED_RITUAL_NAME, SEAWEED_RITUAL_OVERVIEW, SEAWEED_RITUAL_BODY, SEAWEED_RITUAL_BENEFITS } from "./seaweedRitual";
-import { bodyWrapDetails } from "./bodyWraps";
+import { bodyWrapDetails, FIRE_AND_ICE_NAME } from "./bodyWraps";
 
 export interface ServiceContent {
   slug: string;
@@ -503,6 +503,20 @@ const bodyWraps: ServiceContent[] = [
     related: ["detox-seaweed-charcoal", "anti-aging-collagen", "lymph-and-flow", "mud-therapy"],
   },
   {
+    slug: "fire-and-ice",
+    name: FIRE_AND_ICE_NAME,
+    tagline: "Hot and cold contrast sculpting: wood sculpting, lymphatic massage, a cooling leg wrap and a warming abdomen wrap.",
+    title: "Fire & Ice Contrast Sculpt Body Wrap — Livonia, MI",
+    description: "Fire & Ice in Livonia, MI: 90-minute contrast sculpting with wood therapy, lymphatic massage, cold leg wrap and thermal abdomen wrap. Book online.",
+    h1: FIRE_AND_ICE_NAME,
+    subhead: "",
+    body: [],
+    benefits: [],
+    faqs: [],
+    durations: ["90 min"],
+    related: ["body-sculpting", "detox-seaweed-charcoal", "lymph-and-flow"],
+  },
+  {
     slug: "detox-seaweed-charcoal",
     name: SEAWEED_RITUAL_NAME,
     tagline: "Real seaweed, full-body exfoliation, facial care and nourishing massage in one restorative ritual.",
@@ -669,7 +683,7 @@ const bodyWraps: ServiceContent[] = [
 ].filter(s => !["avocado-coconut", "hydration-aloe", "relaxing-chamomile"].includes(s.slug)).map(s => {
   const details = bodyWrapDetails(s.name);
   if (!details) return s;
-  return { ...s, tagline: details.overview, description: `${details.name} in Livonia, MI. Cosmetic skin care and relaxation. View benefits, duration choices and book online.`, subhead: details.overview, body: details.body, benefits: details.benefits.map(b => b.title), benefitDetails: details.benefits, faqs: details.faqs, durations: details.durations };
+  return { ...s, tagline: details.overview, description: s.slug === "fire-and-ice" ? s.description : `${details.name} in Livonia, MI. Cosmetic skin care and relaxation. View benefits, duration choices and book online.`, subhead: details.overview, body: details.body, benefits: details.benefits.map(b => b.title), benefitDetails: details.benefits, faqs: details.faqs, durations: details.durations };
 });
 
 // ────────────────────────────────────────────────────────────

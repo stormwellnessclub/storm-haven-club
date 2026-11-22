@@ -146,3 +146,7 @@
 ## Seasonal Edit moving-card send (Nov 22)
 - [x] Take "black-friday" web address off the moving card; send moving-card email + text to members and non-members now; moving-card email to the separate list
 - [x] Texts to the separate list (~1,400 marked as agreeing) — owner said yes
+
+## Fire & Ice body wrap (Nov 22)
+- [x] Add "Fire & Ice — The Contrast Sculpt Ritual" ($325, 90 min) to the spa menu with Teresa, Room 6, bookable now
+- [x] Its own treatment page with full description, benefits and questions (live after publish)

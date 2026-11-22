@@ -1,5 +1,8 @@
 import { isSeaweedRitual } from "./seaweedRitual";
 
+/** Exact spa menu name for the Fire & Ice ritual; booking and service pages match on it. */
+export const FIRE_AND_ICE_NAME = "Fire & Ice — The Contrast Sculpt Ritual";
+
 interface WrapVariant {
   id: string;
   name: string;
@@ -112,6 +115,35 @@ export const BODY_WRAP_DETAILS: WrapDetails[] = [
     sources: [
       { title: "American Academy of Dermatology: cellulite treatments and evidence", url: "https://www.aad.org/public/cosmetic/fat-removal/cellulite-treatments-what-really-works/" },
       { title: "Review of topical caffeine in cosmetics", url: "https://pubmed.ncbi.nlm.nih.gov/26004004/" },
+    ],
+  },
+  {
+    slug: "fire-and-ice", name: FIRE_AND_ICE_NAME,
+    overview: "A 90-minute contrast sculpting ritual: exfoliation, wood sculpting and lymphatic massage, a cooling herbal wrap for the legs, a warming thermal wrap for the abdomen, and a closing massage. Made to firm, tighten, slim and detox — one sensory experience from start to finish.",
+    body: [
+      "Fire & Ice begins like every Aella wrap, with a full-body exfoliation that smooths the skin and prepares it to receive what follows. Your practitioner then moves into wood sculpting and lymphatic massage, using contoured wooden tools and rhythmic drainage strokes to wake up circulation and encourage the body to release retained fluid.",
+      "Ice comes first, on the lower body. A cooling cryo gel is applied to the legs, which are then wrapped in a lymphatic, circulation-promoting wrap soaked in herbs. It is designed to firm and tighten the skin, increase blood flow and leave the legs feeling lighter.",
+      "Fire follows on the abdomen. A thermal gel is applied and wrapped in a warming thermal wrap that heats up as you rest. Warming botanicals and cooling actives like these have been studied for switching on the body's heat-producing processes, including turning white fat into beige and brown fat that the body burns, while the warmth draws blood flow to the area.",
+      "Cold on the legs and warmth at the core make for a contrast you feel the whole time. The ritual closes with a short massage so you leave relaxed as well as sculpted. Results vary from person to person and are not guaranteed; most guests book a series for the best results.",
+    ],
+    benefits: [
+      { title: "Sculpts and contours", detail: "Wood sculpting and lymphatic massage work the tissue and support the body's natural drainage, for a smoother, more contoured look." },
+      { title: "Firms and tightens the legs", detail: "The cooling cryo gel and herbal lymphatic wrap are designed to firm and tighten the skin and leave the legs feeling lighter. Results vary." },
+      { title: "Warming slimming wrap for the abdomen", detail: "The thermal gel and heating wrap target the abdomen, supporting the body's process of turning white fat into beige and brown fat. Results are not guaranteed." },
+      { title: "Detox and circulation", detail: "Lymphatic massage, contrast temperatures and the wraps work together to boost blood flow and encourage the release of retained fluid." },
+      { title: "A full sensory ritual", detail: "Exfoliation, hot and cold, and a closing massage, in one 90-minute treatment." },
+    ],
+    faqs: [
+      { q: "What is included in the 90 minutes?", a: "Full-body exfoliation, wood sculpting, lymphatic massage, a cooling cryo gel with an herbal lymphatic wrap on the legs, a thermal gel with a warming wrap on the abdomen, and a short closing massage." },
+      { q: "Why hot and cold together?", a: "Each area gets what suits it best: cooling and firming for the legs, warming and slimming for the abdomen. The contrast also boosts circulation and makes the ritual a sensory experience." },
+      { q: "Will I see results after one session?", a: "Many guests notice their skin feels tighter and their body lighter after one visit. Results vary and are not guaranteed; a series gives the best results." },
+      { q: "Does the wood sculpting hurt?", a: "It should feel firm, not painful. Tell your practitioner if you want lighter pressure at any point." },
+      safety,
+    ], durations: ["90 min"],
+    sources: [
+      { title: "Capsaicin and the browning of white fat (research study)", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4945767/" },
+      { title: "Menthol and the browning of white fat (research study)", url: "https://pubmed.ncbi.nlm.nih.gov/29088850/" },
+      { title: "Review: factors that promote brown and beige fat", url: "https://pubmed.ncbi.nlm.nih.gov/28507012/" },
     ],
   },
 ];
