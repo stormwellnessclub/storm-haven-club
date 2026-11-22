@@ -19284,6 +19284,16 @@ export type Database = {
         Args: { p_sale_ref: string; p_subscription_id: string }
         Returns: Json
       }
+      pt_build_custom_plan_schedule: {
+        Args: {
+          p_first_autopay: string
+          p_first_payment_cents?: number
+          p_installment_count: number
+          p_sale_date?: string
+          p_total_cents: number
+        }
+        Returns: Json
+      }
       pt_build_plan_schedule: {
         Args: {
           p_first_autopay: string
@@ -19458,6 +19468,15 @@ export type Database = {
           p_pass_id?: string
           p_tax_cents?: number
           p_user_id: string
+        }
+        Returns: Json
+      }
+      pt_custom_plan_schedule_preview: {
+        Args: {
+          p_first_autopay: string
+          p_first_payment_cents?: number
+          p_installment_count: number
+          p_total_cents: number
         }
         Returns: Json
       }

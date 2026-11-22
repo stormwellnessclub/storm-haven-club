@@ -34,6 +34,8 @@ import { usePTPackPaymentPlans, FREQUENCY_LABEL } from "@/hooks/pt/usePTPackPaym
 import { calculateProcessingFee } from "@/lib/processingFee";
 import { StripeProvider } from "@/components/StripeProvider";
 import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
+import { useUserRoles } from "@/hooks/useUserRoles";
+import { DiscountMode, discountedUnitPrice, splitCustomPlan } from "@/lib/ptCustomSale";
 
 /** Renders a YYYY-MM-DD business date without timezone drift. */
 function businessDate(iso: string) {
@@ -94,6 +96,8 @@ type PaymentChoice = "card_on_file" | "offline" | "external";
 
 export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName }: Props) {
   const qc = useQueryClient();
+  const { roles } = useUserRoles();
+  const canAdjust = (roles as string[]).some((r) => ["super_admin", "admin", "manager"].includes(r));
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>(presetUserId);
   const [selectedUserLabel, setSelectedUserLabel] = useState<string | undefined>(presetUserName);
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,6 +117,15 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [firstPayMethod, setFirstPayMethod] = useState<"card" | "cash" | "check" | "external">("card");
   const [firstPayDollars, setFirstPayDollars] = useState<string>("");
   const [firstPayRef, setFirstPayRef] = useState("");
+  /** Custom monthly plan for this sale only (no preset template; total = this sale's price). */
+  const [customPlan, setCustomPlan] = useState(false);
+  /** Manager/admin price or session change for this sale only — catalog stays the same. */
+  const [customize, setCustomize] = useState(false);
+  const [priceDollars, setPriceDollars] = useState("");
+  const [sessionsInput, setSessionsInput] = useState("");
+  const [discountMode, setDiscountMode] = useState<DiscountMode>("amount");
+  const [discountValue, setDiscountValue] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
   /** Per-sale number of months (total payments, incl. the one due at sale). "" = plan default. */
   const [monthsInput, setMonthsInput] = useState<string>("");
   /** Client-specific first future autopay date — never stored on the package. */
@@ -215,6 +228,37 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       /* noop */
     }
   }, [selectedPack?.id, activatedAt]);
+
+  // A new pack starts from its catalog price and sessions.
+  useEffect(() => {
+    setPriceDollars(selectedPack ? (selectedPack.price_cents / 100).toFixed(2) : "");
+    setSessionsInput(selectedPack ? String(selectedPack.sessions) : "");
+    setDiscountValue("");
+  }, [selectedPack?.id]);
+
+  // ----- Admin price / session changes (this sale only) -----
+  const parsedPrice = Math.round(parseFloat(priceDollars) * 100);
+  const parsedSessions = parseInt(sessionsInput, 10);
+  const unitPriceCents = selectedPack
+    ? customize && Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : selectedPack.price_cents
+    : 0;
+  const packSessions = selectedPack
+    ? customize && Number.isInteger(parsedSessions) && parsedSessions >= 1 && parsedSessions <= 500 ? parsedSessions : selectedPack.sessions
+    : 0;
+  const priceChanged = !!selectedPack && unitPriceCents !== selectedPack.price_cents;
+  const sessionsChanged = !!selectedPack && packSessions !== selectedPack.sessions;
+  const hasAdjustment = priceChanged || sessionsChanged;
+  const packLabel = selectedPack
+    ? sessionsChanged ? `${selectedPack.name} (custom: ${packSessions} sessions)` : selectedPack.name
+    : "";
+  function applyDiscount(mode: DiscountMode, raw: string) {
+    setDiscountMode(mode);
+    setDiscountValue(raw);
+    if (!selectedPack) return;
+    const v = parseFloat(raw);
+    const next = discountedUnitPrice(selectedPack.price_cents, mode, Number.isFinite(v) ? v : 0);
+    setPriceDollars((next / 100).toFixed(2));
+  }
 
   // ----- Customer search -----
   const { data: users = [] } = useQuery({
@@ -320,41 +364,57 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       return;
     }
     // Package sold on plans only — never default to a full charge.
-    if (!allowPayInFull && !selectedPlanId && packPlans.length > 0) setSelectedPlanId(packPlans[0].id);
-  }, [packPlans, selectedPlanId, allowPayInFull]);
-  const selectedPlan = packPlans.find((p) => p.id === selectedPlanId) ?? null;
-  const planMonths = selectedPlan ? selectedPlan.future_installment_count + 1 : 0;
+    if (!allowPayInFull && !selectedPlanId && !customPlan && packPlans.length > 0) setSelectedPlanId(packPlans[0].id);
+  }, [packPlans, selectedPlanId, allowPayInFull, customPlan]);
+  const selectedPlan = customPlan ? null : packPlans.find((p) => p.id === selectedPlanId) ?? null;
+  // A changed price can't use a preset plan (its amounts are fixed) — switch to a custom plan.
+  useEffect(() => {
+    if (priceChanged && selectedPlanId) { setSelectedPlanId(""); setCustomPlan(true); }
+  }, [priceChanged, selectedPlanId]);
+  // Plans on a package not sold on plans, or a package change, start over.
+  useEffect(() => { if (!allowPlans) setCustomPlan(false); }, [allowPlans]);
+  const hasPlan = !!selectedPlan || customPlan;
+  const customDefaultMonths = packPlans[0] ? packPlans[0].future_installment_count + 1 : 3;
+  const planMonths = selectedPlan ? selectedPlan.future_installment_count + 1 : customPlan ? customDefaultMonths : 0;
   const parsedMonths = parseInt(monthsInput, 10);
   const monthsValid = Number.isInteger(parsedMonths) && parsedMonths >= 2 && parsedMonths <= 24;
   const months = monthsValid ? parsedMonths : planMonths;
   const customMonths = !!selectedPlan && monthsValid && parsedMonths !== planMonths;
-  const planTotalCents = selectedPlan ? selectedPlan.plan_total_cents * quantity : 0;
+  const planTotalCents = selectedPlan
+    ? selectedPlan.plan_total_cents * quantity
+    : customPlan ? unitPriceCents * quantity : 0;
   const planDefaultFirstCents = selectedPlan
     ? customMonths
       ? Math.floor(planTotalCents / months)
       : selectedPlan.amount_due_at_sale_cents * quantity
-    : 0;
+    : customPlan && months >= 2 ? Math.floor(planTotalCents / months) : 0;
   // Reset months when the plan changes.
   useEffect(() => {
-    setMonthsInput(selectedPlan ? String(selectedPlan.future_installment_count + 1) : "");
-  }, [selectedPlanId]);
-  // Reset the first-payment amount to the default whenever the plan, quantity or months change.
+    setMonthsInput(selectedPlan ? String(selectedPlan.future_installment_count + 1) : customPlan ? String(customDefaultMonths) : "");
+  }, [selectedPlanId, customPlan]);
+  // Reset the first-payment amount to the default whenever the plan, quantity, months or price change.
   useEffect(() => {
-    setFirstPayDollars(selectedPlan ? (planDefaultFirstCents / 100).toFixed(2) : "");
-  }, [selectedPlanId, quantity, months]);
+    setFirstPayDollars(hasPlan ? (planDefaultFirstCents / 100).toFixed(2) : "");
+  }, [selectedPlanId, customPlan, quantity, months, unitPriceCents]);
 
   // ----- Totals -----
-  const subtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
+  const catalogSubtotalCents = selectedPack ? selectedPack.price_cents * quantity : 0;
+  const subtotalCents = selectedPack ? unitPriceCents * quantity : 0;
   const willCharge = paymentChoice === "card_on_file";
-  const planActive = willCharge && !!selectedPlan;
-  const futureCount = selectedPlan ? months - 1 : 0;
+  const planActive = willCharge && hasPlan;
+  const futureCount = hasPlan ? months - 1 : 0;
   const withFee = (c: number) => c + calculateProcessingFee(c);
-  const perInstallmentCents = selectedPlan ? withFee(selectedPlan.installment_cents * quantity) : 0;
+  const perInstallmentCents = selectedPlan
+    ? withFee(selectedPlan.installment_cents * quantity)
+    : customPlan && planTotalCents > 0 && months >= 2
+      ? withFee(Math.floor((planTotalCents - Math.floor(planTotalCents / months)) / (months - 1)))
+      : 0;
   const parsedFirst = Math.round(parseFloat(firstPayDollars) * 100);
   const firstPayCents = Number.isFinite(parsedFirst) && parsedFirst >= 0 ? parsedFirst : planDefaultFirstCents;
-  const customFirst = !!selectedPlan && firstPayCents !== planDefaultFirstCents;
+  const customFirst = hasPlan && firstPayCents !== planDefaultFirstCents;
   const firstOnCard = firstPayMethod === "card";
-  const dueTodayCents = selectedPlan ? (firstOnCard ? withFee(firstPayCents) : firstPayCents) : 0;
+  const dueTodayCents = hasPlan ? (firstOnCard ? withFee(firstPayCents) : firstPayCents) : 0;
+  const customSplit = customPlan ? splitCustomPlan(planTotalCents, months, firstPayCents) : null;
   const processingFeeCents = willCharge && !planActive ? calculateProcessingFee(subtotalCents) : 0;
   const totalCents = subtotalCents + processingFeeCents;
   const selectedCard = cards.find((c) => c.id === selectedCardId);
@@ -368,10 +428,20 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     error: scheduleError,
     isFetching: scheduleLoading,
   } = useQuery({
-    queryKey: ["pt-plan-schedule", selectedPack?.id, selectedPlanId, quantity, firstAutopayDate, customFirst ? firstPayCents : null, customMonths ? months : null],
-    enabled: planActive && !!selectedPack && !!selectedPlanId && !!firstAutopayDate && monthsValid,
+    queryKey: ["pt-plan-schedule", selectedPack?.id, customPlan ? "custom" : selectedPlanId, quantity, firstAutopayDate, customFirst ? firstPayCents : null, customPlan || customMonths ? months : null, customPlan ? planTotalCents : null],
+    enabled: planActive && !!selectedPack && (customPlan || !!selectedPlanId) && !!firstAutopayDate && monthsValid,
     retry: false,
     queryFn: async (): Promise<PlanSchedule> => {
+      if (customPlan) {
+        const { data, error } = await (supabase as any).rpc("pt_custom_plan_schedule_preview", {
+          p_total_cents: planTotalCents,
+          p_installment_count: months,
+          p_first_autopay: firstAutopayDate,
+          p_first_payment_cents: customFirst ? firstPayCents : null,
+        });
+        if (error) throw new Error(error.message.replace(/^.*PT_AUTOPAY_DATE_INVALID: /, ""));
+        return data as PlanSchedule;
+      }
       const { data, error } = await (supabase as any).rpc("pt_plan_schedule_preview_v3", {
         p_pack_id: selectedPack!.id,
         p_plan_id: selectedPlanId,
@@ -399,6 +469,10 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     setAdminNotes("");
     setChargeError(null);
     setSelectedPlanId("");
+    setCustomPlan(false);
+    setCustomize(false);
+    setDiscountValue("");
+    setOverrideReason("");
     setFirstPayMethod("card");
     setFirstPayRef("");
     setFirstAutopayDate(fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"));
@@ -451,6 +525,9 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       p_activated_at: activatedAt,
       p_expires_at: expiresAt || null,
       p_notes: adminNotes || null,
+      p_price_override_cents: priceChanged ? unitPriceCents : null,
+      p_sessions_override: sessionsChanged ? packSessions : null,
+      p_override_reason: hasAdjustment ? overrideReason.trim() : null,
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
@@ -487,6 +564,18 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
     if (planActive && !allowPlans) {
       return toast.error("This package cannot be sold on a payment plan");
     }
+    if (customize && (!Number.isFinite(parsedPrice) || parsedPrice <= 0)) {
+      return toast.error("Enter a price for this package");
+    }
+    if (customize && !(Number.isInteger(parsedSessions) && parsedSessions >= 1 && parsedSessions <= 500)) {
+      return toast.error("Sessions must be a whole number from 1 to 500");
+    }
+    if (hasAdjustment && !canAdjust) {
+      return toast.error("Only a manager or admin can change the price or sessions");
+    }
+    if (hasAdjustment && !overrideReason.trim()) {
+      return toast.error("Add a reason for the price or session change");
+    }
 
     setSubmitting(true);
     try {
@@ -498,7 +587,11 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           body: {
             userId: selectedUserId,
             packId: selectedPack.id,
-            planId: selectedPlan?.id ?? null,
+            planId: customPlan ? null : selectedPlan?.id ?? null,
+            customPlan,
+            priceOverrideCents: priceChanged ? unitPriceCents : null,
+            sessionsOverride: sessionsChanged ? packSessions : null,
+            overrideReason: hasAdjustment ? overrideReason.trim() : null,
             quantity,
             paymentMethodId: selectedCardId,
             activatedAt,
@@ -509,7 +602,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             firstPaymentCents: customFirst ? firstPayCents : null,
             firstPaymentMethod: firstPayMethod,
             firstPaymentReference: firstPayRef.trim() || null,
-            installmentCount: customMonths ? months : null,
+            installmentCount: customPlan || customMonths ? months : null,
           },
         });
         if (error) throw error;
@@ -521,8 +614,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         qc.invalidateQueries({ queryKey: ["pt-passes"] });
         qc.invalidateQueries({ queryKey: ["pt-sale-intents"] });
         setConfirmation({
-          packName: `${quantity} × ${selectedPack.name}`,
-          planName: selectedPlan!.name,
+          packName: `${quantity} × ${packLabel}`,
+          planName: customPlan ? `Custom ${months}-month plan` : selectedPlan!.name,
           chargedTodayCents: (data as any).charged_today_cents ?? dueTodayCents,
           schedule: (data as any).schedule as PlanSchedule,
           cardLabel,
@@ -534,7 +627,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
         const alreadyPaid = sale?.status === "paid" || sale?.status === "finalized";
 
         if (!alreadyPaid) {
-          const description = `Personal Training: ${quantity} × ${selectedPack.name}`;
+          const description = `Personal Training: ${quantity} × ${packLabel}`;
           const { data, error } = await supabase.functions.invoke("stripe-payment", {
             body: {
               action: "admin_charge_user_saved_card",
@@ -549,7 +642,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 pt_format: selectedPack.format,
                 pt_sale_ref: key,
                 quantity: String(quantity),
-                sessions_per_pack: String(selectedPack.sessions),
+                sessions_per_pack: String(packSessions),
+                ...(priceChanged ? { catalog_price_cents: String(selectedPack.price_cents), adjusted_price_cents: String(unitPriceCents) } : {}),
               },
             },
           });
@@ -564,7 +658,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             p_stripe_payment_intent_id: data.paymentIntentId,
             p_amount_cents: data.totalAmount ?? subtotalCents,
           });
-          toast.success(`Charged ${(data.totalAmount / 100).toFixed(2)} · ${quantity} × ${selectedPack.name}`);
+          toast.success(`Charged ${(data.totalAmount / 100).toFixed(2)} · ${quantity} × ${packLabel}`);
         }
 
         try {
@@ -582,7 +676,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
       } else {
         const { key } = await openSaleIntent(paymentChoice);
         await finalizeSale(key);
-        toast.success(`Sold ${quantity} × ${selectedPack.name}`);
+        toast.success(`Sold ${quantity} × ${packLabel}`);
       }
 
 
@@ -777,6 +871,101 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             </div>
           )}
 
+          {/* Custom package: admin price / discount / sessions for this sale only */}
+          {selectedPack && (
+            <div className="rounded-md border p-3 space-y-3">
+              <label className="flex items-center justify-between gap-2 cursor-pointer">
+                <div>
+                  <div className="text-sm font-medium">Custom package or admin discount</div>
+                  <div className="text-xs text-muted-foreground">
+                    Change the price or sessions for this sale only. The package list stays the same.
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-primary"
+                  checked={customize}
+                  disabled={!canAdjust}
+                  onChange={(e) => {
+                    setCustomize(e.target.checked);
+                    if (!e.target.checked) {
+                      setPriceDollars((selectedPack.price_cents / 100).toFixed(2));
+                      setSessionsInput(String(selectedPack.sessions));
+                      setDiscountValue("");
+                    }
+                  }}
+                />
+              </label>
+              {!canAdjust && (
+                <p className="text-xs text-muted-foreground">Only a manager or admin can change the price or sessions.</p>
+              )}
+              {customize && (
+                <div className="space-y-3 pt-2 border-t">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Discount</Label>
+                      <div className="flex gap-1">
+                        <Input
+                          inputMode="decimal"
+                          placeholder="0"
+                          value={discountValue}
+                          onChange={(e) => applyDiscount(discountMode, e.target.value.replace(/[^0-9.]/g, ""))}
+                        />
+                        <Select value={discountMode} onValueChange={(v) => applyDiscount(v as DiscountMode, discountValue)}>
+                          <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="amount">$ off</SelectItem>
+                            <SelectItem value="percent">% off</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Price per package</Label>
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm">$</span>
+                        <Input
+                          inputMode="decimal"
+                          value={priceDollars}
+                          onChange={(e) => { setDiscountValue(""); setPriceDollars(e.target.value.replace(/[^0-9.]/g, "")); }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Sessions per package</Label>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={500}
+                        value={sessionsInput}
+                        onChange={(e) => setSessionsInput(e.target.value.replace(/[^0-9]/g, ""))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Reason (required)</Label>
+                      <Input
+                        placeholder="e.g. Owner discount"
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    List price {formatCents(selectedPack.price_cents)} for {selectedPack.sessions} sessions
+                    {hasAdjustment && (
+                      <> → this sale {formatCents(unitPriceCents)} for {packSessions} sessions
+                        {priceChanged && unitPriceCents < selectedPack.price_cents && ` (${formatCents(selectedPack.price_cents - unitPriceCents)} off)`}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Payment */}
           {selectedUserId && (
             <div className="space-y-2">
@@ -852,14 +1041,14 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                   </div>
                 </label>
 
-                {packPlans.length > 0 && paymentChoice === "card_on_file" && (
+                {selectedPack && allowPlans && paymentChoice === "card_on_file" && (
                   <div className="ml-6 space-y-2">
                     <div className="text-xs uppercase tracking-wide text-muted-foreground">Payment option</div>
                     {allowPayInFull && (
                       <button
                         type="button"
-                        onClick={() => setSelectedPlanId("")}
-                        className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId ? "border-primary bg-primary/5" : ""}`}
+                        onClick={() => { setSelectedPlanId(""); setCustomPlan(false); }}
+                        className={`w-full text-left border rounded-md p-3 text-sm ${!selectedPlanId && !customPlan ? "border-primary bg-primary/5" : ""}`}
                       >
                         <div className="font-medium">Pay in full</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
@@ -867,13 +1056,13 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                         </div>
                       </button>
                     )}
-                    {packPlans.map((pl) => (
+                    {!priceChanged && packPlans.map((pl) => (
                       <button
                         type="button"
                         key={pl.id}
-                        onClick={() => setSelectedPlanId(pl.id)}
+                        onClick={() => { setCustomPlan(false); setSelectedPlanId(pl.id); }}
                         disabled={cards.length === 0}
-                        className={`w-full text-left border rounded-md p-3 text-sm ${selectedPlanId === pl.id ? "border-primary bg-primary/5" : ""}`}
+                        className={`w-full text-left border rounded-md p-3 text-sm ${selectedPlanId === pl.id && !customPlan ? "border-primary bg-primary/5" : ""}`}
                       >
                         <div className="font-medium">{pl.name}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">
@@ -885,6 +1074,24 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                         </div>
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedPlanId(""); setCustomPlan(true); }}
+                      disabled={cards.length === 0}
+                      className={`w-full text-left border rounded-md p-3 text-sm ${customPlan ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <div className="font-medium">Custom payment plan</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {customPlan && customSplit
+                          ? `${formatCents(customSplit.firstCents)} due at sale, then ${customSplit.futureCount} × ${formatCents(customSplit.eachCents)}${customSplit.finalCents !== customSplit.eachCents ? ` (final ${formatCents(customSplit.finalCents)})` : ""} · monthly`
+                          : `Choose 2–24 monthly payments for ${formatCents(subtotalCents)}`}
+                      </div>
+                    </button>
+                    {priceChanged && packPlans.length > 0 && (
+                      <div className="text-[11px] text-muted-foreground">
+                        Preset plans are hidden because the price was changed. Use a custom plan.
+                      </div>
+                    )}
 
                     {planActive && (
                       <div className="space-y-2 border rounded-md p-3">
@@ -920,7 +1127,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                           </div>
                           <div className="text-[11px] text-muted-foreground">
                             {monthsValid
-                              ? `Total stays ${formatCents(planTotalCents)}: the first payment today, then ${months - 1} monthly payments.`
+                              ? `Total ${customPlan ? "is" : "stays"} ${formatCents(planTotalCents)}: the first payment today, then ${months - 1} monthly payments.`
                               : "Enter 2 to 24 months."}
                           </div>
                         </div>
@@ -979,12 +1186,10 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                 )}
 
                 {selectedPack && allowPlans && packPlans.length === 0 && paymentChoice === "card_on_file" && (
-                  <div className="ml-6 rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                    {allPlans.some((p) => p.pack_id === selectedPack.id && p.is_active)
-                      ? "This package's payment plan isn't ready to sell yet. "
-                      : "This package has no payment plans set up yet, so it can only be paid in full. "}
+                  <div className="ml-6 text-[11px] text-muted-foreground">
+                    This package has no preset plans, but you can use a custom plan above.{" "}
                     <a href={`/admin/pt/packages/${selectedPack.id}`} className="underline font-medium">
-                      Set up payment plans
+                      Set up preset plans
                     </a>
                   </div>
                 )}
@@ -1011,17 +1216,34 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
           {/* Totals */}
           {selectedPack && (
             <div className="rounded-md border bg-muted/40 px-4 py-3 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span>{quantity} × {selectedPack.name}</span>
-                <span>{formatCents(subtotalCents)}</span>
-              </div>
+              {priceChanged ? (
+                <>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{quantity} × {selectedPack.name} (list price)</span>
+                    <span>{formatCents(catalogSubtotalCents)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{unitPriceCents < selectedPack.price_cents ? "Admin discount" : "Admin price change"}</span>
+                    <span>{unitPriceCents < selectedPack.price_cents ? "−" : "+"}{formatCents(Math.abs(catalogSubtotalCents - subtotalCents))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{quantity} × {packLabel}</span>
+                    <span>{formatCents(subtotalCents)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex justify-between">
+                  <span>{quantity} × {packLabel}</span>
+                  <span>{formatCents(subtotalCents)}</span>
+                </div>
+              )}
               {willCharge && !planActive && (
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Processing fee (2.9% + $0.30)</span>
                   <span>{formatCents(processingFeeCents)}</span>
                 </div>
               )}
-              {planActive && selectedPlan ? (
+              {planActive ? (
                 <>
                   <div className="flex justify-between text-xs text-muted-foreground pt-1 border-t">
                     <span>First payment{firstOnCard ? "" : ` (already paid — ${firstPayMethod})`}</span>
@@ -1045,7 +1267,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                     Each future payment includes the card processing fee.
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {selectedPlan.name} · {FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()} ·
+                    {selectedPlan ? `${selectedPlan.name} · ${FREQUENCY_LABEL[selectedPlan.frequency].toLowerCase()}` : `Custom ${months}-month plan · monthly`} ·
                     {" "}charges the card on file automatically and ends after the final payment.
                   </div>
                 </>

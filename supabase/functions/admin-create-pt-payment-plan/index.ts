@@ -42,12 +42,35 @@ Deno.serve(async (req) => {
       firstPaymentMethod = "card",
       firstPaymentReference = null,
       installmentCount = null,
+      // Custom plan: no preset template — monthly, total = this sale's price.
+      customPlan = false,
+      // Manager/admin adjustments to this sale only (catalog stays unchanged).
+      priceOverrideCents = null,
+      sessionsOverride = null,
+      overrideReason = null,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
       throw new Error("userId, packId, paymentMethodId, activatedAt, expiresAt are required");
     }
-    if (!planId) throw new Error("A payment plan must be selected");
+    if (!planId && !customPlan) throw new Error("A payment plan must be selected");
+    if (customPlan && (installmentCount === null || installmentCount === undefined)) {
+      throw new Error("Choose the number of months for the custom plan");
+    }
+    const hasPriceOverride = priceOverrideCents !== null && priceOverrideCents !== undefined;
+    const hasSessionsOverride = sessionsOverride !== null && sessionsOverride !== undefined;
+    if (hasPriceOverride && (!Number.isInteger(priceOverrideCents) || priceOverrideCents <= 0)) {
+      throw new Error("The adjusted price must be more than $0");
+    }
+    if (hasSessionsOverride && (!Number.isInteger(sessionsOverride) || sessionsOverride < 1 || sessionsOverride > 500)) {
+      throw new Error("Sessions must be a whole number from 1 to 500");
+    }
+    if ((hasPriceOverride || hasSessionsOverride) && !String(overrideReason ?? "").trim()) {
+      throw new Error("Add a reason for the price or session change");
+    }
+    if (hasPriceOverride && !customPlan) {
+      throw new Error("A changed price needs a custom payment plan");
+    }
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
     if (!["card", "cash", "check", "external"].includes(firstPaymentMethod)) {
@@ -85,12 +108,18 @@ Deno.serve(async (req) => {
       throw new Error("This package is not sold on payment plans");
     }
 
-    const { data: plan, error: planErr } = await supabase
-      .from("pt_pack_payment_plans").select("*").eq("id", planId).maybeSingle();
-    if (planErr) throw planErr;
-    if (!plan) throw new Error("Payment plan not found");
-    if (plan.pack_id !== pack.id) throw new Error("Payment plan does not belong to this package");
-    if (!plan.is_active) throw new Error("Payment plan is archived");
+    let plan: any = null;
+    if (!customPlan) {
+      const { data: tpl, error: planErr } = await supabase
+        .from("pt_pack_payment_plans").select("*").eq("id", planId).maybeSingle();
+      if (planErr) throw planErr;
+      if (!tpl) throw new Error("Payment plan not found");
+      if (tpl.pack_id !== pack.id) throw new Error("Payment plan does not belong to this package");
+      if (!tpl.is_active) throw new Error("Payment plan is archived");
+      plan = tpl;
+    }
+    const planKey: string = plan?.id ?? `custom_${pack.id}`;
+    let planName: string = plan?.name ?? `Custom ${installmentCount}-month plan`;
     // Sale packages (Black Friday etc.) can only be sold while their sale runs.
     if ((pack as any).promo_key && (pack as any).sale_ends_at && new Date((pack as any).sale_ends_at) < new Date()) {
       throw new Error("This sale has ended");
@@ -98,10 +127,25 @@ Deno.serve(async (req) => {
 
     // In sandbox verification the catalogue's live price id is meaningless, so an
     // equivalent test-account price is minted deterministically from the plan.
-    const planInterval = plan.frequency_unit === "week" ? "week" : plan.frequency_unit === "day" ? "day" : "month";
-    const planIntervalCount = (plan.frequency_interval ?? 1) as number;
-    let basePriceId: string = plan.stripe_price_id as string;
-    if (!testMode && !basePriceId) {
+    const planInterval = plan?.frequency_unit === "week" ? "week" : plan?.frequency_unit === "day" ? "day" : "month";
+    const planIntervalCount = (plan?.frequency_interval ?? 1) as number;
+    let basePriceId: string = (plan?.stripe_price_id ?? "") as string;
+    // Custom plans have no synced price; their exact prices hang off one product per package.
+    let customProductId: string | null = null;
+    if (!plan) {
+      const productId = `pt_pack_${pack.id.replace(/-/g, "")}${testMode ? "_test" : ""}`;
+      customProductId = await stripe.products.retrieve(productId)
+        .then((p: any) => p.id)
+        .catch(async () => {
+          const p = await stripe.products.create({
+            id: productId,
+            name: `Personal Training: ${pack.name}`,
+            metadata: { pt_pack_id: pack.id, type: "pt_payment_plan" },
+          }).catch(() => stripe.products.retrieve(productId));
+          return p.id;
+        });
+    }
+    if (plan && !testMode && !basePriceId) {
       // Plans added without a synced price get one now (same shape as sync-pt-pack-plan-price).
       const created = await stripe.prices.create({
         currency: "usd",
@@ -114,7 +158,7 @@ Deno.serve(async (req) => {
       basePriceId = created.id;
       await supabase.from("pt_pack_payment_plans").update({ stripe_price_id: basePriceId }).eq("id", plan.id);
     }
-    if (testMode) {
+    if (plan && testMode) {
       const testPrice = await stripe.prices.create({
         currency: "usd",
         unit_amount: plan.installment_cents,
@@ -192,8 +236,10 @@ Deno.serve(async (req) => {
     const saleRef: string = body.saleRef ?? crypto.randomUUID();
 
     let futureCount: number = customCount ? installmentCount - 1 : plan.future_installment_count;
-    const totalCents = plan.plan_total_cents * quantity;
-    const tentativeDown = customFirst ? firstPaymentCents : plan.amount_due_at_sale_cents * quantity;
+    const unitPrice = hasPriceOverride ? priceOverrideCents : pack.price_cents;
+    const tentativeDown = customFirst
+      ? firstPaymentCents
+      : plan ? plan.amount_due_at_sale_cents * quantity : Math.floor((unitPrice * quantity) / installmentCount);
 
     const { error: intentErr } = await supabase.rpc("pt_open_sale_intent_v2", {
       p_idempotency_key: saleRef,
@@ -206,12 +252,20 @@ Deno.serve(async (req) => {
       p_notes: adminNotes,
       p_sale_type: "payment_plan",
       p_installment_count: futureCount + 1,
-      p_installment_cents: plan.installment_cents * quantity,
+      p_installment_cents: plan ? plan.installment_cents * quantity : null,
       p_first_installment_date: firstAutopayDate,
       p_amount_due_today_cents: tentativeDown,
-      p_payment_plan_template_id: plan.id,
+      p_payment_plan_template_id: plan?.id ?? null,
+      p_price_override_cents: hasPriceOverride ? priceOverrideCents : null,
+      p_sessions_override: hasSessionsOverride ? sessionsOverride : null,
+      p_override_reason: hasPriceOverride || hasSessionsOverride ? String(overrideReason).trim() : null,
     });
     if (intentErr) throw intentErr;
+    // The intent is opened with the service key, so record which staff member approved the change.
+    if ((hasPriceOverride || hasSessionsOverride) && auth.userId && auth.userId !== "service_role") {
+      await supabase.from("pt_sale_intents").update({ override_by: auth.userId })
+        .eq("idempotency_key", saleRef).not("override_at", "is", null);
+    }
 
     // Store the per-sale first-payment choices before the schedule is fixed.
     await supabase.from("pt_sale_intents").update({
@@ -234,6 +288,8 @@ Deno.serve(async (req) => {
       schedule.installments ?? [];
     const futureRows = scheduleRows.filter((r) => r.installment_number > 0);
     futureCount = Number(schedule.future_installment_count ?? futureRows.length);
+    const totalCents: number = Number(schedule.total_cents);
+    if (!plan) planName = schedule.plan_name ?? planName;
 
     const scheduleCustom = !!schedule.first_payment_custom;
     const downCents: number = schedule.amount_due_at_sale_cents;
@@ -241,8 +297,8 @@ Deno.serve(async (req) => {
     const finalCents: number = schedule.final_installment_cents;
     // Custom schedules are priced as whole amounts (quantity 1); template schedules per unit.
     const itemQty = scheduleCustom ? 1 : quantity;
-    const unitInstallment = scheduleCustom ? installmentCents : plan.installment_cents;
-    const unitFinal = scheduleCustom ? finalCents : plan.final_installment_cents;
+    const unitInstallment = scheduleCustom ? installmentCents : plan!.installment_cents;
+    const unitFinal = scheduleCustom ? finalCents : plan!.final_installment_cents;
 
     // Card processing fee is added to every card charge (same gross-up as pay-in-full):
     // fee = ceil((amount + 30) / 0.971) - amount. Cash/external first payments carry no fee.
@@ -262,14 +318,14 @@ Deno.serve(async (req) => {
         off_session: true,
         // The fee is named in the description and metadata so Stripe and the revenue
         // report show it as a payment processing fee, not training income.
-        description: `Personal Training: ${quantity} × ${pack.name} — ${plan.name} · payment 1 of ${futureCount + 1}` +
+        description: `Personal Training: ${quantity} × ${pack.name} — ${planName} · payment 1 of ${futureCount + 1}` +
           (feeFor(downCents) > 0 ? ` (includes $${(feeFor(downCents) / 100).toFixed(2)} processing fee)` : ""),
         metadata: {
           type: "pt_payment_plan_down_payment",
           base_amount: String(downCents),
           processing_fee: String(feeFor(downCents)),
           pt_pack_id: pack.id,
-          pt_plan_id: plan.id,
+          pt_plan_id: plan?.id ?? "custom",
           user_id: userId,
           member_id: memberRecordId ?? "",
           pt_sale_ref: saleRef,
@@ -292,7 +348,8 @@ Deno.serve(async (req) => {
     const planMeta: Record<string, string> = {
       type: "pt_payment_plan",
       pt_pack_id: pack.id,
-      pt_plan_id: plan.id,
+      pt_plan_id: plan?.id ?? "custom",
+      pt_plan_name: planName,
       installment_total: String(futureCount + 1),
       user_id: userId,
       member_id: memberRecordId ?? "",
@@ -304,8 +361,13 @@ Deno.serve(async (req) => {
     const interval = planInterval;
     const intervalCount = planIntervalCount;
 
-    const basePriceObj = await stripe.prices.retrieve(basePriceId);
-    const productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
+    let productId: string;
+    if (customProductId) {
+      productId = customProductId;
+    } else {
+      const basePriceObj = await stripe.prices.retrieve(basePriceId);
+      productId = typeof basePriceObj.product === "string" ? basePriceObj.product : (basePriceObj.product as any).id;
+    }
 
     const recurringPrice = async (unitCents: number, role: string) => {
       const p = await stripe.prices.create({
@@ -313,8 +375,9 @@ Deno.serve(async (req) => {
         currency: "usd",
         unit_amount: unitCents,
         recurring: { interval, interval_count: intervalCount },
-        metadata: { pt_plan_id: plan.id, role },
-      }, { idempotencyKey: `pt_plan_${role}_price:${testMode ? "test:" : ""}${plan.id}:${interval}:${intervalCount}:${unitCents}` });
+        nickname: `${pack.name} — ${planName}`,
+        metadata: { pt_plan_id: plan?.id ?? "custom", pt_pack_id: pack.id, role },
+      }, { idempotencyKey: `pt_plan_${role}_price:${testMode ? "test:" : ""}${planKey}:${interval}:${intervalCount}:${unitCents}` });
       return p.id;
     };
 
@@ -346,7 +409,7 @@ Deno.serve(async (req) => {
         unit_amount: feeCents,
         recurring: { interval, interval_count: intervalCount },
         nickname: "Payment processing fee",
-        metadata: { pt_plan_id: plan.id, role: "processing_fee", type: "processing_fee" },
+        metadata: { pt_plan_id: plan?.id ?? "custom", role: "processing_fee", type: "processing_fee" },
       }, { idempotencyKey: `pt_plan_fee_price:${testMode ? "test:" : ""}${feeProductId}:${interval}:${intervalCount}:${feeCents}` });
       return p.id;
     };
