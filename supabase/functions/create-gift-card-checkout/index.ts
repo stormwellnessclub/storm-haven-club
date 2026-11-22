@@ -48,6 +48,7 @@ serve(async (req) => {
     const purchaserName = String(body.purchaserName ?? "").trim().slice(0, 120);
     const tipCents = Math.max(0, Math.round(Number(body.tipCents) || 0));
     const spaServiceIdRaw = body.spaServiceId ? String(body.spaServiceId) : null;
+    const giftOfferIdRaw = body.giftOfferId ? String(body.giftOfferId) : null;
     const scheduledSendAtRaw = body.scheduledSendAt ? String(body.scheduledSendAt) : null;
 
     // ---- Validation ----
@@ -67,6 +68,31 @@ serve(async (req) => {
       }
       spaServiceId = svc.id;
       resolvedServiceLabel = svc.name;
+    }
+    // Massage gifts: price, name and covered massages come from the offer record, and only while it's on.
+    let giftOfferId: string | null = null;
+    let coversServiceIds: string[] | null = null;
+    if (giftOfferIdRaw) {
+      if (spaServiceIdRaw) return json({ success: false, error: "Choose one gift" });
+      const { data: offer } = await supabase
+        .from("gift_card_offers")
+        .select("id, label, price_cents, covers_service_ids, is_active, starts_at, ends_at")
+        .eq("id", giftOfferIdRaw)
+        .maybeSingle();
+      const nowMs = Date.now();
+      if (
+        !offer || !offer.is_active ||
+        (offer.starts_at && new Date(offer.starts_at).getTime() > nowMs) ||
+        (offer.ends_at && new Date(offer.ends_at).getTime() <= nowMs)
+      ) {
+        return json({ success: false, error: "That gift is no longer available" });
+      }
+      if (offer.price_cents !== amountCents) {
+        return json({ success: false, error: "Gift price changed — please refresh and try again" });
+      }
+      giftOfferId = offer.id;
+      coversServiceIds = offer.covers_service_ids ?? null;
+      resolvedServiceLabel = offer.label;
     }
     if (!recipientName) return json({ success: false, error: "Recipient name is required" });
     if (!EMAIL_RE.test(recipientEmail)) return json({ success: false, error: "Enter a valid recipient email" });
@@ -126,6 +152,10 @@ serve(async (req) => {
         custom_message: customMessage || null,
         service_label: resolvedServiceLabel,
         spa_service_id: spaServiceId,
+        gift_offer_id: giftOfferId,
+        covers_service_ids: coversServiceIds,
+        // Massage gifts show the massage, not a dollar amount, so it isn't mistaken for partial credit.
+        ...(giftOfferId ? { hide_amount: true } : {}),
         tip_cents: tipCents,
         payment_method: "stripe_online",
         purchase_source: "online",

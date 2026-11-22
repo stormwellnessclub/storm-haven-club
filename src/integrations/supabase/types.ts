@@ -4029,6 +4029,51 @@ export type Database = {
         }
         Relationships: []
       }
+      gift_card_offers: {
+        Row: {
+          blurb: string | null
+          covers_service_ids: string[]
+          created_at: string
+          display_order: number
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          label: string
+          offer_key: string
+          price_cents: number
+          starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          blurb?: string | null
+          covers_service_ids?: string[]
+          created_at?: string
+          display_order?: number
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          offer_key: string
+          price_cents: number
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          blurb?: string | null
+          covers_service_ids?: string[]
+          created_at?: string
+          display_order?: number
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          offer_key?: string
+          price_cents?: number
+          starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       gift_card_redemptions: {
         Row: {
           amount_cents: number
@@ -4102,12 +4147,14 @@ export type Database = {
           amount_cents: number
           balance_cents: number
           code: string
+          covers_service_ids: string[] | null
           created_at: string
           custom_message: string | null
           delivered_at: string | null
           email_sent_at: string | null
           expires_at: string | null
           first_redeemed_at: string | null
+          gift_offer_id: string | null
           hide_amount: boolean
           id: string
           issued_by: string | null
@@ -4133,12 +4180,14 @@ export type Database = {
           amount_cents: number
           balance_cents: number
           code: string
+          covers_service_ids?: string[] | null
           created_at?: string
           custom_message?: string | null
           delivered_at?: string | null
           email_sent_at?: string | null
           expires_at?: string | null
           first_redeemed_at?: string | null
+          gift_offer_id?: string | null
           hide_amount?: boolean
           id?: string
           issued_by?: string | null
@@ -4164,12 +4213,14 @@ export type Database = {
           amount_cents?: number
           balance_cents?: number
           code?: string
+          covers_service_ids?: string[] | null
           created_at?: string
           custom_message?: string | null
           delivered_at?: string | null
           email_sent_at?: string | null
           expires_at?: string | null
           first_redeemed_at?: string | null
+          gift_offer_id?: string | null
           hide_amount?: boolean
           id?: string
           issued_by?: string | null

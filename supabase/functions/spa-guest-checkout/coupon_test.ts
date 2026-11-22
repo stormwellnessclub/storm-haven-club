@@ -36,3 +36,28 @@ Deno.test('an empty or expired gift card is refused', () => {
 Deno.test('codes are matched regardless of spaces or case', () => {
   assertEquals(normalizeCode(' mom-ychfpw '), 'MOM-YCHFPW');
 });
+
+const signature60 = 'd3b11797-6c15-4f09-ab20-5a5fe0a5a1da';
+const deepRelief60 = 'e8adef59-2a2a-4d50-b057-3bb92905b102';
+const massageGift = { code: 'STORM-JEXC', status: 'active', expires_at: future, balance_cents: 12000, amount_cents: 12000, covers_service_ids: [signature60, deepRelief60] };
+
+Deno.test('a $120 60-minute massage gift pays for the whole $155 Storm Signature, so nothing is charged', () => {
+  const c = giftCardCoverage(massageGift, 15500, new Date(), signature60, true);
+  assertEquals(typeof c === 'object' && c.coveredCents, 15500);
+  assertEquals(amountDueCents(15500, 15500), 0);
+});
+
+Deno.test('the 60-minute massage gift also covers a full Deep Relief massage', () => {
+  const c = giftCardCoverage(massageGift, 15500, new Date(), deepRelief60, true);
+  assertEquals(typeof c === 'object' && c.coveredCents, 15500);
+});
+
+Deno.test('on a massage it does not list, the gift is only worth its $120', () => {
+  const c = giftCardCoverage(massageGift, 18000, new Date(), '3c1d8893-c0af-4ace-81de-9cf7d13a3f98', true);
+  assertEquals(typeof c === 'object' && c.coveredCents, 12000);
+});
+
+Deno.test('a longer booking of the listed massage is not covered in full', () => {
+  const c = giftCardCoverage(massageGift, 31000, new Date(), signature60, false);
+  assertEquals(typeof c === 'object' && c.coveredCents, 12000);
+});

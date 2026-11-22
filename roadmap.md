@@ -150,3 +150,8 @@
 ## Fire & Ice body wrap (Nov 22)
 - [x] Add "Fire & Ice — The Contrast Sculpt Ritual" ($325, 90 min) to the spa menu with Teresa, Room 6, bookable now
 - [x] Its own treatment page with full description, benefits and questions (live after publish)
+
+## Seasonal Edit massage gifts (Nov 22)
+- [x] Massage gifts that pay for the whole massage: $120 60-min Signature/Deep Relief, $170 90-min, $180 90-min Sports/Lymph, $160 60-min Sports, $150 60-min Lymph
+- [x] Prenatal gifts: $150 60-min, $195 90-min
+- [x] Make Robert Coleman's $120 card cover a full 60-min Signature or Deep Relief, then resend his email

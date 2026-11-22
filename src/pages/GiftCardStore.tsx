@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -23,19 +24,44 @@ import { SpaServiceGrid, TherapistTipPicker } from "@/components/gift-cards/SpaG
 
 const AMOUNT_PRESETS = [50, 100, 150, 250];
 
+// Massage gifts now come from the Seasonal Edit gift offers (they pay for the whole massage).
 const SERVICE_PRESETS = [
-  { label: "60-Minute Massage", amount: 120, blurb: "A full hour of therapeutic bodywork" },
-  { label: "90-Minute Massage", amount: 170, blurb: "Deep, unhurried restoration" },
   { label: "5-Class Pack", amount: 150, blurb: "Reformer, cycling or mat pilates" },
   { label: "Recovery Day Pass", amount: 60, blurb: "Sauna, salt room, cold plunge & red light" },
 ];
 
 const DRAFT_KEY = "gift_card_draft_v1";
 
+type GiftOffer = {
+  id: string;
+  label: string;
+  blurb: string | null;
+  price_cents: number;
+  ends_at: string | null;
+};
+
+/** Massage gifts on offer right now (the database only returns ones that are on and within their dates). */
+function useGiftOffers() {
+  return useQuery({
+    queryKey: ["gift-card-offers"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("gift_card_offers")
+        .select("id, label, blurb, price_cents, ends_at")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      const now = Date.now();
+      return ((data ?? []) as GiftOffer[]).filter((o) => !o.ends_at || new Date(o.ends_at).getTime() > now);
+    },
+  });
+}
+
 type Draft = {
   mode: "amount" | "service" | "spa";
   amount: number;
   spaServiceId?: string | null;
+  giftOfferId?: string | null;
   tipCents?: number;
   serviceLabel: string | null;
   recipientName: string;
@@ -57,6 +83,8 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
 
   const [mode, setMode] = useState<"amount" | "service" | "spa">("amount");
   const [spaServiceId, setSpaServiceId] = useState<string | null>(null);
+  const [giftOfferId, setGiftOfferId] = useState<string | null>(null);
+  const { data: giftOffers = [] } = useGiftOffers();
   const [tipCents, setTipCents] = useState(0);
   const [amount, setAmount] = useState(100);
   const [customAmount, setCustomAmount] = useState("");
@@ -108,6 +136,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
           setAmount(d.amount);
           setServiceLabel(d.serviceLabel);
           setSpaServiceId(d.spaServiceId ?? null);
+          setGiftOfferId(d.giftOfferId ?? null);
           setTipCents(d.tipCents ?? 0);
           setRecipientName(d.recipientName);
           setRecipientEmail(d.recipientEmail);
@@ -132,7 +161,8 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   }, [scheduleEnabled, scheduleDate, scheduleTime]);
 
   const amountCents = Math.round(amount * 100);
-  const effectiveTipCents = mode === "spa" ? tipCents : 0;
+  const tipAllowed = mode === "spa" || (mode === "service" && !!giftOfferId);
+  const effectiveTipCents = tipAllowed ? tipCents : 0;
   const totalCents = amountCents + effectiveTipCents;
   const validAmount = amount >= 25 && amount <= 1000;
 
@@ -142,6 +172,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
       amount,
       serviceLabel,
       spaServiceId,
+      giftOfferId,
       tipCents,
       recipientName,
       recipientEmail,
@@ -180,6 +211,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
           customMessage: customMessage.trim() || undefined,
           serviceLabel: mode !== "amount" ? serviceLabel : undefined,
           spaServiceId: mode === "spa" ? spaServiceId : undefined,
+          giftOfferId: mode === "service" && giftOfferId ? giftOfferId : undefined,
           tipCents: effectiveTipCents || undefined,
           purchaserName: buyerName || undefined,
           scheduledSendAt: scheduledSendAt ? scheduledSendAt.toISOString() : undefined,
@@ -207,6 +239,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
     setScheduleDate(undefined);
     setTipCents(0);
     setSpaServiceId(null);
+    setGiftOfferId(null);
   };
 
   // Preselect a spa service when arriving from the Spa ("Gift this service").
@@ -302,14 +335,14 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                       <Button
                         variant={mode === "amount" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => { setMode("amount"); setServiceLabel(null); }}
+                        onClick={() => { setMode("amount"); setServiceLabel(null); setGiftOfferId(null); }}
                       >
                         Choose an amount
                       </Button>
                       <Button
                         variant={mode === "spa" ? "default" : "outline"}
                         size="sm"
-                        onClick={() => { setMode("spa"); setServiceLabel(null); setSpaServiceId(null); }}
+                        onClick={() => { setMode("spa"); setServiceLabel(null); setSpaServiceId(null); setGiftOfferId(null); }}
                       >
                         Spa service
                       </Button>
@@ -372,12 +405,52 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                         )}
                       </div>
                     ) : (
+                      <div className="space-y-5">
+                      {giftOffers.length > 0 && (
+                        <div className="space-y-3">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              The Seasonal Edit · Massage gifts
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Each gift pays for the whole massage, so there&apos;s nothing more to pay when they book it.
+                              Available through November 30.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {giftOffers.map((o) => (
+                              <button
+                                key={o.id}
+                                type="button"
+                                onClick={() => {
+                                  setGiftOfferId(o.id);
+                                  setServiceLabel(o.label);
+                                  setAmount(o.price_cents / 100);
+                                  setCustomAmount("");
+                                  setTipCents(0);
+                                }}
+                                className={cn(
+                                  "rounded-lg border p-4 text-left transition-colors",
+                                  giftOfferId === o.id ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                                )}
+                              >
+                                <div className="font-medium">{o.label}</div>
+                                {o.blurb && <div className="text-xs text-muted-foreground">{o.blurb}</div>}
+                                <div className="mt-2 text-lg font-semibold">${(o.price_cents / 100).toFixed(0)}</div>
+                              </button>
+                            ))}
+                          </div>
+                          {giftOfferId && (
+                            <TherapistTipPicker baseCents={amountCents} tipCents={tipCents} onChange={setTipCents} />
+                          )}
+                        </div>
+                      )}
                       <div className="grid gap-3 sm:grid-cols-2">
                         {SERVICE_PRESETS.map((s) => (
                           <button
                             key={s.label}
                             type="button"
-                            onClick={() => { setServiceLabel(s.label); setAmount(s.amount); setCustomAmount(""); }}
+                            onClick={() => { setGiftOfferId(null); setServiceLabel(s.label); setAmount(s.amount); setCustomAmount(""); }}
                             className={cn(
                               "rounded-lg border p-4 text-left transition-colors",
                               serviceLabel === s.label ? "border-primary bg-primary/5" : "hover:bg-muted/50",
@@ -388,6 +461,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                             <div className="mt-2 text-lg font-semibold">${s.amount}</div>
                           </button>
                         ))}
+                      </div>
                       </div>
                     )}
                   </div>
@@ -519,7 +593,11 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                   Includes a <strong>${(effectiveTipCents / 100).toFixed(2)}</strong> therapist tip · Total ${(totalCents / 100).toFixed(2)}
                 </p>
               )}
-              {mode !== "amount" && serviceLabel && (
+              {mode === "service" && giftOfferId && serviceLabel ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Gifted as <strong>{serviceLabel}</strong> — it pays for the whole massage when they book it.
+                </p>
+              ) : mode !== "amount" && serviceLabel && (
                 <p className="mt-3 text-xs text-muted-foreground">
                   Gifted as <strong>{serviceLabel}</strong> — the balance can be used toward anything at the club.
                 </p>
