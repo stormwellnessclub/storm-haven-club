@@ -30,9 +30,17 @@ Fire & Ice packs more into one visit than any of your wraps: exfoliation, wood s
 2. Write a service page that walks through the ritual in order: exfoliation, wood sculpting and lymphatic massage, cold legs, warm abdomen, then the closing massage. I'll follow your spa voice and avoid medical claims.
 3. Use the same booking, upgrade-pricing and card rules as your other wraps. Nothing changes for existing treatments.
 
+## Name idea
+Keep "Fire & Ice" and add a subtitle that says what's inside:
+- **Fire & Ice — The Contrast Sculpt Ritual** (my pick)
+- Fire & Ice — Sculpt, Drain & Contrast Wrap
+- Fire & Ice — A Hot & Cold Body Sculpting Ritual
+
+Under the name, the menu shows one short line: "Exfoliation · Wood sculpting · Lymphatic massage · Cold leg wrap · Thermal abdomen wrap · Closing massage."
+
 ## Still needed from you
 - Approve $325, or tell me your price
-- Final name ("Fire & Ice" or something more unique to Aella)
+- Pick a subtitle, or tell me your own
 - Who performs it, and the start date for booking
 
 ## Technical details
