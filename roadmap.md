@@ -142,3 +142,7 @@
 - [x] Add missing November Kids Care passes for Jessica Seagull (2) and Nada Shatila (1)
 - [ ] Turn on Stripe's "monthly payment went through" notice so renewals (Kids Care, PT plans) are added automatically — waiting on owner's answer
 - [ ] Public Kids Care page says "4 sessions" but passes give 16 — waiting on owner to say which is right
+
+## Seasonal Edit moving-card send (Nov 22)
+- [x] Take "black-friday" web address off the moving card; send moving-card email + text to members and non-members now; moving-card email to the separate list
+- [x] Texts to the separate list (~1,400 marked as agreeing) — owner said yes
