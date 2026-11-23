@@ -15,9 +15,10 @@
 ## 4. Storm Shop section
 - Restyle the shop products below the gift cards to match the gift card design (same headings, spacing, cards and colors). Products, prices and checkout stay the same.
 
-## 5. Class Seasonal Edit gifts (only if you say yes)
-- If you say yes, add Discovery, Movement Edit and Club Experience as gift choices through Nov 30, at their Seasonal Edit prices.
-- If you say no, leave them off.
+## 5. Class Seasonal Edit gifts
+- Add Discovery, Movement Edit and Club Experience as gift choices on the gift page through Nov 30, at their Seasonal Edit prices. When the gift is redeemed, the person gets the same classes and expiry as if they had bought it themselves.
+- On the Seasonal Edit page, keep these class offers where they are and add a "Give as a gift" button to each one. The button opens the gift page with that offer already picked.
+- The Member Movement Edit stays members-only and isn't sold as a gift.
 
 ## Not in this plan
 - A spa Seasonal Edit. It's still waiting on your prices and the wet spa decision for men.
