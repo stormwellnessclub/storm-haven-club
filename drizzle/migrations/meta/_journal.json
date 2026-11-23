@@ -1485,6 +1485,13 @@
       "when": 1795417451540,
       "tag": "0211_pt_dues_covered_installments",
       "breakpoints": true
+    },
+    {
+      "idx": 212,
+      "version": "7",
+      "when": 1795417682863,
+      "tag": "0212_pt_plan_pass_amount_rollup",
+      "breakpoints": true
     }
   ]
 }

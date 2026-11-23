@@ -1,0 +1,1 @@
+- PT package paid/owed totals (`pt_passes.amount_paid_cents` / `amount_outstanding_cents`) are rolled up from `pt_payment_plan_installments` rows by trigger (`pt_rollup_plan_pass_amounts`); never set them from installment count × amount. Why: uneven first payments showed wrong balances.
