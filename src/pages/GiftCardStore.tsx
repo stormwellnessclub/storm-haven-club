@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { trackMetaEvent } from "@/lib/metaPixel";
 import { CalendarIcon, CheckCircle2, Copy, Gift, Loader2, Mail } from "lucide-react";
 import { SpaServiceGrid, TherapistTipPicker } from "@/components/gift-cards/SpaGiftPicker";
+import { useUserMembership } from "@/hooks/useUserMembership";
+import { memberTierRate } from "@/lib/spaPackages";
 
 const AMOUNT_PRESETS = [50, 100, 150, 250];
 
@@ -85,6 +87,11 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   const [spaServiceId, setSpaServiceId] = useState<string | null>(null);
   const [giftOfferId, setGiftOfferId] = useState<string | null>(null);
   const { data: giftOffers = [] } = useGiftOffers();
+  // Members pay massage gift prices less their spa tier discount (checked again at checkout).
+  const { data: membership } = useUserMembership();
+  const giftTierRate = membership ? memberTierRate(membership.membership_type) : 0;
+  const giftPriceCents = (o: GiftOffer) => Math.round(o.price_cents * (1 - giftTierRate));
+  const fmtGift = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
   const [tipCents, setTipCents] = useState(0);
   const [amount, setAmount] = useState(100);
   const [customAmount, setCustomAmount] = useState("");
@@ -160,7 +167,8 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
     return d;
   }, [scheduleEnabled, scheduleDate, scheduleTime]);
 
-  const amountCents = Math.round(amount * 100);
+  const selectedGiftOffer = mode === "service" && giftOfferId ? giftOffers.find((o) => o.id === giftOfferId) : undefined;
+  const amountCents = selectedGiftOffer ? giftPriceCents(selectedGiftOffer) : Math.round(amount * 100);
   const tipAllowed = mode === "spa" || (mode === "service" && !!giftOfferId);
   const effectiveTipCents = tipAllowed ? tipCents : 0;
   const totalCents = amountCents + effectiveTipCents;
@@ -416,6 +424,11 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                               Each gift pays for the whole massage, so there&apos;s nothing more to pay when they book it.
                               Available through November 30.
                             </p>
+                            {giftTierRate > 0 && (
+                              <p className="mt-1 text-xs font-medium text-primary">
+                                Your member discount ({Math.round(giftTierRate * 100)}% off) is already taken off these prices.
+                              </p>
+                            )}
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
                             {giftOffers.map((o) => (
@@ -436,7 +449,12 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                               >
                                 <div className="font-medium">{o.label}</div>
                                 {o.blurb && <div className="text-xs text-muted-foreground">{o.blurb}</div>}
-                                <div className="mt-2 text-lg font-semibold">${(o.price_cents / 100).toFixed(0)}</div>
+                                <div className="mt-2 flex items-baseline gap-2">
+                                  <span className="text-lg font-semibold">{fmtGift(giftPriceCents(o))}</span>
+                                  {giftTierRate > 0 && (
+                                    <span className="text-sm text-muted-foreground line-through">{fmtGift(o.price_cents)}</span>
+                                  )}
+                                </div>
                               </button>
                             ))}
                           </div>

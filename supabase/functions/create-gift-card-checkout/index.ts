@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { massageGiftPriceCents, memberTierRate } from "../_shared/massageGiftPrice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -72,6 +73,7 @@ serve(async (req) => {
     // Massage gifts: price, name and covered massages come from the offer record, and only while it's on.
     let giftOfferId: string | null = null;
     let coversServiceIds: string[] | null = null;
+    let memberPriceNote = "";
     if (giftOfferIdRaw) {
       if (spaServiceIdRaw) return json({ success: false, error: "Choose one gift" });
       const { data: offer } = await supabase
@@ -87,8 +89,24 @@ serve(async (req) => {
       ) {
         return json({ success: false, error: "That gift is no longer available" });
       }
-      if (offer.price_cents !== amountCents) {
+      // Members pay the gift price less their spa tier discount. Membership comes only from the
+      // buyer's own linked account (never an email match), and cancelled memberships don't count.
+      const { data: buyerMembership } = await supabase
+        .from("members")
+        .select("membership_type")
+        .eq("user_id", user.id)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const tierType = buyerMembership ? (buyerMembership.membership_type ?? "") : null;
+      const expectedCents = massageGiftPriceCents(offer.price_cents, tierType);
+      if (expectedCents !== amountCents) {
         return json({ success: false, error: "Gift price changed — please refresh and try again" });
+      }
+      const rate = memberTierRate(tierType);
+      if (tierType != null && rate > 0) {
+        memberPriceNote = ` · member price, ${Math.round(rate * 100)}% off $${(offer.price_cents / 100).toFixed(2)}`;
       }
       giftOfferId = offer.id;
       coversServiceIds = offer.covers_service_ids ?? null;
@@ -185,7 +203,7 @@ serve(async (req) => {
       customer: customerId,
       receipt_email: buyerEmail || undefined,
       automatic_payment_methods: { enabled: true },
-      description: `Storm Wellness Club Gift Card${resolvedServiceLabel ? ` — ${resolvedServiceLabel}` : ""} ($${(amountCents / 100).toFixed(2)})${tipCents ? ` + $${(tipCents / 100).toFixed(2)} therapist tip` : ""}`,
+      description: `Storm Wellness Club Gift Card${resolvedServiceLabel ? ` — ${resolvedServiceLabel}` : ""} ($${(amountCents / 100).toFixed(2)}${memberPriceNote})${tipCents ? ` + $${(tipCents / 100).toFixed(2)} therapist tip` : ""}`,
       metadata: {
         purpose: "gift_card",
         gift_card_id: card.id,
