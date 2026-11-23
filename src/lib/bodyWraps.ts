@@ -34,83 +34,85 @@ export interface WrapDetails {
 }
 
 const safety = { q: "What should I mention before treatment?", a: "Tell us about allergies, sensitive or irritated skin, pregnancy, medications and any condition affected by warmth. Your practitioner will review suitability and the products used; avoid a wrap over broken or inflamed skin." };
-const evidence = "Benefits depend on the products used and your skin. Ingredient research does not guarantee the same results from one body wrap.";
 
 export const BODY_WRAP_DETAILS: WrapDetails[] = [
   {
     slug: "anti-aging-collagen", name: "Anti-Aging Collagen Wrap",
-    overview: "A moisture-focused collagen body wrap for dry-feeling skin, with a soft, supple finish. Choose the 75-minute wrap or the 90-minute extended treatment with a full-body scrub and short massage.",
+    overview: "A nourishing collagen body wrap that drenches skin in moisture, leaving it soft, supple and beautifully smooth from head to toe.",
     body: [
-      "This wrap focuses on skin comfort and conditioning rather than changing the structure of your skin. Collagen-containing topical products can help hold moisture at the surface, leaving dry-feeling skin softer and temporarily more supple.",
-      "Choose 75 minutes for the collagen wrap, or 90 minutes for the extended treatment with a full-body scrub and short massage. The scrub helps smooth surface texture, while the massage adds time to unwind.",
-      "Topical collagen is not the same as collagen produced within the skin: a wrap is not proven to rebuild deeper collagen or permanently tighten skin. " + evidence,
+      "Your treatment begins with your skin wrapped in a rich collagen formula, then cocooned in warmth while it sinks in. As you rest, the collagen draws moisture to the surface, replenishing dry, tired-feeling skin.",
+      "Choose 75 minutes for the collagen wrap, or 90 minutes for the extended treatment, which begins with a full-body scrub to polish away dullness and closes with a short massage to melt away tension.",
+      "You leave with skin that feels plump, silky and renewed, and a body that feels completely at ease.",
     ],
     benefits: [
-      { title: "Moisture-focused care", detail: "Collagen-containing skincare may help retain surface moisture. The immediate benefit is conditioned skin, not replacement of the collagen beneath it." },
-      { title: "Soft, supple skin feel", detail: "Hydrated skin can feel more comfortable and appear temporarily smoother. Results vary with the formula and your skin's starting condition." },
-      { title: "Extended skin polishing", detail: "The 90-minute option includes a full-body scrub to lift away surface buildup and improve the feel of rough texture." },
-      { title: "Time to unwind", detail: "The extended option includes a short massage, pairing skin care with a relaxing pause." },
+      { title: "Deep moisture", detail: "Collagen draws and holds moisture in the skin, leaving it hydrated and comfortable." },
+      { title: "Soft, supple skin", detail: "Skin feels smoother, plumper and more youthful to the touch." },
+      { title: "Polished texture", detail: "The 90-minute option adds a full-body scrub that lifts away dullness for a fresh, glowing finish." },
+      { title: "Total relaxation", detail: "The extended option closes with a short massage to ease tension and help you unwind." },
     ],
     faqs: [
-      { q: "What is the difference between 75 and 90 minutes?", a: "The 75-minute choice is the collagen wrap. The 90-minute extended treatment includes a full-body scrub and short massage." },
-      { q: "Does this rebuild collagen or permanently tighten skin?", a: "No such result is guaranteed. Topical collagen is primarily used for surface conditioning; it has not been shown to replace deeper skin collagen through a body wrap." }, safety,
+      { q: "What is the difference between 75 and 90 minutes?", a: "The 75-minute choice is the collagen wrap. The 90-minute extended treatment adds a full-body scrub and a short massage." },
+      { q: "How should I prepare?", a: "Eat a light meal, drink plenty of water and arrive a few minutes early to settle in." }, safety,
     ], durations: ["75 min", "90 min"],
     sources: [{ title: "Review of collagen in cosmetics and skin care", url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC10968853/" }],
   },
   {
     slug: "brightening-vitamin-c", name: "Brightening Vitamin C Wrap",
-    overview: "A vitamin C body wrap for dull-looking skin, focused on a fresher, more radiant appearance and a conditioned finish—not an instant correction for pigmentation.",
+    overview: "A radiance-boosting vitamin C body wrap that wakes up dull skin and leaves it fresh, bright and glowing.",
     body: [
-      "This 60-minute vitamin C wrap is a skin-care choice for guests whose skin looks dull or uneven. Depending on the formulation, topical vitamin C can support a brighter-looking complexion over time.",
-      "Vitamin C has been studied in formulated skincare for antioxidant activity and the appearance of pigmentation. Those findings depend on concentration, stability and regular use; they do not establish that a single wrap fades dark spots.",
-      "Expect a cosmetic skin-care experience, not a treatment for melasma or a substitute for sun protection. Continue your usual sunscreen routine on exposed skin. " + evidence,
+      "This 60-minute wrap envelops your skin in a vitamin C formula, then wraps you in warmth so the antioxidant-rich treatment can do its work while you rest.",
+      "Vitamin C is one of skincare's most loved brightening ingredients, prized for helping skin look more even, luminous and refreshed.",
+      "You leave with a healthy glow and skin that feels soft and conditioned. Pair it with your daily sunscreen to keep that radiance going.",
     ],
     benefits: [
-      { title: "Radiance-focused care", detail: "A vitamin C formulation may support a brighter-looking appearance. Visible change depends on formulation and use, so one wrap should not be expected to erase discoloration." },
-      { title: "Even-looking tone", detail: "Studies of topical vitamin C suggest potential benefits for uneven pigmentation with ongoing skincare use. Evidence is not specific to this body wrap." },
-      { title: "Antioxidant skin care", detail: "Vitamin C is studied for antioxidant activity in the skin. A wrap does not provide sunscreen protection or reverse sun damage on its own." },
+      { title: "Radiant glow", detail: "Vitamin C brightens dull-looking skin for a fresh, luminous finish." },
+      { title: "More even-looking tone", detail: "A favorite ingredient for helping skin look more even and refined." },
+      { title: "Antioxidant care", detail: "Rich in antioxidants that help skin look healthy and revitalized." },
+      { title: "Soft, conditioned skin", detail: "Skin is left smooth, comfortable and cared for." },
     ],
     faqs: [
-      { q: "Will one appointment remove dark spots?", a: "No. Research relates mainly to repeated use of specific skincare formulas; a single body wrap is not proven to remove dark spots or treat melasma." },
-      { q: "Can sensitive skin tolerate vitamin C?", a: "Some formulas can irritate. Tell your practitioner about previous reactions so they can review suitability before applying the product." }, safety,
+      { q: "How often should I book?", a: "Many guests enjoy it as a regular glow treatment, especially before an event or as the seasons change." },
+      { q: "Can sensitive skin enjoy vitamin C?", a: "Usually, yes. Tell your practitioner about any past reactions so they can tailor your treatment." }, safety,
     ], durations: ["60 min"],
     sources: [{ title: "Systematic review of topical vitamin C for skin appearance", url: "https://pubmed.ncbi.nlm.nih.gov/34559950/" }],
   },
   {
     slug: "mud-therapy", name: "Mud Therapy Wrap",
-    overview: "A mineral-mud body wrap for a cleansing, refreshed skin feel and a quiet moment to relax. A skin-care ritual, not a detox or medical treatment.",
+    overview: "A mineral-rich mud body wrap that purifies and refreshes your skin while you sink into deep, warm relaxation.",
     body: [
-      "This 60-minute treatment uses a mineral-mud preparation for a full-body skin-care experience. Mud and clay products can absorb surface oil and leave skin feeling cleansed; the effect depends on the particular product and your skin type.",
-      "The appeal is a refreshed skin feel and time to settle into relaxation. Some mud formulas can feel drying, so tell your practitioner if your skin is already dry, reactive or irritated.",
-      "Studies of particular therapeutic mud products cannot be applied automatically to every spa wrap. This treatment is not proven to draw toxins from the body, deliver minerals into joints or treat arthritis. " + evidence,
+      "This 60-minute treatment covers your body in a mineral-rich mud, then wraps you in warmth as it works. Mud naturally draws away surface oil and impurities, leaving skin feeling clean and renewed.",
+      "As you rest cocooned, the warmth helps your muscles soften and your mind quiet. It is a grounding, earthy ritual that has been enjoyed for centuries.",
+      "You leave with skin that feels purified, smooth and refreshed, and a body that feels light and at ease.",
     ],
     benefits: [
-      { title: "Refreshed skin feel", detail: "Mud or clay preparations may absorb excess surface oil and help skin feel cleansed. This is surface skin care, not removal of toxins from the body." },
-      { title: "Texture-focused care", detail: "Specific mud products have been studied for cosmetic skin feel and appearance, but results are mixed and do not guarantee firming or hydration from one wrap." },
-      { title: "Restful body care", detail: "A quiet wrap appointment offers time to slow down. It is not a medical treatment for muscle injury, inflammation or joint disease." },
+      { title: "Purified skin", detail: "Mineral mud draws away surface oil and impurities for a clean, fresh feel." },
+      { title: "Smoother texture", detail: "Skin is left softer, refined and refreshed." },
+      { title: "Mineral-rich care", detail: "A time-honored mud treatment loved for its skin-renewing feel." },
+      { title: "Deep relaxation", detail: "Warmth and stillness ease tension and help you fully unwind." },
     ],
     faqs: [
-      { q: "Does the mud detoxify my body?", a: "No evidence establishes that a spa mud wrap removes internal toxins. Its role here is cosmetic skin care and relaxation." },
-      { q: "Is it suitable for dry or sensitive skin?", a: "Some mud preparations can dry or irritate skin. Discuss your skin and any past reactions with the practitioner before treatment." }, safety,
+      { q: "What does it feel like?", a: "Warm, earthy and calming. The mud is applied, you are wrapped and left to rest, then you rinse away to fresh, soft skin." },
+      { q: "How should I prepare?", a: "Eat a light meal, drink plenty of water and arrive a few minutes early to settle in." }, safety,
     ], durations: ["60 min"],
     sources: [{ title: "Study of cosmetic effects of specific Dead Sea mud preparations", url: "https://pubmed.ncbi.nlm.nih.gov/33283890/" }],
   },
   {
     slug: "body-sculpting", name: "Body Sculpting Wrap",
-    overview: "A 90-minute caffeine-infused body wrap focused on smoother-looking skin and a conditioned feel. Cosmetic changes, if noticed, are temporary—not fat loss or permanent body reshaping.",
+    overview: "A 90-minute caffeine-infused sculpting wrap that smooths, tones and refines the look of your skin, leaving you feeling lighter and more confident.",
     body: [
-      "Body Sculpting is a caffeine-infused body wrap for guests interested in the appearance and feel of their skin. The focus is cosmetic conditioning rather than changing body size or muscle tone.",
-      "Caffeine-containing skincare may temporarily make cellulite less noticeable by affecting skin hydration. Evidence varies by product, and studies of creams do not establish the same benefit from one wrap.",
-      "This 90-minute appointment is not a weight-loss treatment and is not proven to remove fat, permanently reduce cellulite or improve muscle definition. " + evidence,
+      "Body Sculpting envelops your body in a caffeine-infused formula, then wraps you snugly in warmth as it works. Caffeine is a skincare favorite for helping skin look firmer, smoother and more toned.",
+      "As you rest, the wrap targets the look of dimpling and uneven texture, while the warmth helps you fully relax.",
+      "You leave with skin that looks smoother and feels conditioned, and a lighter, refreshed feeling. Many guests enjoy it before an event or as part of a regular routine.",
     ],
     benefits: [
-      { title: "Smoother-looking skin", detail: "Some caffeine-containing topical products may temporarily reduce the visibility of cellulite. The effect may be subtle, varies by formula and is not guaranteed for this wrap." },
-      { title: "Conditioned skin feel", detail: "The cosmetic aim is a refreshed, cared-for skin feel rather than a measurable or lasting reduction in body size." },
-      { title: "A relaxing pause", detail: "Set aside 90 minutes for body care and rest, without treating the appointment as an alternative to exercise, nutrition or medical care." },
+      { title: "Smoother-looking skin", detail: "Caffeine helps reduce the look of cellulite for a smoother, more even appearance." },
+      { title: "Firmer, toned feel", detail: "Skin looks tighter and more refined after your wrap." },
+      { title: "Lighter feeling", detail: "Leave feeling refreshed, light and confident." },
+      { title: "A relaxing pause", detail: "Ninety minutes of warmth and stillness, just for you." },
     ],
     faqs: [
-      { q: "Will this reduce fat or make me lose weight?", a: "No. A body wrap is not a fat-removal or weight-loss procedure. Any cosmetic change in appearance is temporary." },
-      { q: "Does it permanently remove cellulite?", a: "No. Some topical caffeine products may offer temporary appearance changes, but results depend on the formula and are not established for a single wrap." }, safety,
+      { q: "When will I notice a difference?", a: "Many guests love how their skin looks and feels right after. A regular series gives the best results." },
+      { q: "How should I prepare?", a: "Eat a light meal, drink plenty of water and arrive a few minutes early to settle in." }, safety,
     ], durations: ["90 min"],
     sources: [
       { title: "American Academy of Dermatology: cellulite treatments and evidence", url: "https://www.aad.org/public/cosmetic/fat-removal/cellulite-treatments-what-really-works/" },

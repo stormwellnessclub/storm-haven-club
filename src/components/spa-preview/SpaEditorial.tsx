@@ -3,7 +3,8 @@ import type { SpaService } from "@/hooks/useSpaManagement";
 import { SPA_PATHS } from "@/lib/spaRoutes";
 import { orderedSpaMenu } from "@/lib/spaMenu";
 import { groupTreatments, type TreatmentGroup } from "@/lib/spaVariants";
-import { isSeaweedRitual, SEAWEED_RITUAL_BENEFITS, SEAWEED_RITUAL_PREPARATION } from "@/lib/seaweedRitual";
+import { isSeaweedRitual, SEAWEED_RITUAL_BENEFITS, SEAWEED_RITUAL_PREPARATION, SEAWEED_RITUAL_PATH } from "@/lib/seaweedRitual";
+import { bodyWrapDetails } from "@/lib/bodyWraps";
 import { SPA_CATEGORIES } from "@/lib/spa-content";
 import { TreatmentRow } from "@/components/spa-preview/TreatmentRow";
 import { SpaTimeFinder } from "@/components/spa-preview/SpaTimeFinder";
@@ -48,11 +49,16 @@ function rowExtras(g: TreatmentGroup<SpaService>) {
       photo: { src: bananaLeaf.url, alt: "Hands resting on a broad green leaf held close to the body", pos: "object-[50%_40%]" },
       notes: SEAWEED_RITUAL_BENEFITS.map((b) => b.title),
       aside: SEAWEED_RITUAL_PREPARATION,
+      viewHref: SEAWEED_RITUAL_PATH, viewLabel: "Learn more",
     };
   }
   if (first.category === "Facials") {
     const slug = FACIAL_SLUGS.get(g.name);
     return slug ? { viewHref: SPA_PATHS.facial(slug) } : {};
+  }
+  if (first.category === "Body Wraps") {
+    const d = bodyWrapDetails(g.name);
+    return d ? { viewHref: `/spa/body-wraps/${d.slug}`, viewLabel: "Learn more" } : {};
   }
   return {};
 }

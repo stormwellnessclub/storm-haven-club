@@ -26,6 +26,7 @@ interface Props {
   /** Small label above the name, e.g. "Signature". */
   label?: string;
   viewHref?: string;
+  viewLabel?: string;
   photo?: { src: string; alt: string; pos?: string };
   notes?: string[];
   /** A short practical note shown under the lengths (e.g. arrive early). */
@@ -33,7 +34,7 @@ interface Props {
 }
 
 /** One treatment on the menu, with every length it comes in. */
-export function TreatmentRow({ group, onBook, onRequest, rating, onReviews, label, viewHref, photo, notes, aside }: Props) {
+export function TreatmentRow({ group, onBook, onRequest, rating, onReviews, label, viewHref, photo, notes, aside, viewLabel = "View Treatment" }: Props) {
   const [pickId, setPickId] = useState(group.variants[0]?.id);
   const chosen = group.variants.find((v) => v.id === pickId) ?? group.variants[0];
   if (!chosen) return null;
@@ -84,7 +85,7 @@ export function TreatmentRow({ group, onBook, onRequest, rating, onReviews, labe
           ? <button type="button" onClick={() => onRequest(chosen)} className={btn}>Request Appointment</button>
           : <Link to={requestHref(chosen)} className={btn}>Request Appointment</Link>)}
         {mode === "soon" && <span className="text-xs tracking-[0.25em] uppercase text-muted-foreground">Coming soon</span>}
-        {viewHref && <Link to={viewHref} className={quiet}>View Treatment</Link>}
+        {viewHref && <Link to={viewHref} className={quiet}>{viewLabel}</Link>}
       </div>
     </li>
   );
