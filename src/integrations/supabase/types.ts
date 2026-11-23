@@ -4032,6 +4032,7 @@ export type Database = {
       gift_card_offers: {
         Row: {
           blurb: string | null
+          class_offer_key: string | null
           covers_service_ids: string[]
           created_at: string
           display_order: number
@@ -4046,6 +4047,7 @@ export type Database = {
         }
         Insert: {
           blurb?: string | null
+          class_offer_key?: string | null
           covers_service_ids?: string[]
           created_at?: string
           display_order?: number
@@ -4060,6 +4062,7 @@ export type Database = {
         }
         Update: {
           blurb?: string | null
+          class_offer_key?: string | null
           covers_service_ids?: string[]
           created_at?: string
           display_order?: number
@@ -4072,7 +4075,15 @@ export type Database = {
           starts_at?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gift_card_offers_class_offer_key_fkey"
+            columns: ["class_offer_key"]
+            isOneToOne: false
+            referencedRelation: "seasonal_class_offers"
+            referencedColumns: ["key"]
+          },
+        ]
       }
       gift_card_redemptions: {
         Row: {
@@ -4146,6 +4157,7 @@ export type Database = {
         Row: {
           amount_cents: number
           balance_cents: number
+          class_offer_key: string | null
           code: string
           covers_service_ids: string[] | null
           created_at: string
@@ -4168,6 +4180,7 @@ export type Database = {
           purchaser_user_id: string | null
           recipient_email: string
           recipient_name: string
+          redeemed_class_pass_id: string | null
           scheduled_send_at: string | null
           service_label: string | null
           spa_service_id: string | null
@@ -4179,6 +4192,7 @@ export type Database = {
         Insert: {
           amount_cents: number
           balance_cents: number
+          class_offer_key?: string | null
           code: string
           covers_service_ids?: string[] | null
           created_at?: string
@@ -4201,6 +4215,7 @@ export type Database = {
           purchaser_user_id?: string | null
           recipient_email: string
           recipient_name: string
+          redeemed_class_pass_id?: string | null
           scheduled_send_at?: string | null
           service_label?: string | null
           spa_service_id?: string | null
@@ -4212,6 +4227,7 @@ export type Database = {
         Update: {
           amount_cents?: number
           balance_cents?: number
+          class_offer_key?: string | null
           code?: string
           covers_service_ids?: string[] | null
           created_at?: string
@@ -4234,6 +4250,7 @@ export type Database = {
           purchaser_user_id?: string | null
           recipient_email?: string
           recipient_name?: string
+          redeemed_class_pass_id?: string | null
           scheduled_send_at?: string | null
           service_label?: string | null
           spa_service_id?: string | null
@@ -4243,6 +4260,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gift_cards_class_offer_key_fkey"
+            columns: ["class_offer_key"]
+            isOneToOne: false
+            referencedRelation: "seasonal_class_offers"
+            referencedColumns: ["key"]
+          },
           {
             foreignKeyName: "gift_cards_purchaser_member_id_fkey"
             columns: ["purchaser_member_id"]
@@ -20671,6 +20695,7 @@ export type Database = {
         }
         Returns: Json
       }
+      redeem_class_gift_card: { Args: { _code: string }; Returns: Json }
       redeem_gift_card: {
         Args: {
           p_amount_cents: number

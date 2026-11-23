@@ -155,3 +155,10 @@
 - [x] Massage gifts that pay for the whole massage: $120 60-min Signature/Deep Relief, $170 90-min, $180 90-min Sports/Lymph, $160 60-min Sports, $150 60-min Lymph
 - [x] Prenatal gifts: $150 60-min, $195 90-min
 - [x] Make Robert Coleman's $120 card cover a full 60-min Signature or Deep Relief, then resend his email
+
+## Gift page & massage flyers (Nov 23)
+- [x] Remove "each gift covers the full massage" from the 8 massage flyers (v2 saved)
+- [x] Gift page: massages only at Seasonal Edit prices; chakra rituals and Recovery Day Pass removed
+- [x] Storm Shop products restyled to match the gift cards
+- [x] Class Seasonal Edit gifts on gift page + "Give as a gift" on Seasonal Edit page + redeem section
+- [ ] Spa Seasonal Edit — waiting on owner prices and the wet spa decision for men

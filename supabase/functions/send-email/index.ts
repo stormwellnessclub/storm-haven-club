@@ -3638,7 +3638,9 @@ serve(async (req) => {
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background: #FFFFFF; border-radius: 14px; border: 1px solid #E6DED2;">
                   <tr><td style="padding: 26px 30px 8px 30px; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: #88766B; text-align: center;">How to Redeem</td></tr>
                   <tr><td style="padding: 6px 30px 26px 30px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.8; color: #4A4037; text-align: center;">
-                    ${data.serviceLabel
+                    ${(data.classGift === true || data.classGift === 'true')
+                      ? `This gift is <strong>${data.serviceLabel}</strong> from The Seasonal Edit. Sign in or create an account at <a href="${BASE_URL}/seasonal-edit?redeem=${encodeURIComponent(String(data.code || ''))}#redeem" style="color:#1C170F;">stormwellnessclub.com/seasonal-edit</a> and enter your code. Your classes are added to your account right away, and their validity starts the day you redeem.`
+                      : data.serviceLabel
                       ? `This gift is for your <strong>${data.serviceLabel}</strong> at the Storm Spa. Book online by creating an account at <a href="${BASE_URL}/spa" style="color:#1C170F;">stormwellnessclub.com</a>, or call or email us at <a href="mailto:admin@stormwellnessclub.com" style="color:#1C170F;">admin@stormwellnessclub.com</a> and we'll find a time for you. Share your code with the front desk when you arrive — we'll take care of everything else.`
                       : `Share your code with the front desk at checkout. It can be used toward spa services, classes, the café and the shop — any remaining balance stays on your card.`}
                     ${expiresFmt ? `<br/><br/><span style="color:#88766B;">Please redeem by <strong>${expiresFmt}</strong> — this gift expires 8 months from purchase.</span>` : ''}
@@ -3647,7 +3649,7 @@ serve(async (req) => {
               </td></tr>
 
               <tr><td style="text-align: center; padding: 30px 20px 10px 20px;">
-                <a href="${BASE_URL}/spa" style="display: inline-block; background: #1C170F; color: #FFF8E7; text-decoration: none; padding: 14px 34px; border-radius: 999px; font-size: 13px; letter-spacing: .2em; text-transform: uppercase;">Explore the Spa</a>
+                <a href="${(data.classGift === true || data.classGift === 'true') ? `${BASE_URL}/seasonal-edit?redeem=${encodeURIComponent(String(data.code || ''))}#redeem` : `${BASE_URL}/spa`}" style="display: inline-block; background: #1C170F; color: #FFF8E7; text-decoration: none; padding: 14px 34px; border-radius: 999px; font-size: 13px; letter-spacing: .2em; text-transform: uppercase;">${(data.classGift === true || data.classGift === 'true') ? 'Redeem Your Classes' : 'Explore the Spa'}</a>
               </td></tr>
 
               <tr><td style="text-align: center; padding: 26px 20px 0 20px; font-size: 12px; color: #88766B; line-height: 1.8;">

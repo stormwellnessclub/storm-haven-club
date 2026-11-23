@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { BLACK_FRIDAY_PROMO, formatUsd, saleEndLabel, saleHasEnded } from "@/lib/blackFriday";
 import { MovementEditSection } from "@/components/seasonal/MovementEditSection";
+import { RedeemClassGift } from "@/components/seasonal/RedeemClassGift";
 import trainingPhoto from "@/assets/gym-area-2.jpg";
 
 type Pack = { id: string; name: string; sessions: number; price_cents: number; promo_audience: string; sale_ends_at: string | null; expiration_days: number };
@@ -242,6 +243,7 @@ export default function BlackFriday() {
       )}
 
       <MovementEditSection audience={view} authLink={authLink} />
+      <RedeemClassGift />
 
       <Sheet open={!!picked} onOpenChange={(o) => { if (!o && !busy) setPicked(null); }}>
         <SheetContent side="bottom" className="max-w-lg mx-auto">

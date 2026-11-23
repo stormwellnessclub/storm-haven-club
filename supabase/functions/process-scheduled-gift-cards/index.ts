@@ -49,6 +49,7 @@ serve(async (req) => {
               amount: (Number(card.amount_cents) / 100).toFixed(2),
               serviceLabel: (card as any).service_label || "",
               hideAmount: (card as any).hide_amount === true,
+              classGift: !!(card as any).class_offer_key,
               expiresAt: card.expires_at,
               tipCents: Number((card as any).tip_cents) || 0,
             },

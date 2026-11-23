@@ -14,6 +14,8 @@ export type SpaGiftService = {
   price: number;
 };
 
+const HIDDEN_GIFT_CATEGORIES = ["Massage", "Body Rituals"];
+
 export const TIP_PERCENTS = [0, 15, 18, 20] as const;
 
 export function useGiftableSpaServices() {
@@ -38,12 +40,18 @@ export function SpaServiceGrid({
   selectedId,
   onSelect,
   compact,
+  publicGiftShop,
 }: {
   selectedId: string | null;
   onSelect: (s: SpaGiftService) => void;
   compact?: boolean;
+  /** Public gift page: massages are gifted only as Seasonal Edit massage gifts; chakra rituals aren't giftable. */
+  publicGiftShop?: boolean;
 }) {
-  const { data: services = [], isLoading } = useGiftableSpaServices();
+  const { data: allServices = [], isLoading } = useGiftableSpaServices();
+  const services = publicGiftShop
+    ? allServices.filter((s) => !HIDDEN_GIFT_CATEGORIES.includes(String(s.category)))
+    : allServices;
   if (isLoading) {
     return (
       <div className="flex justify-center p-6 text-muted-foreground">

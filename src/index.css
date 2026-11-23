@@ -1108,3 +1108,17 @@
   --border: 38 20% 68%;
   color: hsl(var(--foreground));
 }
+
+/* Storm Shop page: the shared café ordering block takes the site's own palette and lettering,
+   so the shop products match the gift cards above them. The Café page keeps its own look. */
+.storm-shop-theme {
+  --cafe-cream: var(--background);
+  --cafe-stone: var(--secondary);
+  --cafe-stone-soft: var(--card);
+  --cafe-terracotta: var(--primary);
+  --cafe-terracotta-deep: var(--accent);
+  --cafe-burgundy: var(--foreground);
+  --cafe-line: var(--border);
+}
+.storm-shop-theme .font-cafe-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+.storm-shop-theme .font-cafe-mono { font-family: inherit; letter-spacing: 0.2em; }

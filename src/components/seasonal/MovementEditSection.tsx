@@ -153,6 +153,11 @@ export function MovementEditSection({ audience, authLink }: {
                   ) : (
                     <Button onClick={() => { setPicked(o); setErr(null); }} disabled={!isLive(o)}>{c.button}</Button>
                   )}
+                  {o.key !== "member_movement_edit" && isLive(o) && (
+                    <p className="mt-4 text-sm">
+                      <Link to={`/shop?gift=${o.key}#gift-cards`} className="underline underline-offset-4 text-foreground">Give as a gift</Link>
+                    </p>
+                  )}
                 </div>
               </Reveal>
             </div>

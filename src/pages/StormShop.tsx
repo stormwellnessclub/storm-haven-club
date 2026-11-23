@@ -81,7 +81,7 @@ export default function StormShop() {
         <Merch embedded />
       </div>
 
-      <div id="wellness" className="scroll-mt-40 border-t border-border">
+      <div id="wellness" className="storm-shop-theme scroll-mt-40 border-t border-border">
         <CafeOrderContent variant="public" section="shop" />
       </div>
     </Layout>

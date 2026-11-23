@@ -62,7 +62,9 @@ serve(async (req) => {
     let resolvedServiceLabel = serviceLabel;
     if (spaServiceIdRaw) {
       const { data: svc } = await supabase
-        .from("spa_services").select("id, name, price, is_active").eq("id", spaServiceIdRaw).maybeSingle();
+        .from("spa_services").select("id, name, price, is_active, category").eq("id", spaServiceIdRaw).maybeSingle();
+      // Massages are gifted only through the Seasonal Edit massage gifts; rituals aren't giftable.
+      if (svc && ["Massage", "Body Rituals"].includes(String(svc.category))) return json({ success: false, error: "That spa service isn't available as a gift" });
       if (!svc || !svc.is_active) return json({ success: false, error: "That spa service isn't available" });
       if (Math.round(Number(svc.price) * 100) !== amountCents) {
         return json({ success: false, error: "Service price changed — please refresh and try again" });
@@ -74,11 +76,12 @@ serve(async (req) => {
     let giftOfferId: string | null = null;
     let coversServiceIds: string[] | null = null;
     let memberPriceNote = "";
+    let classOfferKey: string | null = null;
     if (giftOfferIdRaw) {
       if (spaServiceIdRaw) return json({ success: false, error: "Choose one gift" });
       const { data: offer } = await supabase
         .from("gift_card_offers")
-        .select("id, label, price_cents, covers_service_ids, is_active, starts_at, ends_at")
+        .select("id, label, price_cents, covers_service_ids, is_active, starts_at, ends_at, class_offer_key")
         .eq("id", giftOfferIdRaw)
         .maybeSingle();
       const nowMs = Date.now();
@@ -99,7 +102,8 @@ serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const tierType = buyerMembership ? (buyerMembership.membership_type ?? "") : null;
+      // Class gifts sell at the Seasonal Edit class price for everyone (no spa tier discount).
+      const tierType = offer.class_offer_key ? null : (buyerMembership ? (buyerMembership.membership_type ?? "") : null);
       const expectedCents = massageGiftPriceCents(offer.price_cents, tierType);
       if (expectedCents !== amountCents) {
         return json({ success: false, error: "Gift price changed — please refresh and try again" });
@@ -109,7 +113,8 @@ serve(async (req) => {
         memberPriceNote = ` · member price, ${Math.round(rate * 100)}% off $${(offer.price_cents / 100).toFixed(2)}`;
       }
       giftOfferId = offer.id;
-      coversServiceIds = offer.covers_service_ids ?? null;
+      classOfferKey = offer.class_offer_key ?? null;
+      coversServiceIds = classOfferKey ? null : (offer.covers_service_ids ?? null);
       resolvedServiceLabel = offer.label;
     }
     if (!recipientName) return json({ success: false, error: "Recipient name is required" });
@@ -172,6 +177,7 @@ serve(async (req) => {
         spa_service_id: spaServiceId,
         gift_offer_id: giftOfferId,
         covers_service_ids: coversServiceIds,
+        class_offer_key: classOfferKey,
         // Massage gifts show the massage, not a dollar amount, so it isn't mistaken for partial credit.
         ...(giftOfferId ? { hide_amount: true } : {}),
         tip_cents: tipCents,

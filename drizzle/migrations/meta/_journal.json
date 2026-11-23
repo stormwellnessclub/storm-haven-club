@@ -1492,6 +1492,20 @@
       "when": 1795417682863,
       "tag": "0212_pt_plan_pass_amount_rollup",
       "breakpoints": true
+    },
+    {
+      "idx": 213,
+      "version": "7",
+      "when": 1795470796617,
+      "tag": "0213_seasonal_class_gifts",
+      "breakpoints": true
+    },
+    {
+      "idx": 214,
+      "version": "7",
+      "when": 1795471182244,
+      "tag": "0214_class_gift_day_pass_order",
+      "breakpoints": true
     }
   ]
 }

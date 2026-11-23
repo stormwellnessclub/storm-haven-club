@@ -26,10 +26,9 @@ import { memberPriceLabel, memberTierRate } from "@/lib/spaPackages";
 
 const AMOUNT_PRESETS = [50, 100, 150, 250];
 
-// Massage gifts now come from the Seasonal Edit gift offers (they pay for the whole massage).
+// Massage and class gifts come from the Seasonal Edit gift offers.
 const SERVICE_PRESETS = [
   { label: "5-Class Pack", amount: 150, blurb: "Reformer, cycling or mat pilates" },
-  { label: "Recovery Day Pass", amount: 60, blurb: "Sauna, salt room, cold plunge & red light" },
 ];
 
 const DRAFT_KEY = "gift_card_draft_v1";
@@ -40,6 +39,7 @@ type GiftOffer = {
   blurb: string | null;
   price_cents: number;
   ends_at: string | null;
+  class_offer_key: string | null;
 };
 
 /** Massage gifts on offer right now (the database only returns ones that are on and within their dates). */
@@ -49,7 +49,7 @@ function useGiftOffers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("gift_card_offers")
-        .select("id, label, blurb, price_cents, ends_at")
+        .select("id, label, blurb, price_cents, ends_at, class_offer_key")
         .eq("is_active", true)
         .order("display_order", { ascending: true });
       if (error) throw error;
@@ -90,7 +90,9 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   // Members pay massage gift prices less their spa tier discount (checked again at checkout).
   const { data: membership } = useUserMembership();
   const giftTierRate = membership ? memberTierRate(membership.membership_type) : 0;
-  const giftPriceCents = (o: GiftOffer) => Math.round(o.price_cents * (1 - giftTierRate));
+  const giftPriceCents = (o: GiftOffer) => (o.class_offer_key ? o.price_cents : Math.round(o.price_cents * (1 - giftTierRate)));
+  const massageOffers = giftOffers.filter((o) => !o.class_offer_key);
+  const classOffers = giftOffers.filter((o) => !!o.class_offer_key);
   const fmtGift = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
   const [tipCents, setTipCents] = useState(0);
   const [amount, setAmount] = useState(100);
@@ -169,7 +171,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
 
   const selectedGiftOffer = mode === "service" && giftOfferId ? giftOffers.find((o) => o.id === giftOfferId) : undefined;
   const amountCents = selectedGiftOffer ? giftPriceCents(selectedGiftOffer) : Math.round(amount * 100);
-  const tipAllowed = mode === "spa" || (mode === "service" && !!giftOfferId);
+  const tipAllowed = mode === "spa" || (mode === "service" && !!selectedGiftOffer && !selectedGiftOffer.class_offer_key);
   const effectiveTipCents = tipAllowed ? tipCents : 0;
   const totalCents = amountCents + effectiveTipCents;
   const validAmount = amount >= 25 && amount <= 1000;
@@ -250,16 +252,34 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
     setGiftOfferId(null);
   };
 
+  // Preselect a Seasonal Edit class gift when arriving from the Seasonal Edit page ("Give as a gift").
+  useEffect(() => {
+    const key = searchParams.get("gift");
+    if (!key || giftOffers.length === 0) return;
+    const o = giftOffers.find((x) => x.class_offer_key === key);
+    if (!o) return;
+    setMode("service");
+    setSpaServiceId(null);
+    setGiftOfferId(o.id);
+    setServiceLabel(o.label);
+    setAmount(o.price_cents / 100);
+    setCustomAmount("");
+    setTipCents(0);
+  }, [searchParams, giftOffers]);
+
   // Preselect a spa service when arriving from the Spa ("Gift this service").
   useEffect(() => {
     const svc = searchParams.get("service");
     const svcName = searchParams.get("serviceName");
     if (!svc && !svcName) return;
     (async () => {
-      let q = supabase.from("spa_services").select("id, name, price").eq("is_active", true).eq("public_menu", true);
+      let q = supabase.from("spa_services").select("id, name, price, category").eq("is_active", true).eq("public_menu", true);
       q = svc ? q.eq("id", svc) : q.ilike("name", `%${svcName!.replace(/[%_]/g, "")}%`);
       const { data } = await q.order("price", { ascending: true }).limit(1).maybeSingle();
       if (!data) return;
+      // Massages are gifted through the Seasonal Edit massage gifts; rituals aren't giftable.
+      if (data.category === "Massage") { setMode("service"); return; }
+      if (data.category === "Body Rituals") return;
       setMode("spa");
       setSpaServiceId(data.id);
       setServiceLabel(data.name);
@@ -399,6 +419,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                     ) : mode === "spa" ? (
                       <div className="space-y-4">
                         <SpaServiceGrid
+                          publicGiftShop
                           selectedId={spaServiceId}
                           onSelect={(svc) => {
                             setSpaServiceId(svc.id);
@@ -414,16 +435,13 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                       </div>
                     ) : (
                       <div className="space-y-5">
-                      {giftOffers.length > 0 && (
+                      {massageOffers.length > 0 && (
                         <div className="space-y-3">
                           <div>
                             <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                               The Seasonal Edit · Massage gifts
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Each gift pays for the whole massage, so there&apos;s nothing more to pay when they book it.
-                              Available through November 30.
-                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">Available through November 30.</p>
                             {giftTierRate > 0 && (
                               <p className="mt-1 text-xs font-medium text-primary">
                                 {memberPriceLabel(membership?.membership_type)} — already taken off these prices.
@@ -431,7 +449,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                             )}
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
-                            {giftOffers.map((o) => (
+                            {massageOffers.map((o) => (
                               <button
                                 key={o.id}
                                 type="button"
@@ -458,9 +476,44 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                               </button>
                             ))}
                           </div>
-                          {giftOfferId && (
+                          {giftOfferId && !selectedGiftOffer?.class_offer_key && (
                             <TherapistTipPicker baseCents={amountCents} tipCents={tipCents} onChange={setTipCents} />
                           )}
+                        </div>
+                      )}
+                      {classOffers.length > 0 && (
+                        <div className="space-y-3">
+                          <div>
+                            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                              The Seasonal Edit · Class gifts
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Available through November 30. Their classes start when they redeem the code.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {classOffers.map((o) => (
+                              <button
+                                key={o.id}
+                                type="button"
+                                onClick={() => {
+                                  setGiftOfferId(o.id);
+                                  setServiceLabel(o.label);
+                                  setAmount(o.price_cents / 100);
+                                  setCustomAmount("");
+                                  setTipCents(0);
+                                }}
+                                className={cn(
+                                  "rounded-lg border p-4 text-left transition-colors",
+                                  giftOfferId === o.id ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                                )}
+                              >
+                                <div className="font-medium">{o.label}</div>
+                                {o.blurb && <div className="text-xs text-muted-foreground">{o.blurb}</div>}
+                                <div className="mt-2 text-lg font-semibold">{fmtGift(o.price_cents)}</div>
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       )}
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -611,9 +664,13 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                   Includes a <strong>${(effectiveTipCents / 100).toFixed(2)}</strong> therapist tip · Total ${(totalCents / 100).toFixed(2)}
                 </p>
               )}
-              {mode === "service" && giftOfferId && serviceLabel ? (
+              {mode === "service" && selectedGiftOffer?.class_offer_key && serviceLabel ? (
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Gifted as <strong>{serviceLabel}</strong> — it pays for the whole massage when they book it.
+                  Gifted as <strong>{serviceLabel}</strong> — they redeem the code on the Seasonal Edit page and the classes go straight to their account.
+                </p>
+              ) : mode === "service" && giftOfferId && serviceLabel ? (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Gifted as <strong>{serviceLabel}</strong>.
                 </p>
               ) : mode !== "amount" && serviceLabel && (
                 <p className="mt-3 text-xs text-muted-foreground">
