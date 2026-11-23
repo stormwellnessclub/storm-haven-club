@@ -49,4 +49,4 @@
 - Never grant pricing, roles, gifts or charges from an email match alone; use linked user_id or an admin action. Why: sign-ups are auto-confirmed.
 - Staff can't pick outside recipients: send-email mails only people on record (except invites); bypassConsent is service-role only; test texts go to the caller's own phone. Why: no arbitrary sends.
 - Payment bookkeeping RPCs (PT installments/invoices, event invoice recalc, dues settlement) are service-role only; café credit tables are written only through checked functions. Why: anyone could mark payments paid or grant themselves credit.
-- Dues-covered PT plan parts (paid_via "Covered by membership dues", no Stripe schedule) are marked paid only by `pt_apply_dues_covered_installments()` once that month's dues are in revenue_ledger. Why: no double charges.
+- Dues-covered PT plan parts (paid_via "Covered by membership dues", no Stripe schedule) are marked paid only by `pt_apply_dues_covered_installments()` once that month's dues are in revenue_ledger. Why: no double charge.
