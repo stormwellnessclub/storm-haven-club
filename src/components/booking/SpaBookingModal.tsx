@@ -1,3 +1,4 @@
+import { memberPriceLabel } from "@/lib/spaPackages";
 import { sessionMinutesText } from "@/lib/spaDuration";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { type SpaService } from "@/hooks/useSpaManagement";
@@ -841,7 +842,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                   <>
                     <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
                     <p className="text-lg font-semibold text-accent">${finalPrice.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">Member Price</p>
+                    <p className="text-xs text-muted-foreground">{memberPriceLabel(membership?.membership_type)}</p>
                   </>
                 ) : (
                   <p className="text-lg font-semibold">${basePrice.toFixed(2)}</p>

@@ -22,7 +22,7 @@ import { trackMetaEvent } from "@/lib/metaPixel";
 import { CalendarIcon, CheckCircle2, Copy, Gift, Loader2, Mail } from "lucide-react";
 import { SpaServiceGrid, TherapistTipPicker } from "@/components/gift-cards/SpaGiftPicker";
 import { useUserMembership } from "@/hooks/useUserMembership";
-import { memberTierRate } from "@/lib/spaPackages";
+import { memberPriceLabel, memberTierRate } from "@/lib/spaPackages";
 
 const AMOUNT_PRESETS = [50, 100, 150, 250];
 
@@ -426,7 +426,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                             </p>
                             {giftTierRate > 0 && (
                               <p className="mt-1 text-xs font-medium text-primary">
-                                Your member discount ({Math.round(giftTierRate * 100)}% off) is already taken off these prices.
+                                {memberPriceLabel(membership?.membership_type)} — already taken off these prices.
                               </p>
                             )}
                           </div>

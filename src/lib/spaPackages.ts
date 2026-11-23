@@ -63,3 +63,12 @@ export function packagePriceFor(
   if (pkg.member_price_cents != null) return pkg.member_price_cents;
   return Math.round(pkg.price_cents * (1 - memberTierRate(membershipType)));
 }
+
+/** "Member Price (Gold · 8% off)" — names the member's tier next to their member price. */
+export function memberPriceLabel(membershipType: string | null | undefined): string {
+  const rate = memberTierRate(membershipType);
+  if (!rate) return "Member Price";
+  const t = (membershipType ?? "").toLowerCase();
+  const tier = t.includes("diamond") ? "Diamond" : t.includes("platinum") ? "Platinum" : t.includes("gold") ? "Gold" : "Silver";
+  return `Member Price (${tier} · ${Math.round(rate * 100)}% off)`;
+}
