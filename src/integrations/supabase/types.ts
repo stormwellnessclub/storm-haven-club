@@ -19283,6 +19283,7 @@ export type Database = {
         }
         Returns: Json
       }
+      pt_apply_dues_covered_installments: { Args: never; Returns: number }
       pt_apply_past_appointments: {
         Args: {
           p_appointment_ids: string[]

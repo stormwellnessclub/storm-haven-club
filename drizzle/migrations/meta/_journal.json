@@ -1478,6 +1478,13 @@
       "when": 1795391697952,
       "tag": "0210_staff_apply_spa_gift_card",
       "breakpoints": true
+    },
+    {
+      "idx": 211,
+      "version": "7",
+      "when": 1795417451540,
+      "tag": "0211_pt_dues_covered_installments",
+      "breakpoints": true
     }
   ]
 }
