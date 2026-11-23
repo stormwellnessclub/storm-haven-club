@@ -5,6 +5,7 @@ import { orderedSpaMenu } from "@/lib/spaMenu";
 import { groupTreatments, type TreatmentGroup } from "@/lib/spaVariants";
 import { isSeaweedRitual, SEAWEED_RITUAL_BENEFITS, SEAWEED_RITUAL_PREPARATION, SEAWEED_RITUAL_PATH } from "@/lib/seaweedRitual";
 import { bodyWrapDetails } from "@/lib/bodyWraps";
+import { EXTENDED_WRAP_PREP_NOTE, isExtendedWrap } from "@/lib/bodyWrapArrival";
 import { SPA_CATEGORIES } from "@/lib/spa-content";
 import { TreatmentRow } from "@/components/spa-preview/TreatmentRow";
 import { SpaTimeFinder } from "@/components/spa-preview/SpaTimeFinder";
@@ -58,7 +59,9 @@ function rowExtras(g: TreatmentGroup<SpaService>) {
   }
   if (first.category === "Body Wraps") {
     const d = bodyWrapDetails(g.name);
-    return d ? { viewHref: `/spa/body-wraps/${d.slug}`, viewLabel: "Learn more" } : {};
+    const ext = g.variants.find((v) => isExtendedWrap(v.name));
+    const aside = ext ? `${ext.duration_minutes}-minute option: ${EXTENDED_WRAP_PREP_NOTE}` : undefined;
+    return d ? { viewHref: `/spa/body-wraps/${d.slug}`, viewLabel: "Learn more", aside } : { aside };
   }
   return {};
 }

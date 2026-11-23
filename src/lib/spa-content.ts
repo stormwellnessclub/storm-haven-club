@@ -680,6 +680,20 @@ const bodyWraps: ServiceContent[] = [
     durations: ["60 min"],
     related: ["avocado-coconut", "hydration-aloe", "prenatal", "heart-chakra"],
   },
+  {
+    slug: "moroccan-clay",
+    name: "Moroccan Clay Wrap",
+    tagline: "",
+    title: "Moroccan Clay Wrap — Livonia, MI",
+    description: "Moroccan Clay Wrap in Livonia, MI. Rhassoul clay ritual for purified, soft, glowing skin. Storm Wellness Club.",
+    h1: "Moroccan Clay Wrap",
+    subhead: "",
+    body: [],
+    benefits: [],
+    faqs: [],
+    durations: ["60 min", "90 min"],
+    related: ["mud-therapy", "detox-seaweed-charcoal", "anti-aging-collagen", "sauna-steam"],
+  },
 ].filter(s => !["avocado-coconut", "hydration-aloe", "relaxing-chamomile"].includes(s.slug)).map(s => {
   const details = bodyWrapDetails(s.name);
   if (!details) return s;
@@ -971,10 +985,10 @@ export const SPA_CATEGORIES: Record<string, CategoryContent> = {
     h1: "Body Wraps in Livonia, MI",
     subhead: "Full-body skin-care wraps for softness, radiance and relaxation. Choose your treatment and duration, then book an open time online.",
     title: "Body Wraps — Livonia, MI",
-    description: "Body wraps in Livonia, MI. Seaweed, collagen, vitamin C, mud and body sculpting treatments. Compare durations and prices, and book online.",
+    description: "Body wraps in Livonia, MI. Seaweed, Moroccan clay, collagen, vitamin C, mud and body sculpting treatments. Compare durations and prices, and book online.",
     intro: [
-      "Explore body wraps focused on conditioned skin, a refreshed appearance and time to relax. Seaweed, collagen, vitamin C, mud and caffeine-infused choices each offer a different skin-care focus.",
-      "Shorter and extended versions appear together so you can compare treatment lengths and current menu prices before booking. Cosmetic benefits vary by formulation and skin type; body wraps are not weight-loss or medical treatments.",
+      "Explore body wraps focused on conditioned skin, a refreshed appearance and time to relax. Seaweed, Moroccan clay, collagen, vitamin C, mud and caffeine-infused choices each offer a different skin-care focus.",
+      "Shorter and extended versions appear together so you can compare treatment lengths and current menu prices before booking.",
     ],
     services: bodyWraps,
   },

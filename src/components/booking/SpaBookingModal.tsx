@@ -59,7 +59,7 @@ import { useApplyMothersDayVoucher, redeemMothersDayVoucher } from "@/hooks/useA
 import { Input } from "@/components/ui/input";
 import { Heart, X } from "lucide-react";
 import { isSeaweedRitual, SEAWEED_RITUAL_NAME, SEAWEED_RITUAL_PREPARATION } from "@/lib/seaweedRitual";
-import { BODY_WRAP_ARRIVAL_NOTE } from "@/lib/bodyWrapArrival";
+import { EXTENDED_WRAP_PREP_NOTE, isExtendedWrap } from "@/lib/bodyWrapArrival";
 import { isBodyWrapService } from "@/hooks/useBodyWrapIntake";
 import { SmsConsentCheckbox } from "@/components/SmsConsentCheckbox";
 import { SpaGuestCheckout } from "./SpaGuestCheckout";
@@ -861,7 +861,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
               <span className="text-xs">+ {service.cleanup_minutes} min cleanup</span>
             </div>
             {isSeaweedRitual(service) && <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{SEAWEED_RITUAL_PREPARATION}</p>}
-            {!isSeaweedRitual(service) && isBodyWrapService(service.category, service.name) && <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{BODY_WRAP_ARRIVAL_NOTE}</p>}
+            {!isSeaweedRitual(service) && isBodyWrapService(service.category, service.name) && isExtendedWrap(service.name) && <p className="text-xs text-muted-foreground mt-3 leading-relaxed">{EXTENDED_WRAP_PREP_NOTE}</p>}
           </div>
 
           {/* Hours selector for hourly rentals */}

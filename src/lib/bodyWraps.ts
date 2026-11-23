@@ -41,7 +41,7 @@ export const BODY_WRAP_DETAILS: WrapDetails[] = [
     overview: "A nourishing collagen body wrap that drenches skin in moisture, leaving it soft, supple and beautifully smooth from head to toe.",
     body: [
       "Your treatment begins with your skin wrapped in a rich collagen formula, then cocooned in warmth while it sinks in. As you rest, the collagen draws moisture to the surface, replenishing dry, tired-feeling skin.",
-      "Choose 75 minutes for the collagen wrap, or 90 minutes for the extended treatment, which begins with a full-body scrub to polish away dullness and closes with a short massage to melt away tension.",
+      "Choose 75 minutes for the collagen wrap, or 90 minutes for the extended treatment, which begins with a full-body scrub to polish away dullness and closes with a short massage to melt away tension. The 90-minute option also includes a vibration plate and red light session before your treatment, in addition to your treatment time. Please arrive 20–30 minutes early.",
       "You leave with skin that feels plump, silky and renewed, and a body that feels completely at ease.",
     ],
     benefits: [
@@ -118,6 +118,28 @@ export const BODY_WRAP_DETAILS: WrapDetails[] = [
       { title: "American Academy of Dermatology: cellulite treatments and evidence", url: "https://www.aad.org/public/cosmetic/fat-removal/cellulite-treatments-what-really-works/" },
       { title: "Review of topical caffeine in cosmetics", url: "https://pubmed.ncbi.nlm.nih.gov/26004004/" },
     ],
+  },
+  {
+    slug: "moroccan-clay", name: "Moroccan Clay Wrap",
+    overview: "A Moroccan rhassoul clay ritual that purifies, softens and refines your skin, leaving it smooth, glowing and deeply renewed.",
+    body: [
+      "Your ritual begins with full-body exfoliation to lift away dullness and reveal smoother skin. After a warm shower, you are enveloped in rhassoul clay from Morocco's Atlas Mountains, a mineral-rich clay treasured for centuries in the traditional hammam.",
+      "As you rest cocooned in warmth, the clay draws away impurities and refines the look of your skin. After rinsing, a nourishing oil is massaged in, leaving skin silky, soft and glowing.",
+      "Choose 60 minutes for the complete ritual, or 90 minutes for a longer closing massage that lets you fully melt into relaxation. The 90-minute option also includes a vibration plate and red light session before your treatment, in addition to your treatment time. Please arrive 20–30 minutes early.",
+    ],
+    benefits: [
+      { title: "Purified skin", detail: "Rhassoul clay draws away impurities and excess oil for a deeply clean, fresh feel." },
+      { title: "Refined, smoother texture", detail: "Exfoliation and clay work together to leave skin smoother and more even-looking." },
+      { title: "Mineral-rich glow", detail: "Naturally rich in minerals, the clay leaves skin looking bright and renewed." },
+      { title: "Silky softness", detail: "A nourishing oil finish leaves skin soft, supple and conditioned." },
+      { title: "Deep relaxation", detail: "Warmth, stillness and massage ease tension from head to toe." },
+    ],
+    faqs: [
+      { q: "What is the difference between 60 and 90 minutes?", a: "Both include exfoliation, the clay wrap and a nourishing finish. The 90-minute ritual adds a longer closing massage, plus a vibration plate and red light session beforehand." },
+      { q: "What is rhassoul clay?", a: "A mineral-rich clay from Morocco's Atlas Mountains, used for centuries in hammam rituals to cleanse and soften the skin." },
+      { q: "How should I prepare?", a: "Eat a light meal, drink plenty of water and arrive a few minutes early to settle in." }, safety,
+    ], durations: ["60 min", "90 min"],
+    sources: [],
   },
   {
     slug: "fire-and-ice", name: FIRE_AND_ICE_NAME,
