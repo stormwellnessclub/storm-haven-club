@@ -12,6 +12,8 @@ interface AdminAddCardFormProps {
   applicationId?: string;
   memberId?: string;
   stripeCustomerId?: string;
+  /** Non-member account the card belongs to (staff typing in a card for them). */
+  nonMemberUserId?: string;
 }
 
 export function AdminAddCardForm({ 
@@ -19,7 +21,8 @@ export function AdminAddCardForm({
   onCancel, 
   applicationId,
   memberId,
-  stripeCustomerId 
+  stripeCustomerId,
+  nonMemberUserId,
 }: AdminAddCardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -97,6 +100,22 @@ export function AdminAddCardForm({
         });
         toast.error("Card setup completed but payment method was not saved. Please try again.");
         setIsSubmitting(false);
+        return;
+      }
+
+      if (nonMemberUserId) {
+        try {
+          const { data: finData, error: finErr } = await supabase.functions.invoke("stripe-payment", {
+            body: { action: "admin_finish_nonmember_card_entry", userId: nonMemberUserId, setupIntentId: setupIntent.id },
+          });
+          if (finErr || finData?.error) throw new Error(finData?.error || finErr?.message);
+          toast.success("Card saved");
+        } catch (finSyncErr) {
+          console.error("[AdminAddCardForm] Non-member card sync failed:", finSyncErr);
+          toast.success("Card saved. Press Refresh if it doesn't show yet.");
+        }
+        setIsComplete(true);
+        onSuccess();
         return;
       }
 
@@ -235,6 +254,7 @@ export function AdminAddCardForm({
         <PaymentElement 
           options={{
             layout: "tabs",
+            ...(nonMemberUserId ? { defaultValues: { billingDetails: { address: { country: "US" } } } } : {}),
           }}
         />
       </div>

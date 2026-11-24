@@ -8221,6 +8221,106 @@ serve(async (req) => {
         );
       }
 
+      case 'admin_create_nonmember_setup_intent': {
+        // Staff type in a card the non-member gave them (manager+ only). Saves the card only; never charges.
+        const { data: entryRoles } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+        const entryRoleNames = (entryRoles || []).map((r: any) => r.role);
+        if (!['super_admin', 'admin', 'manager'].some(r => entryRoleNames.includes(r))) {
+          throw new Error('Unauthorized: manager or admin role required');
+        }
+        const entryUserId = typeof body.userId === 'string' ? body.userId : '';
+        if (!/^[0-9a-f-]{36}$/i.test(entryUserId)) throw new Error('userId is required');
+
+        const { data: entryProfile } = await supabase
+          .from('non_member_profiles')
+          .select('email, first_name, last_name, stripe_customer_id')
+          .eq('user_id', entryUserId)
+          .maybeSingle();
+        if (!entryProfile?.email) throw new Error('Non-member profile has no email');
+
+        let entryCustomerId = entryProfile.stripe_customer_id;
+        if (!entryCustomerId) {
+          const found = await stripe.customers.list({ email: entryProfile.email, limit: 1 });
+          if (found.data.length > 0) {
+            entryCustomerId = found.data[0].id;
+          } else {
+            const created = await stripe.customers.create({
+              email: entryProfile.email,
+              name: [entryProfile.first_name, entryProfile.last_name].filter(Boolean).join(' ') || undefined,
+              metadata: { user_id: entryUserId, source: 'admin_nonmember_card_entry' },
+            });
+            entryCustomerId = created.id;
+          }
+          await supabase.from('non_member_profiles').update({ stripe_customer_id: entryCustomerId }).eq('user_id', entryUserId);
+        }
+
+        const entryIntent = await stripe.setupIntents.create({
+          customer: entryCustomerId,
+          payment_method_types: ['card'],
+          usage: 'off_session',
+          metadata: { user_id: entryUserId, source: 'admin_nonmember_card_entry', added_by: user.id },
+        });
+
+        try {
+          await supabase.from('card_setup_attempts').insert({
+            member_id: null,
+            stripe_customer_id: entryCustomerId,
+            stripe_setup_intent: entryIntent.id,
+            source: 'admin_nonmember_entry',
+            status: 'initiated',
+            metadata: { user_id: entryUserId, initiated_by: user.id },
+          });
+        } catch (_e) { /* non-fatal */ }
+
+        return new Response(
+          JSON.stringify({ success: true, clientSecret: entryIntent.client_secret, customerId: entryCustomerId }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      case 'admin_finish_nonmember_card_entry': {
+        // After staff save a card: make it the default and copy its details to the profile.
+        const { data: finRoles } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
+        const finRoleNames = (finRoles || []).map((r: any) => r.role);
+        if (!['super_admin', 'admin', 'manager'].some(r => finRoleNames.includes(r))) {
+          throw new Error('Unauthorized: manager or admin role required');
+        }
+        const finUserId = typeof body.userId === 'string' ? body.userId : '';
+        const finSetupIntentId = typeof body.setupIntentId === 'string' ? body.setupIntentId : '';
+        if (!finUserId || !finSetupIntentId.startsWith('seti_')) throw new Error('userId and setupIntentId are required');
+
+        const { data: finProfile } = await supabase
+          .from('non_member_profiles').select('stripe_customer_id').eq('user_id', finUserId).maybeSingle();
+        const finCustomerId = finProfile?.stripe_customer_id;
+        if (!finCustomerId) throw new Error('No Stripe customer on file');
+
+        const finIntent = await stripe.setupIntents.retrieve(finSetupIntentId);
+        if (finIntent.status !== 'succeeded' || finIntent.customer !== finCustomerId || !finIntent.payment_method) {
+          throw new Error('Card was not saved');
+        }
+        const finPmId = typeof finIntent.payment_method === 'string' ? finIntent.payment_method : finIntent.payment_method.id;
+        await stripe.customers.update(finCustomerId, { invoice_settings: { default_payment_method: finPmId } });
+        const finPm = await stripe.paymentMethods.retrieve(finPmId);
+        const finUpdate = {
+          stripe_customer_id: finCustomerId,
+          card_brand: finPm.card?.brand || null,
+          card_last4: finPm.card?.last4 || null,
+          card_exp_month: finPm.card?.exp_month || null,
+          card_exp_year: finPm.card?.exp_year || null,
+        };
+        await supabase.from('non_member_profiles').update(finUpdate).eq('user_id', finUserId);
+        try {
+          await supabase.from('card_setup_attempts')
+            .update({ status: 'completed', completed_at: new Date().toISOString() })
+            .eq('stripe_setup_intent', finSetupIntentId);
+        } catch (_e) { /* non-fatal */ }
+
+        return new Response(
+          JSON.stringify({ success: true, ...finUpdate }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
       case 'admin_send_nonmember_card_setup_link': {
         logStep("Admin sending non-member card setup link", { userId: body.userId });
 

@@ -39,6 +39,8 @@ import { SellPTDialog } from "@/components/admin/SellPTDialog";
 import { PT_FORMAT_LABEL } from "@/lib/ptFormat";
 import { getCategoryDisplayName } from "@/lib/classCategories";
 import { NonMemberGuestPassSaleCard } from "@/components/admin/NonMemberGuestPassSaleCard";
+import { StripeProvider } from "@/components/StripeProvider";
+import { AdminAddCardForm } from "@/components/admin/AdminAddCardForm";
 
 export default function NonMemberDetail() {
   const { userId } = useParams<{ userId: string }>();
@@ -48,7 +50,27 @@ export default function NonMemberDetail() {
   const queryClient = useQueryClient();
 
   const { user } = useAuth();
-  const { isSuperAdmin } = useUserRoles();
+  const { isSuperAdmin, hasAnyRole } = useUserRoles();
+  const canEnterCard = hasAnyRole(["super_admin", "admin", "manager"]);
+  const [cardEntrySecret, setCardEntrySecret] = useState<string | null>(null);
+  const [cardEntryKey, setCardEntryKey] = useState(0);
+  const [cardEntryLoading, setCardEntryLoading] = useState(false);
+  const startCardEntry = async () => {
+    setCardEntryLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-payment", {
+        body: { action: "admin_create_nonmember_setup_intent", userId },
+      });
+      if (error) throw error;
+      if (!data?.clientSecret) throw new Error(data?.error || "Could not open the card form");
+      setCardEntryKey((k) => k + 1);
+      setCardEntrySecret(data.clientSecret);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not open the card form");
+    } finally {
+      setCardEntryLoading(false);
+    }
+  };
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editForm, setEditForm] = useState({ first_name: "", last_name: "", email: "", phone: "" });
@@ -667,6 +689,28 @@ export default function NonMemberDetail() {
                             <span className="text-amber-600 font-medium">not completed yet</span>
                           )}
                         </p>
+                      )}
+                      {canEnterCard && !cardEntrySecret && (
+                        <Button variant="default" size="sm" className="w-full" onClick={startCardEntry} disabled={cardEntryLoading}>
+                          {cardEntryLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CreditCard className="h-4 w-4 mr-2" />}
+                          Enter card
+                        </Button>
+                      )}
+                      {cardEntrySecret && (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">Type in the card the client gave you. Nothing is charged.</p>
+                          <StripeProvider key={cardEntryKey} clientSecret={cardEntrySecret}>
+                            <AdminAddCardForm
+                              nonMemberUserId={userId}
+                              onSuccess={() => {
+                                setCardEntrySecret(null);
+                                queryClient.invalidateQueries({ queryKey: ["admin-nonmember-detail", userId] });
+                                queryClient.invalidateQueries({ queryKey: ["admin-nonmember-card-setup-attempts", userId] });
+                              }}
+                              onCancel={() => setCardEntrySecret(null)}
+                            />
+                          </StripeProvider>
+                        </div>
                       )}
                       <div className="flex gap-2">
                         <Button
