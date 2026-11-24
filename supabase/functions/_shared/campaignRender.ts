@@ -10,6 +10,8 @@ export type Block =
   // Event photo: large for invitations, thumbnail for confirmations, none = logo-only.
   | { type: "event_photo"; eventId?: string; url?: string | null; alt?: string; size?: "large" | "thumbnail" | "none"; position?: "top" | "center" | "bottom" }
   | { type: "button"; label: string; url: string }
+  | { type: "choices"; items: { label: string; description: string; url: string }[] }
+  | { type: "reveal_card"; text: string; url: string; label: string }
   | { type: "details"; items: { label: string; value: string }[] }
   | { type: "divider" }
   | { type: "signature" };
@@ -51,6 +53,15 @@ function block(b: Block, firstName: string | null): string {
     case "button": {
       const u = safeUrl(b.url); if (!u || !b.label) return "";
       return `<div style="text-align:center;margin:28px 0 32px;"><a href="${u}" style="display:inline-block;background:${BRAND.gold};color:${BRAND.bg};padding:15px 34px;text-decoration:none;border-radius:4px;font-family:Arial,sans-serif;font-weight:600;letter-spacing:.5px;">${esc(b.label)}</a></div>`;
+    }
+    case "choices":
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${(b.items ?? []).map((item) => {
+        const href = safeUrl(item.url); if (!href) return "";
+        return `<tr><td style="border-bottom:1px solid ${BRAND.gold};padding:14px 0;"><a href="${href}" style="display:block;text-decoration:none;color:${BRAND.cream};font-size:23px;">${esc(item.label)} <span style="float:right;">&rarr;</span><br/><span style="font:12px Arial,sans-serif;color:${BRAND.muted};">${esc(item.description)}</span></a></td></tr>`;
+      }).join("")}</table>`;
+    case "reveal_card": {
+      const href = safeUrl(b.url); if (!href) return "";
+      return `<div style="background:${BRAND.cream};border:1px solid ${BRAND.gold};padding:30px 20px;margin:22px 0;text-align:center;"><a href="${href}" style="display:block;text-decoration:none;color:${BRAND.bg};"><img src="https://stormwellnessclub.com/storm-logo-gold.png" width="76" alt="Storm Wellness Club" style="display:block;width:76px;height:auto;margin:0 auto 22px;"/><p style="font:26px Georgia,serif;margin:0 0 22px;">${esc(b.text)}</p><span style="font:13px Arial,sans-serif;border-bottom:1px solid ${BRAND.bg};padding-bottom:5px;">${esc(b.label)} &rarr;</span></a></div>`;
     }
     case "details":
       return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;border-top:1px solid #3a2128;">${(b.items ?? []).map((i) =>

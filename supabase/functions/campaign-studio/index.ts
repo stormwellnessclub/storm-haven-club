@@ -11,6 +11,8 @@ import { isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
 import { blocksText, brandIssues, renderCampaignHtml, type Block } from "../_shared/campaignRender.ts";
 import { runGoogleReviewTick, readGoogleReviews } from "../_shared/googleReviewFlow.ts";
+import { seasonalWeekDrafts, SEASONAL_WEEK_PREFIX } from "../_shared/seasonalCampaignWeek.ts";
+import { latestInterest, normalizeCampaignEmail, purchasedAfterInterest, recentlyActive } from "../_shared/seasonalCampaignAudience.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +36,12 @@ export const AUDIENCES: Record<string, string> = {
   non_members: "Non-members with an account",
   email_list: "Everyone on the email list",
   email_list_non_members: "Email list only: non-members without an account",
+  seasonal_recent_non_members: "Seasonal Edit: non-members active in past 12 months",
+  seasonal_engaged_imported: "Seasonal Edit: imported contacts with opens or clicks",
+  seasonal_interest_pt: "Seasonal Edit: training clickers, no later purchase",
+  seasonal_interest_classes: "Seasonal Edit: class clickers, no later purchase",
+  seasonal_interest_spa: "Seasonal Edit: massage clickers, no later purchase",
+  seasonal_interest_gifts: "Seasonal Edit: gift clickers, no later purchase",
 };
 
 async function pageAll(sb: any, table: string, cols: string, apply: (q: any) => any = (q) => q) {
@@ -53,7 +61,44 @@ async function loadAudience(sb: any, key: string): Promise<Person[]> {
   const members = await pageAll(sb, "members", "id, user_id, first_name, last_name, email, phone, status", (q) => q.in("status", ["active", "frozen"]));
   const memberByEmail = new Map(members.map((m: any) => [norm(m.email), m]));
 
-  if (key.startsWith("hss_")) {
+  if (key.startsWith("seasonal_")) {
+    // Reuse the single staff activity source; the service role is permitted for timer execution.
+    const { data: activity, error: activityError } = await sb.rpc("admin_person_activity");
+    if (activityError) throw activityError;
+    const cutoff = new Date(); cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 1);
+    const purchases = await pageAll(sb, "revenue_ledger", "stripe_customer_id,occurred_at,area,gross_cents,kind", q => q.eq("kind", "sale").gt("gross_cents", 0).gte("occurred_at", cutoff.toISOString()));
+    const accounts = await pageAll(sb, "non_member_profiles", "user_id,email,stripe_customer_id", q => q.is("merged_into_user_id", null));
+    const allMembers = await pageAll(sb, "members", "user_id,email,stripe_customer_id");
+    const customers = new Map([...accounts, ...allMembers].filter(r => r.stripe_customer_id).map(r => [normalizeCampaignEmail(r.email ?? ""), r.stripe_customer_id]));
+    const accountEmails = new Set(accounts.map(r => normalizeCampaignEmail(r.email ?? "")));
+    const campaignRows = await pageAll(sb, "marketing_campaigns", "id,name", q => q.ilike("name", "%Seasonal Edit%"));
+    const ids = campaignRows.map(r => r.id);
+    const events: any[] = [];
+    for (let i = 0; i < ids.length; i += 200) events.push(...await pageAll(sb, "marketing_email_events", "email,event,last_url,last_at", q => q.in("campaign_id", ids.slice(i, i + 200)).in("event", ["opened", "clicked"])));
+    const engaged = new Set(events.map(e => normalizeCampaignEmail(e.email)));
+    const interest = latestInterest(events);
+    const imported = await pageAll(sb, "marketing_contacts", "email,first_name,last_name,phone", q => q.eq("opted_in_email", true).is("unsubscribed_at", null));
+    if (key === "seasonal_engaged_imported") {
+      for (const p of imported) {
+        const email = normalizeCampaignEmail(p.email ?? "");
+        if (engaged.has(email) && !accountEmails.has(email) && !memberByEmail.has(email)) add({ ...p, user_id: null, member_id: null });
+      }
+    } else {
+      for (const p of activity ?? []) {
+        const email = normalizeCampaignEmail(p.email ?? "");
+        const customer = customers.get(email) ?? null;
+        if (key === "seasonal_recent_non_members") {
+          if (memberByEmail.has(email) || !accountEmails.has(email)) continue;
+          const bought = purchases.some(r => customer && r.stripe_customer_id === customer);
+          if (!recentlyActive(p, bought, Date.now())) continue;
+        } else {
+          const selected = interest.get(email);
+          if (!selected || selected.category !== key.replace("seasonal_interest_", "") || purchasedAfterInterest(purchases, customer, selected.at)) continue;
+        }
+        add({ email, first_name: p.first_name, last_name: p.last_name, phone: p.phone, user_id: p.user_id, member_id: p.member_id });
+      }
+    }
+  } else if (key.startsWith("hss_")) {
     const rows = await pageAll(sb, "higher_self_society_interest", "user_id, full_name, email, phone");
     let keep: ((r: any) => boolean) = () => true;
     if (key !== "hss_roster") {
@@ -307,6 +352,16 @@ Deno.serve(async (req) => {
 
     switch (body.action) {
       case "google_reviews": return json(await readGoogleReviews());
+      case "prepare_seasonal_week": {
+        const existing = await pageAll(sb, "marketing_campaigns", "name", q => q.like("name", `${SEASONAL_WEEK_PREFIX}%`));
+        const names = new Set(existing.map(c => c.name));
+        const drafts = seasonalWeekDrafts().filter(c => !names.has(c.name)).map(c => ({ ...c, created_by: uid }));
+        if (drafts.length) {
+          const { error } = await sb.from("marketing_campaigns").insert(drafts);
+          if (error) throw error;
+        }
+        return json({ ok: true, created: drafts.length, total: seasonalWeekDrafts().length });
+      }
       case "review_people": {
         const search = String(body.search ?? "").trim().replace(/[%_,()]/g, "").slice(0, 100);
         if (search.length < 2) return json({ ok: true, people: [] });

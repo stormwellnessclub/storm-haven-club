@@ -1,5 +1,13 @@
 # Booking conversion roadmap
 
+## Connected Seasonal Edit campaign (Nov 24–30)
+- [x] Build December offer picker and interactive gift reveal with existing checkout links; desktop/phone and reduced motion checked. Recipient email reveal link prepared for release with the website; static email fallback preserves all details.
+- [x] Prepare 23 seven-day audience-specific email/text drafts in Campaign Studio and a connected campaign calendar; all read back as drafts, nothing newly sent or scheduled.
+- [x] Add engaged/recent-client and clicked-not-purchased audiences, retaining consent and suppression rules; verified 79 recent non-members and zero tracked engaged/interest contacts currently. No historical opens invented.
+- [x] Verify offer journeys, draft saving, consent-safe segmentation, and results links without client contact or charges; real administrator calendar/editor/audiences/Results checked, public gift handoff checked; 28 isolated tests passed across campaign/access/email/tracking/member-price suites.
+- [ ] Configure separate verified marketing sender — blocked until domain verification can be completed.
+- [ ] Scheduling/replacing 9 AM texts waits for explicit go-ahead; preserve existing scheduled sends meanwhile.
+
 - [x] Extend staff commitment dates by merged actual frozen days; Deana's April 12, 2027 date and 5 months/9 days verified with isolated rendered data. Historical freezes included without changing membership end/cancellation dates.
 - [x] Audit ended-freeze billing: no overdue active freezes November 3; Ayana Silmi ends November 4 and remains paused; Deana, Susu and Nahla have resumed Stripe dues (Nahla past due). Deploy shared verified retry-safe scheduled/early restart and atomic completion; 19 isolated tests pass, no test charges/messages.
 - [ ] Verify tomorrow's actual Ayana restart and live staff commitment screen; blocked until November 4 billing run and staff-capable preview access. Current owner test session receives Access Denied; authorized deployed audit also returns 401.

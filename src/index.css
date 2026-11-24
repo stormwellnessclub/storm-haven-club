@@ -1122,3 +1122,10 @@
 }
 .storm-shop-theme .font-cafe-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
 .storm-shop-theme .font-cafe-mono { font-family: inherit; letter-spacing: 0.2em; }
+
+/* A folded paper gift, with an email-safe static companion in Campaign Studio. */
+.gift-reveal { position: relative; perspective: 1400px; isolation: isolate; }
+.gift-reveal-inside { min-height: 300px; display: grid; align-content: center; }
+.gift-reveal-cover { position: absolute; inset: 0; display: grid; align-content: center; transform-origin: top; backface-visibility: hidden; transition: transform 850ms ease, opacity 500ms ease; }
+.gift-reveal-open .gift-reveal-cover { transform: rotateX(110deg); opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .gift-reveal-cover { transition: none; } .gift-reveal-open .gift-reveal-cover { transform: none; visibility: hidden; } }

@@ -64,6 +64,8 @@ import GutResetAdmin from "./pages/admin/GutResetAdmin";
 import MothersDay from "./pages/MothersDay";
 import BlackFriday from "./pages/BlackFriday";
 import SeasonalEditRedirect from "./pages/SeasonalEditRedirect";
+import SeasonalEditChoose from "./pages/SeasonalEditChoose";
+import SeasonalGiftReveal from "./pages/SeasonalGiftReveal";
 import MothersDayRedeem from "./pages/MothersDayRedeem";
 import MothersDayPackRedeem from "./pages/MothersDayPackRedeem";
 import Cafe from "./pages/Cafe";
@@ -363,6 +365,9 @@ const App = () => (
               <Route path="/spa/body-rituals/:slug" element={<SpaServicePage category="body-rituals" />} />
               <Route path="/spa/recovery/:slug" element={<SpaServicePage category="recovery" />} />
               <Route path="/seasonal-edit" element={<BlackFriday />} />
+              <Route path="/seasonal-edit/choose" element={<SeasonalEditChoose />} />
+              <Route path="/seasonal-edit/gifts" element={<SeasonalGiftReveal />} />
+              <Route path="/gifts/open" element={<SeasonalGiftReveal />} />
               {/* Old address keeps working: sends visitors to /seasonal-edit with their choices intact */}
               <Route path="/black-friday" element={<SeasonalEditRedirect />} />
               <Route path="/mothers-day" element={<MothersDay />} />

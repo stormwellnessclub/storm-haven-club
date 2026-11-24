@@ -3596,6 +3596,7 @@ serve(async (req) => {
                 <div style="font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: #88766B; margin-bottom: 12px;">An E-Gift for ${recipientFirst}</div>
                 <div style="font-size: 34px; line-height: 1.2; color: #1C170F;">Something beautiful<br/>is waiting for you</div>
                 <div style="width: 48px; height: 1px; background: #B8A068; margin: 20px auto 0 auto;"></div>
+                <div style="margin-top:22px;"><a href="${BASE_URL}/gifts/open${(data.classGift === true || data.classGift === 'true') ? '?kind=class' : ''}#${encodeURIComponent(String(data.code || ''))}" style="display:inline-block;padding:12px 22px;border:1px solid #B8A068;color:#1C170F;text-decoration:none;font-family:Arial,sans-serif;font-size:13px;">Open your gift card &rarr;</a></div>
               </td></tr>
 
               <!-- The card -->

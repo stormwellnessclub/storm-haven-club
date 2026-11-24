@@ -1,3 +1,4 @@
 - The live /spa page renders `SpaEditorial` (design) while `Spa.tsx` keeps every booking behaviour (guest returns, ?book/?voucher/?request/?category/?view links, requests, intake, vouchers); public Spa Aella addresses come from `spaRoutes.ts`, old /spa/preview links redirect, and the previous design stays at /spa/classic (noindex). Why: the redesign must not drop booking features or break links already sent.
 - The Seasonal Edit offer page lives at /seasonal-edit; /black-friday only redirects there keeping ?for= and #section. Why: the owner wants every link to say Seasonal Edit, and links already sent must keep working.
 - Public pages use components/editorial. Why: editorial site.
+- Seasonal campaign picker and gift reveal link into existing Seasonal Edit/shop checkouts; gift codes stay in URL fragments and emails retain all purchase details. Why: interactive marketing must not invent prices, grant benefits or leak gift codes into request logs.

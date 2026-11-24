@@ -1527,6 +1527,13 @@
       "when": 1795496569977,
       "tag": "0217_campaign_results_offer_purchases_only",
       "breakpoints": true
+    },
+    {
+      "idx": 218,
+      "version": "7",
+      "when": 1795509232491,
+      "tag": "0218_campaign_activity_service_access",
+      "breakpoints": true
     }
   ]
 }

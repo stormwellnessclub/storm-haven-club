@@ -6,6 +6,7 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { GoogleReviewRequests } from "@/components/admin/GoogleReviewRequests";
 import { CampaignResults, CampaignResultsOverview } from "@/components/admin/CampaignResults";
+import { SeasonalCampaignWeek } from "@/components/admin/SeasonalCampaignWeek";
 import { EventPhotoBlockEditor } from "@/components/admin/EventPhotoBlockEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -36,11 +37,14 @@ const EVENT_TAGS: Record<string, string> = {
 const BLOCK_LABELS: Record<string, string> = {
   eyebrow: "Small label", heading: "Headline", text: "Paragraphs", image: "Photo", event_photo: "Event photo", cover: "Book or product cover",
   button: "Button", details: "Event details", divider: "Divider", signature: "Sign-off",
+  choices: "Offer choices", reveal_card: "Gift reveal card",
 };
 const newBlock = (type: string): Block => ({
   eyebrow: { type, text: "HIGHER SELF SOCIETY" }, heading: { type, text: "Headline" }, text: { type, text: "Dear {first_name},\n\nWrite your message here." },
   image: { type, url: "", alt: "" }, event_photo: { type, eventId: "", url: null, alt: "", size: "large", position: "center", source: "logo_only" }, cover: { type, url: "", title: "", author: "" }, button: { type, label: "Learn more", url: "https://stormwellnessclub.com" },
   details: { type, items: [{ label: "Date", value: "" }, { label: "Time", value: "" }] }, divider: { type }, signature: { type },
+  choices: { type, items: [{ label: "Stronger", description: "Personal training", url: "https://stormwellnessclub.com/seasonal-edit/choose?choice=stronger" }] },
+  reveal_card: { type, text: "An hour no one else schedules.", label: "Open the card", url: "https://stormwellnessclub.com/seasonal-edit/gifts" },
 } as Record<string, Block>)[type];
 
 const STARTER: Block[] = [newBlock("eyebrow"), newBlock("heading"), newBlock("text"), newBlock("button"), newBlock("signature")];
@@ -66,7 +70,8 @@ export default function CampaignStudio() {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get("id");
   const tagFilter = params.get("event") ?? "all";
-  const [tab, setTab] = useState(["reviews", "results"].includes(params.get("tab") ?? "") ? params.get("tab")! : "campaigns");
+  const initialTab = params.get("tab");
+  const [tab, setTab] = useState(initialTab && ["reviews", "results", "seasonal-week"].includes(initialTab) ? initialTab : "campaigns");
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ["marketing-campaigns"],
@@ -136,7 +141,8 @@ export default function CampaignStudio() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-        <TabsList><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
+        <TabsList className="flex h-auto flex-wrap justify-start"><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="seasonal-week">Seasonal Edit week</TabsTrigger><TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
+        <TabsContent value="seasonal-week"><SeasonalCampaignWeek campaigns={campaigns} onOpen={(id) => { setTab("campaigns"); select(id); }} /></TabsContent>
         <TabsContent value="reviews"><GoogleReviewRequests /></TabsContent>
         <TabsContent value="results">
           <CampaignResultsOverview
@@ -393,6 +399,8 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
                       <EventPhotoBlockEditor block={b} onChange={(patch) => setBlock(i, patch)} onUpload={(f) => uploadImage(i, f)} />
                     )}
                     {b.type === "button" && <div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Button words" value={b.label} onChange={(e) => setBlock(i, { label: e.target.value })} /><Input placeholder="https://…" value={b.url} onChange={(e) => setBlock(i, { url: e.target.value })} /></div>}
+                    {b.type === "reveal_card" && <><Label>Card wording</Label><Input value={b.text} onChange={(e) => setBlock(i, { text: e.target.value })}/><Label>Open button</Label><Input value={b.label} onChange={(e) => setBlock(i, { label: e.target.value })}/><Label>Card page</Label><Input value={b.url} onChange={(e) => setBlock(i, { url: e.target.value })}/></>}
+                    {b.type === "choices" && <div className="space-y-3">{(b.items ?? []).map((item: any, k: number) => <div key={k} className="space-y-1 border-t pt-2"><Label>Choice {k + 1}</Label><Input aria-label={`Choice ${k + 1} label`} value={item.label} onChange={e => setBlock(i, { items: b.items.map((x: any, j: number) => j === k ? { ...x, label: e.target.value } : x) })}/><Input aria-label={`Choice ${k + 1} description`} value={item.description} onChange={e => setBlock(i, { items: b.items.map((x: any, j: number) => j === k ? { ...x, description: e.target.value } : x) })}/><Input aria-label={`Choice ${k + 1} link`} value={item.url} onChange={e => setBlock(i, { items: b.items.map((x: any, j: number) => j === k ? { ...x, url: e.target.value } : x) })}/></div>)}<Button variant="outline" size="sm" onClick={() => setBlock(i, { items: [...(b.items ?? []), { label: '', description: '', url: '' }] })}><Plus/>Add choice</Button></div>}
                     {b.type === "details" && (
                       <div className="space-y-1.5">
                         {(b.items ?? []).map((it: any, k: number) => (
@@ -493,7 +501,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
           )}
           <div className="rounded-lg border bg-muted/40 p-2">
             <div className="mb-2 rounded bg-background p-2 text-xs"><div className="font-medium">{c.subject || "No subject yet"}</div><div className="text-muted-foreground">{c.preheader}</div></div>
-            <iframe title="Email preview" srcDoc={preview.html} className="mx-auto block rounded bg-background" style={{ width: device === "phone" ? 375 : "100%", height: 640, border: 0 }} />
+            <iframe title="Email preview" srcDoc={preview.html} className="mx-auto block max-w-full rounded bg-background" style={{ width: device === "phone" ? 375 : "100%", height: 640, border: 0 }} />
           </div>
           {c.send_sms && c.sms_body && (
             <div className="rounded-lg border bg-card p-3 text-sm">
