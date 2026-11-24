@@ -165,6 +165,8 @@
 
 ## Seasonal Edit round 3 — PT + massage text/email (Nov 23)
 - [x] Show flyer previews (PT dark brown; massage dark brown chosen)
-- [ ] Write member + non-member texts and emails, show for approval — waiting on send time
+- [x] Write member + non-member texts and emails (6 drafts saved in Campaign Studio)
+- [ ] Owner approves drafts + send time
 - [ ] Schedule after owner approves
 - [x] Class photos hidden on phones on Seasonal Edit (live after publish)
+- [x] Move Tue Nov 24 Bootcamp 12:00 → 12:30 and text the 2 booked clients
