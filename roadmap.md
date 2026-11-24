@@ -162,3 +162,9 @@
 - [x] Storm Shop products restyled to match the gift cards
 - [x] Class Seasonal Edit gifts on gift page + "Give as a gift" on Seasonal Edit page + redeem section
 - [ ] Spa Seasonal Edit — waiting on owner prices and the wet spa decision for men
+
+## Seasonal Edit round 3 — PT + massage text/email (Nov 23)
+- [x] Show flyer previews (PT dark brown; massage dark brown chosen)
+- [ ] Write member + non-member texts and emails, show for approval — waiting on send time
+- [ ] Schedule after owner approves
+- [x] Class photos hidden on phones on Seasonal Edit (live after publish)
