@@ -256,16 +256,17 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   useEffect(() => {
     const key = searchParams.get("gift");
     if (!key || giftOffers.length === 0) return;
-    const o = giftOffers.find((x) => x.class_offer_key === key);
+    const o = giftOffers.find((x) => x.class_offer_key === key || x.id === key);
     if (!o) return;
     setMode("service");
     setSpaServiceId(null);
     setGiftOfferId(o.id);
     setServiceLabel(o.label);
-    setAmount(o.price_cents / 100);
+    setAmount(giftPriceCents(o) / 100);
     setCustomAmount("");
     setTipCents(0);
-  }, [searchParams, giftOffers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, giftOffers, giftTierRate]);
 
   // Preselect a spa service when arriving from the Spa ("Gift this service").
   useEffect(() => {
