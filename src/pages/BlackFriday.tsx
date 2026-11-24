@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { FunctionsHttpError } from "@supabase/supabase-js";
@@ -82,6 +82,19 @@ export default function BlackFriday() {
   // Which pricing the visitor is looking at: their pick (?for=), else their own account type.
   const forParam = params.get("for");
   const view: View | null = forParam === "member" || forParam === "non_member" ? forParam : audience ?? null;
+  const [activeTab, setActiveTab] = useState<string>("pt-edit");
+  useEffect(() => {
+    if (!view) return;
+    const ids = ["pt-edit", "movement-edit", "spa-edit"];
+    const onScroll = () => {
+      let current = ids[0];
+      ids.forEach((id) => { const el = document.getElementById(id); if (el && el.getBoundingClientRect().top <= 200) current = id; });
+      setActiveTab(current);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [view]);
   const contentRef = useRef<HTMLDivElement>(null);
   const pickView = (v: View) => {
     const next = new URLSearchParams(params); next.set("for", v); setParams(next, { replace: true });
@@ -178,23 +191,30 @@ export default function BlackFriday() {
               </Button>
             ))}
           </div>
-          {view && (
-            <nav className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm" aria-label="Jump to an offer">
-              <a href="#pt-edit" className="underline underline-offset-4">Personal Training</a>
-              <a href="#movement-edit" className="underline underline-offset-4">Classes</a>
-            </nav>
-          )}
         </div>
       </section>
 
       <div ref={contentRef} className="scroll-mt-20" />
+      {view && (
+        <nav aria-label="Jump to an offer" className="sticky top-20 z-30 bg-background/95 backdrop-blur border-y border-border">
+          <div className="container flex gap-2 overflow-x-auto py-3">
+            {[["pt-edit","Personal Training"],["movement-edit","Classes"],["spa-edit","Massages"]].map(([id,label]) => (
+              <button key={id} type="button" onClick={() => { setActiveTab(id); document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+                className={`shrink-0 px-4 py-2 text-sm border transition-colors ${activeTab === id ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}>
+                {label}
+              </button>
+            ))}
+            <Link to="/shop#gift-cards" className="shrink-0 px-4 py-2 text-sm border border-border hover:bg-muted">Buy a gift</Link>
+          </div>
+        </nav>
+      )}
       {view && (
         <>
           <section>
             <EdImage src={trainingPhoto} alt="The training floor at Storm Wellness Club" className="h-[28vh] min-h-[200px] md:h-[55vh]" eager />
           </section>
 
-          <section id="pt-edit" className="container py-14 md:py-24 max-w-4xl scroll-mt-20">
+          <section id="pt-edit" className="container py-14 md:py-24 max-w-4xl scroll-mt-40">
             <Reveal>
               <Chapter n="02" label="Semi-Private Personal Training" />
               <h2 className="font-serif text-3xl md:text-4xl mt-4">Semi-private training packages</h2>

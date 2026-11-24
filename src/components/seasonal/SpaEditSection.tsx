@@ -28,14 +28,14 @@ export function SpaEditSection({ audience }: { audience: "member" | "non_member"
   const isMemberView = audience === "member";
 
   return (
-    <section id="spa-edit" className="container mx-auto max-w-5xl px-6 py-16 md:py-24 border-t border-border">
+    <section id="spa-edit" className="scroll-mt-40 container mx-auto max-w-5xl px-6 py-16 md:py-24 border-t border-border">
       <Reveal>
         <p className="ed-caption text-muted-foreground">The Seasonal Edit · Spa</p>
         <h2 className="mt-3 font-serif text-4xl md:text-5xl">The gift of a massage</h2>
         <p className="mt-4 text-muted-foreground max-w-2xl">For yourself, or for someone who deserves an hour that is entirely theirs.</p>
         <p className="mt-3 font-medium">Through November 30 · Available in limited quantities</p>
-        {isMemberView && !rate && (
-          <p className="mt-3 text-sm text-muted-foreground">Members also receive their tier discount at checkout: Silver 5%, Gold 8%, Platinum 10%, Diamond 12%.</p>
+        {isMemberView && (
+          <p className="mt-3 text-sm text-muted-foreground">Member pricing: your tier discount applies (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%). Non-members pay the listed price.</p>
         )}
       </Reveal>
       <div className="mt-8 border-t border-border">

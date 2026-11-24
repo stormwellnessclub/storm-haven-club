@@ -91,7 +91,7 @@ export function MovementEditSection({ audience, authLink }: {
   }
 
   return (
-    <div id="movement-edit" className="scroll-mt-24">
+    <div id="movement-edit" className="scroll-mt-40">
       {visible.length > 0 && <>
       <section className="container pt-8 pb-14 md:pt-16 md:pb-20">
         <Reveal>
