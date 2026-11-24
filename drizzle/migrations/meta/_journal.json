@@ -1506,6 +1506,27 @@
       "when": 1795471182244,
       "tag": "0214_class_gift_day_pass_order",
       "breakpoints": true
+    },
+    {
+      "idx": 215,
+      "version": "7",
+      "when": 1795495974754,
+      "tag": "0215_member_priced_gifts_owner_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 216,
+      "version": "7",
+      "when": 1795496223030,
+      "tag": "0216_campaign_email_results_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 217,
+      "version": "7",
+      "when": 1795496569977,
+      "tag": "0217_campaign_results_offer_purchases_only",
+      "breakpoints": true
     }
   ]
 }

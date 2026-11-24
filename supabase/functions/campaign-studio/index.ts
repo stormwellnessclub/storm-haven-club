@@ -4,6 +4,7 @@
 // Texts always go through send-sms (consent enforced; account opt-out wins). Never bypassConsent.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { addCampaignTracking, htmlToText } from "../_shared/campaignTracking.ts";
 import { requireStaff } from "../_shared/requireStaff.ts";
 import { currentInternalToken, isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 import { isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.ts";
@@ -163,12 +164,15 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
         if (failedBefore.has(p.email)) { stats.email.failed++; continue; }
         if (Date.now() > deadline) { more = true; break; }
         let err: any = null;
+        let providerId: string | null = null;
         try {
           for (let attempt = 0; attempt < 4; attempt++) {
-            const resp = await resend.emails.send({ from: FROM, to: [p.email], subject: c.subject,
-              html: await withMarketingFooter(renderCampaignHtml(c.blocks, { firstName: p.first_name, preheader: c.preheader }), p.email),
+            // Tracked links + open image, then the unsubscribe footer (left untracked), plus a plain-text twin.
+            const html = await withMarketingFooter(await addCampaignTracking(renderCampaignHtml(c.blocks, { firstName: p.first_name, preheader: c.preheader }), c.id, p.email), p.email);
+            const resp = await resend.emails.send({ from: FROM, to: [p.email], subject: c.subject, html, text: htmlToText(html),
               reply_to: "admin@stormwellnessclub.com", headers: await marketingHeaders(p.email) } as any);
             err = (resp as any)?.error ?? null;
+            providerId = (resp as any)?.data?.id ?? null;
             if (!isRateLimited(err)) break;
             await sleep(1500 * (attempt + 1));
           }
@@ -176,7 +180,7 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
         const msg = err ? String(err.message ?? "Send failed") : null;
         await sb.from("email_audit_log").insert({ recipient_email: p.email, recipient_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
           email_type: emailType, trigger_source: "campaign_studio", triggered_by: triggeredBy, member_id: p.member_id,
-          subject: c.subject, status: msg ? "failed" : "sent", error_message: msg });
+          subject: c.subject, status: msg ? "failed" : "sent", error_message: msg, provider_message_id: providerId });
         if (msg) stats.email.failed++; else stats.email.sent++;
         await sleep(550);
       }
@@ -327,8 +331,9 @@ Deno.serve(async (req) => {
         const email = norm(body.email);
         if (!(await isAllowedTestRecipient(req, email))) return json({ ok: false, error: "Tests can only go to club addresses or your own email" });
         const resendKey = Deno.env.get("RESEND_API_KEY"); if (!resendKey) return json({ ok: false, error: "Email service is not configured" });
+        const testHtml = await withMarketingFooter(renderCampaignHtml(body.blocks ?? [], { firstName: "Team", preheader: body.preheader }), email);
         const resp = await new Resend(resendKey).emails.send({ from: FROM, to: [email], subject: `[TEST] ${body.subject || "Campaign"}`,
-          html: await withMarketingFooter(renderCampaignHtml(body.blocks ?? [], { firstName: "Team", preheader: body.preheader }), email),
+          html: testHtml, text: htmlToText(testHtml),
           reply_to: "admin@stormwellnessclub.com", headers: await marketingHeaders(email) } as any);
         const err = (resp as any)?.error?.message ?? null;
         await sb.from("email_audit_log").insert({ recipient_email: email, email_type: "campaign_test", trigger_source: "campaign_studio",

@@ -35,7 +35,7 @@ export function SpaEditSection({ audience }: { audience: "member" | "non_member"
         <p className="mt-4 text-muted-foreground max-w-2xl">For yourself, or for someone who deserves an hour that is entirely theirs.</p>
         <p className="mt-3 font-medium">Through November 30 · Available in limited quantities</p>
         {isMemberView && (
-          <p className="mt-3 text-sm text-muted-foreground">Member pricing: your tier discount applies (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%). Non-members pay the listed price.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Member pricing is for your own massage: your tier discount applies (Silver 5%, Gold 8%, Platinum 10%, Diamond 12%). Massages you give to someone else are at the listed price.</p>
         )}
       </Reveal>
       <div className="mt-8 border-t border-border">
@@ -52,7 +52,7 @@ export function SpaEditSection({ audience }: { audience: "member" | "non_member"
                   <>
                     <p className="text-sm text-muted-foreground line-through">{formatUsd(o.price_cents)}</p>
                     <p className="font-serif text-2xl">{formatUsd(discounted)}</p>
-                    <p className="text-xs text-muted-foreground">{memberPriceLabel(membership?.membership_type)}</p>
+                    <p className="text-xs text-muted-foreground">{memberPriceLabel(membership?.membership_type)} · for yourself</p>
                   </>
                 ) : (
                   <p className="font-serif text-2xl">{formatUsd(o.price_cents)}</p>

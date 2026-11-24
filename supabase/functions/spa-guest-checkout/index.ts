@@ -126,8 +126,11 @@ Deno.serve(async req => {
           const {data:v}=await admin.from('mothers_day_vouchers').select('code,status,expires_at,massage_duration').eq('code',code).maybeSingle();
           result=voucherCoverage(v,s,duration,baseCents);
         } else {
-          const {data:g}=await admin.from('gift_cards').select('code,status,expires_at,balance_cents,amount_cents,covers_service_ids').eq('code',code).maybeSingle();
-          result=giftCardCoverage(g,baseCents,new Date(),s.id,duration===s.duration_minutes);
+          const {data:g}=await admin.from('gift_cards').select('code,status,expires_at,balance_cents,amount_cents,covers_service_ids,member_only_user_id').eq('code',code).maybeSingle();
+          // Member-priced massages can only be used by the member who bought them.
+          result=g?.member_only_user_id && g.member_only_user_id!==userId
+            ? 'This massage was bought at member price, so only the member who bought it can use it. Please sign in to that account.'
+            : giftCardCoverage(g,baseCents,new Date(),s.id,duration===s.duration_minutes);
         }
         if (typeof result==='string') return reply({success:false,error:result,field:'coupon'},200);
         coupon=result;

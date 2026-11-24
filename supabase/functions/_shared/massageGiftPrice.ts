@@ -20,3 +20,12 @@ export function massageGiftPriceCents(offerPriceCents: number, membershipType: s
   if (membershipType == null) return offerPriceCents;
   return Math.round(offerPriceCents * (1 - memberTierRate(membershipType)));
 }
+
+/**
+ * Which membership tier prices this gift: member pricing is only for a member's own massage.
+ * Class gifts and massages bought for someone else always use the listed price (null).
+ */
+export function giftPricingTier(opts: { forSelf: boolean; isClassGift: boolean; buyerMembershipType: string | null }): string | null {
+  if (opts.isClassGift || !opts.forSelf || opts.buyerMembershipType == null) return null;
+  return opts.buyerMembershipType;
+}

@@ -2570,6 +2570,7 @@ export type Database = {
           error_message: string | null
           id: string
           member_id: string | null
+          provider_message_id: string | null
           recipient_email: string
           recipient_name: string | null
           sent_at: string | null
@@ -2587,6 +2588,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           member_id?: string | null
+          provider_message_id?: string | null
           recipient_email: string
           recipient_name?: string | null
           sent_at?: string | null
@@ -2604,6 +2606,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           member_id?: string | null
+          provider_message_id?: string | null
           recipient_email?: string
           recipient_name?: string | null
           sent_at?: string | null
@@ -4170,6 +4173,7 @@ export type Database = {
           hide_amount: boolean
           id: string
           issued_by: string | null
+          member_only_user_id: string | null
           notes: string | null
           payment_method: string
           payment_reference: string | null
@@ -4205,6 +4209,7 @@ export type Database = {
           hide_amount?: boolean
           id?: string
           issued_by?: string | null
+          member_only_user_id?: string | null
           notes?: string | null
           payment_method: string
           payment_reference?: string | null
@@ -4240,6 +4245,7 @@ export type Database = {
           hide_amount?: boolean
           id?: string
           issued_by?: string | null
+          member_only_user_id?: string | null
           notes?: string | null
           payment_method?: string
           payment_reference?: string | null
@@ -5991,6 +5997,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      marketing_email_events: {
+        Row: {
+          campaign_id: string
+          detail: string | null
+          email: string
+          event: string
+          first_at: string
+          hits: number
+          id: string
+          last_at: string
+          last_url: string | null
+        }
+        Insert: {
+          campaign_id: string
+          detail?: string | null
+          email: string
+          event: string
+          first_at?: string
+          hits?: number
+          id?: string
+          last_at?: string
+          last_url?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          detail?: string | null
+          email?: string
+          event?: string
+          first_at?: string
+          hits?: number
+          id?: string
+          last_at?: string
+          last_url?: string | null
+        }
+        Relationships: []
       }
       marketing_sequence_enrollments: {
         Row: {
@@ -18114,6 +18156,7 @@ export type Database = {
       }
       calculate_health_score: { Args: { _member_id: string }; Returns: number }
       calculate_member_ltv: { Args: { p_member_id: string }; Returns: number }
+      campaign_email_results: { Args: { p_campaign_id: string }; Returns: Json }
       can_manage_staff_schedule: {
         Args: { _user_id: string }
         Returns: boolean
@@ -20647,6 +20690,17 @@ export type Database = {
           _reason: string
         }
         Returns: string
+      }
+      record_marketing_email_event: {
+        Args: {
+          p_at?: string
+          p_campaign_id: string
+          p_detail?: string
+          p_email: string
+          p_event: string
+          p_url?: string
+        }
+        Returns: undefined
       }
       record_spa_client_package: {
         Args: {

@@ -5,7 +5,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { massageGiftPriceCents, memberTierRate } from "../_shared/massageGiftPrice.ts";
+import { giftPricingTier, massageGiftPriceCents, memberTierRate } from "../_shared/massageGiftPrice.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +51,8 @@ serve(async (req) => {
     const spaServiceIdRaw = body.spaServiceId ? String(body.spaServiceId) : null;
     const giftOfferIdRaw = body.giftOfferId ? String(body.giftOfferId) : null;
     const scheduledSendAtRaw = body.scheduledSendAt ? String(body.scheduledSendAt) : null;
+    // Member pricing is only for the member's own massage ("for me"); gifts for someone else pay the listed price.
+    const forSelf = body.forSelf === true;
 
     // ---- Validation ----
     if (!Number.isFinite(amountCents) || amountCents < MIN_CENTS || amountCents > MAX_CENTS) {
@@ -77,6 +79,9 @@ serve(async (req) => {
     let coversServiceIds: string[] | null = null;
     let memberPriceNote = "";
     let classOfferKey: string | null = null;
+    let memberOnlyUserId: string | null = null;
+    let recipientNameFinal = recipientName;
+    let recipientEmailFinal = recipientEmail;
     if (giftOfferIdRaw) {
       if (spaServiceIdRaw) return json({ success: false, error: "Choose one gift" });
       const { data: offer } = await supabase
@@ -103,7 +108,11 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       // Class gifts sell at the Seasonal Edit class price for everyone (no spa tier discount).
-      const tierType = offer.class_offer_key ? null : (buyerMembership ? (buyerMembership.membership_type ?? "") : null);
+      // Member price applies only when the member is buying the massage for themselves.
+      const tierType = giftPricingTier({ forSelf, isClassGift: !!offer.class_offer_key, buyerMembershipType: buyerMembership ? (buyerMembership.membership_type ?? "") : null });
+      if (forSelf && !offer.class_offer_key && !buyerMembership) {
+        return json({ success: false, error: "Member pricing is only for active members" });
+      }
       const expectedCents = massageGiftPriceCents(offer.price_cents, tierType);
       if (expectedCents !== amountCents) {
         return json({ success: false, error: "Gift price changed — please refresh and try again" });
@@ -112,13 +121,19 @@ serve(async (req) => {
       if (tierType != null && rate > 0) {
         memberPriceNote = ` · member price, ${Math.round(rate * 100)}% off $${(offer.price_cents / 100).toFixed(2)}`;
       }
+      if (tierType != null) {
+        // Member-priced massages belong to the buyer: their own account is the recipient and only they can redeem it.
+        memberOnlyUserId = user.id;
+        recipientEmailFinal = (user.email ?? "").toLowerCase();
+        recipientNameFinal = recipientName || purchaserName || recipientEmailFinal;
+      }
       giftOfferId = offer.id;
       classOfferKey = offer.class_offer_key ?? null;
       coversServiceIds = classOfferKey ? null : (offer.covers_service_ids ?? null);
       resolvedServiceLabel = offer.label;
     }
-    if (!recipientName) return json({ success: false, error: "Recipient name is required" });
-    if (!EMAIL_RE.test(recipientEmail)) return json({ success: false, error: "Enter a valid recipient email" });
+    if (!recipientNameFinal) return json({ success: false, error: "Recipient name is required" });
+    if (!EMAIL_RE.test(recipientEmailFinal)) return json({ success: false, error: "Enter a valid recipient email" });
 
     let scheduledSendAt: Date | null = null;
     if (scheduledSendAtRaw) {
@@ -170,8 +185,9 @@ serve(async (req) => {
         purchaser_member_id: member?.id ?? null,
         purchaser_name: buyerName,
         purchaser_email: buyerEmail,
-        recipient_name: recipientName,
-        recipient_email: recipientEmail,
+        recipient_name: recipientNameFinal,
+        recipient_email: recipientEmailFinal,
+        member_only_user_id: memberOnlyUserId,
         custom_message: customMessage || null,
         service_label: resolvedServiceLabel,
         spa_service_id: spaServiceId,
@@ -209,12 +225,13 @@ serve(async (req) => {
       customer: customerId,
       receipt_email: buyerEmail || undefined,
       automatic_payment_methods: { enabled: true },
-      description: `Storm Wellness Club Gift Card${resolvedServiceLabel ? ` — ${resolvedServiceLabel}` : ""} ($${(amountCents / 100).toFixed(2)}${memberPriceNote})${tipCents ? ` + $${(tipCents / 100).toFixed(2)} therapist tip` : ""}`,
+      description: `Storm Wellness Club Gift Card${resolvedServiceLabel ? ` — ${resolvedServiceLabel}` : ""} ($${(amountCents / 100).toFixed(2)}${memberPriceNote})${memberOnlyUserId ? " · for the member's own use" : ""}${tipCents ? ` + $${(tipCents / 100).toFixed(2)} therapist tip` : ""}`,
       metadata: {
         purpose: "gift_card",
         gift_card_id: card.id,
         gift_card_code: card.code,
-        recipient_email: recipientEmail,
+        recipient_email: recipientEmailFinal,
+        member_own_use: memberOnlyUserId ? "true" : "false",
         tip_cents: String(tipCents),
       },
     });

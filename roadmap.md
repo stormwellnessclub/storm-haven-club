@@ -172,8 +172,11 @@
 - [x] Move Tue Nov 24 Bootcamp 12:00 → 12:30 and text the 2 booked clients
 
 ## Marketing overhaul (owner feedback Nov 23)
-- [ ] Make sure members can't buy gifts at member price for someone else (check gift shop + round 3 member email wording)
-- [ ] Find why campaign emails go to spam and fix what we can
-- [ ] Show owner where to see opens, clicks and checkouts per campaign (build if missing)
-- [ ] Research what converts for wellness/spa holiday campaigns; propose creative, less plain, interactive concepts with fresh lines (not "invest in what lasts" every time)
-- [ ] Plan for sending more often
+- [x] Members only get member price on a massage for themselves (gift shop choice + checkout + redemption locked to buyer)
+- [x] Spam causes found; 244 dead/spam-report addresses stopped; auto-stop on bounce/complaint; plain-text version added
+- [ ] Separate marketing sender address — waiting on owner/domain manager
+- [x] Campaign Studio → Results tab (delivered, bounced, spam, opens, clicks, who bought)
+- [x] Research + 4 concepts + send plan written (.lovable/reviews/seasonal-edit-marketing-plan.md)
+- [ ] Build the concepts the owner picks — waiting on owner's choice
+- [x] Send plan Nov 24–30 proposed
+- [ ] 9 AM round 3 texts: send or hold — waiting on owner

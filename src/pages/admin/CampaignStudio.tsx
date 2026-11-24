@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { GoogleReviewRequests } from "@/components/admin/GoogleReviewRequests";
+import { CampaignResults, CampaignResultsOverview } from "@/components/admin/CampaignResults";
 import { EventPhotoBlockEditor } from "@/components/admin/EventPhotoBlockEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ export default function CampaignStudio() {
   const [params, setParams] = useSearchParams();
   const selectedId = params.get("id");
   const tagFilter = params.get("event") ?? "all";
+  const [tab, setTab] = useState(["reviews", "results"].includes(params.get("tab") ?? "") ? params.get("tab")! : "campaigns");
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ["marketing-campaigns"],
@@ -133,9 +135,15 @@ export default function CampaignStudio() {
           </div>
         </div>
 
-        <Tabs defaultValue={params.get('tab') === 'reviews' ? 'reviews' : 'campaigns'}>
-        <TabsList><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
+        <Tabs value={tab} onValueChange={setTab}>
+        <TabsList><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
         <TabsContent value="reviews"><GoogleReviewRequests /></TabsContent>
+        <TabsContent value="results">
+          <CampaignResultsOverview
+            campaigns={campaigns.filter((c) => c.send_email && (c.status === "sent" || c.status === "sending")).sort((a, b) => (b.sent_at ?? b.updated_at).localeCompare(a.sent_at ?? a.updated_at))}
+            onOpen={(id) => { setTab("campaigns"); select(id); }}
+          />
+        </TabsContent>
         <TabsContent value="campaigns"><div className="grid gap-4 lg:grid-cols-[320px_1fr]">
           <aside className="space-y-4">
             <section className="rounded-lg border bg-card p-3">
@@ -322,6 +330,7 @@ function Editor({ campaign, audiences, onClose }: { campaign: Campaign; audience
           {c.send_sms && <> Texts: {c.stats.sms.sent} sent, {c.stats.sms.skipped} skipped (no consent or no phone), {c.stats.sms.failed} failed.</>}
         </div>
       )}
+      {c.send_email && (c.status === "sent" || c.status === "sending") && <CampaignResults campaignId={c.id} />}
       {c.last_error && <div className="rounded-lg border border-destructive/50 p-3 text-sm text-destructive">{c.last_error}</div>}
 
       <div className="grid gap-4 xl:grid-cols-[1fr_420px]">

@@ -90,7 +90,10 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   // Members pay massage gift prices less their spa tier discount (checked again at checkout).
   const { data: membership } = useUserMembership();
   const giftTierRate = membership ? memberTierRate(membership.membership_type) : 0;
-  const giftPriceCents = (o: GiftOffer) => (o.class_offer_key ? o.price_cents : Math.round(o.price_cents * (1 - giftTierRate)));
+  // Member price is only for a member's own massage; gifts for someone else pay the listed price (checked again at checkout).
+  const [forSelf, setForSelf] = useState(false);
+  const memberPriceCents = (o: GiftOffer) => Math.round(o.price_cents * (1 - giftTierRate));
+  const giftPriceCents = (o: GiftOffer) => (o.class_offer_key || !(forSelf && giftTierRate > 0) ? o.price_cents : memberPriceCents(o));
   const massageOffers = giftOffers.filter((o) => !o.class_offer_key);
   const classOffers = giftOffers.filter((o) => !!o.class_offer_key);
   const fmtGift = (cents: number) => `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
@@ -170,6 +173,8 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   }, [scheduleEnabled, scheduleDate, scheduleTime]);
 
   const selectedGiftOffer = mode === "service" && giftOfferId ? giftOffers.find((o) => o.id === giftOfferId) : undefined;
+  const isMassageOffer = !!selectedGiftOffer && !selectedGiftOffer.class_offer_key;
+  const memberSelf = isMassageOffer && giftTierRate > 0 && forSelf;
   const amountCents = selectedGiftOffer ? giftPriceCents(selectedGiftOffer) : Math.round(amount * 100);
   const tipAllowed = mode === "spa" || (mode === "service" && !!selectedGiftOffer && !selectedGiftOffer.class_offer_key);
   const effectiveTipCents = tipAllowed ? tipCents : 0;
@@ -197,11 +202,11 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
   const startCheckout = async () => {
     if (mode === "spa" && !spaServiceId) return toast.error("Choose a spa service");
     if (!validAmount) return toast.error("Choose an amount between $25 and $1,000");
-    if (!recipientName.trim()) return toast.error("Enter the recipient's name");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail.trim())) {
+    if (!memberSelf && !recipientName.trim()) return toast.error("Enter the recipient's name");
+    if (!memberSelf && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail.trim())) {
       return toast.error("Enter a valid recipient email");
     }
-    if (scheduleEnabled && (!scheduledSendAt || scheduledSendAt.getTime() <= Date.now())) {
+    if (!memberSelf && scheduleEnabled && (!scheduledSendAt || scheduledSendAt.getTime() <= Date.now())) {
       return toast.error("Pick a future send date and time");
     }
     if (!isAuthed) {
@@ -216,15 +221,16 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
       const { data, error } = await supabase.functions.invoke("create-gift-card-checkout", {
         body: {
           amountCents,
-          recipientName: recipientName.trim(),
-          recipientEmail: recipientEmail.trim(),
-          customMessage: customMessage.trim() || undefined,
+          recipientName: memberSelf ? buyerName : recipientName.trim(),
+          recipientEmail: memberSelf ? "" : recipientEmail.trim(),
+          forSelf: memberSelf || undefined,
+          customMessage: memberSelf ? undefined : customMessage.trim() || undefined,
           serviceLabel: mode !== "amount" ? serviceLabel : undefined,
           spaServiceId: mode === "spa" ? spaServiceId : undefined,
           giftOfferId: mode === "service" && giftOfferId ? giftOfferId : undefined,
           tipCents: effectiveTipCents || undefined,
           purchaserName: buyerName || undefined,
-          scheduledSendAt: scheduledSendAt ? scheduledSendAt.toISOString() : undefined,
+          scheduledSendAt: scheduledSendAt && !memberSelf ? scheduledSendAt.toISOString() : undefined,
         },
       });
       if (error) throw error;
@@ -445,7 +451,8 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                             <p className="mt-1 text-xs text-muted-foreground">Available through November 30.</p>
                             {giftTierRate > 0 && (
                               <p className="mt-1 text-xs font-medium text-primary">
-                                {memberPriceLabel(membership?.membership_type)} — already taken off these prices.
+                                {memberPriceLabel(membership?.membership_type)} applies when the massage is for you.
+                                Gifts for someone else are at the listed price.
                               </p>
                             )}
                           </div>
@@ -468,12 +475,10 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                               >
                                 <div className="font-medium">{o.label}</div>
                                 {o.blurb && <div className="text-xs text-muted-foreground">{o.blurb}</div>}
-                                <div className="mt-2 flex items-baseline gap-2">
-                                  <span className="text-lg font-semibold">{fmtGift(giftPriceCents(o))}</span>
-                                  {giftTierRate > 0 && (
-                                    <span className="text-sm text-muted-foreground line-through">{fmtGift(o.price_cents)}</span>
-                                  )}
-                                </div>
+                                <div className="mt-2 text-lg font-semibold">{fmtGift(o.price_cents)}</div>
+                                {giftTierRate > 0 && (
+                                  <div className="text-xs text-primary">{fmtGift(memberPriceCents(o))} for yourself, at member price</div>
+                                )}
                               </button>
                             ))}
                           </div>
@@ -542,6 +547,35 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       Who is it for?
                     </div>
+                    {isMassageOffer && giftTierRate > 0 && (
+                      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Who is it for?">
+                        {[
+                          { v: true, label: "For me", sub: `Member price ${selectedGiftOffer ? fmtGift(memberPriceCents(selectedGiftOffer)) : ""}` },
+                          { v: false, label: "For someone else", sub: `Listed price ${selectedGiftOffer ? fmtGift(selectedGiftOffer.price_cents) : ""}` },
+                        ].map((opt) => (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            role="radio"
+                            aria-checked={forSelf === opt.v}
+                            onClick={() => setForSelf(opt.v)}
+                            className={cn(
+                              "rounded-md border p-3 text-left text-sm transition-colors",
+                              forSelf === opt.v ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                            )}
+                          >
+                            <div className="font-medium">{opt.label}</div>
+                            <div className="text-xs text-muted-foreground">{opt.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {memberSelf ? (
+                      <p className="text-sm text-muted-foreground">
+                        This massage is yours at your member price. We'll email the code to you, and only you can book it.
+                      </p>
+                    ) : (
+                    <>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div>
                         <Label>Recipient name</Label>
@@ -562,8 +596,11 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                         placeholder="Happy birthday — enjoy a day of rest on me."
                       />
                     </div>
+                    </>
+                    )}
                   </div>
 
+                  {!memberSelf && (
                   <div className="space-y-3 rounded-lg border p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -603,6 +640,7 @@ export default function GiftCardStore({ embedded = false }: { embedded?: boolean
                       </div>
                     )}
                   </div>
+                  )}
 
                   <Button
                     size="lg"
