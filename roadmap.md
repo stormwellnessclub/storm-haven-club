@@ -170,3 +170,10 @@
 - [x] Emails sent Nov 23 ~11:20 PM; texts scheduled Nov 24 9:00 AM Detroit
 - [x] Class photos hidden on phones on Seasonal Edit (live after publish)
 - [x] Move Tue Nov 24 Bootcamp 12:00 → 12:30 and text the 2 booked clients
+
+## Marketing overhaul (owner feedback Nov 23)
+- [ ] Make sure members can't buy gifts at member price for someone else (check gift shop + round 3 member email wording)
+- [ ] Find why campaign emails go to spam and fix what we can
+- [ ] Show owner where to see opens, clicks and checkouts per campaign (build if missing)
+- [ ] Research what converts for wellness/spa holiday campaigns; propose creative, less plain, interactive concepts with fresh lines (not "invest in what lasts" every time)
+- [ ] Plan for sending more often
