@@ -114,7 +114,7 @@ export function MovementEditSection({ audience, authLink }: {
         </Reveal>
       </section>
 
-      <section><EdImage src={aerobics.url} alt="The movement studio at Storm Wellness Club" className="h-[28vh] min-h-[200px] md:h-[60vh]" /></section>
+      <section className="hidden md:block"><EdImage src={aerobics.url} alt="The movement studio at Storm Wellness Club" className="h-[28vh] min-h-[200px] md:h-[60vh]" /></section>
 
       {visible.map((o, i) => {
         const c = MOVEMENT_COPY[o.key];
@@ -123,10 +123,10 @@ export function MovementEditSection({ audience, authLink }: {
         return (
           <section key={o.key} className="container py-16 md:py-24 border-b border-border last:border-b-0">
             <div className={`grid gap-10 md:grid-cols-12 md:items-start`}>
-              <div className={`md:col-span-5 grid gap-3 ${i % 2 ? "md:col-start-8 md:row-start-1" : ""}`}>
+              <div className={`hidden md:grid md:col-span-5 gap-3 ${i % 2 ? "md:col-start-8 md:row-start-1" : ""}`}>
                 {photos.map((p, pi) => (
-                  // Phones show one photo per offer to keep the page short.
-                  <div key={p.src} className={pi > 0 ? "hidden md:block" : undefined}>
+                  // Photos show on larger screens only; phones go straight to the offers.
+                  <div key={p.src}>
                     <EdImage src={p.src} alt={p.alt} className={photos.length > 1 ? "aspect-[4/3]" : "aspect-[4/5]"} />
                   </div>
                 ))}
