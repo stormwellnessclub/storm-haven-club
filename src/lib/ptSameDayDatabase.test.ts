@@ -20,6 +20,7 @@ beforeAll(async () => {
     CREATE TABLE class_sessions(instructor_id uuid,is_cancelled bool,session_date date,start_time time,end_time time);
     CREATE TABLE pt_appointments(instructor_id uuid,status text,starts_at timestamptz,ends_at timestamptz);
     CREATE TABLE training_requests(id uuid DEFAULT gen_random_uuid(), service text,full_name text,email text,phone text,is_member bool,status text,submitted_by_user_id uuid,client_user_id uuid,requested_trainer_id uuid,confirmed_trainer_id uuid,pt_session_type_id uuid,preferred_date date,preferred_time time,flexibility_note text,client_note text,request_status text,earliest_time time,latest_time time,flexibility text,requested_slot_at timestamptz,request_kind text,origin text);
+    ALTER TABLE training_requests ADD COLUMN alt_date date, ADD COLUMN alt_time time, ADD COLUMN alt_trainer_id uuid, ADD COLUMN alt_note text, ADD COLUMN offered_at timestamptz, ADD COLUMN offered_by uuid, ADD COLUMN updated_at timestamptz;
     CREATE TABLE profiles(user_id uuid,first_name text,last_name text,email text,phone text);
     CREATE TABLE members(user_id uuid,status text);
     CREATE TABLE pt_waitlist(id uuid DEFAULT gen_random_uuid(),client_user_id uuid,status text,preferred_trainer_id uuid,session_type_id uuid,preferred_date date,preferred_time time,flexibility text,notes text,created_by uuid);
@@ -67,6 +68,13 @@ describe('same-day PT requests', () => {
     await db.query(`SELECT pt_request_create('${id}','${id}','2026-11-24','10:00')`);
     expect((await db.query('SELECT count(*)::int AS n FROM training_requests')).rows[0].n).toBe(1);
     await expect(db.query(`SELECT pt_request_create('${id}','${id}','2026-11-24','03:00')`)).rejects.toThrow('not started yet');
+  });
+  it('changes a pending request to today while rejecting an elapsed replacement', async () => {
+    const request=(await db.query(`SELECT pt_request_create('${id}','${id}',p_slot_starts_at=>'2026-11-25T15:00:00Z') AS id`)).rows[0].id;
+    await db.query(`SELECT pt_request_client_change('${request}','${id}','${future}')`);
+    expect((await db.query(`SELECT preferred_date::text,preferred_time::text,request_status FROM training_requests WHERE id='${request}'`)).rows).toEqual([{preferred_date:'2026-11-24',preferred_time:'10:00:00',request_status:'requested'}]);
+    await expect(db.query(`SELECT pt_request_client_change('${request}','${id}','2026-11-24T08:00:00Z')`)).rejects.toThrow('SLOT_TAKEN');
+    expect((await db.query('SELECT count(*)::int AS n FROM pt_appointments')).rows[0].n).toBe(0);
   });
   it('keeps genuine class clashes and core conflicts unavailable today', async () => {
     await db.exec(`INSERT INTO class_sessions VALUES('${id}',false,'2026-11-24','10:00','11:00');`);

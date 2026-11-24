@@ -2,7 +2,7 @@
 
 ## Same-day PT openings (Nov 24)
 - [x] Include today in all-trainer and single-trainer open-time lists; allow same-day requests, changes and waitlists, rejecting elapsed starts and retaining staff confirmation/conflict checks.
-- [x] Verify 29 isolated tests and signed-in live reads: 5 same-day Semi-Private slots and 5 One-on-One slots, no elapsed starts. No client records, appointments, payments or notifications changed. Owner portal visual check stops at existing required-phone prompt; no phone data invented or saved.
+- [x] Verify 30 isolated tests and signed-in live reads: 5 same-day Semi-Private slots and 5 One-on-One slots, no elapsed starts. Read member/non-member, public inquiry, staff booking/reschedule/confirm/alternate, calendars/mobile, recurring hours/blocks, waitlists and background paths; no additional tomorrow cutoffs found. No client records, appointments, payments or notifications changed. Owner portal visual check stops at existing required-phone prompt; no phone data invented or saved.
 
 ## Connected Seasonal Edit campaign (Nov 24–30)
 - [x] Build December offer picker and interactive gift reveal with existing checkout links; desktop/phone and reduced motion checked. Recipient email reveal link prepared for release with the website; static email fallback preserves all details.
