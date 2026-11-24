@@ -45,6 +45,10 @@ export function PTOpenTimes({ sessionTypeId, durationMinutes = 60, selectedKey =
   const times = useQuery({
     queryKey: ["pt-client-request-times", sessionTypeId],
     enabled: !!sessionTypeId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    refetchInterval: 30_000,
     queryFn: async () => {
       const { data, error } = await (supabase.rpc as any)("pt_client_request_times_all", { p_session_type_id: sessionTypeId, p_days: 14 });
       if (error) throw error;

@@ -10,9 +10,11 @@ describe("ptRequestProblem", () => {
     expect(ptRequestProblem({ ...base, earliest: "13:00", latest: "10:00" }, "2026-11-15")).toBe("Your window must end after it starts."));
   it("rejects a preferred time outside the window", () =>
     expect(ptRequestProblem({ ...base, time: "14:00" }, "2026-11-15")).toBe("Your preferred time must fall inside your window."));
-  it("rejects today and past dates", () => {
-    expect(ptRequestProblem(base, "2026-11-20")).toBe("Choose a date from tomorrow onward.");
-    expect(ptRequestProblem(base, "2026-11-21")).toBe("Choose a date from tomorrow onward.");
+  it("accepts same-day PT requests", () => {
+    expect(ptRequestProblem(base, "2026-11-20")).toBeNull();
+  });
+  it("rejects past dates", () => {
+    expect(ptRequestProblem(base, "2026-11-21")).toBe("Choose today or a future date.");
   });
   it("exact time needs no window", () =>
     expect(ptRequestProblem({ ...base, flexibility: "exact", earliest: "", latest: "" }, "2026-11-15")).toBeNull());

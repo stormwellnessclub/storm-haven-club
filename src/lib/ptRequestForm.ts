@@ -7,10 +7,10 @@ export function detroitToday(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Detroit" }).format(now);
 }
 
-/** "Request another time" fallback; requests start from tomorrow (Detroit), matching the server. */
+/** Date validation allows today (Detroit); the server rejects starts that have already passed. */
 export function ptRequestProblem(d: PTRequestDraft, todayDetroit: string): string | null {
   if (!d.date) return "Choose a preferred date.";
-  if (d.date <= todayDetroit) return "Choose a date from tomorrow onward.";
+  if (d.date < todayDetroit) return "Choose today or a future date.";
   if (!d.time) return "Choose a preferred time.";
   if (d.flexibility === "window") {
     if (!d.earliest || !d.latest) return "Choose your availability window.";
