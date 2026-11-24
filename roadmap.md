@@ -167,6 +167,6 @@
 - [x] Show flyer previews (PT dark brown; massage dark brown chosen)
 - [x] Write member + non-member texts and emails (6 drafts saved in Campaign Studio)
 - [ ] Owner approves drafts + send time
-- [ ] Schedule after owner approves
+- [x] Emails sent Nov 23 ~11:20 PM; texts scheduled Nov 24 9:00 AM Detroit
 - [x] Class photos hidden on phones on Seasonal Edit (live after publish)
 - [x] Move Tue Nov 24 Bootcamp 12:00 → 12:30 and text the 2 booked clients
