@@ -6,6 +6,7 @@
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { requireStaff } from "../_shared/requireStaff.ts";
+import { addOneMonth } from "./dates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,6 +49,8 @@ Deno.serve(async (req) => {
       priceOverrideCents = null,
       sessionsOverride = null,
       overrideReason = null,
+      // Charge payment 1 on firstAutopayDate instead of today (price locked at sale).
+      deferFirstPayment = false,
     } = body ?? {};
 
     if (!userId || !packId || !paymentMethodId || !activatedAt || !expiresAt) {
@@ -72,6 +75,12 @@ Deno.serve(async (req) => {
       throw new Error("A changed price needs a custom payment plan");
     }
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
+    const todayDetroit = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Detroit" }).format(new Date());
+    if (deferFirstPayment) {
+      if (firstPaymentMethod !== "card") throw new Error("A later first payment must be charged on the card");
+      if (customFirst) throw new Error("A later first payment can't have a custom first amount");
+      if (String(firstAutopayDate) <= todayDetroit) throw new Error("Choose a first payment date after today");
+    }
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
     if (!["card", "cash", "check", "external"].includes(firstPaymentMethod)) {
       throw new Error("Invalid first payment method");
@@ -279,7 +288,8 @@ Deno.serve(async (req) => {
     // Storm's authoritative dated schedule — validated and stored before any charge.
     const { data: schedRes, error: schedErr } = await supabase.rpc("pt_attach_plan_schedule", {
       p_idempotency_key: saleRef,
-      p_first_autopay: firstAutopayDate,
+      // Deferred: payment 1 falls on firstAutopayDate, so the rest start one month later.
+      p_first_autopay: deferFirstPayment ? addOneMonth(firstAutopayDate) : firstAutopayDate,
     });
     if (schedErr) throw schedErr;
     const schedule = (schedRes as any)?.schedule;
@@ -304,11 +314,11 @@ Deno.serve(async (req) => {
     // fee = ceil((amount + 30) / 0.971) - amount. Cash/external first payments carry no fee.
     const feeFor = (c: number) => (c > 0 ? Math.ceil((c + 30) / 0.971) - c : 0);
     const chargeFirstOnCard = firstPaymentMethod === "card";
-    const downChargeCents = chargeFirstOnCard ? downCents + feeFor(downCents) : downCents;
+    const downChargeCents = deferFirstPayment ? 0 : chargeFirstOnCard ? downCents + feeFor(downCents) : downCents;
 
     // 1) Amount due at sale — charged on the card, or recorded as received in person/externally.
     let downPaymentIntentId: string | null = null;
-    if (downCents > 0 && chargeFirstOnCard) {
+    if (downCents > 0 && chargeFirstOnCard && !deferFirstPayment) {
       const pi = await stripe.paymentIntents.create({
         amount: downChargeCents,
         currency: "usd",
@@ -338,7 +348,7 @@ Deno.serve(async (req) => {
     await supabase.rpc("pt_record_sale_payment", {
       p_idempotency_key: saleRef,
       p_stripe_payment_intent_id: downPaymentIntentId ??
-        (chargeFirstOnCard ? `pt_plan:${saleRef}` : `${firstPaymentMethod}:${saleRef}`),
+        (deferFirstPayment ? `deferred:${saleRef}` : chargeFirstOnCard ? `pt_plan:${saleRef}` : `${firstPaymentMethod}:${saleRef}`),
       p_amount_cents: downChargeCents,
     });
 
@@ -424,6 +434,17 @@ Deno.serve(async (req) => {
     // it the installment invoice reaches the webhook looking like a membership
     // invoice and never reaches the PT reconciliation branch.
     const phases: any[] = [];
+    if (deferFirstPayment && downCents > 0) {
+      const firstPriceId = downCents === installmentCents
+        ? installmentPriceId
+        : await recurringPrice(downCents, "custom_first");
+      phases.push({
+        items: await itemsFor(firstPriceId, downCents),
+        iterations: 1,
+        proration_behavior: "none",
+        metadata: planMeta,
+      });
+    }
     if (futureCount > 1) {
       phases.push({
         items: await itemsFor(installmentPriceId, installmentCents),
@@ -445,7 +466,7 @@ Deno.serve(async (req) => {
     if (phases.length > 0) {
       const sched = await stripe.subscriptionSchedules.create({
         customer: stripeCustomerId,
-        start_date: detroitNoonEpoch(futureRows[0].due_date),
+        start_date: detroitNoonEpoch(deferFirstPayment ? firstAutopayDate : futureRows[0].due_date),
         end_behavior: "cancel",
         default_settings: {
           default_payment_method: paymentMethodId,
@@ -470,10 +491,10 @@ Deno.serve(async (req) => {
       p_pass_ids: passIds,
       p_subscription_id: stripeScheduleId ?? `pt_plan:${saleRef}`,
       p_total_installments: futureCount + 1,
-      p_installments_paid: 1,
+      p_installments_paid: deferFirstPayment ? 0 : 1,
       p_installment_cents: installmentCents,
       p_total_cents: totalCents,
-      p_next_payment_date: futureRows[0]?.due_date ?? null,
+      p_next_payment_date: deferFirstPayment ? firstAutopayDate : futureRows[0]?.due_date ?? null,
       p_status: "active",
     });
     if (linkErr) console.error("Failed to link payment plan:", linkErr.message);
@@ -489,10 +510,19 @@ Deno.serve(async (req) => {
     const { error: holdErr } = await supabase.rpc("pt_plan_apply_session_hold", { p_idempotency_key: saleRef });
     if (holdErr) console.error("Failed to hold plan sessions:", holdErr.message);
 
-    // Note how the first payment was received (card, cash, check, external).
-    await supabase.from("pt_payment_plan_installments")
-      .update({ paid_via: firstPaymentReference ? `${firstPaymentMethod}: ${firstPaymentReference}` : firstPaymentMethod })
-      .in("pass_id", passIds).eq("installment_number", 0);
+    if (deferFirstPayment) {
+      // Payment 1 is collected by the schedule on its own date, not at sale.
+      const { error: defErr } = await supabase.from("pt_payment_plan_installments")
+        .update({ due_date: firstAutopayDate, status: "scheduled", paid_at: null, paid_via: null,
+          stripe_payment_intent_id: null, stripe_subscription_id: stripeScheduleId })
+        .in("pass_id", passIds).eq("installment_number", 0);
+      if (defErr) console.error("Failed to schedule first payment:", defErr.message);
+    } else {
+      // Note how the first payment was received (card, cash, check, external).
+      await supabase.from("pt_payment_plan_installments")
+        .update({ paid_via: firstPaymentReference ? `${firstPaymentMethod}: ${firstPaymentReference}` : firstPaymentMethod })
+        .in("pass_id", passIds).eq("installment_number", 0);
+    }
 
     // Record which card the future installments will be collected on, so staff
     // see the real card on the schedule instead of guessing from the default.
@@ -506,7 +536,7 @@ Deno.serve(async (req) => {
           payment_method_last4: pmDetails.card?.last4 ?? null,
         })
         .in("pass_id", passIds)
-        .in("status", chargeFirstOnCard ? ["scheduled", "paid"] : ["scheduled"]);
+        .in("status", chargeFirstOnCard && !deferFirstPayment ? ["scheduled", "paid"] : ["scheduled"]);
     } catch (e) {
       console.error("Could not stamp card on installments:", (e as Error).message);
     }

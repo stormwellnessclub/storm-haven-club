@@ -132,6 +132,8 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
   const [firstAutopayDate, setFirstAutopayDate] = useState<string>(
     fmtDate(addMonths(new Date(), 1), "yyyy-MM-dd"),
   );
+  /** Charge payment 1 on the autopay date instead of today (price is locked now). */
+  const [deferFirst, setDeferFirst] = useState(false);
   const [addCardSecret, setAddCardSecret] = useState<string | null>(null);
   const [addCardCustomerId, setAddCardCustomerId] = useState<string | null>(null);
   const [creatingSetupIntent, setCreatingSetupIntent] = useState(false);
@@ -601,6 +603,7 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
             adminNotes: adminNotes || null,
             firstPaymentCents: customFirst ? firstPayCents : null,
             firstPaymentMethod: firstPayMethod,
+            deferFirstPayment: deferFirst && firstPayMethod === "card" && !customFirst,
             firstPaymentReference: firstPayRef.trim() || null,
             installmentCount: customPlan || customMonths ? months : null,
           },
@@ -1106,6 +1109,19 @@ export function SellPTDialog({ open, onOpenChange, presetUserId, presetUserName 
                           Future payments repeat on this day each period. Short months bill on the
                           last day and return to the chosen day afterwards.
                         </div>
+                        <label className="flex items-start gap-2 text-xs">
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={deferFirst}
+                            disabled={firstPayMethod !== "card" || customFirst}
+                            onChange={(e) => setDeferFirst(e.target.checked)}
+                          />
+                          <span>
+                            Nothing charged today: take payment 1 on this date, then monthly after it.
+                            The price is locked in today.
+                          </span>
+                        </label>
                         <div className="pt-2 border-t space-y-2">
                           <Label className="text-xs">Number of months</Label>
                           <div className="flex items-center gap-2">
