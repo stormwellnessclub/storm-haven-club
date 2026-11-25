@@ -199,6 +199,6 @@
 - [x] Deferred PT first payment option; Linda (Jan 24) and Latife (Jun 1) plans
 
 ## Club-wide SMS opt-outs
-- [ ] Suppress carrier STOP refusals across every text path; preserve sent-message history and honor verified START.
-- [ ] Backfill known carrier opt-outs, verify isolated tests, deploy and show staff counts.
+- [x] Suppress carrier STOP refusals across every text path; preserve sent-message history and honor verified START.
+- [x] Backfill 38 known carrier opt-outs, verify 15 isolated tests, deploy and show staff counts; signed-in admin Results reads 38 blocked and 0 inbound STOP replies.
 - [ ] Twilio inbound configuration and full export require owner access/CSV; prepare support wording with verified facts.
