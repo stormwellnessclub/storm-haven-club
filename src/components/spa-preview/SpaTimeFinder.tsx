@@ -6,6 +6,7 @@ import { groupTreatments } from "@/lib/spaVariants";
 import { AELLA_SCULPT } from "@/lib/aellaSculpt";
 import { lengthChoice, lengthLabel } from "./TreatmentRow";
 import { SPA_PATHS } from "@/lib/spaRoutes";
+import { useSeasonalSpaOffers } from "@/hooks/useSeasonalSpaOffers";
 
 const choice = (on: boolean) =>
   `border px-5 py-3 text-left text-sm transition-colors ${on ? "border-foreground bg-foreground text-background" : "border-foreground/30 text-foreground hover:border-foreground/70"}`;
@@ -32,6 +33,7 @@ export function SpaTimeFinder({ services, chapters, onBook, onRequest }: {
   onRequest: (s: SpaService) => void;
 }) {
   const [cat, setCat] = useState<string | null>(null);
+  const { seasonalPrice } = useSeasonalSpaOffers();
   const [groupKey, setGroupKey] = useState<string | null>(null);
   const [variantId, setVariantId] = useState<string | null>(null);
 
@@ -91,7 +93,7 @@ export function SpaTimeFinder({ services, chapters, onBook, onRequest }: {
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Length">
             {group.variants.map((v) => (
               <button key={v.id} type="button" role="radio" aria-checked={variant?.id === v.id} onClick={() => setVariantId(v.id)} className={lengthChoice(variant?.id === v.id)}>
-                {lengthLabel(v)}
+                {lengthLabel(v, seasonalPrice(v.id))}
               </button>
             ))}
           </div>
@@ -102,7 +104,7 @@ export function SpaTimeFinder({ services, chapters, onBook, onRequest }: {
         <div className="border-t border-foreground/15 py-8">
           <p className="text-[11px] tracking-[0.35em] uppercase text-muted-foreground">You're booking</p>
           <p className="mt-3 font-serif text-2xl md:text-3xl">{group.name}</p>
-          <p className="mt-2 text-xs tracking-[0.2em] uppercase text-muted-foreground">{lengthLabel(variant)}</p>
+          <p className="mt-2 text-xs tracking-[0.2em] uppercase text-muted-foreground">{lengthLabel(variant, seasonalPrice(variant.id))}</p>
           <div className="mt-8">
             {mode === "book" && <button type="button" className={primary} onClick={() => onBook(variant)}>Find Your Time</button>}
             {mode === "request" && (

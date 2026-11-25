@@ -45,6 +45,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addDays, addMonths, startOfDay, isSameDay, addMinutes as addMinutesFn } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSeasonalSpaOffers } from "@/hooks/useSeasonalSpaOffers";
 import { CalendarIcon, Clock, CreditCard, User, Loader2, Sparkles, FileCheck, ExternalLink, Check, ArrowRight, ClipboardCheck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -313,6 +314,7 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   // When no service is selected the booking dialog is hidden, but we still need
   // to keep the IntakeFormDialog mounted so the post-booking intake prompt can
   // appear after the parent clears `selectedService`.
+  const { offerFor } = useSeasonalSpaOffers();
   if (!service) {
     return (
       <IntakeFormDialog
@@ -355,7 +357,10 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
   };
   const cleanupMinutes = service.cleanup_minutes;
   // Base (pre-discount) price — hourly services multiply by the hours selected
-  const basePrice = isHourly ? Math.round(service.price * hours * 100) / 100 : service.price;
+  // Seasonal Edit massages book at the Seasonal Edit price while the offer runs (members still get their tier discount on top).
+  const seasonalOffer = isHourly ? null : offerFor(service.id);
+  const listedPrice = isHourly ? Math.round(service.price * hours * 100) / 100 : service.price;
+  const basePrice = seasonalOffer ? seasonalOffer.price_cents / 100 : listedPrice;
 
   // Treat massage/body services as intake-required even if the DB flag is off.
   const categoryLower = (service.category || "").toLowerCase();
@@ -838,11 +843,12 @@ export function SpaBookingModal({ service, open, onOpenChange, initialVoucherCod
                     <p className="text-lg font-semibold text-accent">Covered</p>
                     <p className="text-xs text-muted-foreground">Using Member Credit</p>
                   </>
-                ) : membership && finalPrice < basePrice ? (
+                ) : (membership && finalPrice < basePrice) || seasonalOffer ? (
                   <>
-                    <p className="text-sm text-muted-foreground line-through">${basePrice.toFixed(2)}</p>
+                    <p className="text-sm text-muted-foreground line-through">${listedPrice.toFixed(2)}</p>
+                    {seasonalOffer && <p className="text-xs text-muted-foreground">Seasonal Edit · ${basePrice.toFixed(2)}</p>}
                     <p className="text-lg font-semibold text-accent">${finalPrice.toFixed(2)}</p>
-                    <p className="text-xs text-muted-foreground">{memberPriceLabel(membership?.membership_type)}</p>
+                    {membership && finalPrice < basePrice && <p className="text-xs text-muted-foreground">{memberPriceLabel(membership?.membership_type)}</p>}
                   </>
                 ) : (
                   <p className="text-lg font-semibold">${basePrice.toFixed(2)}</p>

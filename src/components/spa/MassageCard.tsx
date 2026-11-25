@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import type { SpaService } from "@/hooks/useSpaManagement";
+import { useSeasonalSpaOffers } from "@/hooks/useSeasonalSpaOffers";
 import { CUPPING_PRICE_PER_AREA, MASSAGE_INCLUSIONS, massageDetails, massageName } from "@/lib/massages";
 
 const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(value);
@@ -13,6 +14,8 @@ export function MassageCard({ variants, onBook, isMember }: { variants: SpaServi
   const [open, setOpen] = useState(false);
   const [details, setDetailsOpen] = useState(false);
   const [choice, setChoice] = useState("");
+  const { seasonalPrice } = useSeasonalSpaOffers();
+  const shown = (s: SpaService) => { const p = seasonalPrice(s.id); return p != null ? `${money(p)} Seasonal Edit (was ${money(s.price)})` : money(s.price); };
   const first = variants[0];
   if (!first) return null;
   const info = massageDetails(first.name);
@@ -30,7 +33,7 @@ export function MassageCard({ variants, onBook, isMember }: { variants: SpaServi
       {info && variants.length > 1 && <p className="text-sm italic text-foreground/80 mb-4">{info.extended}</p>}
       <p className="text-xs text-accent flex gap-2 mb-5"><Sparkles className="h-4 w-4 shrink-0" />{cupping}</p>
       <div className="border-t border-border pt-4 space-y-3 mt-auto">
-        {variants.map(s => <div key={s.id} className="flex justify-between gap-3 text-sm"><span>{s.duration_minutes} min</span><span className="font-semibold text-accent shrink-0">{money(s.price)}</span></div>)}
+        {variants.map(s => <div key={s.id} className="flex justify-between gap-3 text-sm"><span>{s.duration_minutes} min</span><span className="font-semibold text-accent shrink-0">{shown(s)}</span></div>)}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <Button variant="link" className="p-0 h-auto" onClick={() => setDetailsOpen(true)}>What's included</Button>
           <Button variant="outline" size="sm" onClick={() => { if (variants.length === 1) { onBook(first); return; } setChoice(first.id); setOpen(true); }}>Book Now</Button>
@@ -55,7 +58,7 @@ export function MassageCard({ variants, onBook, isMember }: { variants: SpaServi
             {variants.map(s => <Label key={s.id} htmlFor={`massage-${s.id}`} className={`flex items-center gap-3 border rounded-md p-4 cursor-pointer ${choice === s.id ? "border-accent bg-accent/5" : "border-border"}`}>
               <RadioGroupItem id={`massage-${s.id}`} value={s.id} className="shrink-0" />
               <span className="flex-1 font-semibold">{s.duration_minutes} minutes</span>
-              <span className="text-accent font-semibold shrink-0">{money(s.price)}</span>
+              <span className="text-accent font-semibold shrink-0">{shown(s)}</span>
             </Label>)}
           </RadioGroup>
           <Button disabled={!selected} onClick={() => { if (!selected) return; setOpen(false); onBook(selected); }}>Continue to booking</Button>

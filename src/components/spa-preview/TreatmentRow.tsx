@@ -5,9 +5,11 @@ import { spaMenuMode } from "@/lib/spaMenu";
 import type { TreatmentGroup } from "@/lib/spaVariants";
 import { SPA_PATHS } from "@/lib/spaRoutes";
 import { sessionMinutesText } from "@/lib/spaDuration";
+import { useSeasonalSpaOffers } from "@/hooks/useSeasonalSpaOffers";
 
 export const money = (n: number) => `$${Number(n).toFixed(0)}`;
-export const lengthLabel = (s: Pick<SpaService, "duration_minutes" | "price"> & { name?: string }) => `${sessionMinutesText(s)} min · ${money(s.price)}`;
+export const lengthLabel = (s: Pick<SpaService, "duration_minutes" | "price"> & { name?: string }, seasonal?: number | null) =>
+  seasonal != null ? `${sessionMinutesText(s)} min · ${money(seasonal)} Seasonal Edit (was ${money(s.price)})` : `${sessionMinutesText(s)} min · ${money(s.price)}`;
 const btn = "text-xs tracking-[0.25em] uppercase border border-foreground/50 px-6 py-3 text-foreground hover:bg-foreground hover:text-background transition-colors";
 const quiet = "border-b border-foreground/40 pb-1 text-xs tracking-[0.25em] uppercase text-foreground hover:border-foreground transition-colors";
 export const lengthChoice = (on: boolean) =>
@@ -36,6 +38,7 @@ interface Props {
 /** One treatment on the menu, with every length it comes in. */
 export function TreatmentRow({ group, onBook, onRequest, rating, onReviews, label, viewHref, photo, notes, aside, viewLabel = "View Treatment" }: Props) {
   const [pickId, setPickId] = useState(group.variants[0]?.id);
+  const { seasonalPrice } = useSeasonalSpaOffers();
   const chosen = group.variants.find((v) => v.id === pickId) ?? group.variants[0];
   if (!chosen) return null;
   const mode = spaMenuMode(chosen);
@@ -65,13 +68,13 @@ export function TreatmentRow({ group, onBook, onRequest, rating, onReviews, labe
         <div className="mt-5 flex flex-wrap gap-2" role="radiogroup" aria-label={`${group.name} length`}>
           {group.variants.map((v) => (
             <button key={v.id} type="button" role="radio" aria-checked={v.id === chosen.id} onClick={() => setPickId(v.id)} className={lengthChoice(v.id === chosen.id)}>
-              {lengthLabel(v)}
+              {lengthLabel(v, seasonalPrice(v.id))}
             </button>
           ))}
         </div>
       ) : (
         <p className="mt-4 text-xs tracking-[0.2em] uppercase text-muted-foreground">
-          {group.variants.map(lengthLabel).join("   /   ")}
+          {group.variants.map((v) => lengthLabel(v, seasonalPrice(v.id))).join("   /   ")}
         </p>
       )}
       {aside && <p className="mt-4 max-w-xl text-xs leading-relaxed text-muted-foreground">{aside}</p>}

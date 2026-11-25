@@ -110,6 +110,13 @@ Deno.serve(async req => {
       if (conflictError) return reject('conflict_check_failed','We could not check that time just now. Please try again in a moment.',409);
       if (conflicts?.some((v: {has_conflict:boolean})=>v.has_conflict)) return reject('time_taken','That time was just booked. Please choose another time.',409);
       let price=Number(s.price)*hours; let memberPrice=null;
+      // Seasonal Edit massages: same offer list and dates as the gift shop and the booking screen.
+      if (hours===1) {
+        const nowIso=new Date().toISOString();
+        const {data:seasonal}=await admin.from('gift_card_offers').select('price_cents,starts_at,ends_at').is('class_offer_key',null).eq('is_active',true).contains('covers_service_ids',[s.id]);
+        const live=(seasonal ?? []).find((o: {starts_at:string|null;ends_at:string|null})=>(!o.starts_at||o.starts_at<=nowIso)&&(!o.ends_at||o.ends_at>nowIso));
+        if (live) price=live.price_cents/100;
+      }
       if (userId) {
         const {data:m}=await admin.from('members').select('membership_type').eq('user_id',userId).neq('status','cancelled').maybeSingle();
         const tier=m?.membership_type?.toLowerCase() ?? '';
