@@ -75,12 +75,6 @@ Deno.serve(async (req) => {
       throw new Error("A changed price needs a custom payment plan");
     }
     if (!firstAutopayDate) throw new Error("A first autopay date is required");
-    const todayDetroit = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Detroit" }).format(new Date());
-    if (deferFirstPayment) {
-      if (firstPaymentMethod !== "card") throw new Error("A later first payment must be charged on the card");
-      if (customFirst) throw new Error("A later first payment can't have a custom first amount");
-      if (String(firstAutopayDate) <= todayDetroit) throw new Error("Choose a first payment date after today");
-    }
     if (quantity < 1 || quantity > 20) throw new Error("Invalid quantity");
     if (!["card", "cash", "check", "external"].includes(firstPaymentMethod)) {
       throw new Error("Invalid first payment method");
@@ -92,6 +86,12 @@ Deno.serve(async (req) => {
     const customFirst = firstPaymentCents !== null && firstPaymentCents !== undefined;
     if (customFirst && (!Number.isInteger(firstPaymentCents) || firstPaymentCents < 0)) {
       throw new Error("First payment amount is invalid");
+    }
+    const todayDetroit = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Detroit" }).format(new Date());
+    if (deferFirstPayment) {
+      if (firstPaymentMethod !== "card") throw new Error("A later first payment must be charged on the card");
+      if (customFirst) throw new Error("A later first payment can't have a custom first amount");
+      if (String(firstAutopayDate) <= todayDetroit) throw new Error("Choose a first payment date after today");
     }
 
     // Verification-only sandbox route. Never used by the live sell dialog; when it
@@ -517,6 +517,9 @@ Deno.serve(async (req) => {
           stripe_payment_intent_id: null, stripe_subscription_id: stripeScheduleId })
         .in("pass_id", passIds).eq("installment_number", 0);
       if (defErr) console.error("Failed to schedule first payment:", defErr.message);
+      await supabase.from("pt_passes")
+        .update({ payment_plan_next_payment_date: firstAutopayDate, payment_plan_installments_paid: 0 })
+        .in("id", passIds);
     } else {
       // Note how the first payment was received (card, cash, check, external).
       await supabase.from("pt_payment_plan_installments")

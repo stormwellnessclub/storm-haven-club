@@ -192,3 +192,8 @@
 - [ ] Build the concepts the owner picks — waiting on owner's choice
 - [x] Send plan Nov 24–30 proposed
 - [ ] 9 AM round 3 texts: send or hold — waiting on owner
+
+## PT packages Nov 25
+- [x] Ammanee 80 Semi-Private paid in full
+- [x] Elizabeth 80 Semi-Private 7 payments, starts Feb 1
+- [x] Deferred PT first payment option; Linda (Jan 24) and Latife (Jun 1) plans
