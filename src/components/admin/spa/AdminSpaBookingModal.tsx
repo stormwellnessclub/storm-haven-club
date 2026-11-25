@@ -24,6 +24,7 @@ import { formatTime12h } from "@/lib/timeFormat";
 import { useSpaTreatmentZones } from "@/hooks/useSpaTreatmentZones";
 import { activeZones, zoneTakesRequests } from "@/lib/spaZones";
 import { parseTimeInput } from "@/lib/parseTimeInput";
+import { seasonalOfferForService, seasonalSpaPrice, type SeasonalSpaOffer } from "@/lib/seasonalSpaPrice";
 import {
   findCoveringSlot,
   hasCoverageOnDate,
@@ -72,6 +73,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     waiverSigned: boolean;
     cardBrand: string | null;
     cardLast4: string | null;
+    membershipType?: string | null;
   }
 
   const [customerSearch, setCustomerSearch] = useState("");
@@ -301,6 +303,7 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
       waiverSigned: waiver,
       cardBrand: candidate.cardBrand,
       cardLast4: candidate.cardLast4,
+      membershipType: candidate.type === "member" ? candidate.badgeLabel : null,
     });
     setCustomerSearch("");
   };
@@ -310,6 +313,23 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
     [services, serviceId]
   );
   // Zone-based services (Aella Sculpt) need exactly one treatment area per appointment.
+  const { data: seasonalOffers = [] } = useQuery({
+    queryKey: ["seasonal-spa-offers-admin"],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("gift_card_offers")
+        .select("id, label, price_cents, covers_service_ids, starts_at, ends_at, is_active")
+        .is("class_offer_key", null)
+        .eq("is_active", true);
+      return (data ?? []) as SeasonalSpaOffer[];
+    },
+  });
+  const seasonalOffer = seasonalOfferForService(seasonalOffers, serviceId);
+  const [useSeasonalPrice, setUseSeasonalPrice] = useState(false);
+  useEffect(() => { setUseSeasonalPrice(false); }, [serviceId]);
+  const seasonalMemberType = selectedCustomer?.type === "member" ? selectedCustomer.membershipType ?? null : null;
+  const seasonalPrice = seasonalOffer ? seasonalSpaPrice(seasonalOffer, seasonalMemberType) : null;
+  const applySeasonal = !!seasonalOffer && useSeasonalPrice && seasonalPrice !== null;
   const { data: zoneRows = [] } = useSpaTreatmentZones();
   const serviceKey = (selectedService as { service_key?: string | null } | undefined)?.service_key ?? null;
   const serviceZones = serviceKey ? activeZones(zoneRows, serviceKey) : [];
@@ -592,9 +612,13 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
       }
 
       const usingVoucher = !!appliedVoucher;
-      const finalNotesWithVoucher = usingVoucher
-        ? `${finalNotes ? finalNotes + "\n" : ""}Mother's Day Voucher: ${appliedVoucher!.code}`
+      const seasonalNow = !usingVoucher && applySeasonal;
+      const notesBase = seasonalNow
+        ? `${finalNotes ? finalNotes + "\n" : ""}Seasonal Edit price: $${seasonalPrice!.toFixed(2)}${seasonalMemberType ? ` (${seasonalMemberType} tier discount)` : ""}`
         : finalNotes;
+      const finalNotesWithVoucher = usingVoucher
+        ? `${notesBase ? notesBase + "\n" : ""}Mother's Day Voucher: ${appliedVoucher!.code}`
+        : notesBase;
 
       const { data: inserted, error } = await (supabase.from as any)("spa_appointments").insert({
         member_id: memberIdToInsert,
@@ -602,8 +626,8 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
         service_id: selectedService.id,
         service_name: selectedService.name,
         service_category: selectedService.category,
-        service_price: usingVoucher ? 0 : selectedService.price,
-        member_price: usingVoucher ? 0 : selectedService.member_price,
+        service_price: usingVoucher ? 0 : seasonalNow ? (seasonalMemberType ? seasonalOffer!.price_cents / 100 : seasonalPrice) : selectedService.price,
+        member_price: usingVoucher ? 0 : seasonalNow ? seasonalPrice : selectedService.member_price,
         appointment_date: appointmentDate,
         appointment_time: appointmentTime + ":00",
         duration_minutes: selectedService.duration_minutes,
@@ -905,6 +929,18 @@ export function AdminSpaBookingModal({ open, onOpenChange, defaultDate, prefill,
                 ))}
               </SelectContent>
             </Select>
+            {seasonalOffer && seasonalPrice !== null && (
+              <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-border p-3">
+                <div className="text-sm">
+                  <p className="font-medium">Use Seasonal Edit price</p>
+                  <p className="text-muted-foreground">
+                    Seasonal Edit · ${seasonalPrice.toFixed(2)} (was ${selectedService?.price})
+                    {seasonalMemberType ? ` · includes ${seasonalMemberType} member discount` : ""}
+                  </p>
+                </div>
+                <Switch checked={useSeasonalPrice} onCheckedChange={setUseSeasonalPrice} aria-label="Use Seasonal Edit price" />
+              </div>
+            )}
           </div>
 
           {serviceZones.length > 0 && (
