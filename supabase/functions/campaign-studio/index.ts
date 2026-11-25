@@ -42,6 +42,7 @@ export const AUDIENCES: Record<string, string> = {
   seasonal_interest_classes: "Seasonal Edit: class clickers, no later purchase",
   seasonal_interest_spa: "Seasonal Edit: massage clickers, no later purchase",
   seasonal_interest_gifts: "Seasonal Edit: gift clickers, no later purchase",
+  seasonal_engaged_this_year: "Seasonal Edit: members + non-members active this year (no imported list)",
 };
 
 async function pageAll(sb: any, table: string, cols: string, apply: (q: any) => any = (q) => q) {
@@ -61,7 +62,11 @@ async function loadAudience(sb: any, key: string): Promise<Person[]> {
   const members = await pageAll(sb, "members", "id, user_id, first_name, last_name, email, phone, status", (q) => q.in("status", ["active", "frozen"]));
   const memberByEmail = new Map(members.map((m: any) => [norm(m.email), m]));
 
-  if (key.startsWith("seasonal_")) {
+  if (key === "seasonal_engaged_this_year") {
+    // Members plus recently active non-member accounts; never the imported list (high bounce rate).
+    for (const p of await loadAudience(sb, "active_members")) add(p);
+    for (const p of await loadAudience(sb, "seasonal_recent_non_members")) add(p);
+  } else if (key.startsWith("seasonal_")) {
     // Reuse the single staff activity source; the service role is permitted for timer execution.
     const { data: activity, error: activityError } = await sb.rpc("admin_person_activity");
     if (activityError) throw activityError;

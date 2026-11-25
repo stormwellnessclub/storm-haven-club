@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SeasonalHotList } from '@/components/admin/SeasonalHotList';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
@@ -141,8 +142,9 @@ export default function CampaignStudio() {
         </div>
 
         <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex h-auto flex-wrap justify-start"><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="seasonal-week">Seasonal Edit week</TabsTrigger><TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
+        <TabsList className="flex h-auto flex-wrap justify-start"><TabsTrigger value="hot-list">Hot list</TabsTrigger><TabsTrigger value="campaigns">Campaigns</TabsTrigger><TabsTrigger value="seasonal-week">Seasonal Edit week</TabsTrigger><TabsTrigger value="results">Results</TabsTrigger><TabsTrigger value="reviews">Google reviews</TabsTrigger></TabsList>
         <TabsContent value="seasonal-week"><SeasonalCampaignWeek campaigns={campaigns} onOpen={(id) => { setTab("campaigns"); select(id); }} /></TabsContent>
+        <TabsContent value="hot-list"><SeasonalHotList /></TabsContent>
         <TabsContent value="reviews"><GoogleReviewRequests /></TabsContent>
         <TabsContent value="results">
           <CampaignResultsOverview

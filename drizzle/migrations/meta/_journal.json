@@ -1548,6 +1548,20 @@
       "when": 1795603345393,
       "tag": "0220_pt_package_start_date_and_deferred_first_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 221,
+      "version": "7",
+      "when": 1795635304098,
+      "tag": "0221_seasonal_hot_list",
+      "breakpoints": true
+    },
+    {
+      "idx": 222,
+      "version": "7",
+      "when": 1795635483613,
+      "tag": "0222_seasonal_hot_list_session_totals",
+      "breakpoints": true
     }
   ]
 }

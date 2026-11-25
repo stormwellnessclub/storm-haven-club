@@ -6034,6 +6034,33 @@ export type Database = {
         }
         Relationships: []
       }
+      marketing_outreach_marks: {
+        Row: {
+          bought_at: string | null
+          contacted_at: string | null
+          contacted_by: string | null
+          note: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bought_at?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
+          note?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bought_at?: string | null
+          contacted_at?: string | null
+          contacted_by?: string | null
+          note?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       marketing_sequence_enrollments: {
         Row: {
           completed_at: string | null
@@ -17813,6 +17840,23 @@ export type Database = {
           pass_id: string
           price_paid: number
           purchased_at: string
+          user_id: string
+        }[]
+      }
+      admin_seasonal_hot_list: {
+        Args: never
+        Returns: {
+          bought_at: string
+          contacted_at: string
+          email: string
+          first_name: string
+          is_member: boolean
+          last_name: string
+          phone: string
+          priority: number
+          reason: string
+          reason_key: string
+          trainer: string
           user_id: string
         }[]
       }
