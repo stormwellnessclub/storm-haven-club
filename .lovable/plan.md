@@ -1,4 +1,16 @@
-# Seasonal Edit: what's actually happening, and a sales plan for the last 5 days
+# Part 1 (do now): Jeana Goss's 5-class gift
+
+1. Add a 5-class pass to Jeana Goss's account (jmelles14@gmail.com). It expires May 29, 2027, the same date as the gift card, and she can book it online right away.
+2. Mark Micah's $150 "5-Class Pack" gift card (STORM-76EE-TVRN) as fully used and linked to that pass. That way it can't be used twice.
+3. Email Jeana that her 5 classes are on her account and ready to book, with a link to the class schedule. No text.
+4. Check that the pass shows 5 classes in her account and that the card shows $0 left.
+
+No charges.
+
+---
+
+# Part 2 (next, for your approval): Seasonal Edit sales plan
+
 
 ## The honest numbers (Nov 21 to today)
 - **About 9,450 emails were delivered across 3 rounds. 695 bounced, about 7%.** A bounce rate that high tells Gmail and Outlook that we're a bulk sender. That's a big reason emails land in spam.
