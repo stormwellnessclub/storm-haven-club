@@ -60,28 +60,16 @@ function normalizePhone(p: string | null | undefined): string | null {
   return null;
 }
 
-async function sendTwilioSms(to: string, body: string): Promise<{ ok: boolean; error?: string }> {
-  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_FROM_NUMBER) {
-    return { ok: false, error: "Twilio not configured" };
-  }
+// Every card notice uses the same opt-out boundary as campaigns and appointments.
+async function sendTwilioSms(to: string, body: string, idempotencyKey: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
-    const res = await fetch(
-      `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Basic ${auth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({ To: to, From: TWILIO_FROM_NUMBER, Body: body }),
-      },
-    );
-    if (!res.ok) {
-      const text = await res.text();
-      return { ok: false, error: `Twilio ${res.status}: ${text.slice(0, 200)}` };
-    }
-    return { ok: true };
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-sms`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${SERVICE_ROLE}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ to: { phone: to }, templateKey: "admin-custom", variables: { customBody: body }, idempotencyKey }),
+    });
+    const result = await res.json();
+    return { ok: res.ok && result.success === true, error: result.error };
   } catch (e) {
     return { ok: false, error: String(e) };
   }
@@ -233,7 +221,7 @@ Deno.serve(async (req) => {
                 });
               if (!insertErr) {
                 const body = `Storm Wellness Club: Your card ending ${card.last4} expires ${String(card.exp_month).padStart(2, "0")}/${String(card.exp_year).slice(-2)}. Update at stormwellnessclub.com/member/payment-methods to avoid interrupted billing. Reply STOP to opt out.`;
-                const smsRes = await sendTwilioSms(phone, body);
+                const smsRes = await sendTwilioSms(phone, body, `card-expiry:${member.id}:${pm.id}:${card.exp_month}:${card.exp_year}:${touchpoint.days}`);
                 results.push({
                   member: member.id,
                   sms_sent: touchpoint.days,

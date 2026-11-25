@@ -17962,6 +17962,7 @@ export type Database = {
         Args: { _pin: string; _staff_user_id: string }
         Returns: undefined
       }
+      admin_sms_optout_summary: { Args: never; Returns: Json }
       admin_spa_client_packages: {
         Args: { p_service_key?: string }
         Returns: {
@@ -20746,6 +20747,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_sms_phone_choice: {
+        Args: {
+          _event_at?: string
+          _event_id?: string
+          _opt_in: boolean
+          _phone: string
+          _source: string
+        }
+        Returns: undefined
+      }
       record_spa_client_package: {
         Args: {
           p_created_by?: string
@@ -20947,6 +20958,7 @@ export type Database = {
         }
         Returns: Json
       }
+      sms_phone_is_blocked: { Args: { _phone: string }; Returns: boolean }
       spa_sculpt_form_status: {
         Args: { p_appointment_ids: string[] }
         Returns: {

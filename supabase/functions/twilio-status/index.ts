@@ -47,13 +47,7 @@ Deno.serve(async (req) => {
     const rawBody = await req.text();
     const params = new URLSearchParams(rawBody);
 
-    // Rebuild the exact URL Twilio signed.
-    const url = new URL(req.url);
-    const fwdProto = req.headers.get("x-forwarded-proto");
-    const fwdHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-    if (fwdProto) url.protocol = `${fwdProto}:`;
-    if (fwdHost) url.host = fwdHost;
-    const signedUrl = url.toString();
+    const signedUrl = `${SUPABASE_URL}/functions/v1/twilio-status${new URL(req.url).search}`;
 
     const signature = req.headers.get("x-twilio-signature") ?? "";
     const valid = await validateTwilioSignature(TWILIO_AUTH_TOKEN, signature, signedUrl, params);
@@ -70,13 +64,26 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    if (errorCode === "21610") {
+      const { data: original, error: lookupError } = await admin.from("sms_messages")
+        .select("phone,created_at").eq("twilio_sid", sid).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (original) {
+        const { error } = await admin.rpc("record_sms_phone_choice", {
+          _phone: original.phone, _opt_in: false, _source: "twilio_21610",
+          _event_at: original.created_at, _event_id: sid,
+        });
+        if (error) throw error;
+      }
+    }
     const update: Record<string, unknown> = { status };
     if (status === "delivered") update.delivered_at = new Date().toISOString();
     if (errorCode) update.error_code = errorCode;
-    await admin.from("sms_messages").update(update).eq("twilio_sid", sid);
+    const { error } = await admin.from("sms_messages").update(update).eq("twilio_sid", sid);
+    if (error) throw error;
     return new Response("ok", { status: 200 });
   } catch (e) {
     console.error("twilio-status error", e);
-    return new Response("ok", { status: 200 });
+    return new Response("retry", { status: 500 });
   }
 });

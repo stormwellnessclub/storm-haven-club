@@ -1562,6 +1562,13 @@
       "when": 1795635483613,
       "tag": "0222_seasonal_hot_list_session_totals",
       "breakpoints": true
+    },
+    {
+      "idx": 223,
+      "version": "7",
+      "when": 1795642290723,
+      "tag": "0223_sms_phone_stop_protection",
+      "breakpoints": true
     }
   ]
 }

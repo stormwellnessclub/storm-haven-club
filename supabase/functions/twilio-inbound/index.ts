@@ -3,6 +3,7 @@
 // SECURITY: Validates X-Twilio-Signature (HMAC-SHA1 over the full URL + sorted params)
 // so attackers cannot forge inbound SMS to opt users in/out.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { smsPhoneChoice } from "../_shared/smsPhoneChoice.ts";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -63,13 +64,7 @@ Deno.serve(async (req) => {
     const rawBody = ct.includes("application/x-www-form-urlencoded") ? await req.text() : "";
     const params = new URLSearchParams(rawBody);
 
-    // Build the exact URL Twilio signed. Honor forwarded proto/host (Supabase edge runtime).
-    const url = new URL(req.url);
-    const fwdProto = req.headers.get("x-forwarded-proto");
-    const fwdHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-    if (fwdProto) url.protocol = `${fwdProto}:`;
-    if (fwdHost) url.host = fwdHost;
-    const signedUrl = url.toString();
+    const signedUrl = `${SUPABASE_URL}/functions/v1/twilio-inbound${new URL(req.url).search}`;
 
     const signature = req.headers.get("x-twilio-signature") ?? "";
     const valid = await validateTwilioSignature(TWILIO_AUTH_TOKEN, signature, signedUrl, params);
@@ -99,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     // Log inbound
-    await admin.from("sms_messages").insert({
+    const { error: inboundError } = await admin.from("sms_messages").insert({
       recipient_user_id: userId,
       phone: from,
       message_body: bodyText,
@@ -108,39 +103,19 @@ Deno.serve(async (req) => {
       twilio_sid: messageSid,
       metadata: { keyword },
     });
+    if (inboundError) throw inboundError;
 
+    const choice = smsPhoneChoice(bodyText, params.get("OptOutType"));
     let reply: string | undefined;
-    let action: "opt_in" | "opt_out" | null = null;
-
-    if (["STOP", "STOPALL", "UNSUBSCRIBE", "CANCEL", "END", "QUIT"].includes(keyword)) {
-      action = "opt_out";
-      reply = STOP_REPLY;
-    } else if (["START", "UNSTOP", "YES", "JOIN", "SUBSCRIBE"].includes(keyword)) {
-      action = "opt_in";
-      reply = START_REPLY;
-    } else if (["HELP", "INFO"].includes(keyword)) {
-      reply = HELP_REPLY;
-    }
-
-    if (action && phoneTail) {
-      const optIn = action === "opt_in";
-      const now = new Date().toISOString();
-      const update: Record<string, unknown> = {
-        sms_opt_in: optIn,
-        ...(optIn
-          ? { sms_opt_in_at: now, sms_opt_in_source: "sms_keyword" }
-          : { sms_opt_out_at: now, sms_opt_out_source: "sms_keyword" }),
-      };
-      await admin.from("profiles").update(update).ilike("phone", `%${phoneTail}`);
-      await admin.rpc("set_phone_sms_consent", { _phone: from, _opt_in: optIn });
-      await admin.from("sms_consent_log").insert({
-        user_id: userId,
-        phone: from,
-        action,
-        source: "sms_keyword",
-        disclosure_version: "v1",
-        metadata: { keyword, message_sid: messageSid },
+    if (choice !== null && phoneTail.length === 10) {
+      const { error } = await admin.rpc("record_sms_phone_choice", {
+        _phone: from, _opt_in: choice, _source: "sms_keyword", _event_id: messageSid,
       });
+      if (error) throw error;
+      // Advanced Opt-Out already sends its confirmation; do not duplicate it.
+      if (!params.get("OptOutType")) reply = choice ? START_REPLY : STOP_REPLY;
+    } else if (keyword === "HELP" || keyword === "INFO") {
+      if (!params.get("OptOutType")) reply = HELP_REPLY;
     }
 
     return new Response(twiml(reply), {
@@ -149,6 +124,6 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.error("twilio-inbound error", e);
-    return new Response(twiml(), { status: 200, headers: { "Content-Type": "text/xml" } });
+    return new Response(twiml(), { status: 500, headers: { "Content-Type": "text/xml" } });
   }
 });

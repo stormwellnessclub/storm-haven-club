@@ -368,7 +368,9 @@ Deno.serve(async (req) => {
     // Consent is required for every staff and job send. Only another server holding the
     // service-role key may skip it (system confirmations it already verified). A staff
     // sign-in can never text a number that has not agreed to texts from the club.
-    const allowSend = optedIn || (isServerCaller && body.bypassConsent === true);
+    const { data: phoneBlocked, error: blockError } = await admin.rpc("sms_phone_is_blocked", { _phone: phone });
+    if (blockError) throw blockError; // Consent lookup failures must never reach Twilio.
+    const allowSend = phoneBlocked !== true && !optedOut && (optedIn || (isServerCaller && body.bypassConsent === true));
 
     if (!allowSend) {
       await admin.from("sms_messages").insert({
@@ -414,6 +416,12 @@ Deno.serve(async (req) => {
     const twData = await tw.json();
 
     if (!tw.ok) {
+      if (String(twData.code) === "21610") {
+        const { error } = await admin.rpc("record_sms_phone_choice", {
+          _phone: phone, _opt_in: false, _source: "twilio_21610", _event_id: body.idempotencyKey,
+        });
+        if (error) throw error;
+      }
       await admin.from("sms_messages").insert({
         recipient_user_id: recipientUserId,
         phone,

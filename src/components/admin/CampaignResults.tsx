@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { formatInTimeZone } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Copy, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const TZ = "America/Detroit";
@@ -108,9 +110,29 @@ export function CampaignResults({ campaignId }: { campaignId: string }) {
 
 /** One row per sent campaign email, newest first. */
 export function CampaignResultsOverview({ campaigns, onOpen }: { campaigns: { id: string; name: string; sent_at: string | null }[]; onOpen: (id: string) => void }) {
+  const { data: sms, error: smsError } = useQuery({
+    queryKey: ["sms-optout-summary"], staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("admin_sms_optout_summary" as any);
+      if (error) throw error;
+      return data as { blocked_phones: number; recorded_stop_replies: number };
+    },
+  });
   return (
     <div className="rounded-lg border bg-card">
       <div className="border-b p-3">
+        <div className="mb-3 flex flex-wrap gap-4 text-sm">
+          <span>SMS opt-outs blocked: <strong>{smsError ? "Unavailable" : sms?.blocked_phones ?? "…"}</strong></span>
+          <span>STOP replies recorded: <strong>{smsError ? "Unavailable" : sms?.recorded_stop_replies ?? "…"}</strong></span>
+          <Button size="sm" variant="outline" onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/twilio-inbound`);
+              toast.success("Twilio reply address copied.");
+            } catch {
+              toast.error("Couldn't copy the reply address. Please try again.");
+            }
+          }}><Copy className="mr-2 h-3.5 w-3.5" />Copy Twilio reply address</Button>
+        </div>
         <h2 className="text-sm font-medium">Results for every campaign email</h2>
         <p className="text-xs text-muted-foreground">Opens and clicks are recorded for emails sent from Nov 24, 2026 on. Delivery, bounces, spam reports and purchases are shown for every campaign.</p>
       </div>
