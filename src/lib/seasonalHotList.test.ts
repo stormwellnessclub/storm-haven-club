@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { hotListText } from './seasonalHotList';
 
 const reasons = ['pt_low', 'pt_unpaid', 'member_recent', 'spa_recent', 'class_non_member'] as const;

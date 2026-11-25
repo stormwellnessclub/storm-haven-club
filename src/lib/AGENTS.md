@@ -11,3 +11,4 @@
 - Massage menu groups 60/90 variants by base name via src/lib/massages.ts; booking receives the selected original record and copy lives in that file. Why: one listing per treatment without changing pricing, intake or history.
 - Payroll uses only recorded work via `admin_payroll_sources` + `src/lib/payroll.ts`; shift edits only through `admin_adjust_shift_clock` with a reason; tips separate from gross. Why: auditable pay, no silent hour edits.
 - Retention: only `admin_retention_visits` + `retention.ts`. Why: tested.
+- Seasonal Edit personal outreach uses Campaign Studio → Hot list: `admin_seasonal_hot_list()` (admin/manager) ranks buyers and excludes Seasonal Edit purchasers; staff copy texts from `src/lib/seasonalHotList.ts` and send from their own phones; marks live in `marketing_outreach_marks`. Why: personal outreach sold; blasts didn't.
