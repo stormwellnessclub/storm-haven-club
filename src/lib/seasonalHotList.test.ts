@@ -1,3 +1,4 @@
+// @ts-nocheck -- Bun test
 import { describe, it, expect } from 'bun:test';
 import { hotListText } from './seasonalHotList';
 
