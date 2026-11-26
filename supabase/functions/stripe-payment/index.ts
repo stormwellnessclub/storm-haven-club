@@ -3232,6 +3232,48 @@ serve(async (req) => {
 
         logStep("Default payment method updated", { paymentMethodId, customerId });
 
+        // Move every live subscription (dues, annual fee, PT plans) that pinned
+        // its own card onto the new default, so the card the member picked is
+        // the card that actually gets charged.
+        try {
+          for (const status of ['active', 'trialing', 'past_due'] as const) {
+            const subs = await stripe.subscriptions.list({ customer: customerId, status, limit: 100 });
+            for (const sub of subs.data) {
+              const pinned = typeof sub.default_payment_method === 'string'
+                ? sub.default_payment_method
+                : sub.default_payment_method?.id ?? null;
+              if (pinned && pinned !== paymentMethodId) {
+                await stripe.subscriptions.update(sub.id, { default_payment_method: paymentMethodId });
+              }
+            }
+          }
+        } catch (subError) {
+          logStep("set_default: subscription card update failed", { error: String(subError) });
+        }
+
+        // Upcoming PT plan payments show the card that will be charged.
+        try {
+          const { data: owner } = await supabase.from('members').select('user_id').eq('id', memberId).single();
+          if (owner?.user_id) {
+            const { data: passes } = await supabase.from('pt_passes').select('id').eq('user_id', owner.user_id);
+            const passIds = (passes ?? []).map((p: { id: string }) => p.id);
+            if (passIds.length) {
+              await supabase.from('pt_payment_plan_installments')
+                .update({ payment_method_brand: paymentMethod.card?.brand ?? null, payment_method_last4: paymentMethod.card?.last4 ?? null })
+                .in('pass_id', passIds)
+                .in('status', ['scheduled', 'pending', 'failed', 'past_due']);
+            }
+          }
+          await supabase.from('members').update({
+            card_brand: paymentMethod.card?.brand ?? null,
+            card_last4: paymentMethod.card?.last4 ?? null,
+            card_exp_month: paymentMethod.card?.exp_month ?? null,
+            card_exp_year: paymentMethod.card?.exp_year ?? null,
+          }).eq('id', memberId);
+        } catch (labelError) {
+          logStep("set_default: card label update failed", { error: String(labelError) });
+        }
+
         return new Response(
           JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
