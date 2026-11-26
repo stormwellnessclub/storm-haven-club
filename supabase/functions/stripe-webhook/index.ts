@@ -2735,13 +2735,25 @@ serve(async (req) => {
                 // installment rows inside this RPC; nothing increments counters here,
                 // otherwise a replay would inflate the client's paid total.
                 const invoicePaymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
-                const { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
+                let { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
                   p_subscription_id: subId,
                   p_stripe_invoice_id: invoice.id,
                   p_outcome: 'paid',
                   p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
                   p_payment_intent_id: invoicePaymentIntentId,
                 });
+                // Older plans saved the subscription *schedule* id on their
+                // installment rows; retry with it so paid months never stay "Upcoming".
+                const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : sub.schedule?.id;
+                if (!recErr && recRes?.success === false && scheduleId) {
+                  ({ data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
+                    p_subscription_id: scheduleId,
+                    p_stripe_invoice_id: invoice.id,
+                    p_outcome: 'paid',
+                    p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
+                    p_payment_intent_id: invoicePaymentIntentId,
+                  }));
+                }
                 if (recErr) logError(recErr, 'PT_INSTALLMENT_RECONCILE');
                 else logStep('PT installment reconciled', recRes);
                 // Phase 2C: the installment is real money — record it once in the
