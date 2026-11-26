@@ -206,3 +206,4 @@
 ## Teresa payroll confirmations Nov 26
 - [x] Revise Nov 2–15 pay log to confirm Ebony attended and Nada cancelled without a charge; original appointment values preserved alongside owner corrections. PDF and workbook pages visually checked; provisional payout remains $674.45.
 - [x] Finalize November 5 tips as owner-confirmed cash only; recorded card values preserved in notes, not paid again. Final v3 PDF/workbook checked; payout $674.45 plus $220 already-received cash tips separate.
+- [x] Create separate simple Teresa-facing Nov 2–15 PDF/XLSX with service hours, treatment, client and tip type/amount; internal copies preserved. Both printouts checked, spreadsheet pagination and row alignment fixed, 17 formulas recalculated with zero errors.
