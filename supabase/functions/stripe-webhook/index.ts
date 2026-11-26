@@ -2719,6 +2719,7 @@ serve(async (req) => {
               const sub = await stripe.subscriptions.retrieve(subId);
               await inheritScheduleMetadata(stripe, sub);
               if (sub.metadata?.type === 'pt_payment_plan') {
+                await rebindScheduleToSubscription(supabase, sub);
                 // Phase 2C.5B2: a subscription schedule only materializes the
                 // subscription when the first future installment bills, so bind it
                 // to Storm's sold package and installment rows on first sight.
@@ -2735,25 +2736,13 @@ serve(async (req) => {
                 // installment rows inside this RPC; nothing increments counters here,
                 // otherwise a replay would inflate the client's paid total.
                 const invoicePaymentIntentId = await resolveInvoicePaymentIntentId(stripe, invoice);
-                let { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
+                const { data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
                   p_subscription_id: subId,
                   p_stripe_invoice_id: invoice.id,
                   p_outcome: 'paid',
                   p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
                   p_payment_intent_id: invoicePaymentIntentId,
                 });
-                // Older plans saved the subscription *schedule* id on their
-                // installment rows; retry with it so paid months never stay "Upcoming".
-                const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : sub.schedule?.id;
-                if (!recErr && recRes?.success === false && scheduleId) {
-                  ({ data: recRes, error: recErr } = await supabase.rpc('pt_reconcile_installment', {
-                    p_subscription_id: scheduleId,
-                    p_stripe_invoice_id: invoice.id,
-                    p_outcome: 'paid',
-                    p_amount_cents: invoice.amount_paid ?? invoice.amount_due ?? 0,
-                    p_payment_intent_id: invoicePaymentIntentId,
-                  }));
-                }
                 if (recErr) logError(recErr, 'PT_INSTALLMENT_RECONCILE');
                 else logStep('PT installment reconciled', recRes);
                 // Phase 2C: the installment is real money — record it once in the
@@ -3500,6 +3489,7 @@ serve(async (req) => {
             const sub = await stripe.subscriptions.retrieve(subId);
             await inheritScheduleMetadata(stripe, sub);
             if (sub.metadata?.type === 'pt_payment_plan') {
+              await rebindScheduleToSubscription(supabase, sub);
               const saleRef = sub.metadata.pt_sale_ref ?? null;
               if (saleRef) {
                 const { error: bindErr } = await supabase.rpc('pt_bind_plan_subscription', {
@@ -4797,3 +4787,18 @@ serve(async (req) => {
     });
   }
 });
+
+/**
+ * Older PT plans saved the Stripe subscription *schedule* id on the package and
+ * its installment rows. Every reconcile RPC matches on the real subscription id,
+ * so paid months stayed "Upcoming". Move those rows to the real id first.
+ */
+async function rebindScheduleToSubscription(supabase: any, sub: any) {
+  const scheduleId = typeof sub.schedule === 'string' ? sub.schedule : sub.schedule?.id;
+  if (!scheduleId || !sub.id) return;
+  const a = await supabase.from('pt_payment_plan_installments')
+    .update({ stripe_subscription_id: sub.id }).eq('stripe_subscription_id', scheduleId);
+  const b = await supabase.from('pt_passes')
+    .update({ stripe_subscription_id: sub.id }).eq('stripe_subscription_id', scheduleId);
+  if (a.error || b.error) console.error('PT schedule rebind failed', a.error ?? b.error);
+}
