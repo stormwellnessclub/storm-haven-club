@@ -3153,6 +3153,28 @@ serve(async (req) => {
 
         logStep("Payment method detached", { paymentMethodId });
 
+        // Upcoming PT payments that still showed the removed card now show
+        // the card Stripe will actually use (the customer's default).
+        try {
+          const cust = await stripe.customers.retrieve(customerId);
+          const defId = !cust.deleted ? (cust.invoice_settings?.default_payment_method as string | null) : null;
+          const fallback = allPaymentMethods.data.find((pm: any) => pm.id === defId)
+            ?? allPaymentMethods.data.find((pm: any) => pm.id !== paymentMethodId);
+          if (fallback && paymentMethod.card?.last4) {
+            const { data: passes } = await supabase.from('pt_passes').select('id').eq('user_id', user.id);
+            const passIds = (passes ?? []).map((p: { id: string }) => p.id);
+            if (passIds.length) {
+              await supabase.from('pt_payment_plan_installments')
+                .update({ payment_method_brand: fallback.card?.brand ?? null, payment_method_last4: fallback.card?.last4 ?? null })
+                .in('pass_id', passIds)
+                .eq('payment_method_last4', paymentMethod.card.last4)
+                .in('status', ['scheduled', 'pending', 'failed', 'past_due']);
+            }
+          }
+        } catch (labelError) {
+          logStep("detach: card label update failed", { error: String(labelError) });
+        }
+
         return new Response(
           JSON.stringify({ success: true }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
