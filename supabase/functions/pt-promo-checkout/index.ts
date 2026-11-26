@@ -35,9 +35,10 @@ Deno.serve(async (req) => {
     if (blocked?.length) return reply({ success: false, error: "Unable to buy online. Please contact the club." });
 
     const { data: pack } = await admin.from("pt_packs")
-      .select("id, name, sessions, price_cents, promo_key, promo_audience, sale_starts_at, sale_ends_at, is_active, expiration_days")
+      .select("id, name, sessions, price_cents, promo_key, promo_audience, sale_starts_at, sale_ends_at, is_active, expiration_days, sold_out")
       .eq("id", packId).not("promo_key", "is", null).maybeSingle();
     if (!pack) return reply({ success: false, error: "This offer is no longer available." });
+    if ((pack as any).sold_out) return reply({ success: false, code: "unavailable", error: "This package is sold out." });
 
     const { data: isMember } = await admin.rpc("pt_promo_is_member", { p_user: user.id });
     const block = promoBlockReason(pack, !!isMember, new Date());

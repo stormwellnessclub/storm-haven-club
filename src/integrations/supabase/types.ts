@@ -10600,6 +10600,7 @@ export type Database = {
           sale_ends_at: string | null
           sale_starts_at: string | null
           sessions: number
+          sold_out: boolean
           updated_at: string
         }
         Insert: {
@@ -10623,6 +10624,7 @@ export type Database = {
           sale_ends_at?: string | null
           sale_starts_at?: string | null
           sessions: number
+          sold_out?: boolean
           updated_at?: string
         }
         Update: {
@@ -10646,6 +10648,7 @@ export type Database = {
           sale_ends_at?: string | null
           sale_starts_at?: string | null
           sessions?: number
+          sold_out?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -20167,6 +20170,7 @@ export type Database = {
           promo_audience: string
           sale_ends_at: string
           sessions: number
+          sold_out: boolean
         }[]
       }
       pt_promo_plans: {

@@ -16,7 +16,7 @@ import { RedeemClassGift } from "@/components/seasonal/RedeemClassGift";
 import { SpaEditSection } from "@/components/seasonal/SpaEditSection";
 import trainingPhoto from "@/assets/gym-area-2.jpg";
 
-type Pack = { id: string; name: string; sessions: number; price_cents: number; promo_audience: string; sale_ends_at: string | null; expiration_days: number };
+type Pack = { id: string; name: string; sessions: number; price_cents: number; promo_audience: string; sale_ends_at: string | null; expiration_days: number; sold_out?: boolean };
 type Plan = { id: string; pack_id: string; installment_count: number; amount_due_at_sale_cents: number; installment_cents: number; final_installment_cents: number; plan_total_cents: number };
 type PlanRow = { number: number; dueDate: string; amountCents: number; feeCents: number };
 type Quote = { totalCents: number; feeCents?: number; brand: string; last4: string | null; plan?: boolean; rows?: PlanRow[] };
@@ -143,11 +143,12 @@ export default function BlackFriday() {
     const plan = p ? planFor(p.id) : undefined;
     return (
       <div className={`min-w-0 ${mine ? "" : "text-muted-foreground"}`}>
-        <p className="font-serif text-2xl">{p ? formatUsd(p.price_cents) : "—"}</p>
-        {plan && (
+        <p className={`font-serif text-2xl ${p?.sold_out ? "line-through text-muted-foreground" : ""}`}>{p ? formatUsd(p.price_cents) : "—"}</p>
+        {p?.sold_out && <p className="ed-caption mt-1 text-destructive">Sold out</p>}
+        {plan && !p?.sold_out && (
           <p className="text-xs mt-1">or {plan.installment_count} monthly payments of {formatUsd(plan.installment_cents)}</p>
         )}
-        {p && user && mine && !ended && (
+        {p && user && mine && !ended && !p.sold_out && (
           <div className="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-start">
             <Button size="sm" className="px-2 sm:px-3" onClick={() => choose(p)}>{plan ? "Pay in full" : "Buy"}</Button>
             {plan && <Button size="sm" variant="outline" className="px-2 sm:px-3 whitespace-normal h-auto min-h-9 py-2" onClick={() => choose(p, plan)}>Payment plan</Button>}
