@@ -115,7 +115,7 @@ export function CampaignResultsOverview({ campaigns, onOpen }: { campaigns: { id
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_sms_optout_summary" as any);
       if (error) throw error;
-      return data as { blocked_phones: number; recorded_stop_replies: number };
+      return data as { blocked_phones: number; recorded_stop_replies: number; carrier_filtered_30d?: number };
     },
   });
   return (
@@ -123,6 +123,7 @@ export function CampaignResultsOverview({ campaigns, onOpen }: { campaigns: { id
       <div className="border-b p-3">
         <div className="mb-3 flex flex-wrap gap-4 text-sm">
           <span>SMS opt-outs blocked: <strong>{smsError ? "Unavailable" : sms?.blocked_phones ?? "…"}</strong></span>
+          <span>Texts blocked by carriers (30 days): <strong>{smsError ? "Unavailable" : sms?.carrier_filtered_30d ?? "…"}</strong></span>
           <span>STOP replies recorded: <strong>{smsError ? "Unavailable" : sms?.recorded_stop_replies ?? "…"}</strong></span>
           <Button size="sm" variant="outline" onClick={async () => {
             try {

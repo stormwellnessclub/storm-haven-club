@@ -9,6 +9,7 @@ import { requireStaff } from "../_shared/requireStaff.ts";
 import { currentInternalToken, isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 import { isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
+import { PROMO_SMS_GAP_MS, inPromoCooldown, smsBlockingIssues, smsWordingWarnings } from "../_shared/smsPromoRules.ts";
 import { blocksText, brandIssues, renderCampaignHtml, type Block } from "../_shared/campaignRender.ts";
 import { runGoogleReviewTick, readGoogleReviews } from "../_shared/googleReviewFlow.ts";
 import { seasonalWeekDrafts, SEASONAL_WEEK_PREFIX } from "../_shared/seasonalCampaignWeek.ts";
@@ -165,6 +166,18 @@ async function sendSms(url: string, key: string, phone: string, userId: string |
   return { ok: r.ok && d?.success !== false && !d?.error, blocked, error: d?.error };
 }
 
+/** Reasons a campaign's texts may not go out: >1 link, or a big/imported list as the first promo after a quiet spell. */
+async function smsSendBlock(sb: any, c: any): Promise<string | null> {
+  const linkIssue = smsBlockingIssues(c.sms_body)[0];
+  if (linkIssue) return linkIssue;
+  const { count } = await sb.from("sms_messages").select("id", { count: "exact", head: true })
+    .like("idempotency_key", "mkt-%").not("idempotency_key", "like", "mkt-test-%").eq("status", "delivered")
+    .gte("created_at", new Date(Date.now() - 14 * 86_400_000).toISOString());
+  if ((count ?? 0) === 0 && /^(email_list|email_list_non_members|seasonal_engaged_imported)$/.test(String(c.audience_key)))
+    return "The first promo text after a quiet spell must go to members and recent clients only, not the imported list. Choose a smaller audience for texts.";
+  return null;
+}
+
 const smsWithStop = (t: string) => /reply stop/i.test(t) ? t : `${t.trim()} Reply STOP to opt out.`;
 
 // Big lists are sent in time-limited rounds: each round stops before the function's time
@@ -172,6 +185,7 @@ const smsWithStop = (t: string) => /reply stop/i.test(t) ? t : `${t.trim()} Repl
 // round never emails or texts the same person twice.
 const ROUND_MS = 110_000;
 const MAX_ROUNDS = 60;
+const MAX_SMS_ROUNDS = 400; // texts go out slowly (see smsPromoRules), so they need more rounds
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const isRateLimited = (err: any) => !!err && (err.statusCode === 429 || err.name === "rate_limit_exceeded" || /rate limit|too many requests/i.test(String(err.message ?? "")));
 
@@ -240,6 +254,12 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
       const handled = new Map<string, string>();
       for (const r of await pageAll(sb, "sms_messages", "idempotency_key, status", (q) => q.like("idempotency_key", `mkt-${c.id}:%`)))
         handled.set(String(r.idempotency_key).split(":")[1], String(r.status));
+      // Phones that got any other club promo text in the last 7 days are skipped (frequency cap).
+      const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+      const lastPromo = new Map<string, string>();
+      for (const r of await pageAll(sb, "sms_messages", "phone, created_at, idempotency_key, status",
+        (q) => q.like("idempotency_key", "mkt-%").not("idempotency_key", "like", "mkt-test-%").not("idempotency_key", "like", `mkt-${c.id}:%`).gte("created_at", since)))
+        if (!["blocked_no_consent", "failed"].includes(String(r.status))) lastPromo.set(digits(r.phone).slice(-10), r.created_at);
       const seen = new Set<string>();
       const text = smsWithStop(`Storm Wellness Club: ${c.sms_body.replace(/^storm wellness club:\s*/i, "")}`);
       for (const p of people) {
@@ -253,14 +273,15 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
           else stats.sms.sent++;
           continue;
         }
+        if (inPromoCooldown(lastPromo.get(ph))) { stats.sms.skipped++; stats.sms.cooldown = (stats.sms.cooldown ?? 0) + 1; continue; }
         if (Date.now() > deadline) { more = true; break; }
-        await sleep(2200);
+        await sleep(PROMO_SMS_GAP_MS);
         const r = await sendSms(url, key, ph, p.user_id, `mkt-${c.id}:${ph}`, text, c.sms_image_url);
         if (r.ok) stats.sms.sent++; else if (r.blocked) stats.sms.skipped++; else stats.sms.failed++;
       }
     }
     if (more) {
-      if (round >= MAX_ROUNDS) throw new Error("Stopped after too many rounds. Press Send to finish the rest; nobody gets it twice.");
+      if (round >= (c.send_sms ? MAX_SMS_ROUNDS : MAX_ROUNDS)) throw new Error("Stopped after too many rounds. Press Send to finish the rest; nobody gets it twice.");
       await sb.from("marketing_campaigns").update({ stats: { ...stats, in_progress: true } }).eq("id", c.id);
       try { await startNextRound(c.id); }
       catch (e) { throw new Error(`Paused partway (${(e as Error).message}). Press Send to finish the rest; nobody gets it twice.`); }
@@ -341,7 +362,13 @@ Deno.serve(async (req) => {
       const { data: c } = await sb.from("marketing_campaigns").select("*").eq("id", body.id).maybeSingle();
       if (!c) return json({ ok: false, skipped: "not found" });
       if (body.action === "run_scheduled") {
-        if (c.status !== "scheduled" || !(await claimCampaign(sb, c.id, ["scheduled"]))) return json({ ok: false, skipped: "not scheduled" });
+        if (c.status !== "scheduled") return json({ ok: false, skipped: "not scheduled" });
+        const smsBlock = c.send_sms && c.sms_body ? await smsSendBlock(sb, c) : null;
+        if (smsBlock) {
+          await sb.from("marketing_campaigns").update({ status: "failed", last_error: smsBlock }).eq("id", c.id).eq("status", "scheduled");
+          return json({ ok: false, skipped: smsBlock });
+        }
+        if (!(await claimCampaign(sb, c.id, ["scheduled"]))) return json({ ok: false, skipped: "not scheduled" });
         c.stats = null; // a fresh send starts at round 1
       } else if (c.status !== "sending") return json({ ok: false, skipped: "not sending" });
       // Answer right away; the round keeps running in the background.
@@ -384,7 +411,8 @@ Deno.serve(async (req) => {
       }
       case "preview": {
         const blocks: Block[] = Array.isArray(body.blocks) ? body.blocks : [];
-        const issues = brandIssues(`${body.subject ?? ""}\n${body.preheader ?? ""}\n${blocksText(blocks)}\n${body.sms ?? ""}`);
+        const issues = [...brandIssues(`${body.subject ?? ""}\n${body.preheader ?? ""}\n${blocksText(blocks)}\n${body.sms ?? ""}`),
+          ...(body.sms ? [...smsBlockingIssues(body.sms), ...smsWordingWarnings(body.sms)] : [])];
         return json({ ok: true, html: renderCampaignHtml(blocks, { firstName: "Jane", preheader: body.preheader }), issues });
       }
       case "test_email": {
@@ -414,6 +442,8 @@ Deno.serve(async (req) => {
         if (c.status === "sent" || c.status === "sending") return json({ ok: false, error: "This campaign was already sent" });
         if (!c.subject && c.send_email) return json({ ok: false, error: "Add a subject first" });
         if (c.status === "scheduled") return json({ ok: false, error: "This campaign is scheduled. Stop the schedule first to send it now." });
+        const smsBlock = c.send_sms && c.sms_body ? await smsSendBlock(sb, c) : null;
+        if (smsBlock) return json({ ok: false, error: smsBlock });
         if (!(await claimCampaign(sb, c.id, ["draft", "failed"]))) return json({ ok: false, error: "This campaign is already sending" });
         c.stats = null;
         return json({ ok: true, stats: await runCampaign(sb, c, uid) });
