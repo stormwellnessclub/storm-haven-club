@@ -23,3 +23,18 @@ When you add a trainer schedule in PT admin and turn off "Visible to public", th
 - Add `pt_trainer_day_windows(p_instructor_id, p_date, p_public_only boolean default false)`. With true, filter recurring and extra rows to `is_public`. 'replace' exceptions stay as-is, since they're staff-entered day replacements. Pass true from the client-facing callers only. Staff callers keep the default false.
 - One migration with `CREATE OR REPLACE` for the affected client functions. Extend `src/lib/ptSameDayDatabase.test.ts` with a hidden-window case.
 - Add an AGENTS.md rule saying client availability must respect `is_public`.
+
+---
+
+# Higher Self Society: final RSVP email and RSVP close
+
+## What happens
+1. A warm "last day to RSVP" email for the Dec 3 gathering goes to the 6 people who haven't answered: Elizabeth, Batoul, Maryam, Alise, Lilian, and Zahraa (who said maybe). It names the book, The 48 Laws of Power, gives the date, and says RSVPs close tomorrow night. Aya C. and everyone already going are left out. Email only, no texts.
+2. RSVPs for Dec 3 close at 11:59 PM Detroit time on Saturday, Nov 28. After that, the RSVP box on the Society page stays visible but says "RSVPs are closed." The buttons stop working, and existing answers stay as they are.
+3. The server enforces the close too, so a late answer can't slip in.
+
+## Technical details
+- Add a nullable `rsvp_closes_at timestamptz` column to `events`. Set it for the Dec 3 event to 2026-11-28 23:59:59 America/Detroit.
+- Add a trigger on `society_meeting_rsvps` that rejects inserts and updates after the event's `rsvp_closes_at`. Admins are exempt.
+- `SocietyRsvp.tsx` reads `rsvp_closes_at` and shows a closed state with the answer the member already gave.
+- Send through the existing admin staff-email path (`send-email`) to people on record, one email per person, and log each send.
