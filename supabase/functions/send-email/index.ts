@@ -1441,14 +1441,15 @@ serve(async (req) => {
             <div style="${emailStyles.content}">
               <h2 style="${emailStyles.heading}">Hello ${data.name || 'Member'},</h2>
               
-              <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
+              ${data.plainNote ? '' : `<p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 Thank you for reaching out to us. We've received your message and wanted to respond:
-              </p>
+              </p>`}
               
               <div style="background: #f9fafb; border-left: 4px solid #C9A227; padding: 20px; margin: 25px 0; border-radius: 4px;">
                 <div style="white-space: pre-wrap; color: #374151; line-height: 1.8;">${data.message || ''}</div>
               </div>
               
+${data.plainNote ? '' : `
               <p style="font-size: 16px; line-height: 1.8; color: #374151; margin-bottom: 20px;">
                 If you have any further questions, you can simply reply to this email and we'll see it — or use your member portal.
               </p>
@@ -1461,6 +1462,7 @@ serve(async (req) => {
                 <p style="font-style: italic; color: #6b7280; margin-bottom: 5px;">Best regards,</p>
                 <p style="font-weight: 600; color: #1f2937; margin: 0;">Storm Wellness Club Team</p>
               </div>
+              `}
             </div>
             ${getEmailFooter()}
           </div>
