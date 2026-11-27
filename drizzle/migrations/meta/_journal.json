@@ -1597,6 +1597,13 @@
       "when": 1795774749046,
       "tag": "0227_society_rsvp_close_time",
       "breakpoints": true
+    },
+    {
+      "idx": 228,
+      "version": "7",
+      "when": 1795776566733,
+      "tag": "0228_society_deadline_admin_exception",
+      "breakpoints": true
     }
   ]
 }

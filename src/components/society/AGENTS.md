@@ -1,0 +1,1 @@
+- Society reply deadlines come from events.rsvp_closes_at, enforced by the database trigger and a one-time UI timeout; retain the gathering and existing reply when closed. Why: late replies must be refused without hiding the event.

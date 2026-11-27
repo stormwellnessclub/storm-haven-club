@@ -1,5 +1,10 @@
 # Booking conversion roadmap
 
+## Nov 27 hidden PT hours and final Society RSVP
+- [x] Respect hidden recurring and extra PT hours in client time lists and server request checks, retaining staff access; 11 isolated tests pass and live client reads omit Storm's hidden Nov 27 1 PM hour.
+- [x] Email the six non-confirmed Dec 3 Society attendees, excluding Aya C. and everyone already confirmed; six sends logged as sent.
+- [x] Close Society replies Nov 28 at 11:59 PM Detroit while keeping the gathering and closed reply notice visible; deadline tests pass and the gathering remains visible.
+
 ## Same-day PT openings (Nov 24)
 - [x] Include today in all-trainer and single-trainer open-time lists; allow same-day requests, changes and waitlists, rejecting elapsed starts and retaining staff confirmation/conflict checks.
 - [x] Verify 30 isolated tests and signed-in live reads: 5 same-day Semi-Private slots and 5 One-on-One slots, no elapsed starts. Read member/non-member, public inquiry, staff booking/reschedule/confirm/alternate, calendars/mobile, recurring hours/blocks, waitlists and background paths; no additional tomorrow cutoffs found. No client records, appointments, payments or notifications changed. Owner portal visual check stops at existing required-phone prompt; no phone data invented or saved.
