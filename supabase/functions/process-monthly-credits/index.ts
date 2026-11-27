@@ -66,6 +66,7 @@ serve(async (req) => {
     );
 
 
+    const CATCH_UP_DAYS = 14;
     const today = new Date();
     const dayOfMonth = today.getDate();
 
@@ -104,8 +105,17 @@ serve(async (req) => {
       const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
       const effectiveStartDay = Math.min(startDay, lastDayOfMonth);
 
-      if (dayOfMonth !== effectiveStartDay) {
-        continue; // Not this member's billing day
+      // Most recent billing anniversary (this month, or last month if not reached yet).
+      // Members whose dues were late (past due on the anniversary, paid days later)
+      // are caught up here on a later run, up to CATCH_UP_DAYS after the anniversary.
+      let cycleStart = new Date(today.getFullYear(), today.getMonth(), effectiveStartDay);
+      if (dayOfMonth < effectiveStartDay) {
+        const prevLast = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+        cycleStart = new Date(today.getFullYear(), today.getMonth() - 1, Math.min(startDay, prevLast));
+      }
+      const daysSince = Math.floor((new Date(today.getFullYear(), today.getMonth(), dayOfMonth).getTime() - cycleStart.getTime()) / 86_400_000);
+      if (daysSince > CATCH_UP_DAYS) {
+        continue; // Too long after the billing day; staff handle anything older
       }
 
       console.log(`[process-monthly-credits] Processing member ${member.id} (${member.membership_type})`);
@@ -120,7 +130,6 @@ serve(async (req) => {
       }
 
       // Use the member's actual billing anniversary date as cycle start
-      const cycleStart = new Date(today.getFullYear(), today.getMonth(), effectiveStartDay);
       const nextCycleStart = addMonths(cycleStart, 1);
       const cycleEnd = subDays(nextCycleStart, 1);
       const expiresAt = endOfDay(cycleEnd);
@@ -133,7 +142,9 @@ serve(async (req) => {
         .from("member_credits")
         .select("id, credit_type")
         .eq("member_id", member.id)
-        .eq("cycle_start", cycleStartStr);
+        // Any credit started within a week of this cycle counts (manual or shifted grants)
+        .gte("cycle_start", formatDate(subDays(cycleStart, 7)))
+        .lte("cycle_start", formatDate(addMonths(cycleStart, 1)));
 
       const existingTypes = new Set(existingCredits?.map((c: any) => c.credit_type) || []);
 
