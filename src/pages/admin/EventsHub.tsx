@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SOUND_BATH_VOTE, isVoteOpen } from "@/lib/eventVote";
 import { useEventVoteTallies } from "@/hooks/useEventVote";
+import { useSocietyEventRsvps } from "@/hooks/useSocietyEventRsvps";
 import { format } from "date-fns";
 import { ArrowRight, Calendar, Ticket, Vote, Sparkles } from "lucide-react";
 
@@ -103,6 +104,8 @@ export default function EventsHub() {
     },
   });
 
+  const { data: societyRsvps = {} } = useSocietyEventRsvps(ticketedEvents.map((e: any) => e.id));
+
   const totalTicketsSold = Object.values(ticketStats).reduce((a, b) => a + b.sold, 0);
   const totalAbandoned = Object.values(ticketStats).reduce((a, b) => a + b.abandoned, 0);
   const totalPending = Object.values(ticketStats).reduce((a, b) => a + b.pending, 0);
@@ -183,6 +186,14 @@ export default function EventsHub() {
                       <span className="text-muted-foreground">Sold</span>
                       <span className="font-semibold tabular-nums">{stats.sold} / {e.capacity}</span>
                     </div>
+                    {(societyRsvps[e.id]?.length ?? 0) > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Society RSVPs</span>
+                        <span className="font-semibold tabular-nums">
+                          {societyRsvps[e.id].filter((r) => r.response === "yes").length} going · {societyRsvps[e.id].filter((r) => r.response === "maybe").length} maybe
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between">
                       <span className="text-muted-foreground">Revenue</span>
                       <span className="font-semibold tabular-nums">${(stats.revenue / 100).toFixed(2)}</span>

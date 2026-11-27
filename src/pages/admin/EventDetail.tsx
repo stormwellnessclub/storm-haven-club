@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSocietyEventRsvps } from "@/hooks/useSocietyEventRsvps";
+import { SocietyRsvpList } from "@/components/events/SocietyRsvpList";
 import { formatInTimeZone } from "date-fns-tz";
 import { ArrowLeft, Ticket, DollarSign, Users, Clock, Download, Ban, Mail } from "lucide-react";
 import { format } from "date-fns";
@@ -48,6 +50,9 @@ export default function EventDetail() {
       return data;
     },
   });
+
+  const { data: societyMap = {} } = useSocietyEventRsvps(event?.id ? [event.id] : []);
+  const societyRows = event?.id ? societyMap[event.id] ?? [] : [];
 
   const paidTickets = tickets.filter((t: any) => t.status === "paid");
   const THIRTY_MIN = 30 * 60 * 1000;
@@ -199,6 +204,13 @@ export default function EventDetail() {
                 <CardContent><div className="text-3xl font-bold">${(revenueCents / 100).toFixed(2)}</div></CardContent>
               </Card>
             </div>
+
+            {societyRows.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle>Higher Self Society RSVPs</CardTitle></CardHeader>
+                <CardContent><SocietyRsvpList rows={societyRows} /></CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader>

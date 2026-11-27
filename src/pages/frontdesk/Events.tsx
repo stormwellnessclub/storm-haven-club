@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useSocietyEventRsvps } from "@/hooks/useSocietyEventRsvps";
+import { SocietyRsvpList } from "@/components/events/SocietyRsvpList";
 import { toast } from "sonner";
 import { FrontDeskShell } from "./FrontDeskShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,6 +162,9 @@ function EventCard({
     refetchInterval: 60_000,
   });
 
+  const { data: societyMap = {} } = useSocietyEventRsvps([event.id]);
+  const societyRows = societyMap[event.id] ?? [];
+  const societyGoing = societyRows.filter((r) => r.response === "yes").length;
   const sold = countData ?? 0;
   const checkedIn = tickets.filter((t) => t.checked_in_at).length;
 
@@ -191,6 +196,7 @@ function EventCard({
               <Users className="h-3 w-3" />
               {sold} / {event.capacity}
             </Badge>
+            {societyRows.length > 0 && <Badge variant="outline">{societyGoing} RSVP going</Badge>}
             {event.status === "sold_out" && (
               <Badge className="bg-red-600 hover:bg-red-600">Sold out</Badge>
             )}
@@ -200,6 +206,7 @@ function EventCard({
 
       {expanded && (
         <CardContent className="pt-0">
+          {societyRows.length > 0 && <div className="mb-4"><SocietyRsvpList rows={societyRows} /></div>}
           <div className="text-xs text-muted-foreground mb-2">
             {checkedIn} of {tickets.length} checked in
           </div>
