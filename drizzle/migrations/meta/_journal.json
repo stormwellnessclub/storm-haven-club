@@ -1583,6 +1583,20 @@
       "when": 1795766396325,
       "tag": "0225_sms_filtered_count",
       "breakpoints": true
+    },
+    {
+      "idx": 226,
+      "version": "7",
+      "when": 1795774723719,
+      "tag": "0226_pt_client_times_respect_hidden_schedules",
+      "breakpoints": true
+    },
+    {
+      "idx": 227,
+      "version": "7",
+      "when": 1795774749046,
+      "tag": "0227_society_rsvp_close_time",
+      "breakpoints": true
     }
   ]
 }

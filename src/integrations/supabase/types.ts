@@ -3898,6 +3898,7 @@ export type Database = {
           non_member_stripe_price_id: string | null
           round_key: string | null
           round_state: string | null
+          rsvp_closes_at: string | null
           series_key: string | null
           slug: string
           starts_at: string
@@ -3942,6 +3943,7 @@ export type Database = {
           non_member_stripe_price_id?: string | null
           round_key?: string | null
           round_state?: string | null
+          rsvp_closes_at?: string | null
           series_key?: string | null
           slug: string
           starts_at: string
@@ -3986,6 +3988,7 @@ export type Database = {
           non_member_stripe_price_id?: string | null
           round_key?: string | null
           round_state?: string | null
+          rsvp_closes_at?: string | null
           series_key?: string | null
           slug?: string
           starts_at?: string
@@ -20643,6 +20646,14 @@ export type Database = {
       }
       pt_slot_hard_conflict: { Args: { p: Json }; Returns: boolean }
       pt_trainer_day_windows: {
+        Args: { p_date: string; p_instructor_id: string }
+        Returns: {
+          source: string
+          win_end: string
+          win_start: string
+        }[]
+      }
+      pt_trainer_day_windows_public: {
         Args: { p_date: string; p_instructor_id: string }
         Returns: {
           source: string

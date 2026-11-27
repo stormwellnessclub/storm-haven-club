@@ -55,6 +55,16 @@ export function SocietyRsvp({ eventId, compact = false, allowDismiss = false }: 
   const { data: mine = {} } = useMySocietyRsvps();
   const save = useSaveSocietyRsvp();
   const [editing, setEditing] = useState(false);
+  const { data: closesAt } = useQuery({
+    queryKey: ["hss-rsvp-close", eventId],
+    enabled: !!eventId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("events").select("rsvp_closes_at" as any).eq("id", eventId).maybeSingle();
+      return ((data as any)?.rsvp_closes_at as string | null) ?? null;
+    },
+  });
+  const closed = !!closesAt && Date.now() > new Date(closesAt).getTime();
   if (!user && !compact) return (
     <a href="/auth?redirect=/rituals/higher-self-society" className="inline-block mt-6 mr-6 text-xs uppercase tracking-[0.2em] text-[hsl(var(--society-gold))]">Sign in to RSVP</a>
   );
@@ -63,6 +73,15 @@ export function SocietyRsvp({ eventId, compact = false, allowDismiss = false }: 
   const answered = current && current !== "dismissed";
 
   const stop = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); };
+
+  if (closed) {
+    return (
+      <div id="rsvp" className={compact ? "mt-4" : "mt-6"}>
+        <p className={compact ? "text-sm" : "font-serif text-xl"}>RSVPs are closed.</p>
+        {answered && <p className="mt-1 text-sm text-[hsl(var(--society-muted))]">{STATUS[current]}</p>}
+      </div>
+    );
+  }
 
   if (answered && !editing) {
     return (
