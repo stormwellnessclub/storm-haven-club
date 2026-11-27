@@ -9,7 +9,7 @@ import { requireStaff } from "../_shared/requireStaff.ts";
 import { currentInternalToken, isValidInternalToken, presentedInternalToken } from "../_shared/internalTaskToken.ts";
 import { isAllowedTestPhone, isAllowedTestRecipient } from "../_shared/security.ts";
 import { loadSuppressedEmails, marketingHeaders, withMarketingFooter } from "../_shared/marketingEmail.ts";
-import { PROMO_SMS_GAP_MS, inPromoCooldown, smsBlockingIssues, smsWordingWarnings } from "../_shared/smsPromoRules.ts";
+import { PROMO_SMS_GAP_MS, smsBlockingIssues, smsWordingWarnings } from "../_shared/smsPromoRules.ts";
 import { blocksText, brandIssues, renderCampaignHtml, type Block } from "../_shared/campaignRender.ts";
 import { runGoogleReviewTick, readGoogleReviews } from "../_shared/googleReviewFlow.ts";
 import { seasonalWeekDrafts, SEASONAL_WEEK_PREFIX } from "../_shared/seasonalCampaignWeek.ts";
@@ -254,12 +254,6 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
       const handled = new Map<string, string>();
       for (const r of await pageAll(sb, "sms_messages", "idempotency_key, status", (q) => q.like("idempotency_key", `mkt-${c.id}:%`)))
         handled.set(String(r.idempotency_key).split(":")[1], String(r.status));
-      // Phones that got any other club promo text in the last 7 days are skipped (frequency cap).
-      const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
-      const lastPromo = new Map<string, string>();
-      for (const r of await pageAll(sb, "sms_messages", "phone, created_at, idempotency_key, status",
-        (q) => q.like("idempotency_key", "mkt-%").not("idempotency_key", "like", "mkt-test-%").not("idempotency_key", "like", `mkt-${c.id}:%`).gte("created_at", since)))
-        if (!["blocked_no_consent", "failed"].includes(String(r.status))) lastPromo.set(digits(r.phone).slice(-10), r.created_at);
       const seen = new Set<string>();
       const text = smsWithStop(`Storm Wellness Club: ${c.sms_body.replace(/^storm wellness club:\s*/i, "")}`);
       for (const p of people) {
@@ -273,7 +267,6 @@ async function runCampaign(sb: any, c: any, triggeredBy: string | null) {
           else stats.sms.sent++;
           continue;
         }
-        if (inPromoCooldown(lastPromo.get(ph))) { stats.sms.skipped++; stats.sms.cooldown = (stats.sms.cooldown ?? 0) + 1; continue; }
         if (Date.now() > deadline) { more = true; break; }
         await sleep(PROMO_SMS_GAP_MS);
         const r = await sendSms(url, key, ph, p.user_id, `mkt-${c.id}:${ph}`, text, c.sms_image_url);

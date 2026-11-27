@@ -1,6 +1,5 @@
 // Promo text rules that lower carrier filtering (Twilio 30007). Pure functions; shared by
 // campaign-studio and tests. Transactional texts (bookings, reminders, receipts) never use these.
-export const PROMO_SMS_COOLDOWN_DAYS = 7;
 export const PROMO_SMS_PER_HOUR = 300;
 
 export function countLinks(text: string): number {
@@ -22,12 +21,6 @@ export function smsWordingWarnings(text: string): string[] {
   if (/\b(limited time|act now|hurry|last chance|don't miss|click here|100%|guarantee)/i.test(t)) out.push("Texts: phrases like \"act now\" or \"last chance\" are often filtered.");
   if (t.length > 320) out.push("Texts: over 320 characters; shorter texts are filtered less.");
   return out;
-}
-
-/** True when this phone already got a club promo text inside the cooldown window. */
-export function inPromoCooldown(lastPromoAt: string | null | undefined, now = Date.now()): boolean {
-  if (!lastPromoAt) return false;
-  return now - new Date(lastPromoAt).getTime() < PROMO_SMS_COOLDOWN_DAYS * 86_400_000;
 }
 
 /** Wait between promo texts so a big send spreads out over hours. */
