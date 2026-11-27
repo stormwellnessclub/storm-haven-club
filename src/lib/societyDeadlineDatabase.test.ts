@@ -25,7 +25,7 @@ beforeAll(async () => {
 beforeEach(async () => db.exec(`TRUNCATE society_meeting_rsvps; UPDATE test_identity SET role='member',clock='2026-11-29T04:59:58Z';`));
 afterAll(async () => db.close());
 it('Dec 3 replies close November 28 at 11:59:59 PM Detroit', async () => {
-  expect((await db.query(`SELECT rsvp_closes_at AT TIME ZONE 'America/Detroit' AS local FROM events`)).rows[0].local).toBe('2026-11-28 23:59:59');
+  expect((await db.query(`SELECT (rsvp_closes_at AT TIME ZONE 'America/Detroit')::text AS local FROM events`)).rows[0].local).toBe('2026-11-28 23:59:59');
   await db.exec(`INSERT INTO society_meeting_rsvps VALUES('${event}','yes'); UPDATE test_identity SET clock='2026-11-29T05:00:00Z';`);
   await expect(db.exec(`INSERT INTO society_meeting_rsvps VALUES('${event}','maybe');`)).rejects.toThrow('RSVPs are closed');
 });
