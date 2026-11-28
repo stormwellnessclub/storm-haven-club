@@ -87,7 +87,7 @@ export default function EventsPortalSociety() {
         </TabsList>
 
         <TabsContent value={SOCIETY_ROUNDS[0].key}>
-          <SocietyRsvpAdmin round={SOCIETY_ROUNDS[0]} roster={rows} />
+          <SocietyRsvpAdmin round={SOCIETY_ROUNDS[0]} />
           <SocietyBookVoteAdmin />
           <div className="space-y-6 pt-6">
             <SocietyLastCallControls audience="book_winner" />
@@ -99,6 +99,7 @@ export default function EventsPortalSociety() {
 
         <TabsContent value={SOCIETY_ROUNDS[1].key}>
           <p className="text-sm text-muted-foreground mb-4">Voting closes {SOCIETY_ROUNDS[1].voteClosesLabel}. The ballot is added once the book list is ready. Meeting: {SOCIETY_ROUNDS[1].meetingLabel}.</p>
+          <SocietyRsvpAdmin round={SOCIETY_ROUNDS[1]} />
           <SocietyRoundSignups rows={rows} roundKey={SOCIETY_ROUNDS[1].key} roundLabel={SOCIETY_ROUNDS[1].label} />
           <Collapsible>
             <CollapsibleTrigger asChild><Button variant="outline" size="sm">Messages for this round</Button></CollapsibleTrigger>

@@ -1,30 +1,36 @@
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import type { SocietyRsvpRow } from "@/hooks/useSocietyEventRsvps";
+import { SOCIETY_ROUNDS } from "@/lib/societyBooks";
+import type { AttendanceRow, AttendanceStatus } from "@/lib/societyRoundAttendance";
 
-const LABEL: Record<string, string> = { yes: "Going", maybe: "Maybe", no: "Can't make it", dismissed: "Dismissed" };
-const ORDER = ["yes", "maybe", "no", "dismissed"];
+export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
+  yes: "Going", maybe: "Maybe", spot: "Event spot", no: "Can't make it", dismissed: "Closed reminder", none: "No answer",
+};
+const roundShort = (k: string) => SOCIETY_ROUNDS.find((r) => r.key === k)?.label.split(":")[0] ?? k;
 
-/** Society RSVPs shown beside tickets; members RSVP on the Society page, not through tickets. */
-export function SocietyRsvpList({ rows, showContact = true }: { rows: SocietyRsvpRow[]; showContact?: boolean }) {
-  const sorted = [...rows].sort((a, b) => ORDER.indexOf(a.response) - ORDER.indexOf(b.response) || a.name.localeCompare(b.name));
+/** The shared Higher Self Society list (useSocietyRoundAttendance): same names and counts on every page. */
+export function SocietyRsvpList({ rows, showContact = true, showLink = true }: { rows: AttendanceRow[]; showContact?: boolean; showLink?: boolean }) {
+  const n = (s: AttendanceStatus) => rows.filter((r) => r.status === s).length;
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span>
-          <strong>{rows.filter((r) => r.response === "yes").length}</strong> going ·{" "}
-          <strong>{rows.filter((r) => r.response === "maybe").length}</strong> maybe (society RSVPs)
+          <strong>{n("yes")}</strong> going · <strong>{n("maybe")}</strong> maybe · <strong>{n("spot")}</strong> event spots ·{" "}
+          <strong>{n("no")}</strong> can't make it · <strong>{n("none") + n("dismissed")}</strong> no answer
         </span>
-        <Link to="/events-portal/society" className="text-xs underline text-muted-foreground">Open Higher Self Society</Link>
+        {showLink && <Link to="/events-portal/society" className="text-xs underline text-muted-foreground">Open Higher Self Society</Link>}
       </div>
-      <div className="border rounded divide-y text-sm max-h-80 overflow-auto">
-        {sorted.map((r) => (
-          <div key={r.user_id} className="flex items-center justify-between gap-2 px-3 py-2">
+      <div className="border rounded divide-y text-sm max-h-96 overflow-auto">
+        {rows.map((r) => (
+          <div key={r.key} className="flex items-center justify-between gap-2 px-3 py-2">
             <div className="min-w-0">
-              <div className="font-medium truncate">{r.name}</div>
+              <div className="font-medium truncate">
+                {r.name}
+                {r.rounds.length > 1 && <span className="ml-2 text-xs font-normal text-muted-foreground">Also in {r.rounds.slice(1).map(roundShort).join(", ")}</span>}
+              </div>
               {showContact && <div className="text-xs text-muted-foreground truncate">{[r.email, r.phone].filter(Boolean).join(" · ")}</div>}
             </div>
-            <Badge variant={r.response === "yes" ? "default" : "secondary"}>{LABEL[r.response] ?? r.response}</Badge>
+            <Badge variant={r.status === "yes" ? "default" : r.status === "none" || r.status === "dismissed" ? "outline" : "secondary"}>{ATTENDANCE_LABEL[r.status]}</Badge>
           </div>
         ))}
       </div>

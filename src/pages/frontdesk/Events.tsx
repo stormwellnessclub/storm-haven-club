@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useSocietyEventRsvps } from "@/hooks/useSocietyEventRsvps";
+import { useSocietyRoundAttendance } from "@/hooks/useSocietyRoundAttendance";
 import { SocietyRsvpList } from "@/components/events/SocietyRsvpList";
 import { toast } from "sonner";
 import { FrontDeskShell } from "./FrontDeskShell";
@@ -162,9 +162,9 @@ function EventCard({
     refetchInterval: 60_000,
   });
 
-  const { data: societyMap = {} } = useSocietyEventRsvps([event.id]);
-  const societyRows = societyMap[event.id] ?? [];
-  const societyGoing = societyRows.filter((r) => r.response === "yes").length;
+  const { data: societyData } = useSocietyRoundAttendance({ eventId: event.id });
+  const societyRows = societyData?.rows ?? [];
+  const societyGoing = societyRows.filter((r) => r.status === "yes").length;
   const sold = countData ?? 0;
   const checkedIn = tickets.filter((t) => t.checked_in_at).length;
 
