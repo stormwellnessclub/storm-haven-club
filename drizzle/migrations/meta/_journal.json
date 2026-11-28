@@ -1604,6 +1604,13 @@
       "when": 1795776566733,
       "tag": "0228_society_deadline_admin_exception",
       "breakpoints": true
+    },
+    {
+      "idx": 229,
+      "version": "7",
+      "when": 1795862081321,
+      "tag": "0229_close_kids_care_direct_insert_and_pt_sale_record",
+      "breakpoints": true
     }
   ]
 }
