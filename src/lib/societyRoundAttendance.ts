@@ -1,8 +1,8 @@
 /** One Higher Self Society list per round: roster members of that round, RSVPs and event spots merged once per person. */
-export type AttendanceStatus = "yes" | "maybe" | "no" | "dismissed" | "spot" | "none";
+export type AttendanceStatus = "yes" | "maybe" | "no" | "dismissed" | "none";
 export type AttendanceRow = {
   key: string; name: string; email: string | null; phone: string | null;
-  status: AttendanceStatus; rounds: string[];
+  status: AttendanceStatus; rounds: string[]; viaEvent?: boolean;
 };
 type Interest = { user_id?: string | null; full_name?: string | null; email?: string | null; phone?: string | null; joined_round_key?: string | null };
 type Rsvp = { user_id: string; response: string; name?: string | null; email?: string | null; phone?: string | null };
@@ -22,7 +22,8 @@ export function buildRoundAttendance(roundKey: string, roster: Interest[], rsvps
     const e = email?.trim().toLowerCase() || null;
     let key = find(uid, e);
     if (!key) { key = uid ? `u:${uid}` : `e:${e}`; rows.set(key, { key, ...base, email: base.email, rounds: [] }); }
-    const row = rows.get(key)!;
+    const row = rows.get(key);
+    if (!row) throw new Error("Attendance row could not be created");
     if (uid) alias.set(`u:${uid}`, key);
     if (e) alias.set(`e:${e}`, key);
     row.name = row.name || base.name; row.email = row.email || base.email; row.phone = row.phone || base.phone;
@@ -37,13 +38,15 @@ export function buildRoundAttendance(roundKey: string, roster: Interest[], rsvps
   roster.filter((i) => roundOfInterest(i) === roundKey).forEach((i) => {
     upsert(i.user_id, i.email, { name: i.full_name || i.email || "Member", email: i.email ?? null, phone: i.phone ?? null, status: "none" });
   });
+  const answered = new Set<string>();
   rsvps.forEach((r) => {
     const row = upsert(r.user_id, r.email, { name: r.name || r.email || "Member", email: r.email ?? null, phone: r.phone ?? null, status: "none" });
     row.status = (["yes", "maybe", "no", "dismissed"].includes(r.response) ? r.response : "none") as AttendanceStatus;
+    answered.add(row.key);
   });
   spots.forEach((s) => {
     const row = upsert(s.user_id, s.email, { name: s.name || s.email || "Guest", email: s.email ?? null, phone: s.phone ?? null, status: "none" });
-    if (row.status === "none" || row.status === "dismissed") row.status = "spot";
+    if (!answered.has(row.key)) { row.status = "yes"; row.viaEvent = true; }
   });
   // Label every round a person belongs to, so someone in Round 1 and Round 2 is clear.
   rows.forEach((row) => {
@@ -57,6 +60,6 @@ export function buildRoundAttendance(roundKey: string, roster: Interest[], rsvps
   return [...rows.values()];
 }
 
-const ORDER: AttendanceStatus[] = ["yes", "maybe", "spot", "no", "dismissed", "none"];
+const ORDER: AttendanceStatus[] = ["yes", "maybe", "no", "dismissed", "none"];
 export const sortAttendance = (rows: AttendanceRow[]) =>
   [...rows].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status) || a.name.localeCompare(b.name));

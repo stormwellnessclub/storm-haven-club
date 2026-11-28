@@ -1,5 +1,9 @@
 # Booking conversion roadmap
 
+## Nov 28 Society Round 1 correction
+- [x] Add Ayah Abouarabi to the Round 1 member roster without messages; saved account-linked row verified, Aya remains in Round 1 and Keziah retains only her event reservation.
+- [x] Count event reservations as Going on the shared attendance lists, preserving explicit RSVP answers; eight isolated tests pass and saved records confirm 13 going, 1 maybe. Build OK. Staff-page visual verification unavailable because the owner's signed-in account is refused by the existing staff gate; live site needs publishing.
+
 ## Nov 27 hidden PT hours and final Society RSVP
 - [x] Respect hidden recurring and extra PT hours in client time lists and server request checks, retaining staff access; 11 isolated tests pass and live client reads omit Storm's hidden Nov 27 1 PM hour.
 - [x] Email the six non-confirmed Dec 3 Society attendees, excluding Aya C. and everyone already confirmed; six sends logged as sent.

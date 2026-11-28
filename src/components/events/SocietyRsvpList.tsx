@@ -4,7 +4,7 @@ import { SOCIETY_ROUNDS } from "@/lib/societyBooks";
 import type { AttendanceRow, AttendanceStatus } from "@/lib/societyRoundAttendance";
 
 export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = {
-  yes: "Going", maybe: "Maybe", spot: "Event spot", no: "Can't make it", dismissed: "Closed reminder", none: "No answer",
+  yes: "Going", maybe: "Maybe", no: "Can't make it", dismissed: "Closed reminder", none: "No answer",
 };
 const roundShort = (k: string) => SOCIETY_ROUNDS.find((r) => r.key === k)?.label.split(":")[0] ?? k;
 
@@ -15,7 +15,7 @@ export function SocietyRsvpList({ rows, showContact = true, showLink = true }: {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
         <span>
-          <strong>{n("yes")}</strong> going · <strong>{n("maybe")}</strong> maybe · <strong>{n("spot")}</strong> event spots ·{" "}
+          <strong>{n("yes")}</strong> going · <strong>{n("maybe")}</strong> maybe ·{" "}
           <strong>{n("no")}</strong> can't make it · <strong>{n("none") + n("dismissed")}</strong> no answer
         </span>
         {showLink && <Link to="/events-portal/society" className="text-xs underline text-muted-foreground">Open Higher Self Society</Link>}
@@ -30,7 +30,7 @@ export function SocietyRsvpList({ rows, showContact = true, showLink = true }: {
               </div>
               {showContact && <div className="text-xs text-muted-foreground truncate">{[r.email, r.phone].filter(Boolean).join(" · ")}</div>}
             </div>
-            <Badge variant={r.status === "yes" ? "default" : r.status === "none" || r.status === "dismissed" ? "outline" : "secondary"}>{ATTENDANCE_LABEL[r.status]}</Badge>
+            <Badge className="shrink-0" variant={r.status === "yes" ? "default" : r.status === "none" || r.status === "dismissed" ? "outline" : "secondary"}>{ATTENDANCE_LABEL[r.status]}{r.viaEvent ? " · via event page" : ""}</Badge>
           </div>
         ))}
       </div>
