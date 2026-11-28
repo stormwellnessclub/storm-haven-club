@@ -1,5 +1,10 @@
 # Booking conversion roadmap
 
+## Nov 28 Twilio reactivation campaign
+- [x] Verify owner-only text through Campaign Studio and receive delivered status; no clients contacted.
+- [x] Correct double-counted full website links; four tests pass and deployed campaign preview reports no issues.
+- [x] Prepare new Seasonal Edit text draft for members and recent clients; saved draft opens in staff Campaign Studio, unscheduled. Client sending waits for owner wording/time approval.
+
 ## Nov 28 Society Round 1 correction
 - [x] Add Ayah Abouarabi to the Round 1 member roster without messages; saved account-linked row verified, Aya remains in Round 1 and Keziah retains only her event reservation.
 - [x] Count event reservations as Going on the shared attendance lists, preserving explicit RSVP answers; eight isolated tests pass and saved records confirm 13 going, 1 maybe. Build OK. Staff-page visual verification unavailable because the owner's signed-in account is refused by the existing staff gate; live site needs publishing.

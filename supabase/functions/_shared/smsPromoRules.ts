@@ -3,7 +3,7 @@
 export const PROMO_SMS_PER_HOUR = 300;
 
 export function countLinks(text: string): number {
-  return (String(text ?? "").match(/(https?:\/\/|www\.|\b[a-z0-9-]+\.(com|net|org|co|ly|io|app)\b)/gi) ?? []).length;
+  return (String(text ?? "").match(/https?:\/\/[^\s<>]+|www\.[^\s<>]+|\b[a-z0-9-]+\.(?:com|net|org|co|ly|io|app)\b(?:\/[^\s<>]*)?/gi) ?? []).length;
 }
 
 /** Blocking problems: a promo text with more than one link cannot be saved for sending. */
